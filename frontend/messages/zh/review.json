@@ -1,0 +1,16 @@
+{
+  "title": "审核识别结果",
+  "subtitle": "请仔细核对 AI 识别出的乐谱与原稿，确保内容准确无误。",
+  "originalScore": "原始乐谱",
+  "recognizedScore": "识别结果",
+  "looksGood": "确认无误",
+  "needsEdit": "需要编辑",
+  "loadFailed": "加载失败",
+  "saveFailed": "保存失败",
+  "loadFailedHint": "请确认任务已处理完成，或联系管理员。",
+  "invalidTaskState": "任务状态异常：{state}",
+  "loadTaskFailed": "无法加载任务详情",
+  "originalScorePage": "原始乐谱第 {page} 页",
+  "recognizedScorePage": "识别结果第 {page} 页",
+  "processing": "处理中..."
+}

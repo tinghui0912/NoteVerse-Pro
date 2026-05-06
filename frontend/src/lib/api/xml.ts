@@ -1,0 +1,96 @@
+/**
+ * XML 编辑相关 API
+ */
+import { apiClient, ApiResponse } from '../api-client';
+import type { SaveResponse, SaveAndRenderResponse, FingeringResponse } from '@/types/api';
+
+// ============ API 函数 ============
+
+/**
+ * 加载 XML 文件内容
+ * @param taskId 任务 ID
+ * @param source 源类型: 'enhanced' | 'final' | 'current'
+ * @param shareToken 可选的分享 token（用于非任务所有者访问）
+ */
+export async function loadXml(
+    taskId: string,
+    source: 'enhanced' | 'final' | 'current' = 'current',
+    shareToken?: string
+): Promise<string> {
+    const params: Record<string, string> = { source };
+    if (shareToken) {
+        params.share_token = shareToken;
+    }
+
+    const response = await apiClient.getRaw(`/xml/${taskId}/xml`, params);
+    const json = await response.json();
+    return json.data?.content || '';
+}
+
+/**
+ * 保存 XML 内容（统一接口）
+ * @param taskId 任务 ID
+ * @param content XML 内容
+ * @param fileType 文件类型 ('current_xml' | 'final_xml')
+ * @param imageType 图片类型（可选，传入则触发渲染）
+ * @param dpi 渲染 DPI（默认 300）
+ */
+export async function saveXmlContent(
+    taskId: string,
+    content: string,
+    fileType: 'current_xml' | 'final_xml' = 'current_xml',
+    imageType?: 'preview_image' | 'final_image',
+    dpi: number = 300
+): Promise<ApiResponse<SaveResponse>> {
+    return apiClient.post<ApiResponse<SaveResponse>>(`/xml/${taskId}/xml`, {
+        content,
+        file_type: fileType,
+        image_type: imageType,
+        dpi,
+    });
+}
+
+
+/**
+ * 生成钢琴指法
+ * @param taskId 任务 ID
+ * @param hand 手: 'right' | 'left' | 'both'
+ * @param depth 搜索深度 1-10
+ */
+export async function generateFingering(
+    taskId: string,
+    hand: 'right' | 'left' | 'both' = 'both',
+    depth: number = 6
+): Promise<ApiResponse<FingeringResponse>> {
+    return apiClient.post<ApiResponse<FingeringResponse>>(`/xml/${taskId}/fingering`, {
+        hand,
+        depth,
+    });
+}
+
+/**
+ * 确认识别结果（发布为最终版本）
+ * 服务端直接读取 current_xml 复制到 final.xml 并渲染
+ * @param taskId 任务 ID
+ * @param dpi 渲染 DPI（默认 300）
+ */
+export async function confirmRecognition(
+    taskId: string,
+    dpi: number = 300
+): Promise<ApiResponse<{
+    task_id: string;
+    final_xml: string;
+    final_images: string[];
+    image_count: number;
+}>> {
+    return apiClient.post(`/xml/${taskId}/confirm`, { dpi });
+}
+
+export const xmlApi = {
+    loadXml,
+    saveXmlContent,
+    generateFingering,
+    confirmRecognition,
+};
+
+export default xmlApi;

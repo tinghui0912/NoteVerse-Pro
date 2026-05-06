@@ -1,0 +1,246 @@
+
+'use client';
+
+import { useTranslations, useLocale } from 'next-intl';
+import { useRouter, usePathname, Link } from '@/i18n/routing';
+import { cn } from '@/lib/utils';
+import {
+  Book,
+  Check,
+  Globe,
+  Heart,
+  HelpCircle,
+  Home,
+  LogOut,
+  Menu,
+  Music2,
+  UploadCloud,
+  User,
+  X,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
+import { Button } from '../ui/button';
+import React, { useState } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { placeholderImages } from '@/lib/placeholder-images';
+import { ClientOnly } from '../client-only';
+
+const UserMenu = () => {
+  const { user, logout } = useAuth();
+  const t = useTranslations('common');
+  
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="relative h-10 w-10 rounded-full"
+        >
+          <Avatar className="h-9 w-9">
+            <AvatarImage
+              src={user?.avatar || placeholderImages['avatar-user']?.url}
+              alt={user?.name || ''}
+            />
+            <AvatarFallback>
+              <img
+                src={placeholderImages['avatar-user']?.url}
+                alt="avatar"
+                className="h-full w-full object-cover"
+              />
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{user?.name}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {t('premiumUser')}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/profile">
+            <User className="mr-2 h-4 w-4" />
+            <span>{t('profile')}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/subscriptions">
+            <Heart className="mr-2 h-4 w-4" />
+            <span>{t('subscriptions')}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={logout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>{t('logout')}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const LanguageSwitcher = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = useLocale();
+  
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white rounded-full">
+          <Globe className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => router.replace(pathname, { locale: 'zh' })}>
+          <div className="flex items-center w-full justify-between">
+            <span>中文</span>
+            {locale === 'zh' && <Check className="h-4 w-4" />}
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.replace(pathname, { locale: 'en' })}>
+          <div className="flex items-center w-full justify-between">
+            <span>English</span>
+            {locale === 'en' && <Check className="h-4 w-4" />}
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+export default function PillNav() {
+  const t = useTranslations('common');
+  const locale = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isAuthenticated, user, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navItems = isAuthenticated
+    ? [
+      { label: 'nav.home' as const, href: '/' as const },
+      { label: 'nav.upload' as const, href: '/upload' as const },
+      { label: 'nav.history' as const, href: '/history' as const },
+      { label: 'nav.pricing' as const, href: '/subscriptions' as const },
+      { label: 'nav.help' as const, href: '/help' as const },
+    ]
+    : [
+      { label: 'nav.home' as const, href: '/' as const },
+      { label: 'nav.pricing' as const, href: '/subscriptions' as const },
+      { label: 'nav.help' as const, href: '/help' as const },
+    ];
+
+
+
+
+  return (
+    <header className="absolute top-0 left-0 right-0 z-50 p-4">
+      <div className="max-w-7xl mx-auto flex items-center justify-between p-2 rounded-full bg-black/50 backdrop-blur-md border border-white/20">
+        {/* Logo */}
+        <Link href='/' className="flex items-center space-x-2 pl-2">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white">
+            <Music2 className="w-5 h-5 text-orange-500" />
+          </div>
+          <span className="font-bold text-lg tracking-wide hidden sm:block text-white">NoteVerse Pro</span>
+        </Link>
+
+        <ClientOnly>
+          <>
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-2">
+              {navItems.map((item) => {
+                const isActive = (item.href === '/' && pathname === '/') || (item.href !== '/' && pathname.startsWith(item.href));
+
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={cn(
+                      "px-4 py-2 rounded-full text-sm font-medium transition-colors duration-300",
+                      isActive
+                        ? 'bg-white text-black'
+                        : 'text-white hover:bg-white/20'
+                    )}
+                  >
+                    {t(item.label)}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Right side actions */}
+            <div className="flex items-center gap-1">
+              {isAuthenticated ? (
+                <UserMenu />
+              ) : (
+                <Link
+                  href="/login"
+                  className="hidden md:block text-sm font-medium px-5 py-2.5 rounded-full transition-colors bg-white text-black hover:bg-gray-200"
+                >
+                  {t('nav.login')}
+                </Link>
+              )}
+              <LanguageSwitcher />
+
+              {/* Mobile Menu Button */}
+              <div className="md:hidden">
+                <button
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className="p-2 text-white"
+                >
+                  {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              </div>
+            </div>
+          </>
+        </ClientOnly>
+      </div>
+
+      <ClientOnly>
+        <>
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-2 bg-black/90 backdrop-blur-lg rounded-xl p-4">
+              <nav className="flex flex-col space-y-2">
+                {navItems.map((item) => {
+                  const isActive = (item.href === '/' && pathname === '/') || (item.href !== '/' && pathname.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className={cn(
+                        "px-4 py-3 rounded-lg transition-colors text-base",
+                        isActive ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'
+                      )}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {t(item.label)}
+                    </Link>
+                  );
+                })}
+                {!isAuthenticated && (
+                  <Link href="/login" className="bg-white text-black text-center font-medium mt-2 px-5 py-2.5 rounded-full hover:bg-gray-200 transition-colors">
+                    {t('nav.login')}
+                  </Link>
+                )}
+              </nav>
+            </div>
+          )}
+        </>
+      </ClientOnly>
+    </header>
+  );
+}

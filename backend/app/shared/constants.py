@@ -1,0 +1,134 @@
+"""Shared business codes that are safe to use outside feature modules."""
+
+
+class ErrorCode:
+    INTERNAL_ERROR = "internal_error"
+    VALIDATION_ERROR = "validation_error"
+    RESOURCE_NOT_FOUND = "resource_not_found"
+    RESOURCE_ALREADY_EXISTS = "resource_already_exists"
+    BUSINESS_RULE_VIOLATION = "business_rule_violation"
+
+    AUTH_FAILED = "auth_failed"
+    UNAUTHORIZED = "unauthorized"
+    TOKEN_INVALID_EXPIRED = "token_invalid_expired"
+    ACCOUNT_INACTIVE = "account_inactive"
+    INVALID_CREDENTIALS = "invalid_credentials"
+    EMAIL_MISMATCH = "email_mismatch"
+    EMAIL_INVALID = "email_invalid"
+    VERIFICATION_CODE_INVALID = "verification_code_invalid"
+    VERIFICATION_CODE_WRONG = "verification_code_wrong"
+    VERIFICATION_TYPE_MISMATCH = "verification_type_mismatch"
+    RESET_TOKEN_INVALID = "reset_token_invalid"
+
+    NO_ACCESS = "no_access"
+    NO_EDIT_ACCESS = "no_edit_access"
+    NO_DELETE_ACCESS = "no_delete_access"
+    NO_SHARE_ACCESS = "no_share_access"
+    NO_DOWNLOAD_ACCESS = "no_download_access"
+
+    TASK_NOT_FOUND = "task_not_found"
+    TASK_ERROR = "task_error"
+    TASK_RUNNING = "task_running"
+    TASK_TIMEOUT = "task_timeout"
+    NO_FILE_IDS = "no_file_ids"
+    NO_TASK_IDS = "no_task_ids"
+    NO_DELETABLE_TASKS = "no_deletable_tasks"
+
+    FILE_ERROR = "file_error"
+    FILE_NOT_FOUND = "file_not_found"
+    FILE_READ_FAILED = "file_read_failed"
+    FILE_SAVE_FAILED = "file_save_failed"
+    FILE_COPY_FAILED = "file_copy_failed"
+    FILE_DELETE_FAILED = "file_delete_failed"
+    FILE_TYPE_NOT_ALLOWED = "file_type_not_allowed"
+    NO_FILE_SELECTED = "no_file_selected"
+
+    INVALID_SOURCE_TYPE = "invalid_source_type"
+    XML_NOT_FOUND = "xml_not_found"
+    TEMP_XML_NOT_FOUND = "temp_xml_not_found"
+    CURRENT_XML_NOT_FOUND = "current_xml_not_found"
+
+    SHARE_NOT_FOUND = "share_not_found"
+    SHARE_REVOKED = "share_revoked"
+    SHARE_EXPIRED = "share_expired"
+    SHARE_NO_DOWNLOAD = "share_no_download"
+    SHARE_ALREADY_SAVED = "share_already_saved"
+
+    PRACTICE_SESSION_NOT_FOUND = "practice_session_not_found"
+    PRACTICE_SESSION_INVALID_STATE = "practice_session_invalid_state"
+    PRACTICE_STREAM_NOT_READY = "practice_stream_not_ready"
+    PRACTICE_STREAM_CLOSED = "practice_stream_closed"
+    PRACTICE_AUDIO_FORMAT_UNSUPPORTED = "practice_audio_format_unsupported"
+    PRACTICE_ALIGNMENT_FAILED = "practice_alignment_failed"
+    PRACTICE_REPORT_FAILED = "practice_report_failed"
+    NO_PRACTICE_ACCESS = "no_practice_access"
+
+    USER_NOT_FOUND = "user_not_found"
+    EMAIL_NOT_FOUND = "email_not_found"
+    CURRENT_PASSWORD_REQUIRED = "current_password_required"
+    CURRENT_PASSWORD_WRONG = "current_password_wrong"
+    PASSWORD_TOO_SHORT = "password_too_short"
+    NO_AVATAR = "no_avatar"
+    AVATAR_PROCESS_FAILED = "avatar_process_failed"
+
+    EXTERNAL_SERVICE_ERROR = "external_service_error"
+    INPUT_FILE_MISSING = "input_file_missing"
+    AUDIVERIS_MISSING = "audiveris_missing"
+    AUDIVERIS_FAILED = "audiveris_failed"
+    MUSESCORE_MISSING = "musescore_missing"
+    MUSESCORE_FAILED = "musescore_failed"
+    PREVIEW_FAILED = "preview_failed"
+    EXCEL_NOT_AVAILABLE = "excel_not_available"
+
+    INVALID_HAND_TYPE = "invalid_hand_type"
+    INVALID_DEPTH = "invalid_depth"
+    PIANOPLAYER_NOT_AVAILABLE = "pianoplayer_not_available"
+    FINGERING_GENERATION_FAILED = "fingering_generation_failed"
+    FINGERING_FAILED = "fingering_failed"
+
+    REQUEST_TOO_FREQUENT = "request_too_frequent"
+
+    UNKNOWN_ERROR = "unknown_error"
+
+
+class SuccessCode:
+    UPDATE_SUCCESS = "update_success"
+    DELETE_SUCCESS = "delete_success"
+    SAVE_SUCCESS = "save_success"
+
+    PREVIEW_GENERATED = "preview_generated"
+    XML_SAVED = "xml_saved"
+    XML_SAVED_WITH_IMAGES = "xml_saved_with_images"
+    RECOGNITION_CONFIRMED = "recognition_confirmed"
+    RECOGNITION_CONFIRMED_WITH_IMAGES = "recognition_confirmed_with_images"
+    FINGERING_GENERATED = "fingering_generated"
+
+    SHARE_CREATED = "share_created"
+    SHARE_REMOVED = "share_removed"
+    SHARE_SAVED = "share_saved"
+    SHARE_ALREADY_SAVED = "share_already_saved"
+
+    PRACTICE_SESSION_CREATED = "practice_session_created"
+    PRACTICE_SESSION_PAUSED = "practice_session_paused"
+    PRACTICE_SESSION_RESUMED = "practice_session_resumed"
+    PRACTICE_SESSION_FINISHED = "practice_session_finished"
+    PRACTICE_REPORT_READY = "practice_report_ready"
+
+    PROFILE_UPDATED = "profile_updated"
+    PASSWORD_CHANGED = "password_changed"
+    AVATAR_UPLOADED = "avatar_uploaded"
+    AVATAR_DELETED = "avatar_deleted"
+
+    FILE_UPLOADED = "file_uploaded"
+    FILE_DELETED = "file_deleted"
+
+    VERIFICATION_CODE_SENT = "verification_code_sent"
+    EMAIL_VERIFIED = "email_verified"
+    VERIFICATION_SUCCESS = "verification_success"
+    PASSWORD_RESET_SUCCESS = "password_reset_success"
+
+    TASKS_DELETED = "tasks_deleted"
+    SHARES_DELETED = "shares_deleted"
+    PROCESSING_STARTED = "processing_started"
+
+__all__ = ["ErrorCode", "SuccessCode"]

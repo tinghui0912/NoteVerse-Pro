@@ -1,0 +1,74 @@
+'use client';
+
+import React, { useCallback, useEffect, useRef } from 'react';
+import { ScoreDataProvider, useScoreData } from './score-data-context';
+import { EditorStateProvider, useEditorState, type EditorMode } from './editor-state-context';
+import { HistoryProvider, useHistory } from './history-context';
+import { MusicXMLParser } from '@/lib/musicxml-parser';
+
+// Re-export types and hooks for convenience
+export { useScoreData } from './score-data-context';
+export { useEditorState, type EditorMode } from './editor-state-context';
+export { useHistory, useHistoryControl } from './history-context';
+
+// Re-export domain operation hooks
+export { useEntityEditor } from '../hooks/use-entity-editor';
+export { useVoiceEditor } from '../hooks/use-voice-editor';
+export { useHistoryEditor } from '../hooks/use-history-editor';
+export { useXmlUpdater } from '../hooks/use-xml-updater';
+export { useMetadataEditor } from '../hooks/use-metadata-editor';
+
+/**
+ * 组合 Hook - 获取所有编辑器上下文（用于复杂组件）
+ */
+export function useEditor() {
+    const scoreData = useScoreData();
+    const editorState = useEditorState();
+    const history = useHistory();
+
+    return {
+        ...scoreData,
+        ...editorState,
+        ...history,
+    };
+}
+
+/**
+ * 内部组件：连接 History 和 ScoreData
+ */
+function HistoryScoreDataConnector({ children }: { children: React.ReactNode }) {
+    const { currentXml, currentXmlRef, setCurrentXml, setScoreData, getExpectedVoices, scoreData } = useScoreData();
+    const { initialize, isInitialized } = useHistory();
+    const historyInitializedRef = useRef(false);
+
+    // 当 currentXml 首次设置时，初始化历史记录
+    useEffect(() => {
+        if (currentXml && !historyInitializedRef.current && !isInitialized) {
+            initialize(currentXml);
+            historyInitializedRef.current = true;
+        }
+    }, [currentXml, initialize, isInitialized]);
+
+    return <>{children}</>;
+}
+
+interface EditorProviderProps {
+    children: React.ReactNode;
+}
+
+/**
+ * 主 Editor Provider - 组合所有 Context
+ */
+export function EditorProvider({ children }: EditorProviderProps) {
+    return (
+        <ScoreDataProvider>
+            <HistoryProvider>
+                <EditorStateProvider>
+                    <HistoryScoreDataConnector>
+                        {children}
+                    </HistoryScoreDataConnector>
+                </EditorStateProvider>
+            </HistoryProvider>
+        </ScoreDataProvider>
+    );
+}

@@ -1,0 +1,7 @@
+{
+  "DOWNLOAD_FAILED": "文件下载失败，链接可能失效或任务不存在。",
+  "SHARE_NOT_FOUND": "该分享链接不存在或已被删除。",
+  "SHARE_REVOKED": "分享者已取消你对此链接的访问权限。",
+  "SHARE_EXPIRED": "该分享链接已过期。",
+  "UNKNOWN_ERROR": "发生未知错误，请稍后重试。"
+}

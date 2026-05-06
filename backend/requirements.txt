@@ -1,0 +1,45 @@
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+sqlmodel==0.0.14
+alembic==1.13.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+pydantic-settings==2.1.0
+pydantic[email]
+numpy<2
+redis==5.0.1
+celery==5.3.4
+loguru==0.7.3
+asyncpg==0.31.0
+psycopg[binary]==3.3.3
+
+# Worker sync database dependencies
+greenlet==3.0.3
+
+# Business logic dependencies
+opencv-python==4.8.1.78
+Pillow==10.0.1
+music21==9.1.0
+pymatchmaker
+paddleocr==2.7.3
+pianoplayer==2.2.1
+reportlab==4.0.4
+PyPDF2==3.0.1
+openpyxl==3.1.2
+python-dotenv==1.0.0
+httpx==0.26.0
+pytest==8.3.5
+pytest-asyncio==0.26.0
+ruff==0.11.7
+mypy==1.15.0
+pre-commit==4.2.0
+
+# ============================================
+# GPU 依赖 (需要手动安装，不能通过 pip install -r 安装)
+# ============================================
+# PyTorch (CUDA 11.8):
+#   pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --extra-index-url https://download.pytorch.org/whl/cu118
+#
+# PaddlePaddle (CUDA 11.8):
+#   pip install paddlepaddle-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu118/

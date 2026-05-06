@@ -1,0 +1,1 @@
+"""Practice module boundary."""

@@ -1,0 +1,76 @@
+{
+  "placeholderImages": [
+    {
+      "id": "main-bg",
+      "description": "Abstract musical background",
+      "imageUrl": "/images/placeholders/main-bg.jpg",
+      "imageHint": "abstract music"
+    },
+    {
+      "id": "feature-upload",
+      "description": "Sheet music upload illustration",
+      "imageUrl": "/images/placeholders/feature-upload.jpg",
+      "imageHint": "music sheet"
+    },
+    {
+      "id": "feature-recognize",
+      "description": "AI recognition process",
+      "imageUrl": "/images/placeholders/feature-recognize.jpg",
+      "imageHint": "AI technology"
+    },
+    {
+      "id": "feature-edit",
+      "description": "Editing a musical score online",
+      "imageUrl": "/images/placeholders/feature-edit.jpg",
+      "imageHint": "digital editor"
+    },
+    {
+      "id": "feature-share",
+      "description": "Sharing a score with others",
+      "imageUrl": "/images/placeholders/feature-share.jpg",
+      "imageHint": "collaboration network"
+    },
+    {
+      "id": "avatar-1",
+      "description": "User avatar for a testimonial",
+      "imageUrl": "/images/placeholders/avatar-1.jpg",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar-2",
+      "description": "Another user avatar for a testimonial",
+      "imageUrl": "/images/placeholders/avatar-2.jpg",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "avatar-3",
+      "description": "Third user avatar for a testimonial",
+      "imageUrl": "/images/placeholders/avatar-3.jpg",
+      "imageHint": "composer portrait"
+    },
+    {
+      "id": "avatar-user",
+      "description": "Default user avatar",
+      "imageUrl": "/images/placeholders/avatar-user.jpg",
+      "imageHint": "user icon"
+    },
+    {
+      "id": "score-example",
+      "description": "Example of a sheet music page",
+      "imageUrl": "/images/placeholders/score-example.jpg",
+      "imageHint": "sheet music"
+    },
+    {
+      "id": "score-example-2",
+      "description": "Another example of a sheet music page",
+      "imageUrl": "/images/placeholders/score-example-2.jpg",
+      "imageHint": "classical music"
+    },
+    {
+      "id": "score-example-3",
+      "description": "Close up of a piano score",
+      "imageUrl": "/images/placeholders/score-example-3.jpg",
+      "imageHint": "piano score"
+    }
+  ]
+}

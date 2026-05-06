@@ -1,0 +1,12 @@
+{
+  "title": "Help Center",
+  "subtitle": "Find answers to frequently asked questions here.",
+  "faq1Title": "How to improve recognition accuracy?",
+  "faq1Answer": "Please ensure the uploaded image is clear, evenly lit, and not distorted. Scans are preferred over photos.",
+  "faq2Title": "Which instrument fingerings are supported?",
+  "faq2Answer": "We currently primarily support piano fingerings and will add more instruments in the future.",
+  "faq3Title": "What file formats are supported for import/export?",
+  "faq3Answer": "We primarily support MusicXML for import and export, which is the standard format for digital scores. You can also export the final score as a PNG image.",
+  "faq4Title": "How does the practice mode work?",
+  "faq4Answer": "The practice mode listens to your performance in real-time through your device's microphone, compares it to the score, and provides instant feedback on your pitch and rhythm."
+}

@@ -1,0 +1,16 @@
+{
+  "title": "Review Recognition Result",
+  "subtitle": "Please carefully compare the AI-recognized score with the original to ensure accuracy.",
+  "originalScore": "Original Score",
+  "recognizedScore": "Recognized Score",
+  "looksGood": "Looks Good",
+  "needsEdit": "Needs Edit",
+  "loadFailed": "Load Failed",
+  "saveFailed": "Save Failed",
+  "loadFailedHint": "Please verify the task processing is complete, or contact admin.",
+  "invalidTaskState": "Invalid task state: {state}",
+  "loadTaskFailed": "Failed to load task details",
+  "originalScorePage": "Original Score Page {page}",
+  "recognizedScorePage": "Recognized Score Page {page}",
+  "processing": "Processing..."
+}

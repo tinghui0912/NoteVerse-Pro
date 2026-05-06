@@ -1,0 +1,33 @@
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = ["alembic", "venv", "var"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.mypy]
+python_version = "3.10"
+files = [
+  "app/__init__.py",
+  "app/api",
+  "app/core",
+  "app/db/__init__.py",
+  "app/db/session.py",
+  "app/db/worker_session.py",
+  "app/main.py",
+  "app/modules",
+  "app/pipeline",
+  "app/processing",
+  "app/shared",
+  "app/utils",
+  "app/worker",
+]
+exclude = "(^alembic/|^venv/|^var/)"
+ignore_missing_imports = true
+follow_imports = "skip"
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true

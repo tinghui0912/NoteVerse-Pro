@@ -1,0 +1,18 @@
+{
+  "siteName": "NoteVerse Pro",
+  "siteTitle": "NoteVerse Pro - AI-Powered Sheet Music Solution",
+  "siteDescription": "Upload, recognize, edit, and share sheet music. NoteVerse Pro is your all-in-one intelligent music score solution with AI recognition, online editing, and smart fingering generation.",
+  "siteKeywords": "sheet music recognition,AI music,MusicXML,piano fingering,score editor,NoteVerse Pro",
+  "editorTitle": "Score Editor",
+  "editorDescription": "Use the visual editor to make precise adjustments to your score, with note editing, fingering annotations, and live preview.",
+  "historyTitle": "History",
+  "historyDescription": "View and manage your sheet music recognition history.",
+  "uploadTitle": "Upload Score",
+  "uploadDescription": "Upload sheet music images and AI will automatically recognize and convert them to editable formats.",
+  "practiceTitle": "Practice Mode",
+  "practiceDescription": "Enter smart practice mode for real-time feedback and practice analysis reports.",
+  "profileTitle": "Profile",
+  "profileDescription": "Manage your account information and personal settings.",
+  "helpTitle": "Help Center",
+  "helpDescription": "View FAQs and usage guides."
+}

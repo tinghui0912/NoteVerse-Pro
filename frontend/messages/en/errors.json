@@ -1,0 +1,7 @@
+{
+  "DOWNLOAD_FAILED": "File download failed. The link or task might be invalid.",
+  "SHARE_NOT_FOUND": "This share link does not exist or has been deleted.",
+  "SHARE_REVOKED": "The owner has revoked your access to this link.",
+  "SHARE_EXPIRED": "This share link has expired.",
+  "UNKNOWN_ERROR": "An unknown error occurred. Please try again."
+}

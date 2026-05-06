@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: python -m ruff check
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: python -m mypy --config-file pyproject.toml
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: mypy-model-layer
+        name: mypy-model-layer
+        entry: python -m mypy --config-file mypy-model-layer.ini
+        language: system
+        types: [python]
+        pass_filenames: false
