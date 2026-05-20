@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from jose import JWTError, jwt
+import jwt
 from pydantic import ValidationError
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +43,7 @@ async def get_websocket_current_user(
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
         token_data = TokenPayload(**payload)
-    except (JWTError, ValidationError):
+    except (jwt.InvalidTokenError, ValidationError):
         raise AuthenticationException(
             code=ErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "invalid_token"},

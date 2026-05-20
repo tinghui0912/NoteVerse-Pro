@@ -31,8 +31,6 @@ class PracticeSessionDetail(BaseModel):
     frame_format: str
     started_at: Optional[str] = None
     finished_at: Optional[str] = None
-    last_event_index: Optional[int] = None
-    last_measure_index: Optional[int] = None
     last_beat_position: Optional[float] = None
     last_confidence: Optional[float] = None
     report_status: str
@@ -67,8 +65,6 @@ class PracticeSessionDetailResult(TypedDict):
     frame_format: str
     started_at: Optional[str]
     finished_at: Optional[str]
-    last_event_index: Optional[int]
-    last_measure_index: Optional[int]
     last_beat_position: Optional[float]
     last_confidence: Optional[float]
     report_status: str

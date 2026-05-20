@@ -151,8 +151,8 @@
 
 ### P1-6: 修复 `useAutoSave` 的 `isSaving` 状态问题
 
-- [ ] 将 `isSavingRef` 改为 `useState` 或通过 `useCallback` + 强制更新来驱动 UI 响应
-- [ ] 确保消费者能正确获取保存状态（例如显示保存指示器）
+- [x] 将 `isSavingRef` 改为 `useState` 或通过 `useCallback` + 强制更新来驱动 UI 响应
+- [x] 确保消费者能正确获取保存状态（例如显示保存指示器）
 
 **涉及文件**：
 - `src/hooks/use-auto-save.ts`
@@ -184,7 +184,7 @@
 
 ### P2-2: 拆分大文件
 
-- [ ] 将 `card-based-editor.tsx`（603 行）拆分为：
+- [x] 将 `card-based-editor.tsx`（603 行）拆分为：
   - `components/editor/note-card.tsx`
   - `components/editor/chord-card.tsx`
   - `components/editor/add-note-card.tsx`
@@ -192,7 +192,7 @@
   - `components/editor/drag-scroll-container.tsx`
   - `components/editor/bottom-sheet-context.tsx`
   - `components/editor/card-based-editor.tsx`（主组件，组合上述子组件）
-- [ ] 将 `use-entity-editor.ts`（462 行）重构：
+- [x] 将 `use-entity-editor.ts`（462 行）重构：
   - 提取 `insertEntity()` 为独立函数
   - 提取 `updateExistingEntity()` 为独立函数
   - 简化 `updateEntity` 回调的逻辑分支
@@ -205,13 +205,13 @@
 
 ### P2-3: 考虑升级状态管理方案
 
-- [ ] 评估将编辑器的 Context 嵌套替换为 `zustand` 或 `jotai`
-  - 避免 4 层 Provider 嵌套导致的性能问题
-  - 简化跨组件状态共享
-- [ ] 评估引入 `react-query` / `swr` 管理服务端数据状态
-  - 自动缓存、重新验证、乐观更新
-  - 替代手动管理的 loading/error 状态
-- [ ] 如决定引入，制定渐进式迁移计划（不建议一次性全部替换）
+- [x] 评估将编辑器的 Context 嵌套替换为 `zustand` 或 `jotai`
+  - **结论：不迁移。** 当前 3 层 Provider 已用 `useMemo` 优化，架构合理，迁移成本高收益低
+- [x] 评估引入 `react-query` / `swr` 管理服务端数据状态
+  - **结论：推荐 SWR（轻量、与 Next.js 契合），但非紧急，降为 P3 优先级**
+- [x] 拆分 `hoveredCardLocation` 为独立的 `HoverStateProvider`
+  - 避免鼠标移动时触发整棵编辑器组件树重渲染
+  - 新增 `contexts/hover-state-context.tsx`
 
 ---
 

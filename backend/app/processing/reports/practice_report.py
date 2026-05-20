@@ -27,8 +27,6 @@ class PracticeReportBuilder:
                 "state": session.state.value,
                 "source": session.source_type.value,
                 "duration_seconds": duration_seconds,
-                "last_event_index": session.last_event_index,
-                "last_measure_index": session.last_measure_index,
                 "last_beat_position": session.last_beat_position,
                 "last_confidence": session.last_confidence,
                 "confidence_label": confidence_label,
@@ -72,7 +70,7 @@ class PracticeReportBuilder:
                 "Keep the same pacing and focus on phrasing while timing remains stable."
             )
 
-        if session.last_measure_index is not None and session.last_measure_index <= 1:
+        if session.last_beat_position is not None and session.last_beat_position <= 4:
             recommendations.append(
                 "Try to play further into the score so the report can cover more of the piece."
             )

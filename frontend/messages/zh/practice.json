@@ -2,6 +2,7 @@
   "mode": "练习模式",
   "subtitle": "通过麦克风获取实时反馈，帮助你更稳定地提升演奏表现。",
   "start": "开始练习",
+  "preparingToPlay": "准备中，请稍候",
   "pause": "暂停练习",
   "resume": "继续练习",
   "finish": "结束练习",

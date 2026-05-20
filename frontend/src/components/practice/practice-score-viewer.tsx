@@ -24,7 +24,13 @@ type PracticeScoreViewerProps = {
   xmlContent: string | null;
   isLoadingXml: boolean;
   toolbar?: React.ReactNode;
-  practiceStatus: 'idle' | 'connecting' | 'practicing' | 'paused' | 'finished';
+  practiceStatus:
+    | 'idle'
+    | 'connecting'
+    | 'arming'
+    | 'practicing'
+    | 'paused'
+    | 'finished';
   alignment?: PracticeAlignmentUpdateMessage['payload'] | null;
 };
 

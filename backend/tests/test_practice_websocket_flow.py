@@ -41,33 +41,46 @@ class FailingEngine:
         _ = chunk
         raise RuntimeError("engine failure")
 
+    @property
+    def is_ready_for_performance(self) -> bool:
+        return False
+
+    def close(self) -> None:
+        pass
+
+
+class StreamingEngine:
+    def ingest_audio(self, chunk: bytes):
+        _ = chunk
+        return {
+            "beat_position": 0.0,
+            "confidence": 0.95,
+            "timestamp_ms": 20,
+            "score_completed": False,
+        }
+
+    @property
+    def is_ready_for_performance(self) -> bool:
+        return False
+
+    def close(self) -> None:
+        pass
+
 
 def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
     client: TestClient,
 ) -> None:
     practice_runtime_registry.clear()
-    runtime = practice_runtime_registry.register(
-        session_id="session-1",
-        task_id="task-1",
-        state="CREATED",
-        timeline={
-            "events": [
-                {
-                    "event_index": 0,
-                    "measure_index": 0,
-                    "measure_number": 1,
-                    "beat_position": 0.0,
-                    "duration_beats": 1.0,
-                    "is_rest": False,
-                    "staff": None,
-                    "voice": None,
-                    "pitches": ["C4"],
-                }
-            ],
-            "total_events": 1,
-            "total_measures": 1,
-        },
-    )
+    with patch(
+        "app.processing.realtime.session_runtime.build_alignment_engine",
+        return_value=StreamingEngine(),
+    ):
+        runtime = practice_runtime_registry.register(
+            session_id="session-1",
+            task_id="task-1",
+            state="CREATED",
+            score_file_path="score.xml",
+        )
 
     app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
 
@@ -94,8 +107,8 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                 websocket.send_json({"type": "client.pause"})
                 update = websocket.receive_json()
                 assert update["type"] == "alignment.update"
-                assert update["payload"]["event_index"] == 0
-                assert update["payload"]["measure_index"] == 0
+                assert update["payload"]["beat_position"] == 0.0
+                assert update["payload"]["confidence"] == 0.95
                 paused = websocket.receive_json()
                 assert paused == {
                     "type": "session.state_changed",
@@ -127,29 +140,16 @@ def test_practice_websocket_flow_surfaces_engine_failures(
     client: TestClient,
 ) -> None:
     practice_runtime_registry.clear()
-    runtime = practice_runtime_registry.register(
-        session_id="session-1",
-        task_id="task-1",
-        state="CREATED",
-        timeline={
-            "events": [
-                {
-                    "event_index": 0,
-                    "measure_index": 0,
-                    "measure_number": 1,
-                    "beat_position": 0.0,
-                    "duration_beats": 1.0,
-                    "is_rest": False,
-                    "staff": None,
-                    "voice": None,
-                    "pitches": ["C4"],
-                }
-            ],
-            "total_events": 1,
-            "total_measures": 1,
-        },
-    )
-    runtime.engine = FailingEngine()
+    with patch(
+        "app.processing.realtime.session_runtime.build_alignment_engine",
+        return_value=FailingEngine(),
+    ):
+        runtime = practice_runtime_registry.register(
+            session_id="session-1",
+            task_id="task-1",
+            state="CREATED",
+            score_file_path="score.xml",
+        )
     app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
 
     async def fake_current_user(websocket, db):

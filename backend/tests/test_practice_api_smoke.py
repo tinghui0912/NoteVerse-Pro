@@ -53,8 +53,6 @@ class FakePracticeService:
             "frame_format": "pcm_s16le",
             "started_at": None,
             "finished_at": None,
-            "last_event_index": 12,
-            "last_measure_index": 3,
             "last_beat_position": 15.5,
             "last_confidence": 0.91,
             "report_status": "READY",

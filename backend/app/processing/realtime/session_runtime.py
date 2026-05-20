@@ -9,7 +9,6 @@ from app.processing.engines.matchmaker_live import (
     AlignmentUpdate,
     build_alignment_engine,
 )
-from app.processing.engines.score_timeline import ScoreTimelineResult
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
 
 
@@ -18,7 +17,6 @@ class PracticeSessionRuntime:
     session_id: str
     task_id: str
     state: str
-    timeline: ScoreTimelineResult
     score_file_path: str
     sample_rate: int
     channels: int
@@ -29,17 +27,28 @@ class PracticeSessionRuntime:
     background_task: object | None = None
     last_alignment: Optional[AlignmentUpdate] = None
     pending_alignment_updates: int = 0
+    is_ready_for_performance: bool = False
+    pending_ready_notification: bool = False
     last_warning: Optional[str] = None
 
     def process_audio_chunk(self, chunk: bytes) -> AlignmentUpdate | None:
         self.audio_buffer.append(chunk)
         alignment = self.engine.ingest_audio(chunk)
+        if not self.is_ready_for_performance and self.engine.is_ready_for_performance:
+            self.is_ready_for_performance = True
+            self.pending_ready_notification = True
         if alignment is None:
             return None
         self.last_alignment = alignment
         self.pending_alignment_updates += 1
         self.last_warning = "low_confidence" if alignment["confidence"] < 0.5 else None
         return alignment
+
+    def consume_ready_notification(self) -> bool:
+        if not self.pending_ready_notification:
+            return False
+        self.pending_ready_notification = False
+        return True
 
     def is_score_completed(self) -> bool:
         return bool(self.last_alignment and self.last_alignment["score_completed"])
@@ -65,7 +74,6 @@ class PracticeSessionRuntimeRegistry:
         session_id: str,
         task_id: str,
         state: str,
-        timeline: ScoreTimelineResult,
         score_file_path: str,
         sample_rate: int = 16000,
         channels: int = 1,
@@ -75,7 +83,6 @@ class PracticeSessionRuntimeRegistry:
             session_id=session_id,
             task_id=task_id,
             state=state,
-            timeline=timeline,
             score_file_path=score_file_path,
             sample_rate=sample_rate,
             channels=channels,
@@ -83,7 +90,6 @@ class PracticeSessionRuntimeRegistry:
             audio_buffer=AudioChunkBuffer(),
             engine=build_alignment_engine(
                 engine_name=settings.PRACTICE_ALIGNMENT_ENGINE,
-                timeline=timeline,
                 score_file_path=score_file_path,
                 sample_rate=sample_rate,
                 channels=channels,

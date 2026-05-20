@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Music, Search, CheckCircle2, XCircle, Clock, LoaderCircle, ChevronRight, Eye, List, LayoutGrid, Trash2, Download, Edit, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
@@ -21,6 +21,8 @@ import { tasksApi, filesApi, sharesApi } from '@/lib/api';
 import type { Task, TaskState } from '@/types/api';
 import { ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { useTaskList, useDeleteTasks, useArchiveTasks } from '@/hooks/queries/use-task-queries';
+import { useSavedShares, useDeleteSavedShares } from '@/hooks/queries/use-share-queries';
 
 type UploadStatus = 'completed' | 'pending-review' | 'in-progress' | 'queued' | 'failed';
 
@@ -154,7 +156,7 @@ const ScoreCard = ({ item, isSelected, onSelect, selectionMode, isUpload }: {
           onClick={(e) => e.stopPropagation()}
         />
       </div>
-      <div className="relative aspect-[4/3] bg-gray-100">
+      <div className="relative aspect-4/3 bg-gray-100">
         {item.thumbnail ? (
           <Image src={item.thumbnail} alt={item.name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (item as TaskItem).thumbnailError ? (
@@ -215,258 +217,204 @@ export default function HistoryPage() {
   // 数据状态
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [shares, setShares] = useState<ShareItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [totalTasks, setTotalTasks] = useState(0);
   const [totalShares, setTotalShares] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
 
-  // 加载任务列表（silent=true 时静默刷新，不显示 loading）
-  const loadTasks = useCallback(async (silent = false) => {
-    if (!silent) {
-      setIsLoading(true);
-    }
-    try {
-      const stateFilter = mapStatusToTaskState(statusFilter);
-      const response = await tasksApi.listTasks(
-        uploadsPage,
-        ITEMS_PER_PAGE,
-        stateFilter,
-        sortBy,
-        sortOrder,
-        searchQuery || undefined
-      );
+  // Mutations
+  const deleteTasksMutation = useDeleteTasks();
+  const deleteSavedSharesMutation = useDeleteSavedShares();
+  const archiveTasksMutation = useArchiveTasks();
 
-      if (response.data) {
-        const mappedTasks: TaskItem[] = response.data.map((task: Task) => ({
-          id: task.task_id,
-          name: task.title || t('taskLabel', { id: task.task_id.slice(0, 8) }),
-          date: task.created_at || new Date().toISOString(),
-          status: mapTaskStateToStatus(task.state),
-          thumbnail: '', // 初始化为空
-          thumbnailType: task.thumbnail_type,
-        }));
+  const stateFilter = mapStatusToTaskState(statusFilter);
 
-        if (silent) {
-          // 静默刷新：只更新状态有变化的任务，保留缩略图
-          setTasks(prev => {
-            return mappedTasks.map(newTask => {
-              const existingTask = prev.find(t => t.id === newTask.id);
-              if (existingTask) {
-                // 保留已加载的缩略图，只更新状态
-                return {
-                  ...existingTask,
-                  status: newTask.status,
-                  thumbnailType: newTask.thumbnailType,
-                };
-              }
-              return newTask; // 新任务
-            });
-          });
-        } else {
-          // 正常加载：重置所有任务
-          setTasks(mappedTasks);
-          setTotalTasks(response.pagination?.total || mappedTasks.length);
+  // 1. TanStack Query：任务列表查询
+  const { data: tasksResponse, isLoading: isTasksLoading } = useTaskList(
+    { page: uploadsPage, pageSize: ITEMS_PER_PAGE, state: stateFilter, sortBy, sortOrder, search: searchQuery || undefined },
+    { refetchInterval: (activeTab === 'uploads' && statusFilter === 'all') ? 5000 : false }
+  );
 
-          // 异步加载真实缩略图
-          mappedTasks.forEach(async (task) => {
-            if (task.thumbnailType) {
-              const blobUrl = await fetchAuthenticatedImage(task.id, task.thumbnailType);
-              if (blobUrl) {
-                setTasks(prev => prev.map((t) =>
-                  t.id === task.id ? { ...t, thumbnail: blobUrl } : t
-                ));
-              } else {
-                setTasks(prev => prev.map((t) =>
-                  t.id === task.id ? { ...t, thumbnailError: true } : t
-                ));
-              }
-            }
-          });
-        }
-      }
-    } catch (err) {
-      console.error('加载任务列表失败:', err);
-      if (!silent) {
-        toast({
-          title: t('loadFailed'),
-          description: err instanceof ApiError ? err.message : t('loadTasksFailed'),
-          variant: 'destructive',
+  const fetchingTaskThumbsRef = useRef<Set<string>>(new Set());
+
+  // 同步任务数据并加载缩略图
+  useEffect(() => {
+    if (!tasksResponse?.data) return;
+
+    const mappedTasks: TaskItem[] = tasksResponse.data.map((task: Task) => ({
+      id: task.task_id,
+      name: task.title || t('taskLabel', { id: task.task_id.slice(0, 8) }),
+      date: task.created_at || new Date().toISOString(),
+      status: mapTaskStateToStatus(task.state),
+      thumbnail: '',
+      thumbnailType: task.thumbnail_type,
+    }));
+    setTotalTasks(tasksResponse.pagination?.total || mappedTasks.length);
+
+    setTasks(prev => {
+      return mappedTasks.map(newTask => {
+        const existingTask = prev.find(t => t.id === newTask.id);
+        return existingTask ? { ...newTask, thumbnail: existingTask.thumbnail, thumbnailError: existingTask.thumbnailError } : newTask;
+      });
+    });
+
+    // 独立触发缩略图请求
+    mappedTasks.forEach(task => {
+      if (task.thumbnailType && !fetchingTaskThumbsRef.current.has(task.id)) {
+        fetchingTaskThumbsRef.current.add(task.id);
+        fetchAuthenticatedImage(task.id, task.thumbnailType).then(blobUrl => {
+          setTasks(innerCurrent => innerCurrent.map(t =>
+            t.id === task.id ? { ...t, thumbnail: blobUrl || '', thumbnailError: !blobUrl } : t
+          ));
+        }).catch(() => {
+          setTasks(innerCurrent => innerCurrent.map(t =>
+            t.id === task.id ? { ...t, thumbnailError: true } : t
+          ));
         });
       }
-    } finally {
-      if (!silent) {
-        setIsLoading(false);
-      }
-    }
-  }, [uploadsPage, ITEMS_PER_PAGE, statusFilter, sortBy, sortOrder, searchQuery, toast]);
+    });
+  }, [tasksResponse, t]);
 
-  // 加载收藏列表
-  const loadShares = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await sharesApi.listSavedShares(
-        sharesPage,
-        ITEMS_PER_PAGE,
-        sortBy,
-        sortOrder,
-        searchQuery || undefined
-      );
+  // 2. TanStack Query：收藏列表查询
+  const { data: sharesResponse, isLoading: isSharesLoading } = useSavedShares({
+    page: sharesPage, pageSize: ITEMS_PER_PAGE, sortBy, sortOrder, search: searchQuery || undefined
+  });
 
-      if (response.data) {
-        const mappedShares: ShareItem[] = response.data.map((item) => ({
-          id: item.id,
-          name: item.task_title,
-          sharedBy: item.shared_by || tb('anonymous'),
-          date: item.created_at,
-          thumbnail: '',
-          taskId: item.task_id,
-          thumbnailType: item.thumbnail_type,
-          shareToken: item.share_token,
-        }));
-        setShares(mappedShares);
-        setTotalShares(response.pagination.total);
+  const fetchingShareThumbsRef = useRef<Set<number>>(new Set());
 
-        // 异步加载缩略图
-        mappedShares.forEach(async (share) => {
-          if (share.taskId && share.thumbnailType) {
-            const blobUrl = await fetchAuthenticatedImage(share.taskId, share.thumbnailType);
-            if (blobUrl) {
-              setShares(prev => prev.map((s) =>
-                s.id === share.id ? { ...s, thumbnail: blobUrl } : s
-              ));
-            }
+  // 同步收藏数据并加载缩略图
+  useEffect(() => {
+    if (!sharesResponse?.data) return;
+
+    const mappedShares: ShareItem[] = sharesResponse.data.map((item) => ({
+      id: item.id,
+      name: item.task_title,
+      sharedBy: item.shared_by || tb('anonymous'),
+      date: item.created_at,
+      thumbnail: '',
+      taskId: item.task_id,
+      thumbnailType: item.thumbnail_type,
+      shareToken: item.share_token,
+    }));
+    setTotalShares(sharesResponse.pagination.total);
+
+    setShares(prev => {
+      return mappedShares.map(newShare => {
+        const existingShare = prev.find(s => s.id === newShare.id);
+        return existingShare ? { ...newShare, thumbnail: existingShare.thumbnail } : newShare;
+      });
+    });
+
+    mappedShares.forEach(share => {
+      if (share.taskId && share.thumbnailType && !fetchingShareThumbsRef.current.has(share.id)) {
+        fetchingShareThumbsRef.current.add(share.id);
+        fetchAuthenticatedImage(share.taskId, share.thumbnailType).then(blobUrl => {
+          if (blobUrl) {
+            setShares(innerCurrent => innerCurrent.map(s =>
+              s.id === share.id ? { ...s, thumbnail: blobUrl } : s
+            ));
           }
         });
       }
-    } catch (err) {
-      toast({
-        title: t('loadFailed'),
-        description: err instanceof ApiError ? err.message : t('loadSharesFailed'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sharesPage, ITEMS_PER_PAGE, sortBy, sortOrder, searchQuery, toast]);
+    });
+  }, [sharesResponse, tb]);
 
-  // 初始加载
-  useEffect(() => {
-    if (activeTab === 'uploads') {
-      loadTasks();
-    } else if (activeTab === 'shares') {
-      loadShares();
-    }
-  }, [activeTab, loadTasks, loadShares]);
-
-  // 轮询：有进行中/排队中的任务时每 5 秒刷新
-  useEffect(() => {
-    if (activeTab !== 'uploads') return;
-
-    // 检查是否有需要轮询的任务（排队中或进行中）
-    const hasActiveTask = tasks.some(
-      t => t.status === 'queued' || t.status === 'in-progress'
-    );
-
-    if (!hasActiveTask) return;
-
-    const interval = setInterval(() => {
-      loadTasks(true); // 静默刷新，不触发 loading 状态
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [activeTab, tasks, loadTasks]);
+  // 合并 loading 和 pending 状态
+  const isLoading = activeTab === 'uploads' ? isTasksLoading : isSharesLoading;
+  const isDeleting = deleteTasksMutation.isPending || deleteSavedSharesMutation.isPending;
+  const isDownloading = archiveTasksMutation.isPending;
 
   // 批量删除
-  const handleBatchDelete = async () => {
+  const handleBatchDelete = () => {
     if (selectedItems.length === 0) return;
 
-    setIsDeleting(true);
-    try {
-      if (activeTab === 'uploads') {
-        // 删除任务
-        const response = await tasksApi.batchDeleteTasks(selectedItems);
-        toast({
-          title: t('deleteSuccess'),
-          description: t('deletedTasks', { count: String(response.data?.deleted_count || selectedItems.length) }),
-        });
-        loadTasks();
-      } else {
-        // 删除收藏
-        const ids = selectedItems.map(id => parseInt(id, 10));
-        await sharesApi.batchDeleteSavedShares(ids);
-        toast({
-          title: t('deleteSuccess'),
-          description: t('deletedShares', { count: String(selectedItems.length) }),
-        });
-        loadShares();
-      }
-      setSelectedItems([]);
-      setSelectionMode(false);
-    } catch (err) {
-      toast({
-        title: t('downloadFailed'),
-        description: err instanceof ApiError ? err.message : t('batchDeleteFailed'),
-        variant: 'destructive',
+    if (activeTab === 'uploads') {
+      deleteTasksMutation.mutate(selectedItems, {
+        onSuccess: (response) => {
+          toast({
+            title: t('deleteSuccess'),
+            description: t('deletedTasks', { count: String(response.data?.deleted_count || selectedItems.length) }),
+          });
+          setSelectedItems([]);
+          setSelectionMode(false);
+        },
+        onError: (err) => {
+          toast({ title: t('downloadFailed'), description: err instanceof ApiError ? err.message : t('batchDeleteFailed'), variant: 'destructive' });
+        }
       });
-    } finally {
-      setIsDeleting(false);
+    } else {
+      const ids = selectedItems.map(id => parseInt(id, 10));
+      deleteSavedSharesMutation.mutate(ids, {
+        onSuccess: () => {
+          toast({
+            title: t('deleteSuccess'),
+            description: t('deletedShares', { count: String(selectedItems.length) }),
+          });
+          setSelectedItems([]);
+          setSelectionMode(false);
+        },
+        onError: (err) => {
+          toast({ title: t('downloadFailed'), description: err instanceof ApiError ? err.message : t('batchDeleteFailed'), variant: 'destructive' });
+        }
+      });
     }
   };
 
   // 批量下载
-  const handleBatchDownload = async () => {
+  const handleBatchDownload = () => {
     if (selectedItems.length === 0) return;
 
-    setIsDownloading(true);
-    try {
-      // 根据当前标签页获取正确的 taskIds
-      let taskIds: string[];
-      if (activeTab === 'uploads') {
-        taskIds = selectedItems;
-      } else {
-        // 收藏列表：从 shares 中根据 saved_share.id 获取 taskId
-        taskIds = selectedItems
-          .map(id => {
-            const share = shares.find(s => String(s.id) === id);
-            return share?.taskId;
-          })
-          .filter((id): id is string => !!id);
-      }
+    // 根据当前标签页获取正确的 taskIds
+    let taskIds: string[];
+    if (activeTab === 'uploads') {
+      taskIds = selectedItems;
+    } else {
+      // 收藏列表：从 shares 中根据 saved_share.id 获取 taskId
+      taskIds = selectedItems
+        .map(id => {
+          const share = shares.find(s => String(s.id) === id);
+          return share?.taskId;
+        })
+        .filter((id): id is string => !!id);
+    }
 
-      if (taskIds.length === 0) {
-        toast({
-          title: t('downloadFailed'),
-          description: t('noDownloadable'),
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const result = await tasksApi.archiveTasks(taskIds, ['png', 'xml']);
-      filesApi.triggerDownload(result.blob, `scores_${Date.now()}.zip`);
-
-      // 显示统计信息
-      if (result.skippedCount > 0) {
-        toast({
-          title: t('downloadComplete'),
-          description: t('downloadCompleteDesc', { downloaded: String(result.downloadedCount), skipped: String(result.skippedCount) }),
-        });
-      } else {
-        toast({
-          title: t('downloadSuccess'),
-          description: t('downloadSuccessDesc', { downloaded: String(result.downloadedCount) }),
-        });
-      }
-    } catch (err) {
+    if (taskIds.length === 0) {
       toast({
         title: t('downloadFailed'),
-        description: err instanceof ApiError ? err.message : t('batchDownloadFailed'),
+        description: t('noDownloadable'),
         variant: 'destructive',
       });
-    } finally {
-      setIsDownloading(false);
+      return;
     }
+
+    archiveTasksMutation.mutate(
+      { taskIds, includeTypes: ['png', 'xml'] },
+      {
+        onSuccess: (result) => {
+          filesApi.triggerDownload(result.blob, `scores_${Date.now()}.zip`);
+
+          // 显示统计信息
+          if (result.skippedCount > 0) {
+            toast({
+              title: t('downloadPartial'),
+              description: t('downloadPartialDesc', { success: String(result.downloadedCount), skipped: String(result.skippedCount) }),
+            });
+          } else {
+            toast({
+              title: t('downloadSuccess'),
+              description: t('downloadSuccessDesc', { count: String(result.downloadedCount) }),
+            });
+          }
+          setSelectedItems([]);
+          setSelectionMode(false);
+        },
+        onError: (err) => {
+          toast({
+            title: t('downloadFailed'),
+            description: err instanceof ApiError && err.code ? tb(err.code as any) : err.message || t('downloadFailedDesc'),
+            variant: 'destructive',
+          });
+        }
+      }
+    );
   };
 
   const filteredTasks = useMemo(() => tasks, [tasks]);
@@ -576,7 +524,7 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      <main className="flex-grow">
+      <main className="grow">
         <div className="max-w-7xl mx-auto px-4 py-16">
           <Tabs defaultValue="uploads" className="w-full" onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2 bg-gray-200 rounded-full h-auto p-1 mb-4 max-w-md mx-auto">
@@ -630,7 +578,7 @@ export default function HistoryPage() {
                               setSortOrder(order);
                             }}
                           >
-                            <SelectTrigger id="sort" className="w-full md:w-[180px] bg-white h-12">
+                            <SelectTrigger id="sort" className="w-full md:w-45 bg-white h-12">
                               <SelectValue placeholder={t('sortDateDesc')} />
                             </SelectTrigger>
                             <SelectContent>
@@ -641,7 +589,7 @@ export default function HistoryPage() {
                             </SelectContent>
                           </Select>
                           <Select defaultValue="all" onValueChange={setStatusFilter}>
-                            <SelectTrigger id="status" className="w-full md:w-[180px] bg-white h-12">
+                            <SelectTrigger id="status" className="w-full md:w-45 bg-white h-12">
                               <SelectValue placeholder={t('filterAll')} />
                             </SelectTrigger>
                             <SelectContent>

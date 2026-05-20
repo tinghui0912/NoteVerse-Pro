@@ -13,7 +13,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
-import { ArrowLeft, PanelLeft, Save, Undo, Redo, Eye, ImageIcon, LoaderCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, PanelLeft, Save, Undo, Redo, Eye, ImageIcon, LoaderCircle, XCircle, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { Footer } from '@/components/layout/footer';
@@ -43,8 +43,9 @@ import { flattenAllMeasures } from '@/lib/musicxml-flatten';
 import { validateDataIntegrity, type ValidationResult } from '@/lib/validator';
 import { useToast } from '@/hooks/use-toast';
 import { useAutoSave } from '@/hooks/use-auto-save';
-import { xmlApi } from '@/lib/api';
 import { loadDraft, deleteDraft, type DraftEntry } from '@/lib/draft-storage';
+import { useTaskDetail } from '@/hooks/queries/use-task-queries';
+import { useXmlContent, useSaveXml } from '@/hooks/queries/use-xml-queries';
 import { DraftRecoveryDialog } from '@/components/draft-recovery-dialog';
 import {
     AlertDialog,
@@ -108,9 +109,13 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
     const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    // Queries
+    const { data: xmlString, isLoading: isXmlLoading, error: xmlError } = useXmlContent(id, source, { shareToken });
+    const { data: taskData, isLoading: isTaskLoading } = useTaskDetail(id, { shareToken });
+    const saveXmlMutation = useSaveXml();
 
     // 草稿相关状态
     const [pendingDraft, setPendingDraft] = useState<DraftEntry | null>(null);
@@ -143,7 +148,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
     const [originalImageUrls, setOriginalImageUrls] = useState<{ src: string; alt: string }[]>([]);
 
     // 自动保存草稿
-    const { clearDraft } = useAutoSave(id, currentXml, {
+    const { clearDraft, isSaving: isAutoSaving } = useAutoSave(id, currentXml, {
         source,
         returnUrl,
         debounceMs: 3000,
@@ -152,61 +157,56 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
 
 
     useEffect(() => {
-        const fetchScore = async () => {
+        const initScore = async () => {
+            if (!xmlString || isInitialized) return;
+
             try {
                 // 先检测本地草稿
                 const draft = await loadDraft(id);
 
-                // 加载服务端 XML
-                const xmlString = await xmlApi.loadXml(id, source, shareToken);
-
-                if (draft && xmlString && draft.xml !== xmlString) {
+                if (draft && draft.xml !== xmlString) {
                     // 有草稿且与服务端版本不同，提示用户恢复
                     setPendingDraft(draft);
                     setIsDraftDialogOpen(true);
-                    // 先加载服务端版本
-                    setRawXml(xmlString);
-                    setCurrentXml(xmlString);
-                    initializeHistory(xmlString);
-                    const { MusicXMLParser } = await import('@/lib/musicxml-parser');
-                    const parser = new MusicXMLParser(xmlString);
-                    const data = parser.parse();
-                    setScoreData(data);
-                } else if (xmlString) {
-                    // 没有草稿或草稿与服务端相同
-                    setRawXml(xmlString);
-                    setCurrentXml(xmlString);
-                    initializeHistory(xmlString);
-                    const { MusicXMLParser } = await import('@/lib/musicxml-parser');
-                    const parser = new MusicXMLParser(xmlString);
-                    const data = parser.parse();
-                    setScoreData(data);
-                    // 删除相同的草稿
-                    if (draft) await deleteDraft(id);
-                } else {
-                    setScoreData(null);
-                    setRawXml(null);
+                } else if (draft) {
+                    // 草稿与服务端相同，直接删除草稿
+                    await deleteDraft(id);
                 }
+
+                // 加载服务端版本
+                setRawXml(xmlString);
+                setCurrentXml(xmlString);
+                initializeHistory(xmlString);
+                const { MusicXMLParser } = await import('@/lib/musicxml-parser');
+                const parser = new MusicXMLParser(xmlString);
+                const data = parser.parse();
+                setScoreData(data);
             } catch (error) {
-                console.error("Failed to fetch score XML:", error);
+                console.error("Failed to parse score XML:", error);
                 setLoadError(t('loadFailedHint'));
                 setScoreData(null);
                 setRawXml(null);
             } finally {
-                setIsLoading(false);
+                setIsInitialized(true);
             }
         };
 
-        fetchScore();
-    }, [id, source, setScoreData, setRawXml, setCurrentXml, initializeHistory, toast]);
+        if (xmlError) {
+            setLoadError(t('loadFailedHint'));
+            setScoreData(null);
+            setRawXml(null);
+            setIsInitialized(true);
+        } else {
+            initScore();
+        }
+    }, [xmlString, xmlError, id, setScoreData, setRawXml, setCurrentXml, initializeHistory, isInitialized, t]);
 
     // 加载原始图片
     useEffect(() => {
         const loadOriginalImages = async () => {
             try {
-                const response = await getTaskDetails(id, shareToken);
-                if (response.data?.files?.original_image) {
-                    const imageCount = response.data.files.original_image.length;
+                if (taskData?.data?.files?.original_image) {
+                    const imageCount = taskData.data.files.original_image.length;
                     const urls: { src: string; alt: string }[] = [];
 
                     for (let i = 1; i <= imageCount; i++) {
@@ -223,14 +223,20 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
             }
         };
 
-        loadOriginalImages();
+        if (taskData) {
+            loadOriginalImages();
+        }
 
         // 清理 blob URLs
         return () => {
             originalImageUrls.forEach(img => URL.revokeObjectURL(img.src));
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id]);
+    }, [taskData, id, shareToken, t]);
+
+    // 综合 loading 和 error 状态
+    const isLoading = isXmlLoading || isTaskLoading || (!!xmlString && !isInitialized);
+    const finalLoadError = xmlError ? t('loadFailedHint') : loadError;
 
     const handleSaveChanges = () => {
         // 执行校验
@@ -254,39 +260,55 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         performSave();
     };
 
-    const performSave = async () => {
+    const performSave = () => {
         if (!currentXml) return;
 
-        setIsSaving(true);
-        try {
-            if (source === 'current') {
-                // 从 /review 来的编辑 → 保存为 current_xml → 更新 preview_image → 跳回 /review
-                await xmlApi.saveXmlContent(id, currentXml, 'current_xml', 'preview_image');
-                await clearDraft();  // 保存成功后清除草稿
-                toast({
-                    title: tCommon('savingSuccess'),
-                    description: tCommon('scoreSaved'),
-                });
-                router.push(returnUrl || `/review/${id}`);
-            } else {
-                // 从 /results 或 /share 来的编辑（source=final）→ 保存为 final_xml → 更新 final_image → 跳到指定页面
-                await xmlApi.saveXmlContent(id, currentXml, 'final_xml', 'final_image', 300);
-                await clearDraft();  // 保存成功后清除草稿
-                toast({
-                    title: tCommon('savingSuccess'),
-                    description: tCommon('scoreSaved'),
-                });
-                router.push(returnUrl || `/results/${id}`);
-            }
-        } catch (error) {
-            console.error('保存失败:', error);
-            toast({
-                title: t('saveFailed'),
-                description: t('saveFailedDesc'),
-                variant: 'destructive',
-            });
-        } finally {
-            setIsSaving(false);
+        if (source === 'current') {
+            // 从 /review 来的编辑 → 保存为 current_xml → 更新 preview_image → 跳回 /review
+            saveXmlMutation.mutate(
+                { taskId: id, content: currentXml, fileType: 'current_xml', imageType: 'preview_image' },
+                {
+                    onSuccess: async () => {
+                        await clearDraft();  // 保存成功后清除草稿
+                        toast({
+                            title: tCommon('savingSuccess'),
+                            description: tCommon('scoreSaved'),
+                        });
+                        router.push(returnUrl || `/review/${id}`);
+                    },
+                    onError: (error) => {
+                        console.error('保存失败:', error);
+                        toast({
+                            title: t('saveFailed'),
+                            description: t('saveFailedDesc'),
+                            variant: 'destructive',
+                        });
+                    }
+                }
+            );
+        } else {
+            // 从 /results 或 /share 来的编辑（source=final）→ 保存为 final_xml → 更新 final_image → 跳到指定页面
+            saveXmlMutation.mutate(
+                { taskId: id, content: currentXml, fileType: 'final_xml', imageType: 'final_image', dpi: 300 },
+                {
+                    onSuccess: async () => {
+                        await clearDraft();  // 保存成功后清除草稿
+                        toast({
+                            title: tCommon('savingSuccess'),
+                            description: tCommon('scoreSaved'),
+                        });
+                        router.push(returnUrl || `/results/${id}`);
+                    },
+                    onError: (error) => {
+                        console.error('保存失败:', error);
+                        toast({
+                            title: t('saveFailed'),
+                            description: t('saveFailedDesc'),
+                            variant: 'destructive',
+                        });
+                    }
+                }
+            );
         }
     };
 
@@ -382,7 +404,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                         <h1 className="text-4xl sm:text-6xl font-bold text-white mb-4">{t('title')}</h1>
                     </div>
                 </div>
-                <main className="flex-grow flex items-center justify-center">
+                <main className="grow flex items-center justify-center">
                     <div className="text-center">
                         <Loader2 className="h-12 w-12 animate-spin text-orange-500 mx-auto mb-4" />
                         <p className="text-gray-600">{tCommon('loading')}</p>
@@ -394,7 +416,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
     }
 
     // 错误状态
-    if (loadError) {
+    if (finalLoadError) {
         return (
             <div className="bg-gray-50 min-h-screen flex flex-col">
                 <div className="bg-gray-900">
@@ -402,11 +424,11 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                         <h1 className="text-4xl sm:text-6xl font-bold text-white mb-4">{t('title')}</h1>
                     </div>
                 </div>
-                <main className="flex-grow flex items-center justify-center py-16">
+                <main className="grow flex items-center justify-center py-16">
                     <div className="max-w-md w-full mx-4 text-center">
                         <div className="text-6xl mb-6">⚠️</div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">{tCommon('loadFailed')}</h2>
-                        <p className="text-gray-600 mb-2">{loadError}</p>
+                        <p className="text-gray-600 mb-2">{finalLoadError}</p>
                         <p className="text-gray-500 text-sm mb-8">{t('loadFailedHint')}</p>
                         <Button onClick={() => router.back()} className="px-8">
                             {tCommon('back')}
@@ -441,7 +463,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                 </div>
             </div>
 
-            <div className="flex-grow flex flex-col">
+            <div className="grow flex flex-col">
                 <header className="sticky top-0 z-20 h-16 shrink-0 border-b bg-background/80 backdrop-blur-sm">
                     <div className="max-w-7xl mx-auto flex h-full items-center justify-between px-4">
                         <div className="flex items-center gap-2">
@@ -462,6 +484,19 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                             </Sheet>
                         </div>
                         <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mr-4">
+                                {isAutoSaving ? (
+                                    <>
+                                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                                        <span>{tCommon('saving')}</span>
+                                    </>
+                                ) : currentXml && (
+                                    <>
+                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                        <span>{tCommon('saved')}</span>
+                                    </>
+                                )}
+                            </div>
                             <TooltipProvider>
                                 {topToolbarItems.map((item) => {
                                     // 根据按钮类型设置 onClick 和 disabled
@@ -476,7 +511,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                                                 : isSaveChanges ? handleSaveChanges
                                                     : undefined;
 
-                                    const isDisabled = isUndo ? !canUndo : isRedo ? !canRedo : false;
+                                    const isDisabled = isUndo ? !canUndo : isRedo ? !canRedo : isSaveChanges ? saveXmlMutation.isPending : false;
 
                                     return (
                                         <Tooltip key={item.label}>
@@ -487,7 +522,11 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                                                     onClick={handleClick}
                                                     disabled={isDisabled}
                                                 >
-                                                    <item.icon className="h-5 w-5" />
+                                                    {isSaveChanges && saveXmlMutation.isPending ? (
+                                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                                    ) : (
+                                                        <item.icon className="h-5 w-5" />
+                                                    )}
                                                 </Button>
                                             </TooltipTrigger>
                                             <TooltipContent>
@@ -511,7 +550,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                     </div>
                 </header>
 
-                <main className="flex-grow">
+                <main className="grow">
                     <div className="max-w-7xl mx-auto px-4 pt-8 pb-16">
                         {scoreData ? (
                             <div className="flex items-start gap-8">

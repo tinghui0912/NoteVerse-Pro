@@ -20,6 +20,18 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
     DEBUG: bool = False
     PRACTICE_ALIGNMENT_ENGINE: str = "matchmaker"
+    PRACTICE_MATCHMAKER_METHOD: str = "arzt"
+    PRACTICE_MATCHMAKER_FEATURE_TYPE: str = "lse"
+    PRACTICE_MATCHMAKER_FRAME_RATE: int = 30
+    PRACTICE_AUDIO_RMS_GATE: float = 0.015
+    PRACTICE_AUDIO_PEAK_GATE: float = 0.06
+    PRACTICE_AUDIO_START_RMS_GATE: float = 0.08
+    PRACTICE_AUDIO_START_PEAK_GATE: float = 0.18
+    PRACTICE_AUDIO_MIN_ACTIVE_FRAMES: int = 1
+    PRACTICE_AUDIO_WARMUP_FRAMES: int = 30
+    PRACTICE_AUDIO_RMS_NOISE_MULTIPLIER: float = 4.0
+    PRACTICE_AUDIO_PEAK_NOISE_MULTIPLIER: float = 2.5
+    PRACTICE_AUDIO_DIAGNOSTICS: bool = False
 
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
@@ -55,6 +67,32 @@ class Settings(BaseSettings):
         if v != "matchmaker":
             raise ValueError("PRACTICE_ALIGNMENT_ENGINE must be 'matchmaker'")
         return v
+
+    @field_validator("PRACTICE_MATCHMAKER_METHOD")
+    @classmethod
+    def validate_practice_matchmaker_method(cls, v: str) -> str:
+        value = v.strip().lower()
+        if value != "arzt":
+            raise ValueError("PRACTICE_MATCHMAKER_METHOD currently supports only 'arzt'")
+        return value
+
+    @field_validator("PRACTICE_MATCHMAKER_FEATURE_TYPE")
+    @classmethod
+    def validate_practice_matchmaker_feature_type(cls, v: str) -> str:
+        value = v.strip().lower()
+        aliases = {
+            "lse": "lse",
+            "logspectral": "lse",
+            "log-spectral": "lse",
+            "log_spectral": "lse",
+            "log_spectral_energy": "lse",
+            "chroma": "chroma",
+        }
+        if value not in aliases:
+            raise ValueError(
+                "PRACTICE_MATCHMAKER_FEATURE_TYPE must be one of: lse, logspectral, chroma"
+            )
+        return aliases[value]
 
     # Database
     DATABASE_URL: str

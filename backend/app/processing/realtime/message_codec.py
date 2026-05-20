@@ -29,6 +29,15 @@ def session_ready_message(session_id: str, state: str) -> RuntimeMessage:
     }
 
 
+def session_armed_message(session_id: str) -> RuntimeMessage:
+    return {
+        "type": "session.armed",
+        "payload": {
+            "session_id": session_id,
+        },
+    }
+
+
 def state_changed_message(state: str) -> RuntimeMessage:
     return {
         "type": "session.state_changed",
@@ -71,9 +80,6 @@ def alignment_update_message(update: AlignmentUpdate) -> RuntimeMessage:
     return {
         "type": "alignment.update",
         "payload": {
-            "event_index": update["event_index"],
-            "measure_index": update["measure_index"],
-            "measure_number": update["measure_number"],
             "beat_position": update["beat_position"],
             "confidence": update["confidence"],
             "timestamp_ms": update["timestamp_ms"],

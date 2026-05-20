@@ -4,7 +4,8 @@ import { useTranslations } from 'next-intl';
 import { useBackendMessage } from '@/hooks/use-backend-message';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { practiceApi, xmlApi } from '@/lib/api';
+import { practiceApi } from '@/lib/api';
+import { useXmlContent } from '@/hooks/queries/use-xml-queries';
 import {
   type PracticeAlignmentUpdateMessage,
   type PracticeReportPayload,
@@ -38,7 +39,13 @@ const PCM_SAMPLE_RATE = 16000;
 const PCM_CHANNELS = 1;
 const PCM_FRAME_FORMAT = 'pcm_s16le';
 
-type PracticeStatus = 'idle' | 'connecting' | 'practicing' | 'paused' | 'finished';
+type PracticeStatus =
+  | 'idle'
+  | 'connecting'
+  | 'arming'
+  | 'practicing'
+  | 'paused'
+  | 'finished';
 type ConnectionStatus = 'disconnected' | 'connecting' | 'ready' | 'error';
 
 const ReportCard = ({
@@ -161,6 +168,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [analysisReport, setAnalysisReport] = useState<PracticeReportPayload | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPreparingSession, setIsPreparingSession] = useState(false);
   const [practiceTime, setPracticeTime] = useState(0);
   const [isMaximized, setIsMaximized] = useState(false);
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
@@ -168,8 +176,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [session, setSession] = useState<PracticeSessionDetail | null>(null);
   const [alignment, setAlignment] = useState<PracticeAlignmentUpdateMessage['payload'] | null>(null);
-  const [xmlContent, setXmlContent] = useState<string | null>(null);
-  const [isLoadingXml, setIsLoadingXml] = useState(true);
+  const { data: xmlContent, isLoading: isLoadingXml } = useXmlContent(id, 'final', { shareToken });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -181,10 +188,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const websocketRef = useRef<WebSocket | null>(null);
   const heartbeatIntervalRef = useRef<number | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const sessionDetailRef = useRef<PracticeSessionDetail | null>(null);
   const isStreamingAudioRef = useRef(false);
   const practiceStatusRef = useRef<PracticeStatus>('idle');
   const isIntentionalSocketCloseRef = useRef(false);
   const pointerHandledControlRef = useRef<string | null>(null);
+  const preconnectStartedRef = useRef(false);
 
   useEffect(() => {
     practiceStatusRef.current = practiceStatus;
@@ -233,35 +242,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   }, [practiceStatus]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadPracticeXml = async () => {
-      try {
-        setIsLoadingXml(true);
-        const content = await xmlApi.loadXml(id, 'final', shareToken);
-        if (!cancelled) {
-          setXmlContent(content || null);
-        }
-      } catch (error) {
-        console.error('Failed to load practice XML:', error);
-        if (!cancelled) {
-          setXmlContent(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingXml(false);
-        }
-      }
-    };
-
-    void loadPracticeXml();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id, shareToken]);
-
-  useEffect(() => {
     return () => {
       teardownAudioPipeline();
       closeSocket();
@@ -278,7 +258,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     const canHeartbeat =
       socket &&
       socket.readyState === WebSocket.OPEN &&
-      (practiceStatus === 'practicing' || practiceStatus === 'paused');
+      (practiceStatus === 'arming' ||
+        practiceStatus === 'practicing' ||
+        practiceStatus === 'paused');
 
     if (!canHeartbeat) {
       return;
@@ -356,6 +338,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const syncSessionState = (detail: PracticeSessionDetail) => {
     setSession(detail);
+    sessionDetailRef.current = detail;
     sessionIdRef.current = detail.session_id;
   };
 
@@ -372,6 +355,24 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       })
     );
     return true;
+  };
+
+  const sendPracticeInit = (detail: PracticeSessionDetail) => {
+    const socket = websocketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      throw new Error('Practice websocket is not ready.');
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: 'client.init',
+        payload: {
+          sample_rate: detail.sample_rate,
+          channels: detail.channels,
+          frame_samples: 640,
+        },
+      })
+    );
   };
 
   const finishLocalPractice = () => {
@@ -450,14 +451,24 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     if (message.type === 'session.ready') {
       setConnectionStatus('ready');
       isStreamingAudioRef.current = true;
-      updatePracticeStatus('practicing');
+      updatePracticeStatus('arming');
       setSession((current) =>
         current ? { ...current, state: message.payload.state } : current
       );
       return;
     }
 
+    if (message.type === 'session.armed') {
+      if (practiceStatusRef.current !== 'finished') {
+        updatePracticeStatus('practicing');
+      }
+      return;
+    }
+
     if (message.type === 'alignment.update') {
+      if (practiceStatusRef.current === 'arming') {
+        updatePracticeStatus('practicing');
+      }
       setAlignment(message.payload);
       return;
     }
@@ -522,6 +533,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       isIntentionalSocketCloseRef.current = false;
       const wasActive =
         practiceStatusRef.current === 'connecting' ||
+        practiceStatusRef.current === 'arming' ||
         practiceStatusRef.current === 'practicing' ||
         practiceStatusRef.current === 'paused';
       websocketRef.current = null;
@@ -534,6 +546,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           title: t('analysisFailedTitle'),
           description: 'Practice realtime connection was closed. Please start again.',
         });
+      } else if (!wasIntentional && !wasActive) {
+        preconnectStartedRef.current = false;
+        window.setTimeout(() => {
+          void preparePracticeSession();
+        }, 500);
       }
     };
 
@@ -541,38 +558,18 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       socket.onopen = () => resolve();
       socket.onerror = () => reject(new Error('Practice websocket connection failed.'));
     });
-
-    socket.send(
-      JSON.stringify({
-        type: 'client.init',
-        payload: {
-          sample_rate: detail.sample_rate,
-          channels: detail.channels,
-          frame_samples: 640,
-        },
-      })
-    );
   };
 
-  const handleStart = async () => {
-    if (!audioWorkletSupported) {
-      toast({
-        variant: 'destructive',
-        title: t('audioWorkletUnsupportedTitle'),
-        description: t('audioWorkletUnsupportedDesc'),
-      });
+  const preparePracticeSession = async () => {
+    if (preconnectStartedRef.current || !audioWorkletSupported) {
       return;
     }
 
-    setIsLoading(true);
-    setAnalysisReport(null);
-    setAlignment(null);
-    setPracticeTime(0);
+    preconnectStartedRef.current = true;
+    setIsPreparingSession(true);
+    setConnectionStatus('connecting');
 
     try {
-      setConnectionStatus('connecting');
-      updatePracticeStatus('connecting');
-
       const createResponse = await practiceApi.createPracticeSession({
         task_id: id,
         source: 'final',
@@ -592,8 +589,56 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       }
 
       syncSessionState(detailResponse.data);
-      await setupAudioPipeline();
       await openPracticeSocket(detailResponse.data, createResponse.data.ws_url);
+      setConnectionStatus('ready');
+    } catch (error) {
+      console.error('Failed to prepare practice session:', error);
+      preconnectStartedRef.current = false;
+      setConnectionStatus('error');
+      closeSocket();
+      toast({
+        variant: 'destructive',
+        title: t('analysisFailedTitle'),
+        description: t('analysisFailedDesc'),
+      });
+    } finally {
+      setIsPreparingSession(false);
+    }
+  };
+
+  useEffect(() => {
+    void preparePracticeSession();
+  }, [audioWorkletSupported, id, shareToken]);
+
+  const handleStart = async () => {
+    if (!audioWorkletSupported) {
+      toast({
+        variant: 'destructive',
+        title: t('audioWorkletUnsupportedTitle'),
+        description: t('audioWorkletUnsupportedDesc'),
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setAnalysisReport(null);
+    setAlignment(null);
+    setPracticeTime(0);
+
+    try {
+      if (!session || !websocketRef.current || websocketRef.current.readyState !== WebSocket.OPEN) {
+        preconnectStartedRef.current = false;
+        await preparePracticeSession();
+      }
+
+      const detail = sessionDetailRef.current;
+      if (!detail || !websocketRef.current || websocketRef.current.readyState !== WebSocket.OPEN) {
+        throw new Error('Practice session is not ready.');
+      }
+
+      updatePracticeStatus('arming');
+      await setupAudioPipeline();
+      sendPracticeInit(detail);
 
       if (mediaRecorderRef.current?.state === 'inactive') {
         audioChunksRef.current = [];
@@ -708,11 +753,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     setAlignment(null);
     setPracticeTime(0);
     setSession(null);
+    sessionDetailRef.current = null;
     sessionIdRef.current = null;
+    preconnectStartedRef.current = false;
     mediaRecorderRef.current = null;
     audioChunksRef.current = [];
     teardownAudioPipeline();
     closeSocket();
+    window.setTimeout(() => {
+      void preparePracticeSession();
+    }, 0);
   };
 
   const handleGetAnalysis = async () => {
@@ -749,20 +799,25 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             type="button"
             onClick={handleStart}
             size="lg"
-            disabled={isLoading || !audioWorkletSupported}
+            disabled={
+              isLoading ||
+              isPreparingSession ||
+              connectionStatus !== 'ready' ||
+              !audioWorkletSupported
+            }
             className="bg-orange-500 hover:bg-orange-600 text-white font-semibold group"
           >
-            {isLoading ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Mic className="mr-2 h-4 w-4" />}
+            <Mic className="mr-2 h-4 w-4" />
             {t('start')}
           </Button>
         </div>
       );
     }
-    if (practiceStatus === 'connecting') {
+    if (practiceStatus === 'connecting' || practiceStatus === 'arming') {
       return (
         <Button disabled size="lg" className="bg-orange-500 text-white font-semibold">
           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-          {t('start')}
+          {t(practiceStatus === 'arming' ? 'preparingToPlay' : 'start')}
         </Button>
       );
     }
@@ -835,7 +890,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      <main className="flex-grow">
+      <main className="grow">
         <div className="max-w-4xl mx-auto px-4 py-16">
           <div className="flex flex-col gap-4">
             <div className="w-full space-y-6">
@@ -864,7 +919,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   <PracticeScoreViewer
                     isMaximized={isMaximized}
                     onToggleMaximize={() => setIsMaximized(!isMaximized)}
-                    xmlContent={xmlContent}
+                    xmlContent={xmlContent || null}
                     isLoadingXml={isLoadingXml}
                     toolbar={<PracticeToolbar />}
                     practiceStatus={practiceStatus}

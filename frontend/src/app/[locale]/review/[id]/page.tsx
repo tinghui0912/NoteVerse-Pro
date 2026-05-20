@@ -9,11 +9,12 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Check, Edit, Loader2, FileImage } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Footer } from '@/components/layout/footer';
-import { getTaskDetails } from '@/lib/api/tasks';
-import type { TaskDetails } from '@/types/api';
-import { confirmRecognition } from '@/lib/api/xml';
+import { useTaskDetail } from '@/hooks/queries/use-task-queries';
+import { useConfirmRecognition } from '@/hooks/queries/use-xml-queries';
+import { queryKeys } from '@/lib/query-client';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
 
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,22 +26,23 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const tb = useBackendMessage();
   const router = useRouter();
 
-  // 状态
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [taskDetails, setTaskDetails] = useState<TaskDetails | null>(null);
-  const [confirming, setConfirming] = useState(false);
+  // ============ TanStack Query：任务详情 ============
+  const {
+    data: taskResponse,
+    isLoading: loading,
+    error: taskError,
+  } = useTaskDetail(taskId);
 
-  // 预加载的图片 URL 数组
-  const [originalImageUrls, setOriginalImageUrls] = useState<string[]>([]);
-  const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
-  const [imagesLoading, setImagesLoading] = useState({ original: true, preview: true });
+  const taskDetails = taskResponse?.data ?? null;
 
-  // Carousel API 状态（用于跟踪当前页码）
-  const [originalApi, setOriginalApi] = useState<CarouselApi>();
-  const [previewApi, setPreviewApi] = useState<CarouselApi>();
-  const [originalCurrent, setOriginalCurrent] = useState(0);
-  const [previewCurrent, setPreviewCurrent] = useState(0);
+  // 验证任务状态
+  const error = useMemo(() => {
+    if (taskError) return taskError instanceof Error ? taskError.message : t('loadFailed');
+    if (taskDetails && taskDetails.state !== 'SUCCESS' && taskDetails.state !== 'PENDING_REVIEW') {
+      return t('invalidTaskState', { state: taskDetails.state });
+    }
+    return null;
+  }, [taskError, taskDetails, t]);
 
   // 计算页数
   const originalImages = taskDetails?.files?.original_image || [];
@@ -48,89 +50,49 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const totalOriginalPages = originalImages.length;
   const totalPreviewPages = previewImages.length;
 
-  // 加载任务详情
-  const loadTaskDetails = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await getTaskDetails(taskId);
-
-      if (response.data) {
-        // 验证任务状态（允许 PENDING_REVIEW 和 SUCCESS）
-        if (response.data.state !== 'SUCCESS' && response.data.state !== 'PENDING_REVIEW') {
-          setError(t('invalidTaskState', { state: response.data.state }));
-          return;
-        }
-        setTaskDetails(response.data);
-      } else {
-        setError(t('loadTaskFailed'));
+  // ============ TanStack Query：预加载原始图片 ============
+  const { data: originalImageUrls = [], isLoading: originalImagesLoading } = useQuery({
+    queryKey: queryKeys.images.task(taskId, 'original_image'),
+    queryFn: async () => {
+      const urls: string[] = [];
+      for (let i = 1; i <= totalOriginalPages; i++) {
+        const url = await fetchAuthenticatedImage(taskId, 'original_image', i);
+        if (url) urls.push(url);
       }
-    } catch (err) {
-      console.error('加载任务详情失败:', err);
-      setError(err instanceof Error ? err.message : t('loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [taskId]);
+      return urls;
+    },
+    enabled: !!taskDetails && totalOriginalPages > 0,
+    staleTime: Infinity,
+  });
 
-  // 预加载所有原图
-  const loadAllOriginalImages = useCallback(async () => {
-    if (!taskDetails || totalOriginalPages === 0) {
-      setImagesLoading(prev => ({ ...prev, original: false }));
-      return;
-    }
+  // ============ TanStack Query：预加载预览图片 ============
+  const { data: previewImageUrls = [], isLoading: previewImagesLoading } = useQuery({
+    queryKey: queryKeys.images.task(taskId, 'preview_image'),
+    queryFn: async () => {
+      const urls: string[] = [];
+      for (let i = 1; i <= totalPreviewPages; i++) {
+        const url = await fetchAuthenticatedImage(taskId, 'preview_image', i);
+        if (url) urls.push(url);
+      }
+      return urls;
+    },
+    enabled: !!taskDetails && totalPreviewPages > 0,
+    staleTime: Infinity,
+  });
 
-    setImagesLoading(prev => ({ ...prev, original: true }));
-    const urls: string[] = [];
+  const imagesLoading = {
+    original: originalImagesLoading,
+    preview: previewImagesLoading,
+  };
 
-    for (let i = 1; i <= totalOriginalPages; i++) {
-      const url = await fetchAuthenticatedImage(taskId, 'original_image', i);
-      if (url) urls.push(url);
-    }
+  // ============ 确认识别 mutation ============
+  const confirmMutation = useConfirmRecognition();
 
-    setOriginalImageUrls(urls);
-    setImagesLoading(prev => ({ ...prev, original: false }));
-  }, [taskId, taskDetails, totalOriginalPages]);
-
-  // 预加载所有预览图
-  const loadAllPreviewImages = useCallback(async () => {
-    if (!taskDetails || totalPreviewPages === 0) {
-      setImagesLoading(prev => ({ ...prev, preview: false }));
-      return;
-    }
-
-    setImagesLoading(prev => ({ ...prev, preview: true }));
-    const urls: string[] = [];
-
-    for (let i = 1; i <= totalPreviewPages; i++) {
-      const url = await fetchAuthenticatedImage(taskId, 'preview_image', i);
-      if (url) urls.push(url);
-    }
-
-    setPreviewImageUrls(urls);
-    setImagesLoading(prev => ({ ...prev, preview: false }));
-  }, [taskId, taskDetails, totalPreviewPages]);
-
-  useEffect(() => {
-    loadTaskDetails();
-  }, [loadTaskDetails]);
-
-  // 任务详情加载完成后预加载所有图片
-  useEffect(() => {
-    if (taskDetails) {
-      loadAllOriginalImages();
-      loadAllPreviewImages();
-    }
-  }, [taskDetails, loadAllOriginalImages, loadAllPreviewImages]);
-
-  // 清理 blob URLs
-  useEffect(() => {
-    return () => {
-      originalImageUrls.forEach(url => URL.revokeObjectURL(url));
-      previewImageUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, []);
+  // Carousel API 状态（用于跟踪当前页码）
+  const [originalApi, setOriginalApi] = useState<CarouselApi>();
+  const [previewApi, setPreviewApi] = useState<CarouselApi>();
+  const [originalCurrent, setOriginalCurrent] = useState(0);
+  const [previewCurrent, setPreviewCurrent] = useState(0);
 
   // 监听 Carousel 页面变化
   useEffect(() => {
@@ -150,26 +112,18 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   }, [previewApi]);
 
   // 确认识别结果
-  const handleConfirm = async () => {
-    try {
-      setConfirming(true);
-
-      // 直接调用 confirm 接口，服务端读取 current_xml 并复制到 final.xml
-      const response = await confirmRecognition(taskId);
-
-      if (response.success) {
-        // 跳转到结果页
-        router.push(`/results/${taskId}`);
-      } else {
-        setError(response.message || t('saveFailed'));
-      }
-    } catch (err) {
-      console.error('确认识别结果失败:', err);
-      setError(err instanceof Error ? err.message : t('saveFailed'));
-    } finally {
-      setConfirming(false);
-    }
+  const handleConfirm = () => {
+    confirmMutation.mutate({ taskId }, {
+      onSuccess: (response) => {
+        if (response.success) {
+          router.push(`/results/${taskId}`);
+        }
+      },
+    });
   };
+
+  const confirming = confirmMutation.isPending;
+  const confirmError = confirmMutation.error;
 
   // 加载中状态
   if (loading) {

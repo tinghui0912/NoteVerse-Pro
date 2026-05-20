@@ -46,11 +46,6 @@ interface EditorStateContextType {
     isImageViewerOpen: boolean;
     setIsImageViewerOpen: React.Dispatch<React.SetStateAction<boolean>>;
 
-    // 悬停状态
-    hoveredCardLocation: EntityLocation | null;
-    handleMouseEnterCard: (location: EntityLocation | null) => void;
-    handleMouseLeaveCard: () => void;
-
     // 清空选择状态的回调（用于 Connection 操作）
     onToolChange: ((mode: EditorMode) => void) | null;
     setOnToolChange: (callback: ((mode: EditorMode) => void) | null) => void;
@@ -84,7 +79,6 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
     const [currentAddLocation, setCurrentAddLocation] = useState<AddLocation | null>(null);
     const [pendingInsert, setPendingInsert] = useState<{ entity: ScoreEntity; location: AddLocation } | null>(null);
     const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
-    const [hoveredCardLocation, setHoveredCardLocation] = useState<EntityLocation | null>(null);
     const [onToolChange, setOnToolChangeState] = useState<((mode: EditorMode) => void) | null>(null);
 
     // Ref for pending insert
@@ -100,13 +94,7 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
         }
     }, [editorMode, onToolChange]);
 
-    const handleMouseEnterCard = useCallback((location: EntityLocation | null) => {
-        setHoveredCardLocation(location);
-    }, []);
 
-    const handleMouseLeaveCard = useCallback(() => {
-        setHoveredCardLocation(null);
-    }, []);
 
     const setOnToolChange = useCallback((callback: ((mode: EditorMode) => void) | null) => {
         setOnToolChangeState(() => callback);
@@ -128,16 +116,12 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
         pendingInsertRef,
         isImageViewerOpen,
         setIsImageViewerOpen,
-        hoveredCardLocation,
-        handleMouseEnterCard,
-        handleMouseLeaveCard,
         onToolChange,
         setOnToolChange,
     }), [
         editorMode, selectTool, editingEntity, editingEntityLocation,
         isAddEntityModalOpen, currentAddLocation, pendingInsert,
-        isImageViewerOpen, hoveredCardLocation, handleMouseEnterCard,
-        handleMouseLeaveCard, onToolChange, setOnToolChange
+        isImageViewerOpen, onToolChange, setOnToolChange
     ]);
 
     return (

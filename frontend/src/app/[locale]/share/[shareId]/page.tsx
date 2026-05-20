@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
     ArrowLeft,
     Bookmark,
@@ -18,6 +19,8 @@ import { Link, routing } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { useDownload } from '@/hooks/use-download';
+import { useSaveToCollection } from '@/hooks/queries/use-share-queries';
+import { queryKeys } from '@/lib/query-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -49,24 +52,94 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
     const imageUrlsRef = useRef<string[]>([]);
 
     const [isListenModalOpen, setIsListenModalOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [imagesLoading, setImagesLoading] = useState(false);
-    const [errorState, setErrorState] = useState<{
-        type: 'not_found' | 'revoked' | 'expired' | null;
-        message: string;
-        expiredAt?: string;
-    }>({ type: null, message: '' });
 
-    const [scoreTitle, setScoreTitle] = useState('');
-    const [scoreDifficulty, setScoreDifficulty] = useState('');
-    const [taskId, setTaskId] = useState('');
-    const [sharedBy, setSharedBy] = useState('');
-    const [expiresAt, setExpiresAt] = useState('');
-    const [canDownload, setCanDownload] = useState(false);
-    const [imageUrls, setImageUrls] = useState<string[]>([]);
-    const [rawXml, setRawXml] = useState<string | null>(null);
+    // 认证守卫
+    useEffect(() => {
+        if (authLoading) return;
+        if (!isAuthenticated) {
+            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+            const loginPath = locale === routing.defaultLocale ? '/login' : `/${locale}/login`;
+            router.replace(`${loginPath}?returnUrl=${returnUrl}`);
+        }
+    }, [authLoading, isAuthenticated, locale, router]);
 
+    // ============ TanStack Query：加载分享数据 ============
+    const {
+        data: shareResponse,
+        isLoading: isLoadingShare,
+        error: shareError,
+    } = useQuery({
+        queryKey: queryKeys.shares.access(shareId),
+        queryFn: () => sharesApi.accessShare(shareId),
+        enabled: isAuthenticated && !authLoading,
+        retry: false, // 分享错误不重试（not_found/revoked/expired 重试无意义）
+    });
+
+    const shareData = shareResponse?.data ?? null;
+
+    // 从响应中提取字段
+    const scoreTitle = shareData?.task.title || '';
+    const scoreDifficulty = shareData?.task.difficulty || '';
+    const taskId = shareData?.task.task_id || '';
+    const sharedBy = shareData?.share_info.shared_by || t('anonymousUser');
+    const expiresAt = shareData?.share_info.expires_at || t('permanent');
+    const canDownload = shareData?.share_info.can_download || false;
+
+    // 分类错误状态
+    const errorState = useMemo(() => {
+        if (!shareError) return { type: null as null, message: '' };
+        if (shareError instanceof ApiError) {
+            switch (shareError.code) {
+                case 'share_not_found':
+                    return { type: 'not_found' as const, message: shareError.message };
+                case 'share_revoked':
+                    return { type: 'revoked' as const, message: shareError.message };
+                case 'share_expired':
+                    return {
+                        type: 'expired' as const,
+                        message: shareError.message,
+                        expiredAt: shareError.details?.expired_at as string | undefined,
+                    };
+                default:
+                    return { type: null as null, message: shareError.message };
+            }
+        }
+        return { type: null as null, message: t('loadFailedDesc') };
+    }, [shareError, t]);
+
+    // ============ TanStack Query：加载图片 ============
+    const finalImages = shareData?.task.files?.final_image || [];
+    const { data: imageUrls = [], isLoading: imagesLoading } = useQuery({
+        queryKey: ['share-images', shareId],
+        queryFn: async () => {
+            const urls: string[] = [];
+            for (let i = 0; i < finalImages.length; i += 1) {
+                const url = await fetchSharedImageAsBlob(shareId, i + 1);
+                if (url) urls.push(url);
+            }
+            return urls;
+        },
+        enabled: !!shareData && finalImages.length > 0,
+        staleTime: 0,
+        gcTime: 0,
+    });
+
+    // ============ TanStack Query：加载 XML ============
+    const { data: rawXml = null } = useQuery({
+        queryKey: ['share-xml', shareId],
+        queryFn: async () => {
+            try {
+                const xmlBlob = await sharesApi.downloadSharedFile(shareId, 'final_xml');
+                return await xmlBlob.text() || null;
+            } catch {
+                return null;
+            }
+        },
+        enabled: !!shareData,
+        staleTime: Infinity,
+    });
+
+    // 清理 blob URLs
     useEffect(() => {
         imageUrlsRef.current = imageUrls;
     }, [imageUrls]);
@@ -77,124 +150,29 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         };
     }, []);
 
-    useEffect(() => {
-        if (authLoading) {
-            return;
-        }
+    // ============ 收藏 mutation ============
+    const saveMutation = useSaveToCollection();
 
-        if (!isAuthenticated) {
-            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-            const loginPath = locale === routing.defaultLocale ? '/login' : `/${locale}/login`;
-            router.replace(`${loginPath}?returnUrl=${returnUrl}`);
-            return;
-        }
-
-        const loadShareData = async () => {
-            setIsLoading(true);
-            setErrorState({ type: null, message: '' });
-
-            try {
-                const response = await sharesApi.accessShare(shareId);
-
-                if (!response.data) {
-                    return;
-                }
-
-                const data = response.data;
-                setTaskId(data.task.task_id);
-                setScoreTitle(data.task.title || '');
-                setScoreDifficulty(data.task.difficulty || '');
-                setSharedBy(data.share_info.shared_by || t('anonymousUser'));
-                setExpiresAt(data.share_info.expires_at || t('permanent'));
-                setCanDownload(data.share_info.can_download || false);
-
-                revokeImageUrls(imageUrlsRef.current);
-                setImageUrls([]);
-
-                const finalImages = data.task.files?.final_image || [];
-                if (finalImages.length > 0) {
-                    setImagesLoading(true);
-                    const urls: string[] = [];
-
-                    for (let i = 0; i < finalImages.length; i += 1) {
-                        const url = await fetchSharedImageAsBlob(shareId, i + 1);
-                        if (url) {
-                            urls.push(url);
-                        }
-                    }
-
-                    setImageUrls(urls);
-                    setImagesLoading(false);
-                }
-
-                try {
-                    const xmlBlob = await sharesApi.downloadSharedFile(shareId, 'final_xml');
-                    const xmlString = await xmlBlob.text();
-                    if (xmlString) {
-                        setRawXml(xmlString);
-                    }
-                } catch {
-                    setRawXml(null);
-                }
-            } catch (error) {
-                console.error('Failed to load share:', error);
-
-                if (error instanceof ApiError) {
-                    switch (error.code) {
-                        case 'share_not_found':
-                            setErrorState({ type: 'not_found', message: error.message });
-                            break;
-                        case 'share_revoked':
-                            setErrorState({ type: 'revoked', message: error.message });
-                            break;
-                        case 'share_expired':
-                            setErrorState({
-                                type: 'expired',
-                                message: error.message,
-                                expiredAt: error.details?.expired_at as string | undefined,
-                            });
-                            break;
-                        default:
-                            toast({
-                                title: t('loadFailed'),
-                                description: error.message,
-                                variant: 'destructive',
-                            });
-                    }
-                } else {
-                    toast({
-                        title: t('loadFailed'),
-                        description: t('loadFailedDesc'),
-                        variant: 'destructive',
-                    });
-                }
-            } finally {
-                setImagesLoading(false);
-                setIsLoading(false);
-            }
-        };
-
-        loadShareData();
-    }, [authLoading, isAuthenticated, locale, router, shareId, t, toast]);
-
-    const handleBookmark = async () => {
-        setIsSaving(true);
-        try {
-            await sharesApi.saveShareToCollection(shareId);
-            toast({
-                title: t('saveSuccessTitle'),
-                description: t('saveSuccessDesc', { scoreName: '{scoreName}' }).replace('{scoreName}', scoreTitle),
-            });
-        } catch (error) {
-            toast({
-                title: t('saveFailed'),
-                description: error instanceof ApiError ? error.message : t('saveFailedDesc'),
-                variant: 'destructive',
-            });
-        } finally {
-            setIsSaving(false);
-        }
+    const handleBookmark = () => {
+        saveMutation.mutate(shareId, {
+            onSuccess: () => {
+                toast({
+                    title: t('saveSuccessTitle'),
+                    description: t('saveSuccessDesc', { scoreName: '{scoreName}' }).replace('{scoreName}', scoreTitle),
+                });
+            },
+            onError: (error) => {
+                toast({
+                    title: t('saveFailed'),
+                    description: error instanceof ApiError ? error.message : t('saveFailedDesc'),
+                    variant: 'destructive',
+                });
+            },
+        });
     };
+
+    const isSaving = saveMutation.isPending;
+    const isLoading = isLoadingShare;
 
     const { handleDownload } = useDownload({
         mode: 'share',
@@ -266,7 +244,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                     </div>
                 </div>
 
-                <main className="flex-grow flex items-center justify-center py-16">
+                <main className="grow flex items-center justify-center py-16">
                     <div className="max-w-md w-full mx-4 text-center">
                         <div className="text-6xl mb-6">{config.icon}</div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">{config.title}</h2>
@@ -304,14 +282,14 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                     </div>
                 </div>
             </div>
-            <main className="flex-grow">
+            <main className="grow">
                 <div className="max-w-7xl mx-auto px-4 py-16">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                         <div className="lg:col-span-2 space-y-6">
                             <Card className="bg-white rounded-2xl w-full shadow-lg">
                                 <CardContent className="p-4">
                                     {imagesLoading ? (
-                                        <div className="flex items-center justify-center aspect-[8.5/11] w-full bg-gray-100 rounded-md">
+                                        <div className="flex items-center justify-center aspect-8.5/11 w-full bg-gray-100 rounded-md">
                                             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                                         </div>
                                     ) : imageUrls.length > 0 ? (
@@ -319,7 +297,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                                             <CarouselContent>
                                                 {imageUrls.map((url, idx) => (
                                                     <CarouselItem key={idx}>
-                                                        <div className="relative aspect-[8.5/11] w-full bg-white rounded-md flex items-center justify-center">
+                                                        <div className="relative aspect-8.5/11 w-full bg-white rounded-md flex items-center justify-center">
                                                             <img
                                                                 src={url}
                                                                 alt={`Score Page ${idx + 1}`}
@@ -333,7 +311,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                                             <CarouselNext className="right-2" />
                                         </Carousel>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center aspect-[8.5/11] w-full bg-gray-100 rounded-md">
+                                        <div className="flex flex-col items-center justify-center aspect-8.5/11 w-full bg-gray-100 rounded-md">
                                             <FileImage className="h-12 w-12 text-gray-400 mb-2" />
                                             <p className="text-gray-500 text-sm">{tResults('noImageAvailable')}</p>
                                         </div>

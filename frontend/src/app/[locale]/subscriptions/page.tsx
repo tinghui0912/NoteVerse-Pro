@@ -74,7 +74,7 @@ export default function SubscriptionsPage() {
         </div>
       </div>
       
-      <main className="flex-grow">
+      <main className="grow">
         <div className="max-w-7xl mx-auto px-4 py-16">
           <div className="grid items-start gap-8 md:grid-cols-3">
             {pricingTiers.map((tier) => (

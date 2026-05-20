@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useCallback } from 'react';
 
 /**
  * 用于翻译后端返回的动态错误码和成功消息。
@@ -11,11 +12,11 @@ import { useTranslations } from 'next-intl';
 export function useBackendMessage() {
   const t = useTranslations('backend');
 
-  return (code: string): string => {
+  return useCallback((code: string): string => {
     try {
       return t(code as any);
     } catch {
       return code;
     }
-  };
+  }, [t]);
 }

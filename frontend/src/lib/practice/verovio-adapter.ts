@@ -58,9 +58,32 @@ function sanitizeMusicXmlForVerovio(xml: string) {
   return serializeXml(xmlDoc);
 }
 
+export type PracticeVisualTimelineEntry = {
+  index: number;
+  beat: number;
+  noteIds: string[];
+};
+
+function readNumericTimemapValue(entry: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = entry[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseFloat(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
 export class PracticeVerovioAdapter {
   private toolkit: VerovioToolkitLike | null = null;
-  private noteTimeline: string[][] = [];
+  private visualTimeline: PracticeVisualTimelineEntry[] = [];
 
   async loadMusicXml(xml: string) {
     const toolkit = await getToolkit();
@@ -83,14 +106,7 @@ export class PracticeVerovioAdapter {
     }
 
     toolkit.renderToMIDI();
-    this.noteTimeline = toolkit
-      .renderToTimemap({})
-      .map((entry) => {
-        return Array.isArray(entry.on)
-          ? entry.on.filter((value): value is string => typeof value === 'string')
-          : [];
-      })
-      .filter((noteIds) => noteIds.length > 0);
+    this.visualTimeline = this.buildVisualTimeline(toolkit.renderToTimemap({}));
     this.toolkit = toolkit;
   }
 
@@ -124,12 +140,54 @@ export class PracticeVerovioAdapter {
     return this.ensureReady().getPageWithElement(xmlId);
   }
 
-  getNoteIdsForEventIndex(eventIndex: number): string[] {
-    if (eventIndex < 0 || this.noteTimeline.length === 0) {
-      return [];
+  getTimelineEntryForBeat(beat: number): PracticeVisualTimelineEntry | null {
+    if (!Number.isFinite(beat) || this.visualTimeline.length === 0) {
+      return null;
     }
 
-    const clampedIndex = Math.min(eventIndex, this.noteTimeline.length - 1);
-    return this.noteTimeline[clampedIndex] ?? [];
+    let bestEntry = this.visualTimeline[0] ?? null;
+    let bestDistance = bestEntry ? Math.abs(bestEntry.beat - beat) : Number.POSITIVE_INFINITY;
+
+    for (const entry of this.visualTimeline) {
+      const distance = Math.abs(entry.beat - beat);
+      if (distance < bestDistance) {
+        bestEntry = entry;
+        bestDistance = distance;
+      }
+    }
+
+    return bestEntry;
+  }
+
+  private buildVisualTimeline(
+    timemap: Array<Record<string, unknown>>
+  ): PracticeVisualTimelineEntry[] {
+    const groupedByBeat = new Map<number, string[]>();
+
+    for (const entry of timemap) {
+      const noteIds = Array.isArray(entry.on)
+        ? entry.on.filter((value): value is string => typeof value === 'string')
+        : [];
+      if (noteIds.length === 0) {
+        continue;
+      }
+
+      const beat = readNumericTimemapValue(entry, ['qstamp', 'beat']);
+      if (beat === null) {
+        continue;
+      }
+
+      const roundedBeat = Math.round(beat * 1000) / 1000;
+      const existing = groupedByBeat.get(roundedBeat) ?? [];
+      groupedByBeat.set(roundedBeat, [...existing, ...noteIds]);
+    }
+
+    return Array.from(groupedByBeat.entries())
+      .sort(([leftBeat], [rightBeat]) => leftBeat - rightBeat)
+      .map(([beat, noteIds], index) => ({
+        index,
+        beat,
+        noteIds: Array.from(new Set(noteIds)),
+      }));
   }
 }

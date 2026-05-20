@@ -23,7 +23,6 @@ type ScoreViewerProps = {
     practiceStatus?: 'idle' | 'connecting' | 'practicing' | 'paused' | 'finished';
     sessionState?: string;
     alignment?: {
-        measure_number: number;
         beat_position: number;
         confidence: number;
     } | null;
@@ -64,8 +63,8 @@ export const ScoreViewer = ({
                     {sessionState ? <p>Session state: {sessionState}</p> : null}
                     {alignment ? (
                         <p>
-                            Measure {alignment.measure_number}, beat {alignment.beat_position.toFixed(2)},
-                            confidence {(alignment.confidence * 100).toFixed(0)}%
+                            Beat {alignment.beat_position.toFixed(2)}, confidence{' '}
+                            {(alignment.confidence * 100).toFixed(0)}%
                         </p>
                     ) : null}
                 </div>

@@ -6,9 +6,9 @@ Feature-specific dependency logic belongs in `app.modules.<feature>.dependencies
 
 from collections.abc import AsyncGenerator
 
+import jwt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -45,7 +45,7 @@ async def get_current_user(
             algorithms=[security.ALGORITHM],
         )
         token_data = TokenPayload(**payload)
-    except (JWTError, ValidationError):
+    except (jwt.InvalidTokenError, ValidationError):
         raise AuthenticationException(
             code=ErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "invalid_token"},

@@ -19,11 +19,6 @@ from app.db.models import (
 )
 from app.db.model_utils import require_persisted_id
 from app.processing.engines.matchmaker_live import AlignmentUpdate
-from app.processing.engines.score_timeline import (
-    ScoreTimelineBuilder,
-    ScoreTimelineResult,
-    score_timeline_builder,
-)
 from app.processing.reports.practice_report import (
     PracticeReportBuilder,
     practice_report_builder,
@@ -50,12 +45,10 @@ class PracticeService:
     def __init__(
         self,
         repository: PracticeRepository | None = None,
-        timeline_builder: ScoreTimelineBuilder | None = None,
         runtime_registry: PracticeSessionRuntimeRegistry | None = None,
         report_builder: PracticeReportBuilder | None = None,
     ) -> None:
         self.repository = repository or PracticeRepository()
-        self.timeline_builder = timeline_builder or score_timeline_builder
         self.runtime_registry = runtime_registry or practice_runtime_registry
         self.report_builder = report_builder or practice_report_builder
 
@@ -80,7 +73,7 @@ class PracticeService:
 
         await self._validate_task_access(db, task, user_id, share_token)
         task_id = require_persisted_id(task.id, entity="task")
-        timeline, score_file_path = await self._prepare_timeline(db, task_id, source)
+        score_file_path = await self._prepare_score_file(db, task_id, source)
 
         session = PracticeSession(
             session_uuid=str(uuid4()),
@@ -100,7 +93,6 @@ class PracticeService:
                 session_id=session.session_uuid,
                 task_id=task.task_uuid,
                 state=session.state.value,
-                timeline=timeline,
                 score_file_path=score_file_path,
                 sample_rate=sample_rate,
                 channels=channels,
@@ -292,8 +284,6 @@ class PracticeService:
                 resource_id=session_uuid,
                 code=ErrorCode.PRACTICE_SESSION_NOT_FOUND,
             )
-        session.last_event_index = alignment["event_index"]
-        session.last_measure_index = alignment["measure_index"]
         session.last_beat_position = alignment["beat_position"]
         session.last_confidence = alignment["confidence"]
         await self.repository.save_session(db, session)
@@ -354,12 +344,12 @@ class PracticeService:
         if share.expires_at and share.expires_at < utc_now_naive():
             raise ValidationException(code=ErrorCode.SHARE_EXPIRED, field="share_token")
 
-    async def _prepare_timeline(
+    async def _prepare_score_file(
         self,
         db: AsyncSession,
         task_id: int,
         source: str,
-    ) -> tuple[ScoreTimelineResult, str]:
+    ) -> str:
         if source == PracticeSourceType.final.value:
             file_record = await self.repository.get_task_file_by_kind(db, task_id, FileKind.FINAL_XML)
         else:
@@ -379,7 +369,7 @@ class PracticeService:
             )
 
         xml_path = resolve_stored_path(file_record.path)
-        return self.timeline_builder.build_from_file(xml_path), xml_path
+        return xml_path
 
     def _update_runtime_state(self, session_uuid: str, state: str) -> None:
         runtime = self.runtime_registry.get(session_uuid)
@@ -410,8 +400,6 @@ class PracticeService:
             "frame_format": session.frame_format,
             "started_at": session.started_at.isoformat() if session.started_at else None,
             "finished_at": session.finished_at.isoformat() if session.finished_at else None,
-            "last_event_index": session.last_event_index,
-            "last_measure_index": session.last_measure_index,
             "last_beat_position": session.last_beat_position,
             "last_confidence": session.last_confidence,
             "report_status": session.report_status.value,

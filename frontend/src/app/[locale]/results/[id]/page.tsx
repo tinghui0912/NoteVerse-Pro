@@ -44,7 +44,12 @@ import { Separator } from '@/components/ui/separator';
 import { Footer } from '@/components/layout/footer';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { useScoreData } from '@/contexts/editor-provider';
-import { tasksApi, sharesApi, filesApi, xmlApi } from '@/lib/api';
+import { filesApi } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { useTaskDetail, useUpdateTask } from '@/hooks/queries/use-task-queries';
+import { useShareList, useCreateShare, useToggleShare, useDeleteShare } from '@/hooks/queries/use-share-queries';
+import { useXmlContent, useGenerateFingering } from '@/hooks/queries/use-xml-queries';
+import { queryKeys } from '@/lib/query-client';
 import type { Share } from '@/types/api';
 import { Loader2 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
@@ -84,95 +89,100 @@ function ResultsPageContent({ id }: { id: string }) {
   const tb = useBackendMessage();
   const { toast } = useToast();
   const router = useRouter();
-  const [historicalShares, setHistoricalShares] = useState<ShareItem[]>([]);
   const [scoreTitle, setScoreTitle] = useState('');
   const [scoreDifficulty, setScoreDifficulty] = useState('');
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [isListenModalOpen, setIsListenModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [sharePermission, setSharePermission] = useState('view');
   const [shareExpiration, setShareExpiration] = useState('7d');
   const [scoreImages, setScoreImages] = useState<{ id: number; url: string; alt: string }[]>([]);
-  const [isGeneratingFingering, setIsGeneratingFingering] = useState(false);
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [imagesLoading, setImagesLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const { rawXml, setRawXml, setScoreData } = useScoreData();
 
-  // 加载任务详情和分享列表
+  // 1. TanStack Query：任务详情
+  const { data: taskResponse, isLoading: isTaskLoading, error: taskError } = useTaskDetail(id);
+  const task = taskResponse?.data;
+
+  // 当任务数据加载或退出编辑状态时，同步标题和难度
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        // 加载任务详情
-        const taskResponse = await tasksApi.getTaskDetails(id);
-        if (taskResponse.data) {
-          const task = taskResponse.data;
-          setScoreTitle(task.title || '');
-          setScoreDifficulty(task.difficulty || '');
+    if (task && !isEditingInfo) {
+      setScoreTitle(task.title || '');
+      setScoreDifficulty(task.difficulty || '');
+    }
+  }, [task, isEditingInfo]);
 
-          // 加载真实预览图片
-          const finalImages = task.files?.final_image || [];
-          if (finalImages.length > 0) {
-            setImagesLoading(true);
-            const urls: string[] = [];
-            for (let i = 0; i < finalImages.length; i++) {
-              const url = await fetchAuthenticatedImage(id, 'final_image', i + 1);
-              if (url) urls.push(url);
-            }
-            setImageUrls(urls);
-            setImagesLoading(false);
-          } else {
-            // 无图片时也要设置为 false，避免永久 loading
-            setImagesLoading(false);
-          }
-        }
-
-        // 加载 XML 用于预览
-        try {
-          const xmlString = await xmlApi.loadXml(id, 'final');
-          if (xmlString) {
-            setRawXml(xmlString);
-            const { MusicXMLParser } = await import('@/lib/musicxml-parser');
-            const parser = new MusicXMLParser(xmlString);
-            const data = parser.parse();
-            setScoreData(data);
-            if (data.mainTitle) {
-              setScoreTitle(data.mainTitle);
-            }
-          }
-        } catch {
-          // 忽略 XML 加载错误
-        }
-
-        // 加载分享列表
-        const sharesResponse = await sharesApi.listShares(id);
-        if (sharesResponse.data?.shares) {
-          const shares: ShareItem[] = sharesResponse.data.shares.map((s: Share) => ({
-            id: String(s.id),
-            url: `/share/${s.share_token}`,  // 前端拼接 URL
-            date: s.created_at || '',
-            permission: 'view' as SharePermission,
-            status: s.revoked_at ? 'revoked' : (s.expires_at && new Date(s.expires_at) < new Date() ? 'expired' : 'active') as ShareStatus,
-            expires: s.expires_at || '',
-            token: s.share_token,
-          }));
-          setHistoricalShares(shares);
-        }
-      } catch (error) {
-        console.error('加载数据失败:', error);
-        setError(error instanceof ApiError && error.code ? tErrors(error.code as any) : t('loadTaskFailed'));
-      } finally {
-        setIsLoading(false);
+  // 2. TanStack Query：图片预加载
+  const finalImages = task?.files?.final_image || [];
+  const { data: imageUrls = [], isLoading: imagesLoading } = useQuery({
+    queryKey: queryKeys.images.task(id, 'final_image'),
+    queryFn: async () => {
+      const urls: string[] = [];
+      for (let i = 0; i < finalImages.length; i++) {
+        const url = await fetchAuthenticatedImage(id, 'final_image', i + 1);
+        if (url) urls.push(url);
       }
+      return urls;
+    },
+    enabled: !!task && finalImages.length > 0,
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  // 清理图片 URLs
+  useEffect(() => {
+    return () => {
+      imageUrls.forEach(url => URL.revokeObjectURL(url));
     };
+  }, [imageUrls]);
 
-    loadData();
-  }, [id, setScoreData, setRawXml, toast]);
+  // 3. TanStack Query：XML 加载与解析
+  const { data: xmlContent } = useXmlContent(id, 'final', { enabled: !!task });
+  useEffect(() => {
+    if (xmlContent) {
+      setRawXml(xmlContent);
+      import('@/lib/musicxml-parser').then(({ MusicXMLParser }) => {
+        try {
+          const parser = new MusicXMLParser(xmlContent);
+          const data = parser.parse();
+          setScoreData(data);
+          // 只有当任务本身没有标题，且不在编辑状态时，才使用解析出的标题
+          if (data.mainTitle && !isEditingInfo && !task?.title) {
+            setScoreTitle(data.mainTitle);
+          }
+        } catch (e) {
+          console.error('Failed to parse XML', e);
+        }
+      });
+    }
+  }, [xmlContent, setRawXml, setScoreData, isEditingInfo, task?.title]);
 
-  const handleToggleEditInfo = async () => {
+  // 4. TanStack Query：分享列表
+  const { data: sharesResponse } = useShareList(id);
+  const historicalShares: ShareItem[] = React.useMemo(() => {
+    if (!sharesResponse?.data?.shares) return [];
+    return sharesResponse.data.shares.map((s: Share) => ({
+      id: String(s.id),
+      url: `/share/${s.share_token}`,
+      date: s.created_at || '',
+      permission: 'view' as SharePermission,
+      status: s.revoked_at ? 'revoked' : (s.expires_at && new Date(s.expires_at) < new Date() ? 'expired' : 'active') as ShareStatus,
+      expires: s.expires_at || '',
+      token: s.share_token,
+    }));
+  }, [sharesResponse]);
+
+  // 合并 loading 和 error 状态
+  const isLoading = isTaskLoading;
+  const error = taskError instanceof ApiError && taskError.code ? tErrors(taskError.code as any) : (taskError instanceof Error ? taskError.message : null);
+
+  // ============ Mutations ============
+  const updateTaskMutation = useUpdateTask();
+  const createShareMutation = useCreateShare(id);
+  const toggleShareMutation = useToggleShare(id);
+  const deleteShareMutation = useDeleteShare(id);
+  const generateFingeringMutation = useGenerateFingering();
+
+  const handleToggleEditInfo = () => {
     if (isEditingInfo) {
       // 保存编辑
       if (scoreTitle.trim() === '') {
@@ -184,26 +194,29 @@ function ResultsPageContent({ id }: { id: string }) {
         return;
       }
 
-      try {
-        await tasksApi.updateTask(id, {
-          title: scoreTitle,
-          difficulty: scoreDifficulty,
-        });
-        toast({
-          title: t('saveSuccess'),
-          description: t('scoreInfoUpdated'),
-        });
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: t('saveFailed'),
-          description: error instanceof Error ? error.message : t('saveFailedDesc'),
-        });
-        return;
-      }
+      updateTaskMutation.mutate(
+        { id, data: { title: scoreTitle, difficulty: scoreDifficulty } },
+        {
+          onSuccess: () => {
+            toast({
+              title: t('saveSuccess'),
+              description: t('scoreInfoUpdated'),
+            });
+            setIsEditingInfo(false);
+          },
+          onError: (error) => {
+            toast({
+              variant: "destructive",
+              title: t('saveFailed'),
+              description: error instanceof Error ? error.message : t('saveFailedDesc'),
+            });
+          }
+        }
+      );
+    } else {
+      setIsEditingInfo(true);
     }
-    setIsEditingInfo(!isEditingInfo);
-  }
+  };
 
   const handleCopy = (text: string | undefined, message: string) => {
     if (!text) {
@@ -224,112 +237,112 @@ function ResultsPageContent({ id }: { id: string }) {
   };
 
   // 创建分享链接
-  const handleCreateShare = async () => {
-    setIsCreatingShare(true);
-    try {
-      const expirationDays = {
-        '1d': 1,
-        '7d': 7,
-        '30d': 30,
-        '365d': 365,
-        'perm': 999,
-      }[shareExpiration] || 7;
+  const handleCreateShare = () => {
+    const expirationDays = {
+      '1d': 1,
+      '7d': 7,
+      '30d': 30,
+      '365d': 365,
+      'perm': 999,
+    }[shareExpiration] || 7;
 
-      const response = await sharesApi.createShare(id, expirationDays);
-      if (response.data) {
-        toast({
-          title: t('createShareSuccess'),
-          description: t('shareLinkCreated'),
-        });
-        // 前端自己拼接完整链接
-        const shareUrl = `${window.location.origin}/share/${response.data.share_token}`;
-        navigator.clipboard.writeText(shareUrl);
-        // 重新加载分享列表
-        const sharesResponse = await sharesApi.listShares(id);
-        if (sharesResponse.data?.shares) {
-          const shares: ShareItem[] = sharesResponse.data.shares.map((s: Share) => ({
-            id: String(s.id),
-            url: `/share/${s.share_token}`,  // 前端拼接 URL
-            date: s.created_at || '',
-            permission: 'view' as SharePermission,
-            status: 'active' as ShareStatus,
-            expires: s.expires_at || '',
-            token: s.share_token,
-          }));
-          setHistoricalShares(shares);
-        }
-      }
-    } catch (error: any) {
-      toast({
-        title: t('createShareFailed'),
-        description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('createShareFailedDesc'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsCreatingShare(false);
-    }
-  };
-
-  // 处理分享操作
-  const handleShareAction = async (shareId: string, action: 'revoke' | 'reinstate' | 'delete') => {
-    const share = historicalShares.find(s => s.id === shareId);
-    if (!share) return;
-
-    try {
-      if (action === 'delete') {
-        await sharesApi.deleteShare(share.token);
-        setHistoricalShares(prev => prev.filter(s => s.id !== shareId));
-        toast({
-          title: t('deleteShareSuccess'),
-          description: t('shareLinkDeleted'),
-        });
-      } else if (action === 'revoke' || action === 'reinstate') {
-        const response = await sharesApi.revokeShare(share.token);
-        if (response.data) {
-          setHistoricalShares(prev => prev.map(s =>
-            s.id === shareId
-              ? { ...s, status: response.data!.revoked ? 'revoked' as ShareStatus : 'active' as ShareStatus }
-              : s
-          ));
+    createShareMutation.mutate(
+      { expiresInDays: expirationDays },
+      {
+        onSuccess: (response) => {
           toast({
-            title: response.data.revoked ? t('revoked') : t('reinstated'),
-            description: response.data.revoked ? t('shareLinkRevoked') : t('shareLinkReinstated'),
+            title: t('createShareSuccess'),
+            description: t('shareLinkCreated'),
+          });
+          // 前端自己拼接完整链接
+          if (response.data) {
+            const shareUrl = `${window.location.origin}/share/${response.data.share_token}`;
+            navigator.clipboard.writeText(shareUrl);
+          }
+        },
+        onError: (error) => {
+          toast({
+            title: t('createShareFailed'),
+            description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('createShareFailedDesc'),
+            variant: 'destructive',
           });
         }
       }
-    } catch (error) {
-      toast({
-        title: t('operationFailed'),
-        description: error instanceof ApiError ? error.message : t('operationFailed'),
-        variant: 'destructive',
+    );
+  };
+
+  // 处理分享操作
+  const handleShareAction = (shareId: string, action: 'revoke' | 'reinstate' | 'delete') => {
+    const share = historicalShares.find(s => s.id === shareId);
+    if (!share) return;
+
+    if (action === 'delete') {
+      deleteShareMutation.mutate(share.token, {
+        onSuccess: () => {
+          toast({
+            title: t('deleteShareSuccess'),
+            description: t('shareLinkDeleted'),
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: t('operationFailed'),
+            description: error instanceof ApiError ? error.message : t('operationFailed'),
+            variant: 'destructive',
+          });
+        }
+      });
+    } else if (action === 'revoke' || action === 'reinstate') {
+      toggleShareMutation.mutate(share.token, {
+        onSuccess: (response) => {
+          if (response.data) {
+            toast({
+              title: response.data.revoked ? t('revoked') : t('reinstated'),
+              description: response.data.revoked ? t('shareLinkRevoked') : t('shareLinkReinstated'),
+            });
+          }
+        },
+        onError: (error) => {
+          toast({
+            title: t('operationFailed'),
+            description: error instanceof ApiError ? error.message : t('operationFailed'),
+            variant: 'destructive',
+          });
+        }
       });
     }
   };
 
   // 生成指法
-  const handleGenerateFingering = async () => {
-    setIsGeneratingFingering(true);
-    try {
-      const response = await xmlApi.generateFingering(id);
-      if (response.success) {
-        toast({
-          title: t('fingeringSuccess'),
-          description: t('fingeringDesc'),
-        });
-        // 刷新页面以加载新的指法结果
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
-        throw new Error(response.message || t('fingeringFailed'));
+  const handleGenerateFingering = () => {
+    generateFingeringMutation.mutate(
+      { taskId: id },
+      {
+        onSuccess: (response) => {
+          if (response.success) {
+            toast({
+              title: t('fingeringSuccess'),
+              description: t('fingeringDesc'),
+            });
+            // 刷新页面以加载新的指法结果
+            setTimeout(() => window.location.reload(), 1000);
+          } else {
+            toast({
+              title: t('fingeringFailed'),
+              description: response.message || t('fingeringFailed'),
+              variant: 'destructive',
+            });
+          }
+        },
+        onError: (error) => {
+          toast({
+            title: t('fingeringFailed'),
+            description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('fingeringFailedDesc'),
+            variant: 'destructive',
+          });
+        }
       }
-    } catch (error: any) {
-      toast({
-        title: t('fingeringFailed'),
-        description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('fingeringFailedDesc'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsGeneratingFingering(false);
-    }
+    );
   };
 
   // 使用通用下载 Hook
@@ -346,7 +359,7 @@ function ResultsPageContent({ id }: { id: string }) {
       href: '#',
       isAction: true,
       onClick: handleGenerateFingering,
-      loading: isGeneratingFingering,
+      loading: generateFingeringMutation.isPending,
     },
     { label: tCommon('play'), icon: Play, href: '#', isModal: true },
     { label: tPractice('mode'), icon: Gamepad2, href: `/practice/${id}` },
@@ -362,7 +375,7 @@ function ResultsPageContent({ id }: { id: string }) {
             <h1 className="text-4xl sm:text-6xl font-bold text-white mb-4">{t('title')}</h1>
           </div>
         </div>
-        <main className="flex-grow flex items-center justify-center">
+        <main className="grow flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-12 w-12 animate-spin text-orange-500 mx-auto mb-4" />
             <p className="text-gray-600">{tCommon('loading')}</p>
@@ -382,7 +395,7 @@ function ResultsPageContent({ id }: { id: string }) {
             <h1 className="text-4xl sm:text-6xl font-bold text-white mb-4">{t('title')}</h1>
           </div>
         </div>
-        <main className="flex-grow flex items-center justify-center py-16">
+        <main className="grow flex items-center justify-center py-16">
           <div className="max-w-md w-full mx-4 text-center">
             <div className="text-6xl mb-6">⚠️</div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">{tCommon('loadFailed')}</h2>
@@ -421,7 +434,7 @@ function ResultsPageContent({ id }: { id: string }) {
         </div>
       </div>
 
-      <main className="flex-grow">
+      <main className="grow">
         <div className="max-w-7xl mx-auto px-4 py-16">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             {/* Left Column */}
@@ -429,7 +442,7 @@ function ResultsPageContent({ id }: { id: string }) {
               <Card className="bg-white rounded-2xl w-full shadow-lg">
                 <CardContent className="p-4">
                   {imagesLoading ? (
-                    <div className="flex items-center justify-center aspect-[8.5/11] w-full bg-gray-100 rounded-md">
+                    <div className="flex items-center justify-center aspect-8.5/11 w-full bg-gray-100 rounded-md">
                       <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                     </div>
                   ) : imageUrls.length > 0 ? (
@@ -437,7 +450,7 @@ function ResultsPageContent({ id }: { id: string }) {
                       <CarouselContent>
                         {imageUrls.map((url, idx) => (
                           <CarouselItem key={idx}>
-                            <div className="relative aspect-[8.5/11] w-full bg-white rounded-md flex items-center justify-center">
+                            <div className="relative aspect-8.5/11 w-full bg-white rounded-md flex items-center justify-center">
                               <img
                                 src={url}
                                 alt={`Score Page ${idx + 1}`}
@@ -451,7 +464,7 @@ function ResultsPageContent({ id }: { id: string }) {
                       <CarouselNext className="right-2" />
                     </Carousel>
                   ) : (
-                    <div className="flex flex-col items-center justify-center aspect-[8.5/11] w-full bg-gray-100 rounded-md">
+                    <div className="flex flex-col items-center justify-center aspect-8.5/11 w-full bg-gray-100 rounded-md">
                       <FileImage className="h-12 w-12 text-gray-400 mb-2" />
                       <p className="text-gray-500 text-sm">{t('noImageAvailable')}</p>
                     </div>
@@ -530,12 +543,10 @@ function ResultsPageContent({ id }: { id: string }) {
                         className="h-8 w-8 text-muted-foreground"
                         onClick={() => {
                           // 取消编辑，恢复原值
-                          tasksApi.getTaskDetails(id).then(res => {
-                            if (res.data) {
-                              setScoreTitle(res.data.title || '');
-                              setScoreDifficulty(res.data.difficulty || '');
-                            }
-                          });
+                          if (task) {
+                            setScoreTitle(task.title || '');
+                            setScoreDifficulty(task.difficulty || '');
+                          }
                           setIsEditingInfo(false);
                         }}
                       >
@@ -547,8 +558,9 @@ function ResultsPageContent({ id }: { id: string }) {
                       size="icon"
                       className="h-8 w-8 text-muted-foreground"
                       onClick={handleToggleEditInfo}
+                      disabled={updateTaskMutation.isPending}
                     >
-                      {isEditingInfo ? <Save className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
+                      {updateTaskMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditingInfo ? <Save className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
                     </Button>
                   </div>
                 </CardHeader>
@@ -650,10 +662,10 @@ function ResultsPageContent({ id }: { id: string }) {
                   <Button
                     className="w-full rounded-full"
                     onClick={handleCreateShare}
-                    disabled={isCreatingShare}
+                    disabled={createShareMutation.isPending}
                   >
-                    {isCreatingShare ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('creating')}</>
+                    {createShareMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       tShare('createLink')
                     )}

@@ -80,6 +80,7 @@
   "delete_failed": "Delete failed: {error}",
   "avatar_process_failed": "Avatar processing failed: {error}",
   "fingering_failed": "Fingering generation failed: {error}",
+  "practice_alignment_failed": "Practice analysis failed. Please check your microphone input and try again.",
   "task_error": "Task processing error",
   "task_timeout": "Task processing timeout",
   "input_file_missing": "Input file not found",

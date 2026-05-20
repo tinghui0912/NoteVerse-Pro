@@ -322,8 +322,6 @@ export interface PracticeSessionDetail {
     frame_format: string;
     started_at?: string | null;
     finished_at?: string | null;
-    last_event_index?: number | null;
-    last_measure_index?: number | null;
     last_beat_position?: number | null;
     last_confidence?: number | null;
     report_status: PracticeReportStatus;
@@ -349,6 +347,13 @@ export interface PracticeSessionReadyMessage {
     };
 }
 
+export interface PracticeSessionArmedMessage {
+    type: 'session.armed';
+    payload: {
+        session_id: string;
+    };
+}
+
 export interface PracticeSessionStateChangedMessage {
     type: 'session.state_changed';
     payload: {
@@ -366,9 +371,6 @@ export interface PracticeSessionFinishedMessage {
 export interface PracticeAlignmentUpdateMessage {
     type: 'alignment.update';
     payload: {
-        event_index: number;
-        measure_index: number;
-        measure_number: number;
         beat_position: number;
         confidence: number;
         timestamp_ms: number;
@@ -394,6 +396,7 @@ export interface PracticeSessionErrorMessage {
 
 export type PracticeServerMessage =
     | PracticeSessionReadyMessage
+    | PracticeSessionArmedMessage
     | PracticeSessionStateChangedMessage
     | PracticeSessionFinishedMessage
     | PracticeAlignmentUpdateMessage

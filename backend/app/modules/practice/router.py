@@ -13,6 +13,7 @@ from app.modules.practice.service import PracticeService
 from app.processing.realtime.message_codec import (
     alignment_update_message,
     parse_control_message,
+    session_armed_message,
     session_error_message,
     session_finished_message,
     session_ready_message,
@@ -211,6 +212,9 @@ async def stream_practice_session(
                         )
                     )
                     break
+
+                if runtime.consume_ready_notification():
+                    await websocket.send_json(session_armed_message(session_id=session_id))
 
                 if alignment is not None:
                     await websocket.send_json(alignment_update_message(alignment))

@@ -194,12 +194,9 @@ async def test_practice_service_create_session_allows_valid_share_token_access()
             state=PracticeSessionState.CREATED,
         )
     )
-    timeline_builder = Mock()
-    timeline_builder.build_from_file.return_value = {"events": [], "total_events": 0, "total_measures": 0}
     runtime_registry = Mock()
     service = PracticeService(
         repository=repository,
-        timeline_builder=timeline_builder,
         runtime_registry=runtime_registry,
     )
 
@@ -237,8 +234,6 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
         frame_format="pcm_s16le",
         started_at=None,
         finished_at=None,
-        last_event_index=None,
-        last_measure_index=None,
         last_beat_position=None,
         last_confidence=None,
         report_status=PracticeReportStatus.NOT_REQUESTED,
@@ -285,8 +280,6 @@ async def test_practice_service_persist_alignment_updates_latest_position() -> N
     repository = Mock()
     session = SimpleNamespace(
         session_uuid="session-1",
-        last_event_index=None,
-        last_measure_index=None,
         last_beat_position=None,
         last_confidence=None,
     )
@@ -294,18 +287,14 @@ async def test_practice_service_persist_alignment_updates_latest_position() -> N
     repository.save_session = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
     service = PracticeService(repository=repository)
     alignment: AlignmentUpdate = {
-        "event_index": 7,
-        "measure_index": 2,
-        "measure_number": 3,
         "beat_position": 12.5,
         "confidence": 0.95,
         "timestamp_ms": 320,
+        "score_completed": False,
     }
 
     await service.persist_alignment(AsyncMock(), "session-1", alignment)
 
-    assert session.last_event_index == 7
-    assert session.last_measure_index == 2
     assert session.last_beat_position == 12.5
     assert session.last_confidence == 0.95
 
@@ -320,8 +309,6 @@ async def test_practice_service_request_report_persists_structured_payload() -> 
         source_type=PracticeSourceType.final,
         started_at=None,
         finished_at=None,
-        last_event_index=12,
-        last_measure_index=4,
         last_beat_position=18.5,
         last_confidence=0.88,
         report_status=PracticeReportStatus.NOT_REQUESTED,

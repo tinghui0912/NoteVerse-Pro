@@ -29,6 +29,7 @@ import { Footer } from '@/components/layout/footer';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from '@/components/ui/carousel';
 import { filesApi, tasksApi } from '@/lib/api';
+import { useSubmitBatch, useTaskDetail } from '@/hooks/queries/use-task-queries';
 import type { UploadedFile } from '@/types/api';
 import { ApiError } from '@/lib/api-client';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
@@ -75,6 +76,57 @@ function UploadPageContent() {
   const [taskProgress, setTaskProgress] = useState(0);
   const [taskStatus, setTaskStatus] = useState('');
   const [taskError, setTaskError] = useState<string | null>(null); // 任务错误信息
+  const [pollInterval, setPollInterval] = useState<number | false>(false);
+  const [pollStartTime, setPollStartTime] = useState<number>(0);
+
+  const { data: statusResponse } = useTaskDetail(currentTaskId || '', {
+    enabled: !!currentTaskId && pollInterval !== false,
+    refetchInterval: pollInterval
+  });
+  const submitBatchMutation = useSubmitBatch();
+
+  // 轮询状态监听
+  useEffect(() => {
+    if (!statusResponse?.data || !currentTaskId) return;
+
+    // 检查超时 (5分钟)
+    if (Date.now() - pollStartTime > 150 * 2000) {
+      toast({
+        title: t('processingTimeout'),
+        description: t('processingTimeoutDesc'),
+        variant: 'destructive',
+      });
+      setIsSubmitting(false);
+      setCurrentTaskId(null);
+      setPollInterval(false);
+      return;
+    }
+
+    const data = statusResponse.data;
+    setTaskProgress(data.progress || 0);
+    setTaskStatus(data.current_step || 'processing');
+
+    const state = String(data.state).toUpperCase();
+
+    if (state === 'PENDING_REVIEW' || state === 'SUCCESS') {
+      setIsSubmitting(false);
+      setCurrentTaskId(null);
+      setPollInterval(false);
+      setTaskProgress(0);
+      setTaskStatus('');
+
+      files.forEach(f => URL.revokeObjectURL(f.preview));
+      setFiles([]);
+
+      const redirectPath = state === 'PENDING_REVIEW' ? `/review/${currentTaskId}` : `/results/${currentTaskId}`;
+      router.push(redirectPath);
+    } else if (state === 'FAILURE') {
+      setTaskError(data.error || t('taskProcessingFailed'));
+      setIsSubmitting(false);
+      setCurrentTaskId(null);
+      setPollInterval(false);
+    }
+  }, [statusResponse?.data, currentTaskId, files, router, t, pollStartTime, toast]);
 
   // URL 参数
   const searchParams = useSearchParams();
@@ -177,9 +229,12 @@ function UploadPageContent() {
       setIsSubmitting(true);
 
       // 第二步：提交处理任务
-      const response = await tasksApi.submitBatch(uploadedFileIds, {
-        title: scoreName || undefined,
-        difficulty,
+      const response = await submitBatchMutation.mutateAsync({
+        fileIds: uploadedFileIds,
+        options: {
+          title: scoreName || undefined,
+          difficulty,
+        }
       });
 
       if (response.data?.task_id) {
@@ -187,10 +242,8 @@ function UploadPageContent() {
         setCurrentTaskId(taskId);
         setTaskStatus(t('taskStarted'));
         setTaskProgress(5);
-
-
-        // 开始轮询任务状态
-        pollTaskStatus(taskId);
+        setPollStartTime(Date.now());
+        setPollInterval(2000);
       }
     } catch (err) {
       const errorMessage = err instanceof ApiError ? err.message : (err as Error).message || t('processingFailed');
@@ -202,78 +255,6 @@ function UploadPageContent() {
       setIsUploading(false);
       setIsSubmitting(false);
     }
-  };
-
-  /**
-   * 轮询任务状态
-   */
-  const pollTaskStatus = async (taskId: string) => {
-    const maxPolls = 150; // 最多轮询 5 分钟 (150 * 2s)
-    let pollCount = 0;
-
-    const poll = async () => {
-      // 检查组件是否已卸载
-      if (!isMountedRef.current) {
-        return;
-      }
-
-      pollCount++;
-
-      if (pollCount > maxPolls) {
-        toast({
-          title: t('processingTimeout'),
-          description: t('processingTimeoutDesc'),
-          variant: 'destructive',
-        });
-        setIsSubmitting(false);
-        setCurrentTaskId(null);
-        return;
-      }
-
-      try {
-        const statusResponse = await tasksApi.getTaskDetails(taskId);
-        const data = statusResponse.data;
-
-        if (data) {
-          setTaskProgress(data.progress || 0);
-          setTaskStatus(data.current_step || 'processing');
-
-          const state = String(data.state).toUpperCase();
-
-          // PENDING_REVIEW = 任务处理完成，跳转审核页
-          if (state === 'PENDING_REVIEW' || state === 'SUCCESS') {
-            // 重置所有状态
-            setIsSubmitting(false);
-            setCurrentTaskId(null);
-            setTaskProgress(0);
-            setTaskStatus('');
-            // 清空文件列表，防止返回时复用旧的 fileId
-            files.forEach(f => URL.revokeObjectURL(f.preview));
-            setFiles([]);
-
-            // 跳转审核页（PENDING_REVIEW）或结果页（SUCCESS）
-            const redirectPath = state === 'PENDING_REVIEW' ? `/review/${taskId}` : `/results/${taskId}`;
-            router.push(redirectPath);
-            return;
-          } else if (state === 'FAILURE') {
-            setTaskError(data.error || t('taskProcessingFailed'));
-            setIsSubmitting(false);
-            setCurrentTaskId(null);
-            return;
-          }
-        }
-
-        // 继续轮询
-        setTimeout(poll, 2000);
-      } catch (err) {
-        console.error('获取任务状态失败:', err);
-        // 出错时继续轮询
-        setTimeout(poll, 2000);
-      }
-    };
-
-    // 开始轮询
-    poll();
   };
 
   const handleOpenModal = (index: number) => {
@@ -349,7 +330,8 @@ function UploadPageContent() {
           setIsSubmitting(true);
           setTaskProgress(data.progress || 0);
           setTaskStatus(data.current_step || 'processing');
-          pollTaskStatus(urlTaskId);
+          setPollStartTime(Date.now());
+          setPollInterval(2000);
         } else if (state === 'FAILURE') {
           // 失败，显示错误信息
           setCurrentTaskId(urlTaskId);

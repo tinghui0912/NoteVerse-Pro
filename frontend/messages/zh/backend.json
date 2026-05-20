@@ -80,6 +80,7 @@
   "delete_failed": "删除失败：{error}",
   "avatar_process_failed": "头像处理失败：{error}",
   "fingering_failed": "指法生成失败：{error}",
+  "practice_alignment_failed": "练习分析失败，请检查麦克风输入后重试",
   "task_error": "任务处理错误",
   "task_timeout": "任务处理超时",
   "input_file_missing": "输入文件不存在",

@@ -2,14 +2,15 @@
 
 from datetime import timedelta
 
-from jose import jwt
-from passlib.context import CryptContext
+import jwt
+from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
 
 from .config import settings
 from app.utils.timezone import utc_now
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_hash = PasswordHash.recommended()
 
 ALGORITHM = "HS256"
 
@@ -39,17 +40,20 @@ def decode_access_token(token: str) -> dict[str, object]:
         return payload
     except jwt.ExpiredSignatureError:
         raise ValueError("Token has expired")
-    except jwt.JWTError:
+    except jwt.InvalidTokenError:
         raise ValueError("Invalid token")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plaintext password against the stored hash."""
 
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return password_hash.verify(plain_password, hashed_password)
+    except UnknownHashError:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a plaintext password using the configured password context."""
+    """Hash a plaintext password using Argon2id."""
 
-    return pwd_context.hash(password)
+    return password_hash.hash(password)

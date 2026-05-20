@@ -3,12 +3,14 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { ScoreDataProvider, useScoreData } from './score-data-context';
 import { EditorStateProvider, useEditorState, type EditorMode } from './editor-state-context';
+import { HoverStateProvider, useHoverState } from './hover-state-context';
 import { HistoryProvider, useHistory } from './history-context';
 import { MusicXMLParser } from '@/lib/musicxml-parser';
 
 // Re-export types and hooks for convenience
 export { useScoreData } from './score-data-context';
 export { useEditorState, type EditorMode } from './editor-state-context';
+export { useHoverState } from './hover-state-context';
 export { useHistory, useHistoryControl } from './history-context';
 
 // Re-export domain operation hooks
@@ -64,9 +66,11 @@ export function EditorProvider({ children }: EditorProviderProps) {
         <ScoreDataProvider>
             <HistoryProvider>
                 <EditorStateProvider>
-                    <HistoryScoreDataConnector>
-                        {children}
-                    </HistoryScoreDataConnector>
+                    <HoverStateProvider>
+                        <HistoryScoreDataConnector>
+                            {children}
+                        </HistoryScoreDataConnector>
+                    </HoverStateProvider>
                 </EditorStateProvider>
             </HistoryProvider>
         </ScoreDataProvider>

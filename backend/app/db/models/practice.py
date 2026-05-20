@@ -56,8 +56,6 @@ class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]
     frame_format: str = Field(sa_column=Column(String(32), nullable=False))
     started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     finished_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    last_event_index: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    last_measure_index: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     last_beat_position: Optional[float] = Field(default=None, sa_column=Column(Float))
     last_confidence: Optional[float] = Field(default=None, sa_column=Column(Float))
     audio_path: Optional[str] = Field(default=None, sa_column=Column(String(512)))

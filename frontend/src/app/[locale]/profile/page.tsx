@@ -15,7 +15,7 @@ import { Link } from '@/i18n/routing';
 import { Footer } from '@/components/layout/footer';
 import React, { useRef, useState, useEffect } from 'react';
 import { AvatarCropperModal } from '@/components/avatar-cropper-modal';
-import { profileApi } from '@/lib/api';
+import { useUploadAvatar, useUpdateProfile, useChangePassword } from '@/hooks/queries/use-profile-mutations';
 import { ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,9 +39,9 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // 加载状态
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarMutation = useUploadAvatar();
+  const profileMutation = useUpdateProfile();
+  const passwordMutation = useChangePassword();
 
   // 同步用户数据
   useEffect(() => {
@@ -72,59 +72,52 @@ export default function ProfilePage() {
 
   // 上传裁剪后的头像
   const handleCroppedImage = async (imageDataUrl: string) => {
-    setIsUploadingAvatar(true);
-    try {
-      // 将 data URL 转换为 File
-      const response = await fetch(imageDataUrl);
-      const blob = await response.blob();
-      const file = new File([blob], 'avatar.png', { type: 'image/png' });
+    // 将 data URL 转换为 File
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    const file = new File([blob], 'avatar.png', { type: 'image/png' });
 
-      // 上传头像
-      const result = await profileApi.uploadAvatar(file);
-      if (result.data?.avatar_url) {
-        // 添加时间戳避免浏览器缓存
-        const avatarUrlWithCacheBuster = `${result.data.avatar_url}?t=${Date.now()}`;
-        // 更新全局用户状态
-        if (user) {
-          setUser({ ...user, avatar: avatarUrlWithCacheBuster });
+    avatarMutation.mutate(file, {
+      onSuccess: (result) => {
+        if (result.data?.avatar_url) {
+          const avatarUrlWithCacheBuster = `${result.data.avatar_url}?t=${Date.now()}`;
+          if (user) {
+            setUser({ ...user, avatar: avatarUrlWithCacheBuster });
+          }
+          toast({
+            title: t('avatarSuccess'),
+            description: t('avatarUpdated'),
+          });
         }
+      },
+      onError: (error) => {
         toast({
-          title: t('avatarSuccess'),
-          description: t('avatarUpdated'),
+          title: t('uploadFailed'),
+          description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('uploadFailedDesc'),
+          variant: 'destructive',
         });
-      }
-    } catch (error: any) {
-      toast({
-        title: t('uploadFailed'),
-        description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('uploadFailedDesc'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUploadingAvatar(false);
-    }
+      },
+    });
   };
 
   // 更新个人资料
-  const handleUpdateProfile = async () => {
-    setIsUpdatingProfile(true);
-    try {
-      await profileApi.updateProfile({
-        email: email !== user?.email ? email : undefined,
-      });
-      await refreshUser();
-      toast({
-        title: t('updateSuccess'),
-        description: t('profileUpdated'),
-      });
-    } catch (error: any) {
-      toast({
-        title: t('updateFailed'),
-        description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('updateFailedDesc'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUpdatingProfile(false);
-    }
+  const handleUpdateProfile = () => {
+    profileMutation.mutate({ email: email !== user?.email ? email : undefined }, {
+      onSuccess: async () => {
+        await refreshUser();
+        toast({
+          title: t('updateSuccess'),
+          description: t('profileUpdated'),
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: t('updateFailed'),
+          description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('updateFailedDesc'),
+          variant: 'destructive',
+        });
+      },
+    });
   };
 
   // 修改密码
@@ -147,26 +140,24 @@ export default function ProfilePage() {
       return;
     }
 
-    setIsUpdatingPassword(true);
-    try {
-      await profileApi.changePassword(currentPassword, newPassword);
-      toast({
-        title: t('passwordSuccess'),
-        description: t('passwordUpdated'),
-      });
-      // 清空密码字段
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error: any) {
-      toast({
-        title: t('passwordFailed'),
-        description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('passwordFailedDesc'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUpdatingPassword(false);
-    }
+    passwordMutation.mutate({ currentPassword, newPassword }, {
+      onSuccess: () => {
+        toast({
+          title: t('passwordSuccess'),
+          description: t('passwordUpdated'),
+        });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      },
+      onError: (error) => {
+        toast({
+          title: t('passwordFailed'),
+          description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('passwordFailedDesc'),
+          variant: 'destructive',
+        });
+      },
+    });
   };
 
   return (
@@ -208,9 +199,9 @@ export default function ProfilePage() {
                         size="icon"
                         className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white/80 backdrop-blur-sm shadow"
                         onClick={handleCameraClick}
-                        disabled={isUploadingAvatar}
+                        disabled={avatarMutation.isPending}
                       >
-                        {isUploadingAvatar ? (
+                        {avatarMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Camera className="h-4 w-4" />
@@ -256,9 +247,9 @@ export default function ProfilePage() {
                     size="lg"
                     className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                     onClick={handleUpdateProfile}
-                    disabled={isUpdatingProfile}
+                    disabled={profileMutation.isPending}
                   >
-                    {isUpdatingProfile ? (
+                    {profileMutation.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <Save className="mr-2 h-4 w-4" />
@@ -307,9 +298,9 @@ export default function ProfilePage() {
                   size="lg"
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                   onClick={handleUpdatePassword}
-                  disabled={isUpdatingPassword}
+                  disabled={passwordMutation.isPending}
                 >
-                  {isUpdatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {passwordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {t('updatePassword')}
                 </Button>
               </CardContent>

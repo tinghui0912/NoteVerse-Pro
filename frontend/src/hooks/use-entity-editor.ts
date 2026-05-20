@@ -15,14 +15,10 @@ import {
     parseXml,
     serializeXml,
     getEntityGroupsFromMeasure,
-    getDurationValue,
-    getDurationTypeName,
 } from '@/lib/musicxml-core';
-import {
-    updateSingleNoteInXml,
-    createNoteElementFromPitch,
-} from '@/lib/musicxml-elements';
 import { recalculateBackups } from '@/lib/musicxml-backup';
+import { insertEntity } from './entity-editor/insert-entity';
+import { updateExistingEntity } from './entity-editor/update-existing-entity';
 
 export function useEntityEditor() {
     const t = useTranslations('editor.actions');
@@ -144,126 +140,21 @@ export function useEntityEditor() {
         if (currentPendingInsert) {
             const { location } = currentPendingInsert;
 
-            // 插入新实体
             if (!currentXml || !scoreData) return;
 
-            try {
-                const xmlDoc = parseXml(currentXml);
-                const divisionsEl = xmlDoc.querySelector('attributes divisions');
-                const divisions = divisionsEl?.textContent ? parseInt(divisionsEl.textContent, 10) : 1;
+            const result = insertEntity({
+                updatedEntity,
+                location,
+                currentXml,
+                scoreData,
+                getExpectedVoices,
+            });
 
-                const measureNumber = location.measureIndex + 1;
-                const staffNumber = location.staveIndex + 1;
-                const voiceNum = location.xmlVoice;
-
-                const measureEl = xmlDoc.querySelector(`measure[number="${measureNumber}"]`);
-                if (!measureEl) return;
-
-                // 创建新音符元素
-                let noteEl: Element;
-                if (updatedEntity.type === 'note' && 'pitch' in updatedEntity) {
-                    noteEl = createNoteElementFromPitch(xmlDoc, updatedEntity.pitch, updatedEntity.duration, voiceNum, staffNumber, divisions, false);
-                } else if (updatedEntity.type === 'rest') {
-                    noteEl = xmlDoc.createElement('note');
-                    const restEl = xmlDoc.createElement('common.rest');
-                    noteEl.appendChild(restEl);
-                    const durationEl = xmlDoc.createElement('duration');
-                    durationEl.textContent = String(getDurationValue(updatedEntity.duration, divisions));
-                    noteEl.appendChild(durationEl);
-                    const voiceEl = xmlDoc.createElement('common.voice');
-                    voiceEl.textContent = String(voiceNum);
-                    noteEl.appendChild(voiceEl);
-                    const typeEl = xmlDoc.createElement('type');
-                    typeEl.textContent = getDurationTypeName(updatedEntity.duration);
-                    noteEl.appendChild(typeEl);
-                    const staffEl = xmlDoc.createElement('staff');
-                    staffEl.textContent = String(staffNumber);
-                    noteEl.appendChild(staffEl);
-                } else if (updatedEntity.type === 'blank') {
-                    // 空白使用 forward 元素表示
-                    noteEl = xmlDoc.createElement('forward');
-                    const durationEl = xmlDoc.createElement('duration');
-                    durationEl.textContent = String(getDurationValue(updatedEntity.duration, divisions));
-                    noteEl.appendChild(durationEl);
-                    const voiceEl = xmlDoc.createElement('common.voice');
-                    voiceEl.textContent = String(voiceNum);
-                    noteEl.appendChild(voiceEl);
-                    const staffEl = xmlDoc.createElement('staff');
-                    staffEl.textContent = String(staffNumber);
-                    noteEl.appendChild(staffEl);
-                } else if (updatedEntity.type === 'chord' && 'pitches' in updatedEntity) {
-                    // 和弦新增：创建多个音符元素
-                    const pitches = updatedEntity.pitches;
-                    if (pitches.length === 0) return;
-
-                    // 创建第一个音符（无 chord 标签）
-                    noteEl = createNoteElementFromPitch(xmlDoc, pitches[0], updatedEntity.duration, voiceNum, staffNumber, divisions, false);
-
-                    // 找到插入位置
-                    const chordEntityGroups = getEntityGroupsFromMeasure(measureEl, staffNumber, voiceNum);
-                    const chordInsertIndex = location.position === 'after'
-                        ? location.entityIndex + 1
-                        : location.entityIndex;
-
-                    if (chordEntityGroups.length === 0 || chordInsertIndex >= chordEntityGroups.length) {
-                        measureEl.appendChild(noteEl);
-                    } else {
-                        const refElement = chordEntityGroups[chordInsertIndex].elements[0];
-                        refElement.parentNode?.insertBefore(noteEl, refElement);
-                    }
-
-                    // 添加其余音符（带 chord 标签）
-                    let prevNote = noteEl;
-                    for (let i = 1; i < pitches.length; i++) {
-                        const chordNote = createNoteElementFromPitch(xmlDoc, pitches[i], updatedEntity.duration, voiceNum, staffNumber, divisions, true);
-                        prevNote.parentNode?.insertBefore(chordNote, prevNote.nextSibling);
-                        prevNote = chordNote;
-                    }
-
-                    recalculateBackups(measureEl);
-
-                    const chordNewXml = serializeXml(xmlDoc);
-                    history.push(chordNewXml, t('addChord'));
-                    currentXmlRef.current = chordNewXml;
-                    setCurrentXml(chordNewXml);
-
-                    const chordNewParser = new MusicXMLParser(chordNewXml, { expectedVoices: getExpectedVoices(scoreData) });
-                    setScoreData(chordNewParser.parse());
-
-                    setPendingInsert(null);
-                    pendingInsertRef.current = null;
-                    setEditingEntity(null);
-                    setEditingEntityLocation(null);
-                    return;
-                } else {
-                    return; // 不支持的类型
-                }
-
-                // 找到插入位置（考虑 position 字段）
-                const entityGroups = getEntityGroupsFromMeasure(measureEl, staffNumber, voiceNum);
-                // position === 'before' 时使用原始 entityIndex，position === 'after' 时 +1
-                const insertIndex = location.position === 'after'
-                    ? location.entityIndex + 1
-                    : location.entityIndex;
-
-                if (entityGroups.length === 0 || insertIndex >= entityGroups.length) {
-                    measureEl.appendChild(noteEl);
-                } else {
-                    const refElement = entityGroups[insertIndex].elements[0];
-                    refElement.parentNode?.insertBefore(noteEl, refElement);
-                }
-
-                recalculateBackups(measureEl);
-
-                const newXml = serializeXml(xmlDoc);
-                history.push(newXml, t('addNote'));
-                currentXmlRef.current = newXml;
-                setCurrentXml(newXml);
-
-                const newParser = new MusicXMLParser(newXml, { expectedVoices: getExpectedVoices(scoreData) });
-                setScoreData(newParser.parse());
-            } catch (error) {
-                console.error('Failed to insert entity:', error);
+            if (result.success && result.newXml && result.newScoreData) {
+                history.push(result.newXml, t(result.historyLabel as any));
+                currentXmlRef.current = result.newXml;
+                setCurrentXml(result.newXml);
+                setScoreData(result.newScoreData);
             }
 
             setPendingInsert(null);
@@ -276,117 +167,19 @@ export function useEntityEditor() {
         // 以下是编辑现有实体的逻辑
         if (!editingEntityLocation || !currentXml || !scoreData) return;
 
-        const { measureIndex, staveIndex, xmlVoice, entityIndex } = editingEntityLocation;
+        const result = updateExistingEntity({
+            updatedEntity,
+            editingEntityLocation,
+            currentXml,
+            scoreData,
+            getExpectedVoices,
+        });
 
-        try {
-            const xmlDoc = parseXml(currentXml);
-            const divisionsEl = xmlDoc.querySelector('attributes divisions');
-            const divisions = divisionsEl?.textContent ? parseInt(divisionsEl.textContent, 10) : 1;
-
-            const measureNumber = measureIndex + 1;
-            const staffNumber = staveIndex + 1;
-            const voiceNum = xmlVoice;
-
-            const measureEl = xmlDoc.querySelector(`measure[number="${measureNumber}"]`);
-            if (!measureEl) return;
-
-            const entityGroups = getEntityGroupsFromMeasure(measureEl, staffNumber, voiceNum);
-            const targetGroup = entityGroups[entityIndex];
-            if (!targetGroup || targetGroup.elements.length === 0) return;
-
-            const targetElements = targetGroup.elements;
-
-            if (updatedEntity.type === 'chord' && 'pitches' in updatedEntity) {
-                const pitches = updatedEntity.pitches;
-                const fingerings = updatedEntity.fingerings || [];
-
-                pitches.forEach((pitchStr, i) => {
-                    const noteOptions = {
-                        dotted: 'dotted' in updatedEntity ? updatedEntity.dotted : undefined,
-                        stemDirection: 'stemDirection' in updatedEntity ? updatedEntity.stemDirection : undefined,
-                        fingering: fingerings[i] || undefined,
-                    };
-
-                    if (i < targetElements.length) {
-                        updateSingleNoteInXml(targetElements[i], pitchStr, updatedEntity.duration, divisions, i > 0, noteOptions);
-                    } else {
-                        const newNoteEl = createNoteElementFromPitch(xmlDoc, pitchStr, updatedEntity.duration, voiceNum, staffNumber, divisions, true);
-                        const lastNote = targetElements[targetElements.length - 1];
-                        lastNote.parentNode?.insertBefore(newNoteEl, lastNote.nextSibling);
-                        targetElements.push(newNoteEl);
-                        updateSingleNoteInXml(newNoteEl, pitchStr, updatedEntity.duration, divisions, true, noteOptions);
-                    }
-                });
-
-                for (let i = targetElements.length - 1; i >= pitches.length; i--) {
-                    targetElements[i].remove();
-                }
-            } else {
-                const mainNote = targetElements[0];
-
-                if (updatedEntity.type === 'rest' || updatedEntity.type === 'blank') {
-                    const existingPitch = mainNote.querySelector('pitch');
-                    if (existingPitch) existingPitch.remove();
-
-                    let restEl = mainNote.querySelector('rest');
-                    if (!restEl) {
-                        restEl = xmlDoc.createElement('common.rest');
-                        mainNote.insertBefore(restEl, mainNote.firstChild);
-                    }
-
-                    if ('dotted' in updatedEntity) {
-                        const existingDot = mainNote.querySelector('dot');
-                        if (updatedEntity.dotted && !existingDot) {
-                            const dotEl = xmlDoc.createElement('dot');
-                            const typeEl = mainNote.querySelector('type');
-                            if (typeEl) {
-                                typeEl.after(dotEl);
-                            } else {
-                                mainNote.appendChild(dotEl);
-                            }
-                        } else if (!updatedEntity.dotted && existingDot) {
-                            existingDot.remove();
-                        }
-                    }
-
-                    for (let i = 1; i < targetElements.length; i++) {
-                        targetElements[i].remove();
-                    }
-                } else if (updatedEntity.type === 'note' && 'pitch' in updatedEntity) {
-                    const noteOptions = {
-                        dotted: updatedEntity.dotted,
-                        stemDirection: updatedEntity.stemDirection,
-                        fingering: updatedEntity.fingering,
-                    };
-                    updateSingleNoteInXml(mainNote, updatedEntity.pitch, updatedEntity.duration, divisions, false, noteOptions);
-
-                    for (let i = 1; i < targetElements.length; i++) {
-                        targetElements[i].remove();
-                    }
-                }
-
-                const durationEl = mainNote.querySelector('duration');
-                if (durationEl) {
-                    durationEl.textContent = String(getDurationValue(updatedEntity.duration, divisions));
-                }
-
-                const typeEl = mainNote.querySelector('type');
-                if (typeEl) {
-                    typeEl.textContent = getDurationTypeName(updatedEntity.duration);
-                }
-            }
-
-            recalculateBackups(measureEl);
-
-            const newXml = serializeXml(xmlDoc);
-            history.push(newXml, t('editNote'));
-            currentXmlRef.current = newXml;
-            setCurrentXml(newXml);
-
-            const newParser = new MusicXMLParser(newXml, { expectedVoices: getExpectedVoices(scoreData) });
-            setScoreData(newParser.parse());
-        } catch (error) {
-            console.error('Failed to update entity:', error);
+        if (result.success && result.newXml && result.newScoreData) {
+            history.push(result.newXml, t('editNote'));
+            currentXmlRef.current = result.newXml;
+            setCurrentXml(result.newXml);
+            setScoreData(result.newScoreData);
         }
 
         setEditingEntity(null);
