@@ -9,8 +9,8 @@ import type { UserProfile, UpdateProfileRequest, AvatarResponse } from '@/types/
 /**
  * 获取当前用户资料
  */
-export async function getProfile(): Promise<ApiResponse<UserProfile>> {
-    return apiClient.get<ApiResponse<UserProfile>>('/profile');
+export async function getProfile(options?: { suppressAuthRedirect?: boolean }): Promise<ApiResponse<UserProfile>> {
+    return apiClient.get<ApiResponse<UserProfile>>('/profile', undefined, options);
 }
 
 /**

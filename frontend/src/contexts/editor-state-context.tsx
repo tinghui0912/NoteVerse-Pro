@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import type { ScoreEntity, ScoreEntityType, AddLocation, EntityLocation } from '@/types/score-types';
+import type { ScoreEntity, AddLocation, EntityLocation } from '@/types/score-types';
 
 /**
  * 编辑器模式

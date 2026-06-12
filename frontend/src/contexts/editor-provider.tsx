@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ScoreDataProvider, useScoreData } from './score-data-context';
-import { EditorStateProvider, useEditorState, type EditorMode } from './editor-state-context';
-import { HoverStateProvider, useHoverState } from './hover-state-context';
+import { EditorStateProvider, useEditorState } from './editor-state-context';
+import { HoverStateProvider } from './hover-state-context';
 import { HistoryProvider, useHistory } from './history-context';
-import { MusicXMLParser } from '@/lib/musicxml-parser';
 
 // Re-export types and hooks for convenience
 export { useScoreData } from './score-data-context';
@@ -39,7 +38,7 @@ export function useEditor() {
  * 内部组件：连接 History 和 ScoreData
  */
 function HistoryScoreDataConnector({ children }: { children: React.ReactNode }) {
-    const { currentXml, currentXmlRef, setCurrentXml, setScoreData, getExpectedVoices, scoreData } = useScoreData();
+    const { currentXml } = useScoreData();
     const { initialize, isInitialized } = useHistory();
     const historyInitializedRef = useRef(false);
 

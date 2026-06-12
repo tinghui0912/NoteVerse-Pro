@@ -3,6 +3,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import { profileApi } from '@/lib/api';
+import type { UpdateProfileRequest } from '@/types/api';
 
 /**
  * 上传头像
@@ -18,7 +19,7 @@ export function useUploadAvatar() {
  */
 export function useUpdateProfile() {
     return useMutation({
-        mutationFn: (data: { email?: string }) => profileApi.updateProfile(data),
+        mutationFn: (data: UpdateProfileRequest) => profileApi.updateProfile(data),
     });
 }
 

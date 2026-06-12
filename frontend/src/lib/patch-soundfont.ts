@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Soundfont Monkey Patch Utility
  * 
  * Patches window.Soundfont.instrument to redirect soundfont requests
@@ -16,7 +16,11 @@
 declare global {
     interface Window {
         Soundfont?: {
-            instrument: (...args: any[]) => any;
+            instrument: (
+                ctx: AudioContext,
+                name: string,
+                opts?: Record<string, unknown>
+            ) => unknown;
             __patched_local_root?: string;
         };
     }
@@ -64,8 +68,8 @@ export function patchSoundfontToLocal(
     sf.instrument = function (
         ctx: AudioContext,
         name: string,
-        opts?: any
-    ): any {
+        opts?: Record<string, unknown>
+    ): unknown {
         // Merge options with local path override
         const customOpts = Object.assign(
             {

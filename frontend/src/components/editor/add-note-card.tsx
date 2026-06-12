@@ -9,7 +9,6 @@ import { Plus } from 'lucide-react';
  */
 export const AddNoteCard = ({ onClick }: { onClick: () => void }) => {
     const t = useTranslations('editor');
-    const tCommon = useTranslations('common');
     return (
         <Button
             variant="ghost"

@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useBackendMessage } from '@/hooks/use-backend-message';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,8 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Check, Edit, Loader2, FileImage } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { Footer } from '@/components/layout/footer';
 import { useTaskDetail } from '@/hooks/queries/use-task-queries';
@@ -23,7 +23,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const t = useTranslations('review');
   const tCommon = useTranslations('common');
   const tResults = useTranslations('results');
-  const tb = useBackendMessage();
   const router = useRouter();
 
   // ============ TanStack Query：任务详情 ============
@@ -63,6 +62,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     },
     enabled: !!taskDetails && totalOriginalPages > 0,
     staleTime: Infinity,
+    gcTime: 0,
   });
 
   // ============ TanStack Query：预加载预览图片 ============
@@ -78,12 +78,31 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     },
     enabled: !!taskDetails && totalPreviewPages > 0,
     staleTime: Infinity,
+    gcTime: 0,
   });
 
   const imagesLoading = {
     original: originalImagesLoading,
     preview: previewImagesLoading,
   };
+
+  const originalImageUrlsRef = useRef<string[]>([]);
+  const previewImageUrlsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    originalImageUrlsRef.current = originalImageUrls;
+  }, [originalImageUrls]);
+
+  useEffect(() => {
+    previewImageUrlsRef.current = previewImageUrls;
+  }, [previewImageUrls]);
+
+  useEffect(() => {
+    return () => {
+      originalImageUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      previewImageUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   // ============ 确认识别 mutation ============
   const confirmMutation = useConfirmRecognition();
@@ -97,18 +116,28 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   // 监听 Carousel 页面变化
   useEffect(() => {
     if (!originalApi) return;
-    setOriginalCurrent(originalApi.selectedScrollSnap());
-    originalApi.on('select', () => {
+    const onSelect = () => {
       setOriginalCurrent(originalApi.selectedScrollSnap());
-    });
+    };
+    const frame = window.requestAnimationFrame(onSelect);
+    originalApi.on('select', onSelect);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      originalApi.off('select', onSelect);
+    };
   }, [originalApi]);
 
   useEffect(() => {
     if (!previewApi) return;
-    setPreviewCurrent(previewApi.selectedScrollSnap());
-    previewApi.on('select', () => {
+    const onSelect = () => {
       setPreviewCurrent(previewApi.selectedScrollSnap());
-    });
+    };
+    const frame = window.requestAnimationFrame(onSelect);
+    previewApi.on('select', onSelect);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      previewApi.off('select', onSelect);
+    };
   }, [previewApi]);
 
   // 确认识别结果
@@ -123,7 +152,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   };
 
   const confirming = confirmMutation.isPending;
-  const confirmError = confirmMutation.error;
 
   // 加载中状态
   if (loading) {
@@ -203,10 +231,12 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                       {originalImageUrls.map((url, index) => (
                         <CarouselItem key={index}>
                           <div className="relative aspect-[8.5/11] w-full bg-gray-100 rounded-md overflow-hidden flex items-center justify-center">
-                            <img
+                            <Image
                               src={url}
                               alt={t('originalScorePage', { page: index + 1 })}
-                              className="max-w-full max-h-full object-contain rounded-md"
+                              fill
+                              unoptimized
+                              className="object-contain rounded-md"
                             />
                           </div>
                         </CarouselItem>
@@ -249,10 +279,12 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                       {previewImageUrls.map((url, index) => (
                         <CarouselItem key={index}>
                           <div className="relative aspect-[8.5/11] w-full bg-gray-100 rounded-md overflow-hidden flex items-center justify-center">
-                            <img
+                            <Image
                               src={url}
                               alt={t('recognizedScorePage', { page: index + 1 })}
-                              className="max-w-full max-h-full object-contain rounded-md"
+                              fill
+                              unoptimized
+                              className="object-contain rounded-md"
                             />
                           </div>
                         </CarouselItem>

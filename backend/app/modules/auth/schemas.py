@@ -8,19 +8,18 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from app.db.models.user import UserRole
 
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
 class TokenPayload(BaseModel):
-    sub: str | None = None
+    sub: str
+    exp: int
+    iat: int
+    jti: str
+    typ: str
 
 
 class SendCodeRequest(BaseModel):
     email: EmailStr = Field(..., description="Email address")
-    purpose: Literal["register", "password_reset", "generic"] = Field(
-        default="generic",
+    purpose: Literal["register", "password_reset"] = Field(
+        default="register",
         description="Verification code purpose",
     )
 
@@ -36,11 +35,6 @@ class VerifyCodeRequest(BaseModel):
         if not value.isdigit():
             raise ValueError("Verification code must be a 6-digit number")
         return value
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr = Field(..., description="Email address")
-    password: str = Field(..., min_length=1, description="Password")
 
 
 class RegisterRequest(BaseModel):
@@ -110,12 +104,10 @@ class SendCodeResult(BaseModel):
 
 __all__ = [
     "ChangePasswordRequest",
-    "LoginRequest",
     "RegisterRequest",
     "ResetPasswordRequest",
     "SendCodeResult",
     "SendCodeRequest",
-    "Token",
     "TokenPayload",
     "User",
     "UserBase",

@@ -289,8 +289,16 @@ async def test_practice_service_persist_alignment_updates_latest_position() -> N
     alignment: AlignmentUpdate = {
         "beat_position": 12.5,
         "confidence": 0.95,
+        "alignment_confidence": 0.95,
+        "audio_confidence": 0.95,
+        "continuity_confidence": 0.95,
+        "visual_confidence": 0.95,
         "timestamp_ms": 320,
         "score_completed": False,
+        "audio_active": True,
+        "input_rms": 0.04,
+        "input_peak": 0.1,
+        "match_state": "matched",
     }
 
     await service.persist_alignment(AsyncMock(), "session-1", alignment)

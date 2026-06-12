@@ -1,7 +1,6 @@
-'use client';
+﻿'use client';
 
 import { useTranslations } from 'next-intl';
-import { useBackendMessage } from '@/hooks/use-backend-message';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,29 +29,37 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from '@/components/ui/carousel';
 import { filesApi, tasksApi } from '@/lib/api';
 import { useSubmitBatch, useTaskDetail } from '@/hooks/queries/use-task-queries';
-import type { UploadedFile } from '@/types/api';
 import { ApiError } from '@/lib/api-client';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
 import { useToast } from '@/hooks/use-toast';
 
-// 扩展 File 类型以包含预览和上传状态
+// 鎵╁睍 File 绫诲瀷浠ュ寘鍚瑙堝拰涓婁紶鐘舵€?
 interface UploadableFile {
   file: File;
   preview: string;
-  fileId?: string; // 上传后的文件 ID (SHA256)
-  sha256?: string; // 历史任务的文件哈希（可复用）
+  fileId?: string; // 涓婁紶鍚庣殑鏂囦欢 ID (SHA256)
+  sha256?: string; // 鍘嗗彶浠诲姟鐨勬枃浠跺搱甯岋紙鍙鐢級
   status: 'pending' | 'uploading' | 'uploaded' | 'error';
   error?: string;
+}
+
+interface RestoredUploadInfo {
+  original_filename?: string;
+  sha256?: string;
+}
+
+interface RestorableTaskData {
+  upload_ids?: RestoredUploadInfo[];
 }
 
 function UploadPageContent() {
   const t = useTranslations('upload');
   const tCommon = useTranslations('common');
-  const tb = useBackendMessage();
   const router = useRouter();
   const { toast } = useToast();
 
   const [files, setFiles] = useState<UploadableFile[]>([]);
+  const filesRef = useRef<UploadableFile[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStartIndex, setModalStartIndex] = useState(0);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
@@ -60,7 +67,7 @@ function UploadPageContent() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 跟踪组件是否挂载，用于停止轮询
+  // 璺熻釜缁勪欢鏄惁鎸傝浇锛岀敤浜庡仠姝㈣疆璇?
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -69,13 +76,16 @@ function UploadPageContent() {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
   const [scoreName, setScoreName] = useState('');
   const [difficulty, setDifficulty] = useState('difficultyIntermediate');
-  // 任务轮询状态
+  // 浠诲姟杞鐘舵€?
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [taskProgress, setTaskProgress] = useState(0);
-  const [taskStatus, setTaskStatus] = useState('');
-  const [taskError, setTaskError] = useState<string | null>(null); // 任务错误信息
+  const [taskError, setTaskError] = useState<string | null>(null); // 浠诲姟閿欒淇℃伅
   const [pollInterval, setPollInterval] = useState<number | false>(false);
   const [pollStartTime, setPollStartTime] = useState<number>(0);
 
@@ -85,11 +95,11 @@ function UploadPageContent() {
   });
   const submitBatchMutation = useSubmitBatch();
 
-  // 轮询状态监听
+  // 杞鐘舵€佺洃鍚?
   useEffect(() => {
     if (!statusResponse?.data || !currentTaskId) return;
 
-    // 检查超时 (5分钟)
+    // 妫€鏌ヨ秴鏃?(5鍒嗛挓)
     if (Date.now() - pollStartTime > 150 * 2000) {
       toast({
         title: t('processingTimeout'),
@@ -104,7 +114,6 @@ function UploadPageContent() {
 
     const data = statusResponse.data;
     setTaskProgress(data.progress || 0);
-    setTaskStatus(data.current_step || 'processing');
 
     const state = String(data.state).toUpperCase();
 
@@ -113,7 +122,6 @@ function UploadPageContent() {
       setCurrentTaskId(null);
       setPollInterval(false);
       setTaskProgress(0);
-      setTaskStatus('');
 
       files.forEach(f => URL.revokeObjectURL(f.preview));
       setFiles([]);
@@ -128,10 +136,10 @@ function UploadPageContent() {
     }
   }, [statusResponse?.data, currentTaskId, files, router, t, pollStartTime, toast]);
 
-  // URL 参数
+  // URL 鍙傛暟
   const searchParams = useSearchParams();
   const urlTaskId = searchParams.get('task_id');
-  const hasRestoredRef = useRef(false); // 防止重复恢复
+  const hasRestoredRef = useRef(false); // 闃叉閲嶅鎭㈠
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: UploadableFile[] = acceptedFiles.map((file) => ({
@@ -151,7 +159,7 @@ function UploadPageContent() {
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.bmp'] },
-    noClick: files.length > 0, // 有文件时禁用点击（使用 AlertDialog），无文件时启用点击
+    noClick: files.length > 0, // 鏈夋枃浠舵椂绂佺敤鐐瑰嚮锛堜娇鐢?AlertDialog锛夛紝鏃犳枃浠舵椂鍚敤鐐瑰嚮
     noKeyboard: true,
   });
 
@@ -168,39 +176,35 @@ function UploadPageContent() {
   };
 
   /**
-   * 上传文件并提交任务
-   */
+   * 涓婁紶鏂囦欢骞舵彁浜や换鍔?   */
   const handleRecognition = async () => {
     if (files.length === 0) return;
 
-    // 重置之前的任务状态
-    setCurrentTaskId(null);
+    // 閲嶇疆涔嬪墠鐨勪换鍔＄姸鎬?    setCurrentTaskId(null);
     setTaskProgress(0);
-    setTaskStatus('');
-    setTaskError(null); // 清除错误状态
-
+    setTaskError(null); // 娓呴櫎閿欒鐘舵€?
     setIsUploading(true);
 
     try {
-      // 第一步：上传所有文件（有 uploadId 的直接复用，没有的需要上传）
+      // 绗竴姝ワ細涓婁紶鎵€鏈夋枃浠讹紙鏈?uploadId 鐨勭洿鎺ュ鐢紝娌℃湁鐨勯渶瑕佷笂浼狅級
       const uploadedFileIds: string[] = [];
 
       for (let i = 0; i < files.length; i++) {
         const currentFile = files[i];
 
-        // 有 sha256 的文件可以直接复用
+        // 鏈?sha256 鐨勬枃浠跺彲浠ョ洿鎺ュ鐢?
         if (currentFile.sha256) {
           uploadedFileIds.push(currentFile.sha256);
           continue;
         }
 
-        // 已经上传过的文件（本次会话上传的）
+        // 宸茬粡涓婁紶杩囩殑鏂囦欢锛堟湰娆′細璇濅笂浼犵殑锛?
         if (currentFile.status === 'uploaded' && currentFile.fileId) {
           uploadedFileIds.push(currentFile.fileId);
           continue;
         }
 
-        // 更新状态为 uploading
+        // 鏇存柊鐘舵€佷负 uploading
         setFiles(prev => prev.map((f, idx) =>
           idx === i ? { ...f, status: 'uploading' as const } : f
         ));
@@ -210,13 +214,13 @@ function UploadPageContent() {
           if (response.data?.file_id) {
             uploadedFileIds.push(response.data.file_id);
 
-            // 更新状态为 uploaded
+            // 鏇存柊鐘舵€佷负 uploaded
             setFiles(prev => prev.map((f, idx) =>
               idx === i ? { ...f, status: 'uploaded' as const, fileId: response.data?.file_id } : f
             ));
           }
         } catch (err) {
-          // 更新状态为 error
+          // 鏇存柊鐘舵€佷负 error
           const errorMessage = err instanceof ApiError ? err.message : tCommon('operationFailed');
           setFiles(prev => prev.map((f, idx) =>
             idx === i ? { ...f, status: 'error' as const, error: errorMessage } : f
@@ -228,7 +232,7 @@ function UploadPageContent() {
       setIsUploading(false);
       setIsSubmitting(true);
 
-      // 第二步：提交处理任务
+      // 绗簩姝ワ細鎻愪氦澶勭悊浠诲姟
       const response = await submitBatchMutation.mutateAsync({
         fileIds: uploadedFileIds,
         options: {
@@ -240,7 +244,6 @@ function UploadPageContent() {
       if (response.data?.task_id) {
         const taskId = response.data.task_id;
         setCurrentTaskId(taskId);
-        setTaskStatus(t('taskStarted'));
         setTaskProgress(5);
         setPollStartTime(Date.now());
         setPollInterval(2000);
@@ -272,12 +275,12 @@ function UploadPageContent() {
     })
   }, [carouselApi])
 
-  // 从 URL 参数恢复任务状态
+  // 浠?URL 鍙傛暟鎭㈠浠诲姟鐘舵€?
   useEffect(() => {
     if (!urlTaskId || hasRestoredRef.current) return;
     hasRestoredRef.current = true;
 
-    // 恢复任务状态
+    // 鎭㈠浠诲姟鐘舵€?
     const restoreTask = async () => {
       try {
         const response = await tasksApi.getTaskDetails(urlTaskId);
@@ -287,7 +290,7 @@ function UploadPageContent() {
 
         const state = String(data.state).toUpperCase();
 
-        // 恢复乐谱名称和难度
+        // 鎭㈠涔愯氨鍚嶇О鍜岄毦搴?
         if (data.title) {
           setScoreName(data.title);
         }
@@ -295,9 +298,9 @@ function UploadPageContent() {
           setDifficulty(data.difficulty);
         }
 
-        // 恢复原始图片（使用 upload_ids 返回的数据）
+        // 鎭㈠鍘熷鍥剧墖锛堜娇鐢?upload_ids 杩斿洖鐨勬暟鎹級
         const originalImages = data.files?.original_image;
-        const uploadIds = (data as any).upload_ids || [];
+        const uploadIds = (data as RestorableTaskData).upload_ids || [];
 
         if (originalImages && originalImages.length > 0) {
           const restoredFiles: UploadableFile[] = [];
@@ -305,15 +308,15 @@ function UploadPageContent() {
           for (let i = 0; i < originalImages.length; i++) {
             const imgUrl = await fetchAuthenticatedImage(urlTaskId, 'original_image', i + 1);
             if (imgUrl) {
-              // 从 upload_ids 中获取对应的 upload_id
+              // 浠?upload_ids 涓幏鍙栧搴旂殑 upload_id
               const uploadInfo = uploadIds[i];
               const fileName = uploadInfo?.original_filename || originalImages[i].path?.split('/').pop() || `image_${i + 1}.png`;
 
               restoredFiles.push({
                 file: new File([], fileName, { type: 'image/png' }),
                 preview: imgUrl,
-                status: 'uploaded', // 标记为已上传（因为有 sha256 可复用）
-                sha256: uploadInfo?.sha256, // 保存 sha256 用于复用
+                status: 'uploaded', // 鏍囪涓哄凡涓婁紶锛堝洜涓烘湁 sha256 鍙鐢級
+                sha256: uploadInfo?.sha256, // 淇濆瓨 sha256 鐢ㄤ簬澶嶇敤
                 fileId: undefined,
               });
             }
@@ -325,34 +328,31 @@ function UploadPageContent() {
         }
 
         if (state === 'PENDING' || state === 'PROGRESS') {
-          // 处理中，恢复轮询
+          // 澶勭悊涓紝鎭㈠杞
           setCurrentTaskId(urlTaskId);
           setIsSubmitting(true);
           setTaskProgress(data.progress || 0);
-          setTaskStatus(data.current_step || 'processing');
           setPollStartTime(Date.now());
           setPollInterval(2000);
         } else if (state === 'FAILURE') {
-          // 失败，显示错误信息
-          setCurrentTaskId(urlTaskId);
+          // 澶辫触锛屾樉绀洪敊璇俊鎭?          setCurrentTaskId(urlTaskId);
           setTaskError(data.error || t('processingFailed'));
           setTaskProgress(0);
-          setTaskStatus(t('processingFailedStatus'));
         }
-        // SUCCESS 状态不处理，让用户重新上传
+        // SUCCESS 鐘舵€佷笉澶勭悊锛岃鐢ㄦ埛閲嶆柊涓婁紶
       } catch (err) {
-        console.error('恢复任务状态失败:', err);
+        console.error('鎭㈠浠诲姟鐘舵€佸け璐?', err);
       }
     };
 
     restoreTask();
-  }, [urlTaskId]);
+  }, [t, urlTaskId]);
 
 
   useEffect(() => {
     return () => {
-      if (files.length > 0) {
-        files.forEach(f => URL.revokeObjectURL(f.preview));
+      if (filesRef.current.length > 0) {
+        filesRef.current.forEach(f => URL.revokeObjectURL(f.preview));
       }
     };
   }, []);
@@ -371,7 +371,7 @@ function UploadPageContent() {
         fill
         className="object-cover transition-transform duration-300 group-hover:scale-110"
       />
-      {/* 状态指示器 */}
+      {/* 鐘舵€佹寚绀哄櫒 */}
       {f.status === 'uploading' && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
           <Loader2 className="h-6 w-6 text-white animate-spin" />
@@ -379,8 +379,7 @@ function UploadPageContent() {
       )}
       {f.status === 'uploaded' && (
         <div className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1 rounded">
-          ✓
-        </div>
+          鉁?        </div>
       )}
       {f.status === 'error' && (
         <div className="absolute inset-0 bg-red-500/50 flex items-center justify-center">
@@ -508,7 +507,7 @@ function UploadPageContent() {
                   </div>
                 </div>
               )}
-              {/* 任务错误信息显示 */}
+              {/* 浠诲姟閿欒淇℃伅鏄剧ず */}
               {taskError && (
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-center">
                   <div className="flex items-center justify-center gap-2 text-red-600 font-medium mb-2">

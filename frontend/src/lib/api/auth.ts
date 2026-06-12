@@ -1,9 +1,8 @@
 /**
  * 认证相关 API
  */
-import { apiClient, ApiResponse, setToken } from '../api-client';
+import { apiClient, ApiResponse } from '../api-client';
 import type {
-    LoginResponse,
     RegisterRequest,
     User,
     SendCodeResponse,
@@ -16,20 +15,19 @@ import type {
  * 用户登录
  * @param email 邮箱
  * @param password 密码
- * @returns JWT Token
+ * @returns Login success response. Session cookies are managed by the backend.
  */
-export async function login(email: string, password: string): Promise<LoginResponse> {
-    const response = await apiClient.postForm<LoginResponse>('/auth/login', {
+export async function login(email: string, password: string): Promise<ApiResponse> {
+    const response = await apiClient.postForm<ApiResponse>('/auth/login', {
         username: email,
         password: password,
     });
 
-    // 自动保存 token
-    if (response.access_token) {
-        setToken(response.access_token);
-    }
-
     return response;
+}
+
+export async function logout(): Promise<ApiResponse> {
+    return apiClient.post<ApiResponse>('/auth/logout');
 }
 
 /**
@@ -118,6 +116,7 @@ export const authApi = {
     register,
     verifyPasswordResetCode,
     resetPassword,
+    logout,
 };
 
 export default authApi;

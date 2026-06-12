@@ -16,7 +16,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { useScoreData, useMetadataEditor } from '@/contexts/editor-provider';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 export function ScoreInfoCard() {
   const t = useTranslations('editor');

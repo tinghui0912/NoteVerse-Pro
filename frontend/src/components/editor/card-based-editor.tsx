@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { useConnectionOperations } from '@/hooks/use-connection-operations';
 import { useToast } from '@/hooks/use-toast';
 
-// 子组件
+// 瀛愮粍浠?
 import { BottomSheetContext } from './bottom-sheet-context';
 import { DragScrollContainer } from './drag-scroll-container';
 import { NoteCard } from './note-card';
@@ -48,7 +48,7 @@ export function CardBasedEditor() {
     const { updateMusicXML } = useXmlUpdater();
     const { toast } = useToast();
 
-    // 连接操作 Hook
+    // 杩炴帴鎿嶄綔 Hook
     const {
         handleDeleteTie,
         handleDeleteSlur,
@@ -61,7 +61,7 @@ export function CardBasedEditor() {
         clearBeamSelection,
     } = useConnectionOperations({ scoreData, currentXml, updateMusicXML });
 
-    // 注册工具切换回调 - 切换工具时清空选中状态
+    // 娉ㄥ唽宸ュ叿鍒囨崲鍥炶皟 - 鍒囨崲宸ュ叿鏃舵竻绌洪€変腑鐘舵€?
     useEffect(() => {
         setOnToolChange(() => {
             clearTieSelection();
@@ -73,18 +73,18 @@ export function CardBasedEditor() {
 
     const isInsertMode = editorMode === 'insert';
 
-    // 卡片点击处理 - 根据编辑模式执行不同操作
+    // 鍗＄墖鐐瑰嚮澶勭悊 - 鏍规嵁缂栬緫妯″紡鎵ц涓嶅悓鎿嶄綔
     const handleCardClick = useCallback((location: import('@/types/score-types').EntityLocation, entity: ScoreEntity) => {
         switch (editorMode) {
             case 'insert':
-                // 插入模式不处理卡片点击
+                // 鎻掑叆妯″紡涓嶅鐞嗗崱鐗囩偣鍑?
                 break;
             case 'select':
-                // 选择模式：打开编辑弹窗
+                // 閫夋嫨妯″紡锛氭墦寮€缂栬緫寮圭獥
                 handleEditEntity(entity, location);
                 break;
             case 'delete':
-                // 删除模式：调用删除实体逻辑
+                // 鍒犻櫎妯″紡锛氳皟鐢ㄥ垹闄ゅ疄浣撻€昏緫
                 handleDeleteEntity(location);
                 toast({ title: tCommon('operationSuccess'), description: t('noteDeleted') });
                 break;
@@ -143,12 +143,12 @@ export function CardBasedEditor() {
                 break;
             }
             default:
-                // 其他模式默认打开编辑弹窗
+                // 鍏朵粬妯″紡榛樿鎵撳紑缂栬緫寮圭獥
                 handleEditEntity(entity, location);
         }
     }, [editorMode, handleEditEntity, handleDeleteEntity, handleDeleteTie, handleDeleteSlur, handleDeleteBeam, handleAddTieSelection, handleAddSlurSelection, handleAddBeamSelection, toast, t, tCommon]);
 
-    // 底部抽屉状态
+    // 搴曢儴鎶藉眽鐘舵€?
     const [sheetOpen, setSheetOpen] = useState(false);
     const [sheetContent, setSheetContent] = useState<{ title: string; lines: string[] }>({ title: '', lines: [] });
 
@@ -176,7 +176,7 @@ export function CardBasedEditor() {
                                 {measure.staves.map((stave, staveIndex) => (
                                     <div key={staveIndex} className="space-y-3">
                                         <div className="flex justify-between items-center mb-2">
-                                            <h5 className="font-medium text-sm text-muted-foreground">{t(stave.name as any)}</h5>
+                                            <h5 className="font-medium text-sm text-muted-foreground">{t(stave.name as never)}</h5>
                                             <Button variant="outline" onClick={() => handleAddVoice(measureIndex, staveIndex)} className="h-8 px-2 py-1 text-xs hover:bg-accent">
                                                 <Plus className="h-3 w-3 mr-1" />
                                                 {t('addVoice')}
@@ -184,8 +184,8 @@ export function CardBasedEditor() {
                                         </div>
                                         {stave.voices.map((voice, voiceIndex) => {
                                             const [voiceKey, voiceNum] = voice.name.split(' ');
-                                            const translatedVoiceName = `${t(voiceKey as any)} ${voiceNum}`;
-                                            // 从 voice.name（如 "voiceLabel 5"）提取 xmlVoice（1-based）
+                                            const translatedVoiceName = `${t(voiceKey as never)} ${voiceNum}`;
+                                            // 浠?voice.name锛堝 "voiceLabel 5"锛夋彁鍙?xmlVoice锛?-based锛?
                                             const xmlVoice = parseInt(voiceNum, 10) || (voiceIndex + 1 + (staveIndex === 1 ? 4 : 0));
                                             return (
                                                 <div key={voiceIndex} className="flex items-center gap-4">
@@ -212,12 +212,11 @@ export function CardBasedEditor() {
                                                     </div>
                                                     <DragScrollContainer onContainerMouseLeave={handleMouseLeaveCard}>
                                                         {voice.notes.map((entity, entityIndex) => {
-                                                            // 从 entity.meta 获取 XML 原始值
-                                                            // xmlVoice 是 1-based，直接来自 MusicXML 的 voice 元素
+                                                            // 浠?entity.meta 鑾峰彇 XML 鍘熷鍊?                                                            // xmlVoice 鏄?1-based锛岀洿鎺ユ潵鑷?MusicXML 鐨?voice 鍏冪礌
                                                             const xmlVoice = entity.meta?.xmlVoice ?? (voiceIndex + 1 + (staveIndex === 1 ? 4 : 0));
                                                             const xmlStaveIndex = entity.meta?.staveIndex ?? staveIndex;
                                                             const location = { measureIndex, staveIndex: xmlStaveIndex, xmlVoice, entityIndex };
-                                                            // isHovered 判断也需要使用 xmlStaveIndex 和 xmlVoice，与 location 保持一致
+                                                            // isHovered 鍒ゆ柇涔熼渶瑕佷娇鐢?xmlStaveIndex 鍜?xmlVoice锛屼笌 location 淇濇寔涓€鑷?
                                                             const isHovered = isInsertMode && hoveredCardLocation?.measureIndex === measureIndex && hoveredCardLocation?.staveIndex === xmlStaveIndex && hoveredCardLocation?.xmlVoice === xmlVoice && hoveredCardLocation?.entityIndex === entityIndex;
 
                                                             const cardProps = {
@@ -249,7 +248,7 @@ export function CardBasedEditor() {
                 </div>
             </TooltipProvider>
 
-            {/* 移动端底部抽屉 */}
+            {/* 绉诲姩绔簳閮ㄦ娊灞?*/}
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
                 <SheetContent side="bottom" className="max-h-[70vh] rounded-t-2xl">
                     <SheetHeader className="text-left">
@@ -260,7 +259,7 @@ export function CardBasedEditor() {
                         {sheetContent.lines.map((line, i) => (
                             <p key={i} className={cn(
                                 "text-sm",
-                                line.startsWith('⚠️') ? 'text-amber-600' : 'text-muted-foreground'
+                                line.startsWith('鈿狅笍') ? 'text-amber-600' : 'text-muted-foreground'
                             )}>
                                 {line}
                             </p>

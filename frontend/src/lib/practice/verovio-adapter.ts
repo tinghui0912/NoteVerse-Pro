@@ -159,6 +159,27 @@ export class PracticeVerovioAdapter {
     return bestEntry;
   }
 
+  getNextTimelineEntryAfterBeat(beat: number): PracticeVisualTimelineEntry | null {
+    if (!Number.isFinite(beat) || this.visualTimeline.length === 0) {
+      return null;
+    }
+
+    const beatEpsilon = 0.001;
+    return (
+      this.visualTimeline.find((entry) => entry.beat > beat + beatEpsilon) ??
+      this.visualTimeline[this.visualTimeline.length - 1] ??
+      null
+    );
+  }
+
+  getTimelineEntryByIndex(index: number): PracticeVisualTimelineEntry | null {
+    if (!Number.isInteger(index) || index < 0 || index >= this.visualTimeline.length) {
+      return null;
+    }
+
+    return this.visualTimeline[index] ?? null;
+  }
+
   private buildVisualTimeline(
     timemap: Array<Record<string, unknown>>
   ): PracticeVisualTimelineEntry[] {

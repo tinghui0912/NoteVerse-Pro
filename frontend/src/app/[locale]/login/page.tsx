@@ -13,10 +13,17 @@ import { Footer } from '@/components/layout/footer';
 import { Music2, Loader2 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 
+function getSafeReturnUrl(value: string | null): string {
+    if (!value || !value.startsWith('/') || value.startsWith('//')) {
+        return '/upload';
+    }
+
+    return value;
+}
+
 export default function LoginPage() {
     const t = useTranslations('auth');
-  const tCommon = useTranslations('common');
-    const { login, isLoading: authLoading } = useAuth();
+    const { login } = useAuth();
     const router = useRouter();
 
     const [email, setEmail] = useState('');
@@ -33,7 +40,7 @@ export default function LoginPage() {
             await login(email, password);
             // 从 URL 获取 returnUrl 参数，如果没有则跳转到 /upload
             const searchParams = new URLSearchParams(window.location.search);
-            const returnUrl = searchParams.get('returnUrl') || '/upload';
+            const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl'));
             router.push(returnUrl);
         } catch (err) {
             // 使用前端翻译显示错误信息，而不是直接使用后端返回的中文
@@ -47,7 +54,7 @@ export default function LoginPage() {
         }
     };
 
-    const isLoading = isSubmitting || authLoading;
+    const isLoading = isSubmitting;
 
     return (
         <div className="bg-gray-900 text-white">

@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -50,9 +50,9 @@ export default function HelpPage() {
               <Accordion type="single" collapsible className="w-full">
                 {faqs.map((faq, index) => (
                   <AccordionItem key={index} value={`item-${index}`} className="border-b border-gray-200">
-                    <AccordionTrigger className="py-6 text-lg font-medium text-left hover:no-underline text-gray-800">{t(faq.question as any) || faq.question}</AccordionTrigger>
+                    <AccordionTrigger className="py-6 text-lg font-medium text-left hover:no-underline text-gray-800">{t(faq.question as never) || faq.question}</AccordionTrigger>
                     <AccordionContent className="pb-6 text-gray-600">
-                      {t(faq.answer as any) || faq.answer}
+                      {t(faq.answer as never) || faq.answer}
                     </AccordionContent>
                   </AccordionItem>
                 ))}

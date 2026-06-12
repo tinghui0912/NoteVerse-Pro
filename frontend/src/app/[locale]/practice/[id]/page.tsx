@@ -3,33 +3,34 @@
 import { useTranslations } from 'next-intl';
 import { useBackendMessage } from '@/hooks/use-backend-message';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { practiceApi } from '@/lib/api';
 import { useXmlContent } from '@/hooks/queries/use-xml-queries';
 import {
   type PracticeAlignmentUpdateMessage,
-  type PracticeReportPayload,
   type PracticeServerMessage,
   type PracticeSessionDetail,
 } from '@/types/api';
-import { getToken } from '@/lib/api-client';
 import {
   Mic,
   Pause,
   Play,
   Square,
   Repeat,
-  Lightbulb,
   LoaderCircle,
-  Target,
   FileText,
   ArrowLeft,
-  Activity,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ClientOnly } from '@/components/client-only';
 import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer';
 import { Footer } from '@/components/layout/footer';
@@ -43,33 +44,11 @@ type PracticeStatus =
   | 'idle'
   | 'connecting'
   | 'arming'
+  | 'listening'
   | 'practicing'
   | 'paused'
   | 'finished';
 type ConnectionStatus = 'disconnected' | 'connecting' | 'ready' | 'error';
-
-const ReportCard = ({
-  icon,
-  title,
-  content,
-}: {
-  icon: React.ElementType;
-  title: string;
-  content: string;
-}) => {
-  const Icon = icon;
-  return (
-    <Card className="bg-white shadow-lg rounded-2xl">
-      <CardHeader className="flex flex-row items-center gap-3 pb-2">
-        <Icon className="h-6 w-6 text-primary" />
-        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground whitespace-pre-line">{content}</p>
-      </CardContent>
-    </Card>
-  );
-};
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -77,7 +56,7 @@ function formatTime(seconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-function buildPracticeWebSocketUrl(path: string, token: string) {
+function buildPracticeWebSocketUrl(path: string) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
   const url = new URL(window.location.href);
   const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -87,7 +66,6 @@ function buildPracticeWebSocketUrl(path: string, token: string) {
   const wsBase = normalizedBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
   const socketUrl = new URL(path, `${wsBase.endsWith('/') ? wsBase : `${wsBase}/`}`);
   socketUrl.protocol = wsProtocol;
-  socketUrl.searchParams.set('token', token);
   return socketUrl.toString();
 }
 
@@ -154,6 +132,16 @@ function isAudioWorkletSupported() {
   return 'AudioWorkletNode' in window;
 }
 
+function isReliableAlignmentUpdate(payload: PracticeAlignmentUpdateMessage['payload']) {
+  return (
+    payload.match_state === 'matched' &&
+    payload.audio_active === true &&
+    (payload.input_policy_confidence ?? 1) >= 0.55 &&
+    (payload.validation_confidence ?? 1) >= 0.55 &&
+    payload.visual_confidence >= 0.55
+  );
+}
+
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
@@ -166,16 +154,59 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const [practiceStatus, setPracticeStatus] = useState<PracticeStatus>('idle');
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
-  const [analysisReport, setAnalysisReport] = useState<PracticeReportPayload | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPreparingSession, setIsPreparingSession] = useState(false);
   const [practiceTime, setPracticeTime] = useState(0);
+  const [practiceClockStarted, setPracticeClockStarted] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [audioWorkletSupported, setAudioWorkletSupported] = useState(true);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [session, setSession] = useState<PracticeSessionDetail | null>(null);
   const [alignment, setAlignment] = useState<PracticeAlignmentUpdateMessage['payload'] | null>(null);
+  const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
+  const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
+  const displayAlignment = useMemo<PracticeAlignmentUpdateMessage['payload'] | null>(() => {
+    if (alignment) {
+      return alignment;
+    }
+    if (practiceStatus !== 'arming' && practiceStatus !== 'listening') {
+      if (practiceStatus !== 'practicing' && practiceStatus !== 'paused') {
+        return null;
+      }
+    }
+    return {
+      beat_position: -1,
+      confidence: 1,
+      alignment_confidence: 1,
+      audio_confidence: 1,
+      continuity_confidence: 1,
+      visual_confidence: 1,
+      timestamp_ms: 0,
+      score_completed: false,
+      audio_active: true,
+      input_rms: 0,
+      input_peak: 0,
+      match_state: 'matched',
+      feature_confidence: 1,
+      beat_delta: null,
+      stream_state: 'prompt',
+      frame_class: 'tonal',
+      gate_reason: 'first_note_prompt',
+      queue_decision: 'prompt',
+      tonal_signal: true,
+      onset_signal: false,
+      spectral_flatness: 0,
+      peak_prominence: 0,
+      spectral_flux: 0,
+      alignment_state: 'prompt',
+      continuity_state: 'initial',
+      beat_velocity: null,
+      validation_confidence: 1,
+      input_weight: 1,
+      input_policy_confidence: 1,
+    };
+  }, [alignment, practiceStatus]);
   const { data: xmlContent, isLoading: isLoadingXml } = useXmlContent(id, 'final', { shareToken });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -194,6 +225,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const isIntentionalSocketCloseRef = useRef(false);
   const pointerHandledControlRef = useRef<string | null>(null);
   const preconnectStartedRef = useRef(false);
+  const preparePracticeSessionRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     practiceStatusRef.current = practiceStatus;
@@ -223,13 +255,20 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     action();
   };
 
+  const preparePracticeSession = useCallback(() => preparePracticeSessionRef.current(), []);
+
   useEffect(() => {
     setAudioWorkletSupported(isAudioWorkletSupported());
   }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout | undefined;
-    if (practiceStatus === 'practicing') {
+    if (
+      practiceClockStarted &&
+      (practiceStatus === 'arming' ||
+        practiceStatus === 'listening' ||
+        practiceStatus === 'practicing')
+    ) {
       timer = setInterval(() => {
         setPracticeTime((prevTime) => prevTime + 1);
       }, 1000);
@@ -239,7 +278,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         clearInterval(timer);
       }
     };
-  }, [practiceStatus]);
+  }, [practiceClockStarted, practiceStatus]);
 
   useEffect(() => {
     return () => {
@@ -259,6 +298,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       socket &&
       socket.readyState === WebSocket.OPEN &&
       (practiceStatus === 'arming' ||
+        practiceStatus === 'listening' ||
         practiceStatus === 'practicing' ||
         practiceStatus === 'paused');
 
@@ -375,14 +415,27 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     );
   };
 
-  const finishLocalPractice = () => {
+  const finishLocalPractice = (sessionId: string | null = sessionIdRef.current) => {
     isStreamingAudioRef.current = false;
+    setPracticeClockStarted(false);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
     teardownAudioPipeline();
     setConnectionStatus('disconnected');
     updatePracticeStatus('finished');
+    setCompletedSessionId(sessionId);
+    setIsCompletionDialogOpen(true);
+  };
+
+  const prepareNextPracticeSession = () => {
+    setSession(null);
+    sessionDetailRef.current = null;
+    sessionIdRef.current = null;
+    preconnectStartedRef.current = false;
+    window.setTimeout(() => {
+      void preparePracticeSession();
+    }, 0);
   };
 
   const setupAudioPipeline = async () => {
@@ -391,7 +444,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       throw new Error('AudioWorklet is not supported in this browser.');
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: PCM_CHANNELS,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: false,
+      },
+    });
     streamRef.current = stream;
     setHasMicPermission(true);
 
@@ -460,13 +520,19 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
     if (message.type === 'session.armed') {
       if (practiceStatusRef.current !== 'finished') {
-        updatePracticeStatus('practicing');
+        updatePracticeStatus('listening');
       }
       return;
     }
 
     if (message.type === 'alignment.update') {
-      if (practiceStatusRef.current === 'arming') {
+      if (!isReliableAlignmentUpdate(message.payload)) {
+        return;
+      }
+      if (
+        practiceStatusRef.current === 'arming' ||
+        practiceStatusRef.current === 'listening'
+      ) {
         updatePracticeStatus('practicing');
       }
       setAlignment(message.payload);
@@ -486,19 +552,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
 
     if (message.type === 'session.finished') {
-      finishLocalPractice();
+      finishLocalPractice(sessionIdRef.current);
       setSession((current) =>
         current ? { ...current, state: message.payload.state } : current
       );
       closeSocket();
-      return;
-    }
-
-    if (message.type === 'session.warning') {
-      toast({
-        title: t('analysisFailedTitle'),
-        description: tb(message.payload.code) || message.payload.message,
-      });
+      window.setTimeout(() => {
+        prepareNextPracticeSession();
+      }, 300);
       return;
     }
 
@@ -514,12 +575,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   };
 
   const openPracticeSocket = async (detail: PracticeSessionDetail, wsPath: string) => {
-    const token = getToken();
-    if (!token) {
-      throw new Error('Missing access token.');
-    }
-
-    const wsUrl = buildPracticeWebSocketUrl(wsPath, token);
+    const wsUrl = buildPracticeWebSocketUrl(wsPath);
     const socket = new WebSocket(wsUrl);
     websocketRef.current = socket;
     isIntentionalSocketCloseRef.current = false;
@@ -534,6 +590,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       const wasActive =
         practiceStatusRef.current === 'connecting' ||
         practiceStatusRef.current === 'arming' ||
+        practiceStatusRef.current === 'listening' ||
         practiceStatusRef.current === 'practicing' ||
         practiceStatusRef.current === 'paused';
       websocketRef.current = null;
@@ -560,7 +617,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     });
   };
 
-  const preparePracticeSession = async () => {
+  preparePracticeSessionRef.current = async () => {
     if (preconnectStartedRef.current || !audioWorkletSupported) {
       return;
     }
@@ -598,8 +655,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       closeSocket();
       toast({
         variant: 'destructive',
-        title: t('analysisFailedTitle'),
-        description: t('analysisFailedDesc'),
+        title: t('prepareFailedTitle'),
+        description: t('prepareFailedDesc'),
       });
     } finally {
       setIsPreparingSession(false);
@@ -608,7 +665,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     void preparePracticeSession();
-  }, [audioWorkletSupported, id, shareToken]);
+  }, [audioWorkletSupported, id, preparePracticeSession, shareToken]);
 
   const handleStart = async () => {
     if (!audioWorkletSupported) {
@@ -621,9 +678,17 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
 
     setIsLoading(true);
-    setAnalysisReport(null);
+    setIsCompletionDialogOpen(false);
+    setCompletedSessionId(null);
+    setAudioURL((currentUrl) => {
+      if (currentUrl) {
+        URL.revokeObjectURL(currentUrl);
+      }
+      return null;
+    });
     setAlignment(null);
     setPracticeTime(0);
+    setPracticeClockStarted(false);
 
     try {
       if (!session || !websocketRef.current || websocketRef.current.readyState !== WebSocket.OPEN) {
@@ -639,6 +704,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       updatePracticeStatus('arming');
       await setupAudioPipeline();
       sendPracticeInit(detail);
+      setPracticeClockStarted(true);
 
       if (mediaRecorderRef.current?.state === 'inactive') {
         audioChunksRef.current = [];
@@ -649,6 +715,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       const isUnsupportedAudioWorklet =
         error instanceof Error && error.message.includes('AudioWorklet is not supported');
       updatePracticeStatus('idle');
+      setPracticeClockStarted(false);
       setConnectionStatus('error');
       teardownAudioPipeline();
       closeSocket();
@@ -721,10 +788,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
 
     const currentSessionId = sessionIdRef.current;
-    finishLocalPractice();
+    finishLocalPractice(currentSessionId);
 
     if (sendPracticeControl('client.finish')) {
-      window.setTimeout(closeSocket, 300);
+      window.setTimeout(() => {
+        closeSocket();
+        prepareNextPracticeSession();
+      }, 300);
       return;
     }
 
@@ -737,6 +807,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       })
       .catch((error) => {
         console.error('Failed to finish practice session:', error);
+      })
+      .finally(() => {
+        closeSocket();
+        prepareNextPracticeSession();
       });
   };
 
@@ -748,10 +822,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       return null;
     });
     updatePracticeStatus('idle');
+    setIsCompletionDialogOpen(false);
+    setCompletedSessionId(null);
     setConnectionStatus('disconnected');
-    setAnalysisReport(null);
     setAlignment(null);
     setPracticeTime(0);
+    setPracticeClockStarted(false);
     setSession(null);
     sessionDetailRef.current = null;
     sessionIdRef.current = null;
@@ -766,19 +842,19 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   };
 
   const handleGetAnalysis = async () => {
-    if (!sessionIdRef.current) {
+    const reportSessionId = completedSessionId ?? sessionIdRef.current;
+    if (!reportSessionId) {
       return;
     }
 
     setIsLoading(true);
-    setAnalysisReport(null);
     try {
-      const response = await practiceApi.requestPracticeReport(sessionIdRef.current);
-      const report = response.data ?? (await practiceApi.getPracticeReport(sessionIdRef.current)).data;
+      const response = await practiceApi.requestPracticeReport(reportSessionId);
+      const report = response.data ?? (await practiceApi.getPracticeReport(reportSessionId)).data;
       if (!report?.report_payload) {
         throw new Error(response.message || 'Analysis failed');
       }
-      setAnalysisReport(report.report_payload);
+      router.push(`/practice/${id}/performance?sessionId=${encodeURIComponent(reportSessionId)}`);
     } catch (error) {
       console.error('Failed to get practice analysis:', error);
       toast({
@@ -792,65 +868,110 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   };
 
   const PracticeToolbar = () => {
-    if (practiceStatus === 'idle') {
-      return (
-        <div className="flex items-center justify-center gap-3">
-          <Button
-            type="button"
-            onClick={handleStart}
-            size="lg"
-            disabled={
-              isLoading ||
-              isPreparingSession ||
-              connectionStatus !== 'ready' ||
-              !audioWorkletSupported
-            }
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold group"
-          >
-            <Mic className="mr-2 h-4 w-4" />
-            {t('start')}
-          </Button>
-        </div>
-      );
-    }
-    if (practiceStatus === 'connecting' || practiceStatus === 'arming') {
-      return (
-        <Button disabled size="lg" className="bg-orange-500 text-white font-semibold">
-          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-          {t(practiceStatus === 'arming' ? 'preparingToPlay' : 'start')}
-        </Button>
-      );
-    }
-    if (practiceStatus === 'practicing' || practiceStatus === 'paused') {
+    const isPreparing = practiceStatus === 'connecting' || practiceStatus === 'arming';
+    const isActive =
+      practiceStatus === 'listening' || practiceStatus === 'practicing' || practiceStatus === 'paused';
+    const isRecordingVisible =
+      practiceClockStarted &&
+      (practiceStatus === 'arming' ||
+        practiceStatus === 'listening' ||
+        practiceStatus === 'practicing' ||
+        practiceStatus === 'paused');
+    const isPreparingSessionConnection =
+      (practiceStatus === 'idle' || practiceStatus === 'finished') &&
+      audioWorkletSupported &&
+      !isLoading &&
+      (isPreparingSession || connectionStatus !== 'ready');
+    const actionButtonClass = 'h-11 min-w-[8.5rem]';
+    const canStart =
+      (practiceStatus === 'idle' || practiceStatus === 'finished') &&
+      !isLoading &&
+      !isPreparingSession &&
+      connectionStatus === 'ready' &&
+      audioWorkletSupported;
+    const canFinish = isActive;
+
+    if (
+      practiceStatus === 'idle' ||
+      practiceStatus === 'connecting' ||
+      practiceStatus === 'arming' ||
+      practiceStatus === 'listening' ||
+      practiceStatus === 'practicing' ||
+      practiceStatus === 'paused' ||
+      practiceStatus === 'finished'
+    ) {
       return (
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="flex items-center gap-2 rounded-full bg-destructive/90 px-3 py-2 text-sm font-medium text-destructive-foreground">
-            <Mic className={cn('h-4 w-4', practiceStatus === 'practicing' && 'animate-pulse')} />
-            <span>{formatTime(practiceTime)}</span>
-          </div>
+          {isPreparingSessionConnection && (
+            <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-sm font-medium text-muted-foreground">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              <span>{t('preparingPractice')}</span>
+            </div>
+          )}
+          {isPreparing && (
+            <div className="flex items-center gap-2 rounded-full bg-orange-100 px-3 py-2 text-sm font-medium text-orange-700">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              <span>{t('preparingToPlay')}</span>
+            </div>
+          )}
+          {practiceStatus === 'listening' && (
+            <div className="flex items-center gap-2 rounded-full bg-orange-100 px-3 py-2 text-sm font-medium text-orange-700">
+              <Mic className="h-4 w-4 animate-pulse" />
+              <span>{t('waitingForFirstNote')}</span>
+            </div>
+          )}
+          {isRecordingVisible && (
+            <div className="flex items-center gap-2 rounded-full bg-destructive/90 px-3 py-2 text-sm font-medium text-destructive-foreground">
+              <Mic className={cn('h-4 w-4', practiceStatus === 'practicing' && 'animate-pulse')} />
+              <span>{t('recordingDuration', { time: formatTime(practiceTime) })}</span>
+            </div>
+          )}
+          {isActive ? (
+            <Button
+              type="button"
+              onPointerDown={(event) => {
+                runPointerControl(event, 'pause', handlePause);
+              }}
+              onClick={() => runClickControl('pause', handlePause)}
+              size="lg"
+              variant="outline"
+              className={cn('bg-white', actionButtonClass)}
+            >
+              {practiceStatus === 'paused' ? (
+                <Play className="mr-2 h-4 w-4" />
+              ) : (
+                <Pause className="mr-2 h-4 w-4" />
+              )}
+              {t(practiceStatus === 'paused' ? 'resume' : 'pause')}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleStart}
+              size="lg"
+              disabled={!canStart}
+              className={cn('bg-orange-500 hover:bg-orange-600 text-white font-semibold group', actionButtonClass)}
+            >
+              <Mic className="mr-2 h-4 w-4" />
+              {t('start')}
+            </Button>
+          )}
           <Button
             type="button"
             onPointerDown={(event) => {
-              runPointerControl(event, 'pause', handlePause);
+              if (canFinish) {
+                runPointerControl(event, 'finish', handleFinish);
+              }
             }}
-            onClick={() => runClickControl('pause', handlePause)}
-            variant="outline"
-            className="bg-white"
-          >
-            {practiceStatus === 'paused' ? (
-              <Play className="mr-2 h-4 w-4" />
-            ) : (
-              <Pause className="mr-2 h-4 w-4" />
-            )}
-            {t(practiceStatus === 'paused' ? 'resume' : 'pause')}
-          </Button>
-          <Button
-            type="button"
-            onPointerDown={(event) => {
-              runPointerControl(event, 'finish', handleFinish);
+            onClick={() => {
+              if (canFinish) {
+                runClickControl('finish', handleFinish);
+              }
             }}
-            onClick={() => runClickControl('finish', handleFinish)}
             variant="destructive"
+            size="lg"
+            disabled={!canFinish}
+            className={actionButtonClass}
           >
             <Square className="mr-2 h-4 w-4" /> {t('finish')}
           </Button>
@@ -859,13 +980,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
     return null;
   };
-
-  const recommendations = analysisReport?.recommendations.join('\n') || '';
-  const metricsContent = analysisReport
-    ? Object.entries(analysisReport.metrics)
-        .map(([key, value]) => `${key}: ${value ?? 'n/a'}`)
-        .join('\n')
-    : '';
 
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col">
@@ -923,72 +1037,54 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                     isLoadingXml={isLoadingXml}
                     toolbar={<PracticeToolbar />}
                     practiceStatus={practiceStatus}
-                    alignment={alignment}
+                    alignment={displayAlignment}
                   />
                 </ClientOnly>
               </div>
-
-              {practiceStatus === 'finished' && (
-                <div className="mt-8 space-y-6 pb-16">
-                  <Card className="bg-white rounded-2xl shadow-lg">
-                    <CardHeader>
-                      <CardTitle>{t('finished')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {audioURL && (
-                        <div className="flex flex-col gap-2">
-                          <p className="text-sm font-medium text-muted-foreground">{t('playback')}</p>
-                          <audio src={audioURL} controls className="w-full" />
-                        </div>
-                      )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Button
-                          onClick={handleGetAnalysis}
-                          disabled={isLoading || !sessionIdRef.current}
-                          size="lg"
-                          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold"
-                        >
-                          {isLoading ? (
-                            <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
-                          ) : (
-                            <FileText className="mr-2 h-5 w-5" />
-                          )}
-                          {t('aiCritique')}
-                        </Button>
-                        <Button onClick={handleRestart} variant="outline" size="lg" className="bg-white">
-                          <Repeat className="mr-2 h-5 w-5" /> {t('restart')}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {isLoading && (
-                    <div className="text-center py-12">
-                      <LoaderCircle className="mx-auto h-12 w-12 animate-spin text-primary" />
-                      <p className="mt-4 text-lg text-muted-foreground">{t('generatingReport')}</p>
-                    </div>
-                  )}
-
-                  {analysisReport && (
-                    <div className="space-y-6">
-                      <div className="text-center">
-                        <h2 className="font-headline text-2xl font-bold tracking-tight text-foreground">
-                          {t('report')}
-                        </h2>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <ReportCard icon={Target} title="Summary" content={analysisReport.summary} />
-                        <ReportCard icon={Activity} title="Metrics" content={metricsContent} />
-                      </div>
-                      <ReportCard icon={Lightbulb} title="Recommendations" content={recommendations} />
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
       </main>
+      <Dialog open={isCompletionDialogOpen} onOpenChange={setIsCompletionDialogOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t('completionDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('completionDialogDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {audioURL ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">{t('playback')}</p>
+                <audio src={audioURL} controls className="w-full" />
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+                <span>{t('preparingPlayback')}</span>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button type="button" variant="outline" onClick={handleRestart}>
+                <Repeat className="mr-2 h-4 w-4" />
+                {t('retryPractice')}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleGetAnalysis}
+                disabled={isLoading || !(completedSessionId ?? sessionIdRef.current)}
+                className="bg-orange-500 text-white hover:bg-orange-600"
+              >
+                {isLoading ? (
+                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-2 h-4 w-4" />
+                )}
+                {t('viewPerformance')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Footer />
     </div>
   );

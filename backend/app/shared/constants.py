@@ -11,6 +11,8 @@ class ErrorCode:
     AUTH_FAILED = "auth_failed"
     UNAUTHORIZED = "unauthorized"
     TOKEN_INVALID_EXPIRED = "token_invalid_expired"
+    CSRF_TOKEN_INVALID = "csrf_token_invalid"
+    REQUEST_ORIGIN_INVALID = "request_origin_invalid"
     ACCOUNT_INACTIVE = "account_inactive"
     INVALID_CREDENTIALS = "invalid_credentials"
     EMAIL_MISMATCH = "email_mismatch"
@@ -126,6 +128,8 @@ class SuccessCode:
     EMAIL_VERIFIED = "email_verified"
     VERIFICATION_SUCCESS = "verification_success"
     PASSWORD_RESET_SUCCESS = "password_reset_success"
+    LOGIN_SUCCESS = "login_success"
+    LOGOUT_SUCCESS = "logout_success"
 
     TASKS_DELETED = "tasks_deleted"
     SHARES_DELETED = "shares_deleted"

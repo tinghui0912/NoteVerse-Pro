@@ -12,7 +12,6 @@ import {
     getDurationTypeName,
     getEntityGroupsFromMeasure,
 } from './musicxml-core';
-import type { EntityMeta } from '@/types/score-types';
 
 // ============================================================================
 // Types

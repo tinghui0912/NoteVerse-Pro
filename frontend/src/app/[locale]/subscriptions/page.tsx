@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -16,7 +16,7 @@ const pricingTiers = [
   {
     name: 'freeName',
     id: 'free',
-    price: '¥0',
+    price: '楼0',
     priceDetails: 'month',
     features: ['freeFeature1', 'freeFeature2', 'freeFeature3'],
     cta: 'yourCurrentPlan',
@@ -24,7 +24,7 @@ const pricingTiers = [
   {
     name: 'basicName',
     id: 'basic',
-    price: '¥30',
+    price: '楼30',
     priceDetails: 'month',
     features: [
       'basicFeature1',
@@ -38,7 +38,7 @@ const pricingTiers = [
   {
     name: 'proName',
     id: 'pro',
-    price: '¥99',
+    price: '楼99',
     priceDetails: 'month',
     features: [
       'proFeature1',
@@ -53,7 +53,6 @@ const pricingTiers = [
 
 export default function SubscriptionsPage() {
   const t = useTranslations('pricing');
-  const tCommon = useTranslations('common');
   const { isAuthenticated } = useAuth();
   const [currentPlan, setCurrentPlan] = useState('free');
 
@@ -94,13 +93,13 @@ export default function SubscriptionsPage() {
                       </div>
                     </div>
                   )}
-                  <CardTitle className="text-2xl font-bold">{t(tier.name as any)}</CardTitle>
+                  <CardTitle className="text-2xl font-bold">{t(tier.name as never)}</CardTitle>
                   <CardDescription className="mt-2">
                     <span className="text-4xl font-bold text-foreground">
                       {tier.price}
                     </span>
                     <span className="text-muted-foreground">
-                      {t(tier.priceDetails as any)}
+                      {t(tier.priceDetails as never)}
                     </span>
                   </CardDescription>
                 </CardHeader>
@@ -110,7 +109,7 @@ export default function SubscriptionsPage() {
                       <li key={i} className="flex items-start">
                         <CheckCircle className="mr-3 mt-1 h-5 w-5 shrink-0 text-green-500" />
                         <span className="text-muted-foreground">
-                          {t(feature as any)}
+                          {t(feature as never)}
                         </span>
                       </li>
                     ))}
@@ -127,7 +126,7 @@ export default function SubscriptionsPage() {
                       asChild={!isAuthenticated}
                     >
                       {isAuthenticated ? (
-                        <span>{t(tier.cta as any)}</span>
+                        <span>{t(tier.cta as never)}</span>
                       ) : (
                         <Link href="/login">{t('choosePlan')}</Link>
                       )}

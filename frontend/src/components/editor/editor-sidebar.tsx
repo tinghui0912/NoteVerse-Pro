@@ -1,14 +1,9 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
 
 import {
-    Save,
-    Undo,
-    Redo,
-    Eye,
-    ImageIcon,
     Plus,
     Trash2,
     Combine,
@@ -31,7 +26,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useScoreData, type EditorMode } from '@/contexts/editor-provider';
 
-// 工具按钮类型定义
+// 宸ュ叿鎸夐挳绫诲瀷瀹氫箟
 type ToolItem = { icon: React.ElementType; label: string; mode?: EditorMode };
 
 const noteTools: ToolItem[] = [
@@ -61,7 +56,7 @@ const ToolButton = ({ tool, isActive, onToolSelect }: { tool: ToolItem, isActive
         return <Skeleton className="h-20 w-full" />;
     }
 
-    const translatedLabel = t(tool.label as any);
+    const translatedLabel = t(tool.label as never);
 
     const handleClick = () => {
         if (tool.mode) {
@@ -99,7 +94,6 @@ const ToolButton = ({ tool, isActive, onToolSelect }: { tool: ToolItem, isActive
 
 export function EditorSidebar({ editorMode, onToolSelect, onMergeParts }: { editorMode: EditorMode, onToolSelect: (mode: EditorMode) => void, onMergeParts?: () => void }) {
     const t = useTranslations('editor');
-  const tCommon = useTranslations('common');
     const { scoreData } = useScoreData();
 
     return (

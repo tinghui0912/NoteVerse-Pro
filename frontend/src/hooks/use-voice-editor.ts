@@ -108,7 +108,7 @@ export function useVoiceEditor() {
 
             const newVoice = { name: `voiceLabel ${newVoiceNumber}`, notes: [] };
 
-            let insertIndex = stave.voices.findIndex((v: { name: string }) => {
+            const insertIndex = stave.voices.findIndex((v: { name: string }) => {
                 const match = v.name.match(/\d+/);
                 const num = match ? parseInt(match[0], 10) : 0;
                 return num > newVoiceNumber;
@@ -168,12 +168,12 @@ export function useVoiceEditor() {
         }
 
         setScoreData(newData);
-    }, [currentXml, currentXmlRef, scoreData, setCurrentXml, setScoreData, history, removeVoiceElementsFromXml]);
+    }, [currentXml, currentXmlRef, scoreData, setCurrentXml, setScoreData, history, removeVoiceElementsFromXml, t]);
 
     /**
      * 删除声部
      */
-    const handleDeleteVoice = useCallback((measureIndex: number, staveIndex: number, xmlVoice: number, voiceArrayIndex: number) => {
+    const handleDeleteVoice = useCallback((measureIndex: number, staveIndex: number, xmlVoice: number, _voiceArrayIndex: number) => {
         if (!currentXml || !scoreData) return;
 
         const newXml = removeVoiceElementsFromXml(measureIndex, staveIndex, xmlVoice);
@@ -187,7 +187,7 @@ export function useVoiceEditor() {
         const parser = new MusicXMLParser(newXml);
         const newData = parser.parse();
         setScoreData(newData);
-    }, [currentXml, currentXmlRef, scoreData, setCurrentXml, setScoreData, history, removeVoiceElementsFromXml]);
+    }, [currentXml, currentXmlRef, scoreData, setCurrentXml, setScoreData, history, removeVoiceElementsFromXml, t]);
 
     return {
         handleAddVoice,

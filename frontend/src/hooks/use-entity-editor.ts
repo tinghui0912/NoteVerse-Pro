@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 /**
- * 实体编辑 Hook - 管理实体的增删改
+ * 瀹炰綋缂栬緫 Hook - 绠＄悊瀹炰綋鐨勫鍒犳敼
  */
 
 import { useCallback } from 'react';
@@ -32,7 +32,6 @@ export function useEntityEditor() {
     } = useScoreData();
 
     const {
-        editingEntity,
         setEditingEntity,
         editingEntityLocation,
         setEditingEntityLocation,
@@ -48,7 +47,7 @@ export function useEntityEditor() {
     const history = useHistory();
 
     /**
-     * 打开编辑实体模态框
+     * 鎵撳紑缂栬緫瀹炰綋妯℃€佹
      */
     const handleEditEntity = useCallback((entity: ScoreEntity, location: EntityLocation) => {
         setEditingEntity(entity);
@@ -56,7 +55,7 @@ export function useEntityEditor() {
     }, [setEditingEntity, setEditingEntityLocation]);
 
     /**
-     * 打开添加实体模态框
+     * 鎵撳紑娣诲姞瀹炰綋妯℃€佹
      */
     const handleAddEntity = useCallback((location: AddLocation) => {
         setCurrentAddLocation(location);
@@ -64,7 +63,7 @@ export function useEntityEditor() {
     }, [setCurrentAddLocation, setIsAddEntityModalOpen]);
 
     /**
-     * 关闭模态框
+     * 鍏抽棴妯℃€佹
      */
     const handleCloseModal = useCallback(() => {
         setEditingEntity(null);
@@ -75,8 +74,7 @@ export function useEntityEditor() {
     }, [setEditingEntity, setEditingEntityLocation, setIsAddEntityModalOpen, setCurrentAddLocation, setPendingInsert]);
 
     /**
-     * 选择实体类型后创建默认实体
-     */
+     * 閫夋嫨瀹炰綋绫诲瀷鍚庡垱寤洪粯璁ゅ疄浣?     */
     const handleSelectEntityType = useCallback((type: ScoreEntityType) => {
         if (!currentAddLocation) return;
 
@@ -112,12 +110,12 @@ export function useEntityEditor() {
             return;
         }
 
-        // 保存待插入状态（包含实体和位置）
+        // 淇濆瓨寰呮彃鍏ョ姸鎬侊紙鍖呭惈瀹炰綋鍜屼綅缃級
         const insertData = { entity: newEntity, location: currentAddLocation };
         setPendingInsert(insertData);
         pendingInsertRef.current = insertData;
 
-        // 关闭类型选择模态框，打开编辑模态框
+        // 鍏抽棴绫诲瀷閫夋嫨妯℃€佹锛屾墦寮€缂栬緫妯℃€佹
         setIsAddEntityModalOpen(false);
         setEditingEntity(newEntity);
         setEditingEntityLocation({
@@ -131,12 +129,11 @@ export function useEntityEditor() {
     }, [currentAddLocation, setPendingInsert, pendingInsertRef, setIsAddEntityModalOpen, setEditingEntity, setEditingEntityLocation]);
 
     /**
-     * 更新实体（编辑或新增）
-     */
+     * 鏇存柊瀹炰綋锛堢紪杈戞垨鏂板锛?     */
     const updateEntity = useCallback((updatedEntity: ScoreEntity) => {
         const currentPendingInsert = pendingInsertRef.current;
 
-        // 检查是否是新增操作
+        // 妫€鏌ユ槸鍚︽槸鏂板鎿嶄綔
         if (currentPendingInsert) {
             const { location } = currentPendingInsert;
 
@@ -151,7 +148,7 @@ export function useEntityEditor() {
             });
 
             if (result.success && result.newXml && result.newScoreData) {
-                history.push(result.newXml, t(result.historyLabel as any));
+                history.push(result.newXml, t(result.historyLabel as never));
                 currentXmlRef.current = result.newXml;
                 setCurrentXml(result.newXml);
                 setScoreData(result.newScoreData);
@@ -164,7 +161,7 @@ export function useEntityEditor() {
             return;
         }
 
-        // 以下是编辑现有实体的逻辑
+        // 浠ヤ笅鏄紪杈戠幇鏈夊疄浣撶殑閫昏緫
         if (!editingEntityLocation || !currentXml || !scoreData) return;
 
         const result = updateExistingEntity({
@@ -187,7 +184,7 @@ export function useEntityEditor() {
     }, [currentXml, scoreData, editingEntityLocation, pendingInsertRef, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, setPendingInsert, setEditingEntity, setEditingEntityLocation, t]);
 
     /**
-     * 删除实体
+     * 鍒犻櫎瀹炰綋
      */
     const handleDeleteEntity = useCallback((location: EntityLocation) => {
         const { measureIndex, staveIndex, xmlVoice, entityIndex } = location;
@@ -199,7 +196,7 @@ export function useEntityEditor() {
         const voiceNum = xmlVoice;
 
         try {
-            // 1. 解析 XML 并删除目标实体
+            // 1. 瑙ｆ瀽 XML 骞跺垹闄ょ洰鏍囧疄浣?
             const xmlDoc = parseXml(currentXml);
             const measureEl = xmlDoc.querySelector(`measure[number="${measureNumber}"]`);
             if (!measureEl) return;
@@ -210,20 +207,20 @@ export function useEntityEditor() {
 
             targetGroup.elements.forEach(el => el.parentNode?.removeChild(el));
 
-            // 重新计算 backup 元素的 duration
+            // 閲嶆柊璁＄畻 backup 鍏冪礌鐨?duration
             recalculateBackups(measureEl);
 
-            // 2. 序列化新 XML
+            // 2. 搴忓垪鍖栨柊 XML
             const newXml = serializeXml(xmlDoc);
 
-            // 3. 记录历史
+            // 3. 璁板綍鍘嗗彶
             history.push(newXml, t('deleteNote'));
 
-            // 4. 更新 XML 状态
+            // 4. 鏇存柊 XML 鐘舵€?
             currentXmlRef.current = newXml;
             setCurrentXml(newXml);
 
-            // 5. 重新解析 XML
+            // 5. 閲嶆柊瑙ｆ瀽 XML
             const newParser = new MusicXMLParser(newXml, {
                 expectedVoices: getExpectedVoices(scoreData)
             });
@@ -236,14 +233,13 @@ export function useEntityEditor() {
     }, [currentXml, scoreData, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, t]);
 
     return {
-        // 状态
-        editingEntity,
+        // 鐘舵€?        editingEntity,
         editingEntityLocation,
         isAddEntityModalOpen,
         currentAddLocation,
         pendingInsert,
 
-        // 操作
+        // 鎿嶄綔
         handleEditEntity,
         handleDeleteEntity,
         handleAddEntity,

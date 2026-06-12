@@ -14,6 +14,9 @@ type FollowControllerState = {
   lastUpdateMs: number;
   lastAcceptedBeat: number | null;
   lastAcceptedTimelineIndex: number | null;
+  pendingTimelineIndex: number | null;
+  pendingBeat: number | null;
+  pendingCount: number;
   mode: 'following' | 'desynced' | 'seeking';
   lowConfidenceSinceMs: number | null;
   recoveryStreak: number;
@@ -44,14 +47,24 @@ function findElementByVerovioId(container: HTMLElement, verovioId: string) {
   );
 }
 
+function getVisualConfidence(alignment: PracticeAlignmentUpdateMessage['payload']) {
+  return alignment.visual_confidence;
+}
+
 export class PracticeFollowController {
   private readonly noteGraceWindowMs = 450;
   private readonly lowConfidenceThreshold = 0.55;
+  private readonly policyConfidenceThreshold = 0.55;
+  private readonly validationConfidenceThreshold = 0.55;
   private readonly recoveryConfidenceThreshold = 0.75;
   private readonly desyncWindowMs = 1200;
   private readonly recoveryFrames = 3;
   private readonly backwardBeatTolerance = 0.25;
   private readonly maxFollowingJumpBeats = 4;
+  private readonly maxFollowingJumpEvents = 1;
+  private readonly minSequentialPromptAdvanceMs = 220;
+  private readonly commitFrames = 3;
+  private readonly commitBeatTolerance = 0.35;
   private readonly debugEnabled =
     typeof process !== 'undefined' &&
     process.env.NEXT_PUBLIC_PRACTICE_DEBUG === 'true';
@@ -64,6 +77,9 @@ export class PracticeFollowController {
     lastUpdateMs: 0,
     lastAcceptedBeat: null,
     lastAcceptedTimelineIndex: null,
+    pendingTimelineIndex: null,
+    pendingBeat: null,
+    pendingCount: 0,
     mode: 'seeking',
     lowConfidenceSinceMs: null,
     recoveryStreak: 0,
@@ -80,6 +96,9 @@ export class PracticeFollowController {
       lastUpdateMs: 0,
       lastAcceptedBeat: null,
       lastAcceptedTimelineIndex: null,
+      pendingTimelineIndex: null,
+      pendingBeat: null,
+      pendingCount: 0,
       mode: 'seeking',
       lowConfidenceSinceMs: null,
       recoveryStreak: 0,
@@ -116,7 +135,12 @@ export class PracticeFollowController {
     const previousUpdateMs = this.state.lastUpdateMs;
     this.clearDecorations(container);
 
-    const candidate = adapter.getTimelineEntryForBeat(alignment.beat_position);
+    const rawCandidate =
+      alignment.match_state === 'lost'
+        ? null
+        : adapter.getNextTimelineEntryAfterBeat(alignment.beat_position) ??
+          adapter.getTimelineEntryForBeat(alignment.beat_position);
+    const candidate = this.clampToSequentialPrompt(rawCandidate, adapter, now);
     const acceptedCandidate = this.resolveCandidate(candidate, alignment, now);
     if (!acceptedCandidate) {
       this.debug('rejected', alignment, candidate);
@@ -128,6 +152,7 @@ export class PracticeFollowController {
     this.debug('accepted', alignment, acceptedCandidate);
     this.state.lastAcceptedBeat = acceptedCandidate.beat;
     this.state.lastAcceptedTimelineIndex = acceptedCandidate.index;
+    this.clearPendingCandidate();
 
     const eventNoteIds = acceptedCandidate.noteIds;
     const canReusePreviousNotes =
@@ -188,11 +213,19 @@ export class PracticeFollowController {
       return null;
     }
 
-    if (alignment.confidence < this.lowConfidenceThreshold) {
+    const visualConfidence = getVisualConfidence(alignment);
+    const inputPolicyConfidence = alignment.input_policy_confidence ?? 1;
+    const validationConfidence = alignment.validation_confidence ?? 1;
+    const shouldHoldLastPosition =
+      visualConfidence < this.lowConfidenceThreshold ||
+      inputPolicyConfidence < this.policyConfidenceThreshold ||
+      validationConfidence < this.validationConfidenceThreshold;
+    if (shouldHoldLastPosition) {
       if (this.state.lowConfidenceSinceMs === null) {
         this.state.lowConfidenceSinceMs = now;
       }
       this.state.recoveryStreak = 0;
+      this.clearPendingCandidate();
       if (now - this.state.lowConfidenceSinceMs >= this.desyncWindowMs) {
         this.state.mode = 'desynced';
       }
@@ -202,8 +235,9 @@ export class PracticeFollowController {
     this.state.lowConfidenceSinceMs = null;
 
     if (this.state.mode === 'desynced') {
-      if (alignment.confidence < this.recoveryConfidenceThreshold) {
+      if (visualConfidence < this.recoveryConfidenceThreshold) {
         this.state.recoveryStreak = 0;
+        this.clearPendingCandidate();
         return null;
       }
       this.state.recoveryStreak += 1;
@@ -216,12 +250,23 @@ export class PracticeFollowController {
     if (this.state.mode === 'seeking') {
       this.state.mode = 'following';
       this.state.recoveryStreak = 0;
+      if (!this.isPromptAlignment(alignment) && !this.hasStableCommit(candidate)) {
+        return null;
+      }
       return candidate;
     }
 
     const lastBeat = this.state.lastAcceptedBeat;
     const lastIndex = this.state.lastAcceptedTimelineIndex;
     if (lastBeat === null || lastIndex === null) {
+      if (!this.isPromptAlignment(alignment) && !this.hasStableCommit(candidate)) {
+        return null;
+      }
+      return candidate;
+    }
+
+    if (candidate.index === lastIndex) {
+      this.clearPendingCandidate();
       return candidate;
     }
 
@@ -230,17 +275,75 @@ export class PracticeFollowController {
     if (isBackward) {
       this.state.mode = 'desynced';
       this.state.recoveryStreak = 0;
+      this.clearPendingCandidate();
       return null;
     }
 
     const isLargeJump = candidate.beat > lastBeat + this.maxFollowingJumpBeats;
-    if (isLargeJump && alignment.confidence < this.recoveryConfidenceThreshold) {
+    const isLargeEventJump = candidate.index > lastIndex + this.maxFollowingJumpEvents;
+    if (
+      isLargeEventJump ||
+      (isLargeJump && visualConfidence < this.recoveryConfidenceThreshold)
+    ) {
       this.state.mode = 'desynced';
       this.state.recoveryStreak = 0;
+      this.clearPendingCandidate();
+      return null;
+    }
+
+    if (!this.hasStableCommit(candidate)) {
       return null;
     }
 
     return candidate;
+  }
+
+  private hasStableCommit(candidate: PracticeVisualTimelineEntry) {
+    const samePendingCandidate =
+      this.state.pendingTimelineIndex === candidate.index &&
+      this.state.pendingBeat !== null &&
+      Math.abs(this.state.pendingBeat - candidate.beat) <= this.commitBeatTolerance;
+
+    if (samePendingCandidate) {
+      this.state.pendingCount += 1;
+    } else {
+      this.state.pendingTimelineIndex = candidate.index;
+      this.state.pendingBeat = candidate.beat;
+      this.state.pendingCount = 1;
+    }
+
+    return this.state.pendingCount >= this.commitFrames;
+  }
+
+  private clearPendingCandidate() {
+    this.state.pendingTimelineIndex = null;
+    this.state.pendingBeat = null;
+    this.state.pendingCount = 0;
+  }
+
+  private isPromptAlignment(alignment: PracticeAlignmentUpdateMessage['payload']) {
+    return alignment.gate_reason === 'first_note_prompt' || alignment.timestamp_ms === 0;
+  }
+
+  private clampToSequentialPrompt(
+    candidate: PracticeVisualTimelineEntry | null,
+    adapter: PracticeVerovioAdapter,
+    now: number
+  ) {
+    if (!candidate) {
+      return null;
+    }
+
+    const lastIndex = this.state.lastAcceptedTimelineIndex;
+    if (lastIndex === null || candidate.index <= lastIndex + this.maxFollowingJumpEvents) {
+      return candidate;
+    }
+
+    if (now - this.state.lastUpdateMs < this.minSequentialPromptAdvanceMs) {
+      return null;
+    }
+
+    return adapter.getTimelineEntryByIndex(lastIndex + 1) ?? candidate;
   }
 
   private restorePreviousState(
@@ -269,6 +372,32 @@ export class PracticeFollowController {
       mode: this.state.mode,
       beat: alignment.beat_position,
       confidence: alignment.confidence,
+      visualConfidence: getVisualConfidence(alignment),
+      alignmentConfidence: alignment.alignment_confidence,
+      audioConfidence: alignment.audio_confidence,
+      continuityConfidence: alignment.continuity_confidence,
+      featureConfidence: alignment.feature_confidence,
+      beatDelta: alignment.beat_delta,
+      pendingTimelineIndex: this.state.pendingTimelineIndex,
+      pendingBeat: this.state.pendingBeat,
+      pendingCount: this.state.pendingCount,
+      commitFrames: this.commitFrames,
+      matchState: alignment.match_state,
+      streamState: alignment.stream_state,
+      frameClass: alignment.frame_class,
+      gateReason: alignment.gate_reason,
+      queueDecision: alignment.queue_decision,
+      tonalSignal: alignment.tonal_signal,
+      onsetSignal: alignment.onset_signal,
+      spectralFlatness: alignment.spectral_flatness,
+      peakProminence: alignment.peak_prominence,
+      spectralFlux: alignment.spectral_flux,
+      alignmentState: alignment.alignment_state,
+      continuityState: alignment.continuity_state,
+      beatVelocity: alignment.beat_velocity,
+      validationConfidence: alignment.validation_confidence,
+      inputWeight: alignment.input_weight,
+      inputPolicyConfidence: alignment.input_policy_confidence,
       candidate,
     });
   }

@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -64,7 +64,7 @@ const testimonials = [
 const pricingTiers = [
   {
     name: 'freeName',
-    price: '¥0',
+    price: '楼0',
     priceDetails: 'month',
     features: ['freeFeature1', 'freeFeature2', 'freeFeature3'],
     cta: 'startForFree',
@@ -72,7 +72,7 @@ const pricingTiers = [
   },
   {
     name: 'basicName',
-    price: '¥30',
+    price: '楼30',
     priceDetails: 'month',
     features: [
       'basicFeature1',
@@ -86,7 +86,7 @@ const pricingTiers = [
   },
   {
     name: 'proName',
-    price: '¥99',
+    price: '楼99',
     priceDetails: 'month',
     features: [
       'proFeature1',
@@ -101,7 +101,6 @@ const pricingTiers = [
 
 export default function HomePage() {
   const t = useTranslations('home');
-  const tCommon = useTranslations('common');
   const tPricing = useTranslations('pricing');
   const { isAuthenticated } = useAuth();
 
@@ -167,8 +166,8 @@ export default function HomePage() {
                 <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-orange-600">
                   <step.icon className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">{t(step.title as any)}</h3>
-                <p className="text-gray-600">{t(step.desc as any)}</p>
+                <h3 className="text-xl font-semibold mb-2">{t(step.title as never)}</h3>
+                <p className="text-gray-600">{t(step.desc as never)}</p>
               </div>
             ))}
           </div>
@@ -201,9 +200,9 @@ export default function HomePage() {
                 >
                   <div className="space-y-4">
                     <feature.icon className={`w-8 h-8 ${feature.highlighted ? 'text-white' : 'text-orange-500'}`} />
-                    <h3 className="text-xl font-semibold">{t(feature.title as any)}</h3>
+                    <h3 className="text-xl font-semibold">{t(feature.title as never)}</h3>
                     <p className={`${feature.highlighted ? 'text-white/90' : 'text-gray-600'}`}>
-                      {t(feature.description as any)}
+                      {t(feature.description as never)}
                     </p>
                     <a href="#" className={`flex items-center gap-2 text-sm font-semibold ${feature.highlighted ? 'text-white' : 'text-orange-500'} group-hover:gap-3 transition-all`}>
                       {t('viewDetails')}
@@ -233,12 +232,12 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
               <Card key={index} className="bg-white p-8 rounded-2xl shadow-lg space-y-6">
-                <p className="text-gray-600">&ldquo;{t(testimonial.quote as any) || testimonial.quote}&rdquo;</p>
+                <p className="text-gray-600">&ldquo;{t(testimonial.quote as never) || testimonial.quote}&rdquo;</p>
                 <div className="flex items-center gap-4">
-                  <Image src={testimonial.avatar} alt={t(testimonial.name as any)} width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
+                  <Image src={testimonial.avatar} alt={t(testimonial.name as never)} width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
                   <div>
-                    <p className="font-semibold text-gray-900">{t(testimonial.name as any) || testimonial.name}</p>
-                    <p className="text-sm text-gray-500">{t(testimonial.role as any) || testimonial.role}</p>
+                    <p className="font-semibold text-gray-900">{t(testimonial.name as never) || testimonial.name}</p>
+                    <p className="text-sm text-gray-500">{t(testimonial.role as never) || testimonial.role}</p>
                   </div>
                 </div>
               </Card>
@@ -267,13 +266,13 @@ export default function HomePage() {
                   </div>
                 )}
                 <CardHeader className="text-center pt-12 pb-8">
-                  <CardTitle className="text-2xl font-bold">{tPricing(tier.name as any)}</CardTitle>
+                  <CardTitle className="text-2xl font-bold">{tPricing(tier.name as never)}</CardTitle>
                   <p className="text-gray-500 mt-2">
                     <span className="text-4xl font-bold text-gray-900">
                       {tier.price}
                     </span>
                     <span className="text-gray-500">
-                      {tPricing(tier.priceDetails as any)}
+                      {tPricing(tier.priceDetails as never)}
                     </span>
                   </p>
                 </CardHeader>
@@ -283,7 +282,7 @@ export default function HomePage() {
                       <li key={i} className="flex items-center">
                         <CheckCircle className="mr-3 h-5 w-5 text-green-500 shrink-0" />
                         <span className="text-gray-600">
-                          {tPricing(feature as any)}
+                          {tPricing(feature as never)}
                         </span>
                       </li>
                     ))}
@@ -295,7 +294,7 @@ export default function HomePage() {
                     size="lg"
                     className={`w-full shadow-lg transition-transform hover:scale-105 ${tier.popular ? 'bg-orange-500 hover:bg-orange-600 rounded-full' : 'bg-white text-orange-500 border border-orange-500 hover:bg-orange-50 rounded-full'}`}
                   >
-                    <Link href={isAuthenticated ? '/subscriptions' : tier.link}>{tPricing(tier.cta as any)}</Link>
+                    <Link href={isAuthenticated ? '/subscriptions' : tier.link}>{tPricing(tier.cta as never)}</Link>
                   </Button>
                 </CardFooter>
               </Card>

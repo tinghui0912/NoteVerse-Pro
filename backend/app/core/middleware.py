@@ -1,11 +1,107 @@
 """HTTP middleware used by the FastAPI application."""
 
 import time
+from urllib.parse import urlparse
 
 from fastapi import Request
+from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.config import settings
 from app.core.logger import logger, set_trace_id
+from app.shared.constants import ErrorCode
+
+
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
+CSRF_EXEMPT_PATHS = (
+    f"{settings.API_V1_STR}/auth/login",
+    f"{settings.API_V1_STR}/auth/refresh",
+    f"{settings.API_V1_STR}/auth/register",
+    f"{settings.API_V1_STR}/auth/email/",
+    f"{settings.API_V1_STR}/auth/password/",
+)
+
+
+class CsrfProtectionMiddleware(BaseHTTPMiddleware):
+    """Require a double-submit CSRF token for cookie-authenticated writes."""
+
+    async def dispatch(self, request: Request, call_next):
+        if self._should_check_origin(request) and not self._has_allowed_origin(request):
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "code": ErrorCode.REQUEST_ORIGIN_INVALID,
+                    "error": ErrorCode.REQUEST_ORIGIN_INVALID,
+                    "details": {"reason": "origin_mismatch"},
+                },
+            )
+
+        if self._should_check(request):
+            csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME)
+            csrf_header = request.headers.get(settings.CSRF_HEADER_NAME)
+            if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "code": ErrorCode.CSRF_TOKEN_INVALID,
+                        "error": ErrorCode.CSRF_TOKEN_INVALID,
+                        "details": {"reason": "csrf_token_mismatch"},
+                    },
+                )
+
+        return await call_next(request)
+
+    def _should_check(self, request: Request) -> bool:
+        path = request.url.path
+        if request.method.upper() in SAFE_METHODS:
+            return False
+        if not path.startswith(settings.API_V1_STR):
+            return False
+        if any(path == exempt or path.startswith(exempt) for exempt in CSRF_EXEMPT_PATHS):
+            return False
+        return bool(
+            request.cookies.get(settings.AUTH_COOKIE_NAME)
+            or request.cookies.get(settings.REFRESH_COOKIE_NAME)
+        )
+
+    def _should_check_origin(self, request: Request) -> bool:
+        return (
+            request.method.upper() not in SAFE_METHODS
+            and request.url.path.startswith(settings.API_V1_STR)
+            and bool(
+                request.cookies.get(settings.AUTH_COOKIE_NAME)
+                or request.cookies.get(settings.REFRESH_COOKIE_NAME)
+            )
+        )
+
+    def _has_allowed_origin(self, request: Request) -> bool:
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+        if not origin and not referer:
+            return True
+
+        source = origin or referer
+        if not source:
+            return True
+
+        parsed_source = urlparse(source)
+        if not parsed_source.scheme or not parsed_source.netloc:
+            return False
+
+        request_origin = f"{request.url.scheme}://{request.url.netloc}"
+        source_origin = f"{parsed_source.scheme}://{parsed_source.netloc}"
+        allowed_origins = {str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS}
+        allowed_origins.add(request_origin)
+        if source_origin in allowed_origins:
+            return True
+
+        return settings.DEBUG and self._is_loopback_dev_origin(request, parsed_source)
+
+    def _is_loopback_dev_origin(self, request: Request, parsed_source) -> bool:
+        request_host = request.url.hostname
+        source_host = parsed_source.hostname
+        loopback_hosts = {"localhost", "127.0.0.1", "::1"}
+        return request_host in loopback_hosts and source_host in loopback_hosts
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):

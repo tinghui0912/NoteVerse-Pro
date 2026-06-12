@@ -15,7 +15,6 @@ import { ApiError } from '@/lib/api-client';
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
-  const tCommon = useTranslations('common');
   const tProfile = useTranslations('profile');
   const router = useRouter();
   const { sendEmailCode, verifyEmailCode, resetPassword } = useAuth();

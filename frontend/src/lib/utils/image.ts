@@ -1,6 +1,6 @@
 'use client';
 
-import { getToken } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 export async function fetchAuthenticatedImage(
     taskId: string,
@@ -8,26 +8,14 @@ export async function fetchAuthenticatedImage(
     page: number = 1,
     shareToken?: string
 ): Promise<string | null> {
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
-    let url = `${baseUrl}/files/download/${fileType}/${taskId}?page=${page}`;
+    let url = `/files/download/${fileType}/${taskId}?page=${page}`;
 
     if (shareToken) {
         url += `&share_token=${encodeURIComponent(shareToken)}`;
     }
 
     try {
-        const token = getToken() || '';
-        const response = await fetch(url, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
-
-        if (!response.ok) {
-            return null;
-        }
-
-        const blob = await response.blob();
+        const blob = await apiClient.download(url);
         return URL.createObjectURL(blob);
     } catch {
         return null;
@@ -65,19 +53,9 @@ export async function fetchSharedImageAsBlob(
     fileType: string = 'final_image'
 ): Promise<string | null> {
     try {
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
-        const token = getToken() || '';
-        const response = await fetch(`${baseUrl}/shares/${shareToken}/download/${fileType}?page=${page}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
-
-        if (!response.ok) {
-            return null;
-        }
-
-        const blob = await response.blob();
+        const blob = await apiClient.download(
+            `/shares/${shareToken}/download/${fileType}?page=${page}`
+        );
         return URL.createObjectURL(blob);
     } catch (error) {
         console.error('Failed to fetch shared image:', error);

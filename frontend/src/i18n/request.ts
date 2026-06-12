@@ -1,4 +1,4 @@
-import { getRequestConfig } from 'next-intl/server';
+﻿import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';
 
 const namespaces = [
@@ -22,11 +22,11 @@ const namespaces = [
 export default getRequestConfig(async ({ requestLocale }) => {
   let locale = await requestLocale;
 
-  if (!locale || !routing.locales.includes(locale as any)) {
+  if (!locale || !routing.locales.includes(locale as never)) {
     locale = routing.defaultLocale;
   }
 
-  const messages: Record<string, any> = {};
+  const messages: Record<string, unknown> = {};
   for (const ns of namespaces) {
     messages[ns] = (await import(`../../messages/${locale}/${ns}.json`)).default;
   }

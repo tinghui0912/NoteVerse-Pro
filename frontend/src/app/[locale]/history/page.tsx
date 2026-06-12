@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useTranslations } from 'next-intl';
 import { useBackendMessage } from '@/hooks/use-backend-message';
+import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,14 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Music, Search, CheckCircle2, XCircle, Clock, LoaderCircle, ChevronRight, Eye, List, LayoutGrid, Trash2, Download, Edit, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import Image from 'next/image';
-import { placeholderImages } from '@/lib/placeholder-images';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useRouter } from 'next/navigation';
 import { Footer } from '@/components/layout/footer';
-import { tasksApi, filesApi, sharesApi } from '@/lib/api';
+import { filesApi } from '@/lib/api';
 import type { Task, TaskState } from '@/types/api';
 import { ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +25,7 @@ import { useSavedShares, useDeleteSavedShares } from '@/hooks/queries/use-share-
 
 type UploadStatus = 'completed' | 'pending-review' | 'in-progress' | 'queued' | 'failed';
 
-// 将 TaskState 转换为 UploadStatus
+// 灏?TaskState 杞崲涓?UploadStatus
 const mapTaskStateToStatus = (state: TaskState): UploadStatus => {
   switch (state) {
     case 'SUCCESS': return 'completed';
@@ -38,7 +37,7 @@ const mapTaskStateToStatus = (state: TaskState): UploadStatus => {
   }
 };
 
-// 将 UploadStatus 转换回 TaskState
+// 灏?UploadStatus 杞崲鍥?TaskState
 const mapStatusToTaskState = (status: string): TaskState | undefined => {
   switch (status) {
     case 'completed': return 'SUCCESS';
@@ -57,7 +56,7 @@ interface TaskItem {
   status: UploadStatus;
   thumbnail: string;
   thumbnailType?: string;
-  thumbnailError?: boolean; // 图片加载失败标记
+  thumbnailError?: boolean; // 鍥剧墖鍔犺浇澶辫触鏍囪
 }
 
 interface ShareItem {
@@ -66,9 +65,9 @@ interface ShareItem {
   sharedBy: string;
   date: string;
   thumbnail: string;
-  taskId?: string;  // 用于加载缩略图
-  thumbnailType?: string;  // 缩略图类型
-  shareToken?: string;  // 用于跳转到分享页
+  taskId?: string;  // 鐢ㄤ簬鍔犺浇缂╃暐鍥?
+  thumbnailType?: string;  // 缂╃暐鍥剧被鍨?
+  shareToken?: string;  // 鐢ㄤ簬璺宠浆鍒板垎浜〉
 }
 
 const statusConfig: Record<UploadStatus, { labelKey: string; icon: React.ElementType; color: string; animation?: string }> = {
@@ -79,31 +78,29 @@ const statusConfig: Record<UploadStatus, { labelKey: string; icon: React.Element
   failed: { labelKey: 'statusFailed', icon: XCircle, color: 'text-red-500' },
 };
 
-// 根据任务状态决定跳转目标
+// 鏍规嵁浠诲姟鐘舵€佸喅瀹氳烦杞洰鏍?
 const getTaskLink = (item: TaskItem): string => {
-  // 排队中/进行中/失败 → /upload?task_id=xxx
+  // 鎺掗槦涓?杩涜涓?澶辫触 鈫?/upload?task_id=xxx
   if (item.status === 'queued' || item.status === 'in-progress' || item.status === 'failed') {
     return `/upload?task_id=${item.id}`;
   }
 
-  // 待审核 → /review
+  // 寰呭鏍?鈫?/review
   if (item.status === 'pending-review') {
     return `/review/${item.id}`;
   }
 
-  // 已完成 (SUCCESS) → /results
+  // 宸插畬鎴?(SUCCESS) 鈫?/results
   return `/results/${item.id}`;
 };
 
 const StatusIndicator = ({ status, className }: { status: UploadStatus, className?: string }) => {
   const t = useTranslations('history');
-  const tCommon = useTranslations('common');
-  const tb = useBackendMessage();
   const config = statusConfig[status];
   return (
     <div className={cn('flex items-center text-sm font-medium', config.color, className)}>
       <config.icon className={cn('mr-2 h-4 w-4', config.animation)} />
-      <span>{t(config.labelKey as any)}</span>
+      <span>{t(config.labelKey as never)}</span>
     </div>
   );
 };
@@ -117,9 +114,7 @@ const ScoreCard = ({ item, isSelected, onSelect, selectionMode, isUpload }: {
 }) => {
   const router = useRouter();
   const t = useTranslations('history');
-  const tCommon = useTranslations('common');
   const tResults = useTranslations('results');
-  const tb = useBackendMessage();
 
   const handleCardClick = () => {
     const itemId = isUpload ? (item as TaskItem).id : String((item as ShareItem).id);
@@ -137,8 +132,6 @@ const ScoreCard = ({ item, isSelected, onSelect, selectionMode, isUpload }: {
       }
     }
   };
-
-  const itemId = isUpload ? (item as TaskItem).id : String((item as ShareItem).id);
 
   return (
     <Card
@@ -194,6 +187,43 @@ const ScoreCard = ({ item, isSelected, onSelect, selectionMode, isUpload }: {
   );
 };
 
+const PaginationControls = ({
+  currentPage,
+  pageCount,
+  onPageChange,
+}: {
+  currentPage: number;
+  pageCount: number;
+  onPageChange: (page: number) => void;
+}) => {
+  const tCommon = useTranslations('common');
+
+  if (pageCount <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-end gap-2 mt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        {tCommon('prevPage')}
+      </Button>
+      <span className="text-sm text-muted-foreground">
+        {tCommon('pageInfo', { current: String(currentPage), total: String(pageCount) })}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === pageCount}
+      >
+        {tCommon('nextPage')}
+      </Button>
+    </div>
+  );
+};
 
 export default function HistoryPage() {
   const t = useTranslations('history');
@@ -214,11 +244,9 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState('uploads');
   const ITEMS_PER_PAGE = view === 'list' ? 10 : 6;
 
-  // 数据状态
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [shares, setShares] = useState<ShareItem[]>([]);
-  const [totalTasks, setTotalTasks] = useState(0);
-  const [totalShares, setTotalShares] = useState(0);
+  // 鏁版嵁鐘舵€?
+  const [taskThumbnails, setTaskThumbnails] = useState<Record<string, { thumbnail: string; thumbnailError?: boolean }>>({});
+  const [shareThumbnails, setShareThumbnails] = useState<Record<number, string>>({});
 
   // Mutations
   const deleteTasksMutation = useDeleteTasks();
@@ -227,7 +255,7 @@ export default function HistoryPage() {
 
   const stateFilter = mapStatusToTaskState(statusFilter);
 
-  // 1. TanStack Query：任务列表查询
+  // 1. TanStack Query锛氫换鍔″垪琛ㄦ煡璇?
   const { data: tasksResponse, isLoading: isTasksLoading } = useTaskList(
     { page: uploadsPage, pageSize: ITEMS_PER_PAGE, state: stateFilter, sortBy, sortOrder, search: searchQuery || undefined },
     { refetchInterval: (activeTab === 'uploads' && statusFilter === 'all') ? 5000 : false }
@@ -235,94 +263,82 @@ export default function HistoryPage() {
 
   const fetchingTaskThumbsRef = useRef<Set<string>>(new Set());
 
-  // 同步任务数据并加载缩略图
-  useEffect(() => {
-    if (!tasksResponse?.data) return;
-
-    const mappedTasks: TaskItem[] = tasksResponse.data.map((task: Task) => ({
+  const tasks = useMemo<TaskItem[]>(() => {
+    return (tasksResponse?.data ?? []).map((task: Task) => ({
       id: task.task_id,
       name: task.title || t('taskLabel', { id: task.task_id.slice(0, 8) }),
       date: task.created_at || new Date().toISOString(),
       status: mapTaskStateToStatus(task.state),
-      thumbnail: '',
+      thumbnail: taskThumbnails[task.task_id]?.thumbnail ?? '',
       thumbnailType: task.thumbnail_type,
+      thumbnailError: taskThumbnails[task.task_id]?.thumbnailError,
     }));
-    setTotalTasks(tasksResponse.pagination?.total || mappedTasks.length);
+  }, [tasksResponse?.data, t, taskThumbnails]);
 
-    setTasks(prev => {
-      return mappedTasks.map(newTask => {
-        const existingTask = prev.find(t => t.id === newTask.id);
-        return existingTask ? { ...newTask, thumbnail: existingTask.thumbnail, thumbnailError: existingTask.thumbnailError } : newTask;
-      });
-    });
-
-    // 独立触发缩略图请求
-    mappedTasks.forEach(task => {
+  // 鍔犺浇缂╃暐鍥?
+  useEffect(() => {
+    // 鐙珛瑙﹀彂缂╃暐鍥捐姹?
+    tasks.forEach(task => {
       if (task.thumbnailType && !fetchingTaskThumbsRef.current.has(task.id)) {
         fetchingTaskThumbsRef.current.add(task.id);
         fetchAuthenticatedImage(task.id, task.thumbnailType).then(blobUrl => {
-          setTasks(innerCurrent => innerCurrent.map(t =>
-            t.id === task.id ? { ...t, thumbnail: blobUrl || '', thumbnailError: !blobUrl } : t
-          ));
+          setTaskThumbnails(current => ({
+            ...current,
+            [task.id]: { thumbnail: blobUrl || '', thumbnailError: !blobUrl },
+          }));
         }).catch(() => {
-          setTasks(innerCurrent => innerCurrent.map(t =>
-            t.id === task.id ? { ...t, thumbnailError: true } : t
-          ));
+          setTaskThumbnails(current => ({
+            ...current,
+            [task.id]: { thumbnail: '', thumbnailError: true },
+          }));
         });
       }
     });
-  }, [tasksResponse, t]);
+  }, [tasks]);
 
-  // 2. TanStack Query：收藏列表查询
+  // 2. TanStack Query锛氭敹钘忓垪琛ㄦ煡璇?
   const { data: sharesResponse, isLoading: isSharesLoading } = useSavedShares({
     page: sharesPage, pageSize: ITEMS_PER_PAGE, sortBy, sortOrder, search: searchQuery || undefined
   });
 
   const fetchingShareThumbsRef = useRef<Set<number>>(new Set());
 
-  // 同步收藏数据并加载缩略图
-  useEffect(() => {
-    if (!sharesResponse?.data) return;
-
-    const mappedShares: ShareItem[] = sharesResponse.data.map((item) => ({
+  const shares = useMemo<ShareItem[]>(() => {
+    return (sharesResponse?.data ?? []).map((item) => ({
       id: item.id,
       name: item.task_title,
       sharedBy: item.shared_by || tb('anonymous'),
       date: item.created_at,
-      thumbnail: '',
+      thumbnail: shareThumbnails[item.id] ?? '',
       taskId: item.task_id,
       thumbnailType: item.thumbnail_type,
       shareToken: item.share_token,
     }));
-    setTotalShares(sharesResponse.pagination.total);
+  }, [sharesResponse?.data, shareThumbnails, tb]);
 
-    setShares(prev => {
-      return mappedShares.map(newShare => {
-        const existingShare = prev.find(s => s.id === newShare.id);
-        return existingShare ? { ...newShare, thumbnail: existingShare.thumbnail } : newShare;
-      });
-    });
-
-    mappedShares.forEach(share => {
+  // 鍔犺浇鏀惰棌缂╃暐鍥?
+  useEffect(() => {
+    shares.forEach(share => {
       if (share.taskId && share.thumbnailType && !fetchingShareThumbsRef.current.has(share.id)) {
         fetchingShareThumbsRef.current.add(share.id);
         fetchAuthenticatedImage(share.taskId, share.thumbnailType).then(blobUrl => {
           if (blobUrl) {
-            setShares(innerCurrent => innerCurrent.map(s =>
-              s.id === share.id ? { ...s, thumbnail: blobUrl } : s
-            ));
+            setShareThumbnails(current => ({
+              ...current,
+              [share.id]: blobUrl,
+            }));
           }
         });
       }
     });
-  }, [sharesResponse, tb]);
+  }, [shares]);
 
-  // 合并 loading 和 pending 状态
+  // 鍚堝苟 loading 鍜?pending 鐘舵€?
   const isLoading = activeTab === 'uploads' ? isTasksLoading : isSharesLoading;
   const isDeleting = deleteTasksMutation.isPending || deleteSavedSharesMutation.isPending;
   const isDownloading = archiveTasksMutation.isPending;
 
-  // 批量删除
+  // 鎵归噺鍒犻櫎
   const handleBatchDelete = () => {
     if (selectedItems.length === 0) return;
 
@@ -358,16 +374,16 @@ export default function HistoryPage() {
     }
   };
 
-  // 批量下载
+  // 鎵归噺涓嬭浇
   const handleBatchDownload = () => {
     if (selectedItems.length === 0) return;
 
-    // 根据当前标签页获取正确的 taskIds
+    // 鏍规嵁褰撳墠鏍囩椤佃幏鍙栨纭殑 taskIds
     let taskIds: string[];
     if (activeTab === 'uploads') {
       taskIds = selectedItems;
     } else {
-      // 收藏列表：从 shares 中根据 saved_share.id 获取 taskId
+      // 鏀惰棌鍒楄〃锛氫粠 shares 涓牴鎹?saved_share.id 鑾峰彇 taskId
       taskIds = selectedItems
         .map(id => {
           const share = shares.find(s => String(s.id) === id);
@@ -391,7 +407,7 @@ export default function HistoryPage() {
         onSuccess: (result) => {
           filesApi.triggerDownload(result.blob, `scores_${Date.now()}.zip`);
 
-          // 显示统计信息
+          // 鏄剧ず缁熻淇℃伅
           if (result.skippedCount > 0) {
             toast({
               title: t('downloadPartial'),
@@ -409,7 +425,7 @@ export default function HistoryPage() {
         onError: (err) => {
           toast({
             title: t('downloadFailed'),
-            description: err instanceof ApiError && err.code ? tb(err.code as any) : err.message || t('downloadFailedDesc'),
+            description: err instanceof ApiError && err.code ? tb(err.code as never) : err.message || t('downloadFailedDesc'),
             variant: 'destructive',
           });
         }
@@ -417,13 +433,10 @@ export default function HistoryPage() {
     );
   };
 
-  const filteredTasks = useMemo(() => tasks, [tasks]);
+  const totalTasks = tasksResponse?.pagination?.total ?? tasks.length;
+  const totalShares = sharesResponse?.pagination?.total ?? shares.length;
   const uploadsPageCount = Math.ceil(totalTasks / ITEMS_PER_PAGE);
   const sharesPageCount = Math.ceil(totalShares / ITEMS_PER_PAGE);
-
-  const currentTabItems = useMemo(() => {
-    return activeTab === 'uploads' ? filteredTasks : shares;
-  }, [activeTab, filteredTasks, shares]);
 
   const handleSelectItem = (id: string) => {
     setSelectedItems(prev =>
@@ -437,14 +450,14 @@ export default function HistoryPage() {
       : shares.map(item => String(item.id));
 
     if (isChecked) {
-      // 合并当前页到已选中（保留其他页的选中）
+      // 鍚堝苟褰撳墠椤靛埌宸查€変腑锛堜繚鐣欏叾浠栭〉鐨勯€変腑锛?
       setSelectedItems(prev => {
         const newSet = new Set(prev);
         currentPageIds.forEach(id => newSet.add(id));
         return Array.from(newSet);
       });
     } else {
-      // 只移除当前页的选中（保留其他页的选中）
+      // 鍙Щ闄ゅ綋鍓嶉〉鐨勯€変腑锛堜繚鐣欏叾浠栭〉鐨勯€変腑锛?
       setSelectedItems(prev => prev.filter(id => !currentPageIds.includes(id)));
     }
   };
@@ -464,7 +477,7 @@ export default function HistoryPage() {
   }
 
   const numSelected = selectedItems.length;
-  // 检查当前页的任务是否全部被选中
+  // 妫€鏌ュ綋鍓嶉〉鐨勪换鍔℃槸鍚﹀叏閮ㄨ閫変腑
   const currentPageIds = activeTab === 'uploads'
     ? tasks.map(item => item.id)
     : shares.map(item => String(item.id));
@@ -486,33 +499,6 @@ export default function HistoryPage() {
         }
       }
     }
-  };
-
-  const PaginationControls = ({ currentPage, pageCount, onPageChange }: { currentPage: number, pageCount: number, onPageChange: (page: number) => void }) => {
-    if (pageCount <= 1) return null;
-    return (
-      <div className="flex items-center justify-end gap-2 mt-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-        >
-          {tCommon('prevPage')}
-        </Button>
-        <span className="text-sm text-muted-foreground">
-          {tCommon('pageInfo', { current: String(currentPage), total: String(pageCount) })}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === pageCount}
-        >
-          {tCommon('nextPage')}
-        </Button>
-      </div>
-    );
   };
 
   return (

@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.lifespan import app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
-from app.core.middleware import LoggingMiddleware
+from app.core.middleware import CsrfProtectionMiddleware, LoggingMiddleware
 
 
 configure_uvicorn_logging()
@@ -31,6 +31,7 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(LoggingMiddleware)
+    app.add_middleware(CsrfProtectionMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,

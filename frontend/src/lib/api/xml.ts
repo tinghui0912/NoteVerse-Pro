@@ -2,7 +2,7 @@
  * XML 编辑相关 API
  */
 import { apiClient, ApiResponse } from '../api-client';
-import type { SaveResponse, SaveAndRenderResponse, FingeringResponse } from '@/types/api';
+import type { SaveResponse, FingeringResponse } from '@/types/api';
 
 // ============ API 函数 ============
 

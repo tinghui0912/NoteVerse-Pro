@@ -15,7 +15,6 @@ interface ImageViewerProps {
 }
 
 export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProps) {
-  const tCommon = useTranslations('common');
   const tReview = useTranslations('review');
   const tResults = useTranslations('results');
   const [currentIndex, setCurrentIndex] = useState(0);

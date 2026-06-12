@@ -12,7 +12,6 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
 import {
   X,
   RotateCcw,
@@ -30,7 +29,6 @@ import ReactCrop, {
 } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { ScrollArea } from './ui/scroll-area';
-import { cn } from '@/lib/utils';
 
 function getCroppedImg(
   image: HTMLImageElement,
@@ -194,10 +192,6 @@ export function AvatarCropperModal({
     setRotate(prevRotate => prevRotate + angle);
   };
 
-  const handleZoom = (value: number[]) => {
-      setScale(value[0]);
-  }
-  
   const handleReset = () => {
       setScale(1);
       setRotate(0);
@@ -235,6 +229,7 @@ export function AvatarCropperModal({
                     aspect={1}
                     circularCrop
                     >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- ReactCrop needs a native image element for canvas-based crop extraction. */}
                     <img
                         ref={imgRef}
                         alt="Crop me"

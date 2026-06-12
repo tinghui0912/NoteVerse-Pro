@@ -5,16 +5,12 @@ import { useTranslations, useLocale } from 'next-intl';
 import { useRouter, usePathname, Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import {
-  Book,
   Check,
   Globe,
   Heart,
-  HelpCircle,
-  Home,
   LogOut,
   Menu,
   Music2,
-  UploadCloud,
   User,
   X,
 } from 'lucide-react';
@@ -50,11 +46,7 @@ const UserMenu = () => {
               alt={user?.name || ''}
             />
             <AvatarFallback>
-              <img
-                src={placeholderImages['avatar-user']?.url}
-                alt="avatar"
-                className="h-full w-full object-cover"
-              />
+              <User className="h-5 w-5" />
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -123,10 +115,8 @@ const LanguageSwitcher = () => {
 
 export default function PillNav() {
   const t = useTranslations('common');
-  const locale = useLocale();
-  const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = isAuthenticated

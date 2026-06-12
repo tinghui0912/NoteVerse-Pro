@@ -3,7 +3,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { authApi, profileApi } from '@/lib/api';
 import type { User as ApiUser } from '@/types/api';
-import { getToken, setToken, clearToken, ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/api-client';
 
 // ============ 类型定义 ============
 
@@ -23,7 +23,7 @@ interface AuthContextType {
 
   // 登录/登出
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 
   // 注册
   register: (email: string, password: string, displayName: string, verifiedToken: string) => Promise<void>;
@@ -74,16 +74,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    * 刷新用户信息
    */
   const refreshUser = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      setIsAuthenticated(false);
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const response = await profileApi.getProfile();
+      const response = await profileApi.getProfile({ suppressAuthRedirect: true });
       if (response.data?.user) {
         const mappedUser = mapApiUser(response.data.user as unknown as ApiUser);
         setUser(mappedUser);
@@ -92,7 +84,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       // Token 无效，清除
       if (error instanceof ApiError && error.status === 401) {
-        clearToken();
         setIsAuthenticated(false);
         setUser(null);
       }
@@ -121,8 +112,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /**
    * 登出
    */
-  const logout = () => {
-    clearToken();
+  const logout = async () => {
+    await authApi.logout();
     setIsAuthenticated(false);
     setUser(null);
   };

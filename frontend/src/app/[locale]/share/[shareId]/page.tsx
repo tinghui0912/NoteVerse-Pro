@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -53,7 +54,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
 
     const [isListenModalOpen, setIsListenModalOpen] = useState(false);
 
-    // 认证守卫
+    // 璁よ瘉瀹堝崼
     useEffect(() => {
         if (authLoading) return;
         if (!isAuthenticated) {
@@ -63,7 +64,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         }
     }, [authLoading, isAuthenticated, locale, router]);
 
-    // ============ TanStack Query：加载分享数据 ============
+    // ============ TanStack Query锛氬姞杞藉垎浜暟鎹?============
     const {
         data: shareResponse,
         isLoading: isLoadingShare,
@@ -72,12 +73,12 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         queryKey: queryKeys.shares.access(shareId),
         queryFn: () => sharesApi.accessShare(shareId),
         enabled: isAuthenticated && !authLoading,
-        retry: false, // 分享错误不重试（not_found/revoked/expired 重试无意义）
+        retry: false, // 鍒嗕韩閿欒涓嶉噸璇曪紙not_found/revoked/expired 閲嶈瘯鏃犳剰涔夛級
     });
 
     const shareData = shareResponse?.data ?? null;
 
-    // 从响应中提取字段
+    // 浠庡搷搴斾腑鎻愬彇瀛楁
     const scoreTitle = shareData?.task.title || '';
     const scoreDifficulty = shareData?.task.difficulty || '';
     const taskId = shareData?.task.task_id || '';
@@ -85,7 +86,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
     const expiresAt = shareData?.share_info.expires_at || t('permanent');
     const canDownload = shareData?.share_info.can_download || false;
 
-    // 分类错误状态
+    // 鍒嗙被閿欒鐘舵€?
     const errorState = useMemo(() => {
         if (!shareError) return { type: null as null, message: '' };
         if (shareError instanceof ApiError) {
@@ -107,10 +108,10 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         return { type: null as null, message: t('loadFailedDesc') };
     }, [shareError, t]);
 
-    // ============ TanStack Query：加载图片 ============
+    // ============ TanStack Query锛氬姞杞藉浘鐗?============
     const finalImages = shareData?.task.files?.final_image || [];
     const { data: imageUrls = [], isLoading: imagesLoading } = useQuery({
-        queryKey: ['share-images', shareId],
+        queryKey: ['share-images', shareId, finalImages.length],
         queryFn: async () => {
             const urls: string[] = [];
             for (let i = 0; i < finalImages.length; i += 1) {
@@ -120,11 +121,11 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
             return urls;
         },
         enabled: !!shareData && finalImages.length > 0,
-        staleTime: 0,
+        staleTime: Infinity,
         gcTime: 0,
     });
 
-    // ============ TanStack Query：加载 XML ============
+    // ============ TanStack Query锛氬姞杞?XML ============
     const { data: rawXml = null } = useQuery({
         queryKey: ['share-xml', shareId],
         queryFn: async () => {
@@ -139,7 +140,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         staleTime: Infinity,
     });
 
-    // 清理 blob URLs
+    // 娓呯悊 blob URLs
     useEffect(() => {
         imageUrlsRef.current = imageUrls;
     }, [imageUrls]);
@@ -150,7 +151,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         };
     }, []);
 
-    // ============ 收藏 mutation ============
+    // ============ 鏀惰棌 mutation ============
     const saveMutation = useSaveToCollection();
 
     const handleBookmark = () => {
@@ -198,19 +199,19 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
     if (errorState.type) {
         const errorConfig = {
             not_found: {
-                icon: '馃敆',
+                icon: '棣冩晢',
                 title: t('errorNotFoundTitle'),
                 description: t('errorNotFoundDesc'),
                 hint: t('hintNotFound'),
             },
             revoked: {
-                icon: '馃毇',
+                icon: '棣冩瘒',
                 title: t('errorRevokedTitle'),
                 description: t('errorRevokedDesc'),
                 hint: t('hintRevoked'),
             },
             expired: {
-                icon: '鈴?',
+                icon: '閳?',
                 title: t('errorExpiredTitle'),
                 description: errorState.expiredAt
                     ? t('errorExpiredDescWithDate', { date: new Date(errorState.expiredAt).toLocaleString() })
@@ -298,10 +299,12 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                                                 {imageUrls.map((url, idx) => (
                                                     <CarouselItem key={idx}>
                                                         <div className="relative aspect-8.5/11 w-full bg-white rounded-md flex items-center justify-center">
-                                                            <img
+                                                            <Image
                                                                 src={url}
                                                                 alt={`Score Page ${idx + 1}`}
-                                                                className="max-w-full max-h-full object-contain rounded-md"
+                                                                fill
+                                                                unoptimized
+                                                                className="object-contain rounded-md"
                                                             />
                                                         </div>
                                                     </CarouselItem>
@@ -376,7 +379,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <Label className="text-muted-foreground">{tResults('scoreDifficulty')}</Label>
-                                        <p className="font-medium">{scoreDifficulty ? tUpload(scoreDifficulty as any) : ''}</p>
+                                        <p className="font-medium">{scoreDifficulty ? tUpload(scoreDifficulty as never) : ''}</p>
                                     </div>
                                 </CardContent>
                             </Card>

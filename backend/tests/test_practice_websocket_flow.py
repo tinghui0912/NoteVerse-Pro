@@ -55,8 +55,16 @@ class StreamingEngine:
         return {
             "beat_position": 0.0,
             "confidence": 0.95,
+            "alignment_confidence": 0.95,
+            "audio_confidence": 0.95,
+            "continuity_confidence": 0.95,
+            "visual_confidence": 0.95,
             "timestamp_ms": 20,
             "score_completed": False,
+            "audio_active": True,
+            "input_rms": 0.04,
+            "input_peak": 0.1,
+            "match_state": "matched",
         }
 
     @property
@@ -144,7 +152,7 @@ def test_practice_websocket_flow_surfaces_engine_failures(
         "app.processing.realtime.session_runtime.build_alignment_engine",
         return_value=FailingEngine(),
     ):
-        runtime = practice_runtime_registry.register(
+        practice_runtime_registry.register(
             session_id="session-1",
             task_id="task-1",
             state="CREATED",

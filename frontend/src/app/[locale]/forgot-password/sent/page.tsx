@@ -4,14 +4,13 @@
 import { Button } from '@/components/ui/button';
 import { useTranslations } from 'next-intl';
 import { Footer } from '@/components/layout/footer';
-import { ArrowLeft, Music2 } from 'lucide-react';
+import { Music2 } from 'lucide-react';
 import React, { Suspense, useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 function SentContent() {
   const t = useTranslations('auth');
-  const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
   const [countdown, setCountdown] = useState(0);

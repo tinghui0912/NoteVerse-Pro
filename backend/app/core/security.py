@@ -1,6 +1,7 @@
 """Security helpers for token creation and password hashing."""
 
 from datetime import timedelta
+from uuid import uuid4
 
 import jwt
 from pwdlib import PasswordHash
@@ -15,25 +16,54 @@ password_hash = PasswordHash.recommended()
 ALGORITHM = "HS256"
 
 
+def create_token(
+    subject: object,
+    token_type: str,
+    expires_delta: timedelta | None = None,
+) -> str:
+    """Create a signed JWT for the given subject and token type."""
+    issued_at = utc_now()
+    if expires_delta:
+        expire = issued_at + expires_delta
+    else:
+        expire = issued_at + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode = {
+        "exp": expire,
+        "iat": issued_at,
+        "jti": uuid4().hex,
+        "sub": str(subject),
+        "typ": token_type,
+    }
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
 def create_access_token(
     subject: object,
     expires_delta: timedelta | None = None,
 ) -> str:
     """Create a JWT access token for the given subject."""
-
-    if expires_delta:
-        expire = utc_now() + expires_delta
-    else:
-        expire = utc_now() + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        )
-    to_encode = {"exp": expire, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return create_token(subject, "access", expires_delta)
 
 
-def decode_access_token(token: str) -> dict[str, object]:
-    """Decode and validate a JWT access token."""
+def create_email_verification_token(
+    subject: object,
+    expires_delta: timedelta | None = None,
+) -> str:
+    """Create a short-lived token for email verification."""
+    return create_token(subject, "email_verification", expires_delta)
+
+
+def create_password_reset_token(
+    subject: object,
+    expires_delta: timedelta | None = None,
+) -> str:
+    """Create a short-lived token for password reset."""
+    return create_token(subject, "password_reset", expires_delta)
+
+
+def decode_token(token: str) -> dict[str, object]:
+    """Decode and validate a signed JWT."""
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])

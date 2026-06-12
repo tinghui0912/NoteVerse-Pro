@@ -1,9 +1,7 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useBackendMessage } from '@/hooks/use-backend-message';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, Edit, Hand, Gamepad2, Copy, ArrowLeft, MoreVertical, Link as LinkIcon, Link2Off, Undo, Trash2, Play, Save, FileImage, X } from 'lucide-react';
@@ -11,13 +9,8 @@ import { Link } from '@/i18n/routing';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useRef, useEffect, Suspense } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { ListenModal } from '@/components/listen-modal';
 import {
   Carousel,
@@ -39,13 +32,10 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { ClientOnly } from '@/components/client-only';
-import { Separator } from '@/components/ui/separator';
 import { Footer } from '@/components/layout/footer';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { useScoreData } from '@/contexts/editor-provider';
-import { filesApi } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTaskDetail, useUpdateTask } from '@/hooks/queries/use-task-queries';
 import { useShareList, useCreateShare, useToggleShare, useDeleteShare } from '@/hooks/queries/use-share-queries';
 import { useXmlContent, useGenerateFingering } from '@/hooks/queries/use-xml-queries';
@@ -56,12 +46,11 @@ import { ApiError } from '@/lib/api-client';
 import { useDownload } from '@/hooks/use-download';
 
 
-// 移除 mock 图片，使用真实数据
-
+// 绉婚櫎 mock 鍥剧墖锛屼娇鐢ㄧ湡瀹炴暟鎹?
 type ShareStatus = 'active' | 'revoked' | 'expired';
 type SharePermission = 'view' | 'edit';
 
-// 使用真实数据
+// 浣跨敤鐪熷疄鏁版嵁
 interface ShareItem {
   id: string;
   url: string;
@@ -86,7 +75,6 @@ function ResultsPageContent({ id }: { id: string }) {
   const tUpload = useTranslations('upload');
   const tPractice = useTranslations('practice');
   const tErrors = useTranslations('errors');
-  const tb = useBackendMessage();
   const { toast } = useToast();
   const router = useRouter();
   const [scoreTitle, setScoreTitle] = useState('');
@@ -95,15 +83,16 @@ function ResultsPageContent({ id }: { id: string }) {
   const [isListenModalOpen, setIsListenModalOpen] = useState(false);
   const [sharePermission, setSharePermission] = useState('view');
   const [shareExpiration, setShareExpiration] = useState('7d');
-  const [scoreImages, setScoreImages] = useState<{ id: number; url: string; alt: string }[]>([]);
+  const queryClient = useQueryClient();
+  const imageUrlsRef = useRef<string[]>([]);
 
   const { rawXml, setRawXml, setScoreData } = useScoreData();
 
-  // 1. TanStack Query：任务详情
+  // 1. TanStack Query锛氫换鍔¤鎯?
   const { data: taskResponse, isLoading: isTaskLoading, error: taskError } = useTaskDetail(id);
   const task = taskResponse?.data;
 
-  // 当任务数据加载或退出编辑状态时，同步标题和难度
+  // 褰撲换鍔℃暟鎹姞杞芥垨閫€鍑虹紪杈戠姸鎬佹椂锛屽悓姝ユ爣棰樺拰闅惧害
   useEffect(() => {
     if (task && !isEditingInfo) {
       setScoreTitle(task.title || '');
@@ -111,7 +100,7 @@ function ResultsPageContent({ id }: { id: string }) {
     }
   }, [task, isEditingInfo]);
 
-  // 2. TanStack Query：图片预加载
+  // 2. TanStack Query锛氬浘鐗囬鍔犺浇
   const finalImages = task?.files?.final_image || [];
   const { data: imageUrls = [], isLoading: imagesLoading } = useQuery({
     queryKey: queryKeys.images.task(id, 'final_image'),
@@ -124,18 +113,22 @@ function ResultsPageContent({ id }: { id: string }) {
       return urls;
     },
     enabled: !!task && finalImages.length > 0,
-    staleTime: 0,
+    staleTime: Infinity,
     gcTime: 0,
   });
 
-  // 清理图片 URLs
+  // 娓呯悊鍥剧墖 URLs
   useEffect(() => {
-    return () => {
-      imageUrls.forEach(url => URL.revokeObjectURL(url));
-    };
+    imageUrlsRef.current = imageUrls;
   }, [imageUrls]);
 
-  // 3. TanStack Query：XML 加载与解析
+  useEffect(() => {
+    return () => {
+      imageUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
+
+  // 3. TanStack Query锛歑ML 鍔犺浇涓庤В鏋?
   const { data: xmlContent } = useXmlContent(id, 'final', { enabled: !!task });
   useEffect(() => {
     if (xmlContent) {
@@ -145,7 +138,7 @@ function ResultsPageContent({ id }: { id: string }) {
           const parser = new MusicXMLParser(xmlContent);
           const data = parser.parse();
           setScoreData(data);
-          // 只有当任务本身没有标题，且不在编辑状态时，才使用解析出的标题
+          // 鍙湁褰撲换鍔℃湰韬病鏈夋爣棰橈紝涓斾笉鍦ㄧ紪杈戠姸鎬佹椂锛屾墠浣跨敤瑙ｆ瀽鍑虹殑鏍囬
           if (data.mainTitle && !isEditingInfo && !task?.title) {
             setScoreTitle(data.mainTitle);
           }
@@ -156,7 +149,7 @@ function ResultsPageContent({ id }: { id: string }) {
     }
   }, [xmlContent, setRawXml, setScoreData, isEditingInfo, task?.title]);
 
-  // 4. TanStack Query：分享列表
+  // 4. TanStack Query锛氬垎浜垪琛?
   const { data: sharesResponse } = useShareList(id);
   const historicalShares: ShareItem[] = React.useMemo(() => {
     if (!sharesResponse?.data?.shares) return [];
@@ -171,9 +164,9 @@ function ResultsPageContent({ id }: { id: string }) {
     }));
   }, [sharesResponse]);
 
-  // 合并 loading 和 error 状态
+  // 鍚堝苟 loading 鍜?error 鐘舵€?
   const isLoading = isTaskLoading;
-  const error = taskError instanceof ApiError && taskError.code ? tErrors(taskError.code as any) : (taskError instanceof Error ? taskError.message : null);
+  const error = taskError instanceof ApiError && taskError.code ? tErrors(taskError.code as never) : (taskError instanceof Error ? taskError.message : null);
 
   // ============ Mutations ============
   const updateTaskMutation = useUpdateTask();
@@ -184,7 +177,7 @@ function ResultsPageContent({ id }: { id: string }) {
 
   const handleToggleEditInfo = () => {
     if (isEditingInfo) {
-      // 保存编辑
+      // 淇濆瓨缂栬緫
       if (scoreTitle.trim() === '') {
         toast({
           variant: "destructive",
@@ -227,7 +220,7 @@ function ResultsPageContent({ id }: { id: string }) {
       });
       return;
     }
-    // 如果是相对路径，自动拼接完整 URL
+    // 濡傛灉鏄浉瀵硅矾寰勶紝鑷姩鎷兼帴瀹屾暣 URL
     const fullUrl = text.startsWith('/') ? `${window.location.origin}${text}` : text;
     navigator.clipboard.writeText(fullUrl);
     toast({
@@ -236,7 +229,7 @@ function ResultsPageContent({ id }: { id: string }) {
     });
   };
 
-  // 创建分享链接
+  // 鍒涘缓鍒嗕韩閾炬帴
   const handleCreateShare = () => {
     const expirationDays = {
       '1d': 1,
@@ -254,7 +247,7 @@ function ResultsPageContent({ id }: { id: string }) {
             title: t('createShareSuccess'),
             description: t('shareLinkCreated'),
           });
-          // 前端自己拼接完整链接
+          // 鍓嶇鑷繁鎷兼帴瀹屾暣閾炬帴
           if (response.data) {
             const shareUrl = `${window.location.origin}/share/${response.data.share_token}`;
             navigator.clipboard.writeText(shareUrl);
@@ -263,7 +256,7 @@ function ResultsPageContent({ id }: { id: string }) {
         onError: (error) => {
           toast({
             title: t('createShareFailed'),
-            description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('createShareFailedDesc'),
+            description: error instanceof ApiError && error.code ? tErrors(error.code as never) : t('createShareFailedDesc'),
             variant: 'destructive',
           });
         }
@@ -271,7 +264,7 @@ function ResultsPageContent({ id }: { id: string }) {
     );
   };
 
-  // 处理分享操作
+  // 澶勭悊鍒嗕韩鎿嶄綔
   const handleShareAction = (shareId: string, action: 'revoke' | 'reinstate' | 'delete') => {
     const share = historicalShares.find(s => s.id === shareId);
     if (!share) return;
@@ -313,7 +306,7 @@ function ResultsPageContent({ id }: { id: string }) {
     }
   };
 
-  // 生成指法
+  // 鐢熸垚鎸囨硶
   const handleGenerateFingering = () => {
     generateFingeringMutation.mutate(
       { taskId: id },
@@ -324,8 +317,9 @@ function ResultsPageContent({ id }: { id: string }) {
               title: t('fingeringSuccess'),
               description: t('fingeringDesc'),
             });
-            // 刷新页面以加载新的指法结果
-            setTimeout(() => window.location.reload(), 1000);
+            // 鍒锋柊椤甸潰浠ュ姞杞芥柊鐨勬寚娉曠粨鏋?            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.images.task(id, 'final_image') });
+            queryClient.invalidateQueries({ queryKey: queryKeys.xml.content(id, 'final') });
           } else {
             toast({
               title: t('fingeringFailed'),
@@ -337,7 +331,7 @@ function ResultsPageContent({ id }: { id: string }) {
         onError: (error) => {
           toast({
             title: t('fingeringFailed'),
-            description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('fingeringFailedDesc'),
+            description: error instanceof ApiError && error.code ? tErrors(error.code as never) : t('fingeringFailedDesc'),
             variant: 'destructive',
           });
         }
@@ -345,7 +339,7 @@ function ResultsPageContent({ id }: { id: string }) {
     );
   };
 
-  // 使用通用下载 Hook
+  // 浣跨敤閫氱敤涓嬭浇 Hook
   const { handleDownload } = useDownload({
     mode: 'task',
     id,
@@ -366,7 +360,7 @@ function ResultsPageContent({ id }: { id: string }) {
     { label: tCommon('edit'), icon: Edit, href: `/editor/${id}?source=final` },
   ];
 
-  // 加载中状态
+  // 鍔犺浇涓姸鎬?
   if (isLoading) {
     return (
       <div className="bg-gray-50 min-h-screen flex flex-col">
@@ -386,7 +380,7 @@ function ResultsPageContent({ id }: { id: string }) {
     );
   }
 
-  // 错误状态
+  // 閿欒鐘舵€?
   if (error) {
     return (
       <div className="bg-gray-50 min-h-screen flex flex-col">
@@ -397,7 +391,7 @@ function ResultsPageContent({ id }: { id: string }) {
         </div>
         <main className="grow flex items-center justify-center py-16">
           <div className="max-w-md w-full mx-4 text-center">
-            <div className="text-6xl mb-6">⚠️</div>
+            <div className="text-6xl mb-6">鈿狅笍</div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">{tCommon('loadFailed')}</h2>
             <p className="text-gray-600 mb-2">{error}</p>
             <p className="text-gray-500 text-sm mb-8">{t('loadFailedHint')}</p>
@@ -451,10 +445,12 @@ function ResultsPageContent({ id }: { id: string }) {
                         {imageUrls.map((url, idx) => (
                           <CarouselItem key={idx}>
                             <div className="relative aspect-8.5/11 w-full bg-white rounded-md flex items-center justify-center">
-                              <img
+                              <Image
                                 src={url}
                                 alt={`Score Page ${idx + 1}`}
-                                className="max-w-full max-h-full object-contain rounded-md"
+                                fill
+                                unoptimized
+                                className="object-contain rounded-md"
                               />
                             </div>
                           </CarouselItem>
@@ -487,7 +483,7 @@ function ResultsPageContent({ id }: { id: string }) {
                     </div>
                   );
 
-                  // 带 onClick 的按钮
+                  // 甯?onClick 鐨勬寜閽?
                   if ('isAction' in btn && btn.isAction && 'onClick' in btn) {
                     return (
                       <Button
@@ -502,7 +498,7 @@ function ResultsPageContent({ id }: { id: string }) {
                     );
                   }
 
-                  // Modal 按钮
+                  // Modal 鎸夐挳
                   if ('isModal' in btn && btn.isModal) {
                     return (
                       <React.Fragment key={btn.label}>
@@ -518,7 +514,7 @@ function ResultsPageContent({ id }: { id: string }) {
                     );
                   }
 
-                  // 普通链接按钮
+                  // 鏅€氶摼鎺ユ寜閽?
                   return (
                     <Link key={btn.label} href={btn.href} passHref>
                       <Button variant="outline" className="h-24 rounded-2xl bg-white w-full">
@@ -542,7 +538,7 @@ function ResultsPageContent({ id }: { id: string }) {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground"
                         onClick={() => {
-                          // 取消编辑，恢复原值
+                          // 鍙栨秷缂栬緫锛屾仮澶嶅師鍊?
                           if (task) {
                             setScoreTitle(task.title || '');
                             setScoreDifficulty(task.difficulty || '');
@@ -598,7 +594,7 @@ function ResultsPageContent({ id }: { id: string }) {
                       </Select>
                     ) : (
                       <span className="font-medium text-sm text-right truncate flex-1">
-                        {scoreDifficulty ? tUpload(scoreDifficulty as any) : ''}
+                        {scoreDifficulty ? tUpload(scoreDifficulty as never) : ''}
                       </span>
                     )}
                   </div>
@@ -634,7 +630,7 @@ function ResultsPageContent({ id }: { id: string }) {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="share-permission">{tShare('permission')}</Label>
-                    <Select defaultValue="view">
+                    <Select value={sharePermission} onValueChange={setSharePermission}>
                       <SelectTrigger id="share-permission" className="bg-white">
                         <SelectValue placeholder={t('selectPermissionPlaceholder')} />
                       </SelectTrigger>
@@ -646,7 +642,7 @@ function ResultsPageContent({ id }: { id: string }) {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="share-expiration">{tShare('expiration')}</Label>
-                    <Select defaultValue="7d">
+                    <Select value={shareExpiration} onValueChange={setShareExpiration}>
                       <SelectTrigger id="share-expiration" className="bg-white">
                         <SelectValue placeholder={t('selectExpirationPlaceholder')} />
                       </SelectTrigger>
@@ -706,7 +702,7 @@ function ResultsPageContent({ id }: { id: string }) {
                                   <Badge variant="outline" className={cn(
                                     "shrink-0",
                                     isActive ? 'border-orange-300 text-orange-600' : 'border-border text-muted-foreground'
-                                  )}>{tHistory(config.labelKey as any)}</Badge>
+                                  )}>{tHistory(config.labelKey as never)}</Badge>
                                 </div>
                                 <p className={cn("text-xs", isActive ? 'text-orange-500/80' : 'text-muted-foreground')}>
                                   {tHistory('createdAt')}: {share.date}

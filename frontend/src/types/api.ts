@@ -29,16 +29,6 @@ export interface PaginatedResponse<T> {
 
 // ============ 认证相关 ============
 
-export interface LoginRequest {
-    username: string; // email
-    password: string;
-}
-
-export interface LoginResponse {
-    access_token: string;
-    token_type: string;
-}
-
 export interface RegisterRequest {
     email: string;
     password: string;
@@ -83,6 +73,7 @@ export interface UserProfile {
 }
 
 export interface UpdateProfileRequest {
+    display_name?: string;
     email?: string;
     current_password?: string;
     new_password?: string;
@@ -373,16 +364,33 @@ export interface PracticeAlignmentUpdateMessage {
     payload: {
         beat_position: number;
         confidence: number;
+        alignment_confidence: number;
+        audio_confidence: number;
+        continuity_confidence: number;
+        visual_confidence: number;
         timestamp_ms: number;
         score_completed?: boolean;
-    };
-}
-
-export interface PracticeSessionWarningMessage {
-    type: 'session.warning';
-    payload: {
-        code: string;
-        message: string;
+        audio_active?: boolean;
+        input_rms?: number;
+        input_peak?: number;
+        match_state?: 'matched' | 'holding_decay' | 'lost' | 'no_input' | string;
+        feature_confidence?: number;
+        beat_delta?: number | null;
+        stream_state?: string;
+        frame_class?: 'silence' | 'transient' | 'tonal' | 'uncertain' | string;
+        gate_reason?: string;
+        queue_decision?: string;
+        tonal_signal?: boolean;
+        onset_signal?: boolean;
+        spectral_flatness?: number;
+        peak_prominence?: number;
+        spectral_flux?: number;
+        alignment_state?: string;
+        continuity_state?: string;
+        beat_velocity?: number | null;
+        validation_confidence?: number;
+        input_weight?: number;
+        input_policy_confidence?: number;
     };
 }
 
@@ -400,5 +408,4 @@ export type PracticeServerMessage =
     | PracticeSessionStateChangedMessage
     | PracticeSessionFinishedMessage
     | PracticeAlignmentUpdateMessage
-    | PracticeSessionWarningMessage
     | PracticeSessionErrorMessage;

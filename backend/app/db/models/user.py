@@ -7,6 +7,7 @@ import enum
 from app.utils.timezone import utc_now_naive
 
 if TYPE_CHECKING:
+    from .auth import RefreshToken
     from .task import Task
     from .share import Share, SavedShare
     from .file import Upload
@@ -43,3 +44,4 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     shares: List["Share"] = Relationship(back_populates="owner")
     saved_shares: List["SavedShare"] = Relationship(back_populates="user")
     practice_sessions: List["PracticeSession"] = Relationship(back_populates="user")
+    refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")

@@ -15,8 +15,7 @@ import { ApiError } from '@/lib/api-client';
 
 export default function RegisterPage() {
   const t = useTranslations('auth');
-  const tCommon = useTranslations('common');
-  const { register, sendEmailCode, verifyEmailCode, isLoading: authLoading } = useAuth();
+  const { register, sendEmailCode, verifyEmailCode } = useAuth();
   const router = useRouter();
 
   const [step, setStep] = useState<'enter_details' | 'verify_code'>('enter_details');
@@ -33,7 +32,6 @@ export default function RegisterPage() {
 
   // 存储 challenge_id 和 verified_token
   const [challengeId, setChallengeId] = useState('');
-  const [verifiedToken, setVerifiedToken] = useState('');
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -124,7 +122,6 @@ export default function RegisterPage() {
     try {
       // 第一步：验证验证码，获取 verified_token
       const token = await verifyEmailCode(email, enteredCode, challengeId);
-      setVerifiedToken(token);
 
       // 第二步：注册（会自动登录）
       await register(email, password, displayName || email.split('@')[0], token);
@@ -172,7 +169,7 @@ export default function RegisterPage() {
     }
   };
 
-  const isLoading = isSubmitting || authLoading;
+  const isLoading = isSubmitting;
 
   const renderStepOne = () => (
     <>

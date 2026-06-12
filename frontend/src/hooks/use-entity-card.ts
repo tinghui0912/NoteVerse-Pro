@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useTranslations } from 'next-intl';
 
@@ -6,25 +6,23 @@ import { useMemo, useCallback } from 'react';
 import type { ScoreEntity, Articulation, ConnectionData, TieConnection, SlurConnection, BeamConnection } from '@/types/score-types';
 
 /**
- * 实体卡片公共逻辑 Hook
- * 为 NoteCard 和 ChordCard 提供共享的工具函数
- */
+ * 瀹炰綋鍗＄墖鍏叡閫昏緫 Hook
+ * 涓?NoteCard 鍜?ChordCard 鎻愪緵鍏变韩鐨勫伐鍏峰嚱鏁? */
 export function useEntityCard(entity: ScoreEntity, connections: ConnectionData | undefined) {
     const t = useTranslations('editor');
     const tCommon = useTranslations('common');
 
     /**
-     * 获取实体的连接图标类型
-     */
+     * 鑾峰彇瀹炰綋鐨勮繛鎺ュ浘鏍囩被鍨?     */
     const getConnectionIconTypes = useMemo((): Articulation[] => {
         const iconTypes: Set<Articulation> = new Set();
 
-        // 添加原有的 articulations
+        // 娣诲姞鍘熸湁鐨?articulations
         if ('articulation' in entity && entity.articulation) {
             entity.articulation.forEach((a: Articulation) => iconTypes.add(a));
         }
 
-        // 从 connections 获取连接类型
+        // 浠?connections 鑾峰彇杩炴帴绫诲瀷
         if (entity.meta?.id && connections?.noteConnections) {
             const entityConns = connections.noteConnections.get(entity.meta.id);
             if (entityConns) {
@@ -38,33 +36,31 @@ export function useEntityCard(entity: ScoreEntity, connections: ConnectionData |
     }, [entity, connections]);
 
     /**
-     * 构建时值显示文本（含附点）
+     * 鏋勫缓鏃跺€兼樉绀烘枃鏈紙鍚檮鐐癸級
      */
     const getDurationDisplay = useCallback((): string => {
-        const baseDuration = t(entity.duration as any);
+        const baseDuration = t(entity.duration as never);
         return entity.dotted ? `${tCommon('dotted')}${baseDuration}` : baseDuration;
     }, [entity.duration, entity.dotted, t, tCommon]);
 
     /**
-     * 格式化实体信息（用于 Tooltip）
-     */
+     * 鏍煎紡鍖栧疄浣撲俊鎭紙鐢ㄤ簬 Tooltip锛?     */
     const formatEntityInfo = useCallback((entityId: string, isCurrent: boolean = false): string => {
         const info = connections?.entityInfoMap?.get(entityId);
         if (!info) return entityId;
         const pitchDisplay = isCurrent ? `[${info.pitch}]` : info.pitch;
         const staveKey = info.staveLabel;
-        return `${pitchDisplay} (${tCommon('measure')}${info.measureNumber} | ${t(staveKey as any)} | ${tCommon('voice')}${info.voiceNumber} | ${tCommon('position')}${info.position})`;
+        return `${pitchDisplay} (${tCommon('measure')}${info.measureNumber} | ${t(staveKey as never)} | ${tCommon('voice')}${info.voiceNumber} | ${tCommon('position')}${info.position})`;
     }, [connections?.entityInfoMap, t, tCommon]);
 
     /**
-     * 获取位置信息行
-     */
+     * 鑾峰彇浣嶇疆淇℃伅琛?     */
     const getPositionLine = useCallback((): string => {
         if (entity.meta?.id && connections?.entityInfoMap) {
             const entityInfo = connections.entityInfoMap.get(entity.meta.id);
             if (entityInfo) {
                 const staveKey = entityInfo.staveLabel;
-                return `${tCommon('measure')}${entityInfo.measureNumber} | ${t(staveKey as any)} | ${tCommon('voice')}${entityInfo.voiceNumber} | ${tCommon('position')}${entityInfo.position}`;
+                return `${tCommon('measure')}${entityInfo.measureNumber} | ${t(staveKey as never)} | ${tCommon('voice')}${entityInfo.voiceNumber} | ${tCommon('position')}${entityInfo.position}`;
             }
         }
         if (entity.meta) {
@@ -74,8 +70,7 @@ export function useEntityCard(entity: ScoreEntity, connections: ConnectionData |
     }, [entity.meta, connections, t, tCommon]);
 
     /**
-     * 获取连接详情行（用于 Tooltip）
-     */
+     * 鑾峰彇杩炴帴璇︽儏琛岋紙鐢ㄤ簬 Tooltip锛?     */
     const getConnectionLines = useCallback((): string[] => {
         const lines: string[] = [];
 
@@ -84,61 +79,61 @@ export function useEntityCard(entity: ScoreEntity, connections: ConnectionData |
         const entityConns = connections.noteConnections?.get(entity.meta.id);
         const currentId = entity.meta.id;
 
-        // 获取已配对的连接数量
+        // 鑾峰彇宸查厤瀵圭殑杩炴帴鏁伴噺
         const pairedTies = entityConns?.ties?.length ?? 0;
         const pairedSlurs = entityConns?.slurs?.length ?? 0;
         const pairedBeams = entityConns?.beams?.length ?? 0;
 
-        // 获取 articulation
+        // 鑾峰彇 articulation
         const articulation = 'articulation' in entity ? (entity.articulation || []) : [];
         const hasTieInArticulation = articulation.includes('tie');
         const hasSlurInArticulation = articulation.includes('slur');
         const hasBeamInArticulation = articulation.includes('beam');
 
         if (entityConns) {
-            // 连音线
+            // 杩為煶绾?
             if (entityConns.ties.length > 0) {
                 entityConns.ties.forEach((tie: TieConnection) => {
                     const currentInfo = formatEntityInfo(currentId, true);
                     const partnerInfo = formatEntityInfo(tie.partnerId, false);
                     if (tie.type === 'start') {
-                        lines.push(`${tCommon('tie')}: ${currentInfo} → ${partnerInfo}`);
+                        lines.push(`${tCommon('tie')}: ${currentInfo} 鈫?${partnerInfo}`);
                     } else {
-                        lines.push(`${tCommon('tie')}: ${partnerInfo} → ${currentInfo}`);
+                        lines.push(`${tCommon('tie')}: ${partnerInfo} 鈫?${currentInfo}`);
                     }
                 });
             }
 
-            // 连奏线
+            // 杩炲绾?
             if (entityConns.slurs.length > 0) {
                 entityConns.slurs.forEach((slur: SlurConnection) => {
                     const pathParts = slur.partnerIds.map((id) =>
                         formatEntityInfo(id, id === currentId)
                     );
-                    lines.push(`${tCommon('slur')}: ${pathParts.join(' → ')}`);
+                    lines.push(`${tCommon('slur')}: ${pathParts.join(' 鈫?')}`);
                 });
             }
 
-            // 连音符
+            // 杩為煶绗?
             if (entityConns.beams.length > 0) {
                 entityConns.beams.forEach((beam: BeamConnection) => {
                     const pathParts = beam.noteIds.map((id) =>
                         formatEntityInfo(id, id === currentId)
                     );
-                    lines.push(`${tCommon('beam')}: ${pathParts.join(' → ')}`);
+                    lines.push(`${tCommon('beam')}: ${pathParts.join(' 鈫?')}`);
                 });
             }
         }
 
-        // 未配对连接警告
+        // 鏈厤瀵硅繛鎺ヨ鍛?
         if (hasTieInArticulation && pairedTies === 0) {
-            lines.push(`⚠️ ${tCommon('tie')}: ${t('unpairedConnection')}`);
+            lines.push(`鈿狅笍 ${tCommon('tie')}: ${t('unpairedConnection')}`);
         }
         if (hasSlurInArticulation && pairedSlurs === 0) {
-            lines.push(`⚠️ ${tCommon('slur')}: ${t('unpairedConnection')}`);
+            lines.push(`鈿狅笍 ${tCommon('slur')}: ${t('unpairedConnection')}`);
         }
         if (hasBeamInArticulation && pairedBeams === 0) {
-            lines.push(`⚠️ ${tCommon('beam')}: ${t('unpairedConnection')}`);
+            lines.push(`鈿狅笍 ${tCommon('beam')}: ${t('unpairedConnection')}`);
         }
 
         return lines;

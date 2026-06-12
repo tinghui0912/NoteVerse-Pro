@@ -1,4 +1,4 @@
-import type { ScoreData, ScoreEntity, Note, Chord, Rest, Blank, Articulation, Measure, Stave, Voice, EntityMeta, ConnectionData, NoteConnections, TieConnection, SlurConnection, BeamConnection, EntityInfo, Duration } from '@/types/score-types';
+import type { ScoreData, ScoreEntity, Note, Chord, Rest, Blank, Articulation, Measure, Stave, ConnectionData, NoteConnections, EntityInfo, Duration } from '@/types/score-types';
 import { DEFAULT_TEMPO_BPM } from './constants/audio';
 
 // A subset of melody-forge's parsing logic, adapted for modern TypeScript and our types.
@@ -387,7 +387,7 @@ export class MusicXMLParser {
         const staffIndex = parseInt(staffIndexStr, 10);
         const voiceIndex = parseInt(voiceIndexStr, 10);
 
-        let stave = staves[staffIndex];
+        const stave = staves[staffIndex];
 
         let voice = stave.voices.find(v => v.name === `voiceLabel ${voiceIndex}`);
         if (!voice) {
@@ -483,7 +483,7 @@ export class MusicXMLParser {
     const entityPitchMap = new Map<string, string[]>(); // entityId -> pitches (for chords)
 
     measures.forEach((measure, measureIndex) => {
-      measure.staves.forEach((stave, staveIndex) => {
+      measure.staves.forEach((stave, _staveIndex) => {
         stave.voices.forEach((voice, voiceIndex) => {
           // 从 voice.name 中提取实际的声部编号 (格式: "voiceLabel X")
           const voiceNumberMatch = voice.name.match(/voiceLabel\s*(\d+)/);
@@ -576,8 +576,8 @@ export class MusicXMLParser {
     const tieEvents: TieEvent[] = [];
 
     this.xmlDoc.querySelectorAll('part > measure').forEach((measureNode, measureIndex) => {
-      let entityCounters: Record<string, number> = {};
-      let lastEntityId: Record<string, string> = {};
+      const entityCounters: Record<string, number> = {};
+      const lastEntityId: Record<string, string> = {};
 
       const children = Array.from(measureNode.childNodes);
       for (const node of children) {
@@ -678,8 +678,8 @@ export class MusicXMLParser {
     let slurIdCounter = 0;
 
     this.xmlDoc.querySelectorAll('part > measure').forEach((measureNode, measureIndex) => {
-      let entityCounters: Record<string, number> = {};
-      let lastEntityId: Record<string, string> = {};
+      const entityCounters: Record<string, number> = {};
+      const lastEntityId: Record<string, string> = {};
 
       const children = Array.from(measureNode.childNodes);
       for (const node of children) {
@@ -783,7 +783,7 @@ export class MusicXMLParser {
     let beamIdCounter = 0;
 
     this.xmlDoc.querySelectorAll('part > measure').forEach((measureNode, measureIndex) => {
-      let entityCounters: Record<string, number> = {};
+      const entityCounters: Record<string, number> = {};
 
       const children = Array.from(measureNode.childNodes);
       for (const node of children) {

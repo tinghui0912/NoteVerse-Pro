@@ -1,7 +1,7 @@
-/**
- * MusicXML 数据完整性校验模块
+﻿/**
+ * MusicXML 鏁版嵁瀹屾暣鎬ф牎楠屾ā鍧?
  * 
- * 提供保存前的数据校验功能
+ * 鎻愪緵淇濆瓨鍓嶇殑鏁版嵁鏍￠獙鍔熻兘
  * 
  * @module lib/validator
  */
@@ -10,25 +10,25 @@ import type { ScoreData, Measure, Stave, Voice, ScoreEntity } from '@/types/scor
 import { parseXml } from './musicxml-core';
 
 /**
- * 校验结果类型
+ * 鏍￠獙缁撴灉绫诲瀷
  */
 export interface ValidationResult {
-    /** 是否通过校验（无错误） */
+    /** 鏄惁閫氳繃鏍￠獙锛堟棤閿欒锛?*/
     success: boolean;
-    /** 错误列表（阻止保存） */
+    /** 閿欒鍒楄〃锛堥樆姝繚瀛橈級 */
     issues: string[];
-    /** 警告列表（可忽略继续保存） */
+    /** 璀﹀憡鍒楄〃锛堝彲蹇界暐缁х画淇濆瓨锛?*/
     warnings: string[];
 }
 
 /**
- * 翻译函数类型
+ * 缈昏瘧鍑芥暟绫诲瀷
  */
 export type TranslateFunction = (key: string) => string;
 
 /**
- * 校验 XML 格式是否正确
- * 错误级别：阻止保存
+ * 鏍￠獙 XML 鏍煎紡鏄惁姝ｇ‘
+ * 閿欒绾у埆锛氶樆姝繚瀛?
  */
 function validateXMLFormat(currentXml: string | null, t: TranslateFunction): string[] {
     const issues: string[] = [];
@@ -51,41 +51,41 @@ function validateXMLFormat(currentXml: string | null, t: TranslateFunction): str
 }
 
 /**
- * 校验 MusicXML 基本结构
- * 错误级别：阻止保存
+ * 鏍￠獙 MusicXML 鍩烘湰缁撴瀯
+ * 閿欒绾у埆锛氶樆姝繚瀛?
  */
 function validateBasicStructure(currentXml: string | null, t: TranslateFunction): string[] {
     const issues: string[] = [];
 
     if (!currentXml) {
-        return issues; // 已在 validateXMLFormat 中处理
+        return issues; // 宸插湪 validateXMLFormat 涓鐞?
     }
 
     try {
         const xmlDoc = parseXml(currentXml);
         if (!xmlDoc) {
-            return issues; // 已在 validateXMLFormat 中处理
+            return issues; // 宸插湪 validateXMLFormat 涓鐞?
         }
 
-        // 检查根元素
+        // 妫€鏌ユ牴鍏冪礌
         const scorePartwise = xmlDoc.querySelector('score-partwise');
         if (!scorePartwise) {
             issues.push(t('validation.missingRootElement'));
         }
 
-        // 检查 part-list
+        // 妫€鏌?part-list
         const partList = xmlDoc.querySelector('part-list');
         if (!partList) {
             issues.push(t('validation.missingPartList'));
         }
 
-        // 检查至少有一个 part
+        // 妫€鏌ヨ嚦灏戞湁涓€涓?part
         const parts = xmlDoc.querySelectorAll('part');
         if (parts.length === 0) {
             issues.push(t('validation.missingPart'));
         }
 
-        // 检查至少有一个 measure
+        // 妫€鏌ヨ嚦灏戞湁涓€涓?measure
         const measures = xmlDoc.querySelectorAll('measure');
         if (measures.length === 0) {
             issues.push(t('validation.missingMeasure'));
@@ -99,23 +99,23 @@ function validateBasicStructure(currentXml: string | null, t: TranslateFunction)
 }
 
 /**
- * 获取时值的 divisions 值
+ * 鑾峰彇鏃跺€肩殑 divisions 鍊?
  */
 function getDurationDivisions(duration: string, divisions: number): number {
     const durationMap: Record<string, number> = {
-        'durationWhole': divisions * 4,      // 全音符 = 4拍
-        'durationHalf': divisions * 2,       // 二分音符 = 2拍
-        'durationQuarter': divisions,        // 四分音符 = 1拍
-        'durationEighth': divisions / 2,     // 八分音符 = 0.5拍
-        'duration16th': divisions / 4,       // 十六分音符 = 0.25拍
-        'duration32nd': divisions / 8,       // 三十二分音符 = 0.125拍
+        'durationWhole': divisions * 4,      // 鍏ㄩ煶绗?= 4鎷?
+        'durationHalf': divisions * 2,       // 浜屽垎闊崇 = 2鎷?
+        'durationQuarter': divisions,        // 鍥涘垎闊崇 = 1鎷?
+        'durationEighth': divisions / 2,     // 鍏垎闊崇 = 0.5鎷?
+        'duration16th': divisions / 4,       // 鍗佸叚鍒嗛煶绗?= 0.25鎷?
+        'duration32nd': divisions / 8,       // 涓夊崄浜屽垎闊崇 = 0.125鎷?
     };
     return durationMap[duration] ?? divisions;
 }
 
 /**
- * 校验小节时长
- * 警告级别：可忽略继续保存
+ * 鏍￠獙灏忚妭鏃堕暱
+ * 璀﹀憡绾у埆锛氬彲蹇界暐缁х画淇濆瓨
  */
 function validateMeasureDurations(
     scoreData: ScoreData | null,
@@ -134,24 +134,24 @@ function validateMeasureDurations(
             return warnings;
         }
 
-        // 获取 divisions
+        // 鑾峰彇 divisions
         const divisionsEl = xmlDoc.querySelector('attributes divisions');
         const divisions = divisionsEl ? parseInt(divisionsEl.textContent || '4', 10) : 4;
 
-        // 获取拍号
+        // 鑾峰彇鎷嶅彿
         const beatsEl = xmlDoc.querySelector('time beats');
         const beatTypeEl = xmlDoc.querySelector('time beat-type');
         const beats = beatsEl ? parseInt(beatsEl.textContent || '4', 10) : 4;
         const beatType = beatTypeEl ? parseInt(beatTypeEl.textContent || '4', 10) : 4;
 
-        // 计算每小节的目标 ticks
+        // 璁＄畻姣忓皬鑺傜殑鐩爣 ticks
         const measureTicks = Math.round(divisions * beats * (4 / beatType));
 
-        // 遍历每个小节
+        // 閬嶅巻姣忎釜灏忚妭
         scoreData.measures.forEach((measure: Measure, measureIndex: number) => {
             measure.staves.forEach((stave: Stave, staveIndex: number) => {
                 stave.voices.forEach((voice: Voice) => {
-                    // 计算该声部的总时长
+                    // 璁＄畻璇ュ０閮ㄧ殑鎬绘椂闀?
                     let totalTicks = 0;
                     voice.notes.forEach((entity: ScoreEntity) => {
                         const durationTicks = getDurationDivisions(entity.duration, divisions);
@@ -159,12 +159,12 @@ function validateMeasureDurations(
                         totalTicks += actualTicks;
                     });
 
-                    // 比较与目标时长
+                    // 姣旇緝涓庣洰鏍囨椂闀?
                     if (totalTicks !== measureTicks && voice.notes.length > 0) {
                         const delta = totalTicks - measureTicks;
                         const status = delta > 0 ? t('editor.durationExceeds') : t('editor.durationInsufficient');
                         const staffLabel = staveIndex === 0 ? t('editor.trebleClef') : t('editor.bassClef');
-                        // 从 voice.name 提取声部编号（格式如 "voiceLabel 1" → "1"）
+                        // 浠?voice.name 鎻愬彇澹伴儴缂栧彿锛堟牸寮忓 "voiceLabel 1" 鈫?"1"锛?
                         const voiceNumber = voice.name.replace(/\D/g, '') || '1';
                         warnings.push(
                             `${t('common.measure')}${measureIndex + 1} ${staffLabel} ${t('common.voice')}${voiceNumber}: ${status} (${totalTicks}/${measureTicks})`
@@ -181,8 +181,8 @@ function validateMeasureDurations(
 }
 
 /**
- * 校验未配对的连接线
- * 警告级别：可忽略继续保存
+ * 鏍￠獙鏈厤瀵圭殑杩炴帴绾?
+ * 璀﹀憡绾у埆锛氬彲蹇界暐缁х画淇濆瓨
  */
 function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFunction): string[] {
     const warnings: string[] = [];
@@ -193,7 +193,7 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
 
     const { noteConnections, entityInfoMap } = scoreData.connections;
 
-    // 遍历所有实体，检查是否有未配对的连接
+    // 閬嶅巻鎵€鏈夊疄浣擄紝妫€鏌ユ槸鍚︽湁鏈厤瀵圭殑杩炴帴
     scoreData.measures.forEach((measure: Measure) => {
         measure.staves.forEach((stave: Stave) => {
             stave.voices.forEach((voice: Voice) => {
@@ -204,13 +204,13 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
                     const entityConns = noteConnections.get(entityId);
                     const entityInfo = entityInfoMap.get(entityId);
 
-                    // 获取 articulation 中声明的连接类型
+                    // 鑾峰彇 articulation 涓０鏄庣殑杩炴帴绫诲瀷
                     const articulation = 'articulation' in entity ? (entity.articulation || []) : [];
 
-                    // 翻译谱表标签
-                    const getStaveLabel = (label: string) => t(`editor.${label}` as any);
+                    // 缈昏瘧璋辫〃鏍囩
+                    const getStaveLabel = (label: string) => t(`editor.${label}` as never);
 
-                    // 检查 beam
+                    // 妫€鏌?beam
                     if (articulation.includes('beam')) {
                         const pairedBeams = entityConns?.beams?.length ?? 0;
                         if (pairedBeams === 0 && entityInfo) {
@@ -220,7 +220,7 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
                         }
                     }
 
-                    // 检查 tie
+                    // 妫€鏌?tie
                     if (articulation.includes('tie')) {
                         const pairedTies = entityConns?.ties?.length ?? 0;
                         if (pairedTies === 0 && entityInfo) {
@@ -230,7 +230,7 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
                         }
                     }
 
-                    // 检查 slur
+                    // 妫€鏌?slur
                     if (articulation.includes('slur')) {
                         const pairedSlurs = entityConns?.slurs?.length ?? 0;
                         if (pairedSlurs === 0 && entityInfo) {
@@ -248,12 +248,12 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
 }
 
 /**
- * 执行完整的数据完整性校验
+ * 鎵ц瀹屾暣鐨勬暟鎹畬鏁存€ф牎楠?
  * 
- * @param scoreData - 乐谱数据
- * @param currentXml - 当前 XML 内容
- * @param t - 翻译函数
- * @returns 校验结果
+ * @param scoreData - 涔愯氨鏁版嵁
+ * @param currentXml - 褰撳墠 XML 鍐呭
+ * @param t - 缈昏瘧鍑芥暟
+ * @returns 鏍￠獙缁撴灉
  */
 export function validateDataIntegrity(
     scoreData: ScoreData | null,
@@ -263,11 +263,11 @@ export function validateDataIntegrity(
     const issues: string[] = [];
     const warnings: string[] = [];
 
-    // 错误级别校验
+    // 閿欒绾у埆鏍￠獙
     issues.push(...validateXMLFormat(currentXml, t));
     issues.push(...validateBasicStructure(currentXml, t));
 
-    // 警告级别校验（只有在无错误时才执行，避免重复错误）
+    // 璀﹀憡绾у埆鏍￠獙锛堝彧鏈夊湪鏃犻敊璇椂鎵嶆墽琛岋紝閬垮厤閲嶅閿欒锛?
     if (issues.length === 0) {
         warnings.push(...validateMeasureDurations(scoreData, currentXml, t));
         warnings.push(...validateUnpairedConnections(scoreData, t));

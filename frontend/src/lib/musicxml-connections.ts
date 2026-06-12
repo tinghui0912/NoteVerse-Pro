@@ -7,7 +7,6 @@
  */
 
 import type { EntityMeta } from '@/types/score-types';
-import { getEntityGroupsFromMeasure } from './musicxml-core';
 
 // ============================================================================
 // Constants

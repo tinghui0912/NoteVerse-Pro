@@ -18,7 +18,6 @@ from app.processing.realtime.message_codec import (
     session_finished_message,
     session_ready_message,
     state_changed_message,
-    session_warning_message,
 )
 from app.processing.realtime.session_runtime import practice_runtime_registry
 from app.shared.constants import ErrorCode, SuccessCode
@@ -218,13 +217,6 @@ async def stream_practice_session(
 
                 if alignment is not None:
                     await websocket.send_json(alignment_update_message(alignment))
-                    if runtime.last_warning is not None:
-                        await websocket.send_json(
-                            session_warning_message(
-                                code=runtime.last_warning,
-                                message="Alignment confidence dropped.",
-                            )
-                        )
                     if runtime.should_persist_alignment():
                         await practice_service.persist_alignment(db, session_id, alignment)
                         runtime.mark_alignment_persisted()

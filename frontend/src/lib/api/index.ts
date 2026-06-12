@@ -6,9 +6,6 @@
 // API 客户端
 export {
     apiClient,
-    getToken,
-    setToken,
-    clearToken,
     ApiError,
 } from '../api-client';
 

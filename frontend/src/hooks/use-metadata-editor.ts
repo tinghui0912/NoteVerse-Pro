@@ -140,7 +140,7 @@ export function useMetadataEditor() {
 
     const updateKeySignature = useCallback((newKey: string) => {
         updateMusicXML(xmlDoc => {
-            let m1 = xmlDoc.querySelector('measure[number="1"]') || xmlDoc.querySelector('measure');
+            const m1 = xmlDoc.querySelector('measure[number="1"]') || xmlDoc.querySelector('measure');
             if (!m1) return;
             let attrs = m1.querySelector('attributes');
             if (!attrs) {
@@ -164,7 +164,7 @@ export function useMetadataEditor() {
     const updateTimeSignature = useCallback((newTime: string) => {
         updateMusicXML(xmlDoc => {
             const [beats, beatType] = newTime.split('/');
-            let m1 = xmlDoc.querySelector('measure[number="1"]') || xmlDoc.querySelector('measure');
+            const m1 = xmlDoc.querySelector('measure[number="1"]') || xmlDoc.querySelector('measure');
             if (!m1) return;
             let attrs = m1.querySelector('attributes');
             if (!attrs) {
@@ -193,7 +193,7 @@ export function useMetadataEditor() {
 
     const updateTempo = useCallback((newTempo: string) => {
         updateMusicXML(xmlDoc => {
-            let m1 = xmlDoc.querySelector('measure[number="1"]') || xmlDoc.querySelector('measure');
+            const m1 = xmlDoc.querySelector('measure[number="1"]') || xmlDoc.querySelector('measure');
             if (!m1) return;
             let sound = m1.querySelector('sound');
             if (!sound) {

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import jwt
 from pydantic import ValidationError
 from sqlmodel import select
@@ -24,15 +26,9 @@ async def get_websocket_current_user(
     websocket: WebSocket,
     db: AsyncSession,
 ) -> User:
-    """Resolve the authenticated websocket user from a bearer token or query token."""
+    """Resolve the authenticated websocket user from the HttpOnly session cookie."""
 
-    auth_header = websocket.headers.get("authorization", "")
-    token: str | None = None
-    if auth_header.lower().startswith("bearer "):
-        token = auth_header.split(" ", 1)[1].strip()
-
-    if not token:
-        token = websocket.query_params.get("token")
+    token: str | None = websocket.cookies.get(settings.AUTH_COOKIE_NAME)
 
     if not token:
         raise AuthenticationException(
@@ -54,8 +50,21 @@ async def get_websocket_current_user(
             code=ErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "missing_subject"},
         )
+    if token_data.typ != "access":
+        raise AuthenticationException(
+            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            details={"reason": "invalid_token_type"},
+        )
 
-    result = await db.execute(select(User).where(User.id == int(token_data.sub)))
+    try:
+        user_id = int(token_data.sub)
+    except (TypeError, ValueError):
+        raise AuthenticationException(
+            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            details={"reason": "invalid_subject"},
+        )
+
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
     if not user:
         raise ResourceNotFoundException(
@@ -68,6 +77,13 @@ async def get_websocket_current_user(
             code=ErrorCode.ACCOUNT_INACTIVE,
             details={"user_id": user.id},
         )
+    if user.password_changed_at and token_data.iat:
+        token_issued_at = datetime.fromtimestamp(token_data.iat, timezone.utc).replace(tzinfo=None)
+        if token_issued_at <= user.password_changed_at:
+            raise AuthenticationException(
+                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                details={"reason": "password_changed"},
+            )
     return user
 
 

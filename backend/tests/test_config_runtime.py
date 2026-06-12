@@ -25,6 +25,12 @@ def test_debug_environment_parsing() -> None:
     assert parse_debug("false") is False
 
 
+def test_practice_audio_min_active_frames_uses_stable_floor() -> None:
+    settings = Settings(PRACTICE_AUDIO_MIN_ACTIVE_FRAMES=2)
+
+    assert settings.PRACTICE_AUDIO_MIN_ACTIVE_FRAMES == 3
+
+
 def test_app_main_import_exposes_routes() -> None:
     from app.main import app
 

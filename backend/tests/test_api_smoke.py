@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
+
 
 def _request(
     client: TestClient,
@@ -124,6 +126,63 @@ def test_profile_feature_routes_require_authentication(client: TestClient) -> No
     for method, path, payload in protected_requests:
         response = _request(client, method, path, payload)
         assert response.status_code == 401, f"{method.upper()} {path}"
+
+
+def test_cookie_authenticated_writes_require_csrf_header(client: TestClient) -> None:
+    client.cookies.set(settings.AUTH_COOKIE_NAME, "invalid-token")
+    client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
+
+    try:
+        missing_header = client.put("/api/v1/profile", json={"email": "new@example.com"})
+        assert missing_header.status_code == 403
+        assert missing_header.json()["code"] == "csrf_token_invalid"
+
+        matching_header = client.put(
+            "/api/v1/profile",
+            json={"email": "new@example.com"},
+            headers={settings.CSRF_HEADER_NAME: "csrf-token"},
+        )
+        assert matching_header.status_code == 401
+    finally:
+        client.cookies.delete(settings.AUTH_COOKIE_NAME)
+        client.cookies.delete(settings.CSRF_COOKIE_NAME)
+
+
+def test_refresh_endpoint_is_csrf_exempt(client: TestClient) -> None:
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
+
+    try:
+        response = client.post("/api/v1/auth/refresh")
+        assert response.status_code == 401
+    finally:
+        client.cookies.delete(settings.REFRESH_COOKIE_NAME)
+
+
+def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClient) -> None:
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
+
+    try:
+        response = client.post(
+            "/api/v1/auth/refresh",
+            headers={"host": "localhost:8000", "origin": "http://localhost:9002"},
+        )
+        assert response.status_code == 401
+    finally:
+        client.cookies.delete(settings.REFRESH_COOKIE_NAME)
+
+
+def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient) -> None:
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
+
+    try:
+        response = client.post(
+            "/api/v1/auth/refresh",
+            headers={"origin": "https://evil.example"},
+        )
+        assert response.status_code == 403
+        assert response.json()["code"] == "request_origin_invalid"
+    finally:
+        client.cookies.delete(settings.REFRESH_COOKIE_NAME)
 
 
 def test_login_requires_request_body(client: TestClient) -> None:

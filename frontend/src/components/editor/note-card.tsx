@@ -16,7 +16,6 @@ import { useBottomSheet } from './bottom-sheet-context';
  */
 export const NoteCard = ({ note, onClick, isHoveredInInsertMode, onInsertBefore, onInsertAfter }: { note: Note | Rest | Blank, onClick: () => void, isHoveredInInsertMode: boolean, onInsertBefore: () => void, onInsertAfter: () => void }) => {
     const t = useTranslations('editor');
-    const tCommon = useTranslations('common');
     const { scoreData } = useScoreData();
     const connections = scoreData?.connections;
 

@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -30,7 +30,6 @@ export function AddEntityModal({
   voiceName,
 }: AddEntityModalProps) {
   const t = useTranslations('editor');
-  const tCommon = useTranslations('common');
 
   const entityTypes: {
     type: ScoreEntityType;
@@ -71,7 +70,7 @@ export function AddEntityModal({
                 disabled={isDisabled}
               >
                 <Icon className={cn('h-6 w-6', isDisabled ? 'text-muted-foreground' : 'text-primary')} />
-                <span>{t(label as any)}</span>
+                <span>{t(label as never)}</span>
               </Button>
             );
           })}

@@ -1,0 +1,342 @@
+{
+  "version": 1,
+  "frame_length": 128,
+  "scenarios": [
+    {
+      "id": "weak_sustain_keeps_following",
+      "description": "A clear start followed by weak sustained piano-like tones should keep the session alive before the decay window expires.",
+      "adapter": {
+        "min_active_frames": 2,
+        "no_input_frames": 3,
+        "onset_hold_frames": 6,
+        "onset_flux_gate": 0.1
+      },
+      "frames": [
+        { "type": "sine", "amplitude": 0.08, "count": 2 },
+        { "type": "sine", "amplitude": 0.018, "count": 1 },
+        { "type": "sine", "amplitude": 0.012, "count": 1 },
+        { "type": "sine", "amplitude": 0.006, "count": 1 },
+        { "type": "constant", "amplitude": 0.001, "count": 2 }
+      ],
+      "expect": {
+        "started_frame": 2,
+        "queued_frames": 6,
+        "forbidden_states": ["lost"],
+        "state_at": { "5": "following", "7": "following" }
+      }
+    },
+    {
+      "id": "desk_taps_do_not_start",
+      "description": "Impulsive non-musical taps should not start score following.",
+      "adapter": {
+        "start_rms_gate": 0.08,
+        "start_peak_gate": 0.18,
+        "min_active_frames": 2,
+        "no_input_frames": 3,
+        "onset_hold_frames": 6,
+        "onset_flux_gate": 0.1
+      },
+      "frames": [
+        { "type": "impulse", "amplitude": 0.7, "count": 1 },
+        { "type": "silence", "count": 1 },
+        { "type": "impulse", "amplitude": 0.6, "count": 1 },
+        { "type": "silence", "count": 1 },
+        { "type": "impulse", "amplitude": 0.8, "count": 1 }
+      ],
+      "expect": {
+        "started_frame": null,
+        "queued_frames": 0,
+        "ready_to_start": false,
+        "forbidden_queue_decisions": ["queued_tonal"]
+      }
+    },
+    {
+      "id": "public_piano_uiowa_starts_following",
+      "description": "A public University of Iowa piano sample should be recognized as playable musical input.",
+      "frames": [
+        {
+          "type": "wav",
+          "path": "public_samples/piano_uiowa_mf_c5_16k.wav"
+        }
+      ],
+      "expect": {
+        "started_frame": 32,
+        "queued_frames": 469
+      }
+    },
+    {
+      "id": "public_noise_rain_does_not_start",
+      "description": "A public ESC-50 rain noise sample should not start score following.",
+      "frames": [
+        {
+          "type": "wav",
+          "path": "public_samples/noise_esc50_rain_16k.wav"
+        }
+      ],
+      "expect": {
+        "started_frame": null,
+        "queued_frames": 0,
+        "ready_to_start": false,
+        "forbidden_queue_decisions": ["queued_tonal"]
+      }
+    },
+    {
+      "id": "public_speech_digit_does_not_start",
+      "description": "A public spoken digit sample should not start score following.",
+      "frames": [
+        {
+          "type": "wav",
+          "path": "public_samples/speech_fsd_0_jackson_0_16k.wav"
+        }
+      ],
+      "expect": {
+        "started_frame": null,
+        "queued_frames": 0,
+        "ready_to_start": false,
+        "forbidden_queue_decisions": ["queued_tonal"]
+      }
+    },
+    {
+      "id": "public_keyboard_typing_does_not_start",
+      "description": "A public ESC-50 keyboard typing sample should not start score following.",
+      "frames": [
+        {
+          "type": "wav",
+          "path": "public_samples/keyboard_esc50_typing_16k.wav"
+        }
+      ],
+      "expect": {
+        "started_frame": null,
+        "queued_frames": 0,
+        "ready_to_start": false,
+        "forbidden_queue_decisions": ["queued_tonal"]
+      }
+    },
+    {
+      "id": "public_tap_mouse_click_does_not_start",
+      "description": "A public ESC-50 mouse-click tap sample should not start score following.",
+      "frames": [
+        {
+          "type": "wav",
+          "path": "public_samples/tap_esc50_mouse_click_16k.wav"
+        }
+      ],
+      "expect": {
+        "started_frame": null,
+        "queued_frames": 0,
+        "ready_to_start": false,
+        "forbidden_queue_decisions": ["queued_tonal"]
+      }
+    },
+    {
+      "id": "mixed_piano_with_keyboard_typing_starts",
+      "description": "Piano with simultaneous keyboard typing should still start following.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 4,
+          "sources": [
+            { "path": "public_samples/piano_uiowa_mf_c5_16k.wav" },
+            { "path": "public_samples/keyboard_esc50_typing_16k.wav", "gain_db": 0 }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame_min": 30,
+        "started_frame_max": 35,
+        "queued_frames_min": 350,
+        "ready_to_start": true
+      }
+    },
+    {
+      "id": "mixed_piano_with_background_speech_starts",
+      "description": "Piano with low-level background speech should still start following.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 4,
+          "sources": [
+            { "path": "public_samples/piano_uiowa_mf_c5_16k.wav" },
+            { "path": "public_samples/speech_fsd_0_jackson_0_16k.wav", "gain_db": -18 }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame_min": 30,
+        "started_frame_max": 35,
+        "queued_frames_min": 450,
+        "ready_to_start": true
+      }
+    },
+    {
+      "id": "mixed_piano_with_background_rain_starts",
+      "description": "Piano with low-level continuous rain noise should still start following.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 4,
+          "sources": [
+            { "path": "public_samples/piano_uiowa_mf_c5_16k.wav" },
+            { "path": "public_samples/noise_esc50_rain_16k.wav", "gain_db": -24 }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame_min": 30,
+        "started_frame_max": 40,
+        "queued_frames_min": 100,
+        "ready_to_start": true
+      }
+    },
+    {
+      "id": "mixed_tap_before_piano_waits_for_piano",
+      "description": "A loud click before the piano should not start following until the piano begins.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 5,
+          "sources": [
+            {
+              "path": "public_samples/tap_esc50_mouse_click_16k.wav",
+              "gain_db": 6,
+              "offset_seconds": 0
+            },
+            {
+              "path": "public_samples/piano_uiowa_mf_c5_16k.wav",
+              "offset_seconds": 1
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame_min": 155,
+        "started_frame_max": 160,
+        "queued_frames_min": 450,
+        "ready_to_start": true
+      }
+    },
+    {
+      "id": "mixed_speech_before_piano_waits_for_piano",
+      "description": "Speech before the piano should not start following until the piano begins.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 5,
+          "sources": [
+            {
+              "path": "public_samples/speech_fsd_0_jackson_0_16k.wav",
+              "offset_seconds": 0
+            },
+            {
+              "path": "public_samples/piano_uiowa_mf_c5_16k.wav",
+              "offset_seconds": 1
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame_min": 155,
+        "started_frame_max": 160,
+        "queued_frames_min": 450,
+        "ready_to_start": true
+      }
+    },
+    {
+      "id": "mixed_tap_during_piano_keeps_following",
+      "description": "A loud click during an active piano note should not end the following session.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 4,
+          "sources": [
+            { "path": "public_samples/piano_uiowa_mf_c5_16k.wav" },
+            {
+              "path": "public_samples/tap_esc50_mouse_click_16k.wav",
+              "gain_db": 6,
+              "offset_seconds": 1.4
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame_min": 30,
+        "started_frame_max": 35,
+        "queued_frames_min": 450,
+        "ready_to_start": true
+      }
+    },
+    {
+      "id": "mixed_speech_during_piano_keeps_following",
+      "description": "Low-level speech during an active piano note should not end the following session.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 4,
+          "sources": [
+            { "path": "public_samples/piano_uiowa_mf_c5_16k.wav" },
+            {
+              "path": "public_samples/speech_fsd_0_jackson_0_16k.wav",
+              "gain_db": -12,
+              "offset_seconds": 1.2
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame_min": 30,
+        "started_frame_max": 35,
+        "queued_frames_min": 450,
+        "ready_to_start": true
+      }
+    },
+    {
+      "id": "mixed_strong_keyboard_during_piano_does_not_lose_session",
+      "description": "Strong keyboard typing during an active piano note should not drop the session to lost.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 4,
+          "sources": [
+            { "path": "public_samples/piano_uiowa_mf_c5_16k.wav" },
+            {
+              "path": "public_samples/keyboard_esc50_typing_16k.wav",
+              "gain_db": 6,
+              "offset_seconds": 1.2
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame_min": 30,
+        "started_frame_max": 35,
+        "queued_frames_min": 350,
+        "forbidden_states": ["lost"],
+        "max_no_input_streak": 2,
+        "ready_to_start": true
+      }
+    },
+    {
+      "id": "mixed_late_tap_without_piano_does_not_start",
+      "description": "A delayed click without piano should not start following.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 4,
+          "sources": [
+            {
+              "path": "public_samples/tap_esc50_mouse_click_16k.wav",
+              "gain_db": 6,
+              "offset_seconds": 1
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "started_frame": null,
+        "queued_frames": 0,
+        "ready_to_start": false,
+        "forbidden_queue_decisions": ["queued_tonal"]
+      }
+    }
+  ]
+}

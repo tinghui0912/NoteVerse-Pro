@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import builtins
+import queue
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -61,6 +63,11 @@ class DummyQueue:
         self.items.append(item)
 
 
+def voiced_frame(np, amplitude: float, length: int = 128):
+    samples = np.arange(length, dtype=np.float32)
+    return (amplitude * np.sin(2 * np.pi * 8 * samples / length)).astype(np.float32)
+
+
 class DummyProcessorFactory:
     def __init__(self, name: str) -> None:
         self.name = name
@@ -99,32 +106,25 @@ def import_without_matchmaker(name, *args, **kwargs):
     return ORIGINAL_IMPORT(name, *args, **kwargs)
 
 
-def test_practice_matchmaker_feature_type_defaults_to_lse() -> None:
-    assert Settings().PRACTICE_MATCHMAKER_FEATURE_TYPE == "lse"
+def test_practice_audio_min_active_frames_has_safe_floor() -> None:
+    settings = Settings(PRACTICE_AUDIO_MIN_ACTIVE_FRAMES=1)
+
+    assert settings.PRACTICE_AUDIO_MIN_ACTIVE_FRAMES == 3
 
 
-def test_practice_matchmaker_feature_type_accepts_logspectral_alias() -> None:
-    settings = Settings(PRACTICE_MATCHMAKER_FEATURE_TYPE="logspectral")
-
-    assert settings.PRACTICE_MATCHMAKER_FEATURE_TYPE == "lse"
-
-
-def test_matchmaker_live_engine_builds_lse_processor() -> None:
+def test_matchmaker_live_engine_builds_chroma_processor() -> None:
     processor = MatchmakerLiveEngine._build_audio_processor(
-        feature_type="lse",
         sample_rate=16000,
         hop_length=533,
         chroma_processor=DummyProcessorFactory("chroma"),
-        lse_processor=DummyProcessorFactory("lse"),
     )
 
-    assert processor == {"name": "lse", "sample_rate": 16000, "hop_length": 533}
+    assert processor == {"name": "chroma", "sample_rate": 16000, "hop_length": 533}
 
 
 def test_matchmaker_live_engine_builds_arzt_follower() -> None:
     feature_queue = DummyQueue()
     follower = MatchmakerLiveEngine._build_score_follower(
-        method="arzt",
         reference_features=["features"],
         feature_queue=feature_queue,
         frame_rate=30,
@@ -188,8 +188,8 @@ def test_browser_audio_stream_adapter_accepts_voiced_frames() -> None:
         diagnostics_enabled=False,
     )
 
-    first = adapter.ingest(np.full(16, 0.05, dtype=np.float32))
-    second = adapter.ingest(np.full(16, 0.05, dtype=np.float32))
+    first = adapter.ingest(voiced_frame(np, 0.08))
+    second = adapter.ingest(voiced_frame(np, 0.08))
 
     assert first is True
     assert second is True
@@ -198,7 +198,312 @@ def test_browser_audio_stream_adapter_accepts_voiced_frames() -> None:
     assert len(feature_queue.items) == 1
 
 
-def test_browser_audio_stream_adapter_streams_quiet_frames_after_start() -> None:
+def test_browser_audio_stream_adapter_starts_from_moderate_recorded_playback() -> None:
+    import numpy as np
+
+    feature_queue = DummyQueue()
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=4,
+        rms_gate=0.015,
+        peak_gate=0.06,
+        start_rms_gate=0.035,
+        start_peak_gate=0.065,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+
+    assert adapter.ingest(voiced_frame(np, 0.085)) is True
+    assert adapter.ready_to_start is False
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+
+    assert adapter.ready_to_start is True
+
+
+def test_browser_audio_stream_adapter_rejects_broad_non_tonal_start_transient() -> None:
+    import numpy as np
+
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=DummyQueue(),
+        np=np,
+        hop_length=4,
+        rms_gate=0.015,
+        peak_gate=0.06,
+        start_rms_gate=0.025,
+        start_peak_gate=0.06,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+    adapter.last_tonal_signal = False
+    adapter.last_spectral_flatness = 0.52
+    adapter.last_peak_prominence = 22.0
+
+    assert adapter._has_start_signal(0.032, 0.071) is False
+
+
+def test_browser_audio_stream_adapter_rejects_low_prominence_start_transient() -> None:
+    import numpy as np
+
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=DummyQueue(),
+        np=np,
+        hop_length=4,
+        rms_gate=0.015,
+        peak_gate=0.06,
+        start_rms_gate=0.025,
+        start_peak_gate=0.06,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+    adapter.last_tonal_signal = True
+    adapter.last_spectral_flatness = 0.29
+    adapter.last_peak_prominence = 10.18
+
+    assert adapter._has_start_signal(0.041, 0.153) is False
+
+
+def test_browser_audio_stream_adapter_requires_strong_musical_start_after_warmup() -> None:
+    import numpy as np
+
+    feature_queue = DummyQueue()
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=4,
+        rms_gate=0.015,
+        peak_gate=0.06,
+        start_rms_gate=0.025,
+        start_peak_gate=0.06,
+        min_active_frames=2,
+        warmup_frames=3,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+
+    for _ in range(3):
+        assert adapter.ingest(np.full(128, 0.008, dtype=np.float32)) is False
+
+    assert adapter._calibrated_rms_gate > 0.025
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
+    assert adapter.ingest(voiced_frame(np, 0.042)) is False
+    assert adapter.ready_to_start is False
+    assert adapter.ingest(voiced_frame(np, 0.042)) is False
+
+    assert adapter.ingest(voiced_frame(np, 0.2)) is True
+    assert adapter.ready_to_start is False
+    assert adapter.ingest(voiced_frame(np, 0.2)) is True
+
+    assert adapter.ready_to_start is True
+    assert len(feature_queue.items) == 1
+
+
+def test_browser_audio_stream_adapter_exposes_clear_state_transitions() -> None:
+    import numpy as np
+
+    feature_queue = DummyQueue()
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=2,
+        warmup_frames=2,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+        no_input_frames=2,
+        onset_hold_frames=2,
+    )
+
+    assert adapter.stream_state == "calibrating"
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
+    assert adapter.stream_state == "calibrating"
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
+    assert adapter.stream_state == "calibrating"
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
+    assert adapter.stream_state == "armed"
+
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.stream_state == "armed"
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.stream_state == "following"
+
+    for _ in range(adapter.session_keepalive_frames):
+        assert adapter.ingest(np.zeros(128, dtype=np.float32)) is True
+        assert adapter.stream_state == "following"
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is True
+    assert adapter.stream_state == "holding_decay"
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is True
+    assert adapter.stream_state == "lost"
+
+
+def test_browser_audio_stream_adapter_updates_runtime_noise_floor_slowly() -> None:
+    import numpy as np
+
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=DummyQueue(),
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+
+    initial_rms_gate = adapter._calibrated_rms_gate
+    adapter._maybe_update_runtime_noise_floor(0.007, 0.02)
+
+    assert adapter._calibrated_rms_gate > initial_rms_gate
+    assert adapter._calibrated_peak_gate >= adapter.peak_gate
+
+
+def test_browser_audio_stream_adapter_detects_spectral_flux_onset() -> None:
+    import numpy as np
+
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=DummyQueue(),
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+        onset_flux_gate=0.1,
+    )
+
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
+    assert adapter.last_onset_signal is False
+
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.last_spectral_flux > adapter._calibrated_flux_gate
+    assert adapter.last_onset_signal is True
+
+
+def test_browser_audio_stream_adapter_does_not_retrigger_on_steady_tone() -> None:
+    import numpy as np
+
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=DummyQueue(),
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+        onset_flux_gate=0.1,
+    )
+
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.last_onset_signal is True
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+
+    assert adapter.last_onset_signal is False
+
+
+def test_browser_audio_stream_adapter_onset_hold_keeps_decay_active() -> None:
+    import numpy as np
+
+    feature_queue = DummyQueue()
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+        no_input_frames=2,
+        onset_flux_gate=0.1,
+        onset_hold_frames=3,
+    )
+
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.stream_state == "following"
+    assert adapter.performance_active is True
+
+    assert adapter.ingest(voiced_frame(np, 0.004)) is True
+
+    assert adapter.last_audio_active is True
+    assert adapter.no_input_streak == 0
+
+
+def test_browser_audio_stream_adapter_tracks_weak_tonal_tails_after_start() -> None:
+    import numpy as np
+
+    feature_queue = DummyQueue()
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=4,
+        rms_gate=0.015,
+        peak_gate=0.06,
+        start_rms_gate=0.035,
+        start_peak_gate=0.065,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+
+    assert adapter.ingest(voiced_frame(np, 0.085)) is True
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.ready_to_start is True
+
+    assert adapter.ingest(voiced_frame(np, 0.025)) is True
+
+    assert adapter.last_audio_active is True
+    assert len(feature_queue.items) == 2
+
+
+def test_browser_audio_stream_adapter_streams_short_quiet_tail_after_start() -> None:
     import numpy as np
 
     feature_queue = DummyQueue()
@@ -218,14 +523,445 @@ def test_browser_audio_stream_adapter_streams_quiet_frames_after_start() -> None
         diagnostics_enabled=False,
     )
 
-    assert adapter.ingest(np.full(16, 0.05, dtype=np.float32)) is True
-    assert adapter.ingest(np.full(16, 0.05, dtype=np.float32)) is True
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
     assert adapter.ready_to_start is True
 
     assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is True
     assert adapter.accepted_frames == 3
     assert adapter.rejected_frames == 0
+    assert len(feature_queue.items) == 1
+
+
+def test_browser_audio_stream_adapter_marks_no_input_after_sustained_quiet() -> None:
+    import numpy as np
+
+    feature_queue = DummyQueue()
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+        no_input_frames=2,
+        onset_hold_frames=2,
+    )
+
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.stream_state == "following"
+    assert adapter.performance_active is True
+
+    for _ in range(adapter.session_keepalive_frames):
+        assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is True
+        assert adapter.stream_state == "following"
+        assert adapter.performance_active is True
+    assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is True
+    assert adapter.stream_state == "holding_decay"
+    assert adapter.performance_active is True
+    assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is True
+    assert adapter.stream_state == "lost"
+    assert adapter.performance_active is False
+    assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is True
+    assert adapter.stream_state == "lost"
+    assert adapter.performance_active is False
+    assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is True
+    assert adapter.stream_state == "lost"
+    assert adapter.performance_active is False
+    assert len(feature_queue.items) == 1
+
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.stream_state == "following"
+    assert adapter.performance_active is True
     assert len(feature_queue.items) == 2
+
+
+def test_matchmaker_live_engine_keeps_alignment_updates_during_no_input() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._error = None
+    engine.total_bytes = 0
+    engine._updates = queue.Queue()
+    engine._updates.put(
+        {
+            "beat_position": 4.0,
+            "confidence": 0.95,
+            "alignment_confidence": 0.95,
+            "audio_confidence": 0.95,
+            "continuity_confidence": 0.95,
+            "visual_confidence": 0.95,
+            "timestamp_ms": 1000,
+            "score_completed": False,
+            "audio_active": True,
+            "input_rms": 0.0,
+            "input_peak": 0.0,
+            "match_state": "matched",
+        }
+    )
+    engine._stream = SimpleNamespace(
+        ingest=lambda _audio_frame: True,
+        ready_to_start=True,
+        no_input_streak=24,
+        last_audio_active=False,
+        last_rms=0.0,
+        last_peak=0.0,
+        stream_state="lost",
+        activity_confidence_ceiling=0.0,
+    )
+    engine._ensure_worker_started = lambda: None
+    engine._pcm_s16le_to_float32 = lambda _chunk: np.zeros(16, dtype=np.float32)
+
+    alignment = engine.ingest_audio(b"\x00\x00")
+
+    assert alignment is not None
+    assert alignment["confidence"] == 0.0
+    assert alignment["audio_active"] is False
+    assert alignment["match_state"] == "lost"
+    assert engine._updates.empty()
+
+
+def test_matchmaker_live_engine_caps_confidence_when_audio_is_inactive() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._error = None
+    engine.total_bytes = 0
+    engine._updates = queue.Queue()
+    engine._updates.put(
+        {
+            "beat_position": 4.0,
+            "confidence": 0.95,
+            "alignment_confidence": 0.95,
+            "audio_confidence": 0.95,
+            "continuity_confidence": 0.95,
+            "visual_confidence": 0.95,
+            "timestamp_ms": 1000,
+            "score_completed": False,
+            "audio_active": True,
+            "input_rms": 0.0,
+            "input_peak": 0.0,
+            "match_state": "matched",
+        }
+    )
+    engine._stream = SimpleNamespace(
+        ingest=lambda _audio_frame: True,
+        ready_to_start=True,
+        no_input_streak=1,
+        last_audio_active=False,
+        last_rms=0.006,
+        last_peak=0.02,
+        stream_state="holding_decay",
+        activity_confidence_ceiling=0.35,
+    )
+    engine._ensure_worker_started = lambda: None
+    engine._pcm_s16le_to_float32 = lambda _chunk: np.zeros(16, dtype=np.float32)
+
+    alignment = engine.ingest_audio(b"\x00\x00")
+
+    assert alignment is not None
+    assert alignment["confidence"] == 0.35
+    assert alignment["audio_active"] is False
+    assert alignment["match_state"] == "holding_decay"
+
+
+def test_matchmaker_live_engine_caps_confidence_when_features_do_not_match_score() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._reference_features = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+        dtype=np.float32,
+    )
+    engine._ref_frame_to_beat = np.array([0.0, 1.0], dtype=np.float32)
+    engine._stream = SimpleNamespace(
+        activity_confidence_ceiling=1.0,
+        last_audio_active=True,
+        last_rms=0.1,
+        last_peak=0.3,
+        stream_state="following",
+        last_feature_vector=np.array([0.0, 1.0, 0.0], dtype=np.float32),
+    )
+
+    alignment = engine._with_current_audio_state(
+        {
+            "beat_position": 0.0,
+            "confidence": 0.95,
+            "alignment_confidence": 0.95,
+            "audio_confidence": 1.0,
+            "continuity_confidence": 0.95,
+            "visual_confidence": 0.95,
+            "timestamp_ms": 1000,
+            "score_completed": False,
+            "audio_active": True,
+            "input_rms": 0.0,
+            "input_peak": 0.0,
+            "match_state": "matched",
+        }
+    )
+
+    assert alignment["alignment_confidence"] == 0.0
+    assert alignment["visual_confidence"] == 0.0
+    assert alignment["confidence"] == 0.0
+    assert alignment["alignment_state"] == "feature_mismatch"
+
+
+def test_matchmaker_live_engine_keeps_confidence_when_features_match_score() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._reference_features = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+        dtype=np.float32,
+    )
+    engine._ref_frame_to_beat = np.array([0.0, 1.0], dtype=np.float32)
+    engine._stream = SimpleNamespace(
+        activity_confidence_ceiling=1.0,
+        last_audio_active=True,
+        last_rms=0.1,
+        last_peak=0.3,
+        stream_state="following",
+        last_feature_vector=np.array([1.0, 0.0, 0.0], dtype=np.float32),
+    )
+
+    alignment = engine._with_current_audio_state(
+        {
+            "beat_position": 0.0,
+            "confidence": 0.95,
+            "alignment_confidence": 0.95,
+            "audio_confidence": 1.0,
+            "continuity_confidence": 0.95,
+            "visual_confidence": 0.95,
+            "timestamp_ms": 1000,
+            "score_completed": False,
+            "audio_active": True,
+            "input_rms": 0.0,
+            "input_peak": 0.0,
+            "match_state": "matched",
+        }
+    )
+
+    assert alignment["alignment_confidence"] == 0.95
+    assert alignment["visual_confidence"] == 0.95
+    assert alignment["confidence"] == 0.95
+    assert alignment["alignment_state"] == "matched"
+
+
+def test_matchmaker_live_engine_explains_continuity_state() -> None:
+    assert MatchmakerLiveEngine._continuity_state(None) == "initial"
+    assert MatchmakerLiveEngine._continuity_state(-0.8) == "rollback"
+    assert MatchmakerLiveEngine._continuity_state(-0.2) == "minor_rollback"
+    assert MatchmakerLiveEngine._continuity_state(5.0) == "jump"
+    assert MatchmakerLiveEngine._continuity_state(9.0) == "large_jump"
+    assert MatchmakerLiveEngine._continuity_state(1.0) == "stable"
+
+
+def test_matchmaker_live_engine_caps_weak_feature_match_below_visual_threshold() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._reference_features = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
+    engine._ref_frame_to_beat = np.array([0.0], dtype=np.float32)
+    engine._stream = SimpleNamespace(
+        activity_confidence_ceiling=1.0,
+        last_audio_active=True,
+        last_rms=0.1,
+        last_peak=0.3,
+        stream_state="following",
+        last_feature_vector=np.array([1.0, 0.7, 0.0], dtype=np.float32),
+    )
+
+    alignment = engine._with_current_audio_state(
+        {
+            "beat_position": 0.0,
+            "confidence": 0.95,
+            "alignment_confidence": 0.95,
+            "audio_confidence": 1.0,
+            "continuity_confidence": 0.95,
+            "visual_confidence": 0.95,
+            "timestamp_ms": 1000,
+            "score_completed": False,
+            "audio_active": True,
+            "input_rms": 0.0,
+            "input_peak": 0.0,
+            "match_state": "matched",
+        }
+    )
+
+    assert alignment["alignment_state"] == "weak_feature_match"
+    assert alignment["validation_confidence"] == 0.5
+    assert alignment["visual_confidence"] == 0.5
+
+
+def test_matchmaker_live_engine_validation_ceiling_penalizes_unstable_continuity() -> None:
+    assert (
+        MatchmakerLiveEngine._validation_confidence_ceiling(
+            alignment_state="matched",
+            continuity_state="stable",
+        )
+        == 1.0
+    )
+    assert (
+        MatchmakerLiveEngine._validation_confidence_ceiling(
+            alignment_state="matched",
+            continuity_state="jump",
+        )
+        == 0.5
+    )
+    assert (
+        MatchmakerLiveEngine._validation_confidence_ceiling(
+            alignment_state="matched",
+            continuity_state="large_jump",
+        )
+        == 0.3
+    )
+    assert (
+        MatchmakerLiveEngine._validation_confidence_ceiling(
+            alignment_state="feature_mismatch",
+            continuity_state="stable",
+        )
+        == 0.0
+    )
+
+
+def test_matchmaker_live_engine_caps_confidence_with_input_policy_ceiling() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._reference_features = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
+    engine._ref_frame_to_beat = np.array([0.0], dtype=np.float32)
+    engine._stream = SimpleNamespace(
+        activity_confidence_ceiling=1.0,
+        last_audio_active=True,
+        last_rms=0.1,
+        last_peak=0.3,
+        stream_state="following",
+        last_feature_vector=np.array([1.0, 0.0, 0.0], dtype=np.float32),
+        last_input_weight=0.0,
+        last_input_policy_confidence=0.2,
+    )
+
+    alignment = engine._with_current_audio_state(
+        {
+            "beat_position": 0.0,
+            "confidence": 0.95,
+            "alignment_confidence": 0.95,
+            "audio_confidence": 1.0,
+            "continuity_confidence": 0.95,
+            "visual_confidence": 0.95,
+            "timestamp_ms": 1000,
+            "score_completed": False,
+            "audio_active": True,
+            "input_rms": 0.0,
+            "input_peak": 0.0,
+            "match_state": "matched",
+        }
+    )
+
+    assert alignment["alignment_state"] == "matched"
+    assert alignment["input_policy_confidence"] == 0.2
+    assert alignment["visual_confidence"] == 0.2
+
+
+def test_matchmaker_live_engine_calculates_beat_velocity() -> None:
+    assert (
+        MatchmakerLiveEngine._beat_velocity(
+            beat_delta=1.5,
+            timestamp_ms=2000,
+            previous_timestamp_ms=1000,
+        )
+        == 1.5
+    )
+    assert (
+        MatchmakerLiveEngine._beat_velocity(
+            beat_delta=1.5,
+            timestamp_ms=1000,
+            previous_timestamp_ms=1000,
+        )
+        is None
+    )
+
+
+def test_matchmaker_live_engine_validates_start_against_first_score_feature() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._score_start_beat = 0.0
+    engine._reference_features = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+        dtype=np.float32,
+    )
+    engine._ref_frame_to_beat = np.array([0.0, 1.0], dtype=np.float32)
+    engine._stream = SimpleNamespace(last_feature_vector=None)
+
+    assert engine._is_valid_start_feature(np.array([1.0, 0.0, 0.0], dtype=np.float32)) is True
+    assert engine._is_valid_start_feature(np.array([0.0, 1.0, 0.0], dtype=np.float32)) is False
+
+
+def test_matchmaker_live_engine_scores_broad_feature_matches_conservatively() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._reference_features = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
+    engine._ref_frame_to_beat = np.array([0.0], dtype=np.float32)
+    engine._stream = SimpleNamespace(last_feature_vector=None)
+
+    broad_feature = np.array([0.75, 0.45, 0.35], dtype=np.float32)
+
+    assert engine._feature_confidence_for_beat(0.0, current_feature=broad_feature) < 0.55
+
+
+def test_browser_audio_stream_adapter_rejects_start_when_feature_validator_fails() -> None:
+    import numpy as np
+
+    feature_queue = DummyQueue()
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+    adapter.start_feature_validator = lambda _feature_vector: False
+
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.ingest(voiced_frame(np, 0.08)) is False
+
+    assert adapter.ready_to_start is False
+    assert adapter.stream_state == "armed"
+    assert adapter.start_streak == 0
+    assert feature_queue.items == []
 
 
 def test_browser_audio_stream_adapter_requires_sustained_signal() -> None:
@@ -248,7 +984,7 @@ def test_browser_audio_stream_adapter_requires_sustained_signal() -> None:
         diagnostics_enabled=False,
     )
 
-    assert adapter.ingest(np.full(16, 0.05, dtype=np.float32)) is True
+    assert adapter.ingest(voiced_frame(np, 0.08)) is False
     assert adapter.ready_to_start is False
     assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
     assert adapter.ready_to_start is False
@@ -311,9 +1047,9 @@ def test_browser_audio_stream_adapter_ignores_startup_transients() -> None:
     assert feature_queue.items == []
 
     assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
-    assert adapter.ingest(np.full(16, 0.35, dtype=np.float32)) is True
+    assert adapter.ingest(voiced_frame(np, 0.35)) is True
     assert adapter.ready_to_start is False
-    assert adapter.ingest(np.full(16, 0.35, dtype=np.float32)) is True
+    assert adapter.ingest(voiced_frame(np, 0.35)) is True
     assert adapter.ready_to_start is True
 
 
@@ -344,8 +1080,8 @@ def test_browser_audio_stream_adapter_calibrates_against_noise_floor() -> None:
     assert adapter.ready_to_start is False
     assert feature_queue.items == []
 
-    assert adapter.ingest(np.full(16, 0.13, dtype=np.float32)) is True
-    assert adapter.ingest(np.full(16, 0.13, dtype=np.float32)) is True
+    assert adapter.ingest(voiced_frame(np, 0.2)) is True
+    assert adapter.ingest(voiced_frame(np, 0.2)) is True
     assert adapter.ready_to_start is True
 
 
@@ -373,8 +1109,8 @@ def test_browser_audio_stream_adapter_does_not_calibrate_from_warmup_performance
         assert adapter.ingest(np.full(16, 0.08, dtype=np.float32)) is False
 
     assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
-    assert adapter.ingest(np.full(16, 0.25, dtype=np.float32)) is True
-    assert adapter.ingest(np.full(16, 0.25, dtype=np.float32)) is True
+    assert adapter.ingest(voiced_frame(np, 0.35)) is True
+    assert adapter.ingest(voiced_frame(np, 0.35)) is True
     assert adapter.ready_to_start is True
 
 
@@ -399,12 +1135,12 @@ def test_browser_audio_stream_adapter_requires_strong_start_signal() -> None:
     )
 
     for _ in range(5):
-        assert adapter.ingest(np.full(16, 0.05, dtype=np.float32)) is True
+        assert adapter.ingest(voiced_frame(np, 0.08)) is False
 
     assert adapter.ready_to_start is False
     assert feature_queue.items == []
 
-    assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is True
+    assert adapter.ingest(voiced_frame(np, 0.25)) is True
 
     assert adapter.ready_to_start is True
 
@@ -430,8 +1166,7 @@ def test_browser_audio_stream_adapter_uses_adaptive_start_gate() -> None:
     )
     adapter._calibrated_rms_gate = 0.035
     adapter._calibrated_peak_gate = 0.078
-    frame = np.full(16, 0.05, dtype=np.float32)
-    frame[0] = 0.12
+    frame = voiced_frame(np, 0.2)
 
     assert adapter.ingest(frame) is True
 
@@ -497,7 +1232,7 @@ def test_browser_audio_stream_adapter_requires_quiet_arming_after_warmup() -> No
     assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
     assert adapter.ready_to_start is False
 
-    assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is True
+    assert adapter.ingest(voiced_frame(np, 0.25)) is True
     assert adapter.ready_to_start is True
 
 
@@ -545,22 +1280,10 @@ def test_practice_runtime_emits_ready_notification_once() -> None:
     assert runtime.consume_ready_notification() is False
 
 
-def test_alignment_engine_factory_rejects_fake_engine() -> None:
-    with pytest.raises(ValueError):
-        build_alignment_engine(
-            engine_name="fake",
-            score_file_path="score.xml",
-            sample_rate=16000,
-            channels=1,
-            frame_format="pcm_s16le",
-        )
-
-
 def test_alignment_engine_factory_requires_matchmaker_dependency() -> None:
     with patch("builtins.__import__", side_effect=import_without_matchmaker):
         with pytest.raises(RuntimeError, match="pymatchmaker"):
             build_alignment_engine(
-                engine_name="matchmaker",
                 score_file_path="score.xml",
                 sample_rate=16000,
                 channels=1,

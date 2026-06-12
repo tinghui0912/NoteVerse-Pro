@@ -1,11 +1,9 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useBackendMessage } from '@/hooks/use-backend-message';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Sheet,
     SheetContent,
@@ -15,12 +13,10 @@ import {
 } from '@/components/ui/sheet';
 import { ArrowLeft, PanelLeft, Save, Undo, Redo, Eye, ImageIcon, LoaderCircle, XCircle, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import React, { Suspense, useEffect, useState, useRef } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Footer } from '@/components/layout/footer';
 import { OriginalImageViewer } from '@/components/original-image-viewer';
-import { getTaskDetails } from '@/lib/api/tasks';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
-import { placeholderImages } from '@/lib/placeholder-images';
 import { ListenModal } from '@/components/listen-modal';
 import { ShareProvider, useShare } from '@/contexts/share-context';
 import {
@@ -30,7 +26,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { EditorProvider } from '@/contexts/editor-provider';
-import { useScoreData, useEditorState, useEntityEditor, useHistoryEditor, useHistory, type EditorMode } from '@/contexts/editor-provider';
+import { useScoreData, useEditorState, useEntityEditor, useHistoryEditor, useHistory } from '@/contexts/editor-provider';
 import { EditorSidebar } from '@/components/editor/editor-sidebar';
 import { CardBasedEditor } from '@/components/editor/card-based-editor';
 import { ScoreInfoCard } from '@/components/editor/score-info-card';
@@ -38,7 +34,6 @@ import { AddEntityModal } from '@/components/add-entity-modal';
 import { NoteEditorModal } from '@/components/note-editor-modal';
 import { ChordEditorModal } from '@/components/chord-editor-modal';
 import type { Note, Rest, Blank, Chord } from '@/types/score-types';
-import { AudioPreviewManager } from '@/lib/audio-preview-manager';
 import { flattenAllMeasures } from '@/lib/musicxml-flatten';
 import { validateDataIntegrity, type ValidationResult } from '@/lib/validator';
 import { useToast } from '@/hooks/use-toast';
@@ -68,14 +63,12 @@ const topToolbarItems: { icon: React.ElementType, label: string }[] = [
 function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'current' | 'final' | 'enhanced'; returnUrl?: string }) {
     const router = useRouter();
     const t = useTranslations('editor');
-  const tCommon = useTranslations('common');
-  const tAuth = useTranslations('auth');
-  const tb = useBackendMessage();
+    const tCommon = useTranslations('common');
+    const tAuth = useTranslations('auth');
     const { shareToken } = useShare();
     const {
         scoreData,
         setScoreData,
-        rawXml,
         setRawXml,
         currentXml,
         currentXmlRef,
@@ -92,7 +85,6 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         selectTool,
     } = useEditorState();
     const {
-        handleAddEntity,
         handleSelectEntityType,
         handleCloseModal,
         updateEntity,
@@ -106,7 +98,6 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
     const { initialize: initializeHistory } = useHistory();
 
     const [isListenModalOpen, setIsListenModalOpen] = useState(false);
-    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
     const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -117,7 +108,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
     const { data: taskData, isLoading: isTaskLoading } = useTaskDetail(id, { shareToken });
     const saveXmlMutation = useSaveXml();
 
-    // 草稿相关状态
+    // 鑽夌鐩稿叧鐘舵€?
     const [pendingDraft, setPendingDraft] = useState<DraftEntry | null>(null);
     const [isDraftDialogOpen, setIsDraftDialogOpen] = useState(false);
 
@@ -125,7 +116,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
 
     const translateValidationKey = (key: string) => {
         if (!key.includes('.')) {
-            return t(key as any);
+            return t(key as never);
         }
 
         const [namespace, ...rest] = key.split('.');
@@ -133,21 +124,21 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
 
         switch (namespace) {
             case 'editor':
-                return t(nestedKey as any);
+                return t(nestedKey as never);
             case 'common':
-                return tCommon(nestedKey as any);
+                return tCommon(nestedKey as never);
             case 'validation':
             case 'auth':
-                return tAuth(`validation.${nestedKey}` as any);
+                return tAuth(`validation.${nestedKey}` as never);
             default:
                 return key;
         }
     };
 
-    // 原始图片 URL 状态
+    // 鍘熷鍥剧墖 URL 鐘舵€?
     const [originalImageUrls, setOriginalImageUrls] = useState<{ src: string; alt: string }[]>([]);
 
-    // 自动保存草稿
+    // 鑷姩淇濆瓨鑽夌
     const { clearDraft, isSaving: isAutoSaving } = useAutoSave(id, currentXml, {
         source,
         returnUrl,
@@ -161,19 +152,19 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
             if (!xmlString || isInitialized) return;
 
             try {
-                // 先检测本地草稿
+                // 鍏堟娴嬫湰鍦拌崏绋?
                 const draft = await loadDraft(id);
 
                 if (draft && draft.xml !== xmlString) {
-                    // 有草稿且与服务端版本不同，提示用户恢复
+                    // 鏈夎崏绋夸笖涓庢湇鍔＄鐗堟湰涓嶅悓锛屾彁绀虹敤鎴锋仮澶?
                     setPendingDraft(draft);
                     setIsDraftDialogOpen(true);
                 } else if (draft) {
-                    // 草稿与服务端相同，直接删除草稿
+                    // 鑽夌涓庢湇鍔＄鐩稿悓锛岀洿鎺ュ垹闄よ崏绋?
                     await deleteDraft(id);
                 }
 
-                // 加载服务端版本
+                // 鍔犺浇鏈嶅姟绔増鏈?
                 setRawXml(xmlString);
                 setCurrentXml(xmlString);
                 initializeHistory(xmlString);
@@ -201,7 +192,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         }
     }, [xmlString, xmlError, id, setScoreData, setRawXml, setCurrentXml, initializeHistory, isInitialized, t]);
 
-    // 加载原始图片
+    // 鍔犺浇鍘熷鍥剧墖
     useEffect(() => {
         const loadOriginalImages = async () => {
             try {
@@ -219,7 +210,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                     setOriginalImageUrls(urls);
                 }
             } catch (error) {
-                console.error('加载原始图片失败:', error);
+                console.error('鍔犺浇鍘熷鍥剧墖澶辫触:', error);
             }
         };
 
@@ -227,36 +218,36 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
             loadOriginalImages();
         }
 
-        // 清理 blob URLs
+        // 娓呯悊 blob URLs
         return () => {
             originalImageUrls.forEach(img => URL.revokeObjectURL(img.src));
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [taskData, id, shareToken, t]);
 
-    // 综合 loading 和 error 状态
+    // 缁煎悎 loading 鍜?error 鐘舵€?
     const isLoading = isXmlLoading || isTaskLoading || (!!xmlString && !isInitialized);
     const finalLoadError = xmlError ? t('loadFailedHint') : loadError;
 
     const handleSaveChanges = () => {
-        // 执行校验
+        // 鎵ц鏍￠獙
         const result = validateDataIntegrity(scoreData, currentXml, translateValidationKey);
 
         if (!result.success) {
-            // 有错误，显示错误弹窗
+            // 鏈夐敊璇紝鏄剧ず閿欒寮圭獥
             setValidationResult(result);
             setIsValidationDialogOpen(true);
             return;
         }
 
         if (result.warnings.length > 0) {
-            // 有警告，显示警告弹窗，让用户选择
+            // 鏈夎鍛婏紝鏄剧ず璀﹀憡寮圭獥锛岃鐢ㄦ埛閫夋嫨
             setValidationResult(result);
             setIsValidationDialogOpen(true);
             return;
         }
 
-        // 校验通过，执行保存
+        // 鏍￠獙閫氳繃锛屾墽琛屼繚瀛?
         performSave();
     };
 
@@ -264,12 +255,12 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         if (!currentXml) return;
 
         if (source === 'current') {
-            // 从 /review 来的编辑 → 保存为 current_xml → 更新 preview_image → 跳回 /review
+            // 浠?/review 鏉ョ殑缂栬緫 鈫?淇濆瓨涓?current_xml 鈫?鏇存柊 preview_image 鈫?璺冲洖 /review
             saveXmlMutation.mutate(
                 { taskId: id, content: currentXml, fileType: 'current_xml', imageType: 'preview_image' },
                 {
                     onSuccess: async () => {
-                        await clearDraft();  // 保存成功后清除草稿
+                        await clearDraft();  // 淇濆瓨鎴愬姛鍚庢竻闄よ崏绋?
                         toast({
                             title: tCommon('savingSuccess'),
                             description: tCommon('scoreSaved'),
@@ -277,7 +268,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                         router.push(returnUrl || `/review/${id}`);
                     },
                     onError: (error) => {
-                        console.error('保存失败:', error);
+                        console.error('淇濆瓨澶辫触:', error);
                         toast({
                             title: t('saveFailed'),
                             description: t('saveFailedDesc'),
@@ -287,12 +278,12 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                 }
             );
         } else {
-            // 从 /results 或 /share 来的编辑（source=final）→ 保存为 final_xml → 更新 final_image → 跳到指定页面
+            // 浠?/results 鎴?/share 鏉ョ殑缂栬緫锛坰ource=final锛夆啋 淇濆瓨涓?final_xml 鈫?鏇存柊 final_image 鈫?璺冲埌鎸囧畾椤甸潰
             saveXmlMutation.mutate(
                 { taskId: id, content: currentXml, fileType: 'final_xml', imageType: 'final_image', dpi: 300 },
                 {
                     onSuccess: async () => {
-                        await clearDraft();  // 保存成功后清除草稿
+                        await clearDraft();  // 淇濆瓨鎴愬姛鍚庢竻闄よ崏绋?
                         toast({
                             title: tCommon('savingSuccess'),
                             description: tCommon('scoreSaved'),
@@ -300,7 +291,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                         router.push(returnUrl || `/results/${id}`);
                     },
                     onError: (error) => {
-                        console.error('保存失败:', error);
+                        console.error('淇濆瓨澶辫触:', error);
                         toast({
                             title: t('saveFailed'),
                             description: t('saveFailedDesc'),
@@ -318,7 +309,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         performSave();
     };
 
-    // 恢复草稿
+    // 鎭㈠鑽夌
     const handleRecoverDraft = async () => {
         if (pendingDraft) {
             setCurrentXml(pendingDraft.xml);
@@ -335,7 +326,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         setPendingDraft(null);
     };
 
-    // 放弃草稿
+    // 鏀惧純鑽夌
     const handleDiscardDraft = async () => {
         await deleteDraft(id);
         setPendingDraft(null);
@@ -343,14 +334,6 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
             title: t('draftDiscarded'),
             description: t('draftDiscardedDesc'),
         });
-    };
-
-    const handleToolbarClick = (label: string) => {
-        if (label === 'saveChanges') {
-            handleSaveChanges();
-        } else if (label === 'originalScore') {
-            setIsImageViewerOpen(prev => !prev); // toggle
-        }
     };
 
     const handlePreviewClick = async (e: React.MouseEvent) => {
@@ -362,16 +345,16 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         setIsListenModalOpen(true);
     };
 
-    // 合并声部功能
+    // 鍚堝苟澹伴儴鍔熻兘
     const handleMergeParts = async () => {
         if (!currentXml) return;
 
         try {
             const flattenedXml = flattenAllMeasures(currentXml);
             setCurrentXml(flattenedXml);
-            initializeHistory(flattenedXml); // 重新初始化历史记录
+            initializeHistory(flattenedXml); // 閲嶆柊鍒濆鍖栧巻鍙茶褰?
 
-            // 重新解析 XML
+            // 閲嶆柊瑙ｆ瀽 XML
             const { MusicXMLParser } = await import('@/lib/musicxml-parser');
             const parser = new MusicXMLParser(flattenedXml);
             setScoreData(parser.parse());
@@ -388,14 +371,14 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         if (!currentAddLocation || !scoreData) return '';
         const stave = scoreData.measures[currentAddLocation.measureIndex]?.staves[currentAddLocation.staveIndex];
         if (!stave) return '';
-        // xmlVoice 是 1-based，查找 voice name 中包含对应数字的 voice
+        // xmlVoice 鏄?1-based锛屾煡鎵?voice name 涓寘鍚搴旀暟瀛楃殑 voice
         const voice = stave.voices.find(v => v.name.includes(`${currentAddLocation.xmlVoice}`));
         if (!voice) return '';
         const [key, num] = voice.name.split(' ');
-        return `${t(key as any)} ${num}`;
+        return `${t(key as never)} ${num}`;
     }
 
-    // 加载中状态
+    // 鍔犺浇涓姸鎬?
     if (isLoading) {
         return (
             <div className="bg-gray-50 min-h-screen flex flex-col">
@@ -415,7 +398,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         );
     }
 
-    // 错误状态
+    // 閿欒鐘舵€?
     if (finalLoadError) {
         return (
             <div className="bg-gray-50 min-h-screen flex flex-col">
@@ -426,7 +409,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                 </div>
                 <main className="grow flex items-center justify-center py-16">
                     <div className="max-w-md w-full mx-4 text-center">
-                        <div className="text-6xl mb-6">⚠️</div>
+                        <div className="text-6xl mb-6">鈿狅笍</div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">{tCommon('loadFailed')}</h2>
                         <p className="text-gray-600 mb-2">{finalLoadError}</p>
                         <p className="text-gray-500 text-sm mb-8">{t('loadFailedHint')}</p>
@@ -499,7 +482,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                             </div>
                             <TooltipProvider>
                                 {topToolbarItems.map((item) => {
-                                    // 根据按钮类型设置 onClick 和 disabled
+                                    // 鏍规嵁鎸夐挳绫诲瀷璁剧疆 onClick 鍜?disabled
                                     const isUndo = item.label === 'undo';
                                     const isRedo = item.label === 'redo';
                                     const isOriginalScore = item.label === 'originalScore';
@@ -530,15 +513,15 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                                                 </Button>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>{t(item.label as any)}</p>
+                                                <p>{t(item.label as never)}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     );
                                 })}
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" onClick={handlePreviewClick} disabled={isPreviewLoading}>
-                                            {isPreviewLoading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Eye className="h-5 w-5" />}
+                                        <Button variant="ghost" size="icon" onClick={handlePreviewClick}>
+                                            <Eye className="h-5 w-5" />
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -600,7 +583,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                     isOpen={isNoteModalOpen}
                     onClose={handleCloseModal}
                     onSave={(result) => {
-                        // 使用 spread 操作符自动包含 result 中的所有字段
+                        // 浣跨敤 spread 鎿嶄綔绗﹁嚜鍔ㄥ寘鍚?result 涓殑鎵€鏈夊瓧娈?
                         updateEntity({
                             ...editingEntity,
                             ...result,
@@ -614,7 +597,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                     isOpen={isChordModalOpen}
                     onClose={handleCloseModal}
                     onSave={(result) => {
-                        // 使用 spread 操作符自动包含 result 中的所有字段
+                        // 浣跨敤 spread 鎿嶄綔绗﹁嚜鍔ㄥ寘鍚?result 涓殑鎵€鏈夊瓧娈?
                         updateEntity({
                             ...editingEntity,
                             ...result,
@@ -624,7 +607,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                 />
             )}
 
-            {/* 校验结果弹窗 */}
+            {/* 鏍￠獙缁撴灉寮圭獥 */}
             <AlertDialog open={isValidationDialogOpen} onOpenChange={setIsValidationDialogOpen}>
                 <AlertDialogContent className="max-w-lg max-h-[85vh] flex flex-col">
                     <AlertDialogHeader>
@@ -643,7 +626,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                         </AlertDialogTitle>
                         <AlertDialogDescription asChild>
                             <div className="space-y-3 text-left overflow-y-auto max-h-[50vh] pr-2 custom-scrollbar">
-                                {/* 错误列表 */}
+                                {/* 閿欒鍒楄〃 */}
                                 {validationResult?.issues && validationResult.issues.length > 0 && (
                                     <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                                         <p className="font-medium text-destructive text-sm mb-2">
@@ -659,7 +642,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                                     </div>
                                 )}
 
-                                {/* 警告列表 */}
+                                {/* 璀﹀憡鍒楄〃 */}
                                 {validationResult?.warnings && validationResult.warnings.length > 0 && (
                                     <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                                         <p className="font-medium text-yellow-600 text-sm mb-2">
@@ -675,7 +658,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                                     </div>
                                 )}
 
-                                {/* 说明文字 */}
+                                {/* 璇存槑鏂囧瓧 */}
                                 <p className="text-sm text-muted-foreground">
                                     {validationResult?.success
                                         ? tAuth('validation.warningDescription')
@@ -687,7 +670,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                     </AlertDialogHeader>
                     <AlertDialogFooter className="mt-4 shrink-0">
                         <AlertDialogCancel className="border-muted-foreground/20">{tCommon('goBack')}</AlertDialogCancel>
-                        {/* 只有警告时才显示"忽略并继续"按钮 */}
+                        {/* 鍙湁璀﹀憡鏃舵墠鏄剧ず"蹇界暐骞剁户缁?鎸夐挳 */}
                         {validationResult?.success && validationResult?.warnings?.length > 0 && (
                             <AlertDialogAction
                                 onClick={handleIgnoreWarningsAndSave}
@@ -699,7 +682,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* 草稿恢复弹窗 */}
+            {/* 鑽夌鎭㈠寮圭獥 */}
             <DraftRecoveryDialog
                 open={isDraftDialogOpen}
                 onOpenChange={setIsDraftDialogOpen}
@@ -717,13 +700,13 @@ export default function EditorPage() {
     const searchParams = useSearchParams();
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
-    // 从 URL 读取 source 参数，默认为 'current'
+    // 浠?URL 璇诲彇 source 鍙傛暟锛岄粯璁や负 'current'
     const sourceParam = searchParams.get('source');
     const source = (sourceParam === 'final' || sourceParam === 'enhanced' || sourceParam === 'current')
         ? sourceParam
         : 'current';
 
-    // 从 URL 读取 returnUrl 参数（用于保存后跳转）
+    // 浠?URL 璇诲彇 returnUrl 鍙傛暟锛堢敤浜庝繚瀛樺悗璺宠浆锛?
     const returnUrl = searchParams.get('returnUrl') || undefined;
 
     return (

@@ -28,6 +28,7 @@ type PracticeScoreViewerProps = {
     | 'idle'
     | 'connecting'
     | 'arming'
+    | 'listening'
     | 'practicing'
     | 'paused'
     | 'finished';
@@ -51,11 +52,14 @@ export function PracticeScoreViewer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderedPages, setRenderedPages] = useState<VerovioRenderedPage[]>([]);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const visibleRenderedPages = useMemo(
+    () => (xmlContent ? renderedPages : []),
+    [renderedPages, xmlContent]
+  );
+  const visibleRenderError = xmlContent ? renderError : null;
 
   useEffect(() => {
     if (!xmlContent) {
-      setRenderedPages([]);
-      setRenderError(null);
       return;
     }
 
@@ -94,7 +98,7 @@ export function PracticeScoreViewer({
 
     const shouldClearFollowState =
       !alignment ||
-      renderedPages.length === 0 ||
+      visibleRenderedPages.length === 0 ||
       practiceStatus === 'idle' ||
       practiceStatus === 'finished';
 
@@ -111,14 +115,14 @@ export function PracticeScoreViewer({
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [adapter, alignment, followController, practiceStatus, renderedPages]);
+  }, [adapter, alignment, followController, practiceStatus, visibleRenderedPages]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (
       !container ||
       !alignment ||
-      renderedPages.length === 0 ||
+      visibleRenderedPages.length === 0 ||
       practiceStatus === 'idle' ||
       practiceStatus === 'finished'
     ) {
@@ -138,7 +142,7 @@ export function PracticeScoreViewer({
     return null;
   }
 
-  const showEmptyState = !isLoadingXml && !xmlContent && !renderError;
+  const showEmptyState = !isLoadingXml && !xmlContent && !visibleRenderError;
 
   return (
     <div
@@ -239,10 +243,10 @@ export function PracticeScoreViewer({
           </div>
         ) : null}
 
-        {renderError ? (
+        {visibleRenderError ? (
           <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center text-destructive">
             <AlertTriangle className="h-8 w-8" />
-            <p className="max-w-lg">{renderError}</p>
+            <p className="max-w-lg">{visibleRenderError}</p>
           </div>
         ) : null}
 
@@ -253,9 +257,9 @@ export function PracticeScoreViewer({
           </div>
         ) : null}
 
-        {!isLoadingXml && !renderError && renderedPages.length > 0 ? (
+        {!isLoadingXml && !visibleRenderError && visibleRenderedPages.length > 0 ? (
           <div className="flex flex-col items-center gap-6">
-            {renderedPages.map((page) => (
+            {visibleRenderedPages.map((page) => (
               <div
                 key={page.pageNumber}
                 data-practice-page={page.pageNumber}

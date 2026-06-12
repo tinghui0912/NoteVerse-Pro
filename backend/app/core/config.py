@@ -17,20 +17,30 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    AUTH_COOKIE_NAME: str = "noteverse_session"
+    REFRESH_COOKIE_NAME: str = "noteverse_refresh"
+    CSRF_COOKIE_NAME: str = "noteverse_csrf"
+    CSRF_HEADER_NAME: str = "x-csrf-token"
+    AUTH_COOKIE_SECURE: bool = False
+    AUTH_COOKIE_SAMESITE: str = "lax"
     DEBUG: bool = False
-    PRACTICE_ALIGNMENT_ENGINE: str = "matchmaker"
-    PRACTICE_MATCHMAKER_METHOD: str = "arzt"
-    PRACTICE_MATCHMAKER_FEATURE_TYPE: str = "lse"
     PRACTICE_MATCHMAKER_FRAME_RATE: int = 30
     PRACTICE_AUDIO_RMS_GATE: float = 0.015
     PRACTICE_AUDIO_PEAK_GATE: float = 0.06
-    PRACTICE_AUDIO_START_RMS_GATE: float = 0.08
-    PRACTICE_AUDIO_START_PEAK_GATE: float = 0.18
-    PRACTICE_AUDIO_MIN_ACTIVE_FRAMES: int = 1
+    PRACTICE_AUDIO_START_RMS_GATE: float = 0.025
+    PRACTICE_AUDIO_START_PEAK_GATE: float = 0.06
+    PRACTICE_AUDIO_MIN_ACTIVE_FRAMES: int = 3
     PRACTICE_AUDIO_WARMUP_FRAMES: int = 30
     PRACTICE_AUDIO_RMS_NOISE_MULTIPLIER: float = 4.0
     PRACTICE_AUDIO_PEAK_NOISE_MULTIPLIER: float = 2.5
+    PRACTICE_AUDIO_NO_INPUT_FRAMES: int = 24
+    PRACTICE_AUDIO_TONAL_GATE_ENABLED: bool = True
+    PRACTICE_AUDIO_MAX_SPECTRAL_FLATNESS: float = 0.35
+    PRACTICE_AUDIO_MIN_PEAK_PROMINENCE: float = 8.0
+    PRACTICE_AUDIO_ONSET_FLUX_GATE: float = 0.35
+    PRACTICE_AUDIO_ONSET_HOLD_FRAMES: int = 45
     PRACTICE_AUDIO_DIAGNOSTICS: bool = False
 
     # CORS
@@ -61,38 +71,15 @@ class Settings(BaseSettings):
                 return False
         return v
 
-    @field_validator("PRACTICE_ALIGNMENT_ENGINE")
+    @field_validator("PRACTICE_AUDIO_MIN_ACTIVE_FRAMES")
     @classmethod
-    def validate_practice_alignment_engine(cls, v: str) -> str:
-        if v != "matchmaker":
-            raise ValueError("PRACTICE_ALIGNMENT_ENGINE must be 'matchmaker'")
-        return v
+    def validate_practice_audio_min_active_frames(cls, v: int) -> int:
+        return max(v, 3)
 
-    @field_validator("PRACTICE_MATCHMAKER_METHOD")
+    @field_validator("PRACTICE_AUDIO_ONSET_HOLD_FRAMES")
     @classmethod
-    def validate_practice_matchmaker_method(cls, v: str) -> str:
-        value = v.strip().lower()
-        if value != "arzt":
-            raise ValueError("PRACTICE_MATCHMAKER_METHOD currently supports only 'arzt'")
-        return value
-
-    @field_validator("PRACTICE_MATCHMAKER_FEATURE_TYPE")
-    @classmethod
-    def validate_practice_matchmaker_feature_type(cls, v: str) -> str:
-        value = v.strip().lower()
-        aliases = {
-            "lse": "lse",
-            "logspectral": "lse",
-            "log-spectral": "lse",
-            "log_spectral": "lse",
-            "log_spectral_energy": "lse",
-            "chroma": "chroma",
-        }
-        if value not in aliases:
-            raise ValueError(
-                "PRACTICE_MATCHMAKER_FEATURE_TYPE must be one of: lse, logspectral, chroma"
-            )
-        return aliases[value]
+    def validate_practice_audio_onset_hold_frames(cls, v: int) -> int:
+        return max(v, 1)
 
     # Database
     DATABASE_URL: str

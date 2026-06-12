@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.core.exceptions import ValidationException
+from app.core.exceptions import AuthenticationException, ValidationException
+from app.db.models.auth import RefreshToken
 from app.modules.auth.schemas import SendCodeRequest, VerifyCodeRequest
 from app.modules.auth.service import AuthService
 from app.modules.xml.service import XMLService
@@ -29,6 +30,50 @@ class FakeRedis:
     def delete(self, key: str) -> None:
         self.values.pop(key, None)
         self.ttls.pop(key, None)
+
+
+class FakeScalarResult:
+    def __init__(self, value):
+        self.value = value
+
+    def scalars(self):
+        return self
+
+    def first(self):
+        return self.value
+
+    def one_or_none(self):
+        return self.value
+
+    def all(self):
+        return [] if self.value is None else [self.value]
+
+
+class FakeAuthDb:
+    def __init__(self, user) -> None:
+        self.user = user
+        self.records: list[RefreshToken] = []
+        self.next_id = 1
+
+    def add(self, record: RefreshToken) -> None:
+        record.id = self.next_id
+        self.next_id += 1
+        self.records.append(record)
+
+    async def commit(self) -> None:
+        return None
+
+    async def flush(self) -> None:
+        return None
+
+    async def refresh(self, record: RefreshToken) -> None:
+        return None
+
+    async def exec(self, statement):
+        statement_text = str(statement)
+        if "refresh_tokens" in statement_text:
+            return FakeScalarResult(self.records[0] if self.records else None)
+        return FakeScalarResult(self.user)
 
 
 def test_send_email_code_dispatches_email_and_stores_challenge() -> None:
@@ -66,7 +111,7 @@ def test_verify_email_code_returns_verified_token_and_clears_challenge() -> None
     )
 
     with patch(
-        "app.modules.auth.service.security.create_access_token",
+        "app.modules.auth.service.security.create_email_verification_token",
         return_value="verified-token",
     ):
         result = service.verify_email_code(request)
@@ -93,6 +138,37 @@ def test_verify_email_code_rejects_wrong_code() -> None:
         service.verify_email_code(request)
 
     assert context.value.code == ErrorCode.VERIFICATION_CODE_WRONG
+
+
+@pytest.mark.asyncio
+async def test_refresh_session_rotates_refresh_token() -> None:
+    redis_client = FakeRedis()
+    service = AuthService(redis_client=redis_client)
+    db = FakeAuthDb(SimpleNamespace(id=1, is_active=True, password_changed_at=None))
+    _, refresh_token, old_record = await service._create_token_pair(db, 1)
+
+    _, next_refresh_token = await service.refresh_session(db, refresh_token)
+    next_record = db.records[-1]
+
+    assert next_refresh_token != refresh_token
+    assert old_record.revoked_at is not None
+    assert old_record.replaced_by_token_id == next_record.id
+    assert next_record.revoked_at is None
+
+
+@pytest.mark.asyncio
+async def test_refresh_session_rejects_reused_refresh_token() -> None:
+    redis_client = FakeRedis()
+    service = AuthService(redis_client=redis_client)
+    db = FakeAuthDb(SimpleNamespace(id=1, is_active=True, password_changed_at=None))
+    _, refresh_token, _ = await service._create_token_pair(db, 1)
+
+    await service.refresh_session(db, refresh_token)
+
+    with pytest.raises(AuthenticationException) as context:
+        await service.refresh_session(db, refresh_token)
+
+    assert context.value.code == ErrorCode.TOKEN_INVALID_EXPIRED
 
 
 @pytest.mark.asyncio

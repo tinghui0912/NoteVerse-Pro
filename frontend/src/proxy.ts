@@ -1,9 +1,61 @@
 import createMiddleware from 'next-intl/middleware';
+import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
 
-export default createMiddleware(routing);
+const intlMiddleware = createMiddleware(routing);
+const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'noteverse_session';
+const REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || 'noteverse_refresh';
+
+const PROTECTED_PATH_PREFIXES = [
+  '/upload',
+  '/history',
+  '/profile',
+  '/review',
+  '/results',
+  '/editor',
+  '/practice',
+  '/share',
+];
+
+function stripLocale(pathname: string): { locale?: string; path: string } {
+  const segments = pathname.split('/').filter(Boolean);
+  const firstSegment = segments[0];
+
+  if (routing.locales.includes(firstSegment as (typeof routing.locales)[number])) {
+    const stripped = `/${segments.slice(1).join('/')}`;
+    return { locale: firstSegment, path: stripped === '/' ? '/' : stripped };
+  }
+
+  return { path: pathname };
+}
+
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+function getLoginPath(locale?: string): string {
+  return locale && locale !== routing.defaultLocale ? `/${locale}/login` : '/login';
+}
+
+export default function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+  const { locale, path } = stripLocale(pathname);
+  const hasSession =
+    request.cookies.has(AUTH_COOKIE_NAME) || request.cookies.has(REFRESH_COOKIE_NAME);
+
+  if (isProtectedPath(path) && !hasSession) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = getLoginPath(locale);
+    loginUrl.search = '';
+    loginUrl.searchParams.set('returnUrl', `${pathname}${search}`);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return intlMiddleware(request);
+}
 
 export const config = {
-  // 匹配所有路径，排除 API 路由、静态文件、Next.js 内部路径
   matcher: ['/((?!api|trpc|_next|_vercel|.*\\..*).*)', '/'],
 };

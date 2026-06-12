@@ -1,8 +1,6 @@
-'use client';
+﻿'use client';
 
 import { useTranslations } from 'next-intl';
-import { useBackendMessage } from '@/hooks/use-backend-message';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { Camera, Crown, Save, Loader2 } from 'lucide-react';
+import { Camera, Crown, Save, Loader2, User } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { Footer } from '@/components/layout/footer';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { AvatarCropperModal } from '@/components/avatar-cropper-modal';
 import { useUploadAvatar, useUpdateProfile, useChangePassword } from '@/hooks/queries/use-profile-mutations';
 import { ApiError } from '@/lib/api-client';
@@ -24,32 +22,24 @@ export default function ProfilePage() {
   const tCommon = useTranslations('common');
   const tAuth = useTranslations('auth');
   const tErrors = useTranslations('errors');
-  const tb = useBackendMessage();
   const { user, setUser, refreshUser } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
-  // 表单状态
-  const [username, setUsername] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
+  // 琛ㄥ崟鐘舵€?
+  const [usernameDraft, setUsernameDraft] = useState<string | null>(null);
+  const username = usernameDraft ?? user?.name ?? '';
+  const email = user?.email ?? '';
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // 加载状态
+  // 鍔犺浇鐘舵€?
   const avatarMutation = useUploadAvatar();
   const profileMutation = useUpdateProfile();
   const passwordMutation = useChangePassword();
-
-  // 同步用户数据
-  useEffect(() => {
-    if (user) {
-      setUsername(user.name);
-      setEmail(user.email);
-    }
-  }, [user]);
 
   const handleCameraClick = () => {
     fileInputRef.current?.click();
@@ -70,9 +60,9 @@ export default function ProfilePage() {
     }
   };
 
-  // 上传裁剪后的头像
+  // 涓婁紶瑁佸壀鍚庣殑澶村儚
   const handleCroppedImage = async (imageDataUrl: string) => {
-    // 将 data URL 转换为 File
+    // 灏?data URL 杞崲涓?File
     const response = await fetch(imageDataUrl);
     const blob = await response.blob();
     const file = new File([blob], 'avatar.png', { type: 'image/png' });
@@ -93,17 +83,18 @@ export default function ProfilePage() {
       onError: (error) => {
         toast({
           title: t('uploadFailed'),
-          description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('uploadFailedDesc'),
+          description: error instanceof ApiError && error.code ? tErrors(error.code as never) : t('uploadFailedDesc'),
           variant: 'destructive',
         });
       },
     });
   };
 
-  // 更新个人资料
+  // 鏇存柊涓汉璧勬枡
   const handleUpdateProfile = () => {
-    profileMutation.mutate({ email: email !== user?.email ? email : undefined }, {
+    profileMutation.mutate({ display_name: username !== user?.name ? username : undefined }, {
       onSuccess: async () => {
+        setUsernameDraft(null);
         await refreshUser();
         toast({
           title: t('updateSuccess'),
@@ -113,14 +104,14 @@ export default function ProfilePage() {
       onError: (error) => {
         toast({
           title: t('updateFailed'),
-          description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('updateFailedDesc'),
+          description: error instanceof ApiError && error.code ? tErrors(error.code as never) : t('updateFailedDesc'),
           variant: 'destructive',
         });
       },
     });
   };
 
-  // 修改密码
+  // 淇敼瀵嗙爜
   const handleUpdatePassword = async () => {
     if (newPassword !== confirmPassword) {
       toast({
@@ -153,7 +144,7 @@ export default function ProfilePage() {
       onError: (error) => {
         toast({
           title: t('passwordFailed'),
-          description: error instanceof ApiError && error.code ? tErrors(error.code as any) : t('passwordFailedDesc'),
+          description: error instanceof ApiError && error.code ? tErrors(error.code as never) : t('passwordFailedDesc'),
           variant: 'destructive',
         });
       },
@@ -180,11 +171,7 @@ export default function ProfilePage() {
                       <Avatar className="h-16 w-16">
                         <AvatarImage src={user?.avatar || placeholderImages['avatar-user'].url} />
                         <AvatarFallback>
-                          <img
-                            src={placeholderImages['avatar-user'].url}
-                            alt="avatar"
-                            className="h-full w-full object-cover"
-                          />
+                          <User className="h-8 w-8 text-gray-400" />
                         </AvatarFallback>
                       </Avatar>
                       <input
@@ -229,7 +216,7 @@ export default function ProfilePage() {
                     <Input
                       id="username"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      onChange={(e) => setUsernameDraft(e.target.value)}
                       className="bg-white h-12"
                     />
                   </div>

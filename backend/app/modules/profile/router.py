@@ -20,6 +20,8 @@ from app.db.model_utils import require_persisted_id
 from app.modules.profile.dependencies import get_avatar_service
 from app.modules.profile.schemas import ChangePasswordRequest, UpdateProfileRequest
 from app.modules.profile.service import AvatarService
+from app.modules.auth.dependencies import get_auth_service
+from app.modules.auth.service import AuthService
 from app.shared.responses import success_response
 from app.utils.timezone import utc_now_naive
 
@@ -50,6 +52,7 @@ async def update_user_profile(
     request: UpdateProfileRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service),
 ):
     updated_fields = []
 
@@ -74,7 +77,15 @@ async def update_user_profile(
                 code=ErrorCode.CURRENT_PASSWORD_WRONG,
                 details={"field": "current_password"},
             )
+        changed_at = utc_now_naive()
         current_user.password_hash = get_password_hash(request.new_password)
+        current_user.password_changed_at = changed_at
+        await auth_service.revoke_user_refresh_tokens(
+            db,
+            require_persisted_id(current_user.id, entity="user"),
+            revoked_at=changed_at,
+            commit=False,
+        )
         updated_fields.append("password")
 
     if updated_fields:
@@ -91,6 +102,7 @@ async def change_password(
     request: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service),
 ):
     if not verify_password(request.current_password, current_user.password_hash):
         raise AuthenticationException(
@@ -98,8 +110,15 @@ async def change_password(
             details={"field": "current_password"},
         )
 
+    changed_at = utc_now_naive()
     current_user.password_hash = get_password_hash(request.new_password)
-    current_user.password_changed_at = utc_now_naive()
+    current_user.password_changed_at = changed_at
+    await auth_service.revoke_user_refresh_tokens(
+        db,
+        require_persisted_id(current_user.id, entity="user"),
+        revoked_at=changed_at,
+        commit=False,
+    )
     await db.commit()
     return success_response(message=SuccessCode.PASSWORD_CHANGED)
 

@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
@@ -12,6 +12,18 @@ interface AudioPreviewManagerOptions {
   followCursor?: boolean;
   autoScroll?: boolean;
 }
+
+type CursorWithOptions = {
+  cursorOptions?: {
+    type?: number;
+  };
+};
+
+type PlayerWithAudioContext = {
+  audioContext?: AudioContext;
+  context?: AudioContext;
+  ac?: AudioContext;
+};
 
 export class AudioPreviewManager {
   public osmd: OpenSheetMusicDisplay | null = null;
@@ -53,10 +65,13 @@ export class AudioPreviewManager {
     });
     // Explicitly set cursor type to Standard (0) to ensure it spans the system if possible
     if (this.osmd.cursor) {
-      (this.osmd.cursor as any).cursorOptions.type = 0;
+      const cursor = this.osmd.cursor as unknown as CursorWithOptions;
+      if (cursor.cursorOptions) {
+        cursor.cursorOptions.type = 0;
+      }
     }
 
-    // 🎯 Patch Soundfont to use local files instead of CDN
+    // 馃幆 Patch Soundfont to use local files instead of CDN
     // This must be done before creating OsmdAudioPlayer
     patchSoundfontToLocal('/soundfonts/MusyngKite/');
 
@@ -186,8 +201,8 @@ export class AudioPreviewManager {
     }
 
     // Resume AudioContext if suspended (melody-forge improvement)
-    // @ts-expect-error
-    const ctx = this.player.audioContext || (this.player as any).context || (this.player as any).ac;
+    const player = this.player as unknown as PlayerWithAudioContext;
+    const ctx = player.audioContext || player.context || player.ac;
     if (ctx && ctx.state === 'suspended') {
       try {
         await ctx.resume();
@@ -220,8 +235,8 @@ export class AudioPreviewManager {
     const scheduler = this.player.scheduler;
 
     // Resume AudioContext if suspended (required before any audio operations)
-    // @ts-expect-error
-    const ctx = this.player.audioContext || (this.player as any).context || (this.player as any).ac;
+    const player = this.player as unknown as PlayerWithAudioContext;
+    const ctx = player.audioContext || player.context || player.ac;
     if (ctx && ctx.state === 'suspended') {
       try {
         await ctx.resume();
@@ -313,18 +328,15 @@ export class AudioPreviewManager {
     if (!this._container || !this.osmd) return;
 
     const containerWidth = this._container.clientWidth;
-    const containerHeight = this._container.clientHeight;
     const svgElement = this._container.querySelector('svg');
 
     if (!svgElement) return;
 
     const svgWidth = svgElement.clientWidth;
-    const svgHeight = svgElement.clientHeight;
 
     // Calculate zoom to fit width
     // Use the initial SVG width (at zoom=1.0) for accurate calculations
     // This prevents cumulative error from repeated resizing
-    const currentZoom = this.osmd.Zoom;
     const initialWidth = this._initialSvgWidth || svgWidth;
     const targetZoom = (containerWidth / initialWidth) * 0.98;
 

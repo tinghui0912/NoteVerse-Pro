@@ -1,4 +1,4 @@
-import { NextIntlClientProvider } from 'next-intl';
+﻿import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { notFound } from 'next/navigation';
@@ -73,8 +73,8 @@ export default async function LocaleLayout({
 }) {
   const { locale } = await params;
 
-  // 验证 locale 合法性
-  if (!routing.locales.includes(locale as any)) {
+  // 楠岃瘉 locale 鍚堟硶鎬?
+  if (!routing.locales.includes(locale as never)) {
     notFound();
   }
 

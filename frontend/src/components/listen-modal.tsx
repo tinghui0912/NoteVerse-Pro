@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -57,13 +57,13 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   const isControlled = isOpen !== undefined && onOpenChange !== undefined;
   const currentOpenState = isControlled ? isOpen : internalIsOpen;
 
-  const setCurrentOpenState = (open: boolean) => {
+  const setCurrentOpenState = useCallback((open: boolean) => {
     if (isControlled) {
       onOpenChange(open);
     } else {
       setInternalIsOpen(open);
     }
-  };
+  }, [isControlled, onOpenChange]);
 
   const stopProgressLoop = useCallback(() => {
     if (progressRafRef.current) {
@@ -105,13 +105,14 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
    * Matches Melody Forge's time calculation logic.
    */
   const calculatePlaybackTime = useCallback((
-    player: any,
+    player: unknown,
     totalSteps: number,
     currentStep: number,
     effectiveBpm: number = DEFAULT_TEMPO_BPM
   ) => {
     const stepProgress = totalSteps > 0 ? (currentStep / totalSteps) * 100 : 0;
-    let currentTime = typeof player.currentTime === 'number' ? player.currentTime : 0;
+    const playback = player as { currentTime?: unknown };
+    let currentTime = typeof playback.currentTime === 'number' ? playback.currentTime : 0;
 
     // Calculate duration from steps and BPM directly (don't trust player.duration)
     let duration = 0;
@@ -343,7 +344,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
           const tempoNode = xmlDoc.querySelector('sound[tempo]') || xmlDoc.querySelector('metronome per-minute');
           const tempoStr = tempoNode ? (tempoNode.getAttribute('tempo') || tempoNode.textContent || String(DEFAULT_TEMPO_BPM)) : String(DEFAULT_TEMPO_BPM);
           effectiveTempo = parseInt(tempoStr) || DEFAULT_TEMPO_BPM;
-        } catch (e) {
+        } catch {
           console.warn(`[ListenModal] Failed to extract tempo from XML, using default ${DEFAULT_TEMPO_BPM}`);
         }
       }
@@ -362,7 +363,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
         // Listen to iteration event for end detection
         // When player returns empty notes array, it means playback has ended
         // @ts-expect-error - Version compatibility
-        manager.player.on("iteration", (notes: any[]) => {
+        manager.player.on("iteration", (notes: unknown[]) => {
           try {
             const c = manager.osmd?.cursor;
             if (!c) return;
@@ -488,7 +489,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     return () => {
       resizeObserver.disconnect();
     };
-  }, [managerRef.current, modalContainerRef.current]);
+  }, [currentOpenState]);
 
   // Removed unreliable useEffect for loading score
 
@@ -586,9 +587,6 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     // 1. Calculate target step
     // @ts-expect-error
     const totalSteps = player.iterationSteps || 0;
-    // @ts-expect-error - Debug: log player's internal currentIterationStep
-    const playerCurrentStep = player.currentIterationStep ?? 'unknown';
-
     const targetStep = Math.min(
       Math.floor(totalSteps * percentage),
       Math.max(0, totalSteps - 1) // Prevent out of bounds
