@@ -19,6 +19,16 @@ interface UseDownloadReturn {
     handleDownload: (type: 'image' | 'xml') => Promise<void>;
 }
 
+function extensionFromBlob(blob: Blob): string {
+    const mimeExtensions: Record<string, string> = {
+        'image/png': 'png',
+        'image/svg+xml': 'svg',
+        'application/pdf': 'pdf',
+    };
+
+    return mimeExtensions[blob.type] ?? 'bin';
+}
+
 /**
  * 閫氱敤涓嬭浇 Hook
  * 鏀寔鍒嗕韩椤甸潰鍜岀粨鏋滈〉闈㈢殑鏂囦欢涓嬭浇
@@ -43,14 +53,14 @@ export function useDownload({ mode, id, imageCount }: UseDownloadOptions): UseDo
                     const blob = mode === 'share'
                         ? await sharesApi.downloadSharedFile(id, 'final_image')
                         : await filesApi.downloadFile('final_image', id);
-                    filesApi.triggerDownload(blob, `score_${id}.png`);
+                    filesApi.triggerDownload(blob, `score_${id}.${extensionFromBlob(blob)}`);
                 } else {
                     // 澶氶〉锛氫笅杞?ZIP 鍖呭惈鎵€鏈夐〉闈?
                     if (mode === 'share') {
                         const blob = await sharesApi.downloadSharedArchive(id);
                         filesApi.triggerDownload(blob, `score_${id}.zip`);
                     } else {
-                        const result = await tasksApi.archiveTasks([id], ['png']);
+                        const result = await tasksApi.archiveTasks([id], ['image']);
                         filesApi.triggerDownload(result.blob, `score_${id}.zip`);
                     }
                 }

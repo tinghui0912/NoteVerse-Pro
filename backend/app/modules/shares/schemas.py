@@ -85,9 +85,17 @@ class ShareAccessResult(TypedDict):
 
 
 class ShareDownloadFileItem(TypedDict):
-    path: str
-    page: int | None
+    storage_key: str
+    filename: str
+    page_number: int | None
     mime_type: str | None
+
+
+class ShareFileAccessUrlResult(TypedDict):
+    url: str
+    filename: str
+    mime_type: str
+    expires_in: int | None
 
 
 class ShareCreate(ShareBase):

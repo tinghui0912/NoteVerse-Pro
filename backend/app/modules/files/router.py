@@ -2,7 +2,7 @@
 Canonical router for the files module.
 """
 from fastapi import APIRouter, Depends, File, Query, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -37,7 +37,7 @@ async def download_file(
     db: AsyncSession = Depends(get_db),
     files_service: FilesService = Depends(get_files_service),
 ):
-    file_path, filename, media_type = await files_service.download_task_file(
+    delivery = await files_service.download_task_file(
         db=db,
         current_user=current_user,
         task_id=task_id,
@@ -45,11 +45,34 @@ async def download_file(
         page=page,
         share_token=share_token,
     )
+    if delivery.redirect_url:
+        return RedirectResponse(delivery.redirect_url, status_code=302)
     return FileResponse(
-        path=file_path,
-        filename=filename,
-        media_type=media_type,
+        path=delivery.path or "",
+        filename=delivery.filename,
+        media_type=delivery.media_type,
     )
+
+
+@router.get("/access-url/{file_type}/{task_id}")
+async def get_file_access_url(
+    file_type: str,
+    task_id: str,
+    page: int = Query(1, ge=1, description="Page number starting from 1"),
+    share_token: str | None = Query(default=None, description="Optional share token for access"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    files_service: FilesService = Depends(get_files_service),
+):
+    result = await files_service.get_task_file_access_url(
+        db=db,
+        current_user=current_user,
+        task_id=task_id,
+        file_type=file_type,
+        page=page,
+        share_token=share_token,
+    )
+    return success_response(data=result)
 
 
 @router.get("/tasks/{task_id}")
@@ -68,11 +91,13 @@ async def preview_file(
     current_user: User = Depends(get_current_user),
     files_service: FilesService = Depends(get_files_service),
 ):
-    file_path, preview_filename, mime_type = files_service.preview_file(filename)
+    delivery = files_service.preview_file(filename)
+    if delivery.redirect_url:
+        return RedirectResponse(delivery.redirect_url, status_code=302)
     return FileResponse(
-        path=file_path,
-        media_type=mime_type or "application/octet-stream",
-        filename=preview_filename,
+        path=delivery.path or "",
+        media_type=delivery.media_type or "application/octet-stream",
+        filename=delivery.filename,
     )
 
 

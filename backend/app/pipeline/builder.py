@@ -25,10 +25,10 @@ class PipelineBuilder:
     ) -> Pipeline:
         """Build the single-image processing pipeline."""
         from .steps import (
-            AudiverisImageStep,
             CopyImageStep,
             ExtractXmlStep,
             FinalizeStep,
+            OmrImageStep,
             PreviewGenerationStep,
             TextOcrStep,
             XmlNormalizeStep,
@@ -37,7 +37,7 @@ class PipelineBuilder:
         return Pipeline(
             [
                 CopyImageStep(),
-                AudiverisImageStep(),
+                OmrImageStep(),
                 ExtractXmlStep(),
                 TextOcrStep(),
                 XmlNormalizeStep(),
@@ -52,11 +52,11 @@ class PipelineBuilder:
     ) -> Pipeline:
         """Build the multi-image processing pipeline."""
         from .steps import (
-            AudiverisPdfStep,
             CopyImagesStep,
             ExtractXmlStep,
             FinalizeStep,
             GeneratePdfStep,
+            OmrPdfStep,
             PreviewGenerationStep,
             TextOcrStep,
             XmlNormalizeStep,
@@ -66,7 +66,7 @@ class PipelineBuilder:
             [
                 CopyImagesStep(),
                 GeneratePdfStep(),
-                AudiverisPdfStep(),
+                OmrPdfStep(),
                 ExtractXmlStep(),
                 TextOcrStep(),
                 XmlNormalizeStep(),

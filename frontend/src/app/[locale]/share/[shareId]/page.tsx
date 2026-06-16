@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -36,7 +36,7 @@ import {
 import { ListenModal } from '@/components/listen-modal';
 import { sharesApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
-import { fetchSharedImageAsBlob, revokeImageUrls } from '@/lib/utils/image';
+import { fetchSharedImage } from '@/lib/utils/image';
 
 export default function SharePage({ params }: { params: Promise<{ shareId: string }> }) {
     const resolvedParams = React.use(params);
@@ -50,7 +50,6 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
     const router = useRouter();
     const { toast } = useToast();
     const { isAuthenticated, isLoading: authLoading } = useAuth();
-    const imageUrlsRef = useRef<string[]>([]);
 
     const [isListenModalOpen, setIsListenModalOpen] = useState(false);
 
@@ -108,22 +107,45 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         return { type: null as null, message: t('loadFailedDesc') };
     }, [shareError, t]);
 
-    // ============ TanStack Query锛氬姞杞藉浘鐗?============
+    // ============ Image loading ============
     const finalImages = shareData?.task.files?.final_image || [];
-    const { data: imageUrls = [], isLoading: imagesLoading } = useQuery({
-        queryKey: ['share-images', shareId, finalImages.length],
-        queryFn: async () => {
+    const finalImageSignature = finalImages.map(image => image.storage_key).join('|');
+    const [imageUrls, setImageUrls] = useState<string[]>([]);
+    const [imagesLoading, setImagesLoading] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        if (!shareData || finalImages.length <= 0) {
+            return () => {};
+        }
+
+        const loadImages = async () => {
+            await Promise.resolve();
+            if (cancelled) return;
+
+            setImagesLoading(true);
+            setImageUrls([]);
+
             const urls: string[] = [];
             for (let i = 0; i < finalImages.length; i += 1) {
-                const url = await fetchSharedImageAsBlob(shareId, i + 1);
-                if (url) urls.push(url);
+                const url = await fetchSharedImage(shareId, i + 1);
+                if (url) {
+                    urls.push(url);
+                }
             }
-            return urls;
-        },
-        enabled: !!shareData && finalImages.length > 0,
-        staleTime: Infinity,
-        gcTime: 0,
-    });
+            if (!cancelled) {
+                setImageUrls(urls);
+                setImagesLoading(false);
+            }
+        };
+
+        loadImages();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [shareData, shareId, finalImages.length, finalImageSignature]);
 
     // ============ TanStack Query锛氬姞杞?XML ============
     const { data: rawXml = null } = useQuery({
@@ -139,17 +161,6 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         enabled: !!shareData,
         staleTime: Infinity,
     });
-
-    // 娓呯悊 blob URLs
-    useEffect(() => {
-        imageUrlsRef.current = imageUrls;
-    }, [imageUrls]);
-
-    useEffect(() => {
-        return () => {
-            revokeImageUrls(imageUrlsRef.current);
-        };
-    }, []);
 
     // ============ 鏀惰棌 mutation ============
     const saveMutation = useSaveToCollection();

@@ -8,7 +8,7 @@ import { Download, Edit, Hand, Gamepad2, Copy, ArrowLeft, MoreVertical, Link as 
 import { Link } from '@/i18n/routing';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
 import { useToast } from '@/hooks/use-toast';
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ListenModal } from '@/components/listen-modal';
@@ -35,7 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Footer } from '@/components/layout/footer';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { useScoreData } from '@/contexts/editor-provider';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTaskDetail, useUpdateTask } from '@/hooks/queries/use-task-queries';
 import { useShareList, useCreateShare, useToggleShare, useDeleteShare } from '@/hooks/queries/use-share-queries';
 import { useXmlContent, useGenerateFingering } from '@/hooks/queries/use-xml-queries';
@@ -84,7 +84,6 @@ function ResultsPageContent({ id }: { id: string }) {
   const [sharePermission, setSharePermission] = useState('view');
   const [shareExpiration, setShareExpiration] = useState('7d');
   const queryClient = useQueryClient();
-  const imageUrlsRef = useRef<string[]>([]);
 
   const { rawXml, setRawXml, setScoreData } = useScoreData();
 
@@ -100,33 +99,45 @@ function ResultsPageContent({ id }: { id: string }) {
     }
   }, [task, isEditingInfo]);
 
-  // 2. TanStack Query锛氬浘鐗囬鍔犺浇
+  // 2. Image preload
   const finalImages = task?.files?.final_image || [];
-  const { data: imageUrls = [], isLoading: imagesLoading } = useQuery({
-    queryKey: queryKeys.images.task(id, 'final_image'),
-    queryFn: async () => {
+  const finalImageSignature = finalImages.map(image => image.storage_key).join('|');
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!task || finalImages.length <= 0) {
+      return () => {};
+    }
+
+    const loadImages = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      setImagesLoading(true);
+      setImageUrls([]);
+
       const urls: string[] = [];
       for (let i = 0; i < finalImages.length; i++) {
         const url = await fetchAuthenticatedImage(id, 'final_image', i + 1);
-        if (url) urls.push(url);
+        if (url) {
+          urls.push(url);
+        }
       }
-      return urls;
-    },
-    enabled: !!task && finalImages.length > 0,
-    staleTime: Infinity,
-    gcTime: 0,
-  });
-
-  // 娓呯悊鍥剧墖 URLs
-  useEffect(() => {
-    imageUrlsRef.current = imageUrls;
-  }, [imageUrls]);
-
-  useEffect(() => {
-    return () => {
-      imageUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      if (!cancelled) {
+        setImageUrls(urls);
+        setImagesLoading(false);
+      }
     };
-  }, []);
+
+    loadImages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [task, id, finalImages.length, finalImageSignature]);
 
   // 3. TanStack Query锛歑ML 鍔犺浇涓庤В鏋?
   const { data: xmlContent } = useXmlContent(id, 'final', { enabled: !!task });
@@ -318,7 +329,6 @@ function ResultsPageContent({ id }: { id: string }) {
               description: t('fingeringDesc'),
             });
             // 鍒锋柊椤甸潰浠ュ姞杞芥柊鐨勬寚娉曠粨鏋?            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(id) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.images.task(id, 'final_image') });
             queryClient.invalidateQueries({ queryKey: queryKeys.xml.content(id, 'final') });
           } else {
             toast({

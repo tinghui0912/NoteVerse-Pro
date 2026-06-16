@@ -44,13 +44,10 @@ class CopyImageStep(Step):
 
         ctx.raw_paths = [dst]
 
-        try:
-            from app.shared.file_kinds import FileKind
-            from app.pipeline.files_recorder import replace_files
+        from app.shared.file_kinds import FileKind
+        from app.pipeline.files_recorder import replace_files
 
-            replace_files(ctx.task_id, FileKind.ORIGINAL_IMAGE, [os.path.abspath(dst)])
-        except Exception as exc:
-            logger.warning(f"[{ctx.task_id}] Failed to record original_image file: {exc}")
+        replace_files(ctx.task_id, FileKind.ORIGINAL_IMAGE, [os.path.abspath(dst)])
 
         logger.info(f"[{ctx.task_id}] Input copy completed: {dst}")
 
@@ -87,16 +84,13 @@ class CopyImagesStep(Step):
 
         ctx.raw_paths = raw_paths
 
-        try:
-            from app.shared.file_kinds import FileKind
-            from app.pipeline.files_recorder import replace_files
+        from app.shared.file_kinds import FileKind
+        from app.pipeline.files_recorder import replace_files
 
-            replace_files(
-                ctx.task_id,
-                FileKind.ORIGINAL_IMAGE,
-                [os.path.abspath(path) for path in raw_paths],
-            )
-        except Exception as exc:
-            logger.warning(f"[{ctx.task_id}] Failed to record original_image files: {exc}")
+        replace_files(
+            ctx.task_id,
+            FileKind.ORIGINAL_IMAGE,
+            [os.path.abspath(path) for path in raw_paths],
+        )
 
         logger.info(f"[{ctx.task_id}] Input copy completed: {len(raw_paths)} images")

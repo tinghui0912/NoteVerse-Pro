@@ -34,6 +34,7 @@ class Task(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         Index("idx_tasks_user_created", "user_id", "created_at"),
         Index("idx_tasks_state", "state"),
+        UniqueConstraint("user_id", "idempotency_key", name="uq_tasks_user_idempotency_key"),
     )
 
     id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
@@ -45,6 +46,7 @@ class Task(SQLModel, table=True):  # type: ignore[call-arg]
     )
     title: Optional[str] = Field(sa_column=Column(String(255)))  # Music score title.
     difficulty: Optional[str] = Field(sa_column=Column(String(32)))  # Difficulty level.
+    idempotency_key: Optional[str] = Field(sa_column=Column(String(128)))
     code: Optional[str] = Field(sa_column=Column(String(64)))
     error: Optional[str] = Field(sa_column=Column(Text))
     error_type: Optional[str] = Field(sa_column=Column(String(64)))
@@ -54,6 +56,7 @@ class Task(SQLModel, table=True):  # type: ignore[call-arg]
     total_time_seconds: Optional[int] = Field(sa_column=Column(Integer))
     requested_at: Optional[datetime] = Field(sa_column=Column(DateTime))
     started_at: Optional[datetime] = Field(sa_column=Column(DateTime))
+    last_heartbeat_at: Optional[datetime] = Field(sa_column=Column(DateTime))
     finished_at: Optional[datetime] = Field(sa_column=Column(DateTime))
 
     created_at: datetime = Field(

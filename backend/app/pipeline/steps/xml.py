@@ -12,7 +12,7 @@ logger = get_task_logger(__name__)
 
 
 class ExtractXmlStep(Step):
-    """Extract or locate the main MusicXML file from Audiveris output."""
+    """Extract or locate the main MusicXML file from OMR output."""
 
     name = "prepare_xml"
     progress_start = 65
@@ -21,10 +21,10 @@ class ExtractXmlStep(Step):
     def run(self, ctx: TaskContext) -> None:
         logger.info(f"[{ctx.task_id}] Starting XML preparation")
 
-        if not ctx.aud_result:
-            raise RuntimeError("Audiveris processing failed")
+        if not ctx.omr_result:
+            raise RuntimeError("OMR processing failed")
 
-        files_dict = ctx.aud_result["files"]
+        files_dict = ctx.omr_result["files"]
         main_xml = files_dict.get("xml")
         mxl_path = files_dict.get("mxl")
 
@@ -37,7 +37,7 @@ class ExtractXmlStep(Step):
                 main_xml = success_result["main_xml"]
 
         if not main_xml:
-            raise RuntimeError("Audiveris processing failed")
+            raise RuntimeError("OMR processing failed")
 
         ctx.main_xml = main_xml
         logger.info(f"[{ctx.task_id}] XML preparation completed: {main_xml}")

@@ -26,13 +26,10 @@ class FinalizeStep(Step):
             logger.warning(f"[{ctx.task_id}] XML file not found; skipping current_xml creation")
             return
 
-        try:
-            from app.pipeline.files_recorder import replace_files
+        from app.pipeline.files_recorder import replace_files
 
-            xml_dir = os.path.dirname(main_xml)
-            current_path = os.path.join(xml_dir, "current.xml")
-            shutil.copy2(main_xml, current_path)
-            replace_files(ctx.task_id, FileKind.CURRENT_XML, [os.path.abspath(current_path)])
-            logger.info(f"[{ctx.task_id}] Created current_xml: {current_path}")
-        except Exception as exc:
-            logger.warning(f"[{ctx.task_id}] Failed to create current_xml: {exc}")
+        xml_dir = os.path.dirname(main_xml)
+        current_path = os.path.join(xml_dir, "current.xml")
+        shutil.copy2(main_xml, current_path)
+        replace_files(ctx.task_id, FileKind.CURRENT_XML, [os.path.abspath(current_path)])
+        logger.info(f"[{ctx.task_id}] Created current_xml: {current_path}")

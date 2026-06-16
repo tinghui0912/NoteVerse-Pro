@@ -2,7 +2,7 @@
  * 文件相关 API
  */
 import { apiClient, ApiResponse } from '../api-client';
-import type { UploadedFile, TaskFiles } from '@/types/api';
+import type { FileAccessUrl, UploadedFile, TaskFiles } from '@/types/api';
 
 // ============ API 函数 ============
 
@@ -49,6 +49,22 @@ export async function downloadFile(
 ): Promise<Blob> {
     const params = page ? `?page=${page}` : '';
     return apiClient.download(`/files/download/${fileType}/${taskId}${params}`);
+}
+
+export async function getFileAccessUrl(
+    fileType: string,
+    taskId: string,
+    page?: number,
+    shareToken?: string
+): Promise<ApiResponse<FileAccessUrl>> {
+    const params: Record<string, string | number | undefined> = {
+        page,
+        share_token: shareToken,
+    };
+    return apiClient.get<ApiResponse<FileAccessUrl>>(
+        `/files/access-url/${fileType}/${taskId}`,
+        params
+    );
 }
 
 /**
@@ -108,6 +124,7 @@ export const filesApi = {
     uploadFile,
     uploadFiles,
     downloadFile,
+    getFileAccessUrl,
     getTaskFiles,
     getPreviewUrl,
     deleteFile,

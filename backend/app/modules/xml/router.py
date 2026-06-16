@@ -12,7 +12,7 @@ from app.db.models import User
 from app.db.model_utils import require_persisted_id
 from app.modules.tasks.dependencies import get_task_with_view_access
 from app.modules.xml.dependencies import get_xml_service
-from app.modules.xml.schemas import ConfirmRequest, FingeringRequest, XMLSaveRequest
+from app.modules.xml.schemas import FingeringRequest, XMLSaveRequest
 from app.modules.xml.service import XMLService
 from app.shared.responses import success_response
 
@@ -47,7 +47,6 @@ async def save_xml_content(
         content=request.content,
         file_type=request.file_type,
         image_type=request.image_type,
-        dpi=request.dpi,
     )
     return success_response(data=result, message=SuccessCode.XML_SAVED)
 
@@ -55,13 +54,12 @@ async def save_xml_content(
 @router.post("/{task_id}/confirm")
 async def confirm_recognition(
     task_id: str,
-    request: ConfirmRequest = ConfirmRequest(),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     xml_service: XMLService = Depends(get_xml_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await xml_service.confirm_recognition(db, task_id, user_id, dpi=request.dpi)
+    result = await xml_service.confirm_recognition(db, task_id, user_id)
     has_images = len(result.get("final_images", [])) > 0
     message = (
         SuccessCode.RECOGNITION_CONFIRMED_WITH_IMAGES

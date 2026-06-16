@@ -217,12 +217,6 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         if (taskData) {
             loadOriginalImages();
         }
-
-        // 娓呯悊 blob URLs
-        return () => {
-            originalImageUrls.forEach(img => URL.revokeObjectURL(img.src));
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [taskData, id, shareToken, t]);
 
     // 缁煎悎 loading 鍜?error 鐘舵€?
@@ -280,7 +274,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         } else {
             // 浠?/results 鎴?/share 鏉ョ殑缂栬緫锛坰ource=final锛夆啋 淇濆瓨涓?final_xml 鈫?鏇存柊 final_image 鈫?璺冲埌鎸囧畾椤甸潰
             saveXmlMutation.mutate(
-                { taskId: id, content: currentXml, fileType: 'final_xml', imageType: 'final_image', dpi: 300 },
+                { taskId: id, content: currentXml, fileType: 'final_xml', imageType: 'final_image' },
                 {
                     onSuccess: async () => {
                         await clearDraft();  // 淇濆瓨鎴愬姛鍚庢竻闄よ崏绋?
@@ -630,7 +624,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                                 {validationResult?.issues && validationResult.issues.length > 0 && (
                                     <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                                         <p className="font-medium text-destructive text-sm mb-2">
-                                            {(tAuth('validation.foundIssues') as string).replace('{count}', String(validationResult.issues.length))}
+                                            {tAuth('validation.foundIssues', { count: validationResult.issues.length })}
                                         </p>
                                         <ul className="space-y-1 text-xs">
                                             {validationResult.issues.map((issue, index) => (
@@ -646,7 +640,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                                 {validationResult?.warnings && validationResult.warnings.length > 0 && (
                                     <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                                         <p className="font-medium text-yellow-600 text-sm mb-2">
-                                            {(tAuth('validation.foundWarnings') as string).replace('{count}', String(validationResult.warnings.length))}
+                                            {tAuth('validation.foundWarnings', { count: validationResult.warnings.length })}
                                         </p>
                                         <ul className="space-y-1 text-xs max-h-40 overflow-y-auto custom-scrollbar">
                                             {validationResult.warnings.map((warning, index) => (

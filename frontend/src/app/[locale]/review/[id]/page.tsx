@@ -8,14 +8,16 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Check, Edit, Loader2, FileImage } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useQuery } from '@tanstack/react-query';
 import { Footer } from '@/components/layout/footer';
 import { useTaskDetail } from '@/hooks/queries/use-task-queries';
 import { useConfirmRecognition } from '@/hooks/queries/use-xml-queries';
-import { queryKeys } from '@/lib/query-client';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
+import type { TaskFile } from '@/types/api';
+
+const getImageVersion = (image: TaskFile | undefined) =>
+  [image?.storage_key, image?.size, image?.created_at].filter(Boolean).join(':');
 
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
@@ -44,65 +46,108 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   }, [taskError, taskDetails, t]);
 
   // 计算页数
-  const originalImages = taskDetails?.files?.original_image || [];
-  const previewImages = taskDetails?.files?.preview_image || [];
+  const originalImages = useMemo(
+    () => taskDetails?.files?.original_image || [],
+    [taskDetails?.files?.original_image]
+  );
+  const previewImages = useMemo(
+    () => taskDetails?.files?.preview_image || [],
+    [taskDetails?.files?.preview_image]
+  );
   const totalOriginalPages = originalImages.length;
   const totalPreviewPages = previewImages.length;
+  const originalImageSignature = originalImages.map(getImageVersion).join('|');
+  const previewImageSignature = previewImages.map(getImageVersion).join('|');
 
-  // ============ TanStack Query：预加载原始图片 ============
-  const { data: originalImageUrls = [], isLoading: originalImagesLoading } = useQuery({
-    queryKey: queryKeys.images.task(taskId, 'original_image'),
-    queryFn: async () => {
+  const [originalImageUrls, setOriginalImageUrls] = useState<string[]>([]);
+  const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
+  const [originalImagesLoading, setOriginalImagesLoading] = useState(false);
+  const [previewImagesLoading, setPreviewImagesLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!taskDetails || totalOriginalPages <= 0) {
+      return () => {};
+    }
+
+    const loadImages = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      setOriginalImagesLoading(true);
+      setOriginalImageUrls([]);
+
       const urls: string[] = [];
       for (let i = 1; i <= totalOriginalPages; i++) {
-        const url = await fetchAuthenticatedImage(taskId, 'original_image', i);
-        if (url) urls.push(url);
+        const url = await fetchAuthenticatedImage(
+          taskId,
+          'original_image',
+          i,
+          undefined,
+          getImageVersion(originalImages[i - 1])
+        );
+        if (url) {
+          urls.push(url);
+        }
       }
-      return urls;
-    },
-    enabled: !!taskDetails && totalOriginalPages > 0,
-    staleTime: Infinity,
-    gcTime: 0,
-  });
+      if (!cancelled) {
+        setOriginalImageUrls(urls);
+        setOriginalImagesLoading(false);
+      }
+    };
 
-  // ============ TanStack Query：预加载预览图片 ============
-  const { data: previewImageUrls = [], isLoading: previewImagesLoading } = useQuery({
-    queryKey: queryKeys.images.task(taskId, 'preview_image'),
-    queryFn: async () => {
+    loadImages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskDetails, taskId, totalOriginalPages, originalImageSignature, originalImages]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!taskDetails || totalPreviewPages <= 0) {
+      return () => {};
+    }
+
+    const loadImages = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      setPreviewImagesLoading(true);
+      setPreviewImageUrls([]);
+
       const urls: string[] = [];
       for (let i = 1; i <= totalPreviewPages; i++) {
-        const url = await fetchAuthenticatedImage(taskId, 'preview_image', i);
-        if (url) urls.push(url);
+        const url = await fetchAuthenticatedImage(
+          taskId,
+          'preview_image',
+          i,
+          undefined,
+          getImageVersion(previewImages[i - 1])
+        );
+        if (url) {
+          urls.push(url);
+        }
       }
-      return urls;
-    },
-    enabled: !!taskDetails && totalPreviewPages > 0,
-    staleTime: Infinity,
-    gcTime: 0,
-  });
+      if (!cancelled) {
+        setPreviewImageUrls(urls);
+        setPreviewImagesLoading(false);
+      }
+    };
+
+    loadImages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskDetails, taskId, totalPreviewPages, previewImageSignature, previewImages]);
 
   const imagesLoading = {
     original: originalImagesLoading,
     preview: previewImagesLoading,
   };
-
-  const originalImageUrlsRef = useRef<string[]>([]);
-  const previewImageUrlsRef = useRef<string[]>([]);
-
-  useEffect(() => {
-    originalImageUrlsRef.current = originalImageUrls;
-  }, [originalImageUrls]);
-
-  useEffect(() => {
-    previewImageUrlsRef.current = previewImageUrls;
-  }, [previewImageUrls]);
-
-  useEffect(() => {
-    return () => {
-      originalImageUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-      previewImageUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, []);
 
   // ============ 确认识别 mutation ============
   const confirmMutation = useConfirmRecognition();

@@ -248,7 +248,14 @@ class BrowserAudioStreamAdapter:
         else:
             target_audio = self.np.concatenate((self.last_chunk, audio_frame))
 
-        features = self.processor(target_audio)
+        feature_time = time.perf_counter()
+        features = self._feature_matrix(self.processor((target_audio, feature_time)))
+        if features is None:
+            self.last_chunk = target_audio[-self.hop_length :]
+            self.last_gate_reason = "feature_buffering"
+            self.last_queue_decision = "feature_buffering"
+            self._log_diagnostics("feature_buffering", rms, peak)
+            return False
         self.last_feature_vector = self._latest_feature_vector(features)
         if not self.started and self.start_streak >= self.min_active_frames:
             self.last_start_feature_confidence = self._score_start_feature(
@@ -287,7 +294,7 @@ class BrowserAudioStreamAdapter:
             frame_class=self.last_frame_class,
         )
         if queue_decision.should_queue:
-            self.queue.put((features, time.perf_counter()))
+            self.queue.put((features, feature_time))
         self.last_queue_decision = queue_decision.reason
         self.last_input_weight = queue_decision.input_weight
         self.last_input_policy_confidence = queue_decision.confidence_ceiling
@@ -537,6 +544,16 @@ class BrowserAudioStreamAdapter:
             return feature_array
         return feature_array[-1]
 
+    @staticmethod
+    def _feature_matrix(processor_output):
+        if processor_output is None:
+            return None
+        if isinstance(processor_output, tuple):
+            if not processor_output:
+                return None
+            return processor_output[0]
+        return processor_output
+
     def _log_diagnostics(self, decision: str, rms: float, peak: float) -> None:
         if not self.diagnostics_enabled:
             return
@@ -607,14 +624,16 @@ class MatchmakerLiveEngine:
         try:
             import numpy as np
             import partitura
-            from matchmaker.dp import OnlineTimeWarpingArzt
+            from matchmaker.dp import OnlineTimeWarpingArztFrame
             from matchmaker.features.audio import ChromagramProcessor
-            from matchmaker.utils.misc import RECVQueue, generate_score_audio
+            from matchmaker.utils.misc import generate_score_audio, get_current_note_bpm
             from partitura.io.exportmidi import get_ppq
         except ImportError as exc:
+            missing_module = getattr(exc, "name", None) or "unknown"
             raise RuntimeError(
-                "pymatchmaker and its runtime dependencies must be installed "
-                "before starting live practice sessions."
+                "Missing practice alignment dependency "
+                f"'{missing_module}'. Install pymatchmaker and its runtime "
+                f"dependencies before starting live practice sessions. Original error: {exc}"
             ) from exc
 
         self.score_file_path = str(Path(score_file_path))
@@ -638,7 +657,7 @@ class MatchmakerLiveEngine:
         self.tempo = DEFAULT_TEMPO_BPM
         self.frame_rate = settings.PRACTICE_MATCHMAKER_FRAME_RATE
         self.hop_length = max(int(sample_rate / self.frame_rate), 1)
-        self._queue = RECVQueue()
+        self._queue = queue.Queue()
         self._processor = self._build_audio_processor(
             sample_rate=sample_rate,
             hop_length=self.hop_length,
@@ -666,12 +685,21 @@ class MatchmakerLiveEngine:
             onset_hold_frames=settings.PRACTICE_AUDIO_ONSET_HOLD_FRAMES,
         )
 
-        score_audio = generate_score_audio(
-            self.score_part,
-            self.tempo,
-            sample_rate,
-        ).astype(np.float32)
-        reference_features = self._processor(score_audio)
+        raw_score_audio = self._generate_score_audio(
+            score=self.score_part,
+            bpm=self.tempo,
+            sample_rate=sample_rate,
+            np=np,
+            partitura=partitura,
+            generate_score_audio=generate_score_audio,
+            get_current_note_bpm=get_current_note_bpm,
+        )
+        score_audio = self._normalize_audio_waveform(raw_score_audio, np).astype(np.float32)
+        reference_features = BrowserAudioStreamAdapter._feature_matrix(
+            self._processor((score_audio, 0.0))
+        )
+        if reference_features is None:
+            raise RuntimeError("Score feature extraction returned no features.")
         if hasattr(self._processor, "reset"):
             self._processor.reset()
         self._reference_features = reference_features
@@ -682,9 +710,9 @@ class MatchmakerLiveEngine:
             reference_features=reference_features,
             feature_queue=self._queue,
             frame_rate=self.frame_rate,
-            arzt_follower=OnlineTimeWarpingArzt,
+            arzt_follower=OnlineTimeWarpingArztFrame,
             ref_frame_to_beat=self._ref_frame_to_beat,
-            state_space=np.unique(self._note_array["onset_beat"]),
+            score_positions=np.unique(self._note_array["onset_beat"]).astype(np.float32),
         )
 
     def ingest_audio(self, chunk: bytes) -> AlignmentUpdate | None:
@@ -775,21 +803,100 @@ class MatchmakerLiveEngine:
         return chroma_processor(sample_rate=sample_rate, hop_length=hop_length)
 
     @staticmethod
+    def _normalize_audio_waveform(audio, np):
+        if isinstance(audio, tuple):
+            if not audio:
+                raise RuntimeError("Score audio synthesis returned an empty tuple.")
+            audio = audio[0]
+
+        waveform = np.asarray(audio)
+        if waveform.ndim == 0:
+            raise RuntimeError("Score audio synthesis returned an invalid scalar waveform.")
+        waveform = np.squeeze(waveform)
+        if waveform.ndim == 2:
+            if waveform.shape[0] <= 2 and waveform.shape[1] > waveform.shape[0]:
+                waveform = waveform.mean(axis=0)
+            elif waveform.shape[1] <= 2:
+                waveform = waveform.mean(axis=1)
+            else:
+                waveform = waveform.mean(axis=-1)
+        if waveform.ndim != 1:
+            raise RuntimeError(
+                f"Score audio synthesis returned unsupported waveform shape: {waveform.shape}"
+            )
+        return waveform
+
+    @staticmethod
+    def _generate_score_audio(
+        *,
+        score,
+        bpm: float,
+        sample_rate: int,
+        np,
+        partitura,
+        generate_score_audio,
+        get_current_note_bpm=None,
+    ):
+        soundfont_path = settings.PRACTICE_SOUNDFONT_PATH
+        if not soundfont_path:
+            return generate_score_audio(score, bpm, sample_rate)
+
+        soundfont = Path(soundfont_path)
+        if not soundfont.exists():
+            raise RuntimeError(f"PRACTICE_SOUNDFONT_PATH does not exist: {soundfont}")
+
+        if get_current_note_bpm is None:
+            from matchmaker.utils.misc import get_current_note_bpm
+
+        note_array = score.note_array()
+        bpm_array = np.array(
+            [
+                [onset_beat, get_current_note_bpm(score, onset_beat, bpm)]
+                for onset_beat in note_array["onset_beat"]
+            ]
+        )
+        score_audio = partitura.save_wav_fluidsynth(
+            score,
+            bpm=bpm_array,
+            samplerate=sample_rate,
+            soundfont=str(soundfont),
+        )
+
+        first_onset_in_beat = note_array["onset_beat"].min()
+        first_onset_in_time = (
+            score.inv_beat_map(first_onset_in_beat)
+            / score.quarter_duration_map(score.inv_beat_map(first_onset_in_beat))
+            * (60 / bpm)
+        )
+        padding_size = int(first_onset_in_time * sample_rate)
+        score_audio = np.pad(score_audio, (padding_size, 0))
+
+        last_onset_in_div = np.floor(note_array["onset_div"].max())
+        last_onset_in_time = (
+            last_onset_in_div
+            / score.quarter_duration_map(score.inv_beat_map(last_onset_in_div))
+            * (60 / bpm)
+        )
+
+        buffer_size = 0.1
+        last_onset_in_time += buffer_size
+        return score_audio[: int(last_onset_in_time * sample_rate)]
+
+    @staticmethod
     def _build_score_follower(
         reference_features,
         feature_queue,
         frame_rate: int,
         arzt_follower,
         ref_frame_to_beat=None,
-        state_space=None,
+        score_positions=None,
     ):
         return arzt_follower(
             reference_features=reference_features,
+            score_positions=score_positions,
             queue=feature_queue,
-            distance_func=arzt_follower.DEFAULT_DISTANCE_FUNC,
             frame_rate=frame_rate,
             ref_frame_to_beat=ref_frame_to_beat,
-            state_space=state_space,
         )
 
     def _build_ref_frame_to_beat(self, reference_features):

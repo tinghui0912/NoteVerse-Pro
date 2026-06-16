@@ -60,10 +60,12 @@ export async function getTaskDetails(taskId: string, shareToken?: string): Promi
  */
 export async function submitBatch(
     fileIds: string[],
-    options?: Record<string, unknown>
+    options?: Record<string, unknown>,
+    idempotencyKey?: string
 ): Promise<ApiResponse<{ task_id: string }>> {
     return apiClient.post<ApiResponse<{ task_id: string }>>('/tasks/submit-batch', {
         file_ids: fileIds,
+        idempotency_key: idempotencyKey,
         options,
     });
 }
@@ -117,7 +119,7 @@ export async function getBatchStatus(taskIds: string[]): Promise<ApiResponse<Bat
  */
 export async function archiveTasks(
     taskIds: string[],
-    includeTypes: string[] = ['png', 'xml']
+    includeTypes: string[] = ['image', 'xml']
 ): Promise<ArchiveResult> {
     const response = await apiClient.postDownload('/tasks/archive', {
         task_ids: taskIds,

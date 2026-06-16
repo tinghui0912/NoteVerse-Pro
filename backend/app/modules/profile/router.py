@@ -32,7 +32,16 @@ router = APIRouter()
 async def get_user_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    avatar_service: AvatarService = Depends(get_avatar_service),
 ):
+    avatar_url = current_user.avatar_url
+    if avatar_url:
+        avatar_filename = avatar_url.split("/")[-1].split("?")[0]
+        if not avatar_service.avatar_exists(avatar_filename):
+            current_user.avatar_url = None
+            await db.commit()
+            avatar_url = None
+
     return success_response(
         data={
             "user": {
@@ -41,7 +50,7 @@ async def get_user_profile(
                 "display_name": current_user.display_name or current_user.email.split("@")[0],
                 "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
                 "is_active": current_user.is_active,
-                "avatar_url": current_user.avatar_url,
+                "avatar_url": avatar_url,
             }
         }
     )

@@ -43,11 +43,11 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # StaticFiles requires the target directory to exist at mount time.
-    os.makedirs(settings.UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(settings.STORAGE_ROOT, exist_ok=True)
 
     app.mount(
         f"{settings.API_V1_STR}/uploads",
-        StaticFiles(directory=settings.UPLOAD_FOLDER),
+        StaticFiles(directory=settings.STORAGE_ROOT),
         name="uploads",
     )
 

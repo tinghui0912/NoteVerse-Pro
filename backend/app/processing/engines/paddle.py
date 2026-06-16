@@ -11,10 +11,18 @@ from typing import Any, TypedDict
 
 from celery.utils.log import get_task_logger
 
+from app.core.config import settings
+
 logger = get_task_logger(__name__)
 
 _BACKEND_DIR = Path(__file__).resolve().parents[3]
 _WORKER_MODULE = "app.processing.engines.paddle_worker"
+_PADDLEOCR_ENV_NAMES = (
+    "PADDLEOCR_MODEL_ROOT",
+    "PADDLEOCR_DETECTION_MODEL_DIR",
+    "PADDLEOCR_RECOGNITION_MODEL_DIR",
+    "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
+)
 
 
 class PaddleOcrSuccessResult(TypedDict):
@@ -53,6 +61,11 @@ def run_ocr_subprocess(
         _WORKER_MODULE,
         os.path.abspath(image_path),
     ]
+    env = os.environ.copy()
+    for name in _PADDLEOCR_ENV_NAMES:
+        value = getattr(settings, name, None)
+        if value:
+            env[name] = str(value)
 
     try:
         logger.info(f"Executing PaddleOCR subprocess: {' '.join(cmd)}")
@@ -62,6 +75,7 @@ def run_ocr_subprocess(
             text=True,
             timeout=timeout_seconds,
             cwd=str(_BACKEND_DIR),
+            env=env,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
     except subprocess.TimeoutExpired:
@@ -80,12 +94,23 @@ def run_ocr_subprocess(
         }
 
     if result.returncode != 0:
-        error_detail = result.stderr.strip() or result.stdout.strip() or "Unknown PaddleOCR error"
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            payload = None
+
+        if isinstance(payload, dict):
+            error_detail = str(payload.get("error") or result.stderr.strip() or "Unknown PaddleOCR error")
+            error_code = str(payload.get("code") or "ocr_subprocess_failed")
+        else:
+            error_detail = result.stderr.strip() or result.stdout.strip() or "Unknown PaddleOCR error"
+            error_code = "ocr_subprocess_failed"
+
         logger.error(f"PaddleOCR subprocess failed: {error_detail}")
         return {
             "success": False,
             "error": error_detail,
-            "code": "ocr_subprocess_failed",
+            "code": error_code,
         }
 
     try:

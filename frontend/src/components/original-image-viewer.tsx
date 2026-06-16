@@ -207,6 +207,7 @@ export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProp
               src={images[currentIndex].src}
               alt={images[currentIndex].alt}
               fill
+              unoptimized={images[currentIndex].src.startsWith('http')}
               className="object-contain"
               draggable="false"
             />

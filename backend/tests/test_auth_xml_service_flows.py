@@ -182,12 +182,20 @@ async def test_save_xml_persists_content_and_uses_render_service() -> None:
 
     service._get_task = AsyncMock(return_value=task)
     service._find_file = AsyncMock(return_value=xml_file)
+    storage = Mock()
+    storage.backend_name = "local"
+    storage.put_bytes.return_value = SimpleNamespace(
+        storage_key="tasks/task-1/current_xml/current.xml"
+    )
 
-    with patch("app.modules.xml.service.settings.OUTPUT_FOLDER", "C:/tmp/output"):
+    with patch("app.modules.xml.service.settings.WORK_ROOT", "C:/tmp/work"):
         with patch("app.modules.xml.service.os.makedirs"), patch(
             "app.modules.xml.service.os.path.getsize",
             return_value=128,
-        ), patch("builtins.open", create=True) as mocked_open:
+        ), patch("app.modules.xml.service.file_storage", storage), patch(
+            "builtins.open",
+            create=True,
+        ) as mocked_open:
             result = await service.save_xml(
                 db,
                 task_uuid="task-1",
@@ -195,7 +203,6 @@ async def test_save_xml_persists_content_and_uses_render_service() -> None:
                 content="<xml />",
                 file_type="current_xml",
                 image_type="preview_image",
-                dpi=200,
             )
 
     assert result["size_bytes"] == 128
@@ -206,31 +213,30 @@ async def test_save_xml_persists_content_and_uses_render_service() -> None:
 
 
 @pytest.mark.asyncio
-async def test_confirm_recognition_falls_back_to_preview_images() -> None:
+async def test_confirm_recognition_uses_rendered_final_images() -> None:
     render_service = Mock(
-        render_images=AsyncMock(return_value=[]),
-        fallback_preview_to_final=AsyncMock(return_value=[{"path": "images/page-01.png", "page": 1}]),
+        render_images=AsyncMock(return_value=["images/page-01.svg"]),
     )
     service = XMLService(render_service=render_service)
     db = SimpleNamespace(add=Mock(), commit=AsyncMock(), execute=AsyncMock())
     task = SimpleNamespace(id=7, user_id=1, state="PROGRESS")
-    current_file = SimpleNamespace(path="current.xml")
+    current_file = SimpleNamespace(storage_key="tasks/task-1/current_xml/current.xml")
 
     service._get_task = AsyncMock(return_value=task)
     service._find_file = AsyncMock(return_value=current_file)
-    service._upsert_file = AsyncMock()
+    service._upsert_file = AsyncMock(return_value="tasks/task-1/final_xml/final.xml")
 
-    with patch("app.modules.xml.service.resolve_stored_path", return_value="C:/tmp/current.xml"), patch(
+    with patch("app.modules.xml.service.materialize_storage_key", return_value="C:/tmp/current.xml"), patch(
         "app.modules.xml.service.os.path.exists",
         return_value=True,
     ), patch("app.modules.xml.service.os.makedirs"), patch(
         "app.modules.xml.service.shutil.copy2"
     ):
-        result = await service.confirm_recognition(db, "task-1", user_id=1, dpi=300)
+        result = await service.confirm_recognition(db, "task-1", user_id=1)
 
     assert result["image_count"] == 1
-    assert result["final_images"] == [{"path": "images/page-01.png", "page": 1}]
+    assert result["final_xml"] == "tasks/task-1/final_xml/final.xml"
+    assert result["final_images"] == [{"storage_key": "images/page-01.svg", "page": 1}]
     assert task.state == "SUCCESS"
     render_service.render_images.assert_awaited_once()
-    render_service.fallback_preview_to_final.assert_awaited_once()
     db.commit.assert_awaited()

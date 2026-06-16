@@ -15,7 +15,6 @@ from app.core.exceptions import (
     ResourceNotFoundException,
     UnauthorizedException,
 )
-from app.core.logger import logger
 from app.db.models import Task
 from app.db.models.file import File
 from app.db.models.task import TaskState
@@ -29,9 +28,10 @@ from app.modules.xml.schemas import (
     XMLLoadResult,
     XMLSaveResult,
 )
+from app.storage import file_storage
+from app.storage.paths import materialize_storage_key
 from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
-from app.utils.paths import resolve_stored_path, to_rel_storage
 
 _FILE_TYPE_MAP: dict[str, FileKind] = {
     "current_xml": FileKind.CURRENT_XML,
@@ -86,7 +86,7 @@ class XMLService:
                 code=ErrorCode.FILE_NOT_FOUND,
             )
 
-        file_path = resolve_stored_path(file_record.path)
+        file_path = materialize_storage_key(file_record.storage_key)
         if not os.path.exists(file_path):
             raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=file_path)
 
@@ -108,7 +108,6 @@ class XMLService:
         content: str,
         file_type: str = "current_xml",
         image_type: Optional[str] = None,
-        dpi: int = 300,
     ) -> XMLSaveResult:
         task = await self._get_task(db, task_uuid)
         self._check_edit_access(task, user_id, task_uuid)
@@ -118,9 +117,9 @@ class XMLService:
         xml_file = await self._find_file(db, task_id, file_kind)
 
         if xml_file:
-            output_path = resolve_stored_path(xml_file.path)
+            output_path = materialize_storage_key(xml_file.storage_key)
         else:
-            output_dir = os.path.join(settings.OUTPUT_FOLDER, task_uuid)
+            output_dir = os.path.join(settings.WORK_ROOT, task_uuid, "xml")
             os.makedirs(output_dir, exist_ok=True)
             filename = "current.xml" if file_kind == FileKind.CURRENT_XML else "final.xml"
             output_path = os.path.join(output_dir, filename)
@@ -129,15 +128,21 @@ class XMLService:
             file_handle.write(content)
 
         size_bytes = os.path.getsize(output_path)
+        stored_key = self._store_xml_output(task_uuid, file_kind, output_path)
 
         if xml_file:
+            xml_file.storage_backend = file_storage.backend_name
+            xml_file.storage_key = stored_key
+            xml_file.filename = os.path.basename(stored_key)
             xml_file.size_bytes = size_bytes
         else:
             db.add(
                 File(
                     task_id=task_id,
                     kind=file_kind,
-                    path=to_rel_storage(output_path),
+                    storage_backend=file_storage.backend_name,
+                    storage_key=stored_key,
+                    filename=os.path.basename(stored_key),
                     size_bytes=size_bytes,
                     mime_type="application/xml",
                 )
@@ -146,23 +151,19 @@ class XMLService:
         await db.commit()
 
         result: XMLSaveResult = {
-            "saved_path": to_rel_storage(output_path),
+            "storage_key": stored_key,
             "size_bytes": size_bytes,
         }
 
         if image_type:
-            try:
-                rendered = await self.render_service.render_images(
-                    db,
-                    task_id,
-                    task_uuid,
-                    output_path,
-                    image_type,
-                    dpi,
-                )
-                result["image_count"] = len(rendered)
-            except Exception as exc:
-                logger.warning(f"[{task_uuid}] save_xml rerender failed: {exc}")
+            rendered = await self.render_service.render_images(
+                db,
+                task_id,
+                task_uuid,
+                output_path,
+                image_type,
+            )
+            result["image_count"] = len(rendered)
 
         return result
 
@@ -171,7 +172,6 @@ class XMLService:
         db: AsyncSession,
         task_uuid: str,
         user_id: int,
-        dpi: int = 300,
     ) -> XMLConfirmResult:
         task = await self._get_task(db, task_uuid)
         self._check_edit_access(task, user_id, task_uuid)
@@ -181,46 +181,40 @@ class XMLService:
         if not current_file:
             raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename="current.xml")
 
-        current_path = resolve_stored_path(current_file.path)
+        current_path = materialize_storage_key(current_file.storage_key)
         if not os.path.exists(current_path):
             raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=current_path)
 
-        output_dir = os.path.join(settings.OUTPUT_FOLDER, task_uuid)
+        output_dir = os.path.join(settings.WORK_ROOT, task_uuid, "xml")
         os.makedirs(output_dir, exist_ok=True)
         final_xml_path = os.path.join(output_dir, "final.xml")
         shutil.copy2(current_path, final_xml_path)
 
-        await self._upsert_file(db, task_id, FileKind.FINAL_XML, final_xml_path)
+        final_xml_key = await self._upsert_file(
+            db,
+            task_id,
+            task_uuid,
+            FileKind.FINAL_XML,
+            final_xml_path,
+        )
 
         final_images: list[XMLImageItem] = []
-        try:
-            rendered_paths = await self.render_service.render_images(
-                db,
-                task_id,
-                task_uuid,
-                final_xml_path,
-                "final_image",
-                dpi,
-            )
-            for index, path in enumerate(rendered_paths, 1):
-                final_images.append({"path": path, "page": index})
-        except Exception as exc:
-            logger.warning(f"Final image rendering failed: {exc}")
-
-        if not final_images:
-            final_images = await self.render_service.fallback_preview_to_final(
-                db,
-                task,
-                task_uuid,
-                dpi,
-            )
+        rendered_paths = await self.render_service.render_images(
+            db,
+            task_id,
+            task_uuid,
+            final_xml_path,
+            "final_image",
+        )
+        for index, path in enumerate(rendered_paths, 1):
+            final_images.append({"storage_key": path, "page": index})
 
         task.state = TaskState.SUCCESS
         await db.commit()
 
         return {
             "task_id": task_uuid,
-            "final_xml": to_rel_storage(final_xml_path),
+            "final_xml": final_xml_key,
             "final_images": final_images,
             "image_count": len(final_images),
         }
@@ -241,7 +235,7 @@ class XMLService:
         if not current_file:
             raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename="current.xml")
 
-        current_path = resolve_stored_path(current_file.path)
+        current_path = materialize_storage_key(current_file.storage_key)
         if not os.path.exists(current_path):
             raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename="current.xml")
 
@@ -275,24 +269,50 @@ class XMLService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def _upsert_file(db: AsyncSession, task_id: int, kind: FileKind, file_path: str) -> None:
+    async def _upsert_file(
+        db: AsyncSession,
+        task_id: int,
+        task_uuid: str,
+        kind: FileKind,
+        file_path: str,
+    ) -> str:
         result = await db.execute(select(File).where(File.task_id == task_id).where(File.kind == kind))
         existing = result.scalar_one_or_none()
         size_bytes = os.path.getsize(file_path)
+        stored_key = XMLService._store_xml_output(task_uuid, kind, file_path)
 
         if existing:
-            existing.path = to_rel_storage(file_path)
+            existing.storage_backend = file_storage.backend_name
+            existing.storage_key = stored_key
+            existing.filename = os.path.basename(stored_key)
             existing.size_bytes = size_bytes
         else:
             db.add(
                 File(
                     task_id=task_id,
                     kind=kind,
-                    path=to_rel_storage(file_path),
+                    storage_backend=file_storage.backend_name,
+                    storage_key=stored_key,
+                    filename=os.path.basename(stored_key),
                     size_bytes=size_bytes,
                     mime_type="application/xml",
                 )
             )
+        return stored_key
+
+    @staticmethod
+    def _store_xml_output(task_uuid: str, kind: FileKind, file_path: str) -> str:
+        if not task_uuid:
+            parent = os.path.basename(os.path.dirname(file_path))
+            task_uuid = parent or "unknown"
+        key = f"tasks/{task_uuid}/{kind.value}/{os.path.basename(file_path)}"
+        with open(file_path, "rb") as file_handle:
+            stored = file_storage.put_bytes(
+                key=key,
+                content=file_handle.read(),
+                content_type="application/xml",
+            )
+        return stored.storage_key
 
 
 xml_service = XMLService()

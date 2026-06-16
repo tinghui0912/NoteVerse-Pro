@@ -29,11 +29,11 @@ def to_rel(p: str) -> str:
         return p
 
 
-def build_task_dirs(temp_root: str, task_id: str) -> Dict[str, str]:
+def build_task_dirs(work_root: str, task_id: str) -> Dict[str, str]:
     """Build and create the standard directory set for a task workspace."""
 
-    base = abs_path(os.path.join(temp_root, task_id))
-    subdirs = ["raw", "pdf", "audiveris", "xml", "preview"]
+    base = abs_path(os.path.join(work_root, task_id))
+    subdirs = ["raw", "pdf", "omr", "xml", "preview"]
     paths = {name: os.path.join(base, name) for name in subdirs}
 
     os.makedirs(base, exist_ok=True)
@@ -52,9 +52,8 @@ def _storage_roots() -> Dict[str, str]:
     from app.core.config import settings
 
     return {
-        "uploads": os.path.abspath(settings.UPLOAD_FOLDER),
-        "output": os.path.abspath(settings.OUTPUT_FOLDER),
-        "temp": os.path.abspath(settings.TEMP_FOLDER),
+        "storage": os.path.abspath(settings.STORAGE_ROOT),
+        "work": os.path.abspath(settings.WORK_ROOT),
     }
 
 
@@ -77,7 +76,7 @@ def to_rel_storage(abs_p: str) -> str:
         if p == root:
             return alias
 
-    # Fall back to the legacy project-relative form when no storage root matches.
+    # Non-runtime paths remain project-relative for diagnostic output.
     return to_rel(p)
 
 
@@ -93,10 +92,10 @@ def resolve_stored_path(path: str) -> str:
     norm = path.replace("\\", "/")
     prefix, _, rest = norm.partition("/")
 
-    if prefix in ("uploads", "output", "temp"):
+    if prefix in ("storage", "work"):
         roots = _storage_roots()
         base = roots[prefix]
         return os.path.abspath(os.path.join(base, rest))
 
-    # Fall back to the legacy project-relative form.
+    # Non-runtime paths are resolved relative to the backend project root.
     return os.path.abspath(os.path.join(project_root(), path))

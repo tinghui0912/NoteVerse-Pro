@@ -59,7 +59,8 @@ class TextOcrStep(Step):
                 typed_result = cast(TextRecognitionProcessSuccessResult, result)
                 classified = typed_result["classified_texts"]
                 logger.info(
-                    f"[{ctx.task_id}] Text recognition completed: {list(classified.keys())}"
+                    f"[{ctx.task_id}] Text recognition completed: "
+                    f"{self._summarize_classified_texts(classified)}"
                 )
                 return typed_result
 
@@ -92,7 +93,10 @@ class TextOcrStep(Step):
             return
 
         text_info = cast(ClassifiedTexts, text_info)
-        logger.info(f"[{ctx.task_id}] Integrating text into XML: {list(text_info.keys())}")
+        logger.info(
+            f"[{ctx.task_id}] Integrating text into XML: "
+            f"{self._summarize_classified_texts(text_info)}"
+        )
 
         try:
             engine = TextIntegrationEngine()
@@ -126,24 +130,37 @@ class TextOcrStep(Step):
         if enhanced_path and os.path.exists(enhanced_path):
             return enhanced_path
 
-        base, ext = os.path.splitext(main_xml)
-        fallback_path = f"{base}_enhanced{ext}"
-        if os.path.exists(fallback_path):
-            return fallback_path
-
         return None
 
     def _record_enhanced_xml(self, ctx: TaskContext, enhanced_path: str) -> None:
         """Persist the enhanced XML artifact in the pipeline file registry."""
-        try:
-            from app.pipeline.files_recorder import replace_files
-            from app.shared.file_kinds import FileKind
+        from app.pipeline.files_recorder import replace_files
+        from app.shared.file_kinds import FileKind
 
-            replace_files(
-                ctx.task_id,
-                FileKind.ENHANCED_XML,
-                [os.path.abspath(enhanced_path)],
-            )
-            logger.info(f"[{ctx.task_id}] Recorded enhanced_xml")
-        except Exception as exc:
-            logger.warning(f"[{ctx.task_id}] Failed to record enhanced_xml: {exc}")
+        replace_files(
+            ctx.task_id,
+            FileKind.ENHANCED_XML,
+            [os.path.abspath(enhanced_path)],
+        )
+        logger.info(f"[{ctx.task_id}] Recorded enhanced_xml")
+
+    def _summarize_classified_texts(self, text_info: "ClassifiedTexts") -> str:
+        """Return a compact, useful OCR classification summary for worker logs."""
+
+        parts: list[str] = []
+        for field in ("title", "subtitle", "composer", "lyricist", "copyright"):
+            value = (text_info.get(field) or "").strip()
+            if not value:
+                continue
+            parts.append(f"{field}={self._shorten_log_text(value)}")
+
+        other_texts = text_info.get("other_texts") or []
+        parts.append(f"other_texts={len(other_texts)}")
+        return ", ".join(parts)
+
+    @staticmethod
+    def _shorten_log_text(value: str, max_length: int = 80) -> str:
+        compact = " ".join(value.split())
+        if len(compact) <= max_length:
+            return repr(compact)
+        return repr(f"{compact[:max_length - 1]}...")

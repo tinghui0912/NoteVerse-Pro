@@ -31,17 +31,19 @@ export function useXmlContent(
 export function useSaveXml() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ taskId, content, fileType, imageType, dpi }: {
+        mutationFn: ({ taskId, content, fileType, imageType }: {
             taskId: string;
             content: string;
             fileType?: 'current_xml' | 'final_xml';
             imageType?: 'preview_image' | 'final_image';
-            dpi?: number;
-        }) => xmlApi.saveXmlContent(taskId, content, fileType, imageType, dpi),
+        }) => xmlApi.saveXmlContent(taskId, content, fileType, imageType),
         onSuccess: (_, { taskId }) => {
             // 保存后让所有相关 XML 缓存失效
             queryClient.invalidateQueries({
                 queryKey: ['xml', taskId],
+            });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.tasks.detail(taskId),
             });
         },
     });
@@ -66,8 +68,8 @@ export function useGenerateFingering() {
 export function useConfirmRecognition() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ taskId, dpi }: { taskId: string; dpi?: number }) =>
-            xmlApi.confirmRecognition(taskId, dpi),
+        mutationFn: ({ taskId }: { taskId: string }) =>
+            xmlApi.confirmRecognition(taskId),
         onSuccess: (_, { taskId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
         },

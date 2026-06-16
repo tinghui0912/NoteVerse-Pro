@@ -4,7 +4,7 @@ from __future__ import annotations
 from io import BytesIO
 import os
 import shutil
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +33,7 @@ from app.modules.tasks.schemas import (
     TaskUpdateResult,
 )
 from app.modules.tasks.submission_service import TaskSubmissionService
+from app.storage import FileStorage, file_storage
 
 
 class TaskService:
@@ -43,10 +44,12 @@ class TaskService:
         repository: Optional[TaskRepository] = None,
         submission_service: Optional[TaskSubmissionService] = None,
         archive_service: Optional[TaskArchiveService] = None,
+        storage: Optional[FileStorage] = None,
     ):
         self.repository = repository or TaskRepository()
         self.submission_service = submission_service or TaskSubmissionService()
         self.archive_service = archive_service or TaskArchiveService(self.repository)
+        self.storage = storage or file_storage
 
     async def list_tasks(
         self,
@@ -164,6 +167,10 @@ class TaskService:
             )
 
         task_id_db = require_persisted_id(task.id, entity="task")
+        files_by_task = await self.repository.list_files_for_tasks(db, [task_id_db])
+        storage_keys = [file.storage_key for file in files_by_task.get(task_id_db, [])]
+        self._cleanup_task_files(task.task_uuid, storage_keys)
+
         await self.repository.delete_single_task_graph(db, task_id_db)
         await db.commit()
 
@@ -189,9 +196,14 @@ class TaskService:
 
         if deletable_tasks:
             task_db_ids = [require_persisted_id(t.id, entity="task") for t in deletable_tasks]
+            files_by_task = await self.repository.list_files_for_tasks(db, task_db_ids)
 
             for task in deletable_tasks:
-                self._cleanup_task_files(task.task_uuid)
+                task_db_id = require_persisted_id(task.id, entity="task")
+                storage_keys = [
+                    file.storage_key for file in files_by_task.get(task_db_id, [])
+                ]
+                self._cleanup_task_files(task.task_uuid, storage_keys)
 
             share_ids = await self.repository.get_share_ids_for_tasks(db, task_db_ids)
             await self.repository.delete_task_graph(db, task_db_ids, share_ids=share_ids)
@@ -204,22 +216,27 @@ class TaskService:
             "not_found": len(task_uuids) - len(tasks),
         }
 
-    def _cleanup_task_files(self, task_uuid: str) -> None:
-        temp_task_dir = os.path.join(settings.TEMP_FOLDER, task_uuid)
-        if os.path.isdir(temp_task_dir):
+    def _cleanup_task_files(
+        self,
+        task_uuid: str,
+        storage_keys: Iterable[str] = (),
+    ) -> None:
+        for storage_key in sorted(set(storage_keys)):
             try:
-                shutil.rmtree(temp_task_dir, ignore_errors=True)
-                logger.info(f"Deleted temp task dir: {temp_task_dir}")
+                self.storage.delete(storage_key)
+                logger.info(f"Deleted task storage object: {storage_key}")
             except Exception as exc:
-                logger.warning(f"Failed to delete temp task dir {temp_task_dir}: {exc}")
+                logger.warning(
+                    f"Failed to delete task storage object {storage_key}: {exc}"
+                )
 
-        output_task_dir = os.path.join(settings.OUTPUT_FOLDER, task_uuid)
-        if os.path.isdir(output_task_dir):
+        work_task_dir = os.path.join(settings.WORK_ROOT, task_uuid)
+        if os.path.isdir(work_task_dir):
             try:
-                shutil.rmtree(output_task_dir, ignore_errors=True)
-                logger.info(f"Deleted output task dir: {output_task_dir}")
+                shutil.rmtree(work_task_dir, ignore_errors=True)
+                logger.info(f"Deleted task work dir: {work_task_dir}")
             except Exception as exc:
-                logger.warning(f"Failed to delete output task dir {output_task_dir}: {exc}")
+                logger.warning(f"Failed to delete task work dir {work_task_dir}: {exc}")
 
     async def batch_status(
         self,

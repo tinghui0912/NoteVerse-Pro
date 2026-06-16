@@ -102,10 +102,11 @@ export function useDeleteTasks() {
  */
 export function useSubmitBatch() {
     return useMutation({
-        mutationFn: ({ fileIds, options }: {
+        mutationFn: ({ fileIds, options, idempotencyKey }: {
             fileIds: string[];
             options?: Record<string, unknown>;
-        }) => tasksApi.submitBatch(fileIds, options),
+            idempotencyKey?: string;
+        }) => tasksApi.submitBatch(fileIds, options, idempotencyKey),
     });
 }
 

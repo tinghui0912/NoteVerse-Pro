@@ -122,7 +122,7 @@ class ValidationException(AppException):
             _details.update(details)
         super().__init__(
             code=code,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             details=_details,
         )
 
@@ -261,6 +261,21 @@ class AudiverisFailedException(AudiverisException):
         super().__init__(code=ErrorCode.AUDIVERIS_FAILED, details=details)
 
 
+class LegatoException(PipelineException):
+    """Base class for LEGATO-related failures."""
+
+
+class LegatoFailedException(LegatoException):
+    """LEGATO execution or conversion failed."""
+
+    def __init__(
+        self,
+        code: str = ErrorCode.LEGATO_FAILED,
+        details: Optional[ErrorDetails] = None,
+    ):
+        super().__init__(code=code, details=details)
+
+
 class MuseScoreException(PipelineException):
     """Base class for MuseScore-related failures."""
 
@@ -277,3 +292,18 @@ class MuseScoreFailedException(MuseScoreException):
 
     def __init__(self, details: Optional[ErrorDetails] = None):
         super().__init__(code=ErrorCode.MUSESCORE_FAILED, details=details)
+
+
+class ScoreRenderException(PipelineException):
+    """Base class for score rendering failures."""
+
+
+class ScoreRenderFailedException(ScoreRenderException):
+    """A configured score rendering engine failed."""
+
+    def __init__(
+        self,
+        code: str = ErrorCode.SCORE_RENDER_FAILED,
+        details: Optional[ErrorDetails] = None,
+    ):
+        super().__init__(code=code, details=details)

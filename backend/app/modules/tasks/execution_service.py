@@ -15,11 +15,15 @@ from app.modules.tasks.worker_service import sync_task_service
 from app.pipeline import PipelineBuilder, TaskContext
 from app.pipeline.context import CeleryTaskLike
 from app.shared.constants import ErrorCode
+from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
 
 class TaskExecutionService:
     """Worker-facing execution service that runs task pipelines."""
+
+    def __init__(self, storage: FileStorage | None = None) -> None:
+        self.storage = storage or file_storage
 
     @staticmethod
     def get_error_code(exception: Exception) -> str:
@@ -27,16 +31,26 @@ class TaskExecutionService:
             return exception.code
         return ErrorCode.UNKNOWN_ERROR
 
+    def _resolve_input_paths(self, image_refs: List[str]) -> List[str]:
+        """Resolve task payload refs to local worker paths."""
+        import os
+
+        if all(os.path.exists(ref) for ref in image_refs):
+            return image_refs
+        return self.storage.resolve_score_uploads(image_refs)
+
     def run_pipeline(
         self,
         celery_task: CeleryTaskLike,
-        image_paths: List[str],
+        image_refs: List[str],
         options: Optional[TaskProcessingOptions] = None,
     ) -> PipelineExecutionSuccessResult | PipelineExecutionFailureResult:
         task_id = celery_task.request.id
-        is_multi = len(image_paths) > 1
 
         try:
+            image_paths = self._resolve_input_paths(image_refs)
+            is_multi = len(image_paths) > 1
+
             with get_worker_db() as db:
                 ctx = TaskContext(
                     task_id=task_id,

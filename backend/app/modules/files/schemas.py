@@ -10,9 +10,11 @@ from app.shared.file_kinds import FileKind
 
 
 class FileBase(BaseModel):
-    path: str
+    storage_backend: str
+    storage_key: str
+    filename: str
     kind: FileKind
-    page: Optional[int] = None
+    page_number: Optional[int] = None
     mime_type: Optional[str] = None
 
 
@@ -31,7 +33,9 @@ class File(FileBase):
 
 class UploadBase(BaseModel):
     sha256: str
-    stored_filename: str
+    storage_backend: str
+    storage_key: str
+    filename: str
     original_filename: Optional[str] = None
     size_bytes: Optional[int] = None
     mime_type: Optional[str] = None
@@ -56,13 +60,14 @@ class ExportTasksExcelRequest(BaseModel):
 class UploadFileResult(TypedDict):
     file_id: str
     filename: str
-    stored_filename: str
+    storage_key: str
     size: int
 
 
 class TaskFileListItem(TypedDict):
-    path: str
-    page: Optional[int]
+    storage_key: str
+    filename: str
+    page_number: Optional[int]
     size: Optional[int]
     mime_type: Optional[str]
     created_at: Optional[str]
@@ -77,6 +82,13 @@ class DeleteUploadedFileResult(TypedDict):
     filename: str
 
 
+class FileAccessUrlResult(TypedDict):
+    url: str
+    filename: str
+    mime_type: str
+    expires_in: int | None
+
+
 __all__ = [
     "File",
     "FileBase",
@@ -89,4 +101,5 @@ __all__ = [
     "TaskFileListItem",
     "TaskFilesResult",
     "DeleteUploadedFileResult",
+    "FileAccessUrlResult",
 ]

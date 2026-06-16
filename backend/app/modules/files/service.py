@@ -1,8 +1,9 @@
-import glob
 import hashlib
 import io
 import os
 import time
+from dataclasses import dataclass
+from urllib.parse import urlencode
 
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,15 +27,30 @@ from app.modules.files.schemas import (
     TaskFilesResult,
     UploadFileResult,
 )
-from app.utils.paths import resolve_stored_path
+from app.storage import FileStorage, file_storage
 from app.utils.permissions import check_task_view_access
+
+
+@dataclass(frozen=True)
+class FileDelivery:
+    """How a file should be delivered to the client."""
+
+    filename: str
+    media_type: str
+    path: str | None = None
+    redirect_url: str | None = None
 
 
 class FilesService:
     """Feature service for file upload, listing, and export flows."""
 
-    def __init__(self, repository: FilesRepository | None = None) -> None:
+    def __init__(
+        self,
+        repository: FilesRepository | None = None,
+        storage: FileStorage | None = None,
+    ) -> None:
         self.repository = repository or FilesRepository()
+        self.storage = storage or file_storage
 
     @staticmethod
     def allowed_file(filename: str) -> bool:
@@ -65,38 +81,33 @@ class FilesService:
         file_hash = sha256_hash.hexdigest()
         await file.seek(0)
 
-        upload_dir = os.path.join(settings.UPLOAD_FOLDER, "scores")
-        os.makedirs(upload_dir, exist_ok=True)
-
         ext = ""
         if "." in file.filename:
             ext = "." + file.filename.rsplit(".", 1)[1].lower()
 
-        existing_files = glob.glob(os.path.join(upload_dir, f"{file_hash}.*"))
-        if existing_files:
-            stored_path = existing_files[0]
-        else:
-            stored_name = f"{file_hash}{ext}"
-            stored_path = os.path.join(upload_dir, stored_name)
-            try:
-                with open(stored_path, "wb") as file_handle:
-                    file_handle.write(content)
-            except Exception as exc:
-                raise FileException(
-                    code=ErrorCode.FILE_SAVE_FAILED,
-                    filename=file.filename,
-                    details={"error": str(exc)},
-                )
+        try:
+            stored = self.storage.save_score_upload(
+                content=content,
+                sha256=file_hash,
+                extension=ext,
+            )
+        except Exception as exc:
+            raise FileException(
+                code=ErrorCode.FILE_SAVE_FAILED,
+                filename=file.filename,
+                details={"error": str(exc)},
+            )
 
-        file_size = os.path.getsize(stored_path)
         uploader_user_id = require_persisted_id(current_user.id, entity="user")
 
         await self.repository.upsert_upload(
             db,
             sha256=file_hash,
-            stored_filename=os.path.basename(stored_path),
+            storage_backend=settings.FILE_STORAGE_BACKEND,
+            storage_key=stored.storage_key,
+            filename=stored.filename,
             original_filename=file.filename,
-            size_bytes=file_size,
+            size_bytes=stored.size_bytes,
             mime_type=file.content_type or "",
             uploader_user_id=uploader_user_id,
         )
@@ -106,8 +117,8 @@ class FilesService:
         return {
             "file_id": file_hash,
             "filename": file.filename,
-            "stored_filename": os.path.basename(stored_path),
-            "size": file_size,
+            "storage_key": stored.storage_key,
+            "size": stored.size_bytes,
         }
 
     async def list_task_files(
@@ -122,8 +133,9 @@ class FilesService:
         for file in files:
             categorized.setdefault(file.kind, []).append(
                 {
-                    "path": file.path,
-                    "page": file.page,
+                    "storage_key": file.storage_key,
+                    "filename": file.filename,
+                    "page_number": file.page_number,
                     "size": file.size_bytes,
                     "mime_type": file.mime_type,
                     "created_at": file.created_at.isoformat() if file.created_at else None,
@@ -140,7 +152,7 @@ class FilesService:
         file_type: str,
         page: int,
         share_token: str | None = None,
-    ) -> tuple[str, str, str]:
+    ) -> FileDelivery:
         task = await self.repository.get_task_by_uuid(db, task_id)
 
         if not task:
@@ -169,12 +181,90 @@ class FilesService:
 
         page_index = max(0, min(len(files) - 1, page - 1))
         target_file = files[page_index]
-        file_path = resolve_stored_path(target_file.path)
+        filename = target_file.filename
+        media_type = target_file.mime_type or "application/octet-stream"
+        if self.storage.backend_name != "local":
+            redirect_url = self._signed_storage_url(
+                target_file.storage_key,
+                filename=filename,
+                media_type=media_type,
+            )
+            return FileDelivery(
+                redirect_url=redirect_url,
+                filename=filename,
+                media_type=media_type,
+            )
+
+        file_path = self.storage.materialize_to_local(
+            target_file.storage_key,
+            self.storage.local_path(target_file.storage_key),
+        )
 
         if not os.path.exists(file_path):
             raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=file_path)
 
-        return file_path, os.path.basename(file_path), target_file.mime_type or "application/octet-stream"
+        return FileDelivery(
+            path=file_path,
+            filename=os.path.basename(file_path),
+            media_type=media_type,
+        )
+
+    async def get_task_file_access_url(
+        self,
+        db: AsyncSession,
+        current_user: User,
+        task_id: str,
+        file_type: str,
+        page: int,
+        share_token: str | None = None,
+    ) -> dict[str, str | int | None]:
+        """Return an authenticated inline URL for browser image/media display."""
+        task = await self.repository.get_task_by_uuid(db, task_id)
+
+        if not task:
+            raise ResourceNotFoundException(
+                resource_type="task",
+                resource_id=task_id,
+                code=ErrorCode.TASK_NOT_FOUND,
+            )
+
+        has_access = await check_task_view_access(db, task, current_user, share_token)
+        if not has_access:
+            raise UnauthorizedException(
+                code=ErrorCode.NO_ACCESS,
+                details={"task_id": task_id},
+            )
+
+        task_id_db = require_persisted_id(task.id, entity="task")
+        files = await self.repository.list_task_files_by_kind(db, task_id_db, file_type)
+
+        if not files:
+            raise ResourceNotFoundException(
+                resource_type=file_type,
+                resource_id=task_id,
+                code=ErrorCode.FILE_NOT_FOUND,
+            )
+
+        page_index = max(0, min(len(files) - 1, page - 1))
+        target_file = files[page_index]
+        media_type = target_file.mime_type or "application/octet-stream"
+        url = self._inline_access_url(
+            target_file.storage_key,
+            file_type=file_type,
+            task_id=task_id,
+            page=page,
+            share_token=share_token,
+            media_type=media_type,
+        )
+
+        return {
+            "url": url,
+            "filename": target_file.filename,
+            "mime_type": media_type,
+            "expires_in": settings.S3_PRESIGN_EXPIRE_SECONDS
+            if self.storage.backend_name != "local"
+            else None,
+        }
 
     async def delete_uploaded_file(
         self,
@@ -182,7 +272,7 @@ class FilesService:
         current_user: User,
         filename: str,
     ) -> DeleteUploadedFileResult:
-        upload = await self.repository.get_upload_by_stored_filename(db, filename)
+        upload = await self.repository.get_upload_by_filename(db, filename)
 
         if not upload:
             raise ResourceNotFoundException(
@@ -197,10 +287,8 @@ class FilesService:
                 details={"filename": filename},
             )
 
-        file_path = os.path.join(settings.UPLOAD_FOLDER, "scores", filename)
         try:
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            self.storage.delete(upload.storage_key)
         except Exception as exc:
             raise FileException(
                 code=ErrorCode.FILE_DELETE_FAILED,
@@ -213,9 +301,8 @@ class FilesService:
         await db.commit()
         return {"filename": filename}
 
-    def preview_file(self, filename: str) -> tuple[str, str, str]:
-        file_path = os.path.join(settings.UPLOAD_FOLDER, "scores", filename)
-        if not os.path.exists(file_path):
+    def preview_file(self, filename: str) -> FileDelivery:
+        if not self.storage.score_upload_exists(filename):
             raise ResourceNotFoundException(
                 resource_type="file",
                 resource_id=filename,
@@ -225,7 +312,73 @@ class FilesService:
         import mimetypes
 
         mime_type, _ = mimetypes.guess_type(filename)
-        return file_path, filename, mime_type or "application/octet-stream"
+        media_type = mime_type or "application/octet-stream"
+        storage_key = f"scores/{filename}"
+        if self.storage.backend_name != "local":
+            redirect_url = self._signed_storage_url(
+                storage_key,
+                filename=filename,
+                media_type=media_type,
+            )
+            return FileDelivery(
+                redirect_url=redirect_url,
+                filename=filename,
+                media_type=media_type,
+            )
+
+        return FileDelivery(
+            path=self.storage.score_upload_path(filename),
+            filename=filename,
+            media_type=media_type,
+        )
+
+    def _signed_storage_url(
+        self,
+        storage_key: str,
+        *,
+        filename: str,
+        media_type: str,
+    ) -> str:
+        try:
+            if not self.storage.exists(storage_key):
+                raise FileNotFoundError(storage_key)
+            signed_url = self.storage.download_url(
+                storage_key,
+                filename=filename,
+                content_type=media_type,
+            )
+            if not signed_url:
+                raise FileNotFoundError(storage_key)
+            return signed_url
+        except FileNotFoundError:
+            raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=storage_key)
+
+    def _inline_access_url(
+        self,
+        storage_key: str,
+        *,
+        file_type: str,
+        task_id: str,
+        page: int,
+        share_token: str | None,
+        media_type: str,
+    ) -> str:
+        if self.storage.backend_name != "local":
+            try:
+                if not self.storage.exists(storage_key):
+                    raise FileNotFoundError(storage_key)
+                signed_url = self.storage.download_url(storage_key)
+                if not signed_url:
+                    raise FileNotFoundError(storage_key)
+                return signed_url
+            except FileNotFoundError:
+                raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=storage_key)
+
+        query_params = {"page": str(page)}
+        if share_token:
+            query_params["share_token"] = share_token
+        query = urlencode(query_params)
+        return f"{settings.API_V1_STR}/files/download/{file_type}/{task_id}?{query}"
 
     async def export_tasks_excel(
         self,

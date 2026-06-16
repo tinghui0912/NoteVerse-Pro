@@ -72,12 +72,22 @@ export class MusicXMLParser {
     // 解析连线信息
     const connections = this.parseConnections(measures);
 
-    const mainTitle = this.xmlDoc.querySelector('work-title')?.textContent || '';
-    const subtitle = this.getCreditTextByType('subtitle');
-    const copyright = this.xmlDoc.querySelector('rights')?.textContent || '';
+    const mainTitle =
+      this.getElementText('work-title') ||
+      this.getCreditTextByType('title');
+    const subtitle =
+      this.getCreditTextByType('subtitle');
+    const copyright =
+      this.getElementText('rights') ||
+      this.getCreditTextByType('rights') ||
+      this.getCreditTextByType('copyright');
 
-    const composer = this.getCreatorByType('composer');
-    const lyricist = this.getCreatorByType('lyricist');
+    const composer =
+      this.getCreatorByType('composer') ||
+      this.getCreditTextByType('composer');
+    const lyricist =
+      this.getCreatorByType('lyricist') ||
+      this.getCreditTextByType('lyricist');
 
     const keySignatureNode = this.xmlDoc.querySelector('key > fifths');
     const keySignature = keySignatureNode ? keySignatureNode.textContent || '0' : '0';
@@ -168,6 +178,10 @@ export class MusicXMLParser {
     return '';
   }
 
+  private getElementText(selector: string): string {
+    return this.xmlDoc.querySelector(selector)?.textContent?.trim() || '';
+  }
+
   /**
    * 从 <credit> 中获取指定 credit-type 的 <credit-words> 文本
    */
@@ -175,11 +189,19 @@ export class MusicXMLParser {
     const credits = this.xmlDoc.querySelectorAll('credit');
     for (const credit of credits) {
       const creditType = credit.querySelector('credit-type');
-      if (creditType?.textContent === type) {
-        return credit.querySelector('credit-words')?.textContent?.trim() || '';
+      if (creditType?.textContent?.trim().toLowerCase() === type.toLowerCase()) {
+        return this.getCreditWordsText(credit);
       }
     }
     return '';
+  }
+
+  private getCreditWordsText(credit: Element): string {
+    return Array.from(credit.querySelectorAll('credit-words'))
+      .map(node => node.textContent?.trim() || '')
+      .filter(Boolean)
+      .join(' ')
+      .trim();
   }
 
   private getDivisions(): number {

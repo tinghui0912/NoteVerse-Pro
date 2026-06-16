@@ -45,7 +45,7 @@ class PracticeRepository:
             select(File)
             .where(File.task_id == task_id)
             .where(File.kind == kind)
-            .order_by(File.page)
+            .order_by(File.page_number)
         )
         return result.first()
 

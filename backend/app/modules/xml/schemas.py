@@ -29,11 +29,6 @@ class XMLSaveRequest(BaseModel):
         default=None,
         description="Optional image type to rerender after save",
     )
-    dpi: int = Field(default=300, ge=72, le=600, description="Render DPI")
-
-
-class ConfirmRequest(BaseModel):
-    dpi: int = Field(default=300, ge=72, le=600, description="Render DPI")
 
 
 class FingeringRequest(BaseModel):
@@ -56,13 +51,13 @@ class XMLLoadResult(TypedDict):
 
 
 class XMLSaveResult(TypedDict, total=False):
-    saved_path: str
+    storage_key: str
     size_bytes: int
     image_count: int
 
 
 class XMLImageItem(TypedDict):
-    path: str
+    storage_key: str
     page: int
 
 

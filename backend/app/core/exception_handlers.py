@@ -38,7 +38,7 @@ def _error_payload(
 
 
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    logger.warning(f"Application error: {exc.code}")
+    logger.warning(f"Application error: {exc.code} | details={exc.details}")
     return JSONResponse(
         status_code=exc.status_code,
         content=_error_payload(

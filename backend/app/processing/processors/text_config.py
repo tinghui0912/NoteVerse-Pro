@@ -48,6 +48,23 @@ class ClassificationConfig:
         "copyright",
     ]
 
+    TITLE_METADATA_LABEL_KEYWORDS = [
+        *COMPOSER_KEYWORDS,
+        *LYRICIST_KEYWORDS,
+    ]
+    TITLE_ALWAYS_EXCLUDE_KEYWORDS = [
+        "©",
+        "copyright",
+    ]
+    TITLE_METADATA_LABEL_SEPARATORS = [
+        ":",
+        "：",
+        "-",
+        "—",
+        " ",
+        "\t",
+    ]
+
     COPYRIGHT_KEYWORDS = [
         "©",
         "copyright",
@@ -82,15 +99,15 @@ class XmlLayoutConfig:
 
     COMPOSER_INFO = {
         "default_x": "1114.7587",
-        "default_y": "1511.210312",
+        "default_y": "1460.000000",
         "justify": "right",
         "valign": "bottom",
     }
 
     LYRICIST_INFO = {
-        "default_x": "85.725171",
-        "default_y": "1511.210312",
-        "justify": "left",
+        "default_x": "1114.7587",
+        "default_y": "1495.000000",
+        "justify": "right",
         "valign": "bottom",
     }
 
@@ -100,6 +117,7 @@ class XmlLayoutConfig:
         "default_x": "600.241935",
         "default_y": "85.725171",
         "font_size": "9",
+        "line_spacing": "15",
         "justify": "center",
         "valign": "bottom",
         "credit_type": "rights",

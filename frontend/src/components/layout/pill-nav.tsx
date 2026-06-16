@@ -3,6 +3,7 @@
 
 import { useTranslations, useLocale } from 'next-intl';
 import { useRouter, usePathname, Link } from '@/i18n/routing';
+import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   Check,
@@ -26,7 +27,6 @@ import { Button } from '../ui/button';
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { placeholderImages } from '@/lib/placeholder-images';
 import { ClientOnly } from '../client-only';
 
 const UserMenu = () => {
@@ -42,7 +42,7 @@ const UserMenu = () => {
         >
           <Avatar className="h-9 w-9">
             <AvatarImage
-              src={user?.avatar || placeholderImages['avatar-user']?.url}
+              src={user?.avatar || undefined}
               alt={user?.name || ''}
             />
             <AvatarFallback>
@@ -86,7 +86,9 @@ const UserMenu = () => {
 const LanguageSwitcher = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const locale = useLocale();
+  const currentHref = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
   
   return (
     <DropdownMenu>
@@ -96,13 +98,13 @@ const LanguageSwitcher = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => router.replace(pathname, { locale: 'zh' })}>
+        <DropdownMenuItem onClick={() => router.replace(currentHref, { locale: 'zh' })}>
           <div className="flex items-center w-full justify-between">
             <span>中文</span>
             {locale === 'zh' && <Check className="h-4 w-4" />}
           </div>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.replace(pathname, { locale: 'en' })}>
+        <DropdownMenuItem onClick={() => router.replace(currentHref, { locale: 'en' })}>
           <div className="flex items-center w-full justify-between">
             <span>English</span>
             {locale === 'en' && <Check className="h-4 w-4" />}
@@ -116,7 +118,7 @@ const LanguageSwitcher = () => {
 export default function PillNav() {
   const t = useTranslations('common');
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = isAuthenticated
@@ -173,7 +175,9 @@ export default function PillNav() {
 
             {/* Right side actions */}
             <div className="flex items-center gap-1">
-              {isAuthenticated ? (
+              {isLoading ? (
+                <div className="hidden md:block h-10 w-10 rounded-full bg-white/20" />
+              ) : isAuthenticated ? (
                 <UserMenu />
               ) : (
                 <Link
@@ -221,7 +225,7 @@ export default function PillNav() {
                     </Link>
                   );
                 })}
-                {!isAuthenticated && (
+                {!isLoading && !isAuthenticated && (
                   <Link href="/login" className="bg-white text-black text-center font-medium mt-2 px-5 py-2.5 rounded-full hover:bg-gray-200 transition-colors">
                     {t('nav.login')}
                   </Link>

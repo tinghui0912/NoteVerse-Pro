@@ -5,13 +5,15 @@ Handles task sharing, access control, and shared file downloads.
 import io
 import os
 import zipfile
+from urllib.parse import urlencode
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.config import settings
 from app.shared.file_kinds import FileKind
 from app.shared.constants import ErrorCode, SuccessCode
 from app.core.exceptions import FileException, ResourceNotFoundException
@@ -24,8 +26,9 @@ from app.modules.shares.schemas import (
     SaveShareRequest,
 )
 from app.modules.shares.service import ShareService
+from app.storage import file_storage
+from app.storage.paths import materialize_storage_key
 from app.shared.responses import paginated_response, success_response
-from app.utils.paths import resolve_stored_path
 
 router = APIRouter()
 
@@ -149,7 +152,7 @@ async def download_shared_archive(
     bio = io.BytesIO()
     with zipfile.ZipFile(bio, "w", zipfile.ZIP_DEFLATED) as zf:
         for idx, file in enumerate(files, 1):
-            file_path = resolve_stored_path(file["path"])
+            file_path = materialize_storage_key(file["storage_key"])
             if os.path.exists(file_path):
                 zf.write(file_path, f"page-{idx:02d}.png")
 
@@ -184,14 +187,76 @@ async def download_shared_file(
 
     page = min(page, len(files))
     file = files[page - 1]
-    file_path = resolve_stored_path(file["path"])
+    filename = file["filename"]
+    media_type = file["mime_type"] or "application/octet-stream"
+    if file_storage.backend_name != "local":
+        try:
+            if not file_storage.exists(file["storage_key"]):
+                raise FileNotFoundError(file["storage_key"])
+            redirect_url = file_storage.download_url(
+                file["storage_key"],
+                filename=filename,
+                content_type=media_type,
+            )
+            if not redirect_url:
+                raise FileNotFoundError(file["storage_key"])
+            return RedirectResponse(redirect_url, status_code=302)
+        except FileNotFoundError:
+            raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=file["storage_key"])
+
+    file_path = materialize_storage_key(file["storage_key"])
     if not os.path.exists(file_path):
         raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=file_path)
 
     return FileResponse(
         path=file_path,
         filename=os.path.basename(file_path),
-        media_type=file["mime_type"] or "application/octet-stream",
+        media_type=media_type,
+    )
+
+
+@router.get("/{share_token}/access-url/{file_type}")
+async def get_shared_file_access_url(
+    share_token: str,
+    file_type: str,
+    page: int = Query(default=1, ge=1, description="Page number for multi-page files"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    share_service: ShareService = Depends(get_share_service),
+):
+    files = await share_service.list_download_files(db, share_token, file_type)
+    if not files:
+        raise ResourceNotFoundException(
+            resource_type=file_type,
+            resource_id=share_token,
+            code=ErrorCode.FILE_NOT_FOUND,
+        )
+
+    page = min(page, len(files))
+    file = files[page - 1]
+    media_type = file["mime_type"] or "application/octet-stream"
+    if file_storage.backend_name != "local":
+        try:
+            if not file_storage.exists(file["storage_key"]):
+                raise FileNotFoundError(file["storage_key"])
+            url = file_storage.download_url(file["storage_key"])
+            if not url:
+                raise FileNotFoundError(file["storage_key"])
+        except FileNotFoundError:
+            raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=file["storage_key"])
+        expires_in = settings.S3_PRESIGN_EXPIRE_SECONDS
+    else:
+        query = urlencode({"page": page})
+        url = f"{settings.API_V1_STR}/shares/{share_token}/download/{file_type}?{query}"
+        expires_in = None
+
+    return success_response(
+        data={
+            "url": url,
+            "filename": file["filename"],
+            "mime_type": media_type,
+            "expires_in": expires_in,
+        }
     )
 
 

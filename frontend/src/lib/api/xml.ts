@@ -2,7 +2,7 @@
  * XML 编辑相关 API
  */
 import { apiClient, ApiResponse } from '../api-client';
-import type { SaveResponse, FingeringResponse } from '@/types/api';
+import type { SaveAndRenderResponse, SaveResponse, FingeringResponse } from '@/types/api';
 
 // ============ API 函数 ============
 
@@ -33,20 +33,17 @@ export async function loadXml(
  * @param content XML 内容
  * @param fileType 文件类型 ('current_xml' | 'final_xml')
  * @param imageType 图片类型（可选，传入则触发渲染）
- * @param dpi 渲染 DPI（默认 300）
  */
 export async function saveXmlContent(
     taskId: string,
     content: string,
     fileType: 'current_xml' | 'final_xml' = 'current_xml',
-    imageType?: 'preview_image' | 'final_image',
-    dpi: number = 300
+    imageType?: 'preview_image' | 'final_image'
 ): Promise<ApiResponse<SaveResponse>> {
     return apiClient.post<ApiResponse<SaveResponse>>(`/xml/${taskId}/xml`, {
         content,
         file_type: fileType,
         image_type: imageType,
-        dpi,
     });
 }
 
@@ -72,18 +69,11 @@ export async function generateFingering(
  * 确认识别结果（发布为最终版本）
  * 服务端直接读取 current_xml 复制到 final.xml 并渲染
  * @param taskId 任务 ID
- * @param dpi 渲染 DPI（默认 300）
  */
 export async function confirmRecognition(
-    taskId: string,
-    dpi: number = 300
-): Promise<ApiResponse<{
-    task_id: string;
-    final_xml: string;
-    final_images: string[];
-    image_count: number;
-}>> {
-    return apiClient.post(`/xml/${taskId}/confirm`, { dpi });
+    taskId: string
+): Promise<ApiResponse<SaveAndRenderResponse>> {
+    return apiClient.post(`/xml/${taskId}/confirm`, {});
 }
 
 export const xmlApi = {

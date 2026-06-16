@@ -7,7 +7,7 @@ from typing import List, Optional, Protocol
 
 from typing_extensions import TypedDict
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.db.models.task import TaskState
 
@@ -35,9 +35,10 @@ class TaskProcessingOptions(TypedDict, total=False):
 class TaskFileReplaceItem(TypedDict):
     """Worker-side file payload used when replacing task file records."""
 
-    path: str
-    page: Optional[int]
-    dpi: Optional[int]
+    storage_backend: str
+    storage_key: str
+    filename: str
+    page_number: Optional[int]
     size: Optional[int]
     mime_type: Optional[str]
 
@@ -45,6 +46,7 @@ class TaskFileReplaceItem(TypedDict):
 class BatchSubmitRequestLike(Protocol):
     file_ids: List[str]
     options: Optional[TaskProcessingOptions]
+    idempotency_key: Optional[str]
 
 
 class BatchArchiveRequestLike(Protocol):
@@ -109,8 +111,9 @@ class PipelineExecutionFailureResult(TypedDict):
 
 
 class TaskStatusFileItem(TypedDict):
-    path: str
-    page: Optional[int]
+    storage_key: str
+    filename: str
+    page_number: Optional[int]
     size: Optional[int]
     mime_type: Optional[str]
 
@@ -148,10 +151,24 @@ class TaskStatusResult(TypedDict, total=False):
 
 class BatchSubmitRequest(BaseModel):
     file_ids: List[str] = Field(..., min_length=1, description="Uploaded file ID list")
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        min_length=8,
+        max_length=128,
+        description="Client-generated key used to make submission retries idempotent",
+    )
     options: Optional[TaskProcessingOptions] = Field(
         default=None,
         description="Processing options",
     )
+
+    @field_validator("idempotency_key")
+    @classmethod
+    def normalize_idempotency_key(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
 
 class TaskUpdateRequest(BaseModel):
@@ -170,9 +187,19 @@ class BatchTaskStatusRequest(BaseModel):
 class BatchArchiveRequest(BaseModel):
     task_ids: List[str] = Field(..., min_length=1, description="Task UUID list to archive")
     include_types: List[str] = Field(
-        default_factory=lambda: ["png", "xml"],
+        default_factory=lambda: ["image", "xml"],
         description="Included file types",
     )
+
+    @field_validator("include_types")
+    @classmethod
+    def validate_include_types(cls, value: List[str]) -> List[str]:
+        allowed = {"image", "xml"}
+        normalized = [item.strip().lower() for item in value]
+        invalid = sorted(set(normalized) - allowed)
+        if invalid:
+            raise ValueError(f"include_types must contain only: {', '.join(sorted(allowed))}")
+        return normalized
 
 
 class TaskBase(BaseModel):

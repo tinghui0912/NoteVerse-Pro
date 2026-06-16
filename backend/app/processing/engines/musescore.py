@@ -18,7 +18,7 @@ class MuseScoreSuccessResult(TypedDict):
     success: bool
     output_path: str
     format: str
-    dpi: int
+    dpi: int | None
 
 
 class MuseScoreFailureResult(TypedDict, total=False):
@@ -50,10 +50,10 @@ class MuseScoreEngine:
             musescore_path: Path to MuseScore executable.
                            Defaults to settings.MUSESCORE_PATH
             output_folder: Output directory for rendered files.
-                          Defaults to settings.TEMP_FOLDER
+                          Defaults to settings.WORK_ROOT
         """
         self.musescore_path = musescore_path or settings.MUSESCORE_PATH
-        self.output_folder = output_folder or settings.TEMP_FOLDER
+        self.output_folder = output_folder or settings.WORK_ROOT
         self.timeout_seconds = timeout_seconds
         
         if not self.musescore_path:
@@ -64,7 +64,7 @@ class MuseScoreEngine:
         xml_path: str,
         output_name: Optional[str] = None,
         format: str = 'png',
-        dpi: int = 300
+        dpi: Optional[int] = None
     ) -> MuseScoreRenderResult:
         """
         Render MusicXML to image.
@@ -73,7 +73,7 @@ class MuseScoreEngine:
             xml_path: Input MusicXML file path
             output_name: Output filename (without extension)
             format: Output format ('png', 'pdf', 'svg')
-            dpi: Output resolution
+            dpi: Optional output resolution. When omitted, MuseScore uses its default.
             
         Returns:
             dict: {'success': bool, 'output_path': str, 'error': str (if failed)}
@@ -128,9 +128,9 @@ class MuseScoreEngine:
             ]
             
             # Add format-specific parameters
-            if format == 'png':
+            if format == 'png' and dpi is not None:
                 cmd.extend(['--image-resolution', str(dpi)])
-            elif format == 'pdf':
+            elif format == 'pdf' and dpi is not None:
                 cmd.extend(['--image-resolution', str(dpi)])
             
             logger.info(f"Executing MuseScore: {' '.join(cmd)}")
@@ -220,7 +220,7 @@ class MuseScoreEngine:
         self,
         xml_path: str,
         output_name: Optional[str] = None,
-        dpi: int = 300
+        dpi: Optional[int] = None
     ) -> MuseScoreRenderResult:
         """Render MusicXML to PNG format."""
         return self.render_to_image(xml_path, output_name, format='png', dpi=dpi)

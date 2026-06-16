@@ -173,7 +173,7 @@ class SharesRepository:
             select(File)
             .where(File.task_id == task_id)
             .where(File.kind == file_type)
-            .order_by(File.page)
+            .order_by(File.page_number)
         )
         return list(result.all())
 

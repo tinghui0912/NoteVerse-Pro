@@ -31,15 +31,15 @@ const CREDIT_CONFIG = {
     },
     COMPOSER: {
         defaultX: '1114.7587',
-        defaultY: '1511.210312',
+        defaultY: '1460.000000',
         justify: 'right',
         valign: 'bottom',
         creditType: 'composer',
     },
     LYRICIST: {
-        defaultX: '85.725171',
-        defaultY: '1511.210312',
-        justify: 'left',
+        defaultX: '1114.7587',
+        defaultY: '1495.000000',
+        justify: 'right',
         valign: 'bottom',
         creditType: 'lyricist',
     },
@@ -243,7 +243,7 @@ export function useMetadataEditor() {
         updateMusicXML(xmlDoc => {
             const root = xmlDoc.querySelector('score-partwise') || xmlDoc.documentElement;
 
-            // 只更新 <credit>（subtitle），不再使用 <movement-title>
+            // Subtitle is represented by typed <credit>, matching backend canonical XML.
             upsertCredit(xmlDoc, root, CREDIT_CONFIG.SUBTITLE.creditType, subtitle, {
                 defaultX: CREDIT_CONFIG.TITLE_CENTER_X,
                 defaultY: CREDIT_CONFIG.SUBTITLE.defaultY,

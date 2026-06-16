@@ -286,9 +286,7 @@ class TextRecognitionEngine:
             relative_y = (y_position - min_y) / (max_y - min_y) if max_y > min_y else 0
 
             if relative_y < ClassificationConfig.TITLE_POSITION_THRESHOLD and not result["title"]:
-                if len(text) > 1 and not any(
-                    keyword in text for keyword in ClassificationConfig.TITLE_EXCLUDE_KEYWORDS
-                ):
+                if len(text) > 1 and not self._looks_like_title_excluded_metadata(text):
                     result["title"] = text
                     continue
             elif (
@@ -296,9 +294,7 @@ class TextRecognitionEngine:
                 and result["title"]
                 and not result["subtitle"]
             ):
-                if len(text) > 1 and not any(
-                    keyword in text for keyword in ClassificationConfig.TITLE_EXCLUDE_KEYWORDS
-                ):
+                if len(text) > 1 and not self._looks_like_title_excluded_metadata(text):
                     result["subtitle"] = text
                     continue
 
@@ -332,6 +328,39 @@ class TextRecognitionEngine:
             logger.info("Detected copyright text")
 
         return result
+
+    def _looks_like_title_excluded_metadata(self, text: str) -> bool:
+        """Return true for metadata labels, without excluding normal title words."""
+
+        value = text.strip().lower()
+        separators = set(ClassificationConfig.TITLE_METADATA_LABEL_SEPARATORS)
+        metadata_keywords = ClassificationConfig.TITLE_METADATA_LABEL_KEYWORDS
+        always_excluded = {
+            keyword.strip().lower()
+            for keyword in ClassificationConfig.TITLE_ALWAYS_EXCLUDE_KEYWORDS
+            if keyword.strip()
+        }
+
+        for keyword in metadata_keywords:
+            normalized = keyword.strip().lower()
+            if not normalized:
+                continue
+
+            if normalized in always_excluded:
+                if normalized in value:
+                    return True
+                continue
+
+            if not value.startswith(normalized):
+                continue
+
+            suffix = value[len(normalized):]
+            if not suffix:
+                return True
+            if suffix[0] in separators:
+                return True
+
+        return False
 
     def _extract_copyright_from_texts(
         self,

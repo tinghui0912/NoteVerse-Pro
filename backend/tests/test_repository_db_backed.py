@@ -148,21 +148,27 @@ def db_backed_session() -> Iterator[AsyncSessionAdapter]:
         id=401,
         task_id=101,
         kind=FileKind.FINAL_IMAGE,
-        path="output/task-1/page-01.png",
-        page=1,
+        storage_backend="local",
+        storage_key="tasks/task-1/final_image/page-01.png",
+        filename="page-01.png",
+        page_number=1,
         mime_type="image/png",
     )
     file_2 = File(
         id=402,
         task_id=101,
         kind=FileKind.FINAL_XML,
-        path="output/task-1/final.xml",
+        storage_backend="local",
+        storage_key="tasks/task-1/final_xml/final.xml",
+        filename="final.xml",
         mime_type="application/xml",
     )
     upload_1 = Upload(
         id=501,
         sha256="sha-1",
-        stored_filename="stored-1.png",
+        storage_backend="local",
+        storage_key="scores/stored-1.png",
+        filename="stored-1.png",
         original_filename="score.png",
         size_bytes=123,
         mime_type="image/png",
@@ -244,12 +250,14 @@ async def test_files_repository_upsert_and_lookup(db_backed_session: AsyncSessio
 
     existing = await repository.get_upload_by_sha256(db_backed_session, "sha-1")
     assert existing is not None
-    assert existing.stored_filename == "stored-1.png"
+    assert existing.filename == "stored-1.png"
 
     created = await repository.upsert_upload(
         db_backed_session,
         sha256="sha-2",
-        stored_filename="stored-2.png",
+        storage_backend="local",
+        storage_key="scores/stored-2.png",
+        filename="stored-2.png",
         original_filename="new.png",
         size_bytes=456,
         mime_type="image/png",

@@ -1,7 +1,12 @@
 from .user import User, UserRole
 from .auth import RefreshToken
 from .task import Task, TaskStep, TaskState, TaskStepStatus
-from .file import File, Upload, TaskUpload, FileKind
+from .file import (
+    File,
+    Upload,
+    TaskUpload,
+    FileKind,
+)
 from .share import Share, SavedShare
 from .practice import (
     PracticeReportStatus,

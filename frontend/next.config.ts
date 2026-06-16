@@ -5,7 +5,6 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: false },
-  /* config options here */
   images: {
     remotePatterns: [
       {
@@ -39,7 +38,12 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        // 本地后端 API
+        protocol: 'https',
+        hostname: '**.oss-cn-shenzhen.aliyuncs.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
         port: '8000',
@@ -47,7 +51,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // API 代理配置 - 开发环境下将 /api/v1 请求转发到 FastAPI 后端
   async rewrites() {
     return [
       {

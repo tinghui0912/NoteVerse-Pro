@@ -105,8 +105,9 @@ class ShareAccessService:
         files = await self.repository.list_task_files_by_kind(db, share.task_id, file_type)
         return [
             {
-                "path": file.path,
-                "page": file.page,
+                "storage_key": file.storage_key,
+                "filename": file.filename,
+                "page_number": file.page_number,
                 "mime_type": file.mime_type,
             }
             for file in files

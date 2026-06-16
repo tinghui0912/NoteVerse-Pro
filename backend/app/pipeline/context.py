@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.modules.tasks.schemas import PipelineExecutionFailureResult, TaskProcessingOptions
-from app.processing.engines.audiveris import AudiverisSuccessResult
+from app.processing.engines.omr import OmrSuccessResult
 from app.modules.tasks.worker_service import sync_task_service as task_service
 from app.pipeline.step_tracker import StepTracker
 
@@ -59,13 +59,13 @@ class TaskContext:
 
     raw_paths: List[str] = field(default_factory=list)
     pdf_path: Optional[str] = None
-    aud_result: Optional[AudiverisSuccessResult] = None
+    omr_result: Optional[OmrSuccessResult] = None
     main_xml: Optional[str] = None
 
     task_temp: str = ""
     raw_dir: str = ""
     pdf_dir: str = ""
-    aud_dir: str = ""
+    omr_dir: str = ""
     xml_dir: str = ""
     preview_dir: str = ""
 
@@ -79,10 +79,10 @@ class TaskContext:
         max_time = int(settings.MAX_PROCESSING_TIME) or 300
         self._deadline = self._start_ts + max_time
 
-        self.task_temp = os.path.join(settings.TEMP_FOLDER, self.task_id)
+        self.task_temp = os.path.join(settings.WORK_ROOT, self.task_id)
         self.raw_dir = os.path.join(self.task_temp, "raw")
         self.pdf_dir = os.path.join(self.task_temp, "pdf")
-        self.aud_dir = os.path.join(self.task_temp, "audiveris")
+        self.omr_dir = os.path.join(self.task_temp, "omr")
         self.xml_dir = os.path.join(self.task_temp, "xml")
         self.preview_dir = os.path.join(self.task_temp, "preview")
 
@@ -180,7 +180,7 @@ class TaskContext:
 
     def create_dirs(self, include_pdf: bool = False) -> None:
         """Create per-task working directories."""
-        dirs = [self.raw_dir, self.aud_dir, self.xml_dir, self.preview_dir]
+        dirs = [self.raw_dir, self.omr_dir, self.xml_dir, self.preview_dir]
         if include_pdf:
             dirs.append(self.pdf_dir)
 

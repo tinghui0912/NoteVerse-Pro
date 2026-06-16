@@ -116,14 +116,17 @@ export interface TaskStep {
 }
 
 export interface TaskFile {
-    path: string;
-    page?: number;
+    storage_key: string;
+    filename: string;
+    page_number?: number;
     size?: number;
     mime_type?: string;
+    created_at?: string;
 }
 
 export interface BatchSubmitRequest {
     file_ids: string[];
+    idempotency_key?: string;
     options?: Record<string, unknown>;
 }
 
@@ -152,9 +155,8 @@ export interface ArchiveResult {
 export interface UploadedFile {
     file_id: string;
     filename: string;
+    storage_key: string;
     size: number;
-    mime_type: string;
-    is_duplicate: boolean;
 }
 
 export interface TaskFiles {
@@ -166,10 +168,18 @@ export interface TaskFiles {
 }
 
 export interface FileInfo {
-    path: string;
-    page?: number;
+    storage_key: string;
+    filename: string;
+    page_number?: number;
     size?: number;
     mime_type?: string;
+}
+
+export interface FileAccessUrl {
+    url: string;
+    filename: string;
+    mime_type: string;
+    expires_in?: number | null;
 }
 
 // ============ 分享相关 ============
@@ -205,8 +215,9 @@ export interface SharedTaskInfo {
         title?: string;
         difficulty?: string;
         files: Record<string, Array<{
-            path: string;
-            page?: number;
+            storage_key: string;
+            filename: string;
+            page_number?: number;
         }>>;
     };
     share_info: {
@@ -257,9 +268,9 @@ export interface PreviewResponse {
 }
 
 export interface SaveResponse {
-    task_id: string;
-    file_type: string;
-    file_path: string;
+    storage_key: string;
+    size_bytes: number;
+    image_count?: number;
 }
 
 export interface SaveAndRenderResponse {
@@ -267,7 +278,7 @@ export interface SaveAndRenderResponse {
     final_xml: string;
     final_images: Array<{
         page: number;
-        url: string;
+        storage_key: string;
     }>;
     image_count: number;
 }

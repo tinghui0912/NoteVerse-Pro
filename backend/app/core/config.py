@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     PRACTICE_AUDIO_ONSET_FLUX_GATE: float = 0.35
     PRACTICE_AUDIO_ONSET_HOLD_FRAMES: int = 45
     PRACTICE_AUDIO_DIAGNOSTICS: bool = False
+    PRACTICE_SOUNDFONT_PATH: Optional[str] = None
+    MODEL_ROOT: Optional[str] = None
+    HF_HOME: Optional[str] = None
+    HF_HUB_OFFLINE: bool = False
+    TRANSFORMERS_OFFLINE: bool = False
+    PADDLEOCR_MODEL_ROOT: Optional[str] = None
+    PADDLEOCR_DETECTION_MODEL_DIR: Optional[str] = None
+    PADDLEOCR_RECOGNITION_MODEL_DIR: Optional[str] = None
+    PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR: Optional[str] = None
 
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
@@ -81,6 +90,32 @@ class Settings(BaseSettings):
     def validate_practice_audio_onset_hold_frames(cls, v: int) -> int:
         return max(v, 1)
 
+    @field_validator(
+        "PRACTICE_SOUNDFONT_PATH",
+        "MODEL_ROOT",
+        "HF_HOME",
+        "PADDLEOCR_MODEL_ROOT",
+        "PADDLEOCR_DETECTION_MODEL_DIR",
+        "PADDLEOCR_RECOGNITION_MODEL_DIR",
+        "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
+    )
+    @classmethod
+    def normalize_optional_path(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        return str(Path(v).expanduser())
+
+    @field_validator(
+        "TASK_PENDING_STALE_SECONDS",
+        "TASK_PROGRESS_STALE_SECONDS",
+        "ORPHAN_UPLOAD_TTL_SECONDS",
+    )
+    @classmethod
+    def validate_positive_reliability_setting(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("reliability settings must be positive integers")
+        return v
+
     # Database
     DATABASE_URL: str
     SYNC_DATABASE_URL: str
@@ -91,11 +126,22 @@ class Settings(BaseSettings):
     # Celery defaults to REDIS_URL unless explicitly overridden.
     CELERY_BROKER_URL: Optional[str] = None
     CELERY_RESULT_BACKEND: Optional[str] = None
+    TASK_PENDING_STALE_SECONDS: int = 600
+    TASK_PROGRESS_STALE_SECONDS: int = 900
+    ORPHAN_UPLOAD_TTL_SECONDS: int = 86400
 
     # File storage
-    UPLOAD_FOLDER: str
-    OUTPUT_FOLDER: str
-    TEMP_FOLDER: str
+    FILE_STORAGE_BACKEND: str = "local"
+    S3_ENDPOINT_URL: Optional[str] = None
+    S3_REGION: str = "auto"
+    S3_BUCKET: Optional[str] = None
+    S3_ACCESS_KEY_ID: Optional[str] = None
+    S3_SECRET_ACCESS_KEY: Optional[str] = None
+    S3_PUBLIC_BASE_URL: Optional[str] = None
+    S3_FORCE_PATH_STYLE: bool = True
+    S3_PRESIGN_EXPIRE_SECONDS: int = 900
+    STORAGE_ROOT: str = "data/storage"
+    WORK_ROOT: str = "data/work"
     MAX_PROCESSING_TIME: int = 300
     ALLOWED_EXTENSIONS: set = {
         "png",
@@ -109,8 +155,31 @@ class Settings(BaseSettings):
     }
 
     # External tools
-    AUDIVERIS_PATH: str
-    MUSESCORE_PATH: str
+    OMR_ENGINE: str = "audiveris"
+    AUDIVERIS_PATH: Optional[str] = None
+    LEGATO_REPO_PATH: Optional[str] = None
+    LEGATO_REPO_COMMIT: Optional[str] = "179c228d3d5f67113cf739b44891b3abe046f1dc"
+    LEGATO_PYTHON: str = "python3"
+    LEGATO_MODEL_PATH: str = "guangyangmusic/legato"
+    LEGATO_PROCESSOR_PATH: Optional[str] = None
+    LEGATO_DEVICE: str = "cuda"
+    LEGATO_FP16: bool = True
+    LEGATO_BEAM_SIZE: int = 10
+    LEGATO_TIMEOUT_SECONDS: int = 600
+    SCORE_RENDER_ENGINE: str = "musescore"
+    MUSESCORE_PATH: Optional[str] = None
+    VEROVIO_PAGE_WIDTH: int = 2100
+    VEROVIO_PAGE_HEIGHT: int = 2970
+    VEROVIO_SCALE: int = 40
+    VEROVIO_BREAKS: str = "encoded"
+    VEROVIO_ADJUST_PAGE_HEIGHT: bool = False
+    VEROVIO_JUSTIFY_VERTICALLY: bool = True
+    VEROVIO_PAGE_MARGIN_TOP: int = 390
+    VEROVIO_PAGE_MARGIN_BOTTOM: int = 80
+    VEROVIO_HEADER: str = "none"
+    VEROVIO_FOOTER: str = "always"
+    VEROVIO_USE_PG_FOOTER_FOR_ALL: bool = True
+    VEROVIO_PREVIEW_HEADER_POSTPROCESSING: bool = True
 
     # Email
     MAIL_SERVER: str
@@ -138,10 +207,10 @@ class Settings(BaseSettings):
             object.__setattr__(self, "MAIL_DEFAULT_SENDER", self.MAIL_USERNAME)
         return self
 
-    @field_validator("UPLOAD_FOLDER", "OUTPUT_FOLDER", "TEMP_FOLDER")
+    @field_validator("STORAGE_ROOT", "WORK_ROOT")
     @classmethod
-    def resolve_storage_folders(cls, v: str) -> str:
-        """Resolve storage paths to absolute directory paths without creating them."""
+    def resolve_runtime_folders(cls, v: str) -> str:
+        """Resolve runtime paths to absolute directory paths without creating them."""
 
         if not os.path.isabs(v):
             backend_dir = Path(__file__).parent.parent.parent
@@ -153,6 +222,28 @@ class Settings(BaseSettings):
             raise ValueError(f"{v} exists but is not a directory")
 
         return str(path)
+
+    @field_validator("FILE_STORAGE_BACKEND")
+    @classmethod
+    def validate_file_storage_backend(cls, v: str) -> str:
+        """Validate the configured file storage backend."""
+
+        value = v.strip().lower()
+        if value not in {"local", "s3"}:
+            raise ValueError("FILE_STORAGE_BACKEND must be one of: local, s3")
+        return value
+
+    @field_validator("S3_ENDPOINT_URL", "S3_PUBLIC_BASE_URL")
+    @classmethod
+    def normalize_optional_url(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize optional storage URLs."""
+
+        if not v:
+            return None
+        value = v.strip().rstrip("/")
+        if value and not value.startswith(("http://", "https://")):
+            value = f"https://{value}"
+        return value
 
     @field_validator("SECRET_KEY")
     @classmethod
@@ -190,8 +281,11 @@ class Settings(BaseSettings):
 
     @field_validator("AUDIVERIS_PATH", "MUSESCORE_PATH")
     @classmethod
-    def resolve_executable_paths(cls, v: str) -> str:
+    def resolve_executable_paths(cls, v: Optional[str]) -> Optional[str]:
         """Resolve executable paths from absolute paths or PATH lookups."""
+
+        if not v:
+            return None
 
         if os.path.isabs(v) and os.path.exists(v):
             return v
@@ -201,6 +295,73 @@ class Settings(BaseSettings):
             return found_path
 
         return v
+
+    @field_validator("OMR_ENGINE")
+    @classmethod
+    def validate_omr_engine(cls, v: str) -> str:
+        """Validate the configured optical music recognition engine."""
+
+        value = v.strip().lower()
+        if value not in {"audiveris", "legato"}:
+            raise ValueError("OMR_ENGINE must be one of: audiveris, legato")
+        return value
+
+    @field_validator("SCORE_RENDER_ENGINE")
+    @classmethod
+    def validate_score_render_engine(cls, v: str) -> str:
+        """Validate the configured score rendering engine."""
+
+        value = v.strip().lower()
+        if value not in {"musescore", "verovio"}:
+            raise ValueError("SCORE_RENDER_ENGINE must be one of: musescore, verovio")
+        return value
+
+    @field_validator("VEROVIO_HEADER")
+    @classmethod
+    def validate_verovio_header(cls, v: str) -> str:
+        """Validate Verovio header rendering mode."""
+
+        value = v.strip().lower()
+        if value not in {"none", "auto", "encoded"}:
+            raise ValueError("VEROVIO_HEADER must be one of: none, auto, encoded")
+        return value
+
+    @field_validator("VEROVIO_FOOTER")
+    @classmethod
+    def validate_verovio_footer(cls, v: str) -> str:
+        """Validate Verovio footer rendering mode."""
+
+        value = v.strip().lower()
+        if value not in {"none", "auto", "encoded", "always"}:
+            raise ValueError("VEROVIO_FOOTER must be one of: none, auto, encoded, always")
+        return value
+
+    @model_validator(mode="after")
+    def validate_engine_settings(self) -> "Settings":
+        """Validate engine-specific settings."""
+
+        if self.OMR_ENGINE == "audiveris" and not self.AUDIVERIS_PATH:
+            raise ValueError("AUDIVERIS_PATH is required when OMR_ENGINE=audiveris")
+        if self.OMR_ENGINE == "legato" and not self.LEGATO_REPO_PATH:
+            raise ValueError("LEGATO_REPO_PATH is required when OMR_ENGINE=legato")
+        if self.SCORE_RENDER_ENGINE == "musescore" and not self.MUSESCORE_PATH:
+            raise ValueError("MUSESCORE_PATH is required when SCORE_RENDER_ENGINE=musescore")
+        if self.FILE_STORAGE_BACKEND == "s3":
+            missing = [
+                name
+                for name, value in (
+                    ("S3_ENDPOINT_URL", self.S3_ENDPOINT_URL),
+                    ("S3_BUCKET", self.S3_BUCKET),
+                    ("S3_ACCESS_KEY_ID", self.S3_ACCESS_KEY_ID),
+                    ("S3_SECRET_ACCESS_KEY", self.S3_SECRET_ACCESS_KEY),
+                )
+                if not value
+            ]
+            if missing:
+                raise ValueError(
+                    "Missing required S3 storage settings: " + ", ".join(missing)
+                )
+        return self
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),

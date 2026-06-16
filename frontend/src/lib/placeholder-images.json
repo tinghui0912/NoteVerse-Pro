@@ -49,12 +49,6 @@
       "imageHint": "composer portrait"
     },
     {
-      "id": "avatar-user",
-      "description": "Default user avatar",
-      "imageUrl": "/images/placeholders/avatar-user.jpg",
-      "imageHint": "user icon"
-    },
-    {
       "id": "score-example",
       "description": "Example of a sheet music page",
       "imageUrl": "/images/placeholders/score-example.jpg",

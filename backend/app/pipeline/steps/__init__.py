@@ -1,6 +1,6 @@
 """Pipeline step exports."""
 
-from .audiveris import AudiverisImageStep, AudiverisPdfStep
+from .audiveris import AudiverisImageStep, AudiverisPdfStep, OmrImageStep, OmrPdfStep
 from .finalize import FinalizeStep
 from .input import CopyImageStep, CopyImagesStep
 from .normalize import XmlNormalizeStep
@@ -13,6 +13,8 @@ __all__ = [
     "CopyImageStep",
     "CopyImagesStep",
     "GeneratePdfStep",
+    "OmrImageStep",
+    "OmrPdfStep",
     "AudiverisImageStep",
     "AudiverisPdfStep",
     "ExtractXmlStep",

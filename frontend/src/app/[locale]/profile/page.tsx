@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
-import { placeholderImages } from '@/lib/placeholder-images';
 import { Camera, Crown, Save, Loader2, User } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { Footer } from '@/components/layout/footer';
@@ -169,7 +168,7 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       <Avatar className="h-16 w-16">
-                        <AvatarImage src={user?.avatar || placeholderImages['avatar-user'].url} />
+                        <AvatarImage src={user?.avatar || undefined} />
                         <AvatarFallback>
                           <User className="h-8 w-8 text-gray-400" />
                         </AvatarFallback>

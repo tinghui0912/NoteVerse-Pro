@@ -52,7 +52,4 @@ export const queryKeys = {
         content: (taskId: string, source: string, shareToken?: string) =>
             ['xml', taskId, source, shareToken] as const,
     },
-    images: {
-        task: (taskId: string, type: string) => ['images', taskId, type] as const,
-    },
 } as const;

@@ -1,0 +1,45 @@
+name: noteverse-backend-dev
+
+x-backend-common: &backend-common
+  image: noteverse-backend-runtime:dev
+  build:
+    context: .
+    dockerfile: docker/backend/Dockerfile.runtime
+    args:
+      INSTALL_GPU_DEPS: ${INSTALL_GPU_DEPS:-true}
+      INSTALL_LEGATO_EXTRA_DEPS: ${INSTALL_LEGATO_EXTRA_DEPS:-false}
+      TORCH_CUDA_INDEX: ${TORCH_CUDA_INDEX:-cu126}
+      PADDLE_CUDA_INDEX: ${PADDLE_CUDA_INDEX:-cu126}
+  env_file:
+    - path: backend/.env.docker
+      required: false
+  environment:
+    PYTHONPATH: /app
+  volumes:
+    - ./backend:/app
+    - ./external/legato:/external/legato:ro
+    - ${NOTEVERSE_MODEL_ROOT:-/opt/noteverse/models}:/opt/noteverse/models:ro
+    - ./backend/data:/app/data
+    - ./backend/logs:/app/logs
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *backend-common
+    command: api
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  worker:
+    <<: *backend-common
+    command: worker
+    depends_on:
+      - api
+
+  beat:
+    <<: *backend-common
+    command: beat
+    depends_on:
+      - api

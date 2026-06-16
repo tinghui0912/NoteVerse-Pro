@@ -59,7 +59,7 @@ def test_tasks_feature_routes_require_authentication(client: TestClient) -> None
         ("delete", "/api/v1/tasks/test-task", None),
         ("post", "/api/v1/tasks/batch-delete", {"task_ids": ["task-1"]}),
         ("post", "/api/v1/tasks/status/batch", {"task_ids": ["task-1"]}),
-        ("post", "/api/v1/tasks/archive", {"task_ids": ["task-1"], "include_types": ["png"]}),
+        ("post", "/api/v1/tasks/archive", {"task_ids": ["task-1"], "include_types": ["image"]}),
     ]
 
     for method, path, payload in protected_requests:

@@ -50,7 +50,7 @@ class AudiverisEngine:
     ):
         """Initialize the engine from explicit arguments or app settings."""
         self.audiveris_path = audiveris_path or settings.AUDIVERIS_PATH
-        self.output_folder = output_folder or settings.TEMP_FOLDER
+        self.output_folder = output_folder or settings.WORK_ROOT
         self.timeout_seconds = timeout_seconds or int(settings.MAX_PROCESSING_TIME)
 
         if not self.audiveris_path:

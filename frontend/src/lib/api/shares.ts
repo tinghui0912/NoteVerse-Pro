@@ -3,6 +3,7 @@
 import { apiClient, ApiResponse } from '../api-client';
 import type {
     CreateShareResponse,
+    FileAccessUrl,
     SavedShareListResponse,
     ShareListResponse,
     SharedTaskInfo,
@@ -56,6 +57,17 @@ export async function downloadSharedFile(shareToken: string, fileType: string): 
     return apiClient.download(`/shares/${shareToken}/download/${fileType}`);
 }
 
+export async function getSharedFileAccessUrl(
+    shareToken: string,
+    fileType: string,
+    page?: number
+): Promise<ApiResponse<FileAccessUrl>> {
+    return apiClient.get<ApiResponse<FileAccessUrl>>(
+        `/shares/${shareToken}/access-url/${fileType}`,
+        { page }
+    );
+}
+
 export async function downloadSharedArchive(shareToken: string): Promise<Blob> {
     return apiClient.download(`/shares/${shareToken}/download/archive`);
 }
@@ -93,6 +105,7 @@ export const sharesApi = {
     revokeShare,
     accessShare,
     downloadSharedFile,
+    getSharedFileAccessUrl,
     downloadSharedArchive,
     saveShareToCollection,
     batchDeleteSavedShares,

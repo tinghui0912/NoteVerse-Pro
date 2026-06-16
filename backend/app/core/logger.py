@@ -8,6 +8,7 @@ sensitive-data filter for common secret fields.
 import json
 import re
 import sys
+import traceback
 import uuid
 from contextvars import ContextVar
 from pathlib import Path
@@ -136,7 +137,7 @@ def console_format(record):
         "<level>{level: <8}</level> | "
         f"{extra}"
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-        "<level>{message}</level>\n"
+        "<level>{message}</level>\n{exception}"
     )
 
 
@@ -168,6 +169,13 @@ def json_format(record) -> str:
             "value": str(record["exception"].value)
             if record["exception"].value
             else None,
+            "traceback": "".join(
+                traceback.format_exception(
+                    record["exception"].type,
+                    record["exception"].value,
+                    record["exception"].traceback,
+                )
+            ),
         }
 
     return json.dumps(log_record, ensure_ascii=False) + "\n"
@@ -207,7 +215,7 @@ _logger.add(
     rotation="00:00",
     retention="7 days",
     compression="zip",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}\n{exception}",
     level="DEBUG" if debug_mode else "INFO",
     encoding="utf-8",
     filter=filtered_format,

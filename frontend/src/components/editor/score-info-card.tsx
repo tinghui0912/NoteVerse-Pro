@@ -16,7 +16,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { useScoreData, useMetadataEditor } from '@/contexts/editor-provider';
-import React, { useState } from 'react';
 
 export function ScoreInfoCard() {
   const t = useTranslations('editor');
@@ -33,25 +32,6 @@ export function ScoreInfoCard() {
     updateScoreLyricist,
   } = useMetadataEditor();
 
-  // Local state for smooth typing experience
-  const [mainTitle, setMainTitle] = useState('');
-  const [subtitle, setSubtitle] = useState('');
-  const [composer, setComposer] = useState('');
-  const [lyricist, setLyricist] = useState('');
-  const [copyright, setCopyright] = useState('');
-
-  const [prevScoreData, setPrevScoreData] = useState(scoreData);
-  if (scoreData !== prevScoreData) {
-    setPrevScoreData(scoreData);
-    if (scoreData) {
-      setMainTitle(scoreData.mainTitle || '');
-      setSubtitle(scoreData.subtitle || '');
-      setComposer(scoreData.composer || '');
-      setLyricist(scoreData.lyricist || '');
-      setCopyright(scoreData.copyright || '');
-    }
-  }
-
   return (
     <Card className="bg-white rounded-2xl shadow-lg">
       <CardHeader>
@@ -62,51 +42,51 @@ export function ScoreInfoCard() {
           <div className="md:col-span-2">
             <Label htmlFor="main-title">{t('mainTitleLabel')}</Label>
             <Input
+              key={`main-title-${scoreData?.mainTitle || ''}`}
               id="main-title"
-              value={mainTitle}
+              defaultValue={scoreData?.mainTitle || ''}
               className="bg-white"
-              onChange={(e) => setMainTitle(e.target.value)}
-              onBlur={() => updateScoreMainTitle(mainTitle)}
+              onBlur={(e) => updateScoreMainTitle(e.currentTarget.value)}
             />
           </div>
           <div className="md:col-span-2">
             <Label htmlFor="subtitle">{t('subtitleLabel')}</Label>
             <Input
+              key={`subtitle-${scoreData?.subtitle || ''}`}
               id="subtitle"
-              value={subtitle}
+              defaultValue={scoreData?.subtitle || ''}
               className="bg-white"
-              onChange={(e) => setSubtitle(e.target.value)}
-              onBlur={() => updateScoreSubtitle(subtitle)}
+              onBlur={(e) => updateScoreSubtitle(e.currentTarget.value)}
             />
           </div>
           <div className="md:col-span-2">
             <Label htmlFor="composer">{t('composerLabel')}</Label>
             <Input
+              key={`composer-${scoreData?.composer || ''}`}
               id="composer"
-              value={composer}
+              defaultValue={scoreData?.composer || ''}
               className="bg-white"
-              onChange={(e) => setComposer(e.target.value)}
-              onBlur={() => updateScoreComposer(composer)}
+              onBlur={(e) => updateScoreComposer(e.currentTarget.value)}
             />
           </div>
           <div className="md:col-span-2">
             <Label htmlFor="lyricist">{t('lyricistLabel')}</Label>
             <Input
+              key={`lyricist-${scoreData?.lyricist || ''}`}
               id="lyricist"
-              value={lyricist}
+              defaultValue={scoreData?.lyricist || ''}
               className="bg-white"
-              onChange={(e) => setLyricist(e.target.value)}
-              onBlur={() => updateScoreLyricist(lyricist)}
+              onBlur={(e) => updateScoreLyricist(e.currentTarget.value)}
             />
           </div>
           <div className="md:col-span-4">
             <Label htmlFor="copyright">{t('copyrightLabel')}</Label>
             <Textarea
+              key={`copyright-${scoreData?.copyright || ''}`}
               id="copyright"
-              value={copyright}
+              defaultValue={scoreData?.copyright || ''}
               className="bg-white"
-              onChange={(e) => setCopyright(e.target.value)}
-              onBlur={() => updateScoreCopyright(copyright)}
+              onBlur={(e) => updateScoreCopyright(e.currentTarget.value)}
             />
           </div>
         </div>

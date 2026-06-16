@@ -151,7 +151,13 @@ const ScoreCard = ({ item, isSelected, onSelect, selectionMode, isUpload }: {
       </div>
       <div className="relative aspect-4/3 bg-gray-100">
         {item.thumbnail ? (
-          <Image src={item.thumbnail} alt={item.name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+          <Image
+            src={item.thumbnail}
+            alt={item.name}
+            fill
+            unoptimized={item.thumbnail.startsWith('http')}
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+          />
         ) : (item as TaskItem).thumbnailError ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex flex-col items-center">
@@ -281,10 +287,10 @@ export default function HistoryPage() {
     tasks.forEach(task => {
       if (task.thumbnailType && !fetchingTaskThumbsRef.current.has(task.id)) {
         fetchingTaskThumbsRef.current.add(task.id);
-        fetchAuthenticatedImage(task.id, task.thumbnailType).then(blobUrl => {
+        fetchAuthenticatedImage(task.id, task.thumbnailType).then(imageUrl => {
           setTaskThumbnails(current => ({
             ...current,
-            [task.id]: { thumbnail: blobUrl || '', thumbnailError: !blobUrl },
+            [task.id]: { thumbnail: imageUrl || '', thumbnailError: !imageUrl },
           }));
         }).catch(() => {
           setTaskThumbnails(current => ({
@@ -321,11 +327,11 @@ export default function HistoryPage() {
     shares.forEach(share => {
       if (share.taskId && share.thumbnailType && !fetchingShareThumbsRef.current.has(share.id)) {
         fetchingShareThumbsRef.current.add(share.id);
-        fetchAuthenticatedImage(share.taskId, share.thumbnailType).then(blobUrl => {
-          if (blobUrl) {
+        fetchAuthenticatedImage(share.taskId, share.thumbnailType).then(imageUrl => {
+          if (imageUrl) {
             setShareThumbnails(current => ({
               ...current,
-              [share.id]: blobUrl,
+              [share.id]: imageUrl,
             }));
           }
         });
@@ -402,7 +408,7 @@ export default function HistoryPage() {
     }
 
     archiveTasksMutation.mutate(
-      { taskIds, includeTypes: ['png', 'xml'] },
+      { taskIds, includeTypes: ['image', 'xml'] },
       {
         onSuccess: (result) => {
           filesApi.triggerDownload(result.blob, `scores_${Date.now()}.zip`);

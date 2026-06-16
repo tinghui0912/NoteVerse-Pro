@@ -52,6 +52,13 @@ interface RestorableTaskData {
   upload_ids?: RestoredUploadInfo[];
 }
 
+function createSubmissionIdempotencyKey() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function UploadPageContent() {
   const t = useTranslations('upload');
   const tCommon = useTranslations('common');
@@ -69,6 +76,7 @@ function UploadPageContent() {
 
   // 璺熻釜缁勪欢鏄惁鎸傝浇锛岀敤浜庡仠姝㈣疆璇?
   const isMountedRef = useRef(true);
+  const submissionIdempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -86,6 +94,9 @@ function UploadPageContent() {
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [taskProgress, setTaskProgress] = useState(0);
   const [taskError, setTaskError] = useState<string | null>(null); // 浠诲姟閿欒淇℃伅
+  const taskErrorMessage = taskError
+    ? (t.has(taskError as never) ? t(taskError as never) : taskError)
+    : '';
   const [pollInterval, setPollInterval] = useState<number | false>(false);
   const [pollStartTime, setPollStartTime] = useState<number>(0);
 
@@ -142,6 +153,7 @@ function UploadPageContent() {
   const hasRestoredRef = useRef(false); // 闃叉閲嶅鎭㈠
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
+    submissionIdempotencyKeyRef.current = null;
     const newFiles: UploadableFile[] = acceptedFiles.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
@@ -151,6 +163,7 @@ function UploadPageContent() {
   }, []);
 
   const handleReselect = (openFileDialog: () => void) => {
+    submissionIdempotencyKeyRef.current = null;
     files.forEach(f => URL.revokeObjectURL(f.preview));
     setFiles([]);
     openFileDialog();
@@ -165,6 +178,7 @@ function UploadPageContent() {
 
   const removeFile = (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
+    submissionIdempotencyKeyRef.current = null;
     setFiles(prevFiles => {
       const newFiles = [...prevFiles];
       const removedFile = newFiles.splice(index, 1);
@@ -231,10 +245,14 @@ function UploadPageContent() {
 
       setIsUploading(false);
       setIsSubmitting(true);
+      if (!submissionIdempotencyKeyRef.current) {
+        submissionIdempotencyKeyRef.current = createSubmissionIdempotencyKey();
+      }
 
       // 绗簩姝ワ細鎻愪氦澶勭悊浠诲姟
       const response = await submitBatchMutation.mutateAsync({
         fileIds: uploadedFileIds,
+        idempotencyKey: submissionIdempotencyKeyRef.current,
         options: {
           title: scoreName || undefined,
           difficulty,
@@ -242,6 +260,7 @@ function UploadPageContent() {
       });
 
       if (response.data?.task_id) {
+        submissionIdempotencyKeyRef.current = null;
         const taskId = response.data.task_id;
         setCurrentTaskId(taskId);
         setTaskProgress(5);
@@ -310,7 +329,9 @@ function UploadPageContent() {
             if (imgUrl) {
               // 浠?upload_ids 涓幏鍙栧搴旂殑 upload_id
               const uploadInfo = uploadIds[i];
-              const fileName = uploadInfo?.original_filename || originalImages[i].path?.split('/').pop() || `image_${i + 1}.png`;
+              const originalImage = originalImages[i];
+              const fallbackName = originalImage.filename || originalImage.storage_key?.split('/').pop();
+              const fileName = uploadInfo?.original_filename || fallbackName || `image_${i + 1}.png`;
 
               restoredFiles.push({
                 file: new File([], fileName, { type: 'image/png' }),
@@ -369,6 +390,7 @@ function UploadPageContent() {
         src={f.preview}
         alt={f.file.name}
         fill
+        unoptimized={f.preview.startsWith('http')}
         className="object-cover transition-transform duration-300 group-hover:scale-110"
       />
       {/* 鐘舵€佹寚绀哄櫒 */}
@@ -514,7 +536,7 @@ function UploadPageContent() {
                     <XCircle className="h-5 w-5" />
                     {t('processingFailed')}
                   </div>
-                  <p className="text-sm text-red-500">{t(taskError) || taskError}</p>
+                  <p className="text-sm text-red-500">{taskErrorMessage}</p>
                 </div>
               )}
 
@@ -566,6 +588,7 @@ function UploadPageContent() {
                       src={f.preview}
                       alt={f.file.name}
                       fill
+                      unoptimized={f.preview.startsWith('http')}
                       className="object-contain rounded-md"
                     />
                   </div>

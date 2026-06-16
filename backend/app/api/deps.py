@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import jwt
 from fastapi import Cookie, Depends
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -18,6 +19,7 @@ from app.core import security
 from app.core.config import settings
 from app.core.exceptions import (
     AuthenticationException,
+    ExternalServiceException,
     ResourceNotFoundException,
     UnauthorizedException,
 )
@@ -77,7 +79,17 @@ async def get_current_user(
             details={"reason": "invalid_subject"},
         )
 
-    result = await session.execute(select(User).where(User.id == user_id))
+    try:
+        result = await session.execute(select(User).where(User.id == user_id))
+    except (ConnectionRefusedError, SQLAlchemyError) as exc:
+        raise ExternalServiceException(
+            service="database",
+            details={
+                "operation": "get_current_user",
+                "type": type(exc).__name__,
+            },
+        ) from exc
+
     user = result.scalars().first()
 
     if not user:

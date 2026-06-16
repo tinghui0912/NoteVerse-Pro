@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.models import File, Task, TaskStep, TaskUpload, Upload
+from app.db.models.task import TaskState
 
 
 class SyncTaskRepository:
@@ -13,6 +17,18 @@ class SyncTaskRepository:
     @staticmethod
     def get_task_by_uuid(db: Session, task_uuid: str) -> Task | None:
         return db.query(Task).filter_by(task_uuid=task_uuid).first()
+
+    @staticmethod
+    def get_task_by_idempotency_key(
+        db: Session,
+        user_id: int,
+        idempotency_key: str,
+    ) -> Task | None:
+        return (
+            db.query(Task)
+            .filter_by(user_id=user_id, idempotency_key=idempotency_key)
+            .first()
+        )
 
     @staticmethod
     def get_step(db: Session, task_id: int, name: str) -> TaskStep | None:
@@ -47,6 +63,34 @@ class SyncTaskRepository:
             db.query(TaskUpload, Upload)
             .join(Upload, TaskUpload.upload_id == Upload.id)
             .filter(TaskUpload.task_id == task_id)
+            .all()
+        )
+
+    @staticmethod
+    def list_stale_pending_tasks(db: Session, cutoff: datetime) -> list[Task]:
+        return (
+            db.query(Task)
+            .filter(Task.state == TaskState.PENDING)
+            .filter(Task.created_at < cutoff)
+            .all()
+        )
+
+    @staticmethod
+    def list_stale_progress_tasks(db: Session, cutoff: datetime) -> list[Task]:
+        return (
+            db.query(Task)
+            .filter(Task.state == TaskState.PROGRESS)
+            .filter(or_(Task.last_heartbeat_at.is_(None), Task.last_heartbeat_at < cutoff))
+            .all()
+        )
+
+    @staticmethod
+    def list_orphan_uploads(db: Session, cutoff: datetime) -> list[Upload]:
+        return (
+            db.query(Upload)
+            .outerjoin(TaskUpload, Upload.id == TaskUpload.upload_id)
+            .filter(TaskUpload.id.is_(None))
+            .filter(Upload.created_at < cutoff)
             .all()
         )
 

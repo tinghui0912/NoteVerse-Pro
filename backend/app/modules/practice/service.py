@@ -11,6 +11,7 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
+from app.core.logger import logger
 from app.db.models import (
     PracticeReportStatus,
     PracticeSession,
@@ -35,7 +36,7 @@ from app.modules.practice.schemas import (
 )
 from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
-from app.utils.paths import resolve_stored_path
+from app.storage.paths import materialize_storage_key
 from app.utils.timezone import utc_now_naive
 
 
@@ -99,6 +100,12 @@ class PracticeService:
                 frame_format=frame_format,
             )
         except Exception as exc:
+            logger.exception(
+                "practice_session_runtime_registration_failed "
+                f"task_id={task.task_uuid} "
+                f"session_id={session.session_uuid} "
+                f"source={source}"
+            )
             session.state = PracticeSessionState.FAILED
             session.error = str(exc)
             await self.repository.save_session(db, session)
@@ -368,7 +375,7 @@ class PracticeService:
                 code=ErrorCode.FILE_NOT_FOUND,
             )
 
-        xml_path = resolve_stored_path(file_record.path)
+        xml_path = materialize_storage_key(file_record.storage_key)
         return xml_path
 
     def _update_runtime_state(self, session_uuid: str, state: str) -> None:

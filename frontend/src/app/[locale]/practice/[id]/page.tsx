@@ -648,8 +648,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       syncSessionState(detailResponse.data);
       await openPracticeSocket(detailResponse.data, createResponse.data.ws_url);
       setConnectionStatus('ready');
-    } catch (error) {
-      console.error('Failed to prepare practice session:', error);
+    } catch {
+      console.warn('Practice session preparation failed.');
       preconnectStartedRef.current = false;
       setConnectionStatus('error');
       closeSocket();

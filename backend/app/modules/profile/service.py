@@ -3,13 +3,12 @@ Avatar service under the profile module boundary.
 """
 import hashlib
 import io
-import os
 from typing import Tuple
 
 from PIL import Image
 
-from app.core.config import settings
 from app.core.logger import logger
+from app.storage import FileStorage, file_storage
 
 
 class AvatarService:
@@ -19,11 +18,8 @@ class AvatarService:
     MAX_FILE_SIZE = 5 * 1024 * 1024
     AVATAR_SIZE = (200, 200)
 
-    @property
-    def avatar_dir(self) -> str:
-        avatar_path = os.path.join(settings.UPLOAD_FOLDER, "avatars")
-        os.makedirs(avatar_path, exist_ok=True)
-        return avatar_path
+    def __init__(self, storage: FileStorage | None = None) -> None:
+        self.storage = storage or file_storage
 
     def is_allowed_extension(self, filename: str) -> bool:
         if "." not in filename:
@@ -62,27 +58,35 @@ class AvatarService:
             canvas.paste(img, offset)
 
             final_filename = f"{user_id}_{file_hash}.jpg"
-            final_path = os.path.join(self.avatar_dir, final_filename)
-            canvas.save(final_path, "JPEG", quality=85, optimize=True)
+            output = io.BytesIO()
+            canvas.save(output, "JPEG", quality=85, optimize=True)
+            stored = self.storage.save_avatar(
+                content=output.getvalue(),
+                filename=final_filename,
+            )
 
-            relative_url = f"{settings.API_V1_STR}/uploads/avatars/{final_filename}"
             logger.info(f"Avatar saved: {final_filename}")
-            return final_filename, relative_url
+            return final_filename, stored.public_url or self.storage.avatar_url(final_filename)
         except Exception as exc:
             logger.error(f"Avatar processing failed: {exc}")
             raise ValueError(f"Image processing failed: {str(exc)}")
 
     def delete_avatar(self, filename: str) -> bool:
-        file_path = os.path.join(self.avatar_dir, filename)
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
+        try:
+            deleted = self.storage.delete_avatar(filename)
+            if deleted:
                 logger.info(f"Avatar deleted: {filename}")
-                return True
-            except Exception as exc:
-                logger.error(f"Avatar deletion failed: {exc}")
-                return False
-        return False
+            return deleted
+        except Exception as exc:
+            logger.error(f"Avatar deletion failed: {exc}")
+            return False
+
+    def avatar_exists(self, filename: str) -> bool:
+        try:
+            return self.storage.exists(f"avatars/{filename}")
+        except Exception as exc:
+            logger.warning(f"Avatar existence check failed for {filename}: {exc}")
+            return True
 
 
 avatar_service = AvatarService()

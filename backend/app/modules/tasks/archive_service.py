@@ -17,9 +17,9 @@ from app.db.models import User
 from app.db.model_utils import require_persisted_id
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schemas import BatchArchiveRequestLike
+from app.storage.paths import materialize_storage_key
 from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
-from app.utils.paths import resolve_stored_path
 from app.utils.permissions import get_accessible_tasks
 
 
@@ -87,13 +87,14 @@ class TaskArchiveService:
         files: List[FileModel],
         include_types: List[str],
     ) -> None:
-        if "png" in include_types:
+        if "image" in include_types:
             for file in files:
-                if file.kind == FileKind.FINAL_IMAGE and file.mime_type == "image/png":
+                if file.kind == FileKind.FINAL_IMAGE:
+                    ext = os.path.splitext(file.filename)[1] or ".png"
                     TaskArchiveService._write_archive_file(
                         archive,
                         file,
-                        arcname=f"{task_uuid}/page-{file.page or 1:02d}.png",
+                        arcname=f"{task_uuid}/page-{file.page_number or 1:02d}{ext}",
                     )
 
         if "xml" in include_types:
@@ -112,7 +113,7 @@ class TaskArchiveService:
         arcname: str,
     ) -> None:
         try:
-            file_path = resolve_stored_path(file.path)
+            file_path = materialize_storage_key(file.storage_key)
             if not os.path.exists(file_path):
                 raise FileException(code=ErrorCode.FILE_NOT_FOUND, filename=file_path)
             archive.write(file_path, arcname)

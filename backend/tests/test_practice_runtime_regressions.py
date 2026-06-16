@@ -52,7 +52,8 @@ class DummyReadyAlignmentEngine:
 
 class DummyProcessor:
     def __call__(self, audio):
-        return audio
+        data, _frame_time = audio
+        return data, {"frame_time": _frame_time}
 
 
 class DummyQueue:
@@ -81,23 +82,19 @@ class DummyProcessorFactory:
 
 
 class DummyArztFollower:
-    DEFAULT_DISTANCE_FUNC = "default-distance"
-
     def __init__(
         self,
         reference_features,
+        score_positions,
         queue,
-        distance_func,
         frame_rate: int,
         ref_frame_to_beat=None,
-        state_space=None,
     ) -> None:
         self.reference_features = reference_features
+        self.score_positions = score_positions
         self.queue = queue
-        self.distance_func = distance_func
         self.frame_rate = frame_rate
         self.ref_frame_to_beat = ref_frame_to_beat
-        self.state_space = state_space
 
 
 def import_without_matchmaker(name, *args, **kwargs):
@@ -130,15 +127,14 @@ def test_matchmaker_live_engine_builds_arzt_follower() -> None:
         frame_rate=30,
         arzt_follower=DummyArztFollower,
         ref_frame_to_beat=[0.0, 0.5, 1.0],
-        state_space=[0.0, 0.5, 1.0],
+        score_positions=[0.0, 1.0],
     )
 
     assert follower.reference_features == ["features"]
+    assert follower.score_positions == [0.0, 1.0]
     assert follower.queue is feature_queue
-    assert follower.distance_func == "default-distance"
     assert follower.frame_rate == 30
     assert follower.ref_frame_to_beat == [0.0, 0.5, 1.0]
-    assert follower.state_space == [0.0, 0.5, 1.0]
 
 
 def test_browser_audio_stream_adapter_rejects_quiet_frames() -> None:
@@ -196,6 +192,34 @@ def test_browser_audio_stream_adapter_accepts_voiced_frames() -> None:
     assert adapter.ready_to_start is True
     assert adapter.accepted_frames == 2
     assert len(feature_queue.items) == 1
+
+
+def test_browser_audio_stream_adapter_queues_features_with_timestamp() -> None:
+    import numpy as np
+
+    feature_queue = DummyQueue()
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=2,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+
+    adapter.ingest(voiced_frame(np, 0.08))
+    adapter.ingest(voiced_frame(np, 0.08))
+
+    queued_features, queued_time = feature_queue.items[0]
+    assert not isinstance(queued_features, tuple)
+    assert isinstance(queued_time, float)
 
 
 def test_browser_audio_stream_adapter_starts_from_moderate_recorded_playback() -> None:

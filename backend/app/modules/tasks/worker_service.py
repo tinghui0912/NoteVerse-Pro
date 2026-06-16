@@ -6,6 +6,7 @@ This is the canonical worker helper boundary under the tasks module.
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
@@ -21,6 +22,12 @@ from app.modules.tasks.schemas import (
 )
 from app.modules.tasks.worker_repository import SyncTaskRepository
 from app.utils.timezone import utc_now_naive
+
+
+def _kind_value(kind: object) -> str:
+    if isinstance(kind, Enum):
+        return str(kind.value)
+    return str(kind)
 
 
 class SyncTaskService:
@@ -46,6 +53,7 @@ class SyncTaskService:
         task_uuid: str,
         title: Optional[str] = None,
         difficulty: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
         requested_at: Optional[datetime] = None,
     ) -> Task:
         task = Task(
@@ -55,6 +63,7 @@ class SyncTaskService:
             progress=0,
             title=title,
             difficulty=difficulty,
+            idempotency_key=idempotency_key,
             requested_at=(requested_at or utc_now_naive()),
             created_at=utc_now_naive(),
             updated_at=utc_now_naive(),
@@ -62,6 +71,14 @@ class SyncTaskService:
         db.add(task)
         db.commit()
         return task
+
+    def get_task_by_idempotency_key(
+        self,
+        db: Session,
+        user_id: int,
+        idempotency_key: str,
+    ) -> Task | None:
+        return self.repository.get_task_by_idempotency_key(db, user_id, idempotency_key)
 
     def update_progress(
         self,
@@ -94,7 +111,9 @@ class SyncTaskService:
         if started_at is not None and not task.started_at:
             task.started_at = started_at
 
-        task.updated_at = utc_now_naive()
+        now = utc_now_naive()
+        task.last_heartbeat_at = now
+        task.updated_at = now
         db.commit()
 
     def finalize_success(
@@ -112,12 +131,14 @@ class SyncTaskService:
 
         task.state = TaskState.PENDING_REVIEW
         task.progress = 100
-        task.finished_at = finished_at or utc_now_naive()
+        now = utc_now_naive()
+        task.last_heartbeat_at = now
+        task.finished_at = finished_at or now
 
         if total_time_seconds is not None:
             task.total_time_seconds = total_time_seconds
 
-        task.updated_at = utc_now_naive()
+        task.updated_at = now
         db.commit()
 
     def finalize_failure(
@@ -142,8 +163,10 @@ class SyncTaskService:
         if code:
             task.code = code
 
-        task.finished_at = utc_now_naive()
-        task.updated_at = utc_now_naive()
+        now = utc_now_naive()
+        task.last_heartbeat_at = now
+        task.finished_at = now
+        task.updated_at = now
         db.commit()
 
     def upsert_step(
@@ -198,6 +221,7 @@ class SyncTaskService:
         kind: str,
         files_list: List[TaskFileReplaceItem],
     ) -> None:
+        kind = _kind_value(kind)
         task = self.repository.get_task_by_uuid(db, task_uuid)
         if not task:
             return
@@ -209,9 +233,10 @@ class SyncTaskService:
             new_file = File(
                 task_id=task_id_db,
                 kind=kind,
-                path=file_info.get("path"),
-                page=file_info.get("page"),
-                dpi=file_info.get("dpi"),
+                storage_backend=file_info.get("storage_backend"),
+                storage_key=file_info.get("storage_key"),
+                filename=file_info.get("filename"),
+                page_number=file_info.get("page_number"),
                 size_bytes=file_info.get("size"),
                 mime_type=file_info.get("mime_type"),
             )
@@ -224,12 +249,14 @@ class SyncTaskService:
         db: Session,
         task_uuid: str,
         kind: str,
-        path: str,
-        page: Optional[int] = None,
-        dpi: Optional[int] = None,
+        storage_backend: str,
+        storage_key: str,
+        filename: str,
+        page_number: Optional[int] = None,
         size: Optional[int] = None,
         mime: Optional[str] = None,
     ) -> File:
+        kind = _kind_value(kind)
         task = self.repository.get_task_by_uuid(db, task_uuid)
         if not task:
             raise ValueError(f"Task {task_uuid} not found")
@@ -238,9 +265,10 @@ class SyncTaskService:
         new_file = File(
             task_id=task_id_db,
             kind=kind,
-            path=path,
-            page=page,
-            dpi=dpi,
+            storage_backend=storage_backend,
+            storage_key=storage_key,
+            filename=filename,
+            page_number=page_number,
             size_bytes=size,
             mime_type=mime,
         )
@@ -289,8 +317,9 @@ class SyncTaskService:
                 files_by_kind[file_row.kind] = []
             files_by_kind[file_row.kind].append(
                 {
-                    "path": file_row.path,
-                    "page": file_row.page,
+                    "storage_key": file_row.storage_key,
+                    "filename": file_row.filename,
+                    "page_number": file_row.page_number,
                     "size": file_row.size_bytes,
                     "mime_type": file_row.mime_type,
                 }

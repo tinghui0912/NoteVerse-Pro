@@ -15,7 +15,9 @@ class FilesRepository:
         db: AsyncSession,
         *,
         sha256: str,
-        stored_filename: str,
+        storage_backend: str,
+        storage_key: str,
+        filename: str,
         original_filename: str,
         size_bytes: int,
         mime_type: str,
@@ -26,7 +28,9 @@ class FilesRepository:
         if not upload:
             upload = Upload(
                 sha256=sha256,
-                stored_filename=stored_filename,
+                storage_backend=storage_backend,
+                storage_key=storage_key,
+                filename=filename,
                 original_filename=original_filename,
                 size_bytes=size_bytes,
                 mime_type=mime_type,
@@ -35,6 +39,9 @@ class FilesRepository:
             db.add(upload)
             return upload
 
+        upload.storage_backend = storage_backend
+        upload.storage_key = storage_key
+        upload.filename = filename
         if not upload.original_filename:
             upload.original_filename = original_filename
         if not upload.size_bytes:
@@ -54,12 +61,12 @@ class FilesRepository:
         result = await db.execute(select(Upload).where(Upload.sha256 == sha256))
         return result.scalar_one_or_none()
 
-    async def get_upload_by_stored_filename(
+    async def get_upload_by_filename(
         self,
         db: AsyncSession,
         filename: str,
     ) -> Upload | None:
-        result = await db.execute(select(Upload).where(Upload.stored_filename == filename))
+        result = await db.execute(select(Upload).where(Upload.filename == filename))
         return result.scalars().first()
 
     async def delete_upload_by_id(
@@ -85,7 +92,7 @@ class FilesRepository:
         result = await db.execute(
             select(FileModel)
             .where(FileModel.task_id == task_id)
-            .order_by(FileModel.kind, FileModel.page)
+            .order_by(FileModel.kind, FileModel.page_number)
         )
         return list(result.scalars().all())
 
@@ -98,7 +105,7 @@ class FilesRepository:
         result = await db.execute(
             select(FileModel)
             .where(FileModel.task_id == task_id, FileModel.kind == file_type)
-            .order_by(FileModel.page)
+            .order_by(FileModel.page_number)
         )
         return list(result.scalars().all())
 

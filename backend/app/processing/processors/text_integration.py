@@ -2,6 +2,7 @@
 
 import traceback
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from typing import List, Optional, TypedDict
 
 from celery.utils.log import get_task_logger
@@ -75,7 +76,7 @@ class TextIntegrationEngine:
                 raise
 
             try:
-                output_file = output_path or musicxml_path.replace(".xml", "_enhanced.xml")
+                output_file = output_path or self._default_enhanced_output_path(musicxml_path)
                 tree.write(output_file, encoding="utf-8", xml_declaration=True)
                 logger.info(f"Text integration completed: {output_file}")
             except Exception as exc:
@@ -91,6 +92,14 @@ class TextIntegrationEngine:
         except Exception as exc:
             logger.error(f"Text integration failed: {str(exc)}")
             return {"success": False, "error": str(exc)}
+
+    @staticmethod
+    def _default_enhanced_output_path(musicxml_path: str) -> str:
+        """Build a sibling enhanced XML path without mutating the source file."""
+        path = Path(musicxml_path)
+        if path.suffix.lower() in {".xml", ".musicxml"}:
+            return str(path.with_name(f"{path.stem}_enhanced{path.suffix}"))
+        return str(path.with_name(f"{path.name}_enhanced.xml"))
 
     def _add_standard_title_info(
         self,
@@ -110,7 +119,6 @@ class TextIntegrationEngine:
         lyricist_text = (structured_info.get("lyricist", "") or "").strip()
 
         self._update_work_title(root, title_text)
-        self._update_movement_title(root, subtitle_text)
         self._clean_old_creator_elements(root)
         self._clean_old_credits(root)
 
@@ -143,13 +151,6 @@ class TextIntegrationEngine:
             if work_title_element is not None:
                 work_title_element.text = title_text
                 logger.info("Updated work-title")
-
-    def _update_movement_title(self, root: ET.Element, subtitle_text: str) -> None:
-        """Remove `<movement-title>` to match the target MusicXML layout."""
-        movement_title = root.find("movement-title")
-        if movement_title is not None:
-            root.remove(movement_title)
-            logger.info("Removed movement-title")
 
     def _clean_old_creator_elements(self, root: ET.Element) -> None:
         """Remove all existing `<creator>` elements before rebuilding them."""
@@ -326,10 +327,11 @@ class TextIntegrationEngine:
 
         copyright_text = (rights.text or "").strip()
         cfg = XmlLayoutConfig.COPYRIGHT
-        credit = self._create_credit_element(
+        credit = self._create_multiline_credit_element(
             text=copyright_text,
             default_x=cfg["default_x"],
             default_y=cfg["default_y"],
+            line_spacing=cfg["line_spacing"],
             justify=cfg["justify"],
             valign=cfg["valign"],
             font_size=cfg["font_size"],
@@ -340,3 +342,39 @@ class TextIntegrationEngine:
         if part_list is not None:
             insert_index = list(root).index(part_list)
             root.insert(insert_index, credit)
+
+    def _create_multiline_credit_element(
+        self,
+        text: str,
+        default_x: str,
+        default_y: str,
+        line_spacing: str,
+        justify: str,
+        valign: str,
+        font_size: str,
+        credit_type: str,
+    ) -> ET.Element:
+        """Create one MusicXML credit with one credit-word per rendered line."""
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if not lines:
+            lines = [text.strip()]
+
+        credit = ET.Element("credit")
+        credit.set("page", "1")
+        credit_type_el = ET.SubElement(credit, "credit-type")
+        credit_type_el.text = credit_type
+
+        base_y = float(default_y)
+        spacing = float(line_spacing)
+        top_line_y = base_y + spacing * (len(lines) - 1)
+
+        for index, line in enumerate(lines):
+            credit_words = ET.SubElement(credit, "credit-words")
+            credit_words.set("default-x", default_x)
+            credit_words.set("default-y", f"{top_line_y - spacing * index:.6f}")
+            credit_words.set("justify", justify)
+            credit_words.set("valign", valign)
+            credit_words.set("font-size", font_size)
+            credit_words.text = line
+
+        return credit

@@ -7,11 +7,19 @@ pipeline steps complete.
 
 import mimetypes
 import os
+from enum import Enum
 from typing import List
 
-from app.core.logger import logger
 from app.modules.tasks.schemas import TaskFileReplaceItem
-from app.utils.paths import to_rel_storage
+from app.storage import file_storage
+
+
+def _kind_value(kind: object) -> str:
+    """Normalize FileKind enum values before using them in keys or DB writes."""
+
+    if isinstance(kind, Enum):
+        return str(kind.value)
+    return str(kind)
 
 
 def _guess_mime_type(path: str) -> str:
@@ -24,6 +32,7 @@ def _guess_mime_type(path: str) -> str:
         ".musicxml": "application/vnd.recordare.musicxml+xml",
         ".mxl": "application/vnd.recordare.musicxml",
         ".png": "image/png",
+        ".svg": "image/svg+xml",
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
     }
@@ -37,9 +46,8 @@ def _guess_mime_type(path: str) -> str:
 
 def replace_files(
     task_id: str,
-    kind: str,
+    kind: object,
     abs_paths: List[str],
-    dpi: int | None = None,
 ) -> None:
     """
     Write file records to the unified files table for a worker task.
@@ -48,29 +56,60 @@ def replace_files(
         task_id: Task UUID.
         kind: File kind, for example `original_image` or `final_xml`.
         abs_paths: Absolute file paths to record.
-        dpi: Optional DPI value for image files.
 
     Storage format:
-        Paths are converted to storage-relative paths rooted at `uploads/`,
-        `output/`, or `temp/`.
+        Files are uploaded to the configured storage adapter and recorded as
+        object keys under `tasks/{task_id}/{kind}/`.
     """
-    try:
-        from app.db.worker_session import get_worker_db
-        from app.modules.tasks.worker_service import sync_task_service
+    from app.db.worker_session import get_worker_db
+    from app.modules.tasks.worker_service import sync_task_service
 
-        items: List[TaskFileReplaceItem] = [
-            {
-                "path": to_rel_storage(p),
-                "page": i + 1,
-                "mime_type": _guess_mime_type(p),
-                "size": os.path.getsize(p) if os.path.exists(p) else None,
-                "dpi": dpi,
-            }
-            for i, p in enumerate(abs_paths)
-        ]
+    normalized_kind = _kind_value(kind)
+    items: List[TaskFileReplaceItem] = [
+        _build_file_item(task_id, normalized_kind, p, i + 1)
+        for i, p in enumerate(abs_paths)
+    ]
 
-        with get_worker_db() as db:
-            sync_task_service.replace_files(db, task_id, kind, items)
+    with get_worker_db() as db:
+        sync_task_service.replace_files(db, task_id, normalized_kind, items)
 
-    except Exception as e:
-        logger.warning(f"[{task_id}] Failed to record files for kind={kind}: {e}")
+
+def _build_file_item(
+    task_id: str,
+    kind: object,
+    abs_path: str,
+    page: int,
+) -> TaskFileReplaceItem:
+    normalized_kind = _kind_value(kind)
+    mime_type = _guess_mime_type(abs_path)
+    size = os.path.getsize(abs_path) if os.path.exists(abs_path) else None
+    storage_key = _store_task_output(task_id, normalized_kind, abs_path, page, mime_type)
+
+    return {
+        "storage_backend": file_storage.backend_name,
+        "storage_key": storage_key,
+        "filename": os.path.basename(storage_key),
+        "page_number": page,
+        "mime_type": mime_type,
+        "size": size,
+    }
+
+
+def _store_task_output(
+    task_id: str,
+    kind: str,
+    abs_path: str,
+    page: int,
+    mime_type: str,
+) -> str:
+    filename = os.path.basename(abs_path)
+    key = f"tasks/{task_id}/{kind}/{page:03d}-{filename}"
+
+    with open(abs_path, "rb") as file_handle:
+        stored = file_storage.put_bytes(
+            key=key,
+            content=file_handle.read(),
+            content_type=mime_type,
+        )
+
+    return stored.storage_key

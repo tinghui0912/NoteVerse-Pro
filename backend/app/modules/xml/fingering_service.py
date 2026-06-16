@@ -23,8 +23,8 @@ class XMLFingeringService:
         try:
             from pianoplayer import run_pianoplayer
 
-            temp_input = os.path.join(settings.TEMP_FOLDER, task_uuid, "fingering_input.xml")
-            temp_output = os.path.join(settings.TEMP_FOLDER, task_uuid, "fingering_output.xml")
+            temp_input = os.path.join(settings.WORK_ROOT, task_uuid, "fingering_input.xml")
+            temp_output = os.path.join(settings.WORK_ROOT, task_uuid, "fingering_output.xml")
             os.makedirs(os.path.dirname(temp_input), exist_ok=True)
 
             with open(temp_input, "w", encoding="utf-8") as file_handle:
