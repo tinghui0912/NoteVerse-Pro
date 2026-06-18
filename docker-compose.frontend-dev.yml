@@ -1,0 +1,28 @@
+name: noteverse-frontend-dev
+
+services:
+  frontend:
+    image: noteverse-frontend-runtime:dev
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile.dev
+    env_file:
+      - path: frontend/.env.docker
+        required: true
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+    volumes:
+      - ./frontend:/app
+      - noteverse_frontend_node_modules:/app/node_modules
+      - noteverse_frontend_next:/app/.next
+    ports:
+      - "${FRONTEND_PORT:-9002}:9002"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  noteverse_frontend_node_modules:
+  noteverse_frontend_next:

@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, List
 
 from celery.utils.log import get_task_logger
 
+from app.core.exceptions import TimeoutException
+
 if TYPE_CHECKING:
     from .context import TaskContext
 
@@ -55,12 +57,14 @@ class Pipeline:
         executed_steps: List[Step] = []
 
         for step in self.steps:
-            ctx.status("PROGRESS", step.name, step.progress_start, current_step=step.name)
-            logger.info(f"[{ctx.task_id}] Step started: {step.name}")
-
             try:
+                self._ensure_before_deadline(ctx, step.name)
+                ctx.status("PROGRESS", step.name, step.progress_start, current_step=step.name)
+                logger.info(f"[{ctx.task_id}] Step started: {step.name}")
+
                 step.run(ctx)
                 executed_steps.append(step)
+                self._ensure_before_deadline(ctx, step.name)
 
                 ctx.status("PROGRESS", step.name, step.progress_end, current_step=step.name)
                 logger.info(f"[{ctx.task_id}] Step completed: {step.name}")
@@ -68,6 +72,12 @@ class Pipeline:
                 logger.error(f"[{ctx.task_id}] Step failed: {step.name} | Error: {exc}")
                 self._rollback(ctx, executed_steps)
                 raise
+
+    @staticmethod
+    def _ensure_before_deadline(ctx: "TaskContext", step_name: str) -> None:
+        """Fail consistently when a step starts or finishes after the deadline."""
+        if ctx.remaining() <= 0:
+            raise TimeoutException(details={"step": step_name})
 
     def _rollback(self, ctx: "TaskContext", executed_steps: List[Step]) -> None:
         """Roll back executed steps in reverse order."""

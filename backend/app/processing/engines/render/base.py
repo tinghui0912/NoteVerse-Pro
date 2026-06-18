@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, TypedDict
+from typing import Literal, Protocol, TypedDict
 
 
 class ScoreRenderOutputFile(TypedDict):
@@ -17,7 +17,7 @@ class ScoreRenderOutputFile(TypedDict):
 class ScoreRenderSuccessResult(TypedDict):
     """Successful score rendering result."""
 
-    success: bool
+    success: Literal[True]
     engine: str
     files: list[ScoreRenderOutputFile]
     stdout: str
@@ -27,7 +27,7 @@ class ScoreRenderSuccessResult(TypedDict):
 class ScoreRenderFailureResult(TypedDict, total=False):
     """Failed score rendering result."""
 
-    success: bool
+    success: Literal[False]
     engine: str
     error: str
     code: str

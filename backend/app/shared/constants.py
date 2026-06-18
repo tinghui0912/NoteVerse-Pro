@@ -81,7 +81,6 @@ class ErrorCode:
     LEGATO_FAILED = "legato_failed"
     LEGATO_INFERENCE_FAILED = "legato_inference_failed"
     LEGATO_CONVERSION_FAILED = "legato_conversion_failed"
-    LEGATO_MULTI_PAGE_NOT_SUPPORTED = "legato_multi_page_not_supported"
     MUSESCORE_MISSING = "musescore_missing"
     MUSESCORE_FAILED = "musescore_failed"
     VEROVIO_MISSING = "verovio_missing"

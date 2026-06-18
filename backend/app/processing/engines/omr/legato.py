@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import subprocess
 from typing import Callable
+import copy
+import xml.etree.ElementTree as ET
 
 from celery.utils.log import get_task_logger
 
@@ -15,9 +17,13 @@ from app.core.config import settings
 from app.processing.musicxml import normalize_initial_musicxml_clefs
 from app.shared.constants import ErrorCode
 
-from .base import OmrFailureResult, OmrResult, OmrSuccessResult
+from .base import OmrFailureResult, OmrOutputFiles, OmrResult, OmrSuccessResult
 
 logger = get_task_logger(__name__)
+
+
+class LegatoConversionError(RuntimeError):
+    """Raised when LEGATO ABC to MusicXML conversion fails."""
 
 
 class LegatoOmrEngine:
@@ -36,6 +42,7 @@ class LegatoOmrEngine:
         device: str | None = None,
         fp16: bool | None = None,
         beam_size: int | None = None,
+        batch_size: int | None = None,
     ) -> None:
         self.output_folder = Path(output_folder)
         self.timeout_seconds = min(
@@ -53,18 +60,21 @@ class LegatoOmrEngine:
         self.device = device or settings.LEGATO_DEVICE
         self.fp16 = settings.LEGATO_FP16 if fp16 is None else fp16
         self.beam_size = beam_size or settings.LEGATO_BEAM_SIZE
+        self.batch_size = batch_size or settings.LEGATO_BATCH_SIZE
 
     def process_image(self, image_path: str) -> OmrResult:
+        return self.process_images([image_path])
+
+    def process_images(self, image_paths: list[str]) -> OmrResult:
         try:
-            self._check_prerequisites(image_path)
+            self._check_prerequisites(image_paths)
             self.output_folder.mkdir(parents=True, exist_ok=True)
 
             prediction_path = self.output_folder / "prediction_abc.json"
-            abc_path = self.output_folder / "prediction.abc"
-            cleaned_abc_path = self.output_folder / "prediction.cleaned.abc"
-            musicxml_path = self.output_folder / "prediction.musicxml"
-
-            inference = self._run_inference(Path(image_path), prediction_path)
+            inference = self._run_inference(
+                [Path(path) for path in image_paths],
+                prediction_path,
+            )
             if inference.returncode != 0:
                 return self._failure(
                     ErrorCode.LEGATO_INFERENCE_FAILED,
@@ -72,34 +82,42 @@ class LegatoOmrEngine:
                     inference.stderr,
                 )
 
-            abc = self._read_abc(prediction_path)
-            abc_path.write_text(abc, encoding="utf-8")
-
-            cleaned_abc = self._cleanup_abc(abc)
-            cleaned_abc_path.write_text(cleaned_abc, encoding="utf-8")
-
-            conversion = self._run_abc2xml(cleaned_abc)
-            if conversion.returncode != 0:
+            abcs = self._read_abcs(prediction_path)
+            if len(abcs) != len(image_paths):
                 return self._failure(
-                    ErrorCode.LEGATO_CONVERSION_FAILED,
-                    "LEGATO ABC to MusicXML conversion failed",
-                    conversion.stderr.decode("utf-8", errors="replace"),
+                    ErrorCode.LEGATO_FAILED,
+                    "LEGATO prediction count does not match input page count",
                 )
 
-            musicxml_path.write_text(
-                conversion.stdout.decode("utf-8", errors="replace"),
-                encoding="utf-8",
+            page_xml_paths: list[Path] = []
+            abc_path: Path | None = None
+            for index, abc in enumerate(abcs, 1):
+                stem = "prediction" if len(abcs) == 1 else f"page-{index:03d}"
+                generated_abc_path, page_xml_path = self._convert_abc_page(abc, stem)
+                if abc_path is None:
+                    abc_path = generated_abc_path
+                page_xml_paths.append(page_xml_path)
+
+            musicxml_path = (
+                page_xml_paths[0]
+                if len(page_xml_paths) == 1
+                else self._merge_musicxml_pages(
+                    page_xml_paths,
+                    self.output_folder / "prediction.musicxml",
+                )
             )
-            normalize_initial_musicxml_clefs(musicxml_path)
+
+            files: OmrOutputFiles = {
+                "xml": str(musicxml_path),
+                "raw_prediction": str(prediction_path),
+            }
+            if abc_path is not None:
+                files["abc"] = str(abc_path)
 
             return OmrSuccessResult(
                 success=True,
                 engine=self.engine_name,
-                files={
-                    "xml": str(musicxml_path),
-                    "abc": str(abc_path),
-                    "raw_prediction": str(prediction_path),
-                },
+                files=files,
                 stdout=inference.stdout,
                 stderr=inference.stderr,
             )
@@ -113,6 +131,11 @@ class LegatoOmrEngine:
                 ErrorCode.LEGATO_MISSING,
                 str(exc),
             )
+        except LegatoConversionError as exc:
+            return self._failure(
+                ErrorCode.LEGATO_CONVERSION_FAILED,
+                str(exc),
+            )
         except Exception as exc:
             logger.exception("LEGATO processing failed")
             return self._failure(
@@ -122,11 +145,34 @@ class LegatoOmrEngine:
 
     def process_pdf(self, pdf_path: str) -> OmrResult:
         return self._failure(
-            ErrorCode.LEGATO_MULTI_PAGE_NOT_SUPPORTED,
-            "LEGATO PDF/multi-page processing is not supported yet",
+            ErrorCode.LEGATO_FAILED,
+            "LEGATO does not support PDF input; submit ordered score images instead",
         )
 
-    def _check_prerequisites(self, image_path: str) -> None:
+    def _convert_abc_page(self, abc: str, stem: str) -> tuple[Path, Path]:
+        abc_path = self.output_folder / f"{stem}.abc"
+        cleaned_abc_path = self.output_folder / f"{stem}.cleaned.abc"
+        musicxml_path = self.output_folder / f"{stem}.musicxml"
+
+        abc_path.write_text(abc, encoding="utf-8")
+        cleaned_abc = self._cleanup_abc(abc)
+        cleaned_abc_path.write_text(cleaned_abc, encoding="utf-8")
+
+        conversion = self._run_abc2xml(cleaned_abc, stem)
+        if conversion.returncode != 0:
+            raise LegatoConversionError(
+                "LEGATO ABC to MusicXML conversion failed: "
+                + conversion.stderr.decode("utf-8", errors="replace")[-1000:]
+            )
+
+        musicxml_path.write_text(
+            conversion.stdout.decode("utf-8", errors="replace"),
+            encoding="utf-8",
+        )
+        normalize_initial_musicxml_clefs(musicxml_path)
+        return abc_path, musicxml_path
+
+    def _check_prerequisites(self, image_paths: list[str]) -> None:
         if not self.repo_path:
             raise FileNotFoundError("LEGATO_REPO_PATH is not configured")
         if not self.repo_path.exists():
@@ -135,16 +181,24 @@ class LegatoOmrEngine:
             raise FileNotFoundError(f"LEGATO package not found: {self.repo_path}")
         if not (self.repo_path / "utils" / "abc2xml.py").exists():
             raise FileNotFoundError("LEGATO abc2xml.py not found")
-        if not Path(image_path).exists():
-            raise FileNotFoundError(f"Input file does not exist: {image_path}")
+        if not image_paths:
+            raise FileNotFoundError("No input images were provided")
+        for image_path in image_paths:
+            if not Path(image_path).exists():
+                raise FileNotFoundError(f"Input file does not exist: {image_path}")
 
     def _run_inference(
         self,
-        image_path: Path,
+        image_paths: list[Path],
         prediction_path: Path,
     ) -> subprocess.CompletedProcess[str]:
         runner_path = self.output_folder / "_legato_inference_runner.py"
+        image_list_path = self.output_folder / "image_list.json"
         runner_path.write_text(INFERENCE_RUNNER, encoding="utf-8")
+        image_list_path.write_text(
+            json.dumps([str(path) for path in image_paths], ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
         command = [
             self.python_executable,
@@ -153,14 +207,16 @@ class LegatoOmrEngine:
             self.model_path,
             "--processor_path",
             self.processor_path,
-            "--image_path",
-            str(image_path),
+            "--image_list",
+            str(image_list_path),
             "--output_path",
             str(prediction_path),
             "--device",
             self.device,
             "--beam_size",
             str(self.beam_size),
+            "--batch_size",
+            str(self.batch_size),
         ]
         if self.fp16:
             command.append("--fp16")
@@ -198,14 +254,19 @@ class LegatoOmrEngine:
         return result
 
     def _read_abc(self, prediction_path: Path) -> str:
+        return self._read_abcs(prediction_path)[0]
+
+    def _read_abcs(self, prediction_path: Path) -> list[str]:
         data = json.loads(prediction_path.read_text(encoding="utf-8"))
         transcriptions = data.get("abc_transcription")
         if not isinstance(transcriptions, list) or not transcriptions:
             raise ValueError("LEGATO prediction is missing abc_transcription")
-        abc = transcriptions[0]
-        if not isinstance(abc, str) or not abc.strip():
-            raise ValueError("LEGATO prediction contains empty ABC")
-        return abc
+        abcs: list[str] = []
+        for index, abc in enumerate(transcriptions, 1):
+            if not isinstance(abc, str) or not abc.strip():
+                raise ValueError(f"LEGATO prediction contains empty ABC at page {index}")
+            abcs.append(abc)
+        return abcs
 
     def _cleanup_abc(self, abc: str) -> str:
         cleanup_abc = self._load_cleanup_abc()
@@ -220,7 +281,11 @@ class LegatoOmrEngine:
         spec.loader.exec_module(module)
         return module.cleanup_abc
 
-    def _run_abc2xml(self, cleaned_abc: str) -> subprocess.CompletedProcess[bytes]:
+    def _run_abc2xml(
+        self,
+        cleaned_abc: str,
+        stem: str = "prediction",
+    ) -> subprocess.CompletedProcess[bytes]:
         abc2xml_path = self.repo_path / "utils" / "abc2xml.py"
         result = subprocess.run(
             [self.python_executable, str(abc2xml_path), "-"],
@@ -230,11 +295,72 @@ class LegatoOmrEngine:
             cwd=str(self.repo_path),
             timeout=self.timeout_seconds,
         )
-        (self.output_folder / "abc2xml_stderr.txt").write_text(
+        (self.output_folder / f"{stem}.abc2xml_stderr.txt").write_text(
             result.stderr.decode("utf-8", errors="replace"),
             encoding="utf-8",
         )
         return result
+
+    def _merge_musicxml_pages(self, page_xml_paths: list[Path], output_path: Path) -> Path:
+        if not page_xml_paths:
+            raise ValueError("No MusicXML pages to merge")
+
+        base_tree = ET.parse(page_xml_paths[0])
+        base_root = base_tree.getroot()
+        base_parts = self._collect_musicxml_parts(base_root)
+        base_part_ids = list(base_parts.keys())
+        if not base_part_ids:
+            raise ValueError(f"No MusicXML parts found in {page_xml_paths[0]}")
+
+        next_measure_number = {
+            part_id: len(base_parts[part_id].findall("measure")) + 1
+            for part_id in base_part_ids
+        }
+
+        for page_index, page_xml_path in enumerate(page_xml_paths[1:], 2):
+            page_root = ET.parse(page_xml_path).getroot()
+            page_parts = self._collect_musicxml_parts(page_root)
+            page_part_ids = list(page_parts.keys())
+            if page_part_ids != base_part_ids:
+                raise ValueError(
+                    "Cannot merge MusicXML pages with different part order: "
+                    f"{page_xml_paths[0]} has {base_part_ids}, "
+                    f"{page_xml_path} has {page_part_ids}"
+                )
+
+            for part_offset, part_id in enumerate(base_part_ids):
+                source_part = page_parts[part_id]
+                target_part = base_parts[part_id]
+                for measure_offset, measure in enumerate(source_part.findall("measure")):
+                    copied_measure = copy.deepcopy(measure)
+                    copied_measure.set("number", str(next_measure_number[part_id]))
+                    if part_offset == 0 and measure_offset == 0:
+                        self._add_new_page_print(copied_measure, page_index)
+                    target_part.append(copied_measure)
+                    next_measure_number[part_id] += 1
+
+        ET.indent(base_root)
+        base_tree.write(output_path, encoding="utf-8", xml_declaration=True)
+        normalize_initial_musicxml_clefs(output_path)
+        return output_path
+
+    @staticmethod
+    def _collect_musicxml_parts(root: ET.Element) -> dict[str, ET.Element]:
+        parts: dict[str, ET.Element] = {}
+        for part in root.findall("part"):
+            part_id = part.get("id")
+            if part_id:
+                parts[part_id] = part
+        return parts
+
+    @staticmethod
+    def _add_new_page_print(measure: ET.Element, page_index: int) -> None:
+        print_element = measure.find("print")
+        if print_element is None:
+            print_element = ET.Element("print")
+            measure.insert(0, print_element)
+        print_element.set("new-page", "yes")
+        print_element.set("page-number", str(page_index))
 
     def _failure(
         self,
@@ -275,10 +401,11 @@ def remove_special_tokens(arrays, special_tokens):
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", required=True)
 parser.add_argument("--processor_path", required=True)
-parser.add_argument("--image_path", required=True)
+parser.add_argument("--image_list", required=True)
 parser.add_argument("--output_path", required=True)
 parser.add_argument("--device", default="cuda")
 parser.add_argument("--beam_size", type=int, default=10)
+parser.add_argument("--batch_size", type=int, default=1)
 parser.add_argument("--fp16", action="store_true")
 args = parser.parse_args()
 
@@ -290,22 +417,30 @@ generation_config = GenerationConfig(
     repetition_penalty=1.1,
 )
 
-image = Image.open(args.image_path).convert("RGB")
+with open(args.image_list, "r", encoding="utf-8") as file_handle:
+    image_paths = json.load(file_handle)
+if not isinstance(image_paths, list) or not image_paths:
+    raise ValueError("--image_list must contain a non-empty JSON list")
+
+images = [Image.open(path).convert("RGB") for path in image_paths]
 model = model.to(device=args.device)
 if args.fp16:
     model = model.half()
 
-inputs = processor(images=[image], truncation=True, return_tensors="pt")
-inputs = {key: value.to(args.device) for key, value in inputs.items()}
+output_tokens = []
+for start in range(0, len(images), args.batch_size):
+    batch_images = images[start:start + args.batch_size]
+    inputs = processor(images=batch_images, truncation=True, return_tensors="pt")
+    inputs = {key: value.to(args.device) for key, value in inputs.items()}
 
-with torch.no_grad():
-    outputs = model.generate(
-        **inputs,
-        generation_config=generation_config,
-        use_model_defaults=False,
-    )
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            generation_config=generation_config,
+            use_model_defaults=False,
+        )
 
-output_tokens = outputs.tolist()
+    output_tokens.extend(outputs.tolist())
 abc_outputs = processor.batch_decode(output_tokens, skip_special_tokens=True)
 special_tokens = processor.tokenizer.all_special_ids
 preds = remove_special_tokens(output_tokens, special_tokens)
@@ -317,6 +452,6 @@ with open(args.output_path, "w", encoding="utf-8") as file_handle:
         ensure_ascii=False,
     )
 
-print(abc_outputs[0])
+print(f"Inference completed for {len(abc_outputs)} image(s)")
 print("Inference completed. Output saved to:", args.output_path)
 """

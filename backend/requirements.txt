@@ -1,50 +1,39 @@
+# Web/API runtime
 fastapi==0.136.1
 uvicorn[standard]==0.46.0
-sqlmodel==0.0.38
-alembic==1.18.4
+python-multipart==0.0.28
+pydantic[email]==2.13.4
+pydantic-settings==2.14.1
+
+# Authentication and security
 PyJWT[crypto]==2.12.1
 pwdlib[argon2]==0.3.0
-python-multipart==0.0.28
-pydantic-settings==2.14.1
-pydantic[email]==2.13.4
-numpy==1.26.4
-redis==7.4.0
-celery==5.6.3
-loguru==0.7.3
+
+# Database, migrations, and storage
+sqlmodel==0.0.38
+alembic==1.18.4
 asyncpg==0.31.0
 psycopg[binary]==3.3.4
+greenlet==3.5.0
 boto3==1.43.29
 
-# Worker sync database dependencies
-greenlet==3.5.0
+# Worker and observability
+celery==5.6.3
+redis==7.4.0
+loguru==0.7.3
 
-# Business logic dependencies
-opencv-python==4.11.0.86
+# Score processing and rendering
+numpy==1.26.4
 Pillow==12.2.0
-music21==9.9.1
 verovio==6.2.1
+pianoplayer==3.0.2
+openpyxl==3.1.5
+
+# OMR/OCR and practice alignment engines
 pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@0d106d07d96f9def77de116b29690c262b51b9ee
 paddleocr==3.7.0
-pianoplayer==3.0.2
-reportlab==4.5.0
-openpyxl==3.1.5
-python-dotenv==1.2.2
-httpx==0.28.1
-pytest==9.0.3
-pytest-asyncio==1.3.0
-ruff==0.15.12
-mypy==2.0.0
-pre-commit==4.6.0
 
-# ============================================
-# GPU dependencies
-# Install these manually for the target CUDA runtime.
-# They are intentionally not installed by `pip install -r requirements.txt`.
-# ============================================
-# PyTorch for LEGATO inference. LEGATO pins PyTorch 2.6.0 and was tested in a
-# CUDA 12.x environment, so the container runtime defaults to the cu126 wheel
-# family. This requires an NVIDIA driver that supports CUDA 12.6 wheels.
-#   pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu126
-#
-# PaddlePaddle GPU:
-#   pip install paddlepaddle-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
+# GPU framework notes
+# - PyTorch/CUDA is provided by noteverse-ml-base, not this file.
+# - Docker installs PaddlePaddle separately before installing PaddleOCR so the
+#   selected CPU/GPU wheel can be controlled by build args.

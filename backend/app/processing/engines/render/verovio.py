@@ -8,7 +8,7 @@ from typing import Any
 from app.core.config import settings
 from app.shared.constants import ErrorCode
 
-from .base import ScoreRenderResult
+from .base import ScoreRenderOutputFile, ScoreRenderResult
 from .svg_preview_postprocessor import SvgPreviewPostProcessor
 
 
@@ -50,7 +50,7 @@ class VerovioRenderEngine:
             }
 
         try:
-            import verovio  # type: ignore[import-not-found]
+            import verovio
         except Exception as exc:
             return {
                 "success": False,
@@ -81,7 +81,7 @@ class VerovioRenderEngine:
                     "error": "Verovio produced no pages",
                 }
 
-            files = []
+            files: list[ScoreRenderOutputFile] = []
             for page in range(1, page_count + 1):
                 svg = self._add_white_background(toolkit.renderToSVG(page))
                 svg = self.svg_postprocessor.process(

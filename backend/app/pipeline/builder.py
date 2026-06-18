@@ -2,6 +2,7 @@
 
 from typing import List, Optional
 
+from app.core.config import settings
 from app.modules.tasks.schemas import TaskProcessingOptions
 from .base import Pipeline
 
@@ -51,6 +52,43 @@ class PipelineBuilder:
         options: Optional[TaskProcessingOptions] = None,
     ) -> Pipeline:
         """Build the multi-image processing pipeline."""
+        if settings.OMR_ENGINE == "legato":
+            return PipelineBuilder.build_multi_image_pages(options)
+
+        return PipelineBuilder.build_multi_image_pdf(options)
+
+    @staticmethod
+    def build_multi_image_pages(
+        options: Optional[TaskProcessingOptions] = None,
+    ) -> Pipeline:
+        """Build the multi-image pipeline for engines that consume ordered pages."""
+        from .steps import (
+            CopyImagesStep,
+            ExtractXmlStep,
+            FinalizeStep,
+            OmrImagesStep,
+            PreviewGenerationStep,
+            TextOcrStep,
+            XmlNormalizeStep,
+        )
+
+        return Pipeline(
+            [
+                CopyImagesStep(),
+                OmrImagesStep(),
+                ExtractXmlStep(),
+                TextOcrStep(),
+                XmlNormalizeStep(),
+                PreviewGenerationStep(),
+                FinalizeStep(),
+            ]
+        )
+
+    @staticmethod
+    def build_multi_image_pdf(
+        options: Optional[TaskProcessingOptions] = None,
+    ) -> Pipeline:
+        """Build the multi-image pipeline for engines that consume generated PDFs."""
         from .steps import (
             CopyImagesStep,
             ExtractXmlStep,

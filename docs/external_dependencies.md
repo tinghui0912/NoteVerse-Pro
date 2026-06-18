@@ -27,13 +27,6 @@ Pinned commit:
 Configured through:
 
 ```dotenv
-LEGATO_REPO_PATH=../external/legato
-LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc
-```
-
-Docker development uses:
-
-```dotenv
 LEGATO_REPO_PATH=/external/legato
 LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc
 ```
@@ -46,12 +39,9 @@ LEGATO currently does not provide standard packaging metadata such as:
 - `setup.py`
 - `setup.cfg`
 
-Its documented usage is source-based:
-
-```bash
-pip install -r requirements.txt
-PYTHONPATH=. python scripts/inference.py ...
-```
+Its upstream documented usage is source-based and runs repository scripts with
+`PYTHONPATH` pointed at the checked-out source tree. NoteVerse does not run this
+workflow on the host; backend development and testing run inside Docker.
 
 The backend also depends on repository utilities that are not normal installed
 package entry points:
@@ -95,17 +85,15 @@ git rev-parse HEAD
 
 Then update:
 
-- `LEGATO_REPO_COMMIT` in `backend/.env.example`
 - `LEGATO_REPO_COMMIT` in `backend/.env.docker.example`
 - default `LEGATO_REPO_COMMIT` in `backend/app/core/config.py`
 - this document
 
 Run:
 
-```bash
-cd backend
-python scripts/check_runtime.py
-python scripts/legato_visual_probe.py --legato-repo ../external/legato --image-dir data/storage --limit 1
+```powershell
+docker compose -f docker-compose.backend-dev.yml run --rm api check
+docker compose -f docker-compose.backend-dev.yml run --rm api python scripts/legato_visual_probe.py --legato-repo /external/legato --image-dir data/storage --limit 1
 ```
 
 Then validate the full upload/review/editor/practice flow.

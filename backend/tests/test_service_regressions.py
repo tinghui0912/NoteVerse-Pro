@@ -190,7 +190,6 @@ def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_
         np=np,
         partitura=partitura,
         generate_score_audio=default_generate_score_audio,
-        get_current_note_bpm=lambda score, onset_beat, bpm: bpm,
     )
 
     default_generate_score_audio.assert_not_called()
@@ -518,18 +517,17 @@ def test_task_maintenance_deletes_orphan_upload_file_and_row() -> None:
     service = TaskMaintenanceService(repository=repository, storage=storage)
     db = Mock()
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        upload = SimpleNamespace(
-            storage_key="scores/orphan.png",
-            created_at=utc_now_naive() - timedelta(days=2),
-        )
-        repository.list_orphan_uploads.return_value = [upload]
+    upload = SimpleNamespace(
+        storage_key="scores/orphan.png",
+        created_at=utc_now_naive() - timedelta(days=2),
+    )
+    repository.list_orphan_uploads.return_value = [upload]
 
-        with patch(
-            "app.modules.tasks.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
-            86400,
-        ):
-            deleted = service.cleanup_orphan_uploads(db)
+    with patch(
+        "app.modules.tasks.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
+        86400,
+    ):
+        deleted = service.cleanup_orphan_uploads(db)
 
     assert deleted == 1
     storage.delete.assert_called_once_with("scores/orphan.png")

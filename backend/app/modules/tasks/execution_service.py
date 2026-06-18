@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from celery.exceptions import SoftTimeLimitExceeded
+
 from app.core.exceptions import PipelineException
 from app.core.logger import logger
 from app.db.worker_session import get_worker_db
 from app.modules.tasks.schemas import (
-    PipelineExecutionFailureResult,
     TaskProcessingOptions,
     PipelineExecutionSuccessResult,
 )
@@ -27,6 +28,8 @@ class TaskExecutionService:
 
     @staticmethod
     def get_error_code(exception: Exception) -> str:
+        if isinstance(exception, SoftTimeLimitExceeded):
+            return ErrorCode.TASK_TIMEOUT
         if isinstance(exception, PipelineException):
             return exception.code
         return ErrorCode.UNKNOWN_ERROR
@@ -44,7 +47,7 @@ class TaskExecutionService:
         celery_task: CeleryTaskLike,
         image_refs: List[str],
         options: Optional[TaskProcessingOptions] = None,
-    ) -> PipelineExecutionSuccessResult | PipelineExecutionFailureResult:
+    ) -> PipelineExecutionSuccessResult:
         task_id = celery_task.request.id
 
         try:
@@ -99,7 +102,7 @@ class TaskExecutionService:
             except Exception:
                 pass
 
-            return {"success": False, "error": str(exc)}
+            raise
 
 
 task_execution_service = TaskExecutionService()

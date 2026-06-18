@@ -197,10 +197,11 @@ class AuthService:
         commit: bool = True,
     ) -> None:
         now = revoked_at or utc_now_naive()
+        revoked_at_column = RefreshToken.__table__.c.revoked_at
         result = await db.exec(
             select(RefreshToken).where(
                 RefreshToken.user_id == user_id,
-                RefreshToken.revoked_at.is_(None),
+                revoked_at_column.is_(None),
             )
         )
         for record in result.all():

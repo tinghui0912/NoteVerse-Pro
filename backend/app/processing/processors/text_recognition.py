@@ -3,15 +3,11 @@
 import os
 import re
 import traceback
-from typing import Iterable, List, Optional, TypedDict, cast
+from typing import Iterable, List, Literal, Optional, TypedDict
 
 from celery.utils.log import get_task_logger
 
-from app.processing.engines.paddle import (
-    PaddleOcrFailureResult,
-    PaddleOcrSuccessResult,
-    run_ocr_subprocess,
-)
+from app.processing.engines.paddle import run_ocr_subprocess
 
 from .text_config import ClassificationConfig, OCR_CORRECTIONS, OcrConfig
 
@@ -48,26 +44,26 @@ class ClassifiedTexts(TypedDict):
 
 
 class TextRecognitionFailureResult(TypedDict):
-    success: bool
+    success: Literal[False]
     error: str
     texts: List[RecognizedText]
 
 
 class TextRecognitionSuccessResult(TypedDict):
-    success: bool
+    success: Literal[True]
     texts: List[RecognizedText]
     total_count: int
 
 
 class TextRecognitionProcessSuccessResult(TypedDict):
-    success: bool
+    success: Literal[True]
     raw_texts: List[RecognizedText]
     classified_texts: ClassifiedTexts
     total_count: int
 
 
 class TextRecognitionProcessFailureResult(TypedDict):
-    success: bool
+    success: Literal[False]
     error: str
     texts: List[RecognizedText]
 
@@ -146,18 +142,16 @@ class TextRecognitionEngine:
 
             process_result = run_ocr_subprocess(image_path, timeout_seconds=timeout_seconds)
             if not process_result["success"]:
-                failed_process_result = cast(PaddleOcrFailureResult, process_result)
                 logger.error(
-                    f"PaddleOCR subprocess failed: {failed_process_result['error']}"
+                    f"PaddleOCR subprocess failed: {process_result['error']}"
                 )
                 return {
                     "success": False,
-                    "error": failed_process_result["error"],
+                    "error": process_result["error"],
                     "texts": [],
                 }
 
-            successful_process_result = cast(PaddleOcrSuccessResult, process_result)
-            result = successful_process_result["result"]
+            result = process_result["result"]
             texts: List[RecognizedText] = []
             if result and len(result) > 0 and result[0]:
                 ocr_result = result[0]
@@ -419,18 +413,16 @@ class TextRecognitionEngine:
         """Run OCR and return raw plus classified text results."""
         recognition_result = self.recognize_text(image_path, timeout_seconds=timeout_seconds)
         if not recognition_result["success"]:
-            failure_result = cast(TextRecognitionFailureResult, recognition_result)
             return {
                 "success": False,
-                "error": failure_result["error"],
-                "texts": failure_result["texts"],
+                "error": recognition_result["error"],
+                "texts": recognition_result["texts"],
             }
 
-        success_result = cast(TextRecognitionSuccessResult, recognition_result)
-        classified_texts = self.classify_texts(success_result["texts"])
+        classified_texts = self.classify_texts(recognition_result["texts"])
         return {
             "success": True,
-            "raw_texts": success_result["texts"],
+            "raw_texts": recognition_result["texts"],
             "classified_texts": classified_texts,
-            "total_count": success_result["total_count"],
+            "total_count": recognition_result["total_count"],
         }

@@ -5,18 +5,16 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import ENV_FILE, Settings
+from app.core.config import Settings
 
 
-def test_settings_load_from_backend_env_file() -> None:
-    assert ENV_FILE.exists()
-
-    loaded_settings = Settings(_env_file=str(ENV_FILE))
+def test_settings_do_not_implicitly_load_an_env_file() -> None:
+    loaded_settings = Settings()
 
     assert loaded_settings.SECRET_KEY
     assert loaded_settings.DATABASE_URL
     assert loaded_settings.SYNC_DATABASE_URL
-    assert loaded_settings.model_config.get("env_file") == str(ENV_FILE)
+    assert loaded_settings.model_config.get("env_file") is None
 
 
 def test_debug_environment_parsing() -> None:

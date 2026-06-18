@@ -7,11 +7,7 @@ from celery.utils.log import get_task_logger
 from app.db.worker_session import get_worker_db
 from app.modules.tasks.execution_service import task_execution_service
 from app.modules.tasks.maintenance_service import task_maintenance_service
-from app.modules.tasks.schemas import (
-    PipelineExecutionFailureResult,
-    PipelineExecutionSuccessResult,
-    TaskProcessingOptions,
-)
+from app.modules.tasks.schemas import PipelineExecutionSuccessResult, TaskProcessingOptions
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import send_email
 from app.worker.celery_config import celery_app
@@ -29,7 +25,7 @@ def process_images_task(
     self: CeleryTaskLike,
     image_paths: List[str],
     options: Optional[TaskProcessingOptions] = None,
-) -> PipelineExecutionSuccessResult | PipelineExecutionFailureResult:
+) -> PipelineExecutionSuccessResult:
     """Run the image-processing pipeline for one or more input images."""
 
     return task_execution_service.run_pipeline(self, image_paths, options)

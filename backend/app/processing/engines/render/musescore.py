@@ -8,7 +8,7 @@ import os
 from app.core.config import settings
 from app.shared.constants import ErrorCode
 
-from .base import ScoreRenderResult
+from .base import ScoreRenderOutputFile, ScoreRenderResult
 
 MIME_BY_FORMAT = {
     "png": "image/png",
@@ -93,7 +93,7 @@ class MuseScoreRenderEngine:
         *,
         output_name: str,
         output_format: str,
-    ) -> list[dict[str, object]]:
+    ) -> list[ScoreRenderOutputFile]:
         """Collect single-file and page-numbered MuseScore outputs."""
 
         output_dir = os.path.abspath(self.output_folder)

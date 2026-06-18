@@ -47,7 +47,7 @@ class PreviewGenerationStep(Step):
                 output_format="svg" if engine.engine_name == "verovio" else "png",
             )
 
-            if not result.get("success"):
+            if not result["success"]:
                 failure_result = result
                 if failure_result.get("code") == "task_timeout":
                     raise TimeoutException(details={"error": failure_result.get("error")})

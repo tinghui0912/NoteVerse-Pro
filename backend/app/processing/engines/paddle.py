@@ -7,13 +7,14 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 from celery.utils.log import get_task_logger
 
 from app.core.config import settings
 
 logger = get_task_logger(__name__)
+_CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 _BACKEND_DIR = Path(__file__).resolve().parents[3]
 _WORKER_MODULE = "app.processing.engines.paddle_worker"
@@ -28,14 +29,14 @@ _PADDLEOCR_ENV_NAMES = (
 class PaddleOcrSuccessResult(TypedDict):
     """Successful PaddleOCR subprocess result."""
 
-    success: bool
+    success: Literal[True]
     result: list[Any]
 
 
 class PaddleOcrFailureResult(TypedDict):
     """Failed PaddleOCR subprocess result."""
 
-    success: bool
+    success: Literal[False]
     error: str
     code: str
 
@@ -76,7 +77,7 @@ def run_ocr_subprocess(
             timeout=timeout_seconds,
             cwd=str(_BACKEND_DIR),
             env=env,
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            creationflags=_CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
     except subprocess.TimeoutExpired:
         logger.error("PaddleOCR subprocess timed out")

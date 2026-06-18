@@ -39,7 +39,7 @@ async def render_and_save_images(
             output_format="svg" if engine.engine_name == "verovio" else "png",
         )
 
-        if result.get("success"):
+        if result["success"]:
             files = result["files"]
             if not files:
                 raise ScoreRenderFailedException(

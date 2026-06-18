@@ -390,7 +390,7 @@ function UploadPageContent() {
         src={f.preview}
         alt={f.file.name}
         fill
-        unoptimized={f.preview.startsWith('http')}
+        unoptimized
         className="object-cover transition-transform duration-300 group-hover:scale-110"
       />
       {/* 鐘舵€佹寚绀哄櫒 */}
@@ -588,7 +588,7 @@ function UploadPageContent() {
                       src={f.preview}
                       alt={f.file.name}
                       fill
-                      unoptimized={f.preview.startsWith('http')}
+                      unoptimized
                       className="object-contain rounded-md"
                     />
                   </div>

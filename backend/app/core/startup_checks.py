@@ -42,6 +42,9 @@ def log_external_tool_status() -> None:
         logger.info("Verovio renderer selected; Python package availability is checked at render time")
 
     for tool_name, tool_path in tools.items():
+        if not tool_path:
+            logger.warning(f"{tool_name} executable is not configured")
+            continue
         if Path(tool_path).exists():
             logger.info(f"{tool_name} available: {tool_path}")
         else:

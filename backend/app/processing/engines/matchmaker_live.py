@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import Callable, NotRequired, Protocol, TypedDict, runtime_checkable
 
 from app.core.config import settings
+from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 from app.core.logger import logger
 from app.processing.engines.practice_audio_activity import (
     ActivityConfidenceEstimator,
     AdaptiveNoiseCalibrator,
+    AudioFrameClass,
     AudioGateConfig,
     AudioFeatureExtractor,
     AudioFrameFeatures,
@@ -156,7 +158,7 @@ class BrowserAudioStreamAdapter:
         self.last_peak_prominence = 0.0
         self.last_spectral_flux = 0.0
         self.last_onset_signal = False
-        self.last_frame_class = "silence"
+        self.last_frame_class: AudioFrameClass = "silence"
         self.last_feature_vector = None
         self.start_feature_validator: Callable[[object], bool] | None = None
         self.start_feature_scorer: Callable[[object], float] | None = None
@@ -621,12 +623,12 @@ class MatchmakerLiveEngine:
         if frame_format != "pcm_s16le":
             raise RuntimeError("Matchmaker practice sessions require pcm_s16le audio.")
 
+        ensure_partitura_default_soundfont(settings.PRACTICE_SOUNDFONT_PATH)
         try:
             import numpy as np
             import partitura
             from matchmaker.dp import OnlineTimeWarpingArztFrame
             from matchmaker.features.audio import ChromagramProcessor
-            from matchmaker.utils.misc import generate_score_audio, get_current_note_bpm
             from partitura.io.exportmidi import get_ppq
         except ImportError as exc:
             missing_module = getattr(exc, "name", None) or "unknown"
@@ -635,6 +637,20 @@ class MatchmakerLiveEngine:
                 f"'{missing_module}'. Install pymatchmaker and its runtime "
                 f"dependencies before starting live practice sessions. Original error: {exc}"
             ) from exc
+        score_audio_generator = None
+        if not settings.PRACTICE_SOUNDFONT_PATH:
+            try:
+                from matchmaker.utils import misc as matchmaker_misc
+
+                score_audio_generator = matchmaker_misc.generate_score_audio
+            except ImportError as exc:
+                missing_module = getattr(exc, "name", None) or "unknown"
+                raise RuntimeError(
+                    "Missing practice alignment dependency "
+                    f"'{missing_module}'. Install pymatchmaker and its runtime "
+                    "dependencies before starting live practice sessions. "
+                    f"Original error: {exc}"
+                ) from exc
 
         self.score_file_path = str(Path(score_file_path))
         self.sample_rate = sample_rate
@@ -657,7 +673,7 @@ class MatchmakerLiveEngine:
         self.tempo = DEFAULT_TEMPO_BPM
         self.frame_rate = settings.PRACTICE_MATCHMAKER_FRAME_RATE
         self.hop_length = max(int(sample_rate / self.frame_rate), 1)
-        self._queue = queue.Queue()
+        self._queue: queue.Queue[object] = queue.Queue()
         self._processor = self._build_audio_processor(
             sample_rate=sample_rate,
             hop_length=self.hop_length,
@@ -691,8 +707,7 @@ class MatchmakerLiveEngine:
             sample_rate=sample_rate,
             np=np,
             partitura=partitura,
-            generate_score_audio=generate_score_audio,
-            get_current_note_bpm=get_current_note_bpm,
+            generate_score_audio=score_audio_generator,
         )
         score_audio = self._normalize_audio_waveform(raw_score_audio, np).astype(np.float32)
         reference_features = BrowserAudioStreamAdapter._feature_matrix(
@@ -835,23 +850,21 @@ class MatchmakerLiveEngine:
         np,
         partitura,
         generate_score_audio,
-        get_current_note_bpm=None,
     ):
         soundfont_path = settings.PRACTICE_SOUNDFONT_PATH
         if not soundfont_path:
+            if generate_score_audio is None:
+                raise RuntimeError("matchmaker score audio generator is not available.")
             return generate_score_audio(score, bpm, sample_rate)
 
         soundfont = Path(soundfont_path)
         if not soundfont.exists():
             raise RuntimeError(f"PRACTICE_SOUNDFONT_PATH does not exist: {soundfont}")
 
-        if get_current_note_bpm is None:
-            from matchmaker.utils.misc import get_current_note_bpm
-
         note_array = score.note_array()
         bpm_array = np.array(
             [
-                [onset_beat, get_current_note_bpm(score, onset_beat, bpm)]
+                [onset_beat, bpm]
                 for onset_beat in note_array["onset_beat"]
             ]
         )

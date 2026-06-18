@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from app.core.config import settings
 from app.processing.engines.matchmaker_live import (
     AlignmentEngine,
     AlignmentUpdate,

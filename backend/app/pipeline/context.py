@@ -99,6 +99,7 @@ class TaskContext:
             task_service.upsert_step(self.db, self.task_id, name=name, **kwargs)
         except Exception as exc:
             logger.error(f"[{self.task_id}] _upsert failed for {name}: {exc}")
+            self._recover_session()
 
     def remaining(self) -> int:
         """Return remaining task time in seconds."""
@@ -119,6 +120,7 @@ class TaskContext:
             )
         except Exception as exc:
             logger.error(f"[{self.task_id}] update_progress failed: {exc}")
+            self._recover_session()
 
         try:
             step = kw.get("current_step")
@@ -130,6 +132,13 @@ class TaskContext:
         logger.info(
             f"[{self.task_id}] step={kw.get('current_step') or ''} status={msg} progress={prog}%"
         )
+
+    def _recover_session(self) -> None:
+        """Recover a worker session interrupted during a progress update."""
+        try:
+            self.db.rollback()
+        except Exception:
+            self.db.invalidate()
 
     def fail(
         self,

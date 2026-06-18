@@ -363,7 +363,7 @@ OMR 和渲染迁移已经把旧的工具耦合收口成：
 - LEGATO 当前可靠路径是 `image -> LEGATO -> ABC -> MusicXML -> normalized MusicXML`
 - 不要依赖 Verovio 像 MuseScore 一样做宽容布局修正，进入 Verovio 前应清洗 MusicXML
 - SVG/PNG 是 MIME type 和 renderer 输出差异，不应让前端或 file kind 名字硬编码为 PNG 假设
-- 多页 LEGATO 暂未设计完成时，应明确失败，例如 `legato_multi_page_not_supported`
+- LEGATO 多页通过有序图片列表进入 `process_images()`，逐页转换后保守合并 MusicXML；不要重新绕回为 Audiveris 设计的 PDF 路径
 
 ### 9. 可靠性设计要围绕 durable state
 
@@ -438,15 +438,17 @@ OMR 和渲染迁移已经把旧的工具耦合收口成：
 
 经验：ML runtime 问题、CUDA wheel/driver 不匹配、模型目录缺失、Hugging Face cache symlink 损坏和 external repo commit 漂移，都应在 runtime check 阶段暴露，不要让它们表现成业务 bug。
 
+Runtime check 按进程角色划分：API 检查异步数据库、存储和 practice runtime；worker 检查同步数据库、broker、任务注册、处理引擎和模型；beat 只检查 broker 与 schedule 目录。worker/beat 在启动 Celery 前执行必要门禁并失败退出，不提供绕过开关。FastAPI lifespan 保持轻量，`/health/live` 不访问外部依赖，`/health/ready` 只将数据库视为全局 readiness 条件；Redis 故障报告 degraded，但不应让登录、历史记录等非队列功能被整体摘流量。
+
 ## 六、测试和质量门禁
 
 后端结构或行为变更前后，至少运行：
 
 ```powershell
-.\venv\Scripts\python.exe -m ruff check app tests
-.\venv\Scripts\python.exe -m mypy --config-file pyproject.toml
-.\venv\Scripts\python.exe -m mypy --config-file mypy-model-layer.ini
-.\venv\Scripts\python.exe -m pytest tests -q
+..\scripts\backend_quality.ps1 ruff
+..\scripts\backend_quality.ps1 mypy
+..\scripts\backend_quality.ps1 mypy-model-layer
+..\scripts\backend_quality.ps1 pytest
 ```
 
 测试策略应按风险选择：

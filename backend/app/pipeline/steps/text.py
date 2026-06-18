@@ -5,8 +5,10 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, cast
 
+from celery.exceptions import SoftTimeLimitExceeded
 from celery.utils.log import get_task_logger
 
+from app.core.config import settings
 from app.core.exceptions import TimeoutException
 
 from ..base import Step
@@ -14,6 +16,7 @@ from ..context import TaskContext
 
 if TYPE_CHECKING:
     from app.processing.processors.text_recognition import (
+        ClassifiedTexts,
         TextRecognitionProcessSuccessResult,
     )
     from app.processing.processors.text_integration import TextIntegrationSuccessResult
@@ -53,7 +56,14 @@ class TextOcrStep(Step):
 
         try:
             engine = TextRecognitionEngine()
-            result = engine.process_image(image_path, timeout_seconds=ctx.remaining())
+            timeout_seconds = min(
+                ctx.remaining(),
+                int(settings.PADDLEOCR_TIMEOUT_SECONDS),
+            )
+            result = engine.process_image(
+                image_path,
+                timeout_seconds=timeout_seconds,
+            )
 
             if result.get("success"):
                 typed_result = cast(TextRecognitionProcessSuccessResult, result)
@@ -66,6 +76,8 @@ class TextOcrStep(Step):
 
             logger.warning(f"[{ctx.task_id}] Text recognition failed: {result.get('error')}")
             return None
+        except SoftTimeLimitExceeded:
+            raise
         except Exception as exc:
             logger.warning(f"[{ctx.task_id}] PaddleOCR failed: {exc}")
             return None
@@ -76,7 +88,6 @@ class TextOcrStep(Step):
         ocr_result: TextRecognitionProcessSuccessResult,
     ) -> None:
         """Write recognized text metadata into the current XML file."""
-        from app.processing.processors.text_recognition import ClassifiedTexts
         from app.processing.processors.text_integration import (
             TextIntegrationEngine,
             TextIntegrationSuccessResult,
@@ -92,7 +103,6 @@ class TextOcrStep(Step):
             logger.warning(f"[{ctx.task_id}] No text info available; skipping integration")
             return
 
-        text_info = cast(ClassifiedTexts, text_info)
         logger.info(
             f"[{ctx.task_id}] Integrating text into XML: "
             f"{self._summarize_classified_texts(text_info)}"
@@ -149,7 +159,10 @@ class TextOcrStep(Step):
 
         parts: list[str] = []
         for field in ("title", "subtitle", "composer", "lyricist", "copyright"):
-            value = (text_info.get(field) or "").strip()
+            raw_value = text_info.get(field)
+            if not isinstance(raw_value, str):
+                continue
+            value = raw_value.strip()
             if not value:
                 continue
             parts.append(f"{field}={self._shorten_log_text(value)}")

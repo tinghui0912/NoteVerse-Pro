@@ -1,5 +1,7 @@
 """XML normalization step."""
 
+from __future__ import annotations
+
 import os
 import xml.etree.ElementTree as ET
 
@@ -125,7 +127,7 @@ class XmlNormalizeStep(Step):
 
         logger.info(f"First measure number is {first_measure_number}; keeping original values")
 
-    def _save_formatted_xml(self, tree: ET.ElementTree, output_file: str) -> None:
+    def _save_formatted_xml(self, tree: ET.ElementTree[ET.Element], output_file: str) -> None:
         """Persist a formatted XML document in place."""
         self._indent_xml(tree.getroot())
         tree.write(

@@ -112,7 +112,7 @@ export default function HomePage() {
       <div className="relative min-h-screen overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=2070&auto=format&fit=crop"
+            src={placeholderImages['main-bg'].url}
             alt="Musical background"
             fill
             priority

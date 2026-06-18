@@ -2,23 +2,21 @@ name: noteverse-backend-dev
 
 x-backend-common: &backend-common
   image: noteverse-backend-runtime:dev
-  build:
-    context: .
-    dockerfile: docker/backend/Dockerfile.runtime
-    args:
-      INSTALL_GPU_DEPS: ${INSTALL_GPU_DEPS:-true}
-      INSTALL_LEGATO_EXTRA_DEPS: ${INSTALL_LEGATO_EXTRA_DEPS:-false}
-      TORCH_CUDA_INDEX: ${TORCH_CUDA_INDEX:-cu126}
-      PADDLE_CUDA_INDEX: ${PADDLE_CUDA_INDEX:-cu126}
   env_file:
     - path: backend/.env.docker
-      required: false
+      required: true
   environment:
     PYTHONPATH: /app
+  entrypoint:
+    - /usr/bin/tini
+    - --
+    - /bin/bash
+    - /docker/entrypoint.sh
   volumes:
     - ./backend:/app
+    - ./docker/backend/entrypoint.sh:/docker/entrypoint.sh:ro
     - ./external/legato:/external/legato:ro
-    - ${NOTEVERSE_MODEL_ROOT:-/opt/noteverse/models}:/opt/noteverse/models:ro
+    - ${NOTEVERSE_MODEL_ROOT:-./models}:/opt/noteverse/models:ro
     - ./backend/data:/app/data
     - ./backend/logs:/app/logs
   extra_hosts:
@@ -28,18 +26,36 @@ x-backend-common: &backend-common
 services:
   api:
     <<: *backend-common
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.runtime
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-noteverse-ml-base:py312-torch260-cu124}
+        INSTALL_DEV_DEPS: ${INSTALL_DEV_DEPS:-true}
+        INSTALL_GPU_DEPS: ${INSTALL_GPU_DEPS:-true}
+        INSTALL_PADDLE_GPU: ${INSTALL_PADDLE_GPU:-false}
+        INSTALL_LEGATO_EXTRA_DEPS: ${INSTALL_LEGATO_EXTRA_DEPS:-false}
+        PADDLE_CUDA_INDEX: ${PADDLE_CUDA_INDEX:-cu126}
     command: api
+    gpus: all
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   worker:
     <<: *backend-common
     command: worker
-    depends_on:
-      - api
+    gpus: all
 
   beat:
     <<: *backend-common
     command: beat
-    depends_on:
-      - api

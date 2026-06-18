@@ -1,7 +1,7 @@
 """Application settings and configuration validation."""
 
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 import os
 import shutil
 
@@ -10,7 +10,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-ENV_FILE = BASE_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -51,19 +50,18 @@ class Settings(BaseSettings):
     PADDLEOCR_DETECTION_MODEL_DIR: Optional[str] = None
     PADDLEOCR_RECOGNITION_MODEL_DIR: Optional[str] = None
     PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR: Optional[str] = None
+    LOG_DIR: str = str(BASE_DIR / "logs")
 
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+    def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
         if v in (None, ""):
             return []
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        if isinstance(v, (list, str)):
+        if isinstance(v, list):
             return v
-        raise ValueError(v)
+        raise ValueError("BACKEND_CORS_ORIGINS must be a JSON array")
 
     @field_validator("DEBUG", mode="before")
     @classmethod
@@ -91,6 +89,7 @@ class Settings(BaseSettings):
         return max(v, 1)
 
     @field_validator(
+        "LOG_DIR",
         "PRACTICE_SOUNDFONT_PATH",
         "MODEL_ROOT",
         "HF_HOME",
@@ -100,7 +99,7 @@ class Settings(BaseSettings):
         "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
     )
     @classmethod
-    def normalize_optional_path(cls, v: Optional[str]) -> Optional[str]:
+    def normalize_path(cls, v: Optional[str]) -> Optional[str]:
         if not v:
             return None
         return str(Path(v).expanduser())
@@ -109,11 +108,15 @@ class Settings(BaseSettings):
         "TASK_PENDING_STALE_SECONDS",
         "TASK_PROGRESS_STALE_SECONDS",
         "ORPHAN_UPLOAD_TTL_SECONDS",
+        "MAX_PROCESSING_TIME",
+        "PADDLEOCR_TIMEOUT_SECONDS",
+        "CELERY_TASK_SOFT_TIME_LIMIT",
+        "CELERY_TASK_TIME_LIMIT",
     )
     @classmethod
     def validate_positive_reliability_setting(cls, v: int) -> int:
         if v <= 0:
-            raise ValueError("reliability settings must be positive integers")
+            raise ValueError("task timing settings must be positive integers")
         return v
 
     # Database
@@ -142,7 +145,10 @@ class Settings(BaseSettings):
     S3_PRESIGN_EXPIRE_SECONDS: int = 900
     STORAGE_ROOT: str = "data/storage"
     WORK_ROOT: str = "data/work"
-    MAX_PROCESSING_TIME: int = 300
+    MAX_PROCESSING_TIME: int = 900
+    PADDLEOCR_TIMEOUT_SECONDS: int = 300
+    CELERY_TASK_SOFT_TIME_LIMIT: int = 960
+    CELERY_TASK_TIME_LIMIT: int = 1020
     ALLOWED_EXTENSIONS: set = {
         "png",
         "jpg",
@@ -165,6 +171,7 @@ class Settings(BaseSettings):
     LEGATO_DEVICE: str = "cuda"
     LEGATO_FP16: bool = True
     LEGATO_BEAM_SIZE: int = 10
+    LEGATO_BATCH_SIZE: int = 1
     LEGATO_TIMEOUT_SECONDS: int = 600
     SCORE_RENDER_ENGINE: str = "musescore"
     MUSESCORE_PATH: Optional[str] = None
@@ -205,6 +212,24 @@ class Settings(BaseSettings):
             object.__setattr__(self, "CELERY_RESULT_BACKEND", self.REDIS_URL)
         if self.MAIL_DEFAULT_SENDER is None:
             object.__setattr__(self, "MAIL_DEFAULT_SENDER", self.MAIL_USERNAME)
+        return self
+
+    @model_validator(mode="after")
+    def validate_task_time_limits(self) -> "Settings":
+        """Keep component timeouts inside the task shutdown envelope."""
+
+        if self.PADDLEOCR_TIMEOUT_SECONDS > self.MAX_PROCESSING_TIME:
+            raise ValueError(
+                "PADDLEOCR_TIMEOUT_SECONDS must not exceed MAX_PROCESSING_TIME"
+            )
+        if self.MAX_PROCESSING_TIME >= self.CELERY_TASK_SOFT_TIME_LIMIT:
+            raise ValueError(
+                "MAX_PROCESSING_TIME must be lower than CELERY_TASK_SOFT_TIME_LIMIT"
+            )
+        if self.CELERY_TASK_SOFT_TIME_LIMIT >= self.CELERY_TASK_TIME_LIMIT:
+            raise ValueError(
+                "CELERY_TASK_SOFT_TIME_LIMIT must be lower than CELERY_TASK_TIME_LIMIT"
+            )
         return self
 
     @field_validator("STORAGE_ROOT", "WORK_ROOT")
@@ -364,7 +389,6 @@ class Settings(BaseSettings):
         return self
 
     model_config = SettingsConfigDict(
-        env_file=str(ENV_FILE),
         case_sensitive=True,
         extra="ignore",
     )

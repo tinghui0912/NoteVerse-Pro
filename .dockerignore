@@ -3,7 +3,6 @@
 .ruff_cache
 .vscode
 
-backend/.env
 backend/.env.docker
 backend/.mypy_cache
 backend/.pytest_cache
@@ -20,5 +19,6 @@ frontend/tsconfig.tsbuildinfo
 
 external
 logs
+models
 matchmaker
 matchmaker-demo-main

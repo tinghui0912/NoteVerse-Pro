@@ -39,63 +39,52 @@ Main feature modules:
 
 ## Quick Start
 
-### 1. Create and activate a virtual environment
+Local backend development runs through Docker so API, worker, beat, LEGATO,
+Verovio, PaddleOCR, and Matchmaker share the same Linux runtime shape as future
+deployments. Redis and the database can continue running on the Windows host.
+Host virtualenv or direct `pip install` workflows are not supported for backend
+development or testing.
+
+Create the required Docker environment file first:
 
 ```powershell
-python -m venv venv
-.\venv\Scripts\activate
+Copy-Item backend/.env.docker.example backend/.env.docker
 ```
 
-### 2. Install dependencies
-
 ```powershell
-pip install -r requirements.txt
+docker build -f docker/backend/Dockerfile.ml-base -t noteverse-ml-base:py312-torch260-cu124 .
+docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml run --rm api check
+docker compose -f docker-compose.backend-dev.yml run --rm api migrate
+docker compose -f docker-compose.backend-dev.yml up api worker beat
 ```
 
-### 3. Configure environment
+The runtime check supports process roles:
 
 ```powershell
-Copy-Item .env.example .env
+docker compose -f docker-compose.backend-dev.yml run --rm api check --role api
+docker compose -f docker-compose.backend-dev.yml run --rm api check --role worker
+docker compose -f docker-compose.backend-dev.yml run --rm api check --role beat
+docker compose -f docker-compose.backend-dev.yml run --rm api check --role all
 ```
 
-Required settings include:
+Worker and beat run their own required checks before starting. They fail closed;
+there is no environment switch that bypasses the startup gate. The API exposes
+`/health/live` and `/health/ready`. Database failure makes the API not ready;
+Redis failure is reported as degraded because non-queue API features remain
+available.
 
-- `SECRET_KEY`
-- `DATABASE_URL`
-- `SYNC_DATABASE_URL`
-- `REDIS_URL`
-- `AUDIVERIS_PATH`
-- `MUSESCORE_PATH`
-- `MAIL_*`
+Dependency files are split by purpose:
 
-### 4. Run migrations
+- `requirements.txt`: backend runtime dependencies.
+- `requirements-dev.txt`: test and quality tools installed in the Docker dev
+  image by default.
 
-```powershell
-alembic upgrade head
-```
-
-### 5. Start the API
+Production-style builds can omit development tools with:
 
 ```powershell
-python run.py
-```
-
-Or:
-
-```powershell
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 6. Start the worker
-
-```powershell
-python worker.py
-```
-
-Or:
-
-```powershell
-celery -A worker.celery_app worker --loglevel=info --pool=solo
+$env:INSTALL_DEV_DEPS="false"
+docker compose -f docker-compose.backend-dev.yml build api
 ```
 
 ## API Docs
@@ -108,10 +97,10 @@ celery -A worker.celery_app worker --loglevel=info --pool=solo
 Run these before merging backend changes:
 
 ```powershell
-.\venv\Scripts\python.exe -m ruff check app tests
-.\venv\Scripts\python.exe -m mypy --config-file pyproject.toml
-.\venv\Scripts\python.exe -m mypy --config-file mypy-model-layer.ini
-.\venv\Scripts\python.exe -m pytest tests -q
+..\scripts\backend_quality.ps1 ruff
+..\scripts\backend_quality.ps1 mypy
+..\scripts\backend_quality.ps1 mypy-model-layer
+..\scripts\backend_quality.ps1 pytest
 ```
 
 Current verified baseline:

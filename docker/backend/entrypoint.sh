@@ -10,13 +10,18 @@ case "${1:-api}" in
     exec python -m uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}" --reload
     ;;
   worker)
-    exec python -m celery -A app.worker.celery_config:celery_app worker --loglevel="${CELERY_LOGLEVEL:-info}"
+    python scripts/check_runtime.py --role worker
+    exec python -m celery -A app.worker.celery_config:celery_app worker \
+      --loglevel="${CELERY_LOGLEVEL:-info}" \
+      --concurrency="${CELERY_WORKER_CONCURRENCY:-1}"
     ;;
   beat)
+    python scripts/check_runtime.py --role beat
     exec python -m celery -A app.worker.celery_config:celery_app beat --loglevel="${CELERY_LOGLEVEL:-info}"
     ;;
   check)
-    exec python scripts/check_runtime.py
+    shift
+    exec python scripts/check_runtime.py "$@"
     ;;
   migrate)
     exec alembic upgrade head

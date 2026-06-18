@@ -77,19 +77,21 @@ class SyncTaskRepository:
 
     @staticmethod
     def list_stale_progress_tasks(db: Session, cutoff: datetime) -> list[Task]:
+        last_heartbeat_at = Task.__table__.c.last_heartbeat_at
         return (
             db.query(Task)
             .filter(Task.state == TaskState.PROGRESS)
-            .filter(or_(Task.last_heartbeat_at.is_(None), Task.last_heartbeat_at < cutoff))
+            .filter(or_(last_heartbeat_at.is_(None), last_heartbeat_at < cutoff))
             .all()
         )
 
     @staticmethod
     def list_orphan_uploads(db: Session, cutoff: datetime) -> list[Upload]:
+        task_upload_id = TaskUpload.__table__.c.id
         return (
             db.query(Upload)
             .outerjoin(TaskUpload, Upload.id == TaskUpload.upload_id)
-            .filter(TaskUpload.id.is_(None))
+            .filter(task_upload_id.is_(None))
             .filter(Upload.created_at < cutoff)
             .all()
         )

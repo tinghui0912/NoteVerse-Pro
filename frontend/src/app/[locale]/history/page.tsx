@@ -155,7 +155,7 @@ const ScoreCard = ({ item, isSelected, onSelect, selectionMode, isUpload }: {
             src={item.thumbnail}
             alt={item.name}
             fill
-            unoptimized={item.thumbnail.startsWith('http')}
+            unoptimized
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (item as TaskItem).thumbnailError ? (

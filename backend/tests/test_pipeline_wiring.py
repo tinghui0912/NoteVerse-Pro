@@ -9,9 +9,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.pipeline import PipelineBuilder
-from app.pipeline.steps.audiveris import OmrImageStep, OmrPdfStep
 from app.pipeline.steps.input import CopyImageStep
 from app.pipeline.steps.normalize import XmlNormalizeStep
+from app.pipeline.steps.omr import OmrImageStep, OmrImagesStep, OmrPdfStep
 from app.pipeline.steps.preview import PreviewGenerationStep
 from app.processing.engines.omr.audiveris import AudiverisOmrEngine
 from app.processing.engines.omr.factory import create_omr_engine
@@ -107,12 +107,22 @@ def test_preview_generation_step_renders_and_records_preview_images() -> None:
         assert os.path.exists(args[2][0])
 
 
-def test_pipeline_builder_uses_generic_omr_steps() -> None:
+def test_pipeline_builder_uses_generic_omr_steps(monkeypatch) -> None:
+    monkeypatch.setattr("app.pipeline.builder.settings.OMR_ENGINE", "audiveris")
     single = PipelineBuilder.build_single_image()
     multi = PipelineBuilder.build_multi_image()
 
     assert any(isinstance(step, OmrImageStep) for step in single.steps)
     assert any(isinstance(step, OmrPdfStep) for step in multi.steps)
+
+
+def test_pipeline_builder_uses_ordered_image_pages_for_legato(monkeypatch) -> None:
+    monkeypatch.setattr("app.pipeline.builder.settings.OMR_ENGINE", "legato")
+
+    multi = PipelineBuilder.build_multi_image()
+
+    assert any(isinstance(step, OmrImagesStep) for step in multi.steps)
+    assert not any(isinstance(step, OmrPdfStep) for step in multi.steps)
 
 
 def test_xml_normalize_step_applies_a4_layout() -> None:
@@ -275,14 +285,14 @@ def test_legato_omr_engine_writes_musicxml_result() -> None:
             stderr=b"",
         )
 
-        def fake_inference(_image_path, prediction_path):
+        def fake_inference(_image_paths, prediction_path):
             with open(prediction_path, "w", encoding="utf-8") as file_handle:
                 file_handle.write('{"abc_transcription": ["X:1\\nK:C\\nC|"], "tokens": []}')
             return inference_result
 
         with patch.object(engine, "_check_prerequisites") as check_mock:
             with patch.object(engine, "_run_inference", side_effect=fake_inference) as inference_mock:
-                with patch.object(engine, "_read_abc", return_value="X:1\nK:C\nC|") as read_mock:
+                with patch.object(engine, "_read_abcs", return_value=["X:1\nK:C\nC|"]) as read_mock:
                     with patch.object(engine, "_cleanup_abc", return_value="X:1\nK:C\nC|") as cleanup_mock:
                         with patch.object(engine, "_run_abc2xml", return_value=conversion_result) as convert_mock:
                             result = engine.process_image(image_path)
@@ -294,11 +304,78 @@ def test_legato_omr_engine_writes_musicxml_result() -> None:
         assert os.path.exists(result["files"]["raw_prediction"])
         xml_content = open(result["files"]["xml"], encoding="utf-8").read()
         assert xml_content.index('<clef number="2">') < xml_content.index("<backup>")
-        check_mock.assert_called_once_with(image_path)
+        check_mock.assert_called_once_with([image_path])
         inference_mock.assert_called_once()
         read_mock.assert_called_once()
         cleanup_mock.assert_called_once()
         convert_mock.assert_called_once()
+
+
+def test_legato_omr_engine_merges_multi_page_musicxml() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        image_paths = []
+        for index in range(2):
+            image_path = os.path.join(temp_dir, f"input-{index}.png")
+            with open(image_path, "wb") as file_handle:
+                file_handle.write(b"image")
+            image_paths.append(image_path)
+
+        engine = LegatoOmrEngine(
+            output_folder=temp_dir,
+            timeout_seconds=120,
+            repo_path=temp_dir,
+            python_executable="python",
+            model_path="model",
+            processor_path="processor",
+            device="cpu",
+            fp16=False,
+        )
+
+        inference_result = subprocess.CompletedProcess(
+            args=["legato"],
+            returncode=0,
+            stdout="ok",
+            stderr="",
+        )
+
+        def fake_inference(_image_paths, prediction_path):
+            with open(prediction_path, "w", encoding="utf-8") as file_handle:
+                file_handle.write(
+                    '{"abc_transcription": ["X:1\\nK:C\\nC|", "X:1\\nK:C\\nD|"], "tokens": []}'
+                )
+            return inference_result
+
+        def fake_convert(_cleaned_abc, stem="prediction"):
+            note_step = "C" if stem == "page-001" else "D"
+            conversion_xml = f"""<?xml version='1.0' encoding='utf-8'?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1"><note><pitch><step>{note_step}</step><octave>4</octave></pitch><duration>1</duration></note></measure>
+  </part>
+</score-partwise>
+"""
+            return subprocess.CompletedProcess(
+                args=["abc2xml"],
+                returncode=0,
+                stdout=conversion_xml.encode("utf-8"),
+                stderr=b"",
+            )
+
+        with patch.object(engine, "_check_prerequisites"):
+            with patch.object(engine, "_run_inference", side_effect=fake_inference):
+                with patch.object(engine, "_read_abcs", return_value=["abc1", "abc2"]):
+                    with patch.object(engine, "_cleanup_abc", side_effect=lambda value: value):
+                        with patch.object(engine, "_run_abc2xml", side_effect=fake_convert):
+                            result = engine.process_images(image_paths)
+
+        assert result["success"] is True
+        xml_path = result["files"]["xml"]
+        assert xml_path.endswith("prediction.musicxml")
+        root = ET.parse(xml_path).getroot()
+        measures = root.findall("./part/measure")
+        assert [measure.get("number") for measure in measures] == ["1", "2"]
+        assert measures[1].find("print").get("new-page") == "yes"
 
 
 def test_legato_omr_engine_rejects_pdf() -> None:
@@ -307,4 +384,4 @@ def test_legato_omr_engine_rejects_pdf() -> None:
         result = engine.process_pdf("score.pdf")
 
     assert result["success"] is False
-    assert result["code"] == "legato_multi_page_not_supported"
+    assert result["code"] == "legato_failed"

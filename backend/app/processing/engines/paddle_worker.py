@@ -6,7 +6,7 @@ import json
 import os
 import inspect
 import sys
-from typing import Any
+from typing import Any, Mapping
 
 
 def _set_stable_env() -> None:
@@ -27,7 +27,7 @@ def _existing_env_path(name: str) -> str | None:
 
 def _set_first_supported_path(
     kwargs: dict[str, Any],
-    parameters: dict[str, Any],
+    parameters: Mapping[str, Any],
     names: tuple[str, ...],
     path: str | None,
 ) -> None:
@@ -59,7 +59,7 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
 
     kwargs: dict[str, Any] = {"lang": "ch"}
     try:
-        parameters = inspect.signature(paddle_ocr_cls).parameters
+        parameters: Mapping[str, Any] = inspect.signature(paddle_ocr_cls).parameters
     except (TypeError, ValueError):
         parameters = {}
 

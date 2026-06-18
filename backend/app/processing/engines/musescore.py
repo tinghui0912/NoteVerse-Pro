@@ -5,17 +5,18 @@ Wraps MuseScore 4 CLI for rendering MusicXML to images.
 import os
 import subprocess
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import Literal, Optional, TypedDict
 from celery.utils.log import get_task_logger
 from app.core.config import settings
 
 logger = get_task_logger(__name__)
+_CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 
 class MuseScoreSuccessResult(TypedDict):
     """Successful MuseScore rendering result."""
 
-    success: bool
+    success: Literal[True]
     output_path: str
     format: str
     dpi: int | None
@@ -24,7 +25,7 @@ class MuseScoreSuccessResult(TypedDict):
 class MuseScoreFailureResult(TypedDict, total=False):
     """Failed MuseScore rendering result."""
 
-    success: bool
+    success: Literal[False]
     error: str
     code: str
     returncode: int
@@ -52,12 +53,13 @@ class MuseScoreEngine:
             output_folder: Output directory for rendered files.
                           Defaults to settings.WORK_ROOT
         """
-        self.musescore_path = musescore_path or settings.MUSESCORE_PATH
+        resolved_musescore_path = musescore_path or settings.MUSESCORE_PATH
+        if not resolved_musescore_path:
+            raise ValueError("MUSESCORE_PATH not configured in settings")
+
+        self.musescore_path = resolved_musescore_path
         self.output_folder = output_folder or settings.WORK_ROOT
         self.timeout_seconds = timeout_seconds
-        
-        if not self.musescore_path:
-            raise ValueError("MUSESCORE_PATH not configured in settings")
     
     def render_to_image(
         self,
@@ -98,7 +100,7 @@ class MuseScoreEngine:
                     [self.musescore_path, '--version'],
                     capture_output=True,
                     text=True,
-                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+                    creationflags=_CREATE_NO_WINDOW if os.name == 'nt' else 0
                 )
                 
                 if version_result.returncode == 0:
@@ -142,7 +144,7 @@ class MuseScoreEngine:
                 text=True,
                 cwd=os.getcwd(),
                 timeout=self.timeout_seconds,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+                creationflags=_CREATE_NO_WINDOW if os.name == 'nt' else 0
             )
             
             logger.info(f"MuseScore return code: {result.returncode}")

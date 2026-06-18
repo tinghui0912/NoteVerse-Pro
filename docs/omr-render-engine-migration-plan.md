@@ -10,7 +10,7 @@ Current backend flow:
 Upload
   -> Celery task
   -> CopyImageStep / CopyImagesStep
-  -> AudiverisImageStep / AudiverisPdfStep
+  -> OmrImageStep / OmrImagesStep / OmrPdfStep
   -> ExtractXmlStep
   -> TextOcrStep
   -> XmlNormalizeStep
@@ -85,7 +85,7 @@ Files to change:
 - `backend/app/processing/engines/omr/audiveris.py`
 - `backend/app/processing/engines/omr/factory.py`
 - `backend/app/pipeline/context.py`
-- `backend/app/pipeline/steps/audiveris.py`
+- `backend/app/pipeline/steps/omr.py`
 - `backend/app/pipeline/steps/xml.py`
 - `backend/app/pipeline/builder.py`
 
@@ -117,7 +117,7 @@ Refactors:
 
 - Rename `ctx.aud_result` to `ctx.omr_result`.
 - Rename `ctx.aud_dir` to `ctx.omr_dir`.
-- Rename `AudiverisImageStep` / `AudiverisPdfStep` to `OmrImageStep` / `OmrPdfStep`.
+- Replace Audiveris-named pipeline steps with generic `OmrImageStep`, `OmrImagesStep`, and `OmrPdfStep`.
 - Update `ExtractXmlStep` to read from `ctx.omr_result["files"]`.
 - Keep Audiveris behavior intact through `AudiverisOmrEngine`.
 
@@ -134,7 +134,7 @@ Goal: select the OMR engine from configuration.
 Files to change:
 
 - `backend/app/core/config.py`
-- `backend/.env.example`
+- `backend/.env.docker.example`
 - `backend/app/core/startup_checks.py`
 
 New settings:
@@ -148,6 +148,7 @@ LEGATO_PROCESSOR_PATH=guangyangmusic/legato
 LEGATO_DEVICE=cuda
 LEGATO_FP16=true
 LEGATO_BEAM_SIZE=10
+LEGATO_BATCH_SIZE=1
 LEGATO_TIMEOUT_SECONDS=600
 ```
 
@@ -159,18 +160,19 @@ Validation:
 
 ## Phase 3: Implement LegatoOmrEngine
 
-Goal: produce MusicXML from an input image using the verified path.
+Goal: produce MusicXML from input image pages using the verified path.
 
 Engine flow:
 
 ```text
-image
+image page(s)
   -> LEGATO inference
   -> prediction_abc.json
-  -> prediction.abc
-  -> LEGATO cleanup_abc
-  -> abc2xml.py
-  -> prediction.musicxml
+  -> page ABC
+  -> LEGATO cleanup_abc per page
+  -> abc2xml.py per page
+  -> page MusicXML
+  -> merged prediction.musicxml when multiple pages are submitted
   -> MusicXML normalization
 ```
 
@@ -188,7 +190,8 @@ Important implementation details:
 - Use `abc2xml.py` for ABC to MusicXML conversion.
 - Do not invoke LEGATO's hard-coded `software/mscore` formatting step.
 - Normalize initial clefs before renderer handoff.
-- Store ABC, cleaned ABC, raw JSON, and MusicXML in `ctx.omr_dir` / `ctx.xml_dir`.
+- Store ABC, cleaned ABC, raw JSON, page MusicXML, and merged MusicXML in `ctx.omr_dir`.
+- Do not silently correct suspected extra or missing measures. During this phase, users verify the result in the existing review/editor flow.
 
 Single-image support:
 
@@ -196,12 +199,15 @@ Single-image support:
 
 Multi-image support:
 
-- Not part of the first implementation.
-- If `OMR_ENGINE=legato` and multiple images are submitted, fail with a clear `legato_multi_page_not_supported` error until a deliberate multi-page merge strategy is implemented.
+- Supported as ordered image pages.
+- LEGATO multi-page processing does not use generated PDF input.
+- The pipeline preserves upload order, converts each page to MusicXML, and merges page XML into `prediction.musicxml`.
+- No automatic structure quality check or measure-level UI is introduced in this phase.
 
 Acceptance criteria:
 
 - LEGATO single image task creates `current_xml`.
+- LEGATO multi-image task creates one merged `current_xml`.
 - Generated MusicXML opens in MuseScore.
 - Generated MusicXML renders through Verovio.
 - Error codes distinguish missing LEGATO repo, inference failure, conversion failure, and timeout.
@@ -406,7 +412,7 @@ After LEGATO and Verovio become the configured default in development:
 - Remove direct imports of `MuseScoreEngine` from render services.
 - Keep Audiveris and MuseScore engine implementations only while they are selectable.
 - Remove obsolete `aud_*` naming from temporary directory helpers.
-- Update `.env.example` to show LEGATO + Verovio as the preferred development configuration.
+- Update `backend/.env.docker.example` to show LEGATO + Verovio as the preferred development configuration.
 
 Do not remove Audiveris or MuseScore implementations in the same change as the first integration. First land the abstractions and new engines, then remove dead code after the project runs cleanly with:
 
@@ -421,7 +427,7 @@ Completed:
 
 - Phase 1: generic `OMREngine` abstraction and Audiveris adapter.
 - Phase 2: `OMR_ENGINE` configuration and startup logging.
-- Phase 3: `LegatoOmrEngine` for `image -> ABC -> MusicXML`, including initial-clef MusicXML normalization.
+- Phase 3: `LegatoOmrEngine` for `image page(s) -> ABC -> MusicXML`, including multi-page merge and initial-clef MusicXML normalization.
 - Phase 4: generic `ScoreRenderEngine` abstraction and MuseScore adapter.
 - Phase 5: `SCORE_RENDER_ENGINE` configuration.
 - Phase 6: `VerovioRenderEngine` for `MusicXML -> SVG`.
@@ -432,10 +438,10 @@ The selected engine is now the boundary. Development fallback paths that hide en
 
 Remaining:
 
-- Run a real uploaded score through `OMR_ENGINE=legato` and `SCORE_RENDER_ENGINE=verovio`.
+- Run a real multi-page uploaded score through `OMR_ENGINE=legato` and `SCORE_RENDER_ENGINE=verovio`.
 - Verify review/results/share/editor pages with real SVG preview/final pages.
 - Verify external clients use archive include type `image` instead of the old PNG-specific concept.
-- Design multi-page LEGATO support deliberately; it currently fails with `legato_multi_page_not_supported`.
+- Decide later whether structure quality checks are worth adding after more real samples.
 
 ## Open Technical Decisions
 

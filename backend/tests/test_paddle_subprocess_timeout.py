@@ -106,7 +106,7 @@ def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch) -> No
     }
 
 
-def test_text_ocr_step_passes_remaining_timeout_to_engine() -> None:
+def test_text_ocr_step_caps_timeout_at_remaining_task_time() -> None:
     step = TextOcrStep()
     ctx = SimpleNamespace(
         task_id="task-ocr",
@@ -123,6 +123,29 @@ def test_text_ocr_step_passes_remaining_timeout_to_engine() -> None:
 
     assert result is None
     process_image_mock.assert_called_once_with(__file__, timeout_seconds=55)
+
+
+def test_text_ocr_step_caps_timeout_at_paddle_limit(monkeypatch) -> None:
+    step = TextOcrStep()
+    ctx = SimpleNamespace(
+        task_id="task-ocr",
+        first_image=__file__,
+        remaining=lambda: 600,
+    )
+    monkeypatch.setattr(
+        "app.pipeline.steps.text.settings.PADDLEOCR_TIMEOUT_SECONDS",
+        120,
+    )
+
+    with patch.object(
+        TextRecognitionEngine,
+        "process_image",
+        return_value={"success": False, "error": "noop", "texts": []},
+    ) as process_image_mock:
+        result = step._recognize_text(ctx)
+
+    assert result is None
+    process_image_mock.assert_called_once_with(__file__, timeout_seconds=120)
 
 
 def test_text_ocr_step_summarizes_classified_text_values() -> None:

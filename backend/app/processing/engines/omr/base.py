@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, TypedDict
+from typing import Literal, Protocol, TypedDict
 
 
 class OmrOutputFiles(TypedDict, total=False):
@@ -18,7 +18,7 @@ class OmrOutputFiles(TypedDict, total=False):
 class OmrSuccessResult(TypedDict):
     """Successful OMR result."""
 
-    success: bool
+    success: Literal[True]
     engine: str
     files: OmrOutputFiles
     stdout: str
@@ -28,7 +28,7 @@ class OmrSuccessResult(TypedDict):
 class OmrFailureResult(TypedDict):
     """Failed OMR result."""
 
-    success: bool
+    success: Literal[False]
     engine: str
     error: str
     code: str
@@ -44,6 +44,9 @@ class OmrEngine(Protocol):
 
     def process_image(self, image_path: str) -> OmrResult:
         """Recognize a single score image."""
+
+    def process_images(self, image_paths: list[str]) -> OmrResult:
+        """Recognize ordered score image pages."""
 
     def process_pdf(self, pdf_path: str) -> OmrResult:
         """Recognize a score PDF."""

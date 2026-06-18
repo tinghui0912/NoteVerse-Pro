@@ -16,14 +16,11 @@ from typing import Optional
 
 from loguru import logger as _logger
 
+from app.core.config import settings
+
 _logger.remove()
 
-try:
-    from app.core.config import settings
-
-    debug_mode = settings.DEBUG
-except Exception:
-    debug_mode = False
+debug_mode = settings.DEBUG
 
 
 trace_id_var: ContextVar[Optional[str]] = ContextVar("trace_id", default=None)
@@ -196,7 +193,7 @@ def json_sink(message):
         sys.stdout.write(safe_payload)
 
 
-log_dir = Path("logs")
+log_dir = Path(settings.LOG_DIR)
 log_dir.mkdir(exist_ok=True)
 
 if debug_mode:
@@ -211,7 +208,7 @@ else:
     _logger.add(json_sink, level="INFO", filter=filtered_format)
 
 _logger.add(
-    "logs/app_{time:YYYY-MM-DD}.log",
+    log_dir / "app_{time:YYYY-MM-DD}.log",
     rotation="00:00",
     retention="7 days",
     compression="zip",

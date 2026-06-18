@@ -3,13 +3,14 @@
 import glob
 import os
 import subprocess
-from typing import Optional, TypedDict
+from typing import Literal, Optional, TypedDict
 
 from celery.utils.log import get_task_logger
 
 from app.core.config import settings
 
 logger = get_task_logger(__name__)
+_CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 
 class AudiverisOutputFiles(TypedDict, total=False):
@@ -22,7 +23,7 @@ class AudiverisOutputFiles(TypedDict, total=False):
 class AudiverisSuccessResult(TypedDict):
     """Successful Audiveris engine result."""
 
-    success: bool
+    success: Literal[True]
     files: AudiverisOutputFiles
     stdout: str
     stderr: str
@@ -31,7 +32,7 @@ class AudiverisSuccessResult(TypedDict):
 class AudiverisFailureResult(TypedDict):
     """Failed Audiveris engine result."""
 
-    success: bool
+    success: Literal[False]
     error: str
     code: str
 
@@ -49,12 +50,13 @@ class AudiverisEngine:
         timeout_seconds: Optional[int] = None,
     ):
         """Initialize the engine from explicit arguments or app settings."""
-        self.audiveris_path = audiveris_path or settings.AUDIVERIS_PATH
+        resolved_audiveris_path = audiveris_path or settings.AUDIVERIS_PATH
+        if not resolved_audiveris_path:
+            raise ValueError("AUDIVERIS_PATH not configured in settings")
+
+        self.audiveris_path = resolved_audiveris_path
         self.output_folder = output_folder or settings.WORK_ROOT
         self.timeout_seconds = timeout_seconds or int(settings.MAX_PROCESSING_TIME)
-
-        if not self.audiveris_path:
-            raise ValueError("AUDIVERIS_PATH not configured in settings")
 
     def _check_prerequisites(self, input_path: Optional[str] = None) -> None:
         """Validate executable and input-path availability."""
@@ -64,7 +66,7 @@ class AudiverisEngine:
         if input_path and not os.path.exists(input_path):
             raise FileNotFoundError("Input file does not exist")
 
-    def _build_command(self, input_path: str, use_chinese_ocr: bool = True) -> list:
+    def _build_command(self, input_path: str, use_chinese_ocr: bool = True) -> list[str]:
         """Construct the Audiveris CLI command."""
         cmd = [
             self.audiveris_path,
@@ -88,11 +90,11 @@ class AudiverisEngine:
         cmd.append(os.path.abspath(input_path))
         return cmd
 
-    def _run_command(self, cmd: list) -> subprocess.CompletedProcess:
+    def _run_command(self, cmd: list[str]) -> subprocess.CompletedProcess[str]:
         """Run the Audiveris subprocess."""
         logger.info(f"Executing Audiveris: {' '.join(cmd)}")
 
-        creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        creationflags = _CREATE_NO_WINDOW if os.name == "nt" else 0
 
         return subprocess.run(
             cmd,

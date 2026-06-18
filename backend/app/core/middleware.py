@@ -13,6 +13,7 @@ from app.shared.constants import ErrorCode
 
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
+HEALTH_PATHS = {"/health/live", "/health/ready"}
 CSRF_EXEMPT_PATHS = (
     f"{settings.API_V1_STR}/auth/login",
     f"{settings.API_V1_STR}/auth/refresh",
@@ -115,11 +116,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("X-Request-ID")
         trace_id = set_trace_id(request_id)
 
-        # Log the incoming request.
-        logger.info(
-            f"REQUEST {request.method} {request.url.path} | "
-            f"Client: {request.client.host if request.client else 'unknown'}"
-        )
+        should_log = request.url.path not in HEALTH_PATHS
+        if should_log:
+            logger.info(
+                f"REQUEST {request.method} {request.url.path} | "
+                f"Client: {request.client.host if request.client else 'unknown'}"
+            )
 
         try:
             response = await call_next(request)
@@ -139,11 +141,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 status_label = "OK"
 
             # Log the response result.
-            log_func(
-                f"{status_label} {request.method} {request.url.path} | "
-                f"Status: {response.status_code} | "
-                f"Time: {process_time:.3f}s"
-            )
+            if should_log:
+                log_func(
+                    f"{status_label} {request.method} {request.url.path} | "
+                    f"Status: {response.status_code} | "
+                    f"Time: {process_time:.3f}s"
+                )
 
             # Return trace metadata to the caller.
             response.headers["X-Request-ID"] = trace_id

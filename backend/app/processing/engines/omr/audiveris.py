@@ -11,7 +11,7 @@ from app.processing.engines.audiveris import (
     AudiverisSuccessResult,
 )
 
-from .base import OmrFailureResult, OmrResult, OmrSuccessResult
+from .base import OmrFailureResult, OmrOutputFiles, OmrResult, OmrSuccessResult
 
 
 class AudiverisOmrEngine:
@@ -35,6 +35,14 @@ class AudiverisOmrEngine:
         result = self._engine.process_image(image_path)
         return self._adapt_result(result)
 
+    def process_images(self, image_paths: list[str]) -> OmrResult:
+        return OmrFailureResult(
+            success=False,
+            engine=self.engine_name,
+            error="Audiveris ordered image processing is handled by the PDF pipeline",
+            code="audiveris_failed",
+        )
+
     def process_pdf(self, pdf_path: str) -> OmrResult:
         result = self._engine.process_pdf(pdf_path)
         return self._adapt_result(result)
@@ -48,7 +56,7 @@ class AudiverisOmrEngine:
             return OmrSuccessResult(
                 success=True,
                 engine=self.engine_name,
-                files=success["files"],
+                files=cast(OmrOutputFiles, success["files"]),
                 stdout=success["stdout"],
                 stderr=success["stderr"],
             )

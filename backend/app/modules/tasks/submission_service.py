@@ -4,7 +4,6 @@ import uuid
 from typing import List, Optional
 
 from app.core.exceptions import ExternalServiceException, ResourceNotFoundException
-from app.core.logger import logger
 from app.db.models import Task, TaskUpload, User
 from app.db.model_utils import require_persisted_id
 from app.db.models.task import TaskState

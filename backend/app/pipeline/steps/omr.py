@@ -1,4 +1,4 @@
-"""OMR steps for image and PDF inputs."""
+"""OMR steps for image, ordered image-page, and PDF inputs."""
 
 from typing import cast
 
@@ -66,6 +66,35 @@ class OmrImageStep(Step):
         )
 
 
+class OmrImagesStep(Step):
+    """Run the configured OMR engine on ordered source image pages."""
+
+    name = "ocr"
+    progress_start = 8
+    progress_end = 65
+
+    def run(self, ctx: TaskContext) -> None:
+        logger.info(f"[{ctx.task_id}] Starting OMR ordered image processing")
+
+        if ctx.remaining() <= 0:
+            raise TimeoutException()
+
+        engine = create_omr_engine(
+            output_folder=ctx.omr_dir,
+            timeout_seconds=ctx.remaining(),
+        )
+
+        result = engine.process_images(ctx.raw_paths)
+        if not result.get("success"):
+            _raise_from_result(cast(OmrFailureResult, result))
+
+        ctx.omr_result = cast(OmrSuccessResult, result)
+        logger.info(
+            f"[{ctx.task_id}] OMR ordered image processing completed via "
+            f"{ctx.omr_result['engine']}"
+        )
+
+
 class OmrPdfStep(Step):
     """Run the configured OMR engine on a generated PDF."""
 
@@ -94,11 +123,5 @@ class OmrPdfStep(Step):
         success_result = cast(OmrSuccessResult, result)
         ctx.omr_result = success_result
         logger.info(
-            f"[{ctx.task_id}] OMR PDF processing completed via {success_result['engine']}: "
-            f"{success_result['files']['mxl']}"
+            f"[{ctx.task_id}] OMR PDF processing completed via {success_result['engine']}"
         )
-
-
-# Backward-compatible names for tests or imports that have not moved yet.
-AudiverisImageStep = OmrImageStep
-AudiverisPdfStep = OmrPdfStep
