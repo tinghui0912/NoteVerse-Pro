@@ -2,7 +2,7 @@ import createVerovioModule from 'verovio/wasm';
 import { VerovioToolkit } from 'verovio/esm';
 
 import type { VerovioRenderedPage, VerovioToolkitLike } from './verovio-types';
-import { parseXml, serializeXml } from '@/lib/musicxml-core';
+import { parseXml, serializeXml } from '@/lib/musicxml/core';
 
 let toolkitPromise: Promise<VerovioToolkitLike> | null = null;
 

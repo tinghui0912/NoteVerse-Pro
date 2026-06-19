@@ -6,6 +6,7 @@ import json
 import os
 import inspect
 import sys
+from contextlib import redirect_stdout
 from typing import Any, Mapping
 
 
@@ -125,25 +126,26 @@ def main(argv: list[str]) -> int:
     _set_stable_env()
 
     try:
-        try:
-            import torch  # noqa: F401
-        except ImportError:
-            pass
+        with redirect_stdout(sys.stderr):
+            try:
+                import torch  # noqa: F401
+            except ImportError:
+                pass
 
-        import paddle
-        from paddleocr import PaddleOCR
+            import paddle
+            from paddleocr import PaddleOCR
 
-        try:
-            if hasattr(paddle, "device") and paddle.device.is_compiled_with_cuda():
-                paddle.device.set_device("gpu")
-        except Exception:
-            pass
+            try:
+                if hasattr(paddle, "device") and paddle.device.is_compiled_with_cuda():
+                    paddle.device.set_device("gpu")
+            except Exception:
+                pass
 
-        ocr = PaddleOCR(**_build_paddleocr_kwargs(paddle, PaddleOCR))
-        if hasattr(ocr, "ocr"):
-            result = ocr.ocr(image_path)
-        else:
-            result = ocr.predict(image_path)
+            ocr = PaddleOCR(**_build_paddleocr_kwargs(paddle, PaddleOCR))
+            if hasattr(ocr, "ocr"):
+                result = ocr.ocr(image_path)
+            else:
+                result = ocr.predict(image_path)
         print(json.dumps({"success": True, "result": _to_json_safe(result)}, ensure_ascii=False))
         return 0
     except Exception as exc:

@@ -38,5 +38,6 @@
   "errorRevokedDesc": "The sharer has revoked access to this link.",
   "errorExpiredTitle": "Share Expired",
   "errorExpiredDescWithDate": "This share link expired on {date}.",
-  "errorExpiredDesc": "This share link has expired."
+  "errorExpiredDesc": "This share link has expired.",
+  "anonymousUser": "Anonymous user"
 }

@@ -19,37 +19,53 @@ export const queryClient = new QueryClient({
     },
 });
 
+export interface TaskListQueryFilters {
+    page: number;
+    pageSize: number;
+    state?: string;
+    sortBy: string;
+    sortOrder: string;
+    search?: string;
+}
+
+export interface SavedShareQueryFilters {
+    page: number;
+    pageSize: number;
+    sortBy: string;
+    sortOrder: string;
+    search?: string;
+}
+
 /**
- * Query Key 命名规范
- * 统一使用数组格式，便于 invalidateQueries 批量失效
+ * Query keys follow [domain, scope, identity/filter]. Prefix factories are
+ * used for broad invalidation; leaf factories own complete cache identity.
  */
 export const queryKeys = {
     tasks: {
         all: ['tasks'] as const,
-        list: (filters: {
-            page: number;
-            pageSize: number;
-            state?: string;
-            sortBy: string;
-            sortOrder: string;
-            search?: string;
-        }) => ['tasks', 'list', filters] as const,
-        detail: (id: string) => ['tasks', 'detail', id] as const,
+        lists: () => ['tasks', 'list'] as const,
+        list: (filters: TaskListQueryFilters) => ['tasks', 'list', filters] as const,
+        details: () => ['tasks', 'detail'] as const,
+        task: (id: string) => ['tasks', 'detail', { id }] as const,
+        detail: (id: string, shareToken?: string) =>
+            ['tasks', 'detail', { id, shareToken: shareToken ?? null }] as const,
     },
     shares: {
         all: ['shares'] as const,
+        lists: () => ['shares', 'list'] as const,
         list: (taskId: string) => ['shares', 'list', taskId] as const,
-        saved: (filters: {
-            page: number;
-            pageSize: number;
-            sortBy: string;
-            sortOrder: string;
-            search?: string;
-        }) => ['shares', 'saved', filters] as const,
+        savedLists: () => ['shares', 'saved'] as const,
+        saved: (filters: SavedShareQueryFilters) => ['shares', 'saved', filters] as const,
+        accessRoot: () => ['shares', 'access'] as const,
         access: (shareId: string) => ['shares', 'access', shareId] as const,
     },
     xml: {
+        all: ['xml'] as const,
+        contents: () => ['xml', 'content'] as const,
+        task: (taskId: string) => ['xml', 'content', { taskId }] as const,
         content: (taskId: string, source: string, shareToken?: string) =>
-            ['xml', taskId, source, shareToken] as const,
+            ['xml', 'content', { taskId, source, shareToken: shareToken ?? null }] as const,
+        shares: () => ['xml', 'share'] as const,
+        share: (shareId: string) => ['xml', 'share', { shareId }] as const,
     },
 } as const;

@@ -8,6 +8,7 @@ const CSRF_HEADER_NAME = process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || 'x-csrf-tok
 
 interface RequestOptions {
   suppressAuthRedirect?: boolean;
+  signal?: AbortSignal;
 }
 
 export type { ApiResponse, PaginatedResponse } from '@/types/api';
@@ -206,6 +207,7 @@ async function get<T>(
     method: 'GET',
     headers: addCsrfHeader(buildHeaders()),
     credentials: 'include',
+    signal: options?.signal,
   });
 
   return handleResponse<T>(response, options);
@@ -268,11 +270,12 @@ async function upload<T>(url: string, file: File, fieldName = 'file'): Promise<T
   return handleResponse<T>(response);
 }
 
-async function download(url: string): Promise<Blob> {
+async function download(url: string, options?: RequestOptions): Promise<Blob> {
   const response = await fetchWithAuthRetry(`${API_BASE_URL}${url}`, {
     method: 'GET',
     headers: addCsrfHeader(new Headers()),
     credentials: 'include',
+    signal: options?.signal,
   });
 
   if (response.status === 401) {
@@ -338,6 +341,7 @@ async function getRaw(
     method: 'GET',
     headers: addCsrfHeader(buildHeaders()),
     credentials: 'include',
+    signal: options?.signal,
   });
 
   if (response.status === 401) {

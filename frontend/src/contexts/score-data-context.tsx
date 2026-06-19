@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useRef, useCallback, useMemo } from 'react';
 import type { ScoreData } from '@/types/score-types';
-import { MusicXMLParser } from '@/lib/musicxml-parser';
+import { MusicXMLParser } from '@/lib/musicxml/parser';
 
 /**
  * ScoreData Context - 管理乐谱数据的只读访问和更新

@@ -1,5 +1,5 @@
 import type { ScoreData, ScoreEntity, Note, Chord, Rest, Blank, Articulation, Measure, Stave, ConnectionData, NoteConnections, EntityInfo, Duration } from '@/types/score-types';
-import { DEFAULT_TEMPO_BPM } from './constants/audio';
+import { DEFAULT_TEMPO_BPM } from '../constants/audio';
 
 // A subset of melody-forge's parsing logic, adapted for modern TypeScript and our types.
 

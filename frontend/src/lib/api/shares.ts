@@ -12,13 +12,14 @@ import type {
 export async function listShares(
     taskId?: string,
     page: number = 1,
-    pageSize: number = 20
+    pageSize: number = 20,
+    signal?: AbortSignal
 ): Promise<ApiResponse<ShareListResponse>> {
     return apiClient.get<ApiResponse<ShareListResponse>>('/shares', {
         task_id: taskId,
         page,
         page_size: pageSize,
-    });
+    }, { signal });
 }
 
 export async function createShare(
@@ -49,12 +50,19 @@ export async function revokeShare(shareToken: string): Promise<ApiResponse<{
     }>>(`/shares/${shareToken}/revoke`);
 }
 
-export async function accessShare(shareToken: string): Promise<ApiResponse<SharedTaskInfo>> {
-    return apiClient.get<ApiResponse<SharedTaskInfo>>(`/shares/${shareToken}`);
+export async function accessShare(
+    shareToken: string,
+    signal?: AbortSignal
+): Promise<ApiResponse<SharedTaskInfo>> {
+    return apiClient.get<ApiResponse<SharedTaskInfo>>(`/shares/${shareToken}`, undefined, { signal });
 }
 
-export async function downloadSharedFile(shareToken: string, fileType: string): Promise<Blob> {
-    return apiClient.download(`/shares/${shareToken}/download/${fileType}`);
+export async function downloadSharedFile(
+    shareToken: string,
+    fileType: string,
+    signal?: AbortSignal
+): Promise<Blob> {
+    return apiClient.download(`/shares/${shareToken}/download/${fileType}`, { signal });
 }
 
 export async function getSharedFileAccessUrl(
@@ -87,7 +95,8 @@ export async function listSavedShares(
     pageSize: number = 20,
     sortBy: string = 'created_at',
     sortOrder: string = 'desc',
-    search?: string
+    search?: string,
+    signal?: AbortSignal
 ): Promise<SavedShareListResponse> {
     return apiClient.get<SavedShareListResponse>('/shares/saved-shares', {
         page,
@@ -95,7 +104,7 @@ export async function listSavedShares(
         sort_by: sortBy,
         sort_order: sortOrder,
         search,
-    });
+    }, { signal });
 }
 
 export const sharesApi = {

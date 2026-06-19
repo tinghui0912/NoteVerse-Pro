@@ -7,13 +7,13 @@
 import { useCallback } from 'react';
 import { useScoreData } from '../contexts/score-data-context';
 import { useHistory } from '../contexts/history-context';
-import { MusicXMLParser } from '@/lib/musicxml-parser';
+import { MusicXMLParser } from '@/lib/musicxml/parser';
 import {
     parseXml,
     serializeXml,
-} from '@/lib/musicxml-core';
+} from '@/lib/musicxml/core';
 import { useTranslations } from 'next-intl';
-import { recalculateBackups } from '@/lib/musicxml-backup';
+import { recalculateBackups } from '@/lib/musicxml/backup';
 
 export function useVoiceEditor() {
     const t = useTranslations('editor.actions');

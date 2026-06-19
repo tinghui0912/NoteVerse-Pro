@@ -9,6 +9,7 @@ import type { UpdateProfileRequest } from '@/types/api';
  * 上传头像
  */
 export function useUploadAvatar() {
+    // AuthContext owns the current user; the page updates it after success.
     return useMutation({
         mutationFn: (file: File) => profileApi.uploadAvatar(file),
     });
@@ -18,6 +19,7 @@ export function useUploadAvatar() {
  * 更新个人资料
  */
 export function useUpdateProfile() {
+    // AuthContext refresh is page-owned because it also drives page form state.
     return useMutation({
         mutationFn: (data: UpdateProfileRequest) => profileApi.updateProfile(data),
     });
@@ -27,6 +29,7 @@ export function useUpdateProfile() {
  * 修改密码
  */
 export function useChangePassword() {
+    // Password changes do not alter any cached query domain.
     return useMutation({
         mutationFn: ({ currentPassword, newPassword }: {
             currentPassword: string;

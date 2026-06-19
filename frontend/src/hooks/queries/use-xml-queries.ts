@@ -17,7 +17,7 @@ export function useXmlContent(
 ) {
     return useQuery({
         queryKey: queryKeys.xml.content(taskId, source, options?.shareToken),
-        queryFn: () => xmlApi.loadXml(taskId, source, options?.shareToken),
+        queryFn: ({ signal }) => xmlApi.loadXml(taskId, source, options?.shareToken, signal),
         enabled: options?.enabled ?? !!taskId,
         staleTime: Infinity, // XML 内容不自动过期（手动 invalidate）
     });
@@ -37,15 +37,10 @@ export function useSaveXml() {
             fileType?: 'current_xml' | 'final_xml';
             imageType?: 'preview_image' | 'final_image';
         }) => xmlApi.saveXmlContent(taskId, content, fileType, imageType),
-        onSuccess: (_, { taskId }) => {
-            // 保存后让所有相关 XML 缓存失效
-            queryClient.invalidateQueries({
-                queryKey: ['xml', taskId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.tasks.detail(taskId),
-            });
-        },
+        onSuccess: (_, { taskId }) => Promise.all([
+            queryClient.invalidateQueries({ queryKey: queryKeys.xml.task(taskId) }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.task(taskId) }),
+        ]),
     });
 }
 
@@ -53,12 +48,17 @@ export function useSaveXml() {
  * 生成钢琴指法
  */
 export function useGenerateFingering() {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ taskId, hand, depth }: {
             taskId: string;
             hand?: 'right' | 'left' | 'both';
             depth?: number;
         }) => xmlApi.generateFingering(taskId, hand, depth),
+        onSuccess: (_, { taskId }) => Promise.all([
+            queryClient.invalidateQueries({ queryKey: queryKeys.xml.task(taskId) }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.task(taskId) }),
+        ]),
     });
 }
 
@@ -70,8 +70,9 @@ export function useConfirmRecognition() {
     return useMutation({
         mutationFn: ({ taskId }: { taskId: string }) =>
             xmlApi.confirmRecognition(taskId),
-        onSuccess: (_, { taskId }) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
-        },
+        onSuccess: (_, { taskId }) => Promise.all([
+            queryClient.invalidateQueries({ queryKey: queryKeys.xml.task(taskId) }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.task(taskId) }),
+        ]),
     });
 }

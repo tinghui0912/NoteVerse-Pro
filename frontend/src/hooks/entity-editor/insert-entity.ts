@@ -6,18 +6,18 @@
 
 import type { ScoreEntity, AddLocation } from '@/types/score-types';
 import type { ScoreData } from '@/types/score-types';
-import { MusicXMLParser } from '@/lib/musicxml-parser';
+import { MusicXMLParser } from '@/lib/musicxml/parser';
 import {
     parseXml,
     serializeXml,
     getEntityGroupsFromMeasure,
     getDurationValue,
     getDurationTypeName,
-} from '@/lib/musicxml-core';
+} from '@/lib/musicxml/core';
 import {
     createNoteElementFromPitch,
-} from '@/lib/musicxml-elements';
-import { recalculateBackups } from '@/lib/musicxml-backup';
+} from '@/lib/musicxml/elements';
+import { recalculateBackups } from '@/lib/musicxml/backup';
 
 export interface InsertEntityParams {
     updatedEntity: ScoreEntity;

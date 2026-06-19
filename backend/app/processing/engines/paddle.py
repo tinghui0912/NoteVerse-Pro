@@ -44,6 +44,38 @@ class PaddleOcrFailureResult(TypedDict):
 PaddleOcrResult = PaddleOcrSuccessResult | PaddleOcrFailureResult
 
 
+def _output_tail(value: str, max_length: int = 1000) -> str:
+    """Return a compact tail of subprocess output for diagnostics."""
+
+    compact = value.strip()
+    if len(compact) <= max_length:
+        return compact
+    return compact[-max_length:]
+
+
+def _load_json_payload(stdout: str) -> dict[str, Any] | None:
+    """Load the structured worker payload, tolerating third-party stdout noise."""
+
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        payload = None
+    if isinstance(payload, dict):
+        return payload
+
+    for line in reversed(stdout.splitlines()):
+        candidate = line.strip()
+        if not candidate or not candidate.startswith("{"):
+            continue
+        try:
+            payload = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None
+
+
 def run_ocr_subprocess(
     image_path: str,
     timeout_seconds: int | None = None,
@@ -95,12 +127,9 @@ def run_ocr_subprocess(
         }
 
     if result.returncode != 0:
-        try:
-            payload = json.loads(result.stdout)
-        except json.JSONDecodeError:
-            payload = None
+        payload = _load_json_payload(result.stdout)
 
-        if isinstance(payload, dict):
+        if payload is not None:
             error_detail = str(payload.get("error") or result.stderr.strip() or "Unknown PaddleOCR error")
             error_code = str(payload.get("code") or "ocr_subprocess_failed")
         else:
@@ -114,20 +143,16 @@ def run_ocr_subprocess(
             "code": error_code,
         }
 
-    try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        logger.error(f"PaddleOCR subprocess returned invalid JSON: {exc}")
+    payload = _load_json_payload(result.stdout)
+    if payload is None:
+        logger.error(
+            "PaddleOCR subprocess returned invalid JSON. "
+            f"stdout_tail={_output_tail(result.stdout)!r} "
+            f"stderr_tail={_output_tail(result.stderr)!r}"
+        )
         return {
             "success": False,
             "error": "PaddleOCR subprocess returned invalid JSON",
-            "code": "ocr_invalid_output",
-        }
-
-    if not isinstance(payload, dict):
-        return {
-            "success": False,
-            "error": "PaddleOCR subprocess returned an unexpected payload",
             "code": "ocr_invalid_output",
         }
 

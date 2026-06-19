@@ -10,13 +10,13 @@ import { useEditorState } from '../contexts/editor-state-context';
 import { useHistory } from '../contexts/history-context';
 import { useTranslations } from 'next-intl';
 import type { ScoreEntity, ScoreEntityType, AddLocation, EntityLocation } from '@/types/score-types';
-import { MusicXMLParser } from '@/lib/musicxml-parser';
+import { MusicXMLParser } from '@/lib/musicxml/parser';
 import {
     parseXml,
     serializeXml,
     getEntityGroupsFromMeasure,
-} from '@/lib/musicxml-core';
-import { recalculateBackups } from '@/lib/musicxml-backup';
+} from '@/lib/musicxml/core';
+import { recalculateBackups } from '@/lib/musicxml/backup';
 import { insertEntity } from './entity-editor/insert-entity';
 import { updateExistingEntity } from './entity-editor/update-existing-entity';
 

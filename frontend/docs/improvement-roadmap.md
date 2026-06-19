@@ -2,6 +2,8 @@
 
 > 基于 2026-04-11 代码审查报告整理，按优先级分为 P0（必须立即修复）、P1（核心改进）、P2（质量提升）、P3（长期优化）四个等级。
 
+> **状态说明（2026-06-18）：** 本文保留早期审查任务和历史完成记录。新的架构优化、测试分层、页面拆分、MusicXML 收口以及 Verovio/OSMD 迁移，以 [`frontend_architecture_optimization_plan.md`](./frontend_architecture_optimization_plan.md) 为唯一权威执行计划；不要在两份文档中重复维护状态。
+
 ---
 
 ## P0 — 🔴 紧急：安全与构建完整性
@@ -165,20 +167,14 @@
 
 ### P2-1: 引入测试框架
 
-- [ ] 安装 Jest + React Testing Library + @testing-library/jest-dom
-- [ ] 配置 `jest.config.ts` / `jest.setup.ts`
-- [ ] 为核心工具函数编写单元测试：
-  - `musicxml-parser.ts`
-  - `musicxml-core.ts`
-  - `validator.ts`
-  - `api-client.ts`
-- [ ] 为关键 Hooks 编写测试：
-  - `use-auto-save.ts`
-  - `use-entity-editor.ts`
-- [ ] 为核心组件编写渲染测试：
-  - `card-based-editor.tsx`
-  - `pill-nav.tsx`
-- [ ] 在 `package.json` 中添加 `test` 脚本
+此任务已迁移到当前执行计划的 P0-2。最终技术组合为：
+
+- Vitest + React Testing Library：单元、hooks 和组件测试
+- MSW：需要真实 HTTP 语义时的可选请求级集成测试
+- Playwright：Next.js 路由、关键用户流程、Verovio WASM 和视觉行为
+- pytest：继续负责 FastAPI 后端测试，不被前端工具替代
+
+具体任务、脚本和验收标准只在 `frontend_architecture_optimization_plan.md` 中维护。
 
 ---
 

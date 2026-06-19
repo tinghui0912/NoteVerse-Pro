@@ -6,7 +6,7 @@
  * - 低音谱表所有声部 → voice=5
  */
 
-import { parseXml, serializeXml } from './musicxml-core';
+import { parseXml, serializeXml } from './core';
 
 /**
  * 音符信息类型

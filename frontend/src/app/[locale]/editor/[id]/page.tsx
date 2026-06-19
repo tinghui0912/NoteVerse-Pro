@@ -34,8 +34,8 @@ import { AddEntityModal } from '@/components/add-entity-modal';
 import { NoteEditorModal } from '@/components/note-editor-modal';
 import { ChordEditorModal } from '@/components/chord-editor-modal';
 import type { Note, Rest, Blank, Chord } from '@/types/score-types';
-import { flattenAllMeasures } from '@/lib/musicxml-flatten';
-import { validateDataIntegrity, type ValidationResult } from '@/lib/validator';
+import { flattenAllMeasures } from '@/lib/musicxml/flatten';
+import { validateDataIntegrity, type ValidationResult } from '@/lib/musicxml/validator';
 import { useToast } from '@/hooks/use-toast';
 import { useAutoSave } from '@/hooks/use-auto-save';
 import { loadDraft, deleteDraft, type DraftEntry } from '@/lib/draft-storage';
@@ -168,7 +168,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
                 setRawXml(xmlString);
                 setCurrentXml(xmlString);
                 initializeHistory(xmlString);
-                const { MusicXMLParser } = await import('@/lib/musicxml-parser');
+                const { MusicXMLParser } = await import('@/lib/musicxml/parser');
                 const parser = new MusicXMLParser(xmlString);
                 const data = parser.parse();
                 setScoreData(data);
@@ -308,7 +308,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
         if (pendingDraft) {
             setCurrentXml(pendingDraft.xml);
             initializeHistory(pendingDraft.xml);
-            const { MusicXMLParser } = await import('@/lib/musicxml-parser');
+            const { MusicXMLParser } = await import('@/lib/musicxml/parser');
             const parser = new MusicXMLParser(pendingDraft.xml);
             const data = parser.parse();
             setScoreData(data);
@@ -349,7 +349,7 @@ function EditorPageContent({ id, source, returnUrl }: { id: string; source: 'cur
             initializeHistory(flattenedXml); // 閲嶆柊鍒濆鍖栧巻鍙茶褰?
 
             // 閲嶆柊瑙ｆ瀽 XML
-            const { MusicXMLParser } = await import('@/lib/musicxml-parser');
+            const { MusicXMLParser } = await import('@/lib/musicxml/parser');
             const parser = new MusicXMLParser(flattenedXml);
             setScoreData(parser.parse());
         } catch (error) {

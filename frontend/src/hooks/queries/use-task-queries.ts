@@ -35,13 +35,14 @@ export function useTaskList(
             sortOrder: filters.sortOrder,
             search: filters.search,
         }),
-        queryFn: () => tasksApi.listTasks(
+        queryFn: ({ signal }) => tasksApi.listTasks(
             filters.page,
             filters.pageSize,
             filters.state,
             filters.sortBy,
             filters.sortOrder,
-            filters.search
+            filters.search,
+            signal
         ),
         refetchInterval: options?.refetchInterval,
     });
@@ -61,8 +62,8 @@ export function useTaskDetail(
     }
 ) {
     return useQuery({
-        queryKey: queryKeys.tasks.detail(taskId),
-        queryFn: () => tasksApi.getTaskDetails(taskId, options?.shareToken),
+        queryKey: queryKeys.tasks.detail(taskId, options?.shareToken),
+        queryFn: ({ signal }) => tasksApi.getTaskDetails(taskId, options?.shareToken, signal),
         enabled: options?.enabled ?? !!taskId,
         refetchInterval: options?.refetchInterval,
     });
@@ -78,9 +79,10 @@ export function useUpdateTask() {
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: { title?: string; difficulty?: string } }) =>
             tasksApi.updateTask(id, data),
-        onSuccess: (_, { id }) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(id) });
-        },
+        onSuccess: (_, { id }) => Promise.all([
+            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.task(id) }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() }),
+        ]),
     });
 }
 
@@ -91,8 +93,11 @@ export function useDeleteTasks() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (taskIds: string[]) => tasksApi.batchDeleteTasks(taskIds),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+        onSuccess: (_, taskIds) => {
+            taskIds.forEach((taskId) => {
+                queryClient.removeQueries({ queryKey: queryKeys.tasks.task(taskId) });
+            });
+            return queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
         },
     });
 }
@@ -101,12 +106,14 @@ export function useDeleteTasks() {
  * 提交批量处理任务
  */
 export function useSubmitBatch() {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ fileIds, options, idempotencyKey }: {
             fileIds: string[];
             options?: Record<string, unknown>;
             idempotencyKey?: string;
         }) => tasksApi.submitBatch(fileIds, options, idempotencyKey),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() }),
     });
 }
 
@@ -114,6 +121,7 @@ export function useSubmitBatch() {
  * 批量打包下载
  */
 export function useArchiveTasks() {
+    // Archive generation is read-only and intentionally leaves the cache unchanged.
     return useMutation({
         mutationFn: ({ taskIds, includeTypes }: {
             taskIds: string[];

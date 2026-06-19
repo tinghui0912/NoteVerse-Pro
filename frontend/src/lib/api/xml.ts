@@ -15,14 +15,15 @@ import type { SaveAndRenderResponse, SaveResponse, FingeringResponse } from '@/t
 export async function loadXml(
     taskId: string,
     source: 'enhanced' | 'final' | 'current' = 'current',
-    shareToken?: string
+    shareToken?: string,
+    signal?: AbortSignal
 ): Promise<string> {
     const params: Record<string, string> = { source };
     if (shareToken) {
         params.share_token = shareToken;
     }
 
-    const response = await apiClient.getRaw(`/xml/${taskId}/xml`, params);
+    const response = await apiClient.getRaw(`/xml/${taskId}/xml`, params, { signal });
     const json = await response.json();
     return json.data?.content || '';
 }

@@ -11,7 +11,7 @@ import {
     getDurationValue,
     getDurationTypeName,
     getEntityGroupsFromMeasure,
-} from './musicxml-core';
+} from './core';
 
 // ============================================================================
 // Types

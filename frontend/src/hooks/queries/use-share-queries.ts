@@ -13,7 +13,7 @@ import { sharesApi } from '@/lib/api';
 export function useShareList(taskId: string) {
     return useQuery({
         queryKey: queryKeys.shares.list(taskId),
-        queryFn: () => sharesApi.listShares(taskId),
+        queryFn: ({ signal }) => sharesApi.listShares(taskId, 1, 20, signal),
         enabled: !!taskId,
     });
 }
@@ -38,12 +38,13 @@ export function useSavedShares(filters: SavedShareFilters) {
             sortOrder: filters.sortOrder,
             search: filters.search,
         }),
-        queryFn: () => sharesApi.listSavedShares(
+        queryFn: ({ signal }) => sharesApi.listSavedShares(
             filters.page,
             filters.pageSize,
             filters.sortBy,
             filters.sortOrder,
-            filters.search
+            filters.search,
+            signal
         ),
     });
 }
@@ -54,7 +55,7 @@ export function useSavedShares(filters: SavedShareFilters) {
 export function useShareAccess(shareId: string, options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: queryKeys.shares.access(shareId),
-        queryFn: () => sharesApi.accessShare(shareId),
+        queryFn: ({ signal }) => sharesApi.accessShare(shareId, signal),
         enabled: options?.enabled ?? !!shareId,
     });
 }
@@ -71,9 +72,9 @@ export function useCreateShare(taskId: string) {
             expiresInDays?: number;
             password?: string;
         }) => sharesApi.createShare(taskId, expiresInDays, password),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.shares.list(taskId) });
-        },
+        onSuccess: () => queryClient.invalidateQueries({
+            queryKey: queryKeys.shares.list(taskId),
+        }),
     });
 }
 
@@ -84,9 +85,10 @@ export function useToggleShare(taskId: string) {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (shareToken: string) => sharesApi.revokeShare(shareToken),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.shares.list(taskId) });
-        },
+        onSuccess: (_, shareToken) => Promise.all([
+            queryClient.invalidateQueries({ queryKey: queryKeys.shares.list(taskId) }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.shares.access(shareToken) }),
+        ]),
     });
 }
 
@@ -97,8 +99,10 @@ export function useDeleteShare(taskId: string) {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (shareToken: string) => sharesApi.deleteShare(shareToken),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.shares.list(taskId) });
+        onSuccess: (_, shareToken) => {
+            queryClient.removeQueries({ queryKey: queryKeys.shares.access(shareToken) });
+            queryClient.removeQueries({ queryKey: queryKeys.xml.share(shareToken) });
+            return queryClient.invalidateQueries({ queryKey: queryKeys.shares.list(taskId) });
         },
     });
 }
@@ -107,8 +111,12 @@ export function useDeleteShare(taskId: string) {
  * 收藏分享
  */
 export function useSaveToCollection() {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (shareToken: string) => sharesApi.saveShareToCollection(shareToken),
+        onSuccess: () => queryClient.invalidateQueries({
+            queryKey: queryKeys.shares.savedLists(),
+        }),
     });
 }
 
@@ -119,8 +127,8 @@ export function useDeleteSavedShares() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (ids: number[]) => sharesApi.batchDeleteSavedShares(ids),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.shares.all });
-        },
+        onSuccess: () => queryClient.invalidateQueries({
+            queryKey: queryKeys.shares.savedLists(),
+        }),
     });
 }

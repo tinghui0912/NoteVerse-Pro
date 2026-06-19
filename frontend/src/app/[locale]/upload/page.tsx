@@ -52,6 +52,9 @@ interface RestorableTaskData {
   upload_ids?: RestoredUploadInfo[];
 }
 
+const TASK_POLL_INTERVAL_MS = 2000;
+const TASK_WAIT_TIMEOUT_MS = 18 * 60 * 1000;
+
 function createSubmissionIdempotencyKey() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -110,13 +113,13 @@ function UploadPageContent() {
   useEffect(() => {
     if (!statusResponse?.data || !currentTaskId) return;
 
-    // 妫€鏌ヨ秴鏃?(5鍒嗛挓)
-    if (Date.now() - pollStartTime > 150 * 2000) {
+    if (Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS) {
       toast({
         title: t('processingTimeout'),
         description: t('processingTimeoutDesc'),
         variant: 'destructive',
       });
+      setTaskError(t('processingTimeoutDesc'));
       setIsSubmitting(false);
       setCurrentTaskId(null);
       setPollInterval(false);
@@ -265,7 +268,11 @@ function UploadPageContent() {
         setCurrentTaskId(taskId);
         setTaskProgress(5);
         setPollStartTime(Date.now());
-        setPollInterval(2000);
+        setPollInterval(TASK_POLL_INTERVAL_MS);
+        toast({
+          title: t('taskStarted'),
+          description: t('taskStartedDesc'),
+        });
       }
     } catch (err) {
       const errorMessage = err instanceof ApiError ? err.message : (err as Error).message || t('processingFailed');
@@ -354,7 +361,7 @@ function UploadPageContent() {
           setIsSubmitting(true);
           setTaskProgress(data.progress || 0);
           setPollStartTime(Date.now());
-          setPollInterval(2000);
+          setPollInterval(TASK_POLL_INTERVAL_MS);
         } else if (state === 'FAILURE') {
           // 澶辫触锛屾樉绀洪敊璇俊鎭?          setCurrentTaskId(urlTaskId);
           setTaskError(data.error || t('processingFailed'));

@@ -35,11 +35,9 @@ import { Input } from '@/components/ui/input';
 import { Footer } from '@/components/layout/footer';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { useScoreData } from '@/contexts/editor-provider';
-import { useQueryClient } from '@tanstack/react-query';
 import { useTaskDetail, useUpdateTask } from '@/hooks/queries/use-task-queries';
 import { useShareList, useCreateShare, useToggleShare, useDeleteShare } from '@/hooks/queries/use-share-queries';
 import { useXmlContent, useGenerateFingering } from '@/hooks/queries/use-xml-queries';
-import { queryKeys } from '@/lib/query-client';
 import type { Share } from '@/types/api';
 import { Loader2 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
@@ -83,7 +81,6 @@ function ResultsPageContent({ id }: { id: string }) {
   const [isListenModalOpen, setIsListenModalOpen] = useState(false);
   const [sharePermission, setSharePermission] = useState('view');
   const [shareExpiration, setShareExpiration] = useState('7d');
-  const queryClient = useQueryClient();
 
   const { rawXml, setRawXml, setScoreData } = useScoreData();
 
@@ -144,7 +141,7 @@ function ResultsPageContent({ id }: { id: string }) {
   useEffect(() => {
     if (xmlContent) {
       setRawXml(xmlContent);
-      import('@/lib/musicxml-parser').then(({ MusicXMLParser }) => {
+      import('@/lib/musicxml/parser').then(({ MusicXMLParser }) => {
         try {
           const parser = new MusicXMLParser(xmlContent);
           const data = parser.parse();
@@ -328,8 +325,6 @@ function ResultsPageContent({ id }: { id: string }) {
               title: t('fingeringSuccess'),
               description: t('fingeringDesc'),
             });
-            // 鍒锋柊椤甸潰浠ュ姞杞芥柊鐨勬寚娉曠粨鏋?            queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(id) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.xml.content(id, 'final') });
           } else {
             toast({
               title: t('fingeringFailed'),

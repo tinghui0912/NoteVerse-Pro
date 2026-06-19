@@ -38,6 +38,40 @@ def test_run_ocr_subprocess_prefers_structured_stdout_error() -> None:
     assert result["error"] == "real paddle error"
 
 
+def test_run_ocr_subprocess_accepts_json_after_stdout_noise() -> None:
+    completed = subprocess.CompletedProcess(
+        args=["python"],
+        returncode=0,
+        stdout='PaddleOCR warmup log\n{"success": true, "result": []}\n',
+        stderr="",
+    )
+
+    with patch("app.processing.engines.paddle.subprocess.run", return_value=completed):
+        result = run_ocr_subprocess(__file__, timeout_seconds=12)
+
+    assert result["success"] is True
+    assert result["result"] == []
+
+
+def test_run_ocr_subprocess_accepts_structured_error_after_stdout_noise() -> None:
+    completed = subprocess.CompletedProcess(
+        args=["python"],
+        returncode=1,
+        stdout=(
+            "PaddleOCR warmup log\n"
+            '{"success": false, "error": "model load failed", "code": "ocr_failed"}\n'
+        ),
+        stderr="No ccache found warning",
+    )
+
+    with patch("app.processing.engines.paddle.subprocess.run", return_value=completed):
+        result = run_ocr_subprocess(__file__, timeout_seconds=12)
+
+    assert result["success"] is False
+    assert result["code"] == "ocr_failed"
+    assert result["error"] == "model load failed"
+
+
 def test_build_paddleocr_kwargs_supports_v3_device_parameter(monkeypatch) -> None:
     class FakePaddleOcr:
         def __init__(

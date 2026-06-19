@@ -70,7 +70,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         error: shareError,
     } = useQuery({
         queryKey: queryKeys.shares.access(shareId),
-        queryFn: () => sharesApi.accessShare(shareId),
+        queryFn: ({ signal }) => sharesApi.accessShare(shareId, signal),
         enabled: isAuthenticated && !authLoading,
         retry: false, // 鍒嗕韩閿欒涓嶉噸璇曪紙not_found/revoked/expired 閲嶈瘯鏃犳剰涔夛級
     });
@@ -149,12 +149,13 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
 
     // ============ TanStack Query锛氬姞杞?XML ============
     const { data: rawXml = null } = useQuery({
-        queryKey: ['share-xml', shareId],
-        queryFn: async () => {
+        queryKey: queryKeys.xml.share(shareId),
+        queryFn: async ({ signal }) => {
             try {
-                const xmlBlob = await sharesApi.downloadSharedFile(shareId, 'final_xml');
+                const xmlBlob = await sharesApi.downloadSharedFile(shareId, 'final_xml', signal);
                 return await xmlBlob.text() || null;
-            } catch {
+            } catch (error) {
+                if (signal.aborted) throw error;
                 return null;
             }
         },

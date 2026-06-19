@@ -2,7 +2,7 @@
 
 ## 文档目的
 
-本文基于 `frontend/docs/` 下的产品蓝图、改进优先级、工程改进路线和 practice Verovio 迁移计划，总结 NoteVerse 前端后续开发应遵守的编码规范、架构设计原则和工程结构经验。
+本文基于前端历史改进记录、当前代码结构和架构优化计划，总结 NoteVerse 前端后续开发应遵守的编码规范、架构设计原则和工程结构经验。
 
 这不是通用前端模板，而是面向 NoteVerse Pro 当前 Next.js 前端的维护准则。它重点回答：
 
@@ -13,14 +13,15 @@
 
 ## 当前方向更新
 
-早期 practice Verovio 迁移计划采用的是局部混合架构：practice 页使用 Verovio，其他页面暂时保留 OSMD/现有渲染路径。
+早期迁移采用局部混合架构：practice 页使用 Verovio，交互式试听暂时保留 OSMD。
 
 当前新的维护方向是：
 
 - practice 页继续作为 Verovio 渲染和实时跟随的先行实现
-- review、results、share、editor 等其他乐谱展示页面也应逐步迁移到 Verovio
+- results、share、editor 共用的 OSMD ListenModal 播放链路应逐步迁移到 Verovio 和独立播放控制器
 - 迁移期间可以短期保留 OSMD 作为旧路径，但不应再把 OSMD 当作长期目标架构
 - 最终目标是统一使用 Verovio，并移除 OSMD 依赖和相关兼容代码
+- review/results/share 中用于展示原图或后端渲染结果的图片产物不属于 OSMD 迁移范围
 
 这意味着后续新增乐谱渲染能力时，应优先设计在 Verovio adapter / score rendering abstraction 上，而不是继续扩展 OSMD-specific 代码。
 
@@ -79,7 +80,7 @@ frontend/
 当前结构整体方向是合理的，但仍有几个需要渐进收口的区域：
 
 - 多个核心 `page.tsx` 已经超过 20KB 到 35KB，说明页面编排层仍承担了较多 section、状态和资源生命周期细节
-- `src/lib/musicxml-parser.ts`、`musicxml-connections.ts`、`audio-preview-manager.ts` 等领域文件偏大，MusicXML/音频预览逻辑值得逐步迁入 `src/lib/musicxml/`
+- `src/lib/musicxml/parser.ts` 和 `audio-preview-manager.ts` 仍然偏大，后续应分别按解析与播放控制职责继续拆分
 - `src/components` 根目录仍有较重的 domain component，例如 `listen-modal.tsx`、`note-editor-modal.tsx`、`chord-editor-modal.tsx`，后续应按 editor/listen/audio 等领域归位
 - `hooks/queries` 已经存在，后续 server state 应继续向 query hooks 收口，而不是散在页面里
 
@@ -175,7 +176,11 @@ hooks 不应变成巨型业务对象。复杂 hook 要拆出纯函数、子 hook
 - 页面不要重复实现 loading、error、refetch、cache invalidation 细节
 - 跨页面复用的 server state 应优先进入 query hook
 - query hook 调用 `src/lib/api/*`，不直接散落后端 URL
-- mutation 成功后要明确 invalidation 或本地缓存更新策略
+- 所有 query key 由 `src/lib/query-client.ts` 的 `queryKeys` 生成，形状遵循 `[domain, scope, identity/filter]`；root/prefix factory 用于批量失效，leaf factory 定义完整缓存身份
+- filter 和 identity 必须稳定且可序列化，不把 `File`、函数、临时对象引用或未标准化的日期放进 key
+- query function 在 API helper 支持时传递 TanStack Query 提供的 `AbortSignal`，让路由切换和 key 变化可以取消旧请求
+- mutation 的 domain hook 负责 cache update/invalidation；如果操作只读或状态由 Context 管理，也要明确记录“不触碰 Query cache”
+- 页面负责与当前页面语境相关的成功提示；API helper 不发 toast，同一个错误只由一层展示，预期表单错误优先 inline
 - client-only transient state 仍保留在页面、component、context 或普通 hook 中，不要全部塞进 React Query
 
 经验：API helper 解决“怎么请求”，query hook 解决“页面如何消费服务端状态”。两者职责不同，不要混在页面里。
@@ -198,29 +203,30 @@ practice 页专属非 React 逻辑。
 - follow controller 应操作 committed alignment，不直接把 raw backend candidate 展示给用户
 - scroll 逻辑要有 hysteresis，不要每帧跳动
 
-### 8. `src/lib/musicxml-*`
+### 8. `src/lib/musicxml/*`
 
-MusicXML 解析、展平、连接、校验和音频预览相关逻辑目前主要在 `src/lib` 根目录下。
+MusicXML 解析、展平、连接和校验逻辑统一归属 `src/lib/musicxml/` domain package。
 
 当前重要文件包括：
 
-- `musicxml-parser.ts`
-- `musicxml-core.ts`
-- `musicxml-elements.ts`
-- `musicxml-flatten.ts`
-- `musicxml-connections.ts`
-- `musicxml-backup.ts`
+- `index.ts`：稳定公共导出面
+- `parser.ts`
+- `core.ts`
+- `elements.ts`
+- `flatten.ts`
+- `connections.ts`
+- `backup.ts`
 - `validator.ts`
-- `audio-preview-manager.ts`
 
 规则：
 
 - 保持这些逻辑脱离页面组件
 - 新增 MusicXML 纯逻辑优先写成可测试函数
-- 如果继续增长，优先迁入 `src/lib/musicxml/` 子目录，而不是继续扩大 `src/lib` 根目录
-- audio preview 与 MusicXML 数据结构相关，但也要避免和 UI modal 逻辑混在一起
+- 跨领域消费者优先从 `index.ts` 使用稳定公共面；为避免循环依赖、控制动态加载或缩小 bundle 时允许直接导入子模块
+- package 内部依赖保持从 parser/transform/validator 指向 core，不让 core 反向依赖上层模块
+- audio preview 暂时留在 package 外，因为它包含播放生命周期与引擎职责；纯 MusicXML timeline 工具形成后再单独迁入
 
-经验：`musicxml-parser.ts` 已经是当前前端最大文件之一，后续不要再无边界追加解析、校验、连接、预览逻辑。MusicXML 领域值得逐步变成独立子包。
+经验：`parser.ts` 仍是当前前端最大文件之一，后续不要再无边界追加校验、连接或播放逻辑；新增能力应先判断属于 parser、transform、validator 还是未来的 playback contract。
 
 ### 9. `messages/*`
 
@@ -337,24 +343,25 @@ React state 适合：
 
 满足任意几条，就应考虑放到 `components/<domain>`、`hooks`、`lib/<domain>` 或 `lib/api`。
 
-### 2. Verovio 迁移应从局部先行走向全量统一
+### 2. Verovio 迁移应覆盖浏览器端 MusicXML 渲染链路
 
-practice 页使用 Verovio 是第一阶段先行方案。其他页面暂时保留现有 OSMD/既有渲染路径，是为了降低迁移风险，不是长期目标。
+practice 页使用 Verovio 是第一阶段先行方案。当前真正仍依赖 OSMD 的主路径，是 results、share、editor 共用的 `ListenModal` / `audio-preview-manager` 交互式播放链路。OSMD 可以在迁移期短暂保留，但不是长期目标。
 
 第一阶段选择 practice 先行的原因：
 
 - practice 需要实时 score following、SVG element targeting、time lookup、DOM-level highlighting、auto-scroll
 - Verovio 更适合 practice 的实时反馈和 DOM 操作
-- 其他页面已有 OSMD/现有展示逻辑，直接一次性全量替换风险较高
+- 交互式播放还依赖 OSMD cursor、seek、tempo 和 soundfont 行为，直接一次性替换风险较高
 
 当前长期方向：
 
-- 逐步把 review、results、share、editor 等乐谱显示能力迁移到 Verovio
+- 逐步把 results、share、editor 的 OSMD ListenModal 播放链路迁移到 Verovio 和独立播放控制器
 - 迁移过程中建立共享 score renderer abstraction，避免每个页面各自操作 Verovio
 - 页面只消费 renderer 输出和交互接口，不直接依赖 Verovio toolkit
 - 迁移完成后移除 OSMD 依赖、OSMD-specific components 和兼容路径
+- review 的原图/识别预览，以及 results/share 的 durable backend preview image，不属于 OSMD 路径；除非产品需求改变，否则继续作为后端产物展示
 
-原则：不要做无保护的一次性大替换；要通过 adapter、共享组件、真实样本验证和页面级渐进切换，把最终 Verovio 统一架构稳稳落地。
+原则：最终统一的是浏览器端 MusicXML renderer 和交互式播放能力，不是为了“全量 Verovio”而替换合理的后端图片产物。迁移必须通过 adapter、共享组件、真实样本和功能对等验证渐进完成。
 
 ### 3. Practice 页要四层分离
 
@@ -502,16 +509,14 @@ npm run test
 
 当前文档应保持分工：
 
-- `blueprint.md`：产品能力和视觉方向
-- `frontend_improvement_priorities.md`：当前用户可见优先级
-- `improvement-roadmap.md`：工程改进路线和历史完成状态
-- `practice_verovio_migration_plan.md`：practice 渲染/跟随迁移计划，历史上采用局部混合策略；后续应以全量 Verovio 迁移为新方向
+- `improvement-roadmap.md`：早期审查任务和历史完成状态
+- `frontend_architecture_optimization_plan.md`：当前权威执行计划、优先级、依赖关系和验收标准
 - 本文：后续开发长期准则
 
 更新规则：
 
-- 完成 roadmap 中的任务后同步状态，避免文档继续描述已解决问题
-- 如果 practice renderer/following 架构变化，同步更新 Verovio migration plan
+- 新任务状态优先更新 `frontend_architecture_optimization_plan.md`，避免在旧 roadmap 重复维护两套状态
+- 如果 renderer/following 架构变化，同步更新本文和当前执行计划
 - 如果 UI 行为从 mock 变真实或从真实变 beta，必须同步文案和 docs
 - 不要让 docs 保留 starter/scaffold 语义
 
@@ -576,7 +581,8 @@ NoteVerse 前端后续维护最重要的原则是：用户看到的每一个控�
 
 - API、类型、i18n、错误状态收口
 - 页面编排和领域逻辑分离
-- practice 页局部使用 Verovio，不做无收益的全量 renderer rewrite
+- 浏览器端 MusicXML 渲染和交互式播放渐进统一到 Verovio，最终移除 OSMD
+- 保留有明确产品用途的后端原图和预览图片产物
 - 高频渲染和资源生命周期显式管理
 - 不再关闭 type/lint/build 质量门禁
 

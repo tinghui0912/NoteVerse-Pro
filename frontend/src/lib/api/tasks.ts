@@ -28,7 +28,8 @@ export async function listTasks(
     state?: TaskState,
     sortBy?: string,
     sortOrder?: string,
-    search?: string
+    search?: string,
+    signal?: AbortSignal
 ): Promise<PaginatedResponse<Task>> {
     return apiClient.get<PaginatedResponse<Task>>('/tasks', {
         page,
@@ -37,7 +38,7 @@ export async function listTasks(
         sort_by: sortBy,
         sort_order: sortOrder,
         search,
-    });
+    }, { signal });
 }
 
 /**
@@ -45,12 +46,16 @@ export async function listTasks(
  * @param taskId 任务 ID
  * @param shareToken 可选的分享 token（用于非任务所有者访问）
  */
-export async function getTaskDetails(taskId: string, shareToken?: string): Promise<ApiResponse<TaskDetails>> {
+export async function getTaskDetails(
+    taskId: string,
+    shareToken?: string,
+    signal?: AbortSignal
+): Promise<ApiResponse<TaskDetails>> {
     const params: Record<string, string> = {};
     if (shareToken) {
         params.share_token = shareToken;
     }
-    return apiClient.get<ApiResponse<TaskDetails>>(`/tasks/${taskId}/details`, params);
+    return apiClient.get<ApiResponse<TaskDetails>>(`/tasks/${taskId}/details`, params, { signal });
 }
 
 /**

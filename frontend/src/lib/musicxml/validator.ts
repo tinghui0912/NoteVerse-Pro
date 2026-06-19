@@ -7,7 +7,7 @@
  */
 
 import type { ScoreData, Measure, Stave, Voice, ScoreEntity } from '@/types/score-types';
-import { parseXml } from './musicxml-core';
+import { parseXml } from './core';
 
 /**
  * 鏍￠獙缁撴灉绫诲瀷

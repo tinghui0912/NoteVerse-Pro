@@ -8,11 +8,11 @@ import { useCallback } from 'react';
 import { useScoreData } from '../contexts/score-data-context';
 import { useHistory } from '../contexts/history-context';
 import { useTranslations } from 'next-intl';
-import { MusicXMLParser } from '@/lib/musicxml-parser';
+import { MusicXMLParser } from '@/lib/musicxml/parser';
 import {
     parseXml,
     serializeXml,
-} from '@/lib/musicxml-core';
+} from '@/lib/musicxml/core';
 
 export function useXmlUpdater() {
     const t = useTranslations('editor.actions');
