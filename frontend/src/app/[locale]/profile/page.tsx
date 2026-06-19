@@ -11,7 +11,7 @@ import { Camera, Crown, Save, Loader2, User } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { Footer } from '@/components/layout/footer';
 import React, { useRef, useState } from 'react';
-import { AvatarCropperModal } from '@/components/avatar-cropper-modal';
+import { AvatarCropperModal } from '@/components/profile/avatar-cropper-modal';
 import { useUploadAvatar, useUpdateProfile, useChangePassword } from '@/hooks/queries/use-profile-mutations';
 import { ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';

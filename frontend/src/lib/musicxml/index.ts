@@ -4,4 +4,5 @@ export * from './core';
 export * from './elements';
 export * from './flatten';
 export * from './parser';
+export * from './tempo';
 export * from './validator';

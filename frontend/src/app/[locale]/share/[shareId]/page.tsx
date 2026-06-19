@@ -33,7 +33,7 @@ import {
     CarouselNext,
     CarouselPrevious,
 } from '@/components/ui/carousel';
-import { ListenModal } from '@/components/listen-modal';
+import { ListenModal } from '@/components/score/listen-modal';
 import { sharesApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { fetchSharedImage } from '@/lib/utils/image';

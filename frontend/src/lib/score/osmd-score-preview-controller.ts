@@ -3,9 +3,15 @@
 
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 import OsmdAudioPlayer from 'osmd-audio-player';
-import { patchSoundfontToLocal } from './patch-soundfont';
+import { patchSoundfontToLocal } from '../patch-soundfont';
+import type {
+  CursorSyncOptions,
+  ScorePlaybackSnapshot,
+  ScorePlaybackState,
+  ScorePreviewController,
+} from './contracts';
 
-interface AudioPreviewManagerOptions {
+interface OsmdScorePreviewControllerOptions {
   container: HTMLElement;
   bpm?: number;
   getTempo?: () => number | string;
@@ -25,20 +31,35 @@ type PlayerWithAudioContext = {
   ac?: AudioContext;
 };
 
-export class AudioPreviewManager {
-  public osmd: OpenSheetMusicDisplay | null = null;
-  public player: OsmdAudioPlayer | null = null;
+type PlaybackInternals = {
+  state?: unknown;
+  currentIterationStep?: number;
+  iterationSteps?: number;
+  currentTime?: number;
+  duration?: number;
+};
 
-  private options: AudioPreviewManagerOptions;
+type CursorInternals = {
+  iterator?: { endReached?: boolean };
+  Iterator?: { EndReached?: boolean };
+};
+
+export class OsmdScorePreviewController implements ScorePreviewController {
+  private osmd: OpenSheetMusicDisplay | null = null;
+  private player: OsmdAudioPlayer | null = null;
+
+  private options: OsmdScorePreviewControllerOptions;
   private _container: HTMLElement;
   private isReady = false;
   private _loadedHash: string | null = null;
   private _loading = false;
   private _initialSvgWidth: number | null = null;
+  private _cursorStep: number | null = null;
+  private _disposed = false;
 
-  constructor(options: AudioPreviewManagerOptions) {
+  constructor(options: OsmdScorePreviewControllerOptions) {
     if (!options.container || !(options.container instanceof HTMLElement)) {
-      throw new Error('Please pass a valid div container to AudioPreviewManager.');
+      throw new Error('Please pass a valid div container to OsmdScorePreviewController.');
     }
 
     this.options = {
@@ -102,7 +123,7 @@ export class AudioPreviewManager {
 
   private async _loadFromXml(xmlString: string) {
     if (!xmlString || typeof xmlString !== 'string') {
-      throw new Error('AudioPreviewManager.loadFromXml: invalid xmlString');
+      throw new Error('OsmdScorePreviewController.loadFromXml: invalid xmlString');
     }
     if (!this.osmd || !this.player) {
       this.isReady = false;
@@ -180,6 +201,40 @@ export class AudioPreviewManager {
     }
   }
 
+  getPlaybackSnapshot(): ScorePlaybackSnapshot {
+    const player = this.player as unknown as PlaybackInternals | null;
+    const state = player?.state;
+
+    return {
+      state:
+        state === 'PLAYING' || state === 'PAUSED' || state === 'STOPPED'
+          ? state
+          : 'IDLE',
+      currentStep: player?.currentIterationStep ?? 0,
+      totalSteps: player?.iterationSteps ?? 0,
+      currentTime: player?.currentTime ?? 0,
+      duration: player?.duration ?? 0,
+    };
+  }
+
+  onPlaybackIteration(listener: (notes: unknown[]) => void): void {
+    this.player?.on('iteration' as never, (notes: unknown[]) => {
+      if (!this._disposed) listener(notes);
+    });
+  }
+
+  onPlaybackStateChange(listener: (state: ScorePlaybackState) => void): void {
+    this.player?.on('state-change' as never, (state: ScorePlaybackState) => {
+      if (!this._disposed) listener(state);
+    });
+  }
+
+  async pause(): Promise<void> {
+    if (this.player && this.isReady) {
+      await this.player.pause();
+    }
+  }
+
 
   async play() {
     if (!this.player || !this.isReady) {
@@ -197,7 +252,7 @@ export class AudioPreviewManager {
         return; // Ignore duplicate call
       }
       // At end, stop and continue to restart
-      this.stop();
+      await this.stop();
     }
 
     // Resume AudioContext if suspended (melody-forge improvement)
@@ -207,7 +262,7 @@ export class AudioPreviewManager {
       try {
         await ctx.resume();
       } catch (e) {
-        console.warn('[AudioPreviewManager] Failed to resume AudioContext:', e);
+        console.warn('[OsmdScorePreviewController] Failed to resume AudioContext:', e);
       }
     }
 
@@ -294,28 +349,105 @@ export class AudioPreviewManager {
     await this.player.play();
   }
 
-  stop() {
+  async stop(): Promise<void> {
     if (this.player && this.isReady) {
       try {
-        this.player.stop();
+        await this.player.stop();
       } catch (e) {
         console.warn("Player stop error", e);
       }
     }
   }
 
-  destroy() {
-    if (this.player) {
-      this.stop();
-    }
+  dispose() {
+    if (this._disposed) return;
+    this._disposed = true;
+
+    const player = this.player as unknown as PlayerWithAudioContext | null;
+    const audioContext = player?.audioContext || player?.context || player?.ac;
+
+    void this.stop().finally(() => {
+      if (audioContext && audioContext.state !== 'closed') {
+        void audioContext.close().catch((error: unknown) => {
+          console.warn('[OsmdScorePreviewController] Failed to close AudioContext:', error);
+        });
+      }
+    });
+
     this.osmd = null;
     this.player = null;
     this.isReady = false;
+    this._cursorStep = null;
+    this._container.replaceChildren();
   }
 
   setTempo(bpm: number) {
     if (this.player && typeof bpm === 'number' && bpm > 0) {
       this.player.setBpm(bpm);
+    }
+  }
+
+  ensureCursorVisible(): void {
+    const cursor = this.osmd?.cursor;
+    if (!cursor) return;
+
+    try {
+      cursor.show();
+      this._fixCursorHeight();
+    } catch (error) {
+      console.warn('[OsmdScorePreviewController] Failed to show cursor:', error);
+    }
+  }
+
+  resetCursor(options?: CursorSyncOptions): void {
+    const cursor = this.osmd?.cursor;
+    if (!cursor) return;
+
+    cursor.reset();
+    this._cursorStep = 0;
+    this._fixCursorHeight();
+
+    if (options?.scrollIntoView) {
+      cursor.cursorElement?.scrollIntoView({
+        block: 'center',
+        inline: 'nearest',
+        behavior: 'smooth',
+      });
+    }
+  }
+
+  syncCursorToStep(step: number, options?: CursorSyncOptions): void {
+    const cursor = this.osmd?.cursor;
+    if (!cursor) return;
+
+    const cursorInternals = cursor as unknown as CursorInternals;
+    const endReached = Boolean(
+      cursorInternals.iterator?.endReached ?? cursorInternals.Iterator?.EndReached
+    );
+    const targetStep = Math.max(0, step);
+
+    if (this._cursorStep === null || targetStep < this._cursorStep || endReached) {
+      this.resetCursor({ scrollIntoView: endReached && options?.scrollIntoView });
+    }
+
+    let moved = false;
+    while ((this._cursorStep ?? 0) < targetStep) {
+      const current = cursor as unknown as CursorInternals;
+      const atEnd = Boolean(current.iterator?.endReached ?? current.Iterator?.EndReached);
+      if (atEnd) break;
+
+      cursor.next();
+      this._cursorStep = (this._cursorStep ?? 0) + 1;
+      moved = true;
+    }
+
+    this._fixCursorHeight();
+    if (moved && options?.scrollIntoView) {
+      cursor.cursorElement?.scrollIntoView({
+        block: 'center',
+        inline: 'nearest',
+        behavior: 'smooth',
+      });
     }
   }
 
@@ -365,13 +497,14 @@ export class AudioPreviewManager {
           try {
             this.osmd.cursor.show();
           } catch (e) {
-            console.warn('[AudioPreviewManager] Failed to show cursor:', e);
+            console.warn('[OsmdScorePreviewController] Failed to show cursor:', e);
           }
         }
 
         // Restore cursor position if we had one
         if (cursorTimeStamp) {
           this.osmd.cursor.reset();
+          let restoredStep = 0;
           // Manually advance cursor to the saved timestamp
           // This is necessary because MusicPartManagerIterator doesn't have a seek method
           const iterator = this.osmd.cursor.Iterator;
@@ -381,15 +514,18 @@ export class AudioPreviewManager {
             !iterator.EndReached
           ) {
             this.osmd.cursor.next();
+            restoredStep += 1;
           }
 
           this.osmd.cursor.update();
+          this._cursorStep = restoredStep;
         } else {
           this.osmd.cursor.reset();
+          this._cursorStep = 0;
           try {
             this.osmd.cursor.update();
           } catch (e) {
-            console.warn('[AudioPreviewManager] Failed to update cursor:', e);
+            console.warn('[OsmdScorePreviewController] Failed to update cursor:', e);
           }
         }
 
@@ -398,20 +534,11 @@ export class AudioPreviewManager {
         // We need to explicitly set CSS height style to match the HTML height attribute.
         this._fixCursorHeight();
       } else {
-        console.warn('[AudioPreviewManager] Cursor not available!');
+        console.warn('[OsmdScorePreviewController] Cursor not available!');
       }
     } catch (e) {
-      console.warn('[AudioPreviewManager] fitToContainer render error:', e);
+      console.warn('[OsmdScorePreviewController] fitToContainer render error:', e);
     }
-  }
-
-  /**
-   * Fix cursor height issue caused by Tailwind CSS's `img { height: auto }`.
-   * This method syncs CSS height style with HTML height attribute.
-   * Call this after cursor.show(), cursor.reset(), or cursor.next().
-   */
-  fixCursorHeight() {
-    this._fixCursorHeight();
   }
 
   private _fixCursorHeight() {
@@ -472,7 +599,7 @@ export class AudioPreviewManager {
         }
       }
     } catch (e) {
-      console.warn('[AudioPreviewManager] Manual cursor height calculation failed:', e);
+      console.warn('[OsmdScorePreviewController] Manual cursor height calculation failed:', e);
     }
 
     // Fallback: Use standard grand staff height (2 staves + spacing)

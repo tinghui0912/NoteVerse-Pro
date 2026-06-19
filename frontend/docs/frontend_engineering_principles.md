@@ -80,8 +80,8 @@ frontend/
 当前结构整体方向是合理的，但仍有几个需要渐进收口的区域：
 
 - 多个核心 `page.tsx` 已经超过 20KB 到 35KB，说明页面编排层仍承担了较多 section、状态和资源生命周期细节
-- `src/lib/musicxml/parser.ts` 和 `audio-preview-manager.ts` 仍然偏大，后续应分别按解析与播放控制职责继续拆分
-- `src/components` 根目录仍有较重的 domain component，例如 `listen-modal.tsx`、`note-editor-modal.tsx`、`chord-editor-modal.tsx`，后续应按 editor/listen/audio 等领域归位
+- `src/lib/musicxml/parser.ts` 和 OSMD-backed score adapter 仍然偏大，后续应分别按解析、渲染和播放控制职责继续拆分
+- `components/score/listen-modal.tsx` 已不再直接理解 OSMD，但后续替换 renderer/playback adapter 时仍需补充真实乐谱与资源生命周期验证
 - `hooks/queries` 已经存在，后续 server state 应继续向 query hooks 收口，而不是散在页面里
 
 这些不是必须一次性完成的重构，但后续触碰相关功能时应顺手收口。
@@ -114,10 +114,18 @@ frontend/
 
 组件应按产品域或通用性分层：
 
-- `components/ui`：shadcn/ui 或通用基础组件
-- `components/layout`：导航、布局、全局页面框架
-- `components/editor`：编辑器专属组件
-- `components/practice`：练习页专属渲染和 overlay 组件
+| 目录 | 所有权 |
+| --- | --- |
+| `components/ui` | shadcn/ui 和无领域语义的基础组件 |
+| `components/layout` | 导航、布局和全局页面框架 |
+| `components/home` | 首页专属展示组件 |
+| `components/profile` | 个人资料与头像编辑组件 |
+| `components/editor` | 编辑实体、草稿恢复和编辑器专属组件 |
+| `components/media` | 可跨页面复用的图片和媒体查看器 |
+| `components/score` | 共享 score renderer、播放 shell 和状态 UI |
+| `components/practice` | 练习页专属 viewer、controls 和 overlay |
+
+组件根目录只保留真正跨领域的轻量入口。共享试听 UI 位于 `components/score/listen-modal.tsx`，只依赖 `lib/score` contracts；不要从 UI 重新读取 OSMD 或音频播放器内部字段。
 
 经验：大组件拆分不是为了追求文件数量，而是为了把状态、交互和渲染责任分开。编辑器组件、practice score viewer、overlay、card 子组件都应避免变成单个巨型文件。
 
@@ -362,6 +370,15 @@ practice 页使用 Verovio 是第一阶段先行方案。当前真正仍依赖 O
 - review 的原图/识别预览，以及 results/share 的 durable backend preview image，不属于 OSMD 路径；除非产品需求改变，否则继续作为后端产物展示
 
 原则：最终统一的是浏览器端 MusicXML renderer 和交互式播放能力，不是为了“全量 Verovio”而替换合理的后端图片产物。迁移必须通过 adapter、共享组件、真实样本和功能对等验证渐进完成。
+
+Score preview 的当前边界：
+
+- `ScoreRenderer` 负责加载、适配容器和释放 renderer DOM/toolkit
+- `ScorePlaybackController` 负责 play、pause、stop、step seek、tempo、状态快照和播放事件
+- `ScoreCursorController` 负责 reset、step sync、visibility 和 auto-scroll
+- `OsmdScorePreviewController` 是临时 OSMD adapter；UI 只持有组合后的 `ScorePreviewController`
+- `ListenModal` 拥有 React UI 状态、requestAnimationFrame 和 ResizeObserver；adapter 拥有 OSMD、player、AudioContext、调度器/计时器和渲染 DOM
+- dispose 必须停止播放、关闭 AudioContext、阻止已释放实例继续分发事件并清空 renderer DOM；soundfont URL patch 是进程级配置，实际加载资源随 player/AudioContext 生命周期释放
 
 ### 3. Practice 页要四层分离
 

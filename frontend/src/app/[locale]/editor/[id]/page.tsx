@@ -15,9 +15,9 @@ import { ArrowLeft, PanelLeft, Save, Undo, Redo, Eye, ImageIcon, LoaderCircle, X
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 import { Footer } from '@/components/layout/footer';
-import { OriginalImageViewer } from '@/components/original-image-viewer';
+import { OriginalImageViewer } from '@/components/media/original-image-viewer';
 import { fetchAuthenticatedImage } from '@/lib/utils/image';
-import { ListenModal } from '@/components/listen-modal';
+import { ListenModal } from '@/components/score/listen-modal';
 import { ShareProvider, useShare } from '@/contexts/share-context';
 import {
     Tooltip,
@@ -30,9 +30,9 @@ import { useScoreData, useEditorState, useEntityEditor, useHistoryEditor, useHis
 import { EditorSidebar } from '@/components/editor/editor-sidebar';
 import { CardBasedEditor } from '@/components/editor/card-based-editor';
 import { ScoreInfoCard } from '@/components/editor/score-info-card';
-import { AddEntityModal } from '@/components/add-entity-modal';
-import { NoteEditorModal } from '@/components/note-editor-modal';
-import { ChordEditorModal } from '@/components/chord-editor-modal';
+import { AddEntityModal } from '@/components/editor/add-entity-modal';
+import { NoteEditorModal } from '@/components/editor/note-editor-modal';
+import { ChordEditorModal } from '@/components/editor/chord-editor-modal';
 import type { Note, Rest, Blank, Chord } from '@/types/score-types';
 import { flattenAllMeasures } from '@/lib/musicxml/flatten';
 import { validateDataIntegrity, type ValidationResult } from '@/lib/musicxml/validator';
@@ -41,7 +41,7 @@ import { useAutoSave } from '@/hooks/use-auto-save';
 import { loadDraft, deleteDraft, type DraftEntry } from '@/lib/draft-storage';
 import { useTaskDetail } from '@/hooks/queries/use-task-queries';
 import { useXmlContent, useSaveXml } from '@/hooks/queries/use-xml-queries';
-import { DraftRecoveryDialog } from '@/components/draft-recovery-dialog';
+import { DraftRecoveryDialog } from '@/components/editor/draft-recovery-dialog';
 import {
     AlertDialog,
     AlertDialogAction,

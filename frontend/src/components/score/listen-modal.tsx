@@ -18,8 +18,12 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Pause, Play, Repeat, Square, X, LoaderCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AudioPreviewManager } from '@/lib/audio-preview-manager';
 import { DEFAULT_TEMPO_BPM, ESTIMATED_BEATS_PER_STEP } from '@/lib/constants/audio';
+import { extractTempoBpm } from '@/lib/musicxml';
+import {
+  OsmdScorePreviewController,
+  type ScorePreviewController,
+} from '@/lib/score';
 
 interface ListenModalProps {
   isOpen: boolean;
@@ -39,7 +43,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   const [isLoading, setIsLoading] = useState(true);
   const [isLooping, setIsLooping] = useState(false); // Loop playback state
 
-  const managerRef = useRef<AudioPreviewManager | null>(null);
+  const managerRef = useRef<ScorePreviewController | null>(null);
   const progressRafRef = useRef<number | null>(null);
   const cursorRafRef = useRef<number | null>(null);
   const effectiveTempoRef = useRef<number>(DEFAULT_TEMPO_BPM); // Store the actual BPM being used
@@ -48,9 +52,6 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   const wasPlayingBeforeSeek = useRef<boolean>(false); // Track playback state before seek
   const seekTargetStepRef = useRef<number | null>(null); // Store pending seek position
 
-  // CRITICAL: Must initialize to null (not 0) to match old implementation
-  // This allows proper first-time initialization check
-  const cursorStepRef = useRef<number | null>(null); // Persist cursor position across pause/resume
   const osmdContainerRef = useRef<HTMLDivElement | null>(null);
   const modalContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -84,16 +85,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     stopProgressLoop();
     stopCursorSyncLoop();
 
-    if (managerRef.current?.osmd?.cursor) {
-      try {
-        managerRef.current.osmd.cursor.reset();
-      } catch (e) {
-        console.warn('[ListenModal] Failed to reset cursor in resetPlayback:', e);
-      }
-    }
-
-    // Reset cursor step counter
-    cursorStepRef.current = 0;
+    managerRef.current?.resetCursor();
 
     setIsPlaying(false);
     setProgress(0);
@@ -105,14 +97,13 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
    * Matches Melody Forge's time calculation logic.
    */
   const calculatePlaybackTime = useCallback((
-    player: unknown,
+    playbackTime: number,
     totalSteps: number,
     currentStep: number,
     effectiveBpm: number = DEFAULT_TEMPO_BPM
   ) => {
     const stepProgress = totalSteps > 0 ? (currentStep / totalSteps) * 100 : 0;
-    const playback = player as { currentTime?: unknown };
-    let currentTime = typeof playback.currentTime === 'number' ? playback.currentTime : 0;
+    let currentTime = playbackTime;
 
     // Calculate duration from steps and BPM directly (don't trust player.duration)
     let duration = 0;
@@ -131,16 +122,18 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   const startProgressLoop = useCallback(() => {
     stopProgressLoop();
     const loop = () => {
-      const player = managerRef.current?.player;
-      if (player) {
-        // @ts-expect-error
-        const steps = player.iterationSteps || 0;
-        // @ts-expect-error
-        const currentStep = player.currentIterationStep || 0;
+      const manager = managerRef.current;
+      if (manager) {
+        const snapshot = manager.getPlaybackSnapshot();
 
         // Use the stored effective BPM instead of player.bpm which is unreliable
         const actualBpm = effectiveTempoRef.current;
-        const { currentTime, stepProgress } = calculatePlaybackTime(player, steps, currentStep, actualBpm);
+        const { currentTime, stepProgress } = calculatePlaybackTime(
+          snapshot.currentTime,
+          snapshot.totalSteps,
+          snapshot.currentStep,
+          actualBpm
+        );
 
         setCurrentTime(currentTime);
         setProgress(stepProgress);
@@ -150,129 +143,49 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     progressRafRef.current = requestAnimationFrame(loop);
   }, [stopProgressLoop, calculatePlaybackTime]);
 
-
-
-  /**
-   * Reset cursor to the beginning and fix its height.
-   */
-  const resetCursor = useCallback((manager: AudioPreviewManager, scrollToView: boolean = false) => {
-    try {
-      manager.osmd!.cursor.reset();
-      manager.fixCursorHeight();
-      cursorStepRef.current = 0;
-
-      if (scrollToView) {
-        const cursorElement = manager.osmd!.cursor.cursorElement;
-        if (cursorElement && typeof cursorElement.scrollIntoView === 'function') {
-          cursorElement.scrollIntoView({
-            block: 'center',
-            inline: 'nearest',
-            behavior: 'smooth'
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('[ListenModal] Failed to reset cursor:', e);
-    }
-  }, []);
-
-  /**
-   * Advance cursor to target position and fix its height.
-   */
-  const advanceCursor = useCallback((manager: AudioPreviewManager, target: number) => {
-    try {
-      while (cursorStepRef.current! < target) {
-        // @ts-expect-error
-        if (manager.osmd!.cursor.iterator.endReached) break;
-
-        manager.osmd!.cursor.next();
-        cursorStepRef.current!++;
-      }
-      manager.fixCursorHeight();
-    } catch (e) {
-      console.warn('[ListenModal] Failed to advance cursor:', e);
-    }
-  }, []);
-
-  /**
-   * Scroll cursor element into view.
-   */
-  const scrollCursorIntoView = useCallback((manager: AudioPreviewManager) => {
-    try {
-      const cursorElement = manager.osmd!.cursor.cursorElement as HTMLImageElement;
-      if (cursorElement && typeof cursorElement.scrollIntoView === 'function') {
-        cursorElement.scrollIntoView({
-          block: 'center',
-          inline: 'nearest',
-          behavior: 'smooth'
-        });
-      }
-    } catch (e) {
-      console.warn('[ListenModal] Failed to scroll cursor into view:', e);
-    }
-  }, []);
-
   const startCursorSyncLoop = useCallback(() => {
     stopCursorSyncLoop();
     const manager = managerRef.current;
-    const osmd = manager?.osmd;
-    const player = manager?.player;
-    if (!osmd || !player) return;
+    if (!manager) return;
 
     const loop = () => {
-      if (player.state === 'PLAYING') {
-        // @ts-expect-error
-        const raw = player.currentIterationStep;
-        // @ts-expect-error
-        const total = player.iterationSteps || 0;
+      const snapshot = manager.getPlaybackSnapshot();
+      if (snapshot.state === 'PLAYING') {
+        const raw = snapshot.currentStep;
+        const total = snapshot.totalSteps;
 
         // Limit target to [0, total-1] range to prevent going beyond last note
         const target = Math.max(0, Math.min((typeof raw === 'number' ? raw - 1 : 0), total - 1));
-
-        // Initialize cursor state on first run
-        if (cursorStepRef.current == null) {
-          resetCursor(manager, false);
-        }
-
-        // Detect backward movement or end reached
-        // @ts-expect-error
-        const endReached = osmd.cursor.iterator.endReached;
-
-        if (target < cursorStepRef.current! || endReached) {
-          resetCursor(manager, endReached);
-        }
-
-        // Track cursor position before movement for auto-scroll detection
-        const before = cursorStepRef.current!;
-
-        // Advance cursor to target position
-        if (cursorStepRef.current! < target) {
-          advanceCursor(manager, target);
-        }
-
-        // Auto-scroll when cursor moves
-        if (cursorStepRef.current !== before) {
-          scrollCursorIntoView(manager);
-        }
+        manager.syncCursorToStep(target, { scrollIntoView: true });
 
         cursorRafRef.current = requestAnimationFrame(loop);
       }
     };
     cursorRafRef.current = requestAnimationFrame(loop);
-  }, [stopCursorSyncLoop, resetCursor, advanceCursor, scrollCursorIntoView]);
+  }, [stopCursorSyncLoop]);
 
-  const cleanup = useCallback(() => {
+  const disposeController = useCallback(() => {
+    stopProgressLoop();
+    stopCursorSyncLoop();
     if (managerRef.current) {
-      managerRef.current.destroy();
+      managerRef.current.dispose();
       managerRef.current = null;
     }
-    resetPlayback();
-    setIsLoading(true);
-  }, [resetPlayback]);
+  }, [stopProgressLoop, stopCursorSyncLoop]);
+
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      disposeController();
+      resetPlayback();
+      setIsLooping(false);
+      setIsLoading(true);
+    }
+    setCurrentOpenState(open);
+  }, [disposeController, resetPlayback, setCurrentOpenState]);
 
   const handleClose = useCallback(() => {
-    setCurrentOpenState(false);
-  }, [setCurrentOpenState]);
+    handleOpenChange(false);
+  }, [handleOpenChange]);
 
   // Handle repeat playback
   const handleRepeat = useCallback(async () => {
@@ -282,7 +195,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     }
 
     try {
-      await manager.player?.stop();
+      await manager.stop();
       await manager.play();
     } catch (error) {
       console.error('[handleRepeat] Error during repeat:', error);
@@ -296,10 +209,9 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
 
   useEffect(() => {
     if (!currentOpenState) {
-      setIsLooping(false); // Reset loop state when modal closes
-      cleanup();
+      disposeController();
     }
-  }, [currentOpenState, cleanup]);
+  }, [currentOpenState, disposeController]);
 
   // Track previous playing state to detect falling edge (Playing -> Stopped)
   const prevIsPlayingRef = useRef(false);
@@ -335,111 +247,56 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     setIsLoading(true);
 
     try {
-      // Extract tempo directly from XML (single source of truth)
-      let effectiveTempo = DEFAULT_TEMPO_BPM;
-      if (xmlString) {
-        try {
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(xmlString, 'application/xml');
-          const tempoNode = xmlDoc.querySelector('sound[tempo]') || xmlDoc.querySelector('metronome per-minute');
-          const tempoStr = tempoNode ? (tempoNode.getAttribute('tempo') || tempoNode.textContent || String(DEFAULT_TEMPO_BPM)) : String(DEFAULT_TEMPO_BPM);
-          effectiveTempo = parseInt(tempoStr) || DEFAULT_TEMPO_BPM;
-        } catch {
-          console.warn(`[ListenModal] Failed to extract tempo from XML, using default ${DEFAULT_TEMPO_BPM}`);
-        }
-      }
+      const effectiveTempo = extractTempoBpm(xmlString, DEFAULT_TEMPO_BPM);
 
       // Store the effective tempo for later use
       effectiveTempoRef.current = effectiveTempo;
-      const manager = new AudioPreviewManager({
+      const manager: ScorePreviewController = new OsmdScorePreviewController({
         container,
-        bpm: effectiveTempo || DEFAULT_TEMPO_BPM
+        bpm: effectiveTempo,
       });
       managerRef.current = manager;
 
       await manager.loadScore(xmlString);
 
-      if (manager.player) {
-        // Listen to iteration event for end detection
-        // When player returns empty notes array, it means playback has ended
-        // @ts-expect-error - Version compatibility
-        manager.player.on("iteration", (notes: unknown[]) => {
-          try {
-            const c = manager.osmd?.cursor;
-            if (!c) return;
-
-            // Show cursor if not visible
-            if (!c.cursorElement) {
-              try { c.show(); } catch { }
-            }
-
-            // Empty notes array indicates end of playback
-            if (Array.isArray(notes) && notes.length === 0) {
-              // Stop player to trigger STOPPED state, which will reset cursor
-              if (manager.player && manager.player.state === 'PLAYING') {
-                try {
-                  manager.player.stop();
-                } catch { }
-              }
-            }
-          } catch { }
-        });
-
-        // Listen to state-change event instead of individual play/pause/stop
-        // @ts-expect-error - Version compatibility
-        manager.player.on("state-change", (state: string) => {
-          if (state === 'PLAYING') {
-            setIsPlaying(true);
-            startProgressLoop();
-            startCursorSyncLoop();
-          } else if (state === 'PAUSED') {
-            setIsPlaying(false);
-            stopProgressLoop();
-            stopCursorSyncLoop();
-          } else if (state === 'STOPPED') {
-            // Reset UI without calling player.stop() again to avoid infinite loop
-            setIsPlaying(false);
-            stopProgressLoop();
-            stopCursorSyncLoop();
-            setProgress(0);
-            setCurrentTime(0);
-
-            // Reset cursor to beginning
-            if (manager.osmd?.cursor) {
-              try {
-                manager.osmd.cursor.reset();
-                cursorStepRef.current = 0;
-
-                // Scroll back to beginning
-                const cursorElement = manager.osmd.cursor.cursorElement;
-                if (cursorElement && typeof cursorElement.scrollIntoView === 'function') {
-                  cursorElement.scrollIntoView({
-                    block: 'center',
-                    inline: 'nearest',
-                    behavior: 'smooth'
-                  });
-                }
-              } catch { }
-            }
-          }
-        });
-
-        // Calculate duration immediately
-        const player = manager.player;
-        // @ts-expect-error - duration not in type definition
-        let duration = player.duration || 0;
-        // @ts-expect-error - iterationSteps not in type definition
-        const steps = player.iterationSteps;
-
-        if (duration <= 0 && steps > 0) {
-          const estimatedBeatsPerStep = 0.25;
-          const bpm = effectiveTempo || 100;
-          duration = (steps * estimatedBeatsPerStep * 60) / bpm;
+      manager.onPlaybackIteration((notes) => {
+        manager.ensureCursorVisible();
+        if (
+          Array.isArray(notes) &&
+          notes.length === 0 &&
+          manager.getPlaybackSnapshot().state === 'PLAYING'
+        ) {
+          void manager.stop();
         }
+      });
 
-        if (duration > 0) {
-          setTotalTime(duration);
+      manager.onPlaybackStateChange((state) => {
+        if (state === 'PLAYING') {
+          setIsPlaying(true);
+          startProgressLoop();
+          startCursorSyncLoop();
+        } else if (state === 'PAUSED') {
+          setIsPlaying(false);
+          stopProgressLoop();
+          stopCursorSyncLoop();
+        } else if (state === 'STOPPED') {
+          setIsPlaying(false);
+          stopProgressLoop();
+          stopCursorSyncLoop();
+          setProgress(0);
+          setCurrentTime(0);
+          manager.resetCursor({ scrollIntoView: true });
         }
+      });
+
+      const snapshot = manager.getPlaybackSnapshot();
+      let duration = snapshot.duration;
+      if (duration <= 0 && snapshot.totalSteps > 0) {
+        duration =
+          (snapshot.totalSteps * ESTIMATED_BEATS_PER_STEP * 60) / effectiveTempo;
+      }
+      if (duration > 0) {
+        setTotalTime(duration);
       }
       setIsLoading(false);
     } catch (error) {
@@ -494,7 +351,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   // Removed unreliable useEffect for loading score
 
   // Removed cursor style injection (osmd-cursor-fix-style)
-  // The "container width wait" improvement in AudioPreviewManager now ensures
+  // The OSMD adapter waits for a measurable container before rendering.
   // OSMD renders with correct dimensions, making this fallback unnecessary.
 
   const handlePlayPause = async () => {
@@ -504,9 +361,9 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
       return;
     }
 
-    if (manager.player?.state === 'PLAYING') {
+    if (manager.getPlaybackSnapshot().state === 'PLAYING') {
       isManualStopRef.current = true; // Mark as manual stop
-      await manager.player.pause();
+      await manager.pause();
     } else {
       try {
         // Check if we have a pending seek position from dragging
@@ -532,19 +389,12 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   };
 
   const handleStop = async () => {
-    const player = managerRef.current?.player;
-    const osmd = managerRef.current?.osmd;
+    const manager = managerRef.current;
 
-    if (player) {
+    if (manager) {
       isManualStopRef.current = true; // Mark as manual stop
-      await player.stop();
-
-      // Reset cursor manually since stop event might not trigger properly
-      try {
-        if (osmd?.cursor) {
-          osmd.cursor.reset();
-        }
-      } catch { }
+      await manager.stop();
+      manager.resetCursor();
 
       // Trigger UI reset manually
       setIsPlaying(false);
@@ -556,16 +406,16 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   };
 
   const handleSeekStart = useCallback(() => {
-    const player = managerRef.current?.player;
-    if (!player) return;
+    const manager = managerRef.current;
+    if (!manager) return;
 
     isSeekingRef.current = true;
-    wasPlayingBeforeSeek.current = player.state === 'PLAYING';
+    wasPlayingBeforeSeek.current = manager.getPlaybackSnapshot().state === 'PLAYING';
 
     // Pause playback and update loops (smart mode)
     if (wasPlayingBeforeSeek.current) {
       isManualStopRef.current = true; // Prevent loop trigger when pausing for seek
-      player.pause();
+      void manager.pause();
     }
 
     stopProgressLoop();
@@ -574,10 +424,8 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
 
   const handleSeek = useCallback((value: number[]) => {
     const manager = managerRef.current;
-    const player = manager?.player;
-    const osmd = manager?.osmd;
 
-    if (!player || !osmd || totalTime <= 0) {
+    if (!manager || totalTime <= 0) {
       console.warn('[handleSeek] Cannot seek: invalid state');
       return;
     }
@@ -585,27 +433,15 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     const percentage = value[0] / 100;
 
     // 1. Calculate target step
-    // @ts-expect-error
-    const totalSteps = player.iterationSteps || 0;
+    const totalSteps = manager.getPlaybackSnapshot().totalSteps;
     const targetStep = Math.min(
       Math.floor(totalSteps * percentage),
       Math.max(0, totalSteps - 1) // Prevent out of bounds
     );
 
     // 2. Sync cursor
-    try {
-      // Reset cursor to beginning
-      osmd.cursor.reset();
-      cursorStepRef.current = 0;
-
-      // Advance to target position
-      advanceCursor(manager, targetStep);
-
-      // Scroll into view
-      scrollCursorIntoView(manager);
-    } catch (error) {
-      console.error('[handleSeek] Cursor sync error:', error);
-    }
+    manager.resetCursor();
+    manager.syncCursorToStep(targetStep, { scrollIntoView: true });
 
     // 3. Store seek target for playFromStep when play is clicked
     seekTargetStepRef.current = targetStep;
@@ -615,12 +451,11 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     setCurrentTime(newTime);
     setProgress(value[0]);
 
-  }, [totalTime, advanceCursor, scrollCursorIntoView]);
+  }, [totalTime]);
 
   const handleSeekEnd = useCallback(async () => {
     const manager = managerRef.current;
-    const player = manager?.player;
-    if (!player || !manager) return;
+    if (!manager) return;
 
     isSeekingRef.current = false;
     isManualStopRef.current = false; // Reset manual stop flag so loop can work again
@@ -633,7 +468,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
           await manager.playFromStep(seekTargetStepRef.current);
           seekTargetStepRef.current = null;
         } else {
-          await player.play();
+          await manager.play();
         }
 
         startProgressLoop();
@@ -658,7 +493,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   ) : null;
 
   return (
-    <Dialog open={currentOpenState} onOpenChange={setCurrentOpenState}>
+    <Dialog open={currentOpenState} onOpenChange={handleOpenChange}>
       {DialogTriggerContent && <DialogTrigger asChild>{DialogTriggerContent}</DialogTrigger>}
       <DialogContent
         className={cn(

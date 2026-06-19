@@ -3,8 +3,8 @@
 import { useTranslations } from 'next-intl';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { FloatingWindow } from './ui/floating-window';
-import { Button } from './ui/button';
+import { FloatingWindow } from '@/components/ui/floating-window';
+import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, FileImage } from 'lucide-react';
 import Image from 'next/image';
 

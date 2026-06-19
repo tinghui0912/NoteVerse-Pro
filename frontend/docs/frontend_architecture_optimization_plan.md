@@ -46,10 +46,10 @@ This is an incremental plan. Each phase must leave the application usable and pa
 
 ### 2.3 Domain concentration
 
-- `musicxml-parser.ts`, `musicxml-core.ts`, `musicxml-elements.ts`, `musicxml-flatten.ts`, `musicxml-connections.ts`, and `musicxml-backup.ts` are still in the `src/lib` root.
-- MusicXML code is imported by editor contexts, editor hooks, results, and the practice Verovio adapter.
-- `listen-modal.tsx` is 747 lines and directly manipulates OSMD cursor internals.
-- `audio-preview-manager.ts` directly owns `OpenSheetMusicDisplay` and `osmd-audio-player`.
+- MusicXML parsing and transformations now live behind `src/lib/musicxml/index.ts`.
+- Editor contexts, editor hooks, results, and the practice Verovio adapter consume the MusicXML package or focused submodules.
+- `components/score/listen-modal.tsx` consumes renderer/playback/cursor contracts and no longer reads OSMD or player internals.
+- `lib/score/osmd-score-preview-controller.ts` is the temporary adapter that privately owns `OpenSheetMusicDisplay` and `osmd-audio-player`.
 - Editor, results, and share reuse `ListenModal`, so OSMD removal is primarily a shared playback migration, not three independent page renderer swaps.
 - Review currently compares authenticated original/preview image artifacts. Results and share also display backend-rendered image artifacts. Those images are not OSMD and should not be replaced merely to claim Verovio migration.
 - `score-viewer.tsx` is a stale placeholder and currently has no confirmed consumer; audit it for deletion instead of moving it automatically.
@@ -65,7 +65,7 @@ This is an incremental plan. Each phase must leave the application usable and pa
 ### 2.5 Renderer direction
 
 - Practice already renders with a practice-specific Verovio adapter.
-- OSMD remains in `audio-preview-manager.ts`, `listen-modal.tsx`, audio constants, soundfont patching, and package dependencies.
+- OSMD remains only behind the score adapter, soundfont patching, audio constants, and package dependencies; UI code is backend-agnostic.
 - Verovio is the final renderer direction. OSMD is only a temporary migration dependency.
 - The engineering principles document still contains one stale summary sentence that can be read as opposing full migration; the decision must be made unambiguous before implementation.
 
@@ -95,8 +95,10 @@ P0 unit/component/E2E smoke net
 | P0-2 Layered frontend test baseline | Completed | 2026-06-19: 7 Vitest tests and 3 Playwright smoke tests pass, including Chinese/English login routes; deterministic browser mocks require no backend |
 | P0-3 React Query conventions | Completed | 2026-06-19: hierarchical key factories, cancellable queries, and domain-owned mutation cache policies implemented |
 | P1-1 MusicXML domain package | Completed | 2026-06-19: parser, core, transforms, connections, backup, and validator moved behind a package index |
-| P1-2 Component root governance | Next | Move components only with their owning page or interface changes |
-| P1-3 through P3 | Pending | Follow the dependency order below |
+| P1-2 Component root governance | Completed | 2026-06-19: editor/media/profile/home ownership applied; unused placeholder viewer removed |
+| P1-3 Renderer/playback contracts | Completed | 2026-06-19: UI contracts integrated with a private OSMD adapter and explicit disposal |
+| P2-1 Practice page decomposition | Next | Extract resource-owning hooks without changing following behavior |
+| P2-2 through P3 | Pending | Follow the dependency order below |
 
 ## 4. P0 - Foundation and Guardrails
 
@@ -233,6 +235,8 @@ src/lib/musicxml/
 
 **Acceptance:** root components are only genuinely cross-domain entry points; import changes are mechanical and behavior-neutral.
 
+**Implementation note (2026-06-19):** Entity add/note/chord modals and draft recovery now live under `components/editor`; the reusable original-image viewer lives under `components/media`; avatar cropping and the homepage animation live under `components/profile` and `components/home`. The unused placeholder `score-viewer.tsx` was deleted after a zero-reference audit. No compatibility re-exports were added. The component root now contains only the cross-domain `client-only` and `page-wrapper` entries; ListenModal moved to `components/score` with P1-3.
+
 ### P1-3 Separate score rendering from score playback contracts
 
 **Goal:** prevent the future Verovio renderer from inheriting OSMD-specific playback APIs.
@@ -252,6 +256,10 @@ src/lib/musicxml/
 5. Keep an OSMD-backed adapter temporarily so the interface can be integrated before the backend is replaced.
 
 **Acceptance:** `ListenModal` no longer reads OSMD cursor internals directly; the old backend can still satisfy the new interfaces during migration.
+
+**Current behavior contract:** ListenModal loads MusicXML, renders and refits the score, extracts score tempo with a documented fallback, exposes play/pause/stop/step seek/loop controls, estimates duration when the backend omits it, synchronizes and auto-scrolls the cursor, and resets state on stop/close. These behaviors must remain stable when replacing the adapter.
+
+**Implementation note (2026-06-19):** `lib/score/contracts.ts` defines `ScoreRenderer`, `ScorePlaybackController`, `ScoreCursorController`, and the combined `ScorePreviewController`. `OsmdScorePreviewController` privately implements the contracts with the existing OSMD/audio-player backend. `components/score/listen-modal.tsx` uses only contract methods and snapshots; searches find no `.osmd` or `.player` access in UI code. Pure MusicXML tempo extraction moved to `lib/musicxml/tempo.ts` with fallback tests. ListenModal owns UI state, RAF loops, and ResizeObserver; the adapter owns OSMD, playback scheduling, AudioContext, cursor internals, and rendered DOM. Dispose stops playback, closes AudioContext, suppresses late events, and clears the renderer container.
 
 ## 6. P2 - Oversized Page Decomposition
 
