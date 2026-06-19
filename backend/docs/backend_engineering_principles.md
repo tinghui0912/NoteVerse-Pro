@@ -20,7 +20,7 @@
 - API 聚合由 `app/api/v1/router.py` 负责，`app/main.py` 保持轻量
 - Worker、pipeline、processing 保持技术边界，不强行塞进业务模块
 - 文件和对象存储已经收口到 `app/storage/*`，业务模块不直接拼 durable filesystem path
-- OMR 和乐谱渲染已经抽象成可配置 engine 边界，避免 pipeline 直接绑定 Audiveris/MuseScore
+- OMR 和乐谱渲染已经抽象成可配置 engine 边界，避免 pipeline 直接绑定具体实现
 - 上传和识别任务已经围绕 durable upload file id、幂等提交、Celery late ack、heartbeat、maintenance job 和 storage materialization 做过可靠性加固
 - 本地后端运行时已经收口到 Docker API/worker/beat，数据库和 Redis 仍运行在 Windows host
 - LEGATO 作为 pinned external source dependency 放在 `external/legato`，不属于 backend application code
@@ -346,24 +346,22 @@ LEGATO 是第三方源码工具，不是 NoteVerse backend code。
 
 ### 8. Engine 抽象优于把工具名写进流程
 
-OMR 和渲染迁移已经把旧的工具耦合收口成：
+OMR 和渲染通过稳定接口与具体实现隔离：
 
 - `OMREngine`
-  - `AudiverisOmrEngine`
   - `LegatoOmrEngine`
 - `ScoreRenderEngine`
-  - `MuseScoreRenderEngine`
   - `VerovioRenderEngine`
 
-后续 pipeline、XML confirm、editor save、preview/final render 都应依赖 engine factory 和通用 result shape，不要重新直接 import `AudiverisEngine`、`MuseScoreEngine` 或把 `aud_*` 命名扩散回流程上下文。
+后续 pipeline、XML confirm、editor save、preview/final render 都应依赖 engine factory 和通用 result shape，不要在流程中直接 import 具体引擎或按引擎名称分支。
 
 重要经验：
 
 - 选中的 engine 就是边界，开发阶段不要用 fallback 隐藏 engine failure
 - LEGATO 当前可靠路径是 `image -> LEGATO -> ABC -> MusicXML -> normalized MusicXML`
-- 不要依赖 Verovio 像 MuseScore 一样做宽容布局修正，进入 Verovio 前应清洗 MusicXML
+- 不要依赖渲染器宽容修复 MusicXML，进入渲染阶段前应完成规范化
 - SVG/PNG 是 MIME type 和 renderer 输出差异，不应让前端或 file kind 名字硬编码为 PNG 假设
-- LEGATO 多页通过有序图片列表进入 `process_images()`，逐页转换后保守合并 MusicXML；不要重新绕回为 Audiveris 设计的 PDF 路径
+- 所有 OMR 引擎通过有序图片列表进入 `process_images()`；具体实现负责逐页识别、转换与合并
 
 ### 9. 可靠性设计要围绕 durable state
 
@@ -499,7 +497,7 @@ Runtime check 按进程角色划分：API 检查异步数据库、存储和 prac
 12. 历史文档不归档，导致团队分不清当前规则和旧计划。
 13. 业务模块重新直接拼 durable file path，绕过 `app.storage`。
 14. Celery payload 重新携带 API-local path，导致重试或多 worker 场景失效。
-15. OMR/render 流程重新出现 Audiveris/MuseScore 专用命名或直接 import。
+15. OMR/render 流程出现具体引擎专用命名、直接 import 或按品牌分支。
 16. Engine fallback 悄悄吞掉选定 engine 的失败，导致缺陷被隐藏。
 17. LEGATO 等 external dependency 被当作 backend 源码随意修改。
 18. Docker runtime、模型挂载、CUDA/Paddle/PyTorch 版本变更没有先跑 runtime check。

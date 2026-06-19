@@ -215,11 +215,6 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
 
 
 def check_omr_engine(_: bool = False) -> CheckResult:
-    if settings.OMR_ENGINE == "audiveris":
-        if not settings.AUDIVERIS_PATH:
-            return _result("omr_engine", False, "AUDIVERIS_PATH is not configured")
-        path = Path(settings.AUDIVERIS_PATH)
-        return _result("omr_engine", path.exists(), f"Audiveris path: {path}")
     if not settings.LEGATO_REPO_PATH:
         return _result("omr_engine", False, "LEGATO_REPO_PATH is not configured")
 
@@ -242,11 +237,6 @@ def check_omr_engine(_: bool = False) -> CheckResult:
 
 
 def check_render_engine(_: bool = False) -> CheckResult:
-    if settings.SCORE_RENDER_ENGINE == "musescore":
-        if not settings.MUSESCORE_PATH:
-            return _result("render_engine", False, "MUSESCORE_PATH is not configured")
-        path = Path(settings.MUSESCORE_PATH)
-        return _result("render_engine", path.exists(), f"MuseScore path: {path}")
     try:
         import verovio
 

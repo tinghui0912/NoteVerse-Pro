@@ -44,7 +44,6 @@ class PreviewGenerationStep(Step):
             result = engine.render_score(
                 xml_path=main_xml,
                 output_name="preview",
-                output_format="svg" if engine.engine_name == "verovio" else "png",
             )
 
             if not result["success"]:

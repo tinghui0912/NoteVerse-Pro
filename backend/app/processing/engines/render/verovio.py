@@ -16,6 +16,7 @@ class VerovioRenderEngine:
     """Render MusicXML into SVG pages using Verovio."""
 
     engine_name = "verovio"
+    default_output_format = "svg"
 
     def __init__(self, *, output_folder: str, timeout_seconds: int | None = None) -> None:
         self.output_folder = output_folder
@@ -29,11 +30,12 @@ class VerovioRenderEngine:
         *,
         xml_path: str,
         output_name: str,
-        output_format: str = "svg",
+        output_format: str | None = None,
     ) -> ScoreRenderResult:
         """Render a MusicXML score to SVG pages."""
 
-        if output_format != "svg":
+        selected_format = output_format or self.default_output_format
+        if selected_format != "svg":
             return {
                 "success": False,
                 "engine": self.engine_name,

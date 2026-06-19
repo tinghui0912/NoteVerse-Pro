@@ -38,15 +38,9 @@ OmrResult = OmrSuccessResult | OmrFailureResult
 
 
 class OmrEngine(Protocol):
-    """Engine contract for score image/PDF recognition."""
+    """Engine contract for recognizing ordered score image pages."""
 
     engine_name: str
 
-    def process_image(self, image_path: str) -> OmrResult:
-        """Recognize a single score image."""
-
     def process_images(self, image_paths: list[str]) -> OmrResult:
         """Recognize ordered score image pages."""
-
-    def process_pdf(self, pdf_path: str) -> OmrResult:
-        """Recognize a score PDF."""

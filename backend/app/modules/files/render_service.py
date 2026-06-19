@@ -36,7 +36,6 @@ async def render_and_save_images(
         result = engine.render_score(
             xml_path=xml_path,
             output_name=output_name,
-            output_format="svg" if engine.engine_name == "verovio" else "png",
         )
 
         if result["success"]:

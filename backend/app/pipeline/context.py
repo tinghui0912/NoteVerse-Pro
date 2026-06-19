@@ -58,13 +58,11 @@ class TaskContext:
     options: TaskProcessingOptions = field(default_factory=_default_task_options)
 
     raw_paths: List[str] = field(default_factory=list)
-    pdf_path: Optional[str] = None
     omr_result: Optional[OmrSuccessResult] = None
     main_xml: Optional[str] = None
 
     task_temp: str = ""
     raw_dir: str = ""
-    pdf_dir: str = ""
     omr_dir: str = ""
     xml_dir: str = ""
     preview_dir: str = ""
@@ -81,7 +79,6 @@ class TaskContext:
 
         self.task_temp = os.path.join(settings.WORK_ROOT, self.task_id)
         self.raw_dir = os.path.join(self.task_temp, "raw")
-        self.pdf_dir = os.path.join(self.task_temp, "pdf")
         self.omr_dir = os.path.join(self.task_temp, "omr")
         self.xml_dir = os.path.join(self.task_temp, "xml")
         self.preview_dir = os.path.join(self.task_temp, "preview")
@@ -187,12 +184,9 @@ class TaskContext:
             },
         )
 
-    def create_dirs(self, include_pdf: bool = False) -> None:
+    def create_dirs(self) -> None:
         """Create per-task working directories."""
         dirs = [self.raw_dir, self.omr_dir, self.xml_dir, self.preview_dir]
-        if include_pdf:
-            dirs.append(self.pdf_dir)
-
         for directory in dirs:
             os.makedirs(directory, exist_ok=True)
 

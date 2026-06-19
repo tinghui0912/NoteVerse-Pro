@@ -42,12 +42,13 @@ class ScoreRenderEngine(Protocol):
     """Engine contract for rendering MusicXML into visual score assets."""
 
     engine_name: str
+    default_output_format: str
 
     def render_score(
         self,
         *,
         xml_path: str,
         output_name: str,
-        output_format: str = "png",
+        output_format: str | None = None,
     ) -> ScoreRenderResult:
         """Render a MusicXML score."""

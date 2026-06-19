@@ -243,55 +243,15 @@ class FileNotFoundException(PipelineException):
         super().__init__(code=ErrorCode.INPUT_FILE_MISSING, details=details)
 
 
-class AudiverisException(PipelineException):
-    """Base class for Audiveris-related failures."""
-
-
-class AudiverisMissingException(AudiverisException):
-    """Audiveris is not installed or not available on PATH."""
-
-    def __init__(self, details: Optional[ErrorDetails] = None):
-        super().__init__(code=ErrorCode.AUDIVERIS_MISSING, details=details)
-
-
-class AudiverisFailedException(AudiverisException):
-    """Audiveris execution failed."""
-
-    def __init__(self, details: Optional[ErrorDetails] = None):
-        super().__init__(code=ErrorCode.AUDIVERIS_FAILED, details=details)
-
-
-class LegatoException(PipelineException):
-    """Base class for LEGATO-related failures."""
-
-
-class LegatoFailedException(LegatoException):
-    """LEGATO execution or conversion failed."""
+class OmrFailedException(PipelineException):
+    """The configured OMR engine failed."""
 
     def __init__(
         self,
-        code: str = ErrorCode.LEGATO_FAILED,
+        code: str = ErrorCode.OMR_FAILED,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(code=code, details=details)
-
-
-class MuseScoreException(PipelineException):
-    """Base class for MuseScore-related failures."""
-
-
-class MuseScoreMissingException(MuseScoreException):
-    """MuseScore is not installed or not available on PATH."""
-
-    def __init__(self, details: Optional[ErrorDetails] = None):
-        super().__init__(code=ErrorCode.MUSESCORE_MISSING, details=details)
-
-
-class MuseScoreFailedException(MuseScoreException):
-    """MuseScore execution failed."""
-
-    def __init__(self, details: Optional[ErrorDetails] = None):
-        super().__init__(code=ErrorCode.MUSESCORE_FAILED, details=details)
 
 
 class ScoreRenderException(PipelineException):

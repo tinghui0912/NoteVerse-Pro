@@ -407,9 +407,9 @@ JWT 签名算法选用 **RS256（非对称）** 而非 HS256，原因：RS256 �
 - PDF 转换：`MusicXML → verovio.renderToSVG() → WeasyPrint` → 上传 S3
 - MIDI 转换：`MusicXML → verovio.renderToMIDI()` → Base64 解码 → 上传 S3
 
-不引入 MuseScore 的原因：MuseScore 是 GUI 应用，服务端无头运行需要 Xvfb 虚拟显示服务器，Docker 容器里配置复杂，持续有运维负担。Verovio 是纯库，`pip install verovio`，无任何 GUI 依赖，任何环境直接调用。
+Verovio 通过 Python binding 在无头容器中运行，不引入桌面应用和虚拟显示服务器依赖。
 
-如果未来用户对 PDF 排版质量有明确投诉（Verovio 质量虽高但略低于 MuseScore），可考虑替换为 LilyPond（真正无头命令行，印刷级排版质量，需要一步 MusicXML → LilyPond 格式转换）。
+如果未来用户对 PDF 排版质量有明确投诉，可通过 `ScoreRenderEngine` 接入其他无头渲染器并进行端到端评测。
 
 ### 5.3 数据存储
 
@@ -473,7 +473,7 @@ Webhook 处理两个核心要求：验证请求签名（使用 `stripe.webhook.c
 
 Phase 1：接入商业乐谱识别 API，通过 Celery OCR Worker 异步调用，超时 60 秒，失败重试 3 次。商业 API 用于快速验证用户需求，同时积累真实乐谱样本，为后续自建评估提供依据。
 
-Phase 2 评估：当商业 API 月费用超过自建 Audiveris 成本（服务器 + 工程师调优时间）时，迁移自建。自建时 Audiveris 作为独立 HTTP 服务部署，Celery Worker 通过 REST API 调用。
+Phase 2 评估：持续以真实上传样本比较候选 OMR 引擎的准确率、结构有效率、延迟和运维成本；通过 `OMREngine` 适配器接入达到验收门槛的实现。
 ---
 
 ## 六、编辑器架构专项说明
@@ -901,13 +901,13 @@ ADR（Architecture Decision Record）记录重要架构决策，包含背景、�
 
 ---
 
-**ADR-003：服务端文件转换使用 Verovio（Python Binding），不使用 MuseScore**
+**ADR-003：服务端文件转换使用 Verovio（Python Binding）**
 
 背景：需要在服务端把 MusicXML 转换为 PNG、PDF、MIDI。
 
-选择 Verovio，放弃 MuseScore，理由：MuseScore 是 GUI 应用，服务端无头运行需要 Xvfb 虚拟显示服务器，Docker 容器里配置复杂，持续有运维负担；Verovio 是纯库，`pip install verovio`，无任何 GUI 依赖，在任何环境直接运行。
+选择 Verovio，理由是 Python binding 可直接在无头容器中运行，不需要桌面运行时，并能输出适合前端和存储链路的 SVG 页面。
 
-若未来 PDF 排版质量有明确投诉，替换方向为 LilyPond（真正无头命令行，印刷级排版质量），比 MuseScore 的服务端部署更干净。
+若未来需要替换，通过 `ScoreRenderEngine` 增加候选实现，不在业务流程中引入渲染器专用分支。
 
 ---
 

@@ -181,7 +181,7 @@ class TextIntegrationEngine:
         font_weight: Optional[str] = None,
         credit_type: Optional[str] = None,
     ) -> ET.Element:
-        """Create a MusicXML credit element aligned with MuseScore output order."""
+        """Create a MusicXML credit element in canonical document order."""
         credit = ET.Element("credit")
         credit.set("page", "1")
 

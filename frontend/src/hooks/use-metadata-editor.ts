@@ -5,14 +5,14 @@
  * 元数据编辑 Hook - 管理乐谱元数据
  * 
  * 所有更新函数同时更新结构元数据和 <credit> 显示元素，
- * credit 属性精确对齐 MuseScore 4 A4 导出标准。
+ * credit 属性遵循项目的 A4 MusicXML 布局约定。
  */
 
 import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useXmlUpdater } from './use-xml-updater';
 
-// MuseScore 4 A4 导出标准坐标配置（与后端 text_config.py XmlLayoutConfig 一致）
+// 项目 A4 MusicXML 坐标配置（与后端 text_config.py XmlLayoutConfig 一致）
 const CREDIT_CONFIG = {
     TITLE_CENTER_X: '600.241935',
     TITLE: {
@@ -68,7 +68,7 @@ function findCreditByType(xmlDoc: XMLDocument, creditType: string): Element | nu
 }
 
 /**
- * 更新或创建 <credit> 元素（精确对齐 MuseScore 4 导出标准）
+ * 更新或创建 <credit> 元素（遵循项目的 A4 MusicXML 布局约定）
  * 
  * 结构：
  * <credit page="1">
@@ -108,7 +108,7 @@ function upsertCredit(
         credit = xmlDoc.createElement('credit');
         credit.setAttribute('page', '1');
 
-        // credit-type 在 credit-words 之前（MuseScore 标准顺序）
+        // credit-type 在 credit-words 之前（MusicXML 规范顺序）
         const ct = xmlDoc.createElement('credit-type');
         ct.textContent = creditType;
         credit.appendChild(ct);
@@ -316,7 +316,7 @@ export function useMetadataEditor() {
                 if (!existing) {
                     existing = xmlDoc.createElement('creator');
                     existing.setAttribute('type', type);
-                    // 插入到 identification 的最前面（MuseScore 顺序：creator → rights → encoding）
+                    // 插入到 identification 的最前面（项目顺序：creator → rights → encoding）
                     identification.insertBefore(existing, identification.firstChild);
                 }
                 existing.textContent = text;

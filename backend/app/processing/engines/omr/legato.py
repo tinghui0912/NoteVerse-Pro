@@ -62,9 +62,6 @@ class LegatoOmrEngine:
         self.beam_size = beam_size or settings.LEGATO_BEAM_SIZE
         self.batch_size = batch_size or settings.LEGATO_BATCH_SIZE
 
-    def process_image(self, image_path: str) -> OmrResult:
-        return self.process_images([image_path])
-
     def process_images(self, image_paths: list[str]) -> OmrResult:
         try:
             self._check_prerequisites(image_paths)
@@ -142,12 +139,6 @@ class LegatoOmrEngine:
                 ErrorCode.LEGATO_FAILED,
                 str(exc),
             )
-
-    def process_pdf(self, pdf_path: str) -> OmrResult:
-        return self._failure(
-            ErrorCode.LEGATO_FAILED,
-            "LEGATO does not support PDF input; submit ordered score images instead",
-        )
 
     def _convert_abc_page(self, abc: str, stem: str) -> tuple[Path, Path]:
         abc_path = self.output_folder / f"{stem}.abc"

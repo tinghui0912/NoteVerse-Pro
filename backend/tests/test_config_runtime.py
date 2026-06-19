@@ -67,9 +67,12 @@ def test_offline_model_paths_expand_user_home() -> None:
 
 
 def test_omr_engine_is_normalized_and_validated() -> None:
-    settings = Settings(OMR_ENGINE="AUDIVERIS", AUDIVERIS_PATH="audiveris")
+    settings = Settings(OMR_ENGINE="LEGATO", LEGATO_REPO_PATH="../external/legato")
 
-    assert settings.OMR_ENGINE == "audiveris"
+    assert settings.OMR_ENGINE == "legato"
+
+    with pytest.raises(ValidationError, match="OMR_ENGINE"):
+        Settings(OMR_ENGINE="unknown")
 
 
 def test_score_render_engine_is_normalized_and_validated() -> None:
@@ -117,26 +120,24 @@ def test_s3_storage_settings_are_validated() -> None:
     assert settings.S3_ENDPOINT_URL == "https://oss-cn-shenzhen.aliyuncs.com"
 
 
-def test_unselected_external_tool_paths_are_not_required() -> None:
+def test_selected_engine_settings_are_valid() -> None:
     settings = Settings(
         OMR_ENGINE="legato",
         LEGATO_REPO_PATH="../external/legato",
-        AUDIVERIS_PATH=None,
         SCORE_RENDER_ENGINE="verovio",
-        MUSESCORE_PATH=None,
     )
 
     assert settings.OMR_ENGINE == "legato"
     assert settings.LEGATO_REPO_COMMIT == "179c228d3d5f67113cf739b44891b3abe046f1dc"
     assert settings.SCORE_RENDER_ENGINE == "verovio"
 
+    with pytest.raises(ValidationError, match="SCORE_RENDER_ENGINE"):
+        Settings(SCORE_RENDER_ENGINE="unknown")
 
-def test_selected_external_tool_paths_are_required() -> None:
-    with pytest.raises(ValidationError, match="AUDIVERIS_PATH is required"):
-        Settings(OMR_ENGINE="audiveris", AUDIVERIS_PATH=None)
 
-    with pytest.raises(ValidationError, match="MUSESCORE_PATH is required"):
-        Settings(SCORE_RENDER_ENGINE="musescore", MUSESCORE_PATH=None)
+def test_legato_repository_path_is_required() -> None:
+    with pytest.raises(ValidationError, match="LEGATO_REPO_PATH is required"):
+        Settings(OMR_ENGINE="legato", LEGATO_REPO_PATH=None)
 
 
 def test_app_main_import_exposes_routes() -> None:

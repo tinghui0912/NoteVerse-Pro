@@ -8,16 +8,16 @@ import xml.etree.ElementTree as ET
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from app.pipeline import PipelineBuilder
 from app.pipeline.steps.input import CopyImageStep
 from app.pipeline.steps.normalize import XmlNormalizeStep
-from app.pipeline.steps.omr import OmrImageStep, OmrImagesStep, OmrPdfStep
+from app.pipeline.steps.omr import OmrStep
 from app.pipeline.steps.preview import PreviewGenerationStep
-from app.processing.engines.omr.audiveris import AudiverisOmrEngine
 from app.processing.engines.omr.factory import create_omr_engine
 from app.processing.engines.omr.legato import LegatoOmrEngine
 from app.processing.engines.render.factory import create_score_render_engine
-from app.processing.engines.render.musescore import MuseScoreRenderEngine
 from app.processing.engines.render.verovio import VerovioRenderEngine
 
 
@@ -36,7 +36,7 @@ def test_copy_image_step_copies_input_and_updates_context() -> None:
             image_paths=[source_path],
             raw_dir=raw_dir,
             raw_paths=[],
-            create_dirs=lambda include_pdf=False: os.makedirs(raw_dir, exist_ok=True),
+            create_dirs=lambda: os.makedirs(raw_dir, exist_ok=True),
         )
 
         with patch("app.pipeline.files_recorder.replace_files") as replace_files_mock:
@@ -63,15 +63,17 @@ def test_preview_generation_step_renders_and_records_preview_images() -> None:
         preview_output = os.path.join(preview_dir, "preview.png")
 
         class FakeEngine:
-            engine_name = "musescore"
+            engine_name = "test-renderer"
+            default_output_format = "png"
 
             def render_score(
                 self,
                 *,
                 xml_path: str,
                 output_name: str,
-                output_format: str,
+                output_format: str | None = None,
             ):
+                selected_format = output_format or self.default_output_format
                 with open(preview_output, "wb") as file_handle:
                     file_handle.write(b"png")
                 return {
@@ -81,7 +83,7 @@ def test_preview_generation_step_renders_and_records_preview_images() -> None:
                         {
                             "path": preview_output,
                             "page": 1,
-                            "format": output_format,
+                            "format": selected_format,
                             "mime_type": "image/png",
                         }
                     ],
@@ -107,22 +109,12 @@ def test_preview_generation_step_renders_and_records_preview_images() -> None:
         assert os.path.exists(args[2][0])
 
 
-def test_pipeline_builder_uses_generic_omr_steps(monkeypatch) -> None:
-    monkeypatch.setattr("app.pipeline.builder.settings.OMR_ENGINE", "audiveris")
+def test_pipeline_builder_uses_ordered_image_omr_step_for_all_uploads() -> None:
     single = PipelineBuilder.build_single_image()
     multi = PipelineBuilder.build_multi_image()
 
-    assert any(isinstance(step, OmrImageStep) for step in single.steps)
-    assert any(isinstance(step, OmrPdfStep) for step in multi.steps)
-
-
-def test_pipeline_builder_uses_ordered_image_pages_for_legato(monkeypatch) -> None:
-    monkeypatch.setattr("app.pipeline.builder.settings.OMR_ENGINE", "legato")
-
-    multi = PipelineBuilder.build_multi_image()
-
-    assert any(isinstance(step, OmrImagesStep) for step in multi.steps)
-    assert not any(isinstance(step, OmrPdfStep) for step in multi.steps)
+    assert any(isinstance(step, OmrStep) for step in single.steps)
+    assert any(isinstance(step, OmrStep) for step in multi.steps)
 
 
 def test_xml_normalize_step_applies_a4_layout() -> None:
@@ -148,26 +140,6 @@ def test_xml_normalize_step_applies_a4_layout() -> None:
     assert root.find("./part/measure").get("number") == "1"
 
 
-def test_audiveris_omr_engine_adapts_success_result() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        mxl_path = os.path.join(temp_dir, "score.mxl")
-
-        with patch("app.processing.engines.omr.audiveris.AudiverisEngine") as engine_cls:
-            engine_cls.return_value.process_image.return_value = {
-                "success": True,
-                "files": {"mxl": mxl_path},
-                "stdout": "ok",
-                "stderr": "",
-            }
-
-            engine = AudiverisOmrEngine(output_folder=temp_dir, timeout_seconds=120)
-            result = engine.process_image("input.png")
-
-    assert result["success"] is True
-    assert result["engine"] == "audiveris"
-    assert result["files"]["mxl"] == mxl_path
-
-
 def test_factory_can_create_legato_engine() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         engine = create_omr_engine(
@@ -179,19 +151,26 @@ def test_factory_can_create_legato_engine() -> None:
     assert isinstance(engine, LegatoOmrEngine)
 
 
-def test_score_render_factory_can_create_engines() -> None:
+def test_score_render_factory_can_create_verovio_engine() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        musescore = create_score_render_engine(
-            output_folder=temp_dir,
-            engine_name="musescore",
-        )
         verovio = create_score_render_engine(
             output_folder=temp_dir,
             engine_name="verovio",
         )
 
-    assert isinstance(musescore, MuseScoreRenderEngine)
     assert isinstance(verovio, VerovioRenderEngine)
+
+
+def test_engine_factories_reject_unregistered_engines() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        with pytest.raises(ValueError, match="Unsupported OMR engine"):
+            create_omr_engine(
+                output_folder=temp_dir,
+                timeout_seconds=120,
+                engine_name="unknown",
+            )
+        with pytest.raises(ValueError, match="Unsupported score render engine"):
+            create_score_render_engine(output_folder=temp_dir, engine_name="unknown")
 
 
 def test_verovio_render_engine_writes_svg_pages() -> None:
@@ -295,7 +274,7 @@ def test_legato_omr_engine_writes_musicxml_result() -> None:
                 with patch.object(engine, "_read_abcs", return_value=["X:1\nK:C\nC|"]) as read_mock:
                     with patch.object(engine, "_cleanup_abc", return_value="X:1\nK:C\nC|") as cleanup_mock:
                         with patch.object(engine, "_run_abc2xml", return_value=conversion_result) as convert_mock:
-                            result = engine.process_image(image_path)
+                            result = engine.process_images([image_path])
 
         assert result["success"] is True
         assert result["engine"] == "legato"
@@ -376,12 +355,3 @@ def test_legato_omr_engine_merges_multi_page_musicxml() -> None:
         measures = root.findall("./part/measure")
         assert [measure.get("number") for measure in measures] == ["1", "2"]
         assert measures[1].find("print").get("new-page") == "yes"
-
-
-def test_legato_omr_engine_rejects_pdf() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        engine = LegatoOmrEngine(output_folder=temp_dir, timeout_seconds=120)
-        result = engine.process_pdf("score.pdf")
-
-    assert result["success"] is False
-    assert result["code"] == "legato_failed"

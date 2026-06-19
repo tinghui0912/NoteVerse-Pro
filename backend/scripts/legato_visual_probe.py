@@ -477,10 +477,9 @@ def normalize_initial_musicxml_clefs(xml_path: Path) -> None:
     """Move initial staff clefs into the first measure's opening attributes.
 
     abc2xml can emit the bass clef after the first staff has already been
-    written and a backup has moved time back for staff 2. MuseScore tolerates
-    that and visually moves the initial clef to the system start; Verovio
-    renders the clef at its encoded position. Normalizing the first measure
-    gives both renderers the same structural hint.
+    written and a backup has moved time back for staff 2. Tolerant readers may
+    move that clef to the system start, while stricter renderers preserve its
+    encoded position. Normalizing the first measure makes the structure clear.
     """
 
     tree = ET.parse(xml_path)

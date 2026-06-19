@@ -24,7 +24,7 @@ class CopyImageStep(Step):
     def run(self, ctx: TaskContext) -> None:
         logger.info(f"[{ctx.task_id}] Starting input copy")
 
-        ctx.create_dirs(include_pdf=False)
+        ctx.create_dirs()
 
         image_path = ctx.image_paths[0]
         abs_path = os.path.abspath(image_path)
@@ -62,7 +62,7 @@ class CopyImagesStep(Step):
     def run(self, ctx: TaskContext) -> None:
         logger.info(f"[{ctx.task_id}] Starting input copy")
 
-        ctx.create_dirs(include_pdf=True)
+        ctx.create_dirs()
 
         raw_paths: List[str] = []
 

@@ -1,0 +1,36 @@
+ARG TRANSCODA_PYTHON_IMAGE=noteverse-transcoda-ml-base:py312-torch291-cu128
+FROM ${TRANSCODA_PYTHON_IMAGE}
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /workspace/transcoda
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libglib2.0-0 \
+        libgl1 \
+        libgomp1 \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# Inference-only dependency set matching the checked-in Transcoda environment.
+# Training, dataset generation, notebooks, and OMR-NED evaluation stay outside
+# this experimental image.
+RUN python -m pip install \
+        fire==0.7.1 \
+        loguru==0.7.3 \
+        numpy==2.2.6 \
+        opencv-python-headless==4.13.0.92 \
+        Pillow==11.3.0 \
+        pydantic==2.12.5 \
+        tokenizers==0.22.1 \
+        torchao==0.15.0 \
+        torchtune==0.6.1 \
+        transformers==4.57.3 \
+        xgrammar==0.1.31 \
+    && python -c "import cv2, fire, torch, transformers, xgrammar; print('torch', torch.__version__); print('transformers', transformers.__version__); print('opencv', cv2.__version__); print('xgrammar', getattr(xgrammar, '__version__', 'import-ok'))"
+
+ENTRYPOINT ["/usr/bin/tini", "--", "python", "scripts/inference.py"]

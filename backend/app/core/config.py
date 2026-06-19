@@ -3,7 +3,6 @@
 from pathlib import Path
 from typing import List, Optional
 import os
-import shutil
 
 from pydantic import AnyHttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -161,8 +160,7 @@ class Settings(BaseSettings):
     }
 
     # External tools
-    OMR_ENGINE: str = "audiveris"
-    AUDIVERIS_PATH: Optional[str] = None
+    OMR_ENGINE: str = "legato"
     LEGATO_REPO_PATH: Optional[str] = None
     LEGATO_REPO_COMMIT: Optional[str] = "179c228d3d5f67113cf739b44891b3abe046f1dc"
     LEGATO_PYTHON: str = "python3"
@@ -173,8 +171,7 @@ class Settings(BaseSettings):
     LEGATO_BEAM_SIZE: int = 10
     LEGATO_BATCH_SIZE: int = 1
     LEGATO_TIMEOUT_SECONDS: int = 600
-    SCORE_RENDER_ENGINE: str = "musescore"
-    MUSESCORE_PATH: Optional[str] = None
+    SCORE_RENDER_ENGINE: str = "verovio"
     VEROVIO_PAGE_WIDTH: int = 2100
     VEROVIO_PAGE_HEIGHT: int = 2970
     VEROVIO_SCALE: int = 40
@@ -304,31 +301,14 @@ class Settings(BaseSettings):
             )
         return v
 
-    @field_validator("AUDIVERIS_PATH", "MUSESCORE_PATH")
-    @classmethod
-    def resolve_executable_paths(cls, v: Optional[str]) -> Optional[str]:
-        """Resolve executable paths from absolute paths or PATH lookups."""
-
-        if not v:
-            return None
-
-        if os.path.isabs(v) and os.path.exists(v):
-            return v
-
-        found_path = shutil.which(v)
-        if found_path:
-            return found_path
-
-        return v
-
     @field_validator("OMR_ENGINE")
     @classmethod
     def validate_omr_engine(cls, v: str) -> str:
         """Validate the configured optical music recognition engine."""
 
         value = v.strip().lower()
-        if value not in {"audiveris", "legato"}:
-            raise ValueError("OMR_ENGINE must be one of: audiveris, legato")
+        if value != "legato":
+            raise ValueError("OMR_ENGINE must be: legato")
         return value
 
     @field_validator("SCORE_RENDER_ENGINE")
@@ -337,8 +317,8 @@ class Settings(BaseSettings):
         """Validate the configured score rendering engine."""
 
         value = v.strip().lower()
-        if value not in {"musescore", "verovio"}:
-            raise ValueError("SCORE_RENDER_ENGINE must be one of: musescore, verovio")
+        if value != "verovio":
+            raise ValueError("SCORE_RENDER_ENGINE must be: verovio")
         return value
 
     @field_validator("VEROVIO_HEADER")
@@ -365,12 +345,8 @@ class Settings(BaseSettings):
     def validate_engine_settings(self) -> "Settings":
         """Validate engine-specific settings."""
 
-        if self.OMR_ENGINE == "audiveris" and not self.AUDIVERIS_PATH:
-            raise ValueError("AUDIVERIS_PATH is required when OMR_ENGINE=audiveris")
         if self.OMR_ENGINE == "legato" and not self.LEGATO_REPO_PATH:
             raise ValueError("LEGATO_REPO_PATH is required when OMR_ENGINE=legato")
-        if self.SCORE_RENDER_ENGINE == "musescore" and not self.MUSESCORE_PATH:
-            raise ValueError("MUSESCORE_PATH is required when SCORE_RENDER_ENGINE=musescore")
         if self.FILE_STORAGE_BACKEND == "s3":
             missing = [
                 name

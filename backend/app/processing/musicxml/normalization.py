@@ -10,8 +10,8 @@ def normalize_initial_musicxml_clefs(xml_path: str | Path) -> None:
     """Move initial staff clefs into the first measure's opening attributes.
 
     Some ABC-to-MusicXML converters emit secondary staff clefs after a `<backup>`
-    in the first measure. MuseScore tolerates that and places the clef at the
-    system start. Verovio renders more literally, so the clef can appear late
+    in the first measure. Tolerant readers may move that clef to the system
+    start, while stricter renderers can preserve the late encoded position
     unless the first measure is normalized.
     """
 

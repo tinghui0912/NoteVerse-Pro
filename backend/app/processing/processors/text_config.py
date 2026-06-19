@@ -79,7 +79,7 @@ class ClassificationConfig:
 
 
 class XmlLayoutConfig:
-    """Layout constants aligned with MuseScore 4 A4 export output."""
+    """Project layout constants for A4 MusicXML output."""
 
     TITLE = {
         "default_y": "1611.210312",
