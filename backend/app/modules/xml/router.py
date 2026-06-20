@@ -22,7 +22,7 @@ router = APIRouter()
 @router.get("/{task_id}/xml")
 async def load_xml(
     task_id: str,
-    source: Literal["enhanced", "final", "current"] = "current",
+    source: Literal["final", "current"],
     _task=Depends(get_task_with_view_access),
     db: AsyncSession = Depends(get_db),
     xml_service: XMLService = Depends(get_xml_service),

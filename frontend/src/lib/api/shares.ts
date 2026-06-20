@@ -68,11 +68,13 @@ export async function downloadSharedFile(
 export async function getSharedFileAccessUrl(
     shareToken: string,
     fileType: string,
-    page?: number
+    page?: number,
+    signal?: AbortSignal
 ): Promise<ApiResponse<FileAccessUrl>> {
     return apiClient.get<ApiResponse<FileAccessUrl>>(
         `/shares/${shareToken}/access-url/${fileType}`,
-        { page }
+        { page },
+        { signal }
     );
 }
 

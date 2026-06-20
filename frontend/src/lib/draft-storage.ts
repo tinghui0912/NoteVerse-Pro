@@ -9,7 +9,7 @@ import Dexie, { type Table } from 'dexie';
 export interface DraftEntry {
     taskId: string;
     xml: string;
-    source: 'current' | 'final' | 'enhanced';
+    source: 'current' | 'final';
     returnUrl?: string;
     savedAt: number;
 }

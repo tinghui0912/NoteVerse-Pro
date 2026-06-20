@@ -100,8 +100,11 @@ P0 unit/component/E2E smoke net
 | P2-1 Practice page decomposition | Completed | 2026-06-20: session, socket, audio, recording, controls, status, and completion ownership extracted with PCM tests |
 | P2-2 History page decomposition | Completed | 2026-06-20: independent tab state, selection/batch hooks, cards, toolbar, pagination, and cancellable thumbnails extracted |
 | P2-3 Results page decomposition | Completed | 2026-06-20: resource orchestration, metadata, preview, actions, downloads, and sharing extracted |
-| P2-4 Editor page decomposition | Next | Extract document lifecycle, header/actions, modals, navigation, and listen launcher |
-| P2-5 through P3 | Pending | Follow the dependency order below |
+| P2-4 Editor page decomposition | Completed | 2026-06-20: document lifecycle, header/actions, modal orchestration, navigation, and listen launcher extracted |
+| P2-5 Share and review page decomposition | Completed | 2026-06-20: auth/access, permission actions, canonical share XML, image resources, and score presentation extracted |
+| P2-6 Upload page decomposition | Deferred | Await reconciliation of the existing upload work as documented below |
+| P3-1 Shared Verovio adapter | Next | Generalize proven practice rendering without moving practice semantics |
+| P3-2 through P3-4 | Pending | Follow the dependency order below |
 
 ## 4. P0 - Foundation and Guardrails
 
@@ -326,11 +329,15 @@ Each page refactor is a separate behavioral PR. Do not combine page decompositio
 
 **Acceptance:** autosave status remains reactive; source selection stays correct; editor modals live in `components/editor`; no new direct MusicXML root imports are introduced.
 
+**Implementation note (2026-06-20):** `use-editor-document` owns canonical task/XML queries, draft recovery, parser/history initialization, validation, source-aware saves, autosave status, and cancellable original-image resources. `EditorPageHeader` consumes reactive autosave/history state, while `EditorPageModals` owns entity, image, listen, validation, and draft dialogs. Editor routes require an explicit `current` or `final` source: `current` maps to current/preview artifacts and `final` maps to final artifacts. Missing or unsupported sources return the route not-found boundary instead of silently selecting an editable artifact. The product XML API also accepts only `current` and `final`. `enhanced_xml` remains a recorded pipeline artifact but never substitutes for a missing user-selected version; missing `current_xml` now fails explicitly in XML and practice flows. MusicXML imports remain package subpaths or dynamic parser imports.
+
 ### P2-5 Share and review pages
 
 **Extract:** access/auth state, permission-gated actions, score content query, and score presentation sections.
 
 **Acceptance:** anonymous/authenticated access remains correct; `canDownload`/`canEdit` are enforced in UI; share XML uses the canonical query key.
+
+**Implementation note (2026-06-20):** `use-share-page-data` owns the authenticated redirect, canonical share-access query, canonical `queryKeys.xml.share()` XML query, classified access errors, and cancellable image resources. Anonymous visitors retain their full return URL. Share preview, actions, and information/download panels live under `components/share`; `can_download=false` disables downloads and `can_edit=false` removes the editor entry. Locale-aware editor return URLs are preserved. `use-review-page-data` owns task validation, confirm mutation, and cancellable original/preview images, while `ReviewScoreComparison` owns carousel presentation and page tracking.
 
 ### P2-6 Upload page after current work is merged
 

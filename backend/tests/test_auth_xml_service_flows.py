@@ -4,12 +4,13 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.core.exceptions import AuthenticationException, ValidationException
+from app.core.exceptions import AuthenticationException, ResourceNotFoundException, ValidationException
 from app.db.models.auth import RefreshToken
 from app.modules.auth.schemas import SendCodeRequest, VerifyCodeRequest
 from app.modules.auth.service import AuthService
 from app.modules.xml.service import XMLService
 from app.shared.constants import ErrorCode
+from app.shared.file_kinds import FileKind
 
 
 class FakeRedis:
@@ -210,6 +211,20 @@ async def test_save_xml_persists_content_and_uses_render_service() -> None:
     db.commit.assert_awaited()
     mocked_open.assert_called()
     service.render_service.render_images.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_load_current_xml_rejects_missing_current_artifact() -> None:
+    service = XMLService()
+    service._get_task = AsyncMock(return_value=SimpleNamespace(id=7, user_id=1))
+    service._find_file = AsyncMock(return_value=None)
+    db = SimpleNamespace()
+
+    with pytest.raises(ResourceNotFoundException) as context:
+        await service.load_xml(db, "task-1", source="current")
+
+    assert context.value.code == ErrorCode.FILE_NOT_FOUND
+    service._find_file.assert_awaited_once_with(db, 7, FileKind.CURRENT_XML)
 
 
 @pytest.mark.asyncio

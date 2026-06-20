@@ -539,6 +539,8 @@ Runtime check 按进程角色划分：API 检查异步数据库、存储和 prac
 
 反过来，如果一个改动需要同时解释“这里暂时放一下”“这个旧路径也能用”“这个字段两个名字都行”“这个接口先不测”，它大概率正在制造下一轮架构债。
 
+XML artifact boundary update (2026-06-20): the product XML read endpoint exposes only `current` and `final`. `enhanced_xml` is a recorded internal pipeline artifact, not a selectable source and not a fallback for missing `current_xml`. XML and practice flows fail explicitly when the requested current or final artifact is absent.
+
 ## Bottom Line
 
 这次后端迁移最大的收获不是某个目录名，而是一套工程节奏：

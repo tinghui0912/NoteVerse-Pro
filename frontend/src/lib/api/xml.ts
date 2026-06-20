@@ -9,12 +9,12 @@ import type { SaveAndRenderResponse, SaveResponse, FingeringResponse } from '@/t
 /**
  * 加载 XML 文件内容
  * @param taskId 任务 ID
- * @param source 源类型: 'enhanced' | 'final' | 'current'
+ * @param source 产品 XML 来源: 'final' | 'current'
  * @param shareToken 可选的分享 token（用于非任务所有者访问）
  */
 export async function loadXml(
     taskId: string,
-    source: 'enhanced' | 'final' | 'current' = 'current',
+    source: 'final' | 'current',
     shareToken?: string,
     signal?: AbortSignal
 ): Promise<string> {

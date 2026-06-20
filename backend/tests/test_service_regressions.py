@@ -682,6 +682,24 @@ async def test_practice_service_create_session_rejects_missing_task() -> None:
 
 
 @pytest.mark.asyncio
+async def test_practice_service_rejects_missing_current_xml_without_fallback() -> None:
+    repository = Mock()
+    repository.get_task_file_by_kind = AsyncMock(return_value=None)
+    service = PracticeService(repository=repository)
+    db = AsyncMock()
+
+    with pytest.raises(ResourceNotFoundException) as context:
+        await service._prepare_score_file(db, task_id=101, source="current")
+
+    assert context.value.code == ErrorCode.FILE_NOT_FOUND
+    repository.get_task_file_by_kind.assert_awaited_once_with(
+        db,
+        101,
+        FileKind.CURRENT_XML,
+    )
+
+
+@pytest.mark.asyncio
 async def test_practice_service_create_session_allows_valid_share_token_access() -> None:
     repository = Mock()
     repository.get_task_by_uuid = AsyncMock(

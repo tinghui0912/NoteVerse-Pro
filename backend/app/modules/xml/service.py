@@ -39,7 +39,6 @@ _FILE_TYPE_MAP: dict[str, FileKind] = {
 }
 
 _SOURCE_MAP: dict[str, FileKind] = {
-    "enhanced": FileKind.ENHANCED_XML,
     "final": FileKind.FINAL_XML,
     "current": FileKind.CURRENT_XML,
 }
@@ -71,13 +70,9 @@ class XMLService:
                 details={"task_id": task_uuid},
             )
 
-        file_kind = _SOURCE_MAP.get(source, FileKind.CURRENT_XML)
+        file_kind = _SOURCE_MAP[source]
         task_id = require_persisted_id(task.id, entity="task")
         file_record = await self._find_file(db, task_id, file_kind)
-
-        if not file_record and source == "current":
-            file_record = await self._find_file(db, task_id, FileKind.ENHANCED_XML)
-            file_kind = FileKind.ENHANCED_XML
 
         if not file_record:
             raise ResourceNotFoundException(

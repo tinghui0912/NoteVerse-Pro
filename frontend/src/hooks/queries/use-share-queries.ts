@@ -60,6 +60,24 @@ export function useShareAccess(shareId: string, options?: { enabled?: boolean })
     });
 }
 
+export function useSharedXmlContent(shareId: string, options?: { enabled?: boolean }) {
+    return useQuery({
+        queryKey: queryKeys.xml.share(shareId),
+        queryFn: async ({ signal }) => {
+            try {
+                const blob = await sharesApi.downloadSharedFile(shareId, 'final_xml', signal);
+                return (await blob.text()) || null;
+            } catch (error) {
+                if (signal.aborted) throw error;
+                return null;
+            }
+        },
+        enabled: options?.enabled ?? !!shareId,
+        staleTime: Infinity,
+        retry: false,
+    });
+}
+
 // ============ Mutation Hooks ============
 
 /**

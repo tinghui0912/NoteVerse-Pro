@@ -361,12 +361,6 @@ class PracticeService:
             file_record = await self.repository.get_task_file_by_kind(db, task_id, FileKind.FINAL_XML)
         else:
             file_record = await self.repository.get_task_file_by_kind(db, task_id, FileKind.CURRENT_XML)
-            if file_record is None:
-                file_record = await self.repository.get_task_file_by_kind(
-                    db,
-                    task_id,
-                    FileKind.ENHANCED_XML,
-                )
 
         if file_record is None:
             raise ResourceNotFoundException(

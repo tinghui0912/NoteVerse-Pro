@@ -9,8 +9,7 @@ from pydantic import BaseModel, Field
 
 
 class XMLLoadParams(BaseModel):
-    source: Literal["enhanced", "final", "current"] = Field(
-        default="current",
+    source: Literal["final", "current"] = Field(
         description="XML source type",
     )
     share_token: Optional[str] = Field(

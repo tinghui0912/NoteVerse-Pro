@@ -12,7 +12,7 @@ import { xmlApi } from '@/lib/api';
  */
 export function useXmlContent(
     taskId: string,
-    source: 'enhanced' | 'final' | 'current' = 'current',
+    source: 'final' | 'current',
     options?: { shareToken?: string; enabled?: boolean }
 ) {
     return useQuery({

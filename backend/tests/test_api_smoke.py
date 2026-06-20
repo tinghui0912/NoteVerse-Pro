@@ -36,6 +36,16 @@ def test_docs_endpoints(client: TestClient) -> None:
     assert openapi_response.status_code == 200
 
 
+def test_public_xml_source_contract_excludes_pipeline_artifacts(client: TestClient) -> None:
+    schema = client.get("/api/v1/openapi.json").json()
+    path = next(path for path in schema["paths"] if path.endswith("/xml/{task_id}/xml"))
+    parameters = schema["paths"][path]["get"]["parameters"]
+    source = next(parameter for parameter in parameters if parameter["name"] == "source")
+
+    assert source["required"] is True
+    assert source["schema"]["enum"] == ["final", "current"]
+
+
 def test_protected_endpoints_require_authentication(client: TestClient) -> None:
     protected_paths = [
         "/api/v1/tasks",

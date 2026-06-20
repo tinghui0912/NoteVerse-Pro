@@ -28,9 +28,13 @@ class RenderedCase:
     case_dir: Path
     kern_path: Path
     source_image: Path | None
-    musicxml_path: Path | None = None
+    mei_path: Path | None = None
+    mei_converter_path: Path | None = None
+    raw_musicxml_path: Path | None = None
+    mei_musicxml_path: Path | None = None
     kern_svg_paths: list[Path] = field(default_factory=list)
-    musicxml_svg_paths: list[Path] = field(default_factory=list)
+    raw_musicxml_svg_paths: list[Path] = field(default_factory=list)
+    mei_musicxml_svg_paths: list[Path] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -192,6 +196,66 @@ def convert_kern_to_musicxml(
         raise RuntimeError("converter21 completed but produced no MusicXML file.")
 
 
+def convert_mei_to_musicxml(
+    mei_path: Path,
+    musicxml_path: Path,
+) -> None:
+    command = [
+        sys.executable,
+        "-m",
+        "converter21",
+        "-f",
+        "mei",
+        "-t",
+        "musicxml",
+        str(mei_path),
+        str(musicxml_path),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        stderr_tail = "\n".join(result.stderr.splitlines()[-20:])
+        stdout_tail = "\n".join(result.stdout.splitlines()[-20:])
+        raise RuntimeError(
+            f"converter21 failed to convert MEI to MusicXML (exit {result.returncode}). "
+            "Install it with: pip install converter21\n"
+            f"stdout:\n{stdout_tail}\n"
+            f"stderr:\n{stderr_tail}"
+        )
+    if not musicxml_path.exists() or musicxml_path.stat().st_size == 0:
+        raise RuntimeError("converter21 completed but produced no MusicXML file from MEI.")
+
+
+def downgrade_verovio_mei_for_converter21(mei_path: Path, downgraded_mei_path: Path) -> None:
+    """Rewrite Verovio MEI 6-dev as a minimal MEI 5 document for converter21."""
+    mei = mei_path.read_text(encoding="utf-8")
+    mei = mei.replace(
+        "https://music-encoding.org/schema/dev/mei-all.rng",
+        "https://music-encoding.org/schema/5.0/mei-all.rng",
+    )
+    mei = mei.replace('meiversion="6.0-dev"', 'meiversion="5.0"')
+    mei = re.sub(r"\s*<meiHead>.*?</meiHead>", "", mei, count=1, flags=re.DOTALL)
+    downgraded_mei_path.write_text(mei, encoding="utf-8")
+
+
+def convert_kern_to_mei_with_verovio(
+    kern_path: Path,
+    mei_path: Path,
+    page_width: int,
+    page_height: int,
+    scale: int,
+    breaks: str,
+) -> None:
+    toolkit = _verovio_toolkit("humdrum", page_width, page_height, scale, breaks)
+    if not toolkit.loadFile(str(kern_path)):
+        log = toolkit.getLog() if hasattr(toolkit, "getLog") else ""
+        raise RuntimeError(f"Verovio failed to load {kern_path.name}. {log}".strip())
+
+    mei = toolkit.getMEI()
+    if not mei.strip():
+        raise RuntimeError("Verovio produced empty MEI.")
+    mei_path.write_text(mei, encoding="utf-8")
+
+
 def _verovio_toolkit(input_from: str, page_width: int, page_height: int, scale: int, breaks: str):
     try:
         import verovio
@@ -291,10 +355,25 @@ def render_case_page(case: RenderedCase) -> None:
         if case.source_image is not None
         else '<p class="empty">No source image supplied.</p>'
     )
-    musicxml_link = (
-        f'<a href="{html.escape(case.musicxml_path.name)}" download>prediction.musicxml</a>'
-        if case.musicxml_path is not None
-        else '<span>MusicXML not produced</span>'
+    raw_musicxml_link = (
+        f'<a href="{html.escape(case.raw_musicxml_path.name)}" download>raw MusicXML</a>'
+        if case.raw_musicxml_path is not None
+        else '<span>Raw MusicXML not produced</span>'
+    )
+    mei_link = (
+        f'<a href="{html.escape(case.mei_path.name)}" download>Verovio MEI</a>'
+        if case.mei_path is not None
+        else '<span>Verovio MEI not produced</span>'
+    )
+    mei_converter_link = (
+        f'<a href="{html.escape(case.mei_converter_path.name)}" download>MEI 5 compatibility copy</a>'
+        if case.mei_converter_path is not None
+        else '<span>MEI compatibility copy not produced</span>'
+    )
+    mei_musicxml_link = (
+        f'<a href="{html.escape(case.mei_musicxml_path.name)}" download>MEI MusicXML</a>'
+        if case.mei_musicxml_path is not None
+        else '<span>MEI MusicXML not produced</span>'
     )
     errors = "".join(f"<li>{html.escape(error)}</li>" for error in case.errors)
     warnings = "".join(f"<li>{html.escape(warning)}</li>" for warning in case.warnings)
@@ -309,7 +388,7 @@ def render_case_page(case: RenderedCase) -> None:
   <style>
     body {{ margin: 0; font-family: system-ui, sans-serif; background: #f6f7f9; color: #172033; }}
     header {{ padding: 16px 20px; background: white; border-bottom: 1px solid #d8dee8; }}
-    main {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 16px; }}
+    main {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 16px; }}
     .panel {{ background: white; border: 1px solid #d8dee8; border-radius: 8px; padding: 12px; overflow: auto; }}
     img {{ max-width: 100%; height: auto; display: block; }}
     .links {{ display: flex; flex-wrap: wrap; gap: 12px; padding: 0 16px 16px; }}
@@ -329,7 +408,10 @@ def render_case_page(case: RenderedCase) -> None:
   </header>
   <nav class="links">
     <a href="prediction.krn" download>prediction.krn</a>
-    {musicxml_link}
+    {mei_link}
+    {mei_converter_link}
+    {raw_musicxml_link}
+    {mei_musicxml_link}
     <a href="diagnostics.json" download>diagnostics.json</a>
   </nav>
   <main>
@@ -343,7 +425,13 @@ def render_case_page(case: RenderedCase) -> None:
     </section>
     <section class="panel">
       <h2>KERN -> MusicXML -> Verovio SVG</h2>
-      {render_svg_items(case.musicxml_svg_paths, case.case_dir)}
+      <p class="empty">Raw converter21 output.</p>
+      {render_svg_items(case.raw_musicxml_svg_paths, case.case_dir)}
+    </section>
+    <section class="panel">
+      <h2>KERN -> MEI -> MusicXML -> Verovio SVG</h2>
+      <p class="empty">KERN parsed by Verovio, MEI converted by converter21.</p>
+      {render_svg_items(case.mei_musicxml_svg_paths, case.case_dir)}
     </section>
     <section class="panel">
       <h2>KERN</h2>
@@ -369,10 +457,18 @@ def write_case_diagnostics(case: RenderedCase) -> None:
         "case": case.case_dir.name,
         "kern_source": str(case.kern_path),
         "source_image": str(case.source_image) if case.source_image else None,
-        "musicxml": case.musicxml_path.name if case.musicxml_path else None,
+        "mei": case.mei_path.name if case.mei_path else None,
+        "mei_converter_input": (
+            case.mei_converter_path.name if case.mei_converter_path else None
+        ),
+        "raw_musicxml": case.raw_musicxml_path.name if case.raw_musicxml_path else None,
+        "mei_musicxml": case.mei_musicxml_path.name if case.mei_musicxml_path else None,
         "kern_svg_pages": [path.relative_to(case.case_dir).as_posix() for path in case.kern_svg_paths],
-        "musicxml_svg_pages": [
-            path.relative_to(case.case_dir).as_posix() for path in case.musicxml_svg_paths
+        "raw_musicxml_svg_pages": [
+            path.relative_to(case.case_dir).as_posix() for path in case.raw_musicxml_svg_paths
+        ],
+        "mei_musicxml_svg_pages": [
+            path.relative_to(case.case_dir).as_posix() for path in case.mei_musicxml_svg_paths
         ],
         "warnings": case.warnings,
         "errors": case.errors,
@@ -407,7 +503,7 @@ def render_gallery(output_dir: Path, cases: Iterable[RenderedCase]) -> None:
 <body>
   <main>
     <h1>Transcoda KERN Visual Probe</h1>
-    <p>Each case compares direct KERN rendering with KERN -> MusicXML -> Verovio rendering.</p>
+    <p>Each case compares direct KERN rendering with raw and MEI-mediated KERN -> MusicXML -> Verovio rendering.</p>
     <ul>{items}</ul>
   </main>
 </body>
@@ -444,20 +540,20 @@ def process_case(
         if args.stop_on_error:
             raise
 
-    musicxml_path = case_dir / "prediction.musicxml"
+    raw_musicxml_path = case_dir / "prediction.raw.musicxml"
     try:
-        convert_kern_to_musicxml(copied_kern, musicxml_path)
-        case.musicxml_path = musicxml_path
+        convert_kern_to_musicxml(copied_kern, raw_musicxml_path)
+        case.raw_musicxml_path = raw_musicxml_path
     except Exception as exc:
         case.errors.append(f"KERN -> MusicXML conversion failed: {type(exc).__name__}: {exc}")
         if args.stop_on_error:
             raise
 
-    if case.musicxml_path is not None:
+    if case.raw_musicxml_path is not None:
         try:
-            case.musicxml_svg_paths = render_with_verovio(
-                case.musicxml_path,
-                case_dir / "musicxml-verovio",
+            case.raw_musicxml_svg_paths = render_with_verovio(
+                case.raw_musicxml_path,
+                case_dir / "musicxml-raw-verovio",
                 "xml",
                 args.page_width,
                 args.page_height,
@@ -466,6 +562,60 @@ def process_case(
             )
         except Exception as exc:
             case.errors.append(f"MusicXML Verovio render failed: {type(exc).__name__}: {exc}")
+            if args.stop_on_error:
+                raise
+
+    mei_path = case_dir / "prediction.verovio.mei"
+    try:
+        convert_kern_to_mei_with_verovio(
+            copied_kern,
+            mei_path,
+            args.page_width,
+            args.page_height,
+            args.scale,
+            args.breaks,
+        )
+        case.mei_path = mei_path
+    except Exception as exc:
+        case.errors.append(f"KERN -> Verovio MEI conversion failed: {type(exc).__name__}: {exc}")
+        if args.stop_on_error:
+            raise
+
+    if case.mei_path is not None:
+        mei_converter_path = case_dir / "prediction.verovio.mei5.mei"
+        try:
+            downgrade_verovio_mei_for_converter21(case.mei_path, mei_converter_path)
+            case.mei_converter_path = mei_converter_path
+        except Exception as exc:
+            case.errors.append(
+                f"MEI compatibility rewrite failed: {type(exc).__name__}: {exc}"
+            )
+            if args.stop_on_error:
+                raise
+
+    if case.mei_converter_path is not None:
+        mei_musicxml_path = case_dir / "prediction.mei.musicxml"
+        try:
+            convert_mei_to_musicxml(case.mei_converter_path, mei_musicxml_path)
+            case.mei_musicxml_path = mei_musicxml_path
+        except Exception as exc:
+            case.errors.append(f"MEI -> MusicXML conversion failed: {type(exc).__name__}: {exc}")
+            if args.stop_on_error:
+                raise
+
+    if case.mei_musicxml_path is not None:
+        try:
+            case.mei_musicxml_svg_paths = render_with_verovio(
+                case.mei_musicxml_path,
+                case_dir / "musicxml-mei-verovio",
+                "xml",
+                args.page_width,
+                args.page_height,
+                args.scale,
+                args.breaks,
+            )
+        except Exception as exc:
+            case.errors.append(f"MEI MusicXML Verovio render failed: {type(exc).__name__}: {exc}")
             if args.stop_on_error:
                 raise
 

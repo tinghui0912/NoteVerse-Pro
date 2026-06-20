@@ -46,10 +46,11 @@ export async function fetchMultipleImages(
 export async function fetchSharedImage(
     shareToken: string,
     page: number,
-    fileType: string = 'final_image'
+    fileType: string = 'final_image',
+    signal?: AbortSignal
 ): Promise<string | null> {
     try {
-        const response = await sharesApi.getSharedFileAccessUrl(shareToken, fileType, page);
+        const response = await sharesApi.getSharedFileAccessUrl(shareToken, fileType, page, signal);
         return response.data?.url ?? null;
     } catch (error) {
         console.error('Failed to fetch shared image:', error);

@@ -5,7 +5,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { saveDraft, deleteDraft, loadDraft, cleanOldDrafts, type DraftEntry } from '@/lib/draft-storage';
 
 interface UseAutoSaveOptions {
-    source: 'current' | 'final' | 'enhanced';
+    source: 'current' | 'final';
     returnUrl?: string;
     debounceMs?: number;
     enabled?: boolean;

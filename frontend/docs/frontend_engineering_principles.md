@@ -590,6 +590,10 @@ npm run test
 
 反过来，如果一个改动需要解释“这个按钮现在只是假的”“这里先直接 fetch”“这个类型先 any”“这个页面先不做错误态”“这个资源暂时不用清理”，它很可能正在制造下一轮前端债。
 
+Share/review ownership update (2026-06-20): share authentication/access, canonical share XML, permission-gated actions, and cancellable images are composed outside the page; review task validation, confirmation, comparison images, and carousel presentation have explicit hook/component owners. `can_download` and `can_edit` must directly control the relevant UI actions.
+
+Editor ownership update (2026-06-20): document queries, draft recovery, validation, source-aware save targets, autosave state, and original-image cleanup are composed by `use-editor-document`; page header/actions and all editor dialogs live under `components/editor`. Editor routes require explicit `current` or `final` sources, and the product XML API does not expose internal `enhanced_xml` artifacts.
+
 Results ownership update (2026-06-20): task/XML queries and image resource cleanup are composed by `use-results-resources`; metadata, preview, fingering/listen actions, downloads, and sharing live under `components/results`. Share controls must represent fields actually supported by the create-share contract.
 
 History ownership update (2026-06-20): upload/share filters and pagination are independent tab state, selection is reset at tab boundaries, batch actions compose domain mutation hooks, and thumbnail access requests are cancellable with owned object URLs revoked on cleanup. History cards, toolbar, status, and pagination live under `components/history`.
