@@ -43,7 +43,12 @@ export function ShareActions({ canEdit, rawXml, scoreTitle, shareId, taskId }: S
         {canEdit ? <Link href={editorHref}><Button variant="outline" className={buttonClass}><span className="flex h-full flex-col items-center justify-center"><Edit className="mb-2 h-6 w-6" />{common('edit')}</span></Button></Link> : null}
         <Button variant="outline" className={buttonClass} onClick={bookmark} disabled={save.isPending}><span className="flex h-full flex-col items-center justify-center">{save.isPending ? <Loader2 className="mb-2 h-6 w-6 animate-spin" /> : <Bookmark className="mb-2 h-6 w-6" />}{t('saveToHistory')}</span></Button>
       </div>
-      <ListenModal isOpen={listenOpen} onOpenChange={setListenOpen} xmlString={rawXml} />
+      <ListenModal
+        isOpen={listenOpen}
+        onOpenChange={setListenOpen}
+        xmlString={rawXml}
+        backend="verovio"
+      />
     </>
   );
 }

@@ -600,6 +600,12 @@ History ownership update (2026-06-20): upload/share filters and pagination are i
 
 Practice resource ownership update (2026-06-20): session references and REST controls live in `use-practice-session`; WebSocket/heartbeat, AudioWorklet/MediaStream, and MediaRecorder/object URLs each have a dedicated hook with paired cleanup. The practice route composes those hooks and UI components while committed alignment and SVG work remain in the viewer/controller boundary.
 
+Verovio ownership update (2026-06-20): `lib/score/verovio` owns the shared WASM module loader, per-viewer toolkit instances, MusicXML sanitization, generic page/time lookup, and relayout. `VerovioScoreViewer` owns generic rendering states and multi-page DOM; practice imports that layer while keeping follow commit policy, highlighting, and scrolling in `lib/practice`.
+
+Playback spike update (2026-06-20): Verovio base64 MIDI and XML-ID timemap data feed a NoteVerse-owned playback timeline/controller; `@tonejs/midi` is parser-only and `soundfont-player` is isolated behind `VerovioAudioEngine`. Playback code has a separate entry from renderer code. The shipped asset set currently guarantees acoustic piano only, so unsupported programs fall back to piano and the product must not claim full instrumentation fidelity.
+
+Interactive listen migration update (2026-06-20): results, share, and editor explicitly select the shared Verovio preview backend. `ListenModal` dynamically loads renderer implementations and contains no toolkit internals; the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The OSMD backend is now an unreferenced rollback path pending P3-4 deletion.
+
 ## Bottom Line
 
 NoteVerse 前端后续维护最重要的原则是：用户看到的每一个控制、状态和文案都必须对应真实能力。

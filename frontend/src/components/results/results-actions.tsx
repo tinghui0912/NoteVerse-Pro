@@ -51,7 +51,12 @@ export function ResultsActions({ taskId, rawXml }: { taskId: string; rawXml: str
         <Link href={`/practice/${taskId}`}><Button variant="outline" className={buttonClass}><span className="flex h-full flex-col items-center justify-center"><Gamepad2 className="mb-2 h-6 w-6" />{practice('mode')}</span></Button></Link>
         <Link href={`/editor/${taskId}?source=final`}><Button variant="outline" className={buttonClass}><span className="flex h-full flex-col items-center justify-center"><Edit className="mb-2 h-6 w-6" />{common('edit')}</span></Button></Link>
       </div>
-      <ListenModal isOpen={listenOpen} onOpenChange={setListenOpen} xmlString={rawXml} />
+      <ListenModal
+        isOpen={listenOpen}
+        onOpenChange={setListenOpen}
+        xmlString={rawXml}
+        backend="verovio"
+      />
     </>
   );
 }

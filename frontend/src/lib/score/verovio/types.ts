@@ -6,10 +6,18 @@ export type VerovioToolkitLike = {
   renderToTimemap(options?: Record<string, unknown>): Array<Record<string, unknown>>;
   getPageCount(): number;
   getPageWithElement(xmlId: string): number;
+  getElementsAtTime?(milliseconds: number): Record<string, unknown>;
   redoLayout(options?: Record<string, unknown>): void;
 };
 
 export type VerovioRenderedPage = {
   pageNumber: number;
   svg: string;
+};
+
+export type VerovioToolkitFactory = () => Promise<VerovioToolkitLike>;
+
+export type VerovioLoadOptions = {
+  renderMidi?: boolean;
+  toolkitOptions?: Record<string, unknown>;
 };

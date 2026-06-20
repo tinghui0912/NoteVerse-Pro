@@ -103,8 +103,10 @@ P0 unit/component/E2E smoke net
 | P2-4 Editor page decomposition | Completed | 2026-06-20: document lifecycle, header/actions, modal orchestration, navigation, and listen launcher extracted |
 | P2-5 Share and review page decomposition | Completed | 2026-06-20: auth/access, permission actions, canonical share XML, image resources, and score presentation extracted |
 | P2-6 Upload page decomposition | Deferred | Await reconciliation of the existing upload work as documented below |
-| P3-1 Shared Verovio adapter | Next | Generalize proven practice rendering without moving practice semantics |
-| P3-2 through P3-4 | Pending | Follow the dependency order below |
+| P3-1 Shared Verovio adapter | Completed | Shared adapter/viewer now own isolated toolkit instances and generic rendering |
+| P3-2 Playback replacement spike | Completed | ADR 0001 selects Verovio MIDI plus an owned Web Audio scheduler |
+| P3-3 Surface migration | Completed | Results, share, and editor listen paths now select Verovio explicitly |
+| P3-4 OSMD removal | Next | Remove the now-unreferenced rollback backend and legacy dependencies |
 
 ## 4. P0 - Foundation and Guardrails
 
@@ -351,6 +353,8 @@ Each page refactor is a separate behavioral PR. Do not combine page decompositio
 
 ### P3-1 Generalize the Verovio adapter
 
+**Status:** completed on 2026-06-20.
+
 **Goal:** reuse proven practice code without making all score pages depend on practice semantics.
 
 **Tasks:**
@@ -363,7 +367,17 @@ Each page refactor is a separate behavioral PR. Do not combine page decompositio
 
 **Acceptance:** practice uses the shared adapter without regression; non-practice pages can render without importing practice modules.
 
+**Delivered:** `lib/score/verovio` now owns WASM module loading, per-viewer toolkit
+instances, MusicXML sanitization, page rendering, relayout, timemap, and generic
+element/time lookup. `VerovioScoreViewer` owns loading, empty, error, resize, and
+multi-page DOM behavior, while practice retains its visual timeline, commit policy,
+highlighting, and scrolling. DOM tests use the real multi-page MusicXML fixture and
+verify toolkit instance isolation.
+
 ### P3-2 Playback replacement technical spike
+
+**Status:** completed on 2026-06-20. See
+`docs/adr/0001-verovio-playback-backend.md`.
 
 **Goal:** choose a real replacement for `osmd-audio-player`, not merely replace SVG output.
 
@@ -387,7 +401,17 @@ Each page refactor is a separate behavioral PR. Do not combine page decompositio
 
 **Exit rule:** do not start removing OSMD until this spike proves all required playback and cursor behaviors or explicitly removes a product requirement with approval.
 
+**Spike result:** Verovio MIDI and timemap output now feed a NoteVerse-owned playback
+timeline and controller. Deterministic tests cover play, pause, stop, seek, tempo,
+multi-page cursor lookup, and disposal; a real WASM fixture covers MIDI/XML-ID alignment.
+The direct soundfont engine uses the existing local piano asset and explicitly falls back
+to piano for unsupported programs. P3-3 must perform real browser soundfont/unlock/scroll
+smoke checks before OSMD removal; multi-instrument fidelity remains outside the current
+asset set and is not claimed.
+
 ### P3-3 Migrate browser-side renderer consumers incrementally
+
+**Status:** completed on 2026-06-20.
 
 **Order:**
 
@@ -408,6 +432,15 @@ For each surface:
 5. Remove the OSMD path from that surface before moving to the next one.
 
 **Acceptance:** no page contains renderer-specific toolkit logic; all OSMD-backed interactive consumers are migrated; visual and interaction parity is recorded per consumer. Backend-rendered artifact images remain supported.
+
+**Migration record:** Results migrated first and proved the shared renderer/playback
+controller with real single-page and multi-page fixtures, DOM cursor/page lookup, resize,
+error/loading ownership, and disposal. A Chromium user-gesture smoke test then loaded and
+decoded the local 2.3 MB MusyngKite piano asset, scheduled a note, stopped it, and closed
+the AudioContext. Share and editor subsequently selected the same Verovio backend; their
+permission, anonymous access, edit state, and backend-rendered image paths remain outside
+the renderer boundary. All three consumers choose `backend="verovio"` explicitly. The
+OSMD dynamic backend remains unreferenced as a rollback implementation for P3-4 removal.
 
 ### P3-4 Remove OSMD completely
 

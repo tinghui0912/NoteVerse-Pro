@@ -20,19 +20,23 @@ import { Pause, Play, Repeat, Square, X, LoaderCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TEMPO_BPM, ESTIMATED_BEATS_PER_STEP } from '@/lib/constants/audio';
 import { extractTempoBpm } from '@/lib/musicxml';
-import {
-  OsmdScorePreviewController,
-  type ScorePreviewController,
-} from '@/lib/score';
+import type { ScorePreviewController } from '@/lib/score/contracts';
 
 interface ListenModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   xmlString: string | null;
   children?: React.ReactNode;
+  backend?: 'osmd' | 'verovio';
 }
 
-export function ListenModal({ isOpen, onOpenChange, xmlString, children }: ListenModalProps) {
+export function ListenModal({
+  isOpen,
+  onOpenChange,
+  xmlString,
+  children,
+  backend = 'osmd',
+}: ListenModalProps) {
   const t = useTranslations('common');
   const tResults = useTranslations('results');
   const [internalIsOpen, setInternalIsOpen] = useState(false);
@@ -42,6 +46,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
   const [totalTime, setTotalTime] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLooping, setIsLooping] = useState(false); // Loop playback state
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const managerRef = useRef<ScorePreviewController | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -128,12 +133,19 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
 
         // Use the stored effective BPM instead of player.bpm which is unreliable
         const actualBpm = effectiveTempoRef.current;
-        const { currentTime, stepProgress } = calculatePlaybackTime(
-          snapshot.currentTime,
-          snapshot.totalSteps,
-          snapshot.currentStep,
-          actualBpm
-        );
+        const { currentTime, stepProgress } = backend === 'verovio'
+          ? {
+              currentTime: snapshot.currentTime,
+              stepProgress: snapshot.duration > 0
+                ? (snapshot.currentTime / snapshot.duration) * 100
+                : 0,
+            }
+          : calculatePlaybackTime(
+              snapshot.currentTime,
+              snapshot.totalSteps,
+              snapshot.currentStep,
+              actualBpm
+            );
 
         setCurrentTime(currentTime);
         setProgress(stepProgress);
@@ -141,7 +153,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
       progressRafRef.current = requestAnimationFrame(loop);
     };
     progressRafRef.current = requestAnimationFrame(loop);
-  }, [stopProgressLoop, calculatePlaybackTime]);
+  }, [backend, stopProgressLoop, calculatePlaybackTime]);
 
   const startCursorSyncLoop = useCallback(() => {
     stopCursorSyncLoop();
@@ -155,14 +167,17 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
         const total = snapshot.totalSteps;
 
         // Limit target to [0, total-1] range to prevent going beyond last note
-        const target = Math.max(0, Math.min((typeof raw === 'number' ? raw - 1 : 0), total - 1));
+        const target = Math.max(
+          0,
+          Math.min(backend === 'verovio' ? raw : raw - 1, total - 1)
+        );
         manager.syncCursorToStep(target, { scrollIntoView: true });
 
         cursorRafRef.current = requestAnimationFrame(loop);
       }
     };
     cursorRafRef.current = requestAnimationFrame(loop);
-  }, [stopCursorSyncLoop]);
+  }, [backend, stopCursorSyncLoop]);
 
   const disposeController = useCallback(() => {
     stopProgressLoop();
@@ -179,6 +194,7 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
       resetPlayback();
       setIsLooping(false);
       setIsLoading(true);
+      setLoadError(null);
     }
     setCurrentOpenState(open);
   }, [disposeController, resetPlayback, setCurrentOpenState]);
@@ -245,16 +261,22 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
     if (!xmlString || managerRef.current) return;
 
     setIsLoading(true);
+    setLoadError(null);
 
     try {
       const effectiveTempo = extractTempoBpm(xmlString, DEFAULT_TEMPO_BPM);
 
       // Store the effective tempo for later use
       effectiveTempoRef.current = effectiveTempo;
-      const manager: ScorePreviewController = new OsmdScorePreviewController({
-        container,
-        bpm: effectiveTempo,
-      });
+      const manager: ScorePreviewController = backend === 'verovio'
+        ? new (await import('@/lib/score/verovio-score-preview-controller')).VerovioScorePreviewController({
+            container,
+            bpm: effectiveTempo,
+          })
+        : new (await import('@/lib/score/osmd-score-preview-controller')).OsmdScorePreviewController({
+            container,
+            bpm: effectiveTempo,
+          });
       managerRef.current = manager;
 
       await manager.loadScore(xmlString);
@@ -301,9 +323,10 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
       setIsLoading(false);
     } catch (error) {
       console.error('[ListenModal] Error initializing score:', error);
+      setLoadError(error instanceof Error ? error.message : t('errorBoundaryDesc'));
       setIsLoading(false);
     }
-  }, [xmlString, startProgressLoop, stopProgressLoop, startCursorSyncLoop, stopCursorSyncLoop]);
+  }, [backend, t, xmlString, startProgressLoop, stopProgressLoop, startCursorSyncLoop, stopCursorSyncLoop]);
 
   const modalBodyRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
@@ -501,12 +524,33 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
           'max-w-lg md:max-w-4xl h-auto max-h-[90vh]'
         )}
       >
+        <style jsx global>{`
+          .verovio-preview-page {
+            margin: 0 auto 1.5rem;
+            overflow: hidden;
+            border: 1px solid #e7e5e4;
+            border-radius: 0.75rem;
+            background: white;
+          }
+          .verovio-preview-page svg {
+            display: block;
+            width: 100% !important;
+            height: auto;
+          }
+          .verovio-preview-page .score-playback-active,
+          .verovio-preview-page .score-playback-active path,
+          .verovio-preview-page .score-playback-active use,
+          .verovio-preview-page .score-playback-active ellipse {
+            fill: #f97316 !important;
+            stroke: #ea580c !important;
+          }
+        `}</style>
         <DialogHeader className="flex flex-row justify-between items-center">
           <DialogTitle>{tResults('playScore')}</DialogTitle>
           <DialogClose asChild>
             <Button variant="ghost" size="icon" onClick={handleClose}>
               <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t('cancel')}</span>
             </Button>
           </DialogClose>
         </DialogHeader>
@@ -515,15 +559,20 @@ export function ListenModal({ isOpen, onOpenChange, xmlString, children }: Liste
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground z-10 bg-white/80 backdrop-blur-sm">
               <LoaderCircle className="h-8 w-8 animate-spin" />
-              <p>Loading score...</p>
+              <p>{t('loadingScoreData')}</p>
             </div>
           )}
+          {loadError ? (
+            <div role="alert" className="absolute inset-0 z-10 flex items-center justify-center bg-white p-6 text-center text-destructive">
+              <p>{loadError}</p>
+            </div>
+          ) : null}
           <div ref={modalBodyRef} className="w-full h-full"></div>
         </div>
 
         <DialogFooter className="flex-col sm:flex-col sm:justify-center gap-4 pt-4">
           <div className="sr-only">
-            <DialogDescription>Interactive sheet music player.</DialogDescription>
+            <DialogDescription>{tResults('playScore')}</DialogDescription>
           </div>
           <div className="flex items-center gap-4 w-full">
             <span className="text-xs font-mono">{formatTime(currentTime)}</span>

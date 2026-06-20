@@ -68,7 +68,12 @@ export function EditorPageModals(props: EditorPageModalsProps) {
   return (
     <>
       <OriginalImageViewer images={props.originalImages} isOpen={isImageViewerOpen} onClose={() => setIsImageViewerOpen(false)} />
-      <ListenModal isOpen={props.listenOpen} onOpenChange={props.onListenOpenChange} xmlString={props.previewXml} />
+      <ListenModal
+        isOpen={props.listenOpen}
+        onOpenChange={props.onListenOpenChange}
+        xmlString={props.previewXml}
+        backend="verovio"
+      />
       <AddEntityModal isOpen={isAddEntityModalOpen} onClose={() => setIsAddEntityModalOpen(false)} onSelect={handleSelectEntityType} voiceName={voiceName} />
       {editingEntity && noteModalOpen && (
         <NoteEditorModal

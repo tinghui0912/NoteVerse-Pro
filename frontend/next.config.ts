@@ -11,6 +11,16 @@ const backendOrigin = process.env.NEXT_BACKEND_ORIGIN.replace(/\/$/, '');
 
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: false },
+  webpack(config, { isServer, webpack }) {
+    if (!isServer) {
+      // Verovio's Emscripten bundle contains a Node-only dynamic import in a
+      // runtime-dead browser branch. Webpack still parses the node: scheme.
+      config.plugins.push(
+        new webpack.IgnorePlugin({ resourceRegExp: /^node:module$/ })
+      );
+    }
+    return config;
+  },
   images: {
     localPatterns: [
       {
