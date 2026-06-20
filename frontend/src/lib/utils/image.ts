@@ -8,10 +8,11 @@ export async function fetchAuthenticatedImage(
     fileType: string,
     page: number = 1,
     shareToken?: string,
-    version?: string
+    version?: string,
+    signal?: AbortSignal
 ): Promise<string | null> {
     try {
-        const response = await filesApi.getFileAccessUrl(fileType, taskId, page, shareToken);
+        const response = await filesApi.getFileAccessUrl(fileType, taskId, page, shareToken, signal);
         if (!response.data?.url) {
             return null;
         }

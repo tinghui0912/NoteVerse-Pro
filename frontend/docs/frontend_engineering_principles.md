@@ -590,6 +590,12 @@ npm run test
 
 反过来，如果一个改动需要解释“这个按钮现在只是假的”“这里先直接 fetch”“这个类型先 any”“这个页面先不做错误态”“这个资源暂时不用清理”，它很可能正在制造下一轮前端债。
 
+Results ownership update (2026-06-20): task/XML queries and image resource cleanup are composed by `use-results-resources`; metadata, preview, fingering/listen actions, downloads, and sharing live under `components/results`. Share controls must represent fields actually supported by the create-share contract.
+
+History ownership update (2026-06-20): upload/share filters and pagination are independent tab state, selection is reset at tab boundaries, batch actions compose domain mutation hooks, and thumbnail access requests are cancellable with owned object URLs revoked on cleanup. History cards, toolbar, status, and pagination live under `components/history`.
+
+Practice resource ownership update (2026-06-20): session references and REST controls live in `use-practice-session`; WebSocket/heartbeat, AudioWorklet/MediaStream, and MediaRecorder/object URLs each have a dedicated hook with paired cleanup. The practice route composes those hooks and UI components while committed alignment and SVG work remain in the viewer/controller boundary.
+
 ## Bottom Line
 
 NoteVerse 前端后续维护最重要的原则是：用户看到的每一个控制、状态和文案都必须对应真实能力。

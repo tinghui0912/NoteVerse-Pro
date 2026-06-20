@@ -97,8 +97,11 @@ P0 unit/component/E2E smoke net
 | P1-1 MusicXML domain package | Completed | 2026-06-19: parser, core, transforms, connections, backup, and validator moved behind a package index |
 | P1-2 Component root governance | Completed | 2026-06-19: editor/media/profile/home ownership applied; unused placeholder viewer removed |
 | P1-3 Renderer/playback contracts | Completed | 2026-06-19: UI contracts integrated with a private OSMD adapter and explicit disposal |
-| P2-1 Practice page decomposition | Next | Extract resource-owning hooks without changing following behavior |
-| P2-2 through P3 | Pending | Follow the dependency order below |
+| P2-1 Practice page decomposition | Completed | 2026-06-20: session, socket, audio, recording, controls, status, and completion ownership extracted with PCM tests |
+| P2-2 History page decomposition | Completed | 2026-06-20: independent tab state, selection/batch hooks, cards, toolbar, pagination, and cancellable thumbnails extracted |
+| P2-3 Results page decomposition | Completed | 2026-06-20: resource orchestration, metadata, preview, actions, downloads, and sharing extracted |
+| P2-4 Editor page decomposition | Next | Extract document lifecycle, header/actions, modals, navigation, and listen launcher |
+| P2-5 through P3 | Pending | Follow the dependency order below |
 
 ## 4. P0 - Foundation and Guardrails
 
@@ -281,6 +284,8 @@ Each page refactor is a separate behavioral PR. Do not combine page decompositio
 
 **Acceptance:** page owns route context and composition; every acquired resource has a tested or reviewable cleanup path; start/pause/resume/finish behavior is unchanged.
 
+**Implementation note (2026-06-20):** `use-practice-session` owns session detail/id refs and the REST create/control fallback, `use-practice-socket` owns URL construction, message decoding, intentional-close tracking, and heartbeat, and the audio/recording hooks own all browser media resources. PCM conversion and downsampling are pure tested helpers. Practice controls, environment status, and the completion dialog now live under `components/practice`; committed alignment still flows through `PracticeScoreViewer` and its follow controller.
+
 ### P2-2 History page
 
 **Extract:**
@@ -293,6 +298,8 @@ Each page refactor is a separate behavioral PR. Do not combine page decompositio
 
 **Acceptance:** two tabs retain independent pagination and filters; selection cannot leak across tabs; batch mutations invalidate the documented keys.
 
+**Implementation note (2026-06-20):** upload/share tabs now retain separate search, sort, page, status, and view state. `use-history-selection` is cleared at tab boundaries, while `use-history-batch-actions` composes the existing task/share mutation hooks so their documented cache invalidation remains authoritative. Thumbnail access requests accept `AbortSignal`; the thumbnail hook cancels superseded work and revokes any owned `blob:` URLs. Cards, status, toolbar, and pagination live under `components/history`, with unit coverage for tab isolation, selection clearing, and task route mapping.
+
 ### P2-3 Results page
 
 **Extract:**
@@ -304,6 +311,8 @@ Each page refactor is a separate behavioral PR. Do not combine page decompositio
 - a page orchestration hook for task/XML/image resources.
 
 **Acceptance:** metadata, sharing, fingering, download, and listen flows remain functional; object URLs are revoked; components consume query hooks rather than duplicating fetch state.
+
+**Implementation note (2026-06-20):** `use-results-resources` composes canonical task/XML queries, editor score hydration, cancellable image access requests, and owned `blob:` URL cleanup. Metadata editing, image preview, fingering/listen/navigation actions, downloads, and share management now live under `components/results`. The share panel continues to use domain query/mutation hooks; the ineffective edit-permission selector was removed because permission was never part of the create-share request contract. Share status and expiration mappings have pure unit coverage.
 
 ### P2-4 Editor page
 

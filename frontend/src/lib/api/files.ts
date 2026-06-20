@@ -55,7 +55,8 @@ export async function getFileAccessUrl(
     fileType: string,
     taskId: string,
     page?: number,
-    shareToken?: string
+    shareToken?: string,
+    signal?: AbortSignal
 ): Promise<ApiResponse<FileAccessUrl>> {
     const params: Record<string, string | number | undefined> = {
         page,
@@ -63,7 +64,8 @@ export async function getFileAccessUrl(
     };
     return apiClient.get<ApiResponse<FileAccessUrl>>(
         `/files/access-url/${fileType}/${taskId}`,
-        params
+        params,
+        { signal }
     );
 }
 
