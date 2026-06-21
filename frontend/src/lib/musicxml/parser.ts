@@ -1,17 +1,9 @@
-import type { ScoreData, ScoreEntity, Note, Chord, Rest, Blank, Articulation, Measure, Stave, ConnectionData, NoteConnections, EntityInfo, Duration } from '@/types/score-types';
+import type { ScoreData, ScoreEntity, Note, Chord, Rest, Blank, Measure, Stave, ConnectionData, NoteConnections, EntityInfo } from '@/types/score-types';
 import { DEFAULT_TEMPO_BPM } from '../constants/audio';
+import { extractPitch, isDottedDuration, parseArticulations, parseDuration } from './parser-values';
 
 // A subset of melody-forge's parsing logic, adapted for modern TypeScript and our types.
 
-// 浮点数比较精度常量
-const DURATION_EPSILON = 0.001;
-
-/**
- * 浮点数近似相等比较函数
- */
-function isApproxEqual(a: number, b: number): boolean {
-  return Math.abs(a - b) < DURATION_EPSILON;
-}
 type NoteElementInfo = {
   entityId: string;
   pitch: string;
@@ -274,7 +266,7 @@ export class MusicXMLParser {
             const currentFingering = fingeringEl?.textContent?.trim();
 
             if (lastEntity && lastEntity.type === 'chord') {
-              const pitch = this.extractPitchFromXml(noteNode);
+              const pitch = extractPitch(noteNode);
               if (pitch) {
                 lastEntity.pitches.push(pitch);
                 // 添加指法到 fingerings 数组，确保数组存在
@@ -288,7 +280,7 @@ export class MusicXMLParser {
               // Convert previous note to a chord, preserve meta from original note
               const newChord: Chord = {
                 type: 'chord',
-                pitches: [lastEntity.pitch, this.extractPitchFromXml(noteNode)].filter(p => p) as string[],
+                pitches: [lastEntity.pitch, extractPitch(noteNode)].filter(p => p) as string[],
                 duration: lastEntity.duration,
                 dotted: lastEntity.dotted || hasDot,
                 stemDirection: lastEntity.stemDirection,
@@ -302,7 +294,7 @@ export class MusicXMLParser {
             const entityIndex = voiceEntities[voiceKey].length;
             const rest: Rest = {
               type: 'rest',
-              duration: this.parseDuration(noteNode),
+              duration: parseDuration(noteNode, this.divisions),
               dotted: hasDot,
               meta: {
                 id: this.generateId(),
@@ -317,7 +309,7 @@ export class MusicXMLParser {
             // 推进时间游标
             setVoiceCursor(voiceKey, currentTick + noteDuration);
           } else {
-            const pitch = this.extractPitchFromXml(noteNode);
+            const pitch = extractPitch(noteNode);
             if (pitch) {
               const entityIndex = voiceEntities[voiceKey].length;
 
@@ -336,11 +328,11 @@ export class MusicXMLParser {
               const note: Note = {
                 type: 'note',
                 pitch: pitch,
-                duration: this.parseDuration(noteNode),
+                duration: parseDuration(noteNode, this.divisions),
                 dotted: hasDot,
                 stemDirection: stemDirection,
                 fingering: fingering,
-                articulation: this.parseArticulations(noteNode),
+                articulation: parseArticulations(noteNode),
                 meta: {
                   id: this.generateId(),
                   measureIndex,
@@ -373,13 +365,11 @@ export class MusicXMLParser {
 
           // 基于 duration ratio 推断 dotted
           const forwardDuration = parseInt(forwardNode.querySelector('duration')?.textContent || '4', 10);
-          const ratio = forwardDuration / this.divisions;
-          // 附点音符的 ratio: 6(附点全), 3(附点二分), 1.5(附点四分), 0.75(附点八分), 0.375(附点16分)
-          const isDotted = isApproxEqual(ratio, 6) || isApproxEqual(ratio, 3) || isApproxEqual(ratio, 1.5) || isApproxEqual(ratio, 0.75) || isApproxEqual(ratio, 0.375);
+          const isDotted = isDottedDuration(forwardDuration, this.divisions);
 
           const blank: Blank = {
             type: 'blank',
-            duration: this.parseDuration(forwardNode),
+            duration: parseDuration(forwardNode, this.divisions),
             dotted: isDotted,
             meta: {
               id: this.generateId(),
@@ -427,69 +417,6 @@ export class MusicXMLParser {
     });
 
     return measures;
-  }
-
-  private extractPitchFromXml(noteNode: Element): string | null {
-    const pitchNode = noteNode.querySelector('pitch');
-    if (!pitchNode) return null;
-
-    const step = pitchNode.querySelector('step')?.textContent || '';
-    const alter = pitchNode.querySelector('alter')?.textContent || '0';
-    const octave = pitchNode.querySelector('octave')?.textContent || '4';
-
-    let pitch = step;
-    const alterVal = parseInt(alter);
-    if (alterVal === 1) pitch += '#';
-    if (alterVal === -1) pitch += 'b';
-
-    return `${pitch}${octave}`;
-  }
-
-  private parseDuration(noteNode: Element): Duration {
-    const duration = parseInt(noteNode.querySelector('duration')?.textContent || '4', 10);
-    const typeNode = noteNode.querySelector('type');
-    if (typeNode) {
-      const type = typeNode.textContent;
-      switch (type) {
-        case 'whole': return 'durationWhole';
-        case 'half': return 'durationHalf';
-        case 'quarter': return 'durationQuarter';
-        case 'eighth': return 'durationEighth';
-        case '16th': return 'duration16th';
-        case '32nd': return 'duration32nd';
-      }
-    }
-
-    // 使用精确 ratio 匹配来识别附点音符（仿照 melody-forge 的 convertDivisionsToNoteType）
-    const ratio = duration / this.divisions;
-
-    if (isApproxEqual(ratio, 4)) return 'durationWhole';           // 全音符
-    if (isApproxEqual(ratio, 6)) return 'durationWhole';           // 附点全音符（显示为全音符，dotted 由 dot 元素决定）
-    if (isApproxEqual(ratio, 3)) return 'durationHalf';            // 附点二分音符（显示为二分音符，dotted 由 dot 元素决定）
-    if (isApproxEqual(ratio, 2)) return 'durationHalf';            // 二分音符
-    if (isApproxEqual(ratio, 1.5)) return 'durationQuarter';       // 附点四分音符
-    if (isApproxEqual(ratio, 1)) return 'durationQuarter';         // 四分音符
-    if (isApproxEqual(ratio, 0.75)) return 'durationEighth';       // 附点八分音符
-    if (isApproxEqual(ratio, 0.5)) return 'durationEighth';        // 八分音符
-    if (isApproxEqual(ratio, 0.375)) return 'duration16th';        // 附点十六分音符
-    if (isApproxEqual(ratio, 0.25)) return 'duration16th';         // 十六分音符
-    if (isApproxEqual(ratio, 0.125)) return 'duration32nd';        // 三十二分音符
-
-    // Fallback: 最近匹配
-    if (ratio > 2.5) return 'durationWhole';
-    if (ratio > 1.25) return 'durationHalf';
-    if (ratio > 0.625) return 'durationQuarter';
-    if (ratio > 0.375) return 'durationEighth';
-    if (ratio > 0.1875) return 'duration16th';
-    return 'duration32nd';
-  }
-
-  private parseArticulations(noteNode: Element): Articulation[] {
-    const articulations: Articulation[] = [];
-    if (noteNode.querySelector('beam')) articulations.push('beam');
-    if (noteNode.querySelector('tie')) articulations.push('tie');
-    if (noteNode.querySelector('notations > slur')) articulations.push('slur');
-    return articulations;
   }
 
   /**
@@ -643,7 +570,7 @@ export class MusicXMLParser {
 
           // 收集 tie 事件
           if (currentEntityId && !isRest) {
-            const pitch = this.extractPitchFromXml(noteNode) || '';
+            const pitch = extractPitch(noteNode) || '';
 
             noteNode.querySelectorAll('tie').forEach((tieNode) => {
               const type = tieNode.getAttribute('type') as 'start' | 'stop';

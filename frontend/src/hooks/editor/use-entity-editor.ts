@@ -5,9 +5,9 @@
  */
 
 import { useCallback } from 'react';
-import { useScoreData } from '../contexts/score-data-context';
-import { useEditorState } from '../contexts/editor-state-context';
-import { useHistory } from '../contexts/history-context';
+import { useScoreData } from '@/contexts/score-data-context';
+import { useEditorState } from '@/contexts/editor-state-context';
+import { useHistory } from '@/contexts/editor-history-context';
 import { useTranslations } from 'next-intl';
 import type { ScoreEntity, ScoreEntityType, AddLocation, EntityLocation } from '@/types/score-types';
 import { MusicXMLParser } from '@/lib/musicxml/parser';

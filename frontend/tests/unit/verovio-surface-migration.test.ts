@@ -17,7 +17,7 @@ describe('Verovio listen surfaces', () => {
   });
 
   it('dynamically loads only the Verovio preview controller', () => {
-    const source = readSource('src/components/score/listen-modal.tsx');
-    expect(source).toContain("import('@/lib/score/verovio-score-preview-controller')");
+    const source = readSource('src/hooks/score/use-score-preview-playback.ts');
+    expect(source).toContain("'@/lib/score/verovio-score-preview-controller'");
   });
 });

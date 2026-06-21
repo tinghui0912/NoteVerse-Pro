@@ -1,10 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocale } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { routing } from '@/i18n/routing';
 import { useShareAccess, useSharedXmlContent } from '@/hooks/queries/use-share-queries';
 import { fetchSharedImage } from '@/lib/utils/image';
 import { ApiError } from '@/lib/api-client';
@@ -12,10 +9,8 @@ import { ApiError } from '@/lib/api-client';
 export type ShareAccessErrorType = 'not_found' | 'revoked' | 'expired' | 'unknown';
 
 export function useSharePageData(shareId: string) {
-  const locale = useLocale();
-  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const accessQuery = useShareAccess(shareId, { enabled: isAuthenticated && !authLoading });
+  const accessQuery = useShareAccess(shareId, { enabled: !authLoading });
   const shareData = accessQuery.data?.data ?? null;
   const xmlQuery = useSharedXmlContent(shareId, { enabled: Boolean(shareData) });
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -23,13 +18,6 @@ export function useSharePageData(shareId: string) {
   const ownedObjectUrlsRef = useRef(new Set<string>());
   const finalImages = useMemo(() => shareData?.task.files?.final_image ?? [], [shareData?.task.files?.final_image]);
   const imageSignature = useMemo(() => finalImages.map((image) => image.storage_key).join('|'), [finalImages]);
-
-  useEffect(() => {
-    if (authLoading || isAuthenticated) return;
-    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-    const loginPath = locale === routing.defaultLocale ? '/login' : `/${locale}/login`;
-    router.replace(`${loginPath}?returnUrl=${returnUrl}`);
-  }, [authLoading, isAuthenticated, locale, router]);
 
   useEffect(() => {
     const controller = new AbortController();

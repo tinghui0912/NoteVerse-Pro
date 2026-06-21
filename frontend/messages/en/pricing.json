@@ -1,6 +1,6 @@
 {
   "title": "Choose the Plan That's Right for You",
-  "subtitle": "Start for free and upgrade anytime to unlock more advanced features.",
+  "subtitle": "Start with the available free features. Paid plans are coming soon.",
   "popular": "Most Popular",
   "freeName": "Free Plan",
   "basicName": "Basic Plan",
@@ -20,8 +20,9 @@
   "startForFree": "Get Started",
   "choosePlan": "Choose Plan",
   "subscriptionsTitle": "Subscription Plans",
-  "subscriptionsSubtitle": "Upgrade your account to unlock more powerful features.",
+  "subscriptionsSubtitle": "The free plan is available now. Paid upgrades are not available yet.",
   "yourCurrentPlan": "Your Current Plan",
   "upgradePlan": "Upgrade Plan",
-  "manageSubscription": "Manage Subscription"
+  "manageSubscription": "Manage Subscription",
+  "comingSoon": "Coming Soon"
 }

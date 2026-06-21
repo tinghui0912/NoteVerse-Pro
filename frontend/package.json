@@ -1,5 +1,5 @@
 {
-  "name": "nextn",
+  "name": "noteverse-pro-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -45,7 +45,6 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dexie": "^4.4.2",
-    "dotenv": "^17.4.2",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",

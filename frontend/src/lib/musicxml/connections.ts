@@ -7,6 +7,7 @@
  */
 
 import type { EntityMeta } from '@/types/score-types';
+import { findConnectionNoteElements, orderConnectionEndpoints } from './connection-targets';
 
 // ============================================================================
 // Constants
@@ -28,74 +29,6 @@ const BEAMABLE_DURATIONS = [
 /**
  * 根据位置信息查找 XML 中的 note 元素
  */
-function findNoteElementsByMeta(
-    xmlDoc: XMLDocument,
-    measureIndex: number,
-    staveIndex: number,
-    xmlVoice: number,
-    entityIndex: number
-): Element[] {
-    const measures = xmlDoc.querySelectorAll('part > measure');
-    if (measureIndex >= measures.length) return [];
-
-    const measureNode = measures[measureIndex];
-
-    const staff = staveIndex + 1;
-    const voice = xmlVoice;
-
-    const result: Element[] = [];
-    let currentEntityIndex = -1;
-
-    const children = Array.from(measureNode.childNodes);
-    for (let i = 0; i < children.length; i++) {
-        const node = children[i];
-        if (node.nodeType !== 1) continue;
-        const element = node as Element;
-
-        if (element.tagName === 'note') {
-            const noteNode = element;
-            const noteStaff = parseInt(noteNode.querySelector('staff')?.textContent || '1', 10);
-            const noteVoice = parseInt(noteNode.querySelector('voice')?.textContent || '1', 10);
-
-            if (noteStaff !== staff || noteVoice !== voice) continue;
-
-            const isChordPart = noteNode.querySelector('chord') !== null;
-
-            if (!isChordPart) {
-                currentEntityIndex++;
-            }
-
-            if (currentEntityIndex === entityIndex) {
-                result.push(noteNode);
-                if (!isChordPart) {
-                    for (let j = i + 1; j < children.length; j++) {
-                        const nextNode = children[j];
-                        if (nextNode.nodeType !== 1) continue;
-                        const nextElement = nextNode as Element;
-                        if (nextElement.tagName !== 'note') break;
-
-                        const nextStaff = parseInt(nextElement.querySelector('staff')?.textContent || '1', 10);
-                        const nextVoice = parseInt(nextElement.querySelector('voice')?.textContent || '1', 10);
-                        if (nextStaff !== staff || nextVoice !== voice) break;
-                        if (nextElement.querySelector('chord') === null) break;
-                        result.push(nextElement);
-                    }
-                    return result;
-                }
-            }
-        } else if (element.tagName === 'forward') {
-            const forwardStaff = parseInt(element.querySelector('staff')?.textContent || '1', 10);
-            const forwardVoice = parseInt(element.querySelector('voice')?.textContent || '1', 10);
-
-            if (forwardStaff === staff && forwardVoice === voice) {
-                currentEntityIndex++;
-            }
-        }
-    }
-
-    return result;
-}
-
 /**
  * 从 note 元素中删除所有 beam 子元素
  */
@@ -256,7 +189,7 @@ export function removeBeamElementsFromXML(
     entityMetas: EntityMeta[]
 ): void {
     for (const meta of entityMetas) {
-        const notes = findNoteElementsByMeta(
+        const notes = findConnectionNoteElements(
             xmlDoc,
             meta.measureIndex,
             meta.staveIndex,
@@ -275,7 +208,7 @@ export function removeTieElementsFromXML(
     entityMetas: EntityMeta[]
 ): void {
     for (const meta of entityMetas) {
-        const notes = findNoteElementsByMeta(
+        const notes = findConnectionNoteElements(
             xmlDoc,
             meta.measureIndex,
             meta.staveIndex,
@@ -294,7 +227,7 @@ export function removeSlurElementsFromXML(
     entityMetas: EntityMeta[]
 ): void {
     for (const meta of entityMetas) {
-        const notes = findNoteElementsByMeta(
+        const notes = findConnectionNoteElements(
             xmlDoc,
             meta.measureIndex,
             meta.staveIndex,
@@ -317,19 +250,9 @@ export function addTieElementsToXML(
     startMeta: EntityMeta,
     endMeta: EntityMeta
 ): void {
-    const getGlobalTick = (meta: EntityMeta): number => {
-        return meta.measureIndex * 1000000 + (meta.startTick ?? 0);
-    };
+    const [actualStartMeta, actualEndMeta] = orderConnectionEndpoints(startMeta, endMeta);
 
-    let actualStartMeta = startMeta;
-    let actualEndMeta = endMeta;
-
-    if (getGlobalTick(startMeta) > getGlobalTick(endMeta)) {
-        actualStartMeta = endMeta;
-        actualEndMeta = startMeta;
-    }
-
-    const startNotes = findNoteElementsByMeta(
+    const startNotes = findConnectionNoteElements(
         xmlDoc,
         actualStartMeta.measureIndex,
         actualStartMeta.staveIndex,
@@ -337,7 +260,7 @@ export function addTieElementsToXML(
         actualStartMeta.entityIndex
     );
 
-    const endNotes = findNoteElementsByMeta(
+    const endNotes = findConnectionNoteElements(
         xmlDoc,
         actualEndMeta.measureIndex,
         actualEndMeta.staveIndex,
@@ -382,19 +305,9 @@ export function addSlurElementsToXML(
     startMeta: EntityMeta,
     endMeta: EntityMeta
 ): void {
-    const getGlobalTick = (meta: EntityMeta): number => {
-        return meta.measureIndex * 1000000 + (meta.startTick ?? 0);
-    };
+    const [actualStartMeta, actualEndMeta] = orderConnectionEndpoints(startMeta, endMeta);
 
-    let actualStartMeta = startMeta;
-    let actualEndMeta = endMeta;
-
-    if (getGlobalTick(startMeta) > getGlobalTick(endMeta)) {
-        actualStartMeta = endMeta;
-        actualEndMeta = startMeta;
-    }
-
-    const startNotes = findNoteElementsByMeta(
+    const startNotes = findConnectionNoteElements(
         xmlDoc,
         actualStartMeta.measureIndex,
         actualStartMeta.staveIndex,
@@ -402,7 +315,7 @@ export function addSlurElementsToXML(
         actualStartMeta.entityIndex
     );
 
-    const endNotes = findNoteElementsByMeta(
+    const endNotes = findConnectionNoteElements(
         xmlDoc,
         actualEndMeta.measureIndex,
         actualEndMeta.staveIndex,
@@ -437,17 +350,7 @@ export function addBeamElementsToXML(
         return;
     }
 
-    const getGlobalTick = (meta: EntityMeta): number => {
-        return meta.measureIndex * 1000000 + (meta.startTick ?? 0);
-    };
-
-    let actualStartMeta = startMeta;
-    let actualEndMeta = endMeta;
-
-    if (getGlobalTick(startMeta) > getGlobalTick(endMeta)) {
-        actualStartMeta = endMeta;
-        actualEndMeta = startMeta;
-    }
+    const [actualStartMeta, actualEndMeta] = orderConnectionEndpoints(startMeta, endMeta);
 
     const measureIndex = actualStartMeta.measureIndex;
     const staveIndex = actualStartMeta.staveIndex;
@@ -459,7 +362,7 @@ export function addBeamElementsToXML(
     const beamNumber = 1;
 
     for (let entityIndex = startEntityIndex; entityIndex <= endEntityIndex; entityIndex++) {
-        const notes = findNoteElementsByMeta(
+        const notes = findConnectionNoteElements(
             xmlDoc,
             measureIndex,
             staveIndex,

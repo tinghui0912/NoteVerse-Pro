@@ -4,20 +4,20 @@ import React, { useEffect, useRef } from 'react';
 import { ScoreDataProvider, useScoreData } from './score-data-context';
 import { EditorStateProvider, useEditorState } from './editor-state-context';
 import { HoverStateProvider } from './hover-state-context';
-import { HistoryProvider, useHistory } from './history-context';
+import { HistoryProvider, useHistory } from './editor-history-context';
 
 // Re-export types and hooks for convenience
 export { useScoreData } from './score-data-context';
 export { useEditorState, type EditorMode } from './editor-state-context';
 export { useHoverState } from './hover-state-context';
-export { useHistory, useHistoryControl } from './history-context';
+export { useHistory, useHistoryControl } from './editor-history-context';
 
 // Re-export domain operation hooks
-export { useEntityEditor } from '../hooks/use-entity-editor';
-export { useVoiceEditor } from '../hooks/use-voice-editor';
-export { useHistoryEditor } from '../hooks/use-history-editor';
-export { useXmlUpdater } from '../hooks/use-xml-updater';
-export { useMetadataEditor } from '../hooks/use-metadata-editor';
+export { useEntityEditor } from '../hooks/editor/use-entity-editor';
+export { useVoiceEditor } from '../hooks/editor/use-voice-editor';
+export { useHistoryEditor } from '../hooks/editor/use-history-editor';
+export { useXmlUpdater } from '../hooks/editor/use-xml-updater';
+export { useMetadataEditor } from '../hooks/editor/use-metadata-editor';
 
 /**
  * 组合 Hook - 获取所有编辑器上下文（用于复杂组件）

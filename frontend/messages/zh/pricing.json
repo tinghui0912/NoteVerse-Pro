@@ -1,6 +1,6 @@
 {
   "title": "选择适合你的订阅方案",
-  "subtitle": "从免费开始，随时升级以解锁更多高级功能。",
+  "subtitle": "当前可使用免费功能，付费方案即将开放。",
   "popular": "最受欢迎",
   "freeName": "免费版",
   "basicName": "基础版",
@@ -20,8 +20,9 @@
   "startForFree": "免费开始",
   "choosePlan": "选择此方案",
   "subscriptionsTitle": "订阅方案",
-  "subscriptionsSubtitle": "升级你的账户，解锁更强大的功能。",
+  "subscriptionsSubtitle": "免费方案现已可用，付费升级暂未开放。",
   "yourCurrentPlan": "你当前的方案",
   "upgradePlan": "升级方案",
-  "manageSubscription": "管理订阅"
+  "manageSubscription": "管理订阅",
+  "comingSoon": "尚未开放"
 }

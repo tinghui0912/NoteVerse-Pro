@@ -35,7 +35,7 @@
 - 把硬编码英文文案和模板文案迁移到 i18n message 文件
 - 增加 route-level `error.tsx`、`not-found.tsx`、`loading.tsx`，改善错误和加载体验
 - 收口 API 调用到 `apiClient` 和 `src/lib/api/*`，减少直接 `fetch`
-- 统一 `ApiResponse<T>`、`PaginatedResponse<T>` 等类型入口到 `src/types/api.ts`
+- 统一 `ApiResponse<T>`、`PaginatedResponse<T>` 等类型入口到 `src/types/api/index.ts`
 - 拆分大型编辑器组件和复杂 hook，降低单文件复杂度
 - 评估状态管理方案，保留当前 Provider 架构，同时拆出高频 hover 状态减少编辑器重渲染
 - practice 页从占位 score viewer 迁移到 practice-specific Verovio viewer
@@ -62,14 +62,22 @@ frontend/
 |   |   `-- ui/
 |   |-- contexts/
 |   |-- hooks/
-|   |   |-- entity-editor/
+|   |   |-- editor/
+|   |   |-- history/
+|   |   |-- practice/
+|   |   |-- results/
+|   |   |-- review/
+|   |   |-- share/
+|   |   |-- upload/
 |   |   `-- queries/
 |   |-- i18n/
 |   |-- lib/
 |   |   |-- api/
 |   |   |-- constants/
+|   |   |-- editor/
 |   |   |-- musicxml/
 |   |   |-- practice/
+|   |   |-- score/
 |   |   `-- utils/
 |   |-- types/
 |   `-- fonts/
@@ -78,9 +86,9 @@ frontend/
 
 当前结构整体方向是合理的，但仍有几个需要渐进收口的区域：
 
-- 多个核心 `page.tsx` 已经超过 20KB 到 35KB，说明页面编排层仍承担了较多 section、状态和资源生命周期细节
-- `src/lib/musicxml/parser.ts` 仍然偏大，后续应继续按解析职责拆分
-- `components/score/listen-modal.tsx` 只消费 renderer/playback contracts，真实乐谱与资源生命周期验证必须持续保留
+- 核心业务页面已完成领域拆分；practice 和 history 仍是最大的编排页面，后续只在职责继续增长时拆分
+- `src/lib/musicxml/parser.ts` 的纯值解析和 connection target 已拆出；后续继续按实际职责而非行数治理
+- `components/score/listen-modal.tsx` 只负责弹窗组合，播放生命周期由 `hooks/score/use-score-preview-playback.ts` 管理
 - `hooks/queries` 已经存在，后续 server state 应继续向 query hooks 收口，而不是散在页面里
 
 这些不是必须一次性完成的重构，但后续触碰相关功能时应顺手收口。
@@ -147,7 +155,7 @@ frontend/
 
 规则：
 
-- 后端 API 通用类型放在 `src/types/api.ts`
+- 后端 API 类型按领域放在 `src/types/api/*`，统一从 `src/types/api/index.ts` 导出
 - WebSocket message、practice report、session detail 等稳定契约应有明确类型
 - 不要在多个 API helper 中重复定义 `ApiResponse<T>` 或分页类型
 - 后端字段变化时同步更新类型、API helper 和页面调用点
@@ -269,7 +277,7 @@ MusicXML 解析、展平、连接和校验逻辑统一归属 `src/lib/musicxml/`
 
 新增 API 时：
 
-1. 先在 `src/types/api.ts` 补契约类型
+1. 先在 `src/types/api/` 对应领域模块补契约类型，并从 index 导出
 2. 在 `src/lib/api/<domain>.ts` 增加 helper
 3. 通过 `apiClient` 走统一 token、错误、base URL、response handling
 4. 页面只调用 domain helper 或 hooks，不直接散落 fetch
@@ -501,7 +509,7 @@ npm run typecheck
 npm run build
 ```
 
-如果后续补齐测试框架，应增加：
+当前已配置 Vitest/RTL 与 Playwright，常规改动应增加：
 
 ```powershell
 npm run test
@@ -540,7 +548,7 @@ npm run test
 后续 code review 重点检查：
 
 1. 页面里直接写 `fetch`，绕过 `apiClient` 和 `src/lib/api/*`。
-2. 新 API 类型散落在 helper 或页面里，没有进入 `src/types/api.ts`。
+2. 新 API 类型散落在 helper 或页面里，没有进入 `src/types/api/` 领域包。
 3. UI 控制显示可用，但 payload 没绑定或后端不支持。
 4. 读取了后端权限字段，但按钮/菜单仍允许操作。
 5. route protection 依赖 API 401，导致 protected UI flash。
@@ -561,7 +569,7 @@ npm run test
 
 1. 先判断是页面编排、组件、hook、API helper、类型、practice adapter/controller，还是 i18n 文案。
 2. 先确认后端契约和真实产品能力，不要先做假 UI。
-3. 为请求/响应补 `src/types/api.ts` 类型。
+3. 为请求/响应补 `src/types/api/` 对应领域类型。
 4. 在 `src/lib/api/<domain>.ts` 封装 API。
 5. 页面只负责组合和生命周期，不承载复杂领域逻辑。
 6. 如果逻辑可复用或可测试，拆到 hook 或 `src/lib/<domain>`。
@@ -590,6 +598,8 @@ npm run test
 
 Share/review ownership update (2026-06-20): share authentication/access, canonical share XML, permission-gated actions, and cancellable images are composed outside the page; review task validation, confirmation, comparison images, and carousel presentation have explicit hook/component owners. `can_download` and `can_edit` must directly control the relevant UI actions.
 
+Anonymous share boundary update (2026-06-21): only `/share/[shareId]` is public. Share data, XML, and allowed downloads may load without a session after auth initialization; bookmark, editor, practice, history, profile, upload, review, and results remain account-protected and preserve the full localized share-origin `returnUrl` when entering login.
+
 Editor ownership update (2026-06-20): document queries, draft recovery, validation, source-aware save targets, autosave state, and original-image cleanup are composed by `use-editor-document`; page header/actions and all editor dialogs live under `components/editor`. Editor routes require explicit `current` or `final` sources, and the product XML API does not expose internal `enhanced_xml` artifacts.
 
 Results ownership update (2026-06-20): task/XML queries and image resource cleanup are composed by `use-results-resources`; metadata, preview, fingering/listen actions, downloads, and sharing live under `components/results`. Share controls must represent fields actually supported by the create-share contract.
@@ -602,7 +612,9 @@ Verovio ownership update (2026-06-20): `lib/score/verovio` owns the shared WASM 
 
 Playback spike update (2026-06-20): Verovio base64 MIDI and XML-ID timemap data feed a NoteVerse-owned playback timeline/controller; `@tonejs/midi` is parser-only and `soundfont-player` is isolated behind `VerovioAudioEngine`. Playback code has a separate entry from renderer code. The shipped asset set currently guarantees acoustic piano only, so unsupported programs fall back to piano and the product must not claim full instrumentation fidelity.
 
-Interactive listen migration update (2026-06-21): results, share, and editor use the single shared Verovio preview path. `ListenModal` dynamically loads the controller and contains no toolkit internals; the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The previous renderer backend, compatibility patch, and dependencies have been removed.
+Interactive listen migration update (2026-06-21): results, share, and editor use the single shared Verovio preview path. `ListenModal` contains no toolkit internals; its score playback hook dynamically loads the controller, while the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The previous renderer backend, compatibility patch, and dependencies have been removed.
+
+Post-migration ownership update (2026-06-21): editor-only hooks live under `hooks/editor`, editor undo history is explicitly named, draft/score lookup utilities live under `lib/editor`, API contracts are domain modules behind `types/api/index.ts`, and score-preview playback state lives in a dedicated score hook. The frontend package is `noteverse-pro-frontend`; frontend CI runs lint, typecheck, 43 unit/component tests, build, and 6 deterministic Playwright tests.
 
 ## Bottom Line
 

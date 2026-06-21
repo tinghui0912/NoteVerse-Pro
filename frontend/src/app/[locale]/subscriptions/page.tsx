@@ -1,7 +1,7 @@
 ﻿
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,22 +9,22 @@ import { CheckCircle } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
 import { Footer } from '@/components/layout/footer';
 
 const pricingTiers = [
   {
     name: 'freeName',
     id: 'free',
-    price: '楼0',
+    price: 0,
     priceDetails: 'month',
     features: ['freeFeature1', 'freeFeature2', 'freeFeature3'],
     cta: 'yourCurrentPlan',
+    available: true,
   },
   {
     name: 'basicName',
     id: 'basic',
-    price: '楼30',
+    price: 30,
     priceDetails: 'month',
     features: [
       'basicFeature1',
@@ -34,11 +34,12 @@ const pricingTiers = [
     ],
     cta: 'upgradePlan',
     popular: true,
+    available: false,
   },
   {
     name: 'proName',
     id: 'pro',
-    price: '楼99',
+    price: 99,
     priceDetails: 'month',
     features: [
       'proFeature1',
@@ -47,22 +48,20 @@ const pricingTiers = [
       'proFeature4',
     ],
     cta: 'upgradePlan',
+    available: false,
   },
 ];
 
 
 export default function SubscriptionsPage() {
   const t = useTranslations('pricing');
+  const locale = useLocale();
   const { isAuthenticated } = useAuth();
-  const [currentPlan, setCurrentPlan] = useState('free');
-
-  const handleSelectPlan = (planId: string) => {
-    if (isAuthenticated) {
-      if (planId !== currentPlan) {
-        setCurrentPlan(planId);
-      }
-    }
-  };
+  const formatPrice = (price: number) => new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'CNY',
+    maximumFractionDigits: 0,
+  }).format(price);
 
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col">
@@ -81,7 +80,7 @@ export default function SubscriptionsPage() {
                 key={tier.name}
                 className={cn(
                   'bg-white rounded-2xl flex flex-col h-full shadow-lg transition-all',
-                  currentPlan === tier.id ? 'border-2 border-orange-500' : 'border',
+                  tier.available ? 'border-2 border-orange-500' : 'border',
                   tier.popular ? 'transform md:scale-105' : ''
                 )}
               >
@@ -96,7 +95,7 @@ export default function SubscriptionsPage() {
                   <CardTitle className="text-2xl font-bold">{t(tier.name as never)}</CardTitle>
                   <CardDescription className="mt-2">
                     <span className="text-4xl font-bold text-foreground">
-                      {tier.price}
+                      {formatPrice(tier.price)}
                     </span>
                     <span className="text-muted-foreground">
                       {t(tier.priceDetails as never)}
@@ -116,21 +115,12 @@ export default function SubscriptionsPage() {
                   </ul>
                 </CardContent>
                 <CardFooter className="p-6">
-                  {currentPlan === tier.id ? (
-                    <Button disabled size="lg" className="w-full bg-gray-200 text-gray-500 rounded-full">{t('yourCurrentPlan')}</Button>
-                  ) : (
-                    <Button
-                      onClick={() => handleSelectPlan(tier.id)}
-                      size="lg"
-                      className={cn("w-full rounded-full", tier.popular ? "bg-orange-500 hover:bg-orange-600 text-white font-semibold" : "bg-white text-orange-500 border border-orange-500 hover:bg-orange-50")}
-                      asChild={!isAuthenticated}
-                    >
-                      {isAuthenticated ? (
-                        <span>{t(tier.cta as never)}</span>
-                      ) : (
-                        <Link href="/login">{t('choosePlan')}</Link>
-                      )}
+                  {tier.available ? (
+                    <Button asChild size="lg" className="w-full rounded-full bg-orange-500 text-white hover:bg-orange-600">
+                      <Link href={isAuthenticated ? '/upload' : '/login'}>{t('startForFree')}</Link>
                     </Button>
+                  ) : (
+                    <Button disabled size="lg" className="w-full rounded-full">{t('comingSoon')}</Button>
                   )}
                 </CardFooter>
               </Card>

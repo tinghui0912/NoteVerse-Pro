@@ -11,7 +11,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { type DraftEntry } from '@/lib/draft-storage';
+import { type DraftEntry } from '@/lib/editor/draft-storage';
 import { FileText, Clock } from 'lucide-react';
 import { useTranslations, useFormatter } from 'next-intl';
 

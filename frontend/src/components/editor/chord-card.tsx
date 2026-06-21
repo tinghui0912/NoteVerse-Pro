@@ -8,7 +8,7 @@ import type { Chord } from '@/types/score-types';
 import { useScoreData } from '@/contexts/editor-provider';
 import { cn } from '@/lib/utils';
 import { useLongPress } from '@/hooks/use-long-press';
-import { useEntityCard } from '@/hooks/use-entity-card';
+import { useEntityCard } from '@/hooks/editor/use-entity-card';
 import { AddButton, articulationIcons } from './add-button';
 import { useBottomSheet } from './bottom-sheet-context';
 

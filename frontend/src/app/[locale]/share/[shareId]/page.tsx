@@ -18,7 +18,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   const router = useRouter();
   const page = useSharePageData(shareId);
 
-  if (page.authLoading || !page.isAuthenticated || page.loading) {
+  if (page.authLoading || page.loading) {
     return <div className="flex min-h-screen items-center justify-center bg-gray-50"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
@@ -54,7 +54,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32"><div className="flex w-full items-center"><div className="w-12 shrink-0"><Button variant="ghost" onClick={() => router.back()} className="h-12 w-12 rounded-full text-white hover:bg-white/10 hover:text-white [&_svg]:size-6"><ArrowLeft /></Button></div><div className="flex-1 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('sharedScore')}</h1><p className="text-lg text-gray-300">{t('sharedScoreSubtitle')}</p></div><div className="w-12 shrink-0" /></div></div></div>
-      <main className="grow"><div className="mx-auto max-w-7xl px-4 py-16"><div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3"><div className="space-y-6 lg:col-span-2"><ShareScorePreview imageUrls={page.imageUrls} loading={page.imagesLoading} /><ShareActions canEdit={canEdit} rawXml={page.rawXml} scoreTitle={scoreTitle} shareId={shareId} taskId={taskId} /></div><ShareInfoSidebar canDownload={canDownload} canEdit={canEdit} difficulty={data.task.difficulty || ''} expiresAt={data.share_info.expires_at || t('permanent')} imageCount={page.imageUrls.length} scoreTitle={scoreTitle} shareId={shareId} sharedBy={data.share_info.shared_by || t('anonymousUser')} /></div></div></main>
+      <main className="grow"><div className="mx-auto max-w-7xl px-4 py-16"><div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3"><div className="space-y-6 lg:col-span-2"><ShareScorePreview imageUrls={page.imageUrls} loading={page.imagesLoading} /><ShareActions canEdit={canEdit} isAuthenticated={page.isAuthenticated} rawXml={page.rawXml} scoreTitle={scoreTitle} shareId={shareId} taskId={taskId} /></div><ShareInfoSidebar canDownload={canDownload} canEdit={canEdit} difficulty={data.task.difficulty || ''} expiresAt={data.share_info.expires_at || t('permanent')} imageCount={page.imageUrls.length} scoreTitle={scoreTitle} shareId={shareId} sharedBy={data.share_info.shared_by || t('anonymousUser')} /></div></div></main>
       <Footer />
     </div>
   );

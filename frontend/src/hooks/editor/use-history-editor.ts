@@ -5,8 +5,8 @@
  */
 
 import { useCallback } from 'react';
-import { useScoreData } from '../contexts/score-data-context';
-import { useHistory } from '../contexts/history-context';
+import { useScoreData } from '@/contexts/score-data-context';
+import { useHistory } from '@/contexts/editor-history-context';
 
 export function useHistoryEditor() {
     const history = useHistory();

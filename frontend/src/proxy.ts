@@ -35,6 +35,10 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
+function isPublicSharePath(pathname: string): boolean {
+  return /^\/share\/[^/]+$/.test(pathname);
+}
+
 function getLoginPath(locale?: string): string {
   return locale && locale !== routing.defaultLocale ? `/${locale}/login` : '/login';
 }
@@ -45,7 +49,7 @@ export default function proxy(request: NextRequest) {
   const hasSession =
     request.cookies.has(AUTH_COOKIE_NAME) || request.cookies.has(REFRESH_COOKIE_NAME);
 
-  if (isProtectedPath(path) && !hasSession) {
+  if (isProtectedPath(path) && !isPublicSharePath(path) && !hasSession) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = getLoginPath(locale);
     loginUrl.search = '';

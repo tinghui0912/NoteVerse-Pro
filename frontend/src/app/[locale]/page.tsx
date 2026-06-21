@@ -1,7 +1,7 @@
 ﻿
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -64,15 +64,15 @@ const testimonials = [
 const pricingTiers = [
   {
     name: 'freeName',
-    price: '楼0',
+    price: 0,
     priceDetails: 'month',
     features: ['freeFeature1', 'freeFeature2', 'freeFeature3'],
     cta: 'startForFree',
-    link: '/login',
+    available: true,
   },
   {
     name: 'basicName',
-    price: '楼30',
+    price: 30,
     priceDetails: 'month',
     features: [
       'basicFeature1',
@@ -82,11 +82,11 @@ const pricingTiers = [
     ],
     cta: 'choosePlan',
     popular: true,
-    link: '/login',
+    available: false,
   },
   {
     name: 'proName',
-    price: '楼99',
+    price: 99,
     priceDetails: 'month',
     features: [
       'proFeature1',
@@ -95,14 +95,20 @@ const pricingTiers = [
       'proFeature4',
     ],
     cta: 'choosePlan',
-    link: '/login',
+    available: false,
   },
 ];
 
 export default function HomePage() {
   const t = useTranslations('home');
   const tPricing = useTranslations('pricing');
+  const locale = useLocale();
   const { isAuthenticated } = useAuth();
+  const formatPrice = (price: number) => new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'CNY',
+    maximumFractionDigits: 0,
+  }).format(price);
 
   const ctaLink = isAuthenticated ? '/upload' : '/login';
 
@@ -269,7 +275,7 @@ export default function HomePage() {
                   <CardTitle className="text-2xl font-bold">{tPricing(tier.name as never)}</CardTitle>
                   <p className="text-gray-500 mt-2">
                     <span className="text-4xl font-bold text-gray-900">
-                      {tier.price}
+                      {formatPrice(tier.price)}
                     </span>
                     <span className="text-gray-500">
                       {tPricing(tier.priceDetails as never)}
@@ -289,13 +295,19 @@ export default function HomePage() {
                   </ul>
                 </CardContent>
                 <CardFooter className="p-6">
-                  <Button
-                    asChild
-                    size="lg"
-                    className={`w-full shadow-lg transition-transform hover:scale-105 ${tier.popular ? 'bg-orange-500 hover:bg-orange-600 rounded-full' : 'bg-white text-orange-500 border border-orange-500 hover:bg-orange-50 rounded-full'}`}
-                  >
-                    <Link href={isAuthenticated ? '/subscriptions' : tier.link}>{tPricing(tier.cta as never)}</Link>
-                  </Button>
+                  {tier.available ? (
+                    <Button
+                      asChild
+                      size="lg"
+                      className="w-full rounded-full bg-white text-orange-500 border border-orange-500 hover:bg-orange-50 shadow-lg transition-transform hover:scale-105"
+                    >
+                      <Link href={isAuthenticated ? '/upload' : '/login'}>{tPricing(tier.cta as never)}</Link>
+                    </Button>
+                  ) : (
+                    <Button disabled size="lg" className="w-full rounded-full">
+                      {tPricing('comingSoon')}
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             ))}

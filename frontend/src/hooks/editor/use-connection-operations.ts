@@ -13,7 +13,7 @@ import {
     addBeamElementsToXML,
     isBeamableDuration
 } from '@/lib/musicxml/connections';
-import { findEntityMetaById } from '@/lib/score-utils';
+import { findEntityMetaById } from '@/lib/editor/score-lookup';
 
 // 操作结果类型
 type OperationResult = {

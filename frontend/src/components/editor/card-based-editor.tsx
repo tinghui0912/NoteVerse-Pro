@@ -16,7 +16,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import type { ScoreEntity } from '@/types/score-types';
 import { useScoreData, useEditorState, useVoiceEditor, useEntityEditor, useXmlUpdater, useHoverState } from '@/contexts/editor-provider';
 import { cn } from '@/lib/utils';
-import { useConnectionOperations } from '@/hooks/use-connection-operations';
+import { useConnectionOperations } from '@/hooks/editor/use-connection-operations';
 import { useToast } from '@/hooks/use-toast';
 
 // 瀛愮粍浠?

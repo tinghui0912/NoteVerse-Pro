@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useEditorState, useEntityEditor, useScoreData } from '@/contexts/editor-provider';
-import type { DraftEntry } from '@/lib/draft-storage';
+import type { DraftEntry } from '@/lib/editor/draft-storage';
 import type { ValidationResult } from '@/lib/musicxml/validator';
 import type { Blank, Chord, Note, Rest } from '@/types/score-types';
 

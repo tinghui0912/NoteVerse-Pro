@@ -24,10 +24,10 @@ This is an incremental plan. Each phase must leave the application usable and pa
 
 - `npm run lint` passes.
 - `npm run typecheck` passes.
-- `npm run build` exists but was not rerun during this planning pass.
-- There is no `test` script and no frontend test file.
-- `package.json` still uses the starter name `nextn`.
-- The older roadmap recommends Jest and React Testing Library, but this plan now selects Vitest and React Testing Library for the frontend baseline.
+- `npm run build` passes with the required non-secret backend origin supplied.
+- Vitest/RTL has 15 test files and 43 tests; Playwright has 6 deterministic Chromium tests.
+- `package.json` uses the product package name `noteverse-pro-frontend`.
+- The frontend stack is Vitest, React Testing Library, and Playwright.
 - MSW is optional for request-level integration tests, and Playwright owns browser E2E and visual behavior.
 - Backend FastAPI tests continue to use pytest; the frontend stack does not replace pytest.
 - The current local runtime is Node.js 22.14.0 with npm 10.9.2, which is the baseline to verify when pinning the selected test-tool versions.
@@ -36,19 +36,19 @@ This is an incremental plan. Each phase must leave the application usable and pa
 
 | Route | Lines | Main responsibilities currently mixed together |
 | --- | ---: | --- |
-| `practice/[id]/page.tsx` | 1091 | session lifecycle, WebSocket, microphone, AudioWorklet, recording, alignment, timer, dialogs, page UI |
-| `results/[id]/page.tsx` | 787 | task/XML/image loading, metadata editing, share management, fingering, download, listen modal, page UI |
-| `history/page.tsx` | 759 | filters, two data sets, selection, pagination, thumbnails, batch operations, card rendering |
-| `editor/[id]/page.tsx` | 715 | XML load/parse/edit/save, editor orchestration, modals, listen preview, navigation |
-| `upload/page.tsx` | 620 | upload flow and UI; currently has unrelated user changes and is excluded from near-term refactors |
-| `share/[shareId]/page.tsx` | 448 | access/auth flow, raw XML query, permissions, save/download/listen, page UI |
-| `review/[id]/page.tsx` | 383 | review display and navigation |
+| `practice/[id]/page.tsx` | 509 | composes session/socket/audio/recording hooks, alignment policy, timer, and practice sections |
+| `history/page.tsx` | 311 | composes independent tab queries, selection, thumbnails, batch actions, and sections |
+| `editor/[id]/page.tsx` | 108 | composes editor document lifecycle, header, editor surface, and dialogs |
+| `results/[id]/page.tsx` | 93 | composes result resources and domain sections |
+| `share/[shareId]/page.tsx` | 55 | composes anonymous share data, permissions, preview, actions, and information |
+| `upload/page.tsx` | 50 | composes the upload workflow and form |
+| `review/[id]/page.tsx` | 34 | composes review data and score comparison |
 
 ### 2.3 Domain concentration
 
 - MusicXML parsing and transformations now live behind `src/lib/musicxml/index.ts`.
 - Editor contexts, editor hooks, results, and the practice Verovio adapter consume the MusicXML package or focused submodules.
-- `components/score/listen-modal.tsx` consumes renderer/playback/cursor contracts and dynamically loads the Verovio preview controller.
+- `components/score/listen-modal.tsx` composes the dialog; `hooks/score/use-score-preview-playback.ts` consumes score contracts and dynamically loads the Verovio preview controller.
 - `lib/score/verovio-score-preview-controller.ts` owns interactive SVG rendering, playback, cursor synchronization, relayout, and cleanup.
 - Editor, results, and share reuse the same `ListenModal` and have no renderer-specific page logic.
 - Review compares authenticated original/preview image artifacts. Results and share also display backend-rendered image artifacts; those remain valid product assets outside the browser renderer.
@@ -58,9 +58,9 @@ This is an incremental plan. Each phase must leave the application usable and pa
 
 - A central `queryKeys` factory already exists.
 - Query hooks exist for tasks, XML, shares, and profile mutations.
-- `share/[shareId]/page.tsx` still uses the ad hoc key `['share-xml', shareId]`.
-- XML invalidation uses a raw prefix `['xml', taskId]` because the key factory has no explicit root/detail helper.
-- Mutation error/toast ownership is not documented consistently.
+- Share XML and task XML use canonical hierarchical query-key factories.
+- Query functions pass cancellation signals through domain API helpers.
+- Mutations own cache invalidation/removal while page or form owners present user feedback.
 
 ### 2.5 Renderer direction
 
@@ -116,15 +116,15 @@ unless a production incident changes the priority.
 
 | Priority | Task | Status | Scope |
 | --- | --- | --- | --- |
-| P0-4 | Anonymous share boundary | Planned | Make only `/share/[shareId]` public; preserve login and `returnUrl` for editor/history and every other protected route |
-| P0-5 | Subscription truthfulness | Planned | Remove garbled prices and disable/label unavailable plan changes until a real billing contract exists |
-| P1-4 | Editor ownership cleanup | Planned | Move editor-only hooks, context, draft storage, and score lookup into explicit editor domains |
-| P1-5 | API type package split | Planned | Split the growing API contract file by domain behind the stable `@/types/api` public entry |
-| P1-6 | Listen modal decomposition | Planned | Extract playback lifecycle state and presentation controls without weakening cleanup behavior |
-| P1-7 | Frontend CI | Planned | Add deterministic install, lint, typecheck, unit test, build, and selected Playwright gates |
-| P2-7 | MusicXML internal decomposition | Planned | Split parser and connection responsibilities only behind characterization coverage |
-| P2-8 | Package and dependency cleanup | Planned | Remove unused `dotenv` and rename the package from `nextn` to `noteverse-pro-frontend` |
-| P2-9 | Current-state documentation refresh | Planned | Replace stale baseline statements and clearly separate current architecture from migration history |
+| P0-4 | Anonymous share boundary | Completed | Only share detail is public; editor/practice/history and other protected routes retain login `returnUrl` |
+| P0-5 | Subscription truthfulness | Completed | Paid plan controls are disabled/labelled unavailable and localized CNY formatting replaced mojibake |
+| P1-4 | Editor ownership cleanup | Completed | Editor hooks/context/storage/lookup now have explicit editor ownership; unused duplicate history hook removed |
+| P1-5 | API type package split | Completed | API contracts are split by domain behind the stable `@/types/api` entry |
+| P1-6 | Listen modal decomposition | Completed | Playback lifecycle hook and controls component extracted with load/disposal tests |
+| P1-7 | Frontend CI | Completed | Frontend workflow runs install, lint, typecheck, unit tests, build, and Playwright |
+| P2-7 | MusicXML internal decomposition | Completed | Parser values and connection targeting extracted behind public package coverage |
+| P2-8 | Package and dependency cleanup | Completed | Unused `dotenv` removed and package renamed to `noteverse-pro-frontend` |
+| P2-9 | Current-state documentation refresh | Completed | Baselines, ownership paths, active behavior, and validation counts refreshed |
 
 ## 4. P0 - Foundation and Guardrails
 
@@ -528,7 +528,7 @@ Prefer the following PR-sized slices:
 12. Playback technical spike and ADR.
 13. One interactive renderer consumer per change.
 14. Final OSMD removal.
-15. Non-blocking cleanup: rename package `nextn` to `noteverse-pro-frontend` without changing dependency versions.
+15. Completed cleanup: package renamed from `nextn` to `noteverse-pro-frontend` without changing dependency versions.
 
 Avoid combining pure file moves, behavior changes, and dependency replacement in one change. A move should be reviewable as a move; a behavior change should have focused tests.
 
@@ -552,7 +552,7 @@ This plan is complete when:
 
 ### P0-4 Anonymous share boundary
 
-**Status:** planned. This is the first item in the next execution phase.
+**Status:** completed on 2026-06-21.
 
 **Product decision:** `/share/[shareId]` is anonymously accessible. Anonymous access does
 not grant a session and does not make any other route public. Navigating from a share to
@@ -561,7 +561,7 @@ authentication proxy and preserve the complete localized `returnUrl`.
 
 **Tasks:**
 
-1. Remove `/share` from the protected route prefixes while retaining all other protected prefixes.
+1. Add an exact public exception for `/share/[shareId]` while retaining `/share` and all other protected prefixes as deny-by-default boundaries.
 2. Allow `use-share-page-data` and the share query/XML/image path to load after auth initialization for both anonymous and authenticated visitors.
 3. Keep `can_download` and `can_edit` authoritative. An anonymous visitor may only see actions allowed by the share contract; actions requiring an account must enter the normal login flow.
 4. Replace the E2E assertion that anonymous share visits redirect to login with public-share coverage in both default Chinese and explicit English locale URLs.
@@ -571,9 +571,14 @@ authentication proxy and preserve the complete localized `returnUrl`.
 retain their classified states; all non-share protected routes still redirect before
 rendering protected content; locale and query parameters survive login round trips.
 
+**Result:** the proxy has an exact `/share/[shareId]` public exception while other `/share`
+paths remain protected by default. Share data loads after auth initialization for either
+auth state. Anonymous bookmark actions enter login, while editor and practice remain
+protected. Chinese/English anonymous access and editor `returnUrl` are covered by Playwright.
+
 ### P0-5 Subscription truthfulness
 
-**Status:** planned.
+**Status:** completed on 2026-06-21.
 
 **Tasks:**
 
@@ -585,9 +590,13 @@ rendering protected content; locale and query parameters survive login round tri
 **Acceptance:** the UI cannot claim a plan changed without a backend billing response;
 all visible pricing/subscription copy is localized and free of mojibake.
 
+**Result:** the local-only current-plan mutation was removed. Free entry routes to the
+real login/upload flow; paid controls are disabled and marked coming soon. Prices use
+locale-aware CNY formatting and paid-plan copy no longer promises immediate upgrades.
+
 ### P1-4 Editor ownership cleanup
 
-**Status:** planned. Perform as behavior-preserving file moves before other editor changes.
+**Status:** completed on 2026-06-21 as behavior-preserving ownership moves.
 
 **Tasks:**
 
@@ -601,9 +610,13 @@ all visible pricing/subscription copy is localized and free of mojibake.
 import editor behavior from explicit editor domains; lint, typecheck, editor tests, and
 autosave/draft recovery behavior remain unchanged.
 
+**Result:** editor-only hooks live under `hooks/editor`; undo context is
+`editor-history-context`; draft storage and score lookup live under `lib/editor`. The
+zero-reference duplicate `hooks/use-history.ts` was deleted without compatibility exports.
+
 ### P1-5 API type package split
 
-**Status:** planned.
+**Status:** completed on 2026-06-21.
 
 **Tasks:**
 
@@ -615,9 +628,12 @@ autosave/draft recovery behavior remain unchanged.
 **Acceptance:** API helpers and consumers keep one stable public type entry; no duplicate
 `ApiResponse`, pagination, task, or share contracts exist; the type dependency graph is acyclic.
 
+**Result:** common, auth, task, file, share, XML, and practice contracts live in focused
+modules under `types/api`, with `index.ts` preserving `@/types/api` for all consumers.
+
 ### P1-6 Listen modal decomposition
 
-**Status:** planned.
+**Status:** completed on 2026-06-21.
 
 **Tasks:**
 
@@ -630,9 +646,13 @@ autosave/draft recovery behavior remain unchanged.
 AudioContext, controller, and rendered DOM resource is disposed exactly once; existing
 Chromium soundfont and playback tests remain green.
 
+**Result:** `ListenModal` is a dialog composition shell; `use-score-preview-playback` owns
+controller loading, RAF/seek/loop/resize state and disposal; `ScorePreviewControls` owns
+presentation. Load generation guards dispose controllers that finish after close.
+
 ### P1-7 Frontend CI
 
-**Status:** planned.
+**Status:** completed on 2026-06-21.
 
 **Tasks:**
 
@@ -644,9 +664,13 @@ Chromium soundfont and playback tests remain green.
 **Acceptance:** a clean checkout runs the same quality gates used locally; failures block
 merging; no production secret is required by CI.
 
+**Result:** `.github/workflows/frontend-quality.yml` uses Node 22.14, npm cache plus
+`npm ci`, all static/unit/build gates, CI Chromium installation, and the full deterministic
+Playwright suite with a non-secret localhost backend origin.
+
 ### P2-7 MusicXML internal decomposition
 
-**Status:** planned after P1 work. Do not split solely to reduce line counts.
+**Status:** completed on 2026-06-21. The split follows cohesive value/target boundaries.
 
 **Tasks:**
 
@@ -658,9 +682,13 @@ merging; no production secret is required by CI.
 **Acceptance:** public parse/serialize behavior and fixtures are unchanged; each new module
 has a single responsibility; no page or component imports parser internals accidentally.
 
+**Result:** pitch/duration/articulation conversion moved to `parser-values`; connection
+endpoint ordering and DOM target resolution moved to `connection-targets`. The public
+MusicXML barrel remains stable and focused characterization tests protect both boundaries.
+
 ### P2-8 Package and dependency cleanup
 
-**Status:** planned.
+**Status:** completed on 2026-06-21.
 
 **Tasks:**
 
@@ -671,9 +699,12 @@ has a single responsibility; no page or component imports parser internals accid
 **Acceptance:** package metadata uses the product name, the dependency tree has no unused
 `dotenv`, and both audits remain at zero vulnerabilities.
 
+**Result:** the package is `noteverse-pro-frontend`, `dotenv` and its lock entry were
+removed, 785 packages remain in the audited tree, and the full audit reports zero findings.
+
 ### P2-9 Current-state documentation refresh
 
-**Status:** planned after the implementation items above.
+**Status:** completed on 2026-06-21 after the implementation items above.
 
 **Tasks:**
 
@@ -687,7 +718,7 @@ quality commands, and intentional limitations without reading obsolete intermedi
 
 ### Ordered delivery
 
-Execute these as separate reviewable changes:
+Completed in this order as separate reviewable scopes on 2026-06-21:
 
 1. P0-4 anonymous share boundary.
 2. P0-5 truthful subscription UI.
