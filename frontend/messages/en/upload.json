@@ -25,5 +25,9 @@
   "uploadFailedFile": "File {name} upload failed",
   "taskProcessingFailed": "An error occurred during task processing",
   "legato_inference_failed": "Score recognition failed. Please try again later or upload a clearer image.",
-  "processingFailedStatus": "Processing failed"
+  "processingFailedStatus": "Processing failed",
+  "uploadedStatus": "Uploaded",
+  "removeImage": "Remove {name}",
+  "closePreview": "Close preview",
+  "restoredFileUnavailable": "The reusable upload data for {name} is missing. Please re-select the original image."
 }

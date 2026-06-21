@@ -13,17 +13,16 @@
 
 ## 当前方向更新
 
-早期迁移采用局部混合架构：practice 页使用 Verovio，交互式试听暂时保留 OSMD。
+浏览器端 MusicXML 渲染和交互式试听现已统一使用 Verovio。
 
-当前新的维护方向是：
+当前维护方向是：
 
 - practice 页继续作为 Verovio 渲染和实时跟随的先行实现
-- results、share、editor 共用的 OSMD ListenModal 播放链路应逐步迁移到 Verovio 和独立播放控制器
-- 迁移期间可以短期保留 OSMD 作为旧路径，但不应再把 OSMD 当作长期目标架构
-- 最终目标是统一使用 Verovio，并移除 OSMD 依赖和相关兼容代码
-- review/results/share 中用于展示原图或后端渲染结果的图片产物不属于 OSMD 迁移范围
+- results、share、editor 共用 Verovio `ListenModal`、独立播放控制器和本地 soundfont 引擎
+- 不再新增第二套浏览器端乐谱 renderer 或 renderer-specific 页面逻辑
+- review/results/share 中用于展示原图或后端渲染结果的图片产物不属于浏览器 renderer 范围
 
-这意味着后续新增乐谱渲染能力时，应优先设计在 Verovio adapter / score rendering abstraction 上，而不是继续扩展 OSMD-specific 代码。
+这意味着后续新增乐谱渲染能力时，应设计在 Verovio adapter / score rendering abstraction 上。
 
 ## 一、已经完成或推进过的关键优化
 
@@ -80,8 +79,8 @@ frontend/
 当前结构整体方向是合理的，但仍有几个需要渐进收口的区域：
 
 - 多个核心 `page.tsx` 已经超过 20KB 到 35KB，说明页面编排层仍承担了较多 section、状态和资源生命周期细节
-- `src/lib/musicxml/parser.ts` 和 OSMD-backed score adapter 仍然偏大，后续应分别按解析、渲染和播放控制职责继续拆分
-- `components/score/listen-modal.tsx` 已不再直接理解 OSMD，但后续替换 renderer/playback adapter 时仍需补充真实乐谱与资源生命周期验证
+- `src/lib/musicxml/parser.ts` 仍然偏大，后续应继续按解析职责拆分
+- `components/score/listen-modal.tsx` 只消费 renderer/playback contracts，真实乐谱与资源生命周期验证必须持续保留
 - `hooks/queries` 已经存在，后续 server state 应继续向 query hooks 收口，而不是散在页面里
 
 这些不是必须一次性完成的重构，但后续触碰相关功能时应顺手收口。
@@ -125,7 +124,7 @@ frontend/
 | `components/score` | 共享 score renderer、播放 shell 和状态 UI |
 | `components/practice` | 练习页专属 viewer、controls 和 overlay |
 
-组件根目录只保留真正跨领域的轻量入口。共享试听 UI 位于 `components/score/listen-modal.tsx`，只依赖 `lib/score` contracts；不要从 UI 重新读取 OSMD 或音频播放器内部字段。
+组件根目录只保留真正跨领域的轻量入口。共享试听 UI 位于 `components/score/listen-modal.tsx`，只依赖 `lib/score` contracts；不要从 UI 读取 renderer 或音频播放器内部字段。
 
 经验：大组件拆分不是为了追求文件数量，而是为了把状态、交互和渲染责任分开。编辑器组件、practice score viewer、overlay、card 子组件都应避免变成单个巨型文件。
 
@@ -353,21 +352,20 @@ React state 适合：
 
 ### 2. Verovio 迁移应覆盖浏览器端 MusicXML 渲染链路
 
-practice 页使用 Verovio 是第一阶段先行方案。当前真正仍依赖 OSMD 的主路径，是 results、share、editor 共用的 `ListenModal` / `audio-preview-manager` 交互式播放链路。OSMD 可以在迁移期短暂保留，但不是长期目标。
+practice 页是第一阶段先行方案；results、share、editor 的 `ListenModal` 交互式播放链路也已完成 Verovio 迁移。
 
 第一阶段选择 practice 先行的原因：
 
 - practice 需要实时 score following、SVG element targeting、time lookup、DOM-level highlighting、auto-scroll
 - Verovio 更适合 practice 的实时反馈和 DOM 操作
-- 交互式播放还依赖 OSMD cursor、seek、tempo 和 soundfont 行为，直接一次性替换风险较高
+- 交互式播放通过独立 controller 保持 cursor、seek、tempo 和 soundfont 行为
 
 当前长期方向：
 
-- 逐步把 results、share、editor 的 OSMD ListenModal 播放链路迁移到 Verovio 和独立播放控制器
-- 迁移过程中建立共享 score renderer abstraction，避免每个页面各自操作 Verovio
+- results、share、editor 复用 Verovio ListenModal 和独立播放控制器
+- 共享 score renderer abstraction，避免每个页面各自操作 Verovio
 - 页面只消费 renderer 输出和交互接口，不直接依赖 Verovio toolkit
-- 迁移完成后移除 OSMD 依赖、OSMD-specific components 和兼容路径
-- review 的原图/识别预览，以及 results/share 的 durable backend preview image，不属于 OSMD 路径；除非产品需求改变，否则继续作为后端产物展示
+- review 的原图/识别预览，以及 results/share 的 durable backend preview image，不属于浏览器 renderer 路径；除非产品需求改变，否则继续作为后端产物展示
 
 原则：最终统一的是浏览器端 MusicXML renderer 和交互式播放能力，不是为了“全量 Verovio”而替换合理的后端图片产物。迁移必须通过 adapter、共享组件、真实样本和功能对等验证渐进完成。
 
@@ -376,9 +374,9 @@ Score preview 的当前边界：
 - `ScoreRenderer` 负责加载、适配容器和释放 renderer DOM/toolkit
 - `ScorePlaybackController` 负责 play、pause、stop、step seek、tempo、状态快照和播放事件
 - `ScoreCursorController` 负责 reset、step sync、visibility 和 auto-scroll
-- `OsmdScorePreviewController` 是临时 OSMD adapter；UI 只持有组合后的 `ScorePreviewController`
-- `ListenModal` 拥有 React UI 状态、requestAnimationFrame 和 ResizeObserver；adapter 拥有 OSMD、player、AudioContext、调度器/计时器和渲染 DOM
-- dispose 必须停止播放、关闭 AudioContext、阻止已释放实例继续分发事件并清空 renderer DOM；soundfont URL patch 是进程级配置，实际加载资源随 player/AudioContext 生命周期释放
+- `VerovioScorePreviewController` 实现组合后的 `ScorePreviewController`
+- `ListenModal` 拥有 React UI 状态、requestAnimationFrame 和 ResizeObserver；controller 拥有 Verovio、AudioContext、调度器/计时器和渲染 DOM
+- dispose 必须停止播放、关闭 AudioContext、阻止已释放实例继续分发事件并清空 renderer DOM
 
 ### 3. Practice 页要四层分离
 
@@ -552,7 +550,7 @@ npm run test
 9. 高频状态放进全局/页面 React state，造成重渲染。
 10. object URL、WebSocket、AudioContext、MediaStream 没有 cleanup。
 11. practice page 直接操作 Verovio toolkit 或 SVG DOM，而不是走 adapter/controller。
-12. 非 practice 页面继续扩展 OSMD-specific 代码，增加最终移除 OSMD 的成本。
+12. 页面绕过共享 Verovio controller 直接操作 toolkit 或播放引擎。
 13. alignment.update 被直接用于 UI 高亮，没有 committed/guard/fallback 策略。
 14. subscription、password reset、practice report 等功能保留模拟逻辑但 UI 未说明。
 15. 新增文档不更新旧优先级状态，导致团队分不清当前问题和历史问题。
@@ -604,7 +602,7 @@ Verovio ownership update (2026-06-20): `lib/score/verovio` owns the shared WASM 
 
 Playback spike update (2026-06-20): Verovio base64 MIDI and XML-ID timemap data feed a NoteVerse-owned playback timeline/controller; `@tonejs/midi` is parser-only and `soundfont-player` is isolated behind `VerovioAudioEngine`. Playback code has a separate entry from renderer code. The shipped asset set currently guarantees acoustic piano only, so unsupported programs fall back to piano and the product must not claim full instrumentation fidelity.
 
-Interactive listen migration update (2026-06-20): results, share, and editor explicitly select the shared Verovio preview backend. `ListenModal` dynamically loads renderer implementations and contains no toolkit internals; the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The OSMD backend is now an unreferenced rollback path pending P3-4 deletion.
+Interactive listen migration update (2026-06-21): results, share, and editor use the single shared Verovio preview path. `ListenModal` dynamically loads the controller and contains no toolkit internals; the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The previous renderer backend, compatibility patch, and dependencies have been removed.
 
 ## Bottom Line
 
@@ -614,7 +612,7 @@ NoteVerse 前端后续维护最重要的原则是：用户看到的每一个控�
 
 - API、类型、i18n、错误状态收口
 - 页面编排和领域逻辑分离
-- 浏览器端 MusicXML 渲染和交互式播放渐进统一到 Verovio，最终移除 OSMD
+- 浏览器端 MusicXML 渲染和交互式播放统一使用 Verovio
 - 保留有明确产品用途的后端原图和预览图片产物
 - 高频渲染和资源生命周期显式管理
 - 不再关闭 type/lint/build 质量门禁

@@ -48,11 +48,11 @@ This is an incremental plan. Each phase must leave the application usable and pa
 
 - MusicXML parsing and transformations now live behind `src/lib/musicxml/index.ts`.
 - Editor contexts, editor hooks, results, and the practice Verovio adapter consume the MusicXML package or focused submodules.
-- `components/score/listen-modal.tsx` consumes renderer/playback/cursor contracts and no longer reads OSMD or player internals.
-- `lib/score/osmd-score-preview-controller.ts` is the temporary adapter that privately owns `OpenSheetMusicDisplay` and `osmd-audio-player`.
-- Editor, results, and share reuse `ListenModal`, so OSMD removal is primarily a shared playback migration, not three independent page renderer swaps.
-- Review currently compares authenticated original/preview image artifacts. Results and share also display backend-rendered image artifacts. Those images are not OSMD and should not be replaced merely to claim Verovio migration.
-- `score-viewer.tsx` is a stale placeholder and currently has no confirmed consumer; audit it for deletion instead of moving it automatically.
+- `components/score/listen-modal.tsx` consumes renderer/playback/cursor contracts and dynamically loads the Verovio preview controller.
+- `lib/score/verovio-score-preview-controller.ts` owns interactive SVG rendering, playback, cursor synchronization, relayout, and cleanup.
+- Editor, results, and share reuse the same `ListenModal` and have no renderer-specific page logic.
+- Review compares authenticated original/preview image artifacts. Results and share also display backend-rendered image artifacts; those remain valid product assets outside the browser renderer.
+- The stale placeholder `score-viewer.tsx` was deleted after its zero-reference audit.
 
 ### 2.4 React Query
 
@@ -64,10 +64,10 @@ This is an incremental plan. Each phase must leave the application usable and pa
 
 ### 2.5 Renderer direction
 
-- Practice already renders with a practice-specific Verovio adapter.
-- OSMD remains only behind the score adapter, soundfont patching, audio constants, and package dependencies; UI code is backend-agnostic.
-- Verovio is the final renderer direction. OSMD is only a temporary migration dependency.
-- The engineering principles document still contains one stale summary sentence that can be read as opposing full migration; the decision must be made unambiguous before implementation.
+- Practice, results, share, and editor use shared Verovio rendering boundaries.
+- Interactive playback uses Verovio MIDI/timemap data and an owned Web Audio soundfont engine.
+- UI code remains renderer-agnostic and consumes score contracts.
+- Backend-rendered image artifacts remain supported independently of interactive rendering.
 
 ## 3. Priority Model
 
@@ -102,11 +102,29 @@ P0 unit/component/E2E smoke net
 | P2-3 Results page decomposition | Completed | 2026-06-20: resource orchestration, metadata, preview, actions, downloads, and sharing extracted |
 | P2-4 Editor page decomposition | Completed | 2026-06-20: document lifecycle, header/actions, modal orchestration, navigation, and listen launcher extracted |
 | P2-5 Share and review page decomposition | Completed | 2026-06-20: auth/access, permission actions, canonical share XML, image resources, and score presentation extracted |
-| P2-6 Upload page decomposition | Deferred | Await reconciliation of the existing upload work as documented below |
+| P2-6 Upload page decomposition | Completed | 2026-06-21: upload lifecycle hook, form, previews, recovery, polling, and resource cleanup extracted |
 | P3-1 Shared Verovio adapter | Completed | Shared adapter/viewer now own isolated toolkit instances and generic rendering |
 | P3-2 Playback replacement spike | Completed | ADR 0001 selects Verovio MIDI plus an owned Web Audio scheduler |
 | P3-3 Surface migration | Completed | Results, share, and editor listen paths now select Verovio explicitly |
-| P3-4 OSMD removal | Next | Remove the now-unreferenced rollback backend and legacy dependencies |
+| P3-4 OSMD removal | Completed | Legacy backend, patches, constants, and dependencies removed on 2026-06-21 |
+
+### Post-migration governance backlog
+
+The original P0-P3 migration program is complete. The following backlog is the ordered
+source of truth for the next governance phase; work should proceed from top to bottom
+unless a production incident changes the priority.
+
+| Priority | Task | Status | Scope |
+| --- | --- | --- | --- |
+| P0-4 | Anonymous share boundary | Planned | Make only `/share/[shareId]` public; preserve login and `returnUrl` for editor/history and every other protected route |
+| P0-5 | Subscription truthfulness | Planned | Remove garbled prices and disable/label unavailable plan changes until a real billing contract exists |
+| P1-4 | Editor ownership cleanup | Planned | Move editor-only hooks, context, draft storage, and score lookup into explicit editor domains |
+| P1-5 | API type package split | Planned | Split the growing API contract file by domain behind the stable `@/types/api` public entry |
+| P1-6 | Listen modal decomposition | Planned | Extract playback lifecycle state and presentation controls without weakening cleanup behavior |
+| P1-7 | Frontend CI | Planned | Add deterministic install, lint, typecheck, unit test, build, and selected Playwright gates |
+| P2-7 | MusicXML internal decomposition | Planned | Split parser and connection responsibilities only behind characterization coverage |
+| P2-8 | Package and dependency cleanup | Planned | Remove unused `dotenv` and rename the package from `nextn` to `noteverse-pro-frontend` |
+| P2-9 | Current-state documentation refresh | Planned | Replace stale baseline statements and clearly separate current architecture from migration history |
 
 ## 4. P0 - Foundation and Guardrails
 
@@ -163,7 +181,7 @@ P0 unit/component/E2E smoke net
 
 **Routing resolution (2026-06-19):** The Chinese default-route loop was caused by the E2E server binding and browser origin using `127.0.0.1` while Next emitted the internal next-intl rewrite with a `localhost` origin. Next.js 16.2.9 treated the origin mismatch as an external rewrite and surfaced a 307 redirect. Playwright now uses `localhost` consistently for its base URL, server bind address, and cookies, so `/login` resolves through the internal `/zh/login` rewrite with a 200 response. `localePrefix: 'as-needed'` remains the canonical URL policy. next-intl was upgraded from 4.11.0 to 4.13.0, and the localized login smoke now protects both languages.
 
-**Dependency security note (2026-06-18):** The initial audit found 15 vulnerabilities, including a vulnerable Next.js 16.2.4 and legacy transitive packages under OSMD/osmd-audio-player. A non-force audit fix upgraded safe patch/transitive versions. Direct minimums are now Next.js 16.2.9 and OSMD 1.9.9. Package overrides keep PostCSS on 8.5.15 and JSZip on 3.10.1, including the legacy player subtree. Both `npm audit` and `npm audit --omit=dev` report zero vulnerabilities. Do not accept npm suggestions that downgrade Next.js or osmd-audio-player; remove the overrides only after the OSMD playback chain is retired or upstream constraints are verified safe.
+**Dependency security note (updated 2026-06-21):** The initial 2026-06-18 audit found 15 vulnerabilities, including a vulnerable Next.js 16.2.4 and legacy renderer/player transitive packages. Safe upgrades established the Next.js 16.2.9 baseline. P3-4 later removed the legacy renderer, player, `patch-package`, 94 transitive packages, and the now-unused JSZip override. The PostCSS override remains intentional: Next 16.2.9 pins PostCSS 8.4.31, which is affected by GHSA-qx2v-qp2m-jg93; resolving every consumer to the direct PostCSS 8.5.15 dependency keeps both audits clean. Remove the override once Next pins PostCSS 8.5.10 or newer. Both full and production audits report zero vulnerabilities.
 
 ### P0-3 Define lightweight React Query conventions
 
@@ -341,13 +359,13 @@ Each page refactor is a separate behavioral PR. Do not combine page decompositio
 
 **Implementation note (2026-06-20):** `use-share-page-data` owns the authenticated redirect, canonical share-access query, canonical `queryKeys.xml.share()` XML query, classified access errors, and cancellable image resources. Anonymous visitors retain their full return URL. Share preview, actions, and information/download panels live under `components/share`; `can_download=false` disables downloads and `can_edit=false` removes the editor entry. Locale-aware editor return URLs are preserved. `use-review-page-data` owns task validation, confirm mutation, and cancellable original/preview images, while `ReviewScoreComparison` owns carousel presentation and page tracking.
 
-### P2-6 Upload page after current work is merged
+### P2-6 Upload page decomposition
 
-**Status:** deferred to avoid interfering with existing user edits.
+**Status:** completed on 2026-06-21.
 
-**Later extraction targets:** upload state machine, file validation, progress/dispatch lifecycle, result navigation, and presentational sections.
+**Implementation:** `use-upload-workflow` owns file resources, task recovery, sequential uploads, idempotent dispatch, polling timeout, failure state, and result navigation. `UploadForm` owns metadata, dropzone, file status, and submission presentation; `UploadPreviewDialog` owns carousel state and accessible preview controls. The route now only composes the page shell and these domain owners.
 
-**Acceptance:** no work begins until current upload changes are reconciled; reliability behavior and localized messages remain intact.
+**Acceptance:** restored uploads continue to reuse SHA-256 identifiers, active tasks resume polling, completed tasks route to review/results, object URLs are revoked, and all visible status/control copy remains localized.
 
 ## 7. P3 - Shared Verovio Migration and OSMD Removal
 
@@ -439,10 +457,11 @@ error/loading ownership, and disposal. A Chromium user-gesture smoke test then l
 decoded the local 2.3 MB MusyngKite piano asset, scheduled a note, stopped it, and closed
 the AudioContext. Share and editor subsequently selected the same Verovio backend; their
 permission, anonymous access, edit state, and backend-rendered image paths remain outside
-the renderer boundary. All three consumers choose `backend="verovio"` explicitly. The
-OSMD dynamic backend remains unreferenced as a rollback implementation for P3-4 removal.
+the renderer boundary. All three consumers now use the single shared Verovio path.
 
 ### P3-4 Remove OSMD completely
+
+**Status:** completed on 2026-06-21.
 
 **Tasks:**
 
@@ -455,6 +474,14 @@ OSMD dynamic backend remains unreferenced as a rollback implementation for P3-4 
 7. Run full quality and behavior validation.
 
 **Acceptance:** the search returns only intentional historical documentation; production dependencies and runtime code contain no OSMD path.
+
+**Removal result:** the legacy score preview controller, cursor workarounds,
+`patch-soundfont.ts`, and renderer-specific timing constants were deleted. The
+`opensheetmusicdisplay`, `osmd-audio-player`, and unused `patch-package` dependencies
+were removed, reducing the installed tree by 94 packages. `ListenModal` now has one
+Verovio controller path and no backend selector. Source and lockfile scans contain no
+legacy renderer runtime references; remaining mentions in this plan and ADR 0001 are
+intentional migration history.
 
 ## 8. Cross-Cutting Quality Gates
 
@@ -520,3 +547,157 @@ This plan is complete when:
 - OSMD dependencies, patches, constants, and compatibility code are removed;
 - lint, typecheck, tests, build, and critical behavior checks pass;
 - current docs describe the resulting architecture rather than the migration history.
+
+## 11. Post-Migration Governance Plan
+
+### P0-4 Anonymous share boundary
+
+**Status:** planned. This is the first item in the next execution phase.
+
+**Product decision:** `/share/[shareId]` is anonymously accessible. Anonymous access does
+not grant a session and does not make any other route public. Navigating from a share to
+editor, history, profile, upload, review, results, or practice must still pass through the
+authentication proxy and preserve the complete localized `returnUrl`.
+
+**Tasks:**
+
+1. Remove `/share` from the protected route prefixes while retaining all other protected prefixes.
+2. Allow `use-share-page-data` and the share query/XML/image path to load after auth initialization for both anonymous and authenticated visitors.
+3. Keep `can_download` and `can_edit` authoritative. An anonymous visitor may only see actions allowed by the share contract; actions requiring an account must enter the normal login flow.
+4. Replace the E2E assertion that anonymous share visits redirect to login with public-share coverage in both default Chinese and explicit English locale URLs.
+5. Add a browser test proving that following an editor link from a share still redirects to login with the exact share-origin `returnUrl`.
+
+**Acceptance:** a valid share opens without cookies; revoked, expired, and missing shares
+retain their classified states; all non-share protected routes still redirect before
+rendering protected content; locale and query parameters survive login round trips.
+
+### P0-5 Subscription truthfulness
+
+**Status:** planned.
+
+**Tasks:**
+
+1. Remove the garbled `楼0`, `楼30`, and `楼99` literals from the homepage and subscriptions page.
+2. Until billing exists, remove the local-only plan mutation or render upgrade controls disabled with localized "not available" copy.
+3. Do not present local React state as an account subscription or successful purchase.
+4. Keep any informational prices in localized structured data and format real future prices with `Intl.NumberFormat`.
+
+**Acceptance:** the UI cannot claim a plan changed without a backend billing response;
+all visible pricing/subscription copy is localized and free of mojibake.
+
+### P1-4 Editor ownership cleanup
+
+**Status:** planned. Perform as behavior-preserving file moves before other editor changes.
+
+**Tasks:**
+
+1. Move `use-connection-operations`, `use-metadata-editor`, `use-entity-editor`, `use-history-editor`, `use-voice-editor`, and `use-xml-updater` into `hooks/editor/`.
+2. Audit the remaining root hooks and move any editor-only owners, including undo history, autosave, and entity-card behavior, while leaving genuinely cross-domain hooks at the root.
+3. Rename `contexts/history-context.tsx` to `contexts/editor-history-context.tsx` and update consumers without adding compatibility re-exports.
+4. Move `lib/draft-storage.ts` to `lib/editor/draft-storage.ts`.
+5. Move and rename `lib/score-utils.ts` to `lib/editor/score-lookup.ts`.
+
+**Acceptance:** root hooks and contexts have unambiguous cross-domain names; editor files
+import editor behavior from explicit editor domains; lint, typecheck, editor tests, and
+autosave/draft recovery behavior remain unchanged.
+
+### P1-5 API type package split
+
+**Status:** planned.
+
+**Tasks:**
+
+1. Split `types/api.ts` into focused common, auth/profile, task/file/XML, share, and practice contracts.
+2. Preserve `@/types/api` as the stable public import through `types/api/index.ts`.
+3. Keep shared envelopes and pagination types in one common module and prevent domain duplication.
+4. Move files mechanically first; contract behavior changes require separate work and tests.
+
+**Acceptance:** API helpers and consumers keep one stable public type entry; no duplicate
+`ApiResponse`, pagination, task, or share contracts exist; the type dependency graph is acyclic.
+
+### P1-6 Listen modal decomposition
+
+**Status:** planned.
+
+**Tasks:**
+
+1. Extract controller loading, playback snapshot state, RAF loops, seek/loop behavior, resize handling, and disposal into `use-score-preview-playback`.
+2. Extract the progress and playback button presentation into a focused score control component.
+3. Keep `ListenModal` responsible for dialog composition and renderer container ownership.
+4. Add component/hook coverage for load failure, play/pause/stop, seek, loop completion, close, and unmount disposal.
+
+**Acceptance:** UI code still depends only on score contracts; every RAF, observer,
+AudioContext, controller, and rendered DOM resource is disposed exactly once; existing
+Chromium soundfont and playback tests remain green.
+
+### P1-7 Frontend CI
+
+**Status:** planned.
+
+**Tasks:**
+
+1. Add a frontend workflow with a pinned Node/npm baseline and `npm ci`.
+2. Run lint, typecheck, unit tests, and a production build with a non-secret test backend origin.
+3. Run the deterministic critical Playwright subset; keep browser installation/cache policy explicit.
+4. Add path filters without allowing frontend dependency or shared workflow changes to bypass the gate.
+
+**Acceptance:** a clean checkout runs the same quality gates used locally; failures block
+merging; no production secret is required by CI.
+
+### P2-7 MusicXML internal decomposition
+
+**Status:** planned after P1 work. Do not split solely to reduce line counts.
+
+**Tasks:**
+
+1. Characterize parser and connection edge cases before moving code.
+2. Split `parser.ts` by document/measure/entity parsing responsibilities and split `connections.ts` by relation type where cohesive boundaries exist.
+3. Preserve `lib/musicxml/index.ts` as the stable public surface and keep core dependency direction acyclic.
+4. Avoid mixing file moves with MusicXML behavior changes.
+
+**Acceptance:** public parse/serialize behavior and fixtures are unchanged; each new module
+has a single responsibility; no page or component imports parser internals accidentally.
+
+### P2-8 Package and dependency cleanup
+
+**Status:** planned.
+
+**Tasks:**
+
+1. Confirm there is no runtime or script import of `dotenv`, then remove it and refresh the lockfile.
+2. Rename the package from `nextn` to `noteverse-pro-frontend` without combining dependency upgrades.
+3. Run full and production npm audits after the lockfile change and retain the documented PostCSS security override until Next.js no longer needs it.
+
+**Acceptance:** package metadata uses the product name, the dependency tree has no unused
+`dotenv`, and both audits remain at zero vulnerabilities.
+
+### P2-9 Current-state documentation refresh
+
+**Status:** planned after the implementation items above.
+
+**Tasks:**
+
+1. Update stale baseline statements about test availability, page sizes, renderer ownership, and completed migrations.
+2. Keep `improvement-roadmap.md` explicitly historical and this document authoritative.
+3. Move detailed migration chronology to ADR/history sections where needed; keep current architecture and active backlog easy to find.
+4. Update `frontend_engineering_principles.md` after ownership paths actually move.
+
+**Acceptance:** a new maintainer can identify the current architecture, active tasks,
+quality commands, and intentional limitations without reading obsolete intermediate states.
+
+### Ordered delivery
+
+Execute these as separate reviewable changes:
+
+1. P0-4 anonymous share boundary.
+2. P0-5 truthful subscription UI.
+3. P1-4 editor ownership cleanup.
+4. P1-5 API type package split.
+5. P1-6 listen modal decomposition.
+6. P1-7 frontend CI.
+7. P2-7 MusicXML internal decomposition.
+8. P2-8 package/dependency cleanup.
+9. P2-9 documentation refresh.
+
+Do not combine product behavior changes, mechanical file moves, and dependency lockfile
+changes in one delivery slice.

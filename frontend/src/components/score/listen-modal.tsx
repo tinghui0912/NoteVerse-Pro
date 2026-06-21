@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Pause, Play, Repeat, Square, X, LoaderCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEFAULT_TEMPO_BPM, ESTIMATED_BEATS_PER_STEP } from '@/lib/constants/audio';
+import { DEFAULT_TEMPO_BPM } from '@/lib/constants/audio';
 import { extractTempoBpm } from '@/lib/musicxml';
 import type { ScorePreviewController } from '@/lib/score/contracts';
 
@@ -27,7 +27,6 @@ interface ListenModalProps {
   onOpenChange: (open: boolean) => void;
   xmlString: string | null;
   children?: React.ReactNode;
-  backend?: 'osmd' | 'verovio';
 }
 
 export function ListenModal({
@@ -35,7 +34,6 @@ export function ListenModal({
   onOpenChange,
   xmlString,
   children,
-  backend = 'osmd',
 }: ListenModalProps) {
   const t = useTranslations('common');
   const tResults = useTranslations('results');
@@ -51,13 +49,11 @@ export function ListenModal({
   const managerRef = useRef<ScorePreviewController | null>(null);
   const progressRafRef = useRef<number | null>(null);
   const cursorRafRef = useRef<number | null>(null);
-  const effectiveTempoRef = useRef<number>(DEFAULT_TEMPO_BPM); // Store the actual BPM being used
   const isManualStopRef = useRef<boolean>(false); // Track manual stop/pause to prevent loop trigger
   const isSeekingRef = useRef<boolean>(false); // Track if user is dragging progress bar
   const wasPlayingBeforeSeek = useRef<boolean>(false); // Track playback state before seek
   const seekTargetStepRef = useRef<number | null>(null); // Store pending seek position
 
-  const osmdContainerRef = useRef<HTMLDivElement | null>(null);
   const modalContainerRef = useRef<HTMLDivElement | null>(null);
 
   const isControlled = isOpen !== undefined && onOpenChange !== undefined;
@@ -97,33 +93,6 @@ export function ListenModal({
     setCurrentTime(0);
   }, [stopProgressLoop, stopCursorSyncLoop]);
 
-  /**
-   * Calculate playback time and duration with multiple fallback strategies.
-   * Matches Melody Forge's time calculation logic.
-   */
-  const calculatePlaybackTime = useCallback((
-    playbackTime: number,
-    totalSteps: number,
-    currentStep: number,
-    effectiveBpm: number = DEFAULT_TEMPO_BPM
-  ) => {
-    const stepProgress = totalSteps > 0 ? (currentStep / totalSteps) * 100 : 0;
-    let currentTime = playbackTime;
-
-    // Calculate duration from steps and BPM directly (don't trust player.duration)
-    let duration = 0;
-    if (totalSteps > 0 && effectiveBpm > 0) {
-      duration = (totalSteps * ESTIMATED_BEATS_PER_STEP * 60) / effectiveBpm;
-    }
-
-    // Calculate currentTime from progress if not available
-    if (duration > 0 && currentTime <= 0) {
-      currentTime = (stepProgress / 100) * duration;
-    }
-
-    return { currentTime, stepProgress };
-  }, []);
-
   const startProgressLoop = useCallback(() => {
     stopProgressLoop();
     const loop = () => {
@@ -132,20 +101,10 @@ export function ListenModal({
         const snapshot = manager.getPlaybackSnapshot();
 
         // Use the stored effective BPM instead of player.bpm which is unreliable
-        const actualBpm = effectiveTempoRef.current;
-        const { currentTime, stepProgress } = backend === 'verovio'
-          ? {
-              currentTime: snapshot.currentTime,
-              stepProgress: snapshot.duration > 0
-                ? (snapshot.currentTime / snapshot.duration) * 100
-                : 0,
-            }
-          : calculatePlaybackTime(
-              snapshot.currentTime,
-              snapshot.totalSteps,
-              snapshot.currentStep,
-              actualBpm
-            );
+        const currentTime = snapshot.currentTime;
+        const stepProgress = snapshot.duration > 0
+          ? (snapshot.currentTime / snapshot.duration) * 100
+          : 0;
 
         setCurrentTime(currentTime);
         setProgress(stepProgress);
@@ -153,7 +112,7 @@ export function ListenModal({
       progressRafRef.current = requestAnimationFrame(loop);
     };
     progressRafRef.current = requestAnimationFrame(loop);
-  }, [backend, stopProgressLoop, calculatePlaybackTime]);
+  }, [stopProgressLoop]);
 
   const startCursorSyncLoop = useCallback(() => {
     stopCursorSyncLoop();
@@ -167,17 +126,14 @@ export function ListenModal({
         const total = snapshot.totalSteps;
 
         // Limit target to [0, total-1] range to prevent going beyond last note
-        const target = Math.max(
-          0,
-          Math.min(backend === 'verovio' ? raw : raw - 1, total - 1)
-        );
+        const target = Math.max(0, Math.min(raw, total - 1));
         manager.syncCursorToStep(target, { scrollIntoView: true });
 
         cursorRafRef.current = requestAnimationFrame(loop);
       }
     };
     cursorRafRef.current = requestAnimationFrame(loop);
-  }, [backend, stopCursorSyncLoop]);
+  }, [stopCursorSyncLoop]);
 
   const disposeController = useCallback(() => {
     stopProgressLoop();
@@ -266,17 +222,12 @@ export function ListenModal({
     try {
       const effectiveTempo = extractTempoBpm(xmlString, DEFAULT_TEMPO_BPM);
 
-      // Store the effective tempo for later use
-      effectiveTempoRef.current = effectiveTempo;
-      const manager: ScorePreviewController = backend === 'verovio'
-        ? new (await import('@/lib/score/verovio-score-preview-controller')).VerovioScorePreviewController({
-            container,
-            bpm: effectiveTempo,
-          })
-        : new (await import('@/lib/score/osmd-score-preview-controller')).OsmdScorePreviewController({
-            container,
-            bpm: effectiveTempo,
-          });
+      const manager: ScorePreviewController = new (
+        await import('@/lib/score/verovio-score-preview-controller')
+      ).VerovioScorePreviewController({
+        container,
+        bpm: effectiveTempo,
+      });
       managerRef.current = manager;
 
       await manager.loadScore(xmlString);
@@ -312,11 +263,7 @@ export function ListenModal({
       });
 
       const snapshot = manager.getPlaybackSnapshot();
-      let duration = snapshot.duration;
-      if (duration <= 0 && snapshot.totalSteps > 0) {
-        duration =
-          (snapshot.totalSteps * ESTIMATED_BEATS_PER_STEP * 60) / effectiveTempo;
-      }
+      const duration = snapshot.duration;
       if (duration > 0) {
         setTotalTime(duration);
       }
@@ -326,21 +273,16 @@ export function ListenModal({
       setLoadError(error instanceof Error ? error.message : t('errorBoundaryDesc'));
       setIsLoading(false);
     }
-  }, [backend, t, xmlString, startProgressLoop, stopProgressLoop, startCursorSyncLoop, stopCursorSyncLoop]);
+  }, [t, xmlString, startProgressLoop, stopProgressLoop, startCursorSyncLoop, stopCursorSyncLoop]);
 
   const modalBodyRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
-      osmdContainerRef.current = node;
-
       // Load score immediately without artificial delay
       if (currentOpenState && !managerRef.current) {
         loadScore(node);
       }
     }
   }, [currentOpenState, loadScore]);
-
-
-
   // Watch for container size changes and adjust zoom accordingly
   useEffect(() => {
     if (!modalContainerRef.current || !managerRef.current) return;
@@ -370,13 +312,6 @@ export function ListenModal({
       resizeObserver.disconnect();
     };
   }, [currentOpenState]);
-
-  // Removed unreliable useEffect for loading score
-
-  // Removed cursor style injection (osmd-cursor-fix-style)
-  // The OSMD adapter waits for a measurable container before rendering.
-  // OSMD renders with correct dimensions, making this fallback unnecessary.
-
   const handlePlayPause = async () => {
     const manager = managerRef.current;
 

@@ -5,21 +5,19 @@ import { describe, expect, it } from 'vitest';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
-describe('Verovio listen surface migration', () => {
+describe('Verovio listen surfaces', () => {
   it.each([
     'src/components/results/results-actions.tsx',
     'src/components/share/share-actions.tsx',
     'src/components/editor/editor-page-modals.tsx',
-  ])('%s selects the Verovio backend explicitly', (path) => {
+  ])('%s uses the renderer-agnostic ListenModal API', (path) => {
     const source = readSource(path);
-    expect(source).toContain('backend="verovio"');
-    expect(source).not.toContain('OsmdScorePreviewController');
+    expect(source).toContain('<ListenModal');
+    expect(source).not.toContain('backend=');
   });
 
-  it('keeps renderer implementations behind dynamic modal boundaries', () => {
+  it('dynamically loads only the Verovio preview controller', () => {
     const source = readSource('src/components/score/listen-modal.tsx');
     expect(source).toContain("import('@/lib/score/verovio-score-preview-controller')");
-    expect(source).toContain("import('@/lib/score/osmd-score-preview-controller')");
-    expect(source).not.toContain("from '@/lib/score/osmd-score-preview-controller'");
   });
 });

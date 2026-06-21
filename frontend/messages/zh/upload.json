@@ -25,5 +25,9 @@
   "uploadFailedFile": "文件 {name} 上传失败",
   "taskProcessingFailed": "任务处理过程中发生错误",
   "legato_inference_failed": "乐谱识别失败，请稍后重试或更换图片后再试。",
-  "processingFailedStatus": "处理失败"
+  "processingFailedStatus": "处理失败",
+  "uploadedStatus": "已上传",
+  "removeImage": "移除 {name}",
+  "closePreview": "关闭预览",
+  "restoredFileUnavailable": "{name} 缺少可复用的上传数据，请重新选择原始图片。"
 }

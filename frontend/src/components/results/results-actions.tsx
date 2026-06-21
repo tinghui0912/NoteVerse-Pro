@@ -55,7 +55,6 @@ export function ResultsActions({ taskId, rawXml }: { taskId: string; rawXml: str
         isOpen={listenOpen}
         onOpenChange={setListenOpen}
         xmlString={rawXml}
-        backend="verovio"
       />
     </>
   );

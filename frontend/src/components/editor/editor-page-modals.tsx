@@ -72,7 +72,6 @@ export function EditorPageModals(props: EditorPageModalsProps) {
         isOpen={props.listenOpen}
         onOpenChange={props.onListenOpenChange}
         xmlString={props.previewXml}
-        backend="verovio"
       />
       <AddEntityModal isOpen={isAddEntityModalOpen} onClose={() => setIsAddEntityModalOpen(false)} onSelect={handleSelectEntityType} voiceName={voiceName} />
       {editingEntity && noteModalOpen && (

@@ -47,7 +47,6 @@ export function ShareActions({ canEdit, rawXml, scoreTitle, shareId, taskId }: S
         isOpen={listenOpen}
         onOpenChange={setListenOpen}
         xmlString={rawXml}
-        backend="verovio"
       />
     </>
   );

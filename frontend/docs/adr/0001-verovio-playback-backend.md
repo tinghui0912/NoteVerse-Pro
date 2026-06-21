@@ -60,10 +60,9 @@ reported pre-existing cross-measure tie warnings but completed successfully.
 
 ## Consequences and gates
 
-- P3-3 migrated results, share, and editor while keeping the OSMD controller as an
-  unreferenced temporary rollback path.
-- Do not remove OSMD or `osmd-audio-player` until an actual browser smoke test proves
-  soundfont fetch/decode, user-gesture unlock, seek, loop, cursor scroll, and disposal.
+- P3-3 migrated results, share, and editor; P3-4 removed the legacy controller after
+  browser and contract validation passed.
+- The legacy renderer and player packages are no longer production dependencies.
 - Multi-instrument fidelity is not claimed. The UI must not imply original
   instrumentation while only the piano asset is available.
 - Before adding more local instruments, confirm asset licensing and budget their
