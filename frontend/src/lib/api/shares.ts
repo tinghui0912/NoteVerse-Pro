@@ -3,6 +3,7 @@
 import { apiClient, ApiResponse } from '../api-client';
 import type {
     CreateShareResponse,
+    CreateShareRequest,
     FileAccessUrl,
     SavedShareListResponse,
     ShareListResponse,
@@ -24,13 +25,11 @@ export async function listShares(
 
 export async function createShare(
     taskId: string,
-    expiresInDays: number = 7,
-    password?: string
+    options: CreateShareRequest
 ): Promise<ApiResponse<CreateShareResponse>> {
     return apiClient.post<ApiResponse<CreateShareResponse>>('/shares', {
         task_id: taskId,
-        expires_in_days: expiresInDays,
-        password,
+        ...options,
     });
 }
 

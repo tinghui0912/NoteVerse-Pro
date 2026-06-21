@@ -28,12 +28,26 @@ function escapeCssId(id: string) {
   return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }
 
+function findScrollableAncestor(element: HTMLElement) {
+  let current = element.parentElement;
+  while (current) {
+    const style = window.getComputedStyle(current);
+    const canScrollY = /(auto|scroll)/.test(style.overflowY);
+    if (canScrollY && current.scrollHeight > current.clientHeight) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
 export class VerovioScorePreviewController implements ScorePreviewController {
   private readonly container: HTMLElement;
   private readonly adapter: VerovioScoreAdapter;
   private readonly playback: VerovioPlaybackPrototype;
-  private activeNoteIds: string[] = [];
-  private activePage: number | null = null;
+  private activeCursor: HTMLElement | null = null;
+  private activeSystem: Element | null = null;
+  private activeEventIndex: number | null = null;
   private disposed = false;
   private readonly initialBpm: number | null;
 
@@ -117,10 +131,25 @@ export class VerovioScorePreviewController implements ScorePreviewController {
   }
 
   ensureCursorVisible() {
-    const activeNode = this.activeNoteIds.length > 0
-      ? this.findElement(this.activeNoteIds[0] ?? '')
-      : null;
-    activeNode?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    const target = this.activeSystem ?? this.activeCursor;
+    const scrollContainer = findScrollableAncestor(this.container);
+    if (!target || !scrollContainer) {
+      return;
+    }
+
+    const targetRect = target.getBoundingClientRect();
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const margin = Math.min(120, Math.max(32, scrollContainer.clientHeight * 0.18));
+    if (targetRect.top >= containerRect.top + margin && targetRect.bottom <= containerRect.bottom - margin) {
+      return;
+    }
+
+    const targetCenter = targetRect.top + targetRect.height / 2;
+    const containerCenter = containerRect.top + containerRect.height / 2;
+    scrollContainer.scrollTo({
+      top: scrollContainer.scrollTop + targetCenter - containerCenter,
+      behavior: 'smooth',
+    });
   }
 
   dispose() {
@@ -143,33 +172,58 @@ export class VerovioScorePreviewController implements ScorePreviewController {
       fragment.append(pageElement);
     }
     this.container.replaceChildren(fragment);
+    this.activeCursor = null;
+    this.activeSystem = null;
+    this.activeEventIndex = null;
   }
 
   private applyCursor(snapshot: VerovioPlaybackCursorSnapshot, options?: CursorSyncOptions) {
-    this.clearCursor();
-    for (const noteId of snapshot.noteIds) {
-      const element = this.findElement(noteId);
-      element?.classList.add('score-playback-active');
-      if (element) {
-        this.activeNoteIds.push(noteId);
-      }
+    if (snapshot.eventIndex === this.activeEventIndex && this.activeCursor?.isConnected) {
+      return;
     }
-    this.activePage = snapshot.pageNumbers[0] ?? null;
+    const noteElement = snapshot.noteIds
+      .map((noteId) => this.findElement(noteId))
+      .find((element): element is HTMLElement => element !== null);
+    if (!noteElement) {
+      this.clearCursor();
+      return;
+    }
+
+    const page = noteElement.closest<HTMLElement>('[data-score-page]');
+    const system = noteElement.closest('.system') ?? noteElement.closest('svg');
+    if (!page || !system) {
+      this.clearCursor();
+      return;
+    }
+
+    const pageRect = page.getBoundingClientRect();
+    const noteRect = noteElement.getBoundingClientRect();
+    const systemRect = system.getBoundingClientRect();
+    const cursor = this.activeCursor ?? document.createElement('div');
+    if (!this.activeCursor) {
+      cursor.className = 'score-playback-cursor';
+      cursor.setAttribute('aria-hidden', 'true');
+    }
+    if (cursor.parentElement !== page) {
+      page.append(cursor);
+    }
+    cursor.style.left = `${Math.max(0, noteRect.left - pageRect.left - 2)}px`;
+    cursor.style.top = `${Math.max(0, systemRect.top - pageRect.top)}px`;
+    cursor.style.height = `${Math.max(1, systemRect.height)}px`;
+
+    this.activeCursor = cursor;
+    this.activeSystem = system;
+    this.activeEventIndex = snapshot.eventIndex;
     if (options?.scrollIntoView) {
-      const page = this.activePage
-        ? this.container.querySelector<HTMLElement>(`[data-score-page="${this.activePage}"]`)
-        : null;
-      const target = this.findElement(this.activeNoteIds[0] ?? '') ?? page;
-      target?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      this.ensureCursorVisible();
     }
   }
 
   private clearCursor() {
-    for (const noteId of this.activeNoteIds) {
-      this.findElement(noteId)?.classList.remove('score-playback-active');
-    }
-    this.activeNoteIds = [];
-    this.activePage = null;
+    this.activeCursor?.remove();
+    this.activeCursor = null;
+    this.activeSystem = null;
+    this.activeEventIndex = null;
   }
 
   private findElement(noteId: string) {

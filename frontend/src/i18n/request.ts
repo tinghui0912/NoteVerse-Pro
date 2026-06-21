@@ -9,6 +9,7 @@ const namespaces = [
   'review',
   'editor',
   'results',
+  'resultsShare',
   'history',
   'share',
   'profile',

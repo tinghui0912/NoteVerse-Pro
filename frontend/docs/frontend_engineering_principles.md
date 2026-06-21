@@ -602,7 +602,7 @@ Anonymous share boundary update (2026-06-21): only `/share/[shareId]` is public.
 
 Editor ownership update (2026-06-20): document queries, draft recovery, validation, source-aware save targets, autosave state, and original-image cleanup are composed by `use-editor-document`; page header/actions and all editor dialogs live under `components/editor`. Editor routes require explicit `current` or `final` sources, and the product XML API does not expose internal `enhanced_xml` artifacts.
 
-Results ownership update (2026-06-20): task/XML queries and image resource cleanup are composed by `use-results-resources`; metadata, preview, fingering/listen actions, downloads, and sharing live under `components/results`. Share controls must represent fields actually supported by the create-share contract.
+Results ownership update (2026-06-21): `use-results-resources` loads task metadata and final XML without fetching redundant rendered-image previews. The results page composes an inline Verovio player, explicit history-origin breadcrumbs, grouped actions, a standalone difficulty editor, and a share dialog under `components/results`. The create-share contract persists view/edit permission and permanent or dated expiration; share controls must submit those real fields.
 
 History ownership update (2026-06-20): upload/share filters and pagination are independent tab state, selection is reset at tab boundaries, batch actions compose domain mutation hooks, and thumbnail access requests are cancellable with owned object URLs revoked on cleanup. History cards, toolbar, status, and pagination live under `components/history`.
 
@@ -614,7 +614,7 @@ Playback spike update (2026-06-20): Verovio base64 MIDI and XML-ID timemap data 
 
 Interactive listen migration update (2026-06-21): results, share, and editor use the single shared Verovio preview path. `ListenModal` contains no toolkit internals; its score playback hook dynamically loads the controller, while the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The previous renderer backend, compatibility patch, and dependencies have been removed.
 
-Post-migration ownership update (2026-06-21): editor-only hooks live under `hooks/editor`, editor undo history is explicitly named, draft/score lookup utilities live under `lib/editor`, API contracts are domain modules behind `types/api/index.ts`, and score-preview playback state lives in a dedicated score hook. The frontend package is `noteverse-pro-frontend`; frontend CI runs lint, typecheck, 43 unit/component tests, build, and 6 deterministic Playwright tests.
+Post-migration ownership update (2026-06-21): editor-only hooks live under `hooks/editor`, editor undo history is explicitly named, draft/score lookup utilities live under `lib/editor`, API contracts are domain modules behind `types/api/index.ts`, and score-preview playback state lives in a dedicated score hook. The frontend package is `noteverse-pro-frontend`; frontend CI runs lint, typecheck, 44 unit/component tests, build, and 7 deterministic Playwright tests.
 
 ## Bottom Line
 

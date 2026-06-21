@@ -34,6 +34,7 @@ from app.modules.tasks.schemas import (
 )
 from app.modules.tasks.submission_service import TaskSubmissionService
 from app.storage import FileStorage, file_storage
+from app.utils.timezone import utc_now_naive
 
 
 class TaskService:
@@ -141,6 +142,7 @@ class TaskService:
             task.title = title
         if difficulty is not None:
             task.difficulty = difficulty
+        task.updated_at = utc_now_naive()
 
         await db.commit()
 

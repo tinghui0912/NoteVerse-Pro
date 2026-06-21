@@ -9,6 +9,7 @@ export interface Task {
   difficulty?: string;
   thumbnail_type?: string;
   created_at?: string;
+  updated_at?: string;
   started_at?: string;
   finished_at?: string;
   error?: string;

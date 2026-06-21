@@ -26,6 +26,7 @@ from app.modules.files.service import FilesService
 from app.modules.files.render_service import _store_rendered_image
 from app.modules.practice.service import PracticeService
 from app.modules.profile.service import AvatarService
+from app.modules.shares.service import ShareService
 from app.modules.tasks.execution_service import TaskExecutionService
 from app.modules.tasks.service import TaskService
 from app.modules.tasks.maintenance_service import TaskMaintenanceService
@@ -102,6 +103,59 @@ async def test_update_task_rejects_non_owner() -> None:
 
     assert context.value.code == ErrorCode.NO_EDIT_ACCESS
     db.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_task_refreshes_updated_at() -> None:
+    service = TaskService(repository=Mock())
+    db = AsyncMock()
+    task = SimpleNamespace(
+        user_id=1,
+        title="Old",
+        difficulty="difficultyBeginner",
+        updated_at=None,
+    )
+    service.get_task = AsyncMock(return_value=task)
+
+    before_update = utc_now_naive()
+    result = await service.update_task(
+        db,
+        "task-1",
+        user_id=1,
+        title="New",
+        difficulty="difficultyAdvanced",
+    )
+
+    assert result == {"title": "New", "difficulty": "difficultyAdvanced"}
+    assert task.updated_at >= before_update
+    db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_share_persists_editable_permanent_contract() -> None:
+    repository = Mock()
+    repository.get_task_by_uuid = AsyncMock(
+        return_value=SimpleNamespace(id=10, user_id=1)
+    )
+    service = ShareService(repository=repository)
+    db = AsyncMock()
+    db.add = Mock()
+
+    result = await service.create_share(
+        db,
+        user_id=1,
+        task_id="task-1",
+        expires_in_days=None,
+        can_download=True,
+        can_edit=True,
+    )
+
+    created_share = db.add.call_args.args[0]
+    assert created_share.expires_at is None
+    assert created_share.can_download is True
+    assert created_share.can_edit is True
+    assert result["expires_at"] is None
+    db.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio

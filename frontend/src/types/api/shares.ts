@@ -2,8 +2,8 @@ export interface Share {
   id: number;
   share_token: string;
   task_id: string;
-  expires_at?: string;
-  revoked_at?: string;
+  expires_at?: string | null;
+  revoked_at?: string | null;
   can_download: boolean;
   can_edit: boolean;
   created_at?: string;
@@ -18,7 +18,13 @@ export interface ShareListResponse {
 
 export interface CreateShareResponse {
   share_token: string;
-  expires_at: string;
+  expires_at: string | null;
+}
+
+export interface CreateShareRequest {
+  can_download: boolean;
+  can_edit: boolean;
+  expires_in_days: number | null;
 }
 
 export interface SharedTaskInfo {

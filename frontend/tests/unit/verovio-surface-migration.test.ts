@@ -7,13 +7,24 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 
 describe('Verovio listen surfaces', () => {
   it.each([
-    'src/components/results/results-actions.tsx',
     'src/components/share/share-actions.tsx',
     'src/components/editor/editor-page-modals.tsx',
   ])('%s uses the renderer-agnostic ListenModal API', (path) => {
     const source = readSource(path);
     expect(source).toContain('<ListenModal');
     expect(source).not.toContain('backend=');
+  });
+
+  it('renders the results score player inline without a listen dialog', () => {
+    const page = readSource('src/app/[locale]/results/[id]/page.tsx');
+    const actions = readSource('src/components/results/results-actions.tsx');
+    const player = readSource('src/components/results/results-score-player.tsx');
+    expect(page).toContain('<ResultsScorePlayer');
+    expect(page).toContain('<ResultsBreadcrumbs');
+    expect(page).not.toContain('<ResultsScorePreview');
+    expect(actions).not.toContain('<ListenModal');
+    expect(player).toContain('controlsClassName=');
+    expect(player).not.toContain('<CardTitle');
   });
 
   it('dynamically loads only the Verovio preview controller', () => {

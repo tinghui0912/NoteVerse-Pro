@@ -16,7 +16,8 @@ services:
     volumes:
       - ./frontend:/app
       - noteverse_frontend_node_modules:/app/node_modules
-      - noteverse_frontend_next:/app/.next
+    tmpfs:
+      - /app/.next
     ports:
       - "${FRONTEND_PORT:-9002}:9002"
     extra_hosts:
@@ -25,4 +26,3 @@ services:
 
 volumes:
   noteverse_frontend_node_modules:
-  noteverse_frontend_next:

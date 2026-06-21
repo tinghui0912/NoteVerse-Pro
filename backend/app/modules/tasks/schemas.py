@@ -140,6 +140,7 @@ class TaskStatusResult(TypedDict, total=False):
     title: Optional[str]
     difficulty: Optional[str]
     created_at: Optional[str]
+    updated_at: Optional[str]
     started_at: Optional[str]
     finished_at: Optional[str]
     error_message: Optional[str]

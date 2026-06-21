@@ -55,5 +55,5 @@ export function getTaskLink(item: TaskHistoryItem) {
   if (item.status === 'pending-review') {
     return `/review/${item.id}`;
   }
-  return `/results/${item.id}`;
+  return `/results/${item.id}?from=uploads`;
 }

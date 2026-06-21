@@ -90,6 +90,8 @@ class ShareService:
         user_id: int,
         task_id: str,
         expires_in_days: int | None = 7,
+        can_download: bool = True,
+        can_edit: bool = False,
     ) -> ShareCreateResult:
         task = await self.repository.get_task_by_uuid(db, task_id)
         if not task:
@@ -106,8 +108,11 @@ class ShareService:
             )
 
         share_token = secrets.token_urlsafe(32)
-        effective_days = expires_in_days or 7
-        expires_at = utc_now_naive() + timedelta(days=effective_days)
+        expires_at = (
+            utc_now_naive() + timedelta(days=expires_in_days)
+            if expires_in_days is not None
+            else None
+        )
         task_id_db = require_persisted_id(task.id, entity="task")
         db.add(
             Share(
@@ -115,13 +120,16 @@ class ShareService:
                 token=share_token,
                 owner_user_id=user_id,
                 expires_at=expires_at,
-                can_download=True,
-                can_edit=False,
+                can_download=can_download,
+                can_edit=can_edit,
                 created_at=utc_now_naive(),
             )
         )
         await db.commit()
-        return {"share_token": share_token, "expires_at": expires_at.isoformat()}
+        return {
+            "share_token": share_token,
+            "expires_at": expires_at.isoformat() if expires_at else None,
+        }
 
     async def remove_share(
         self,

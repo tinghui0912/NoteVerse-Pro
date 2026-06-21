@@ -21,8 +21,8 @@ const initialState: HistoryTabState = {
   view: 'grid',
 };
 
-export function useHistoryViewState() {
-  const [activeTab, setActiveTab] = useState<HistoryTab>('uploads');
+export function useHistoryViewState(initialTab: HistoryTab = 'uploads') {
+  const [activeTab, setActiveTab] = useState<HistoryTab>(initialTab);
   const [uploads, setUploads] = useState<HistoryTabState>(initialState);
   const [shares, setShares] = useState<HistoryTabState>(initialState);
 

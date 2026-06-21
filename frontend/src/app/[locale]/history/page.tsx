@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChevronRight, Eye, Loader2, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useRouter } from 'next/navigation';
 import { Footer } from '@/components/layout/footer';
@@ -31,13 +31,19 @@ import { useHistoryThumbnails } from '@/hooks/history/use-history-thumbnails';
 import { useHistoryViewState } from '@/hooks/history/use-history-view-state';
 import { useHistoryBatchActions } from '@/hooks/history/use-history-batch-actions';
 
-export default function HistoryPage() {
+export default function HistoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = React.use(searchParams);
+  const initialTab: HistoryTab = tab === 'shares' ? 'shares' : 'uploads';
   const t = useTranslations('history');
   const tCommon = useTranslations('common');
   const backendMessage = useBackendMessage();
   const router = useRouter();
 
-  const historyState = useHistoryViewState();
+  const historyState = useHistoryViewState(initialTab);
   const { activeTab, activeState, uploads, shares: sharesState } = historyState;
   const uploadsPageSize = uploads.view === 'list' ? 10 : 6;
   const sharesPageSize = sharesState.view === 'list' ? 10 : 6;
@@ -118,7 +124,9 @@ export default function HistoryPage() {
 
   const handleTabChange = (value: string) => {
     selection.clear();
-    historyState.setActiveTab(value as HistoryTab);
+    const nextTab = value as HistoryTab;
+    historyState.setActiveTab(nextTab);
+    router.replace(`/history?tab=${nextTab}`);
   };
 
   const handleRowClick = (item: TaskHistoryItem | ShareHistoryItem, isUpload: boolean) => {
@@ -149,7 +157,7 @@ export default function HistoryPage() {
 
       <main className="grow">
         <div className="max-w-7xl mx-auto px-4 py-16">
-          <Tabs defaultValue="uploads" className="w-full" onValueChange={handleTabChange}>
+          <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2 bg-gray-200 rounded-full h-auto p-1 mb-4 max-w-md mx-auto">
               <TabsTrigger value="uploads" className="rounded-full data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-md py-2">{t('myUploads')}</TabsTrigger>
               <TabsTrigger value="shares" className="rounded-full data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-md py-2">{t('savedShares')}</TabsTrigger>

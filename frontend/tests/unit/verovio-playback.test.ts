@@ -49,8 +49,14 @@ class StubAdapter extends VerovioScoreAdapter {
 
   override renderAllPages() {
     return [
-      { pageNumber: 1, svg: '<svg><g id="note-1"><path /></g></svg>' },
-      { pageNumber: 2, svg: '<svg><g id="note-2"><path /></g></svg>' },
+      {
+        pageNumber: 1,
+        svg: '<svg><g class="system"><g id="note-1"><path /></g></g></svg>',
+      },
+      {
+        pageNumber: 2,
+        svg: '<svg><g class="system"><g id="note-2"><path /></g></g></svg>',
+      },
     ];
   }
 
@@ -198,8 +204,18 @@ describe('VerovioPlaybackPrototype', () => {
 
 describe('VerovioScorePreviewController', () => {
   it('renders pages, synchronizes the SVG cursor, resizes, and cleans up resources', async () => {
+    const viewport = document.createElement('div');
     const container = document.createElement('div');
+    viewport.style.overflowY = 'auto';
+    viewport.append(container);
     Object.defineProperty(container, 'clientWidth', { value: 800 });
+    Object.defineProperty(viewport, 'clientHeight', { value: 300 });
+    Object.defineProperty(viewport, 'scrollHeight', { value: 1200 });
+    Object.defineProperty(viewport, 'scrollTop', { value: 0, writable: true });
+    const scrollTo = vi.fn();
+    viewport.scrollTo = scrollTo;
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
     const adapter = new StubAdapter();
     const audio = new StubAudioEngine();
     const controller = new VerovioScorePreviewController({
@@ -213,12 +229,44 @@ describe('VerovioScorePreviewController', () => {
     expect(container.querySelectorAll('[data-score-page]')).toHaveLength(2);
 
     controller.syncCursorToStep(1);
-    expect(container.querySelector('#note-2')).toHaveClass('score-playback-active');
-    expect(container.querySelector('#note-1')).not.toHaveClass('score-playback-active');
+    expect(container.querySelectorAll('.score-playback-cursor')).toHaveLength(1);
+    expect(
+      container.querySelector('[data-score-page="2"] .score-playback-cursor')
+    ).not.toBeNull();
+    expect(container.querySelector('#note-2')).not.toHaveClass('score-playback-active');
+    const activeSystem = container.querySelector<HTMLElement>('[data-score-page="2"] .system');
+    expect(activeSystem).not.toBeNull();
+    activeSystem!.getBoundingClientRect = () => ({
+      bottom: 760,
+      height: 120,
+      left: 0,
+      right: 400,
+      top: 640,
+      width: 400,
+      x: 0,
+      y: 640,
+      toJSON: () => ({}),
+    });
+    viewport.getBoundingClientRect = () => ({
+      bottom: 300,
+      height: 300,
+      left: 0,
+      right: 400,
+      top: 0,
+      width: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    controller.ensureCursorVisible();
+    expect(scrollTo).toHaveBeenCalledWith({ top: 550, behavior: 'smooth' });
+    expect(scrollIntoView).not.toHaveBeenCalled();
 
     await controller.fitToContainer();
     expect(container.querySelectorAll('[data-score-page]')).toHaveLength(2);
-    expect(container.querySelector('#note-1')).toHaveClass('score-playback-active');
+    expect(
+      container.querySelector('[data-score-page="1"] .score-playback-cursor')
+    ).not.toBeNull();
 
     controller.dispose();
     expect(container).toBeEmptyDOMElement();

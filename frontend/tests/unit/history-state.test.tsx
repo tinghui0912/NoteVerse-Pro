@@ -45,6 +45,6 @@ describe('history task mapping', () => {
     expect(mapStatusToTaskState('completed')).toBe('SUCCESS');
     expect(getTaskLink({ id: '1', name: '', date: '', status: 'failed', thumbnail: '' })).toBe('/upload?task_id=1');
     expect(getTaskLink({ id: '2', name: '', date: '', status: 'pending-review', thumbnail: '' })).toBe('/review/2');
-    expect(getTaskLink({ id: '3', name: '', date: '', status: 'completed', thumbnail: '' })).toBe('/results/3');
+    expect(getTaskLink({ id: '3', name: '', date: '', status: 'completed', thumbnail: '' })).toBe('/results/3?from=uploads');
   });
 });

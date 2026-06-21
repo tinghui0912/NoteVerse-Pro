@@ -541,6 +541,8 @@ Runtime check 按进程角色划分：API 检查异步数据库、存储和 prac
 
 XML artifact boundary update (2026-06-20): the product XML read endpoint exposes only `current` and `final`. `enhanced_xml` is a recorded internal pipeline artifact, not a selectable source and not a fallback for missing `current_xml`. XML and practice flows fail explicitly when the requested current or final artifact is absent.
 
+Share creation contract update (2026-06-21): owner-created links persist `can_download`, `can_edit`, and either a bounded day count or a genuinely permanent `expires_at = NULL`. Results/share UI must consume these persisted fields; it must not simulate editable or permanent links with frontend-only state.
+
 ## Bottom Line
 
 这次后端迁移最大的收获不是某个目录名，而是一套工程节奏：

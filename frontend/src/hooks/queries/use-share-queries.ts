@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
 import { sharesApi } from '@/lib/api';
+import type { CreateShareRequest } from '@/types/api';
 
 // ============ Query Hooks ============
 
@@ -86,10 +87,7 @@ export function useSharedXmlContent(shareId: string, options?: { enabled?: boole
 export function useCreateShare(taskId: string) {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ expiresInDays, password }: {
-            expiresInDays?: number;
-            password?: string;
-        }) => sharesApi.createShare(taskId, expiresInDays, password),
+        mutationFn: (request: CreateShareRequest) => sharesApi.createShare(taskId, request),
         onSuccess: () => queryClient.invalidateQueries({
             queryKey: queryKeys.shares.list(taskId),
         }),

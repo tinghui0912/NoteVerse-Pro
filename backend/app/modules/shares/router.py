@@ -66,6 +66,8 @@ async def create_share_link(
         user_id,
         task_id=request.task_id,
         expires_in_days=request.expires_in_days,
+        can_download=request.can_download,
+        can_edit=request.can_edit,
     )
     return success_response(data=result, message=SuccessCode.SHARE_CREATED)
 

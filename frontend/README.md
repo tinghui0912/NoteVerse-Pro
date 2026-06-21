@@ -54,12 +54,15 @@ docker compose -f docker-compose.frontend-dev.yml run --rm frontend npm run type
 
 - `node_modules` lives in a Docker named volume so the host bind mount does not
   overwrite container-installed dependencies.
-- `.next` also lives in a Docker named volume to avoid mixing host and Linux
-  build artifacts.
-- After changing `package.json` or `package-lock.json`, rebuild the image. If the
-  dependency volume is stale, recreate it with:
+- The container checks `package-lock.json` on startup and refreshes a stale
+  dependency volume automatically.
+- `.next` lives in a container-local `tmpfs`, avoiding stale route manifests,
+  host/Linux artifact mixing, and slow bind-mounted filesystem access.
+- Rebuild the image after changing `package.json` or `package-lock.json`:
 
 ```powershell
-docker compose -f docker-compose.frontend-dev.yml down -v
 docker compose -f docker-compose.frontend-dev.yml build frontend
 ```
+
+To reset all frontend development state manually, including the dependency
+volume, run `docker compose -f docker-compose.frontend-dev.yml down -v`.

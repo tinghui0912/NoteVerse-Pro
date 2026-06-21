@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, TypedDict
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.tasks.schemas import TaskStatusResult
 
@@ -16,7 +16,9 @@ class ShareBase(BaseModel):
 
 class CreateShareRequest(BaseModel):
     task_id: str
-    expires_in_days: Optional[int] = 7
+    expires_in_days: Optional[int] = Field(default=7, ge=1, le=3650)
+    can_download: bool = True
+    can_edit: bool = False
 
 
 class SaveShareRequest(BaseModel):
@@ -47,7 +49,7 @@ class ShareListResponse(TypedDict):
 
 class ShareCreateResult(TypedDict):
     share_token: str
-    expires_at: str
+    expires_at: str | None
 
 
 class ShareRevokeResult(TypedDict):

@@ -6,8 +6,13 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
 WORKDIR /app
 
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+RUN npm ci \
+    && sha256sum package-lock.json | cut -d ' ' -f 1 > node_modules/.noteverse-package-lock.sha256
+
+COPY docker/frontend/entrypoint.dev.sh /usr/local/bin/frontend-dev-entrypoint
+RUN chmod +x /usr/local/bin/frontend-dev-entrypoint
 
 EXPOSE 9002
 
+ENTRYPOINT ["frontend-dev-entrypoint"]
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
