@@ -1,5 +1,8 @@
 # Backend Engineering Principles
 
+> Active score-domain restructuring is tracked in
+> `../../docs/score-domain-architecture-migration-plan.md`.
+
 ## 文档目的
 
 本文基于 `backend/docs/`、`backend/docs/archive/` 以及仓库根目录 `docs/` 中的架构评审、迁移计划、阶段复盘、运行手册、功能设计和质量加固记录，总结 NoteVerse 后端后续开发应遵守的编码规范、架构设计原则和工程结构经验。

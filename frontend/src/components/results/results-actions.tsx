@@ -52,7 +52,8 @@ export function ResultsActions({
     );
   };
 
-  const buttonClass = 'h-24 w-full bg-white';
+  const buttonClass = 'h-16 w-full justify-start gap-3 bg-white px-4 text-left';
+  const iconClass = 'h-5 w-5 shrink-0';
   return (
     <>
       <Card data-testid="results-actions" className="rounded-2xl bg-white shadow-lg">
@@ -61,9 +62,10 @@ export function ResultsActions({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className={buttonClass}>
-                <span className="flex h-full flex-col items-center justify-center text-center">
-                  <Download className="mb-2 h-6 w-6" />
-                  <span className="flex items-center gap-1">{common('download')}<ChevronDown className="h-3.5 w-3.5" /></span>
+                <Download className={iconClass} />
+                <span className="flex min-w-0 flex-1 items-center gap-1">
+                  <span className="truncate">{common('download')}</span>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
                 </span>
               </Button>
             </DropdownMenuTrigger>
@@ -73,28 +75,24 @@ export function ResultsActions({
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" className={buttonClass} onClick={generateFingering} disabled={fingering.isPending}>
-            <span className="flex h-full flex-col items-center justify-center text-center">
-              {fingering.isPending ? <Loader2 className="mb-2 h-6 w-6 animate-spin" /> : <Hand className="mb-2 h-6 w-6" />}
-              {t('generateFingering')}
-            </span>
+            {fingering.isPending ? <Loader2 className={`${iconClass} animate-spin`} /> : <Hand className={iconClass} />}
+            <span className="truncate">{t('generateFingering')}</span>
           </Button>
           <Button asChild variant="outline" className={buttonClass}>
-            <Link href={`/practice/${taskId}`} className="flex flex-col items-center justify-center text-center">
-              <Gamepad2 className="mb-2 h-6 w-6" />
-              {practice('mode')}
+            <Link href={`/practice/${taskId}`}>
+              <Gamepad2 className={iconClass} />
+              <span className="truncate">{practice('mode')}</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className={buttonClass}>
-            <Link href={`/editor/${taskId}?source=final`} className="flex flex-col items-center justify-center text-center">
-              <Edit className="mb-2 h-6 w-6" />
-              {common('edit')}
+            <Link href={`/editor/${taskId}?source=final`}>
+              <Edit className={iconClass} />
+              <span className="truncate">{common('edit')}</span>
             </Link>
           </Button>
           <Button variant="outline" className={`${buttonClass} col-span-2`} onClick={() => setShareOpen(true)}>
-            <span className="flex h-full flex-col items-center justify-center text-center">
-              <Share2 className="mb-2 h-6 w-6" />
-              {t('createShareAction')}
-            </span>
+            <Share2 className={iconClass} />
+            <span className="truncate">{t('createShareAction')}</span>
           </Button>
         </CardContent>
       </Card>

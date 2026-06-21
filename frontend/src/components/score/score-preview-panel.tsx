@@ -43,6 +43,13 @@ export function ScorePreviewPanel({
   return (
     <div className={cn('flex min-h-0 flex-col gap-4', className)}>
       <style jsx global>{`
+        .score-preview-scroll-area {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .score-preview-scroll-area::-webkit-scrollbar {
+          display: none;
+        }
         .verovio-preview-page {
           position: relative;
           margin: 0 auto 1.5rem;
@@ -59,11 +66,12 @@ export function ScorePreviewPanel({
         .verovio-preview-page .score-playback-cursor {
           position: absolute;
           z-index: 2;
-          width: 3px;
+          width: 12px;
           min-height: 1px;
-          border-radius: 9999px;
-          background: #f97316;
-          box-shadow: 0 0 0 1px rgb(255 255 255 / 70%);
+          border-left: 2px solid #f97316;
+          border-radius: 2px;
+          background: rgb(249 115 22 / 24%);
+          box-shadow: 0 0 0 1px rgb(255 255 255 / 55%);
           pointer-events: none;
           transform: translateX(-50%);
           transition: left 80ms linear, top 120ms ease, height 120ms ease;
@@ -73,7 +81,7 @@ export function ScorePreviewPanel({
       <div
         ref={containerRef}
         className={cn(
-          'relative min-h-[40vh] w-full flex-1 overflow-y-auto overflow-x-hidden rounded-lg bg-white',
+          'score-preview-scroll-area relative min-h-[40vh] w-full flex-1 overflow-y-auto overflow-x-hidden rounded-lg bg-white',
           viewportClassName
         )}
       >

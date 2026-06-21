@@ -5,7 +5,7 @@ export function ResultsScorePlayer({ rawXml }: { rawXml: string }) {
     <ScorePreviewPanel
       xmlString={rawXml}
       className="gap-6"
-      viewportClassName="min-h-[55vh] max-h-[72vh] rounded-2xl border bg-white p-4 shadow-lg"
+      viewportClassName="min-h-[55vh] rounded-2xl border bg-white p-4 shadow-lg"
       controlsClassName="space-y-4 rounded-2xl border bg-white p-5 shadow-lg"
     />
   );

@@ -2,6 +2,8 @@
 
 > Baseline date: 2026-06-18  
 > Scope: frontend structure, tests, React Query conventions, MusicXML modularization, oversized pages, shared score rendering, Verovio migration, and final OSMD removal.
+> This plan is complete. Active cross-stack score-domain work is tracked in
+> `../../docs/score-domain-architecture-migration-plan.md`.
 
 ## 1. Purpose
 

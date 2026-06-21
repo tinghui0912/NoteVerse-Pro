@@ -69,6 +69,33 @@ class StubAdapter extends VerovioScoreAdapter {
   }
 }
 
+class OpeningRestAdapter extends StubAdapter {
+  override renderTimemap() {
+    return [
+      { on: ['note-1'], tstamp: 1000, tempo: 120 },
+      { off: ['note-1'], tstamp: 1500 },
+    ];
+  }
+
+  override renderAllPages() {
+    return [
+      {
+        pageNumber: 1,
+        svg: [
+          '<svg>',
+          '<g class="system">',
+          '<g class="measure">',
+          '<g class="meterSig" />',
+          '<g id="note-1"><path /></g>',
+          '</g>',
+          '</g>',
+          '</svg>',
+        ].join(''),
+      },
+    ];
+  }
+}
+
 class StubAudioEngine implements VerovioAudioEngine {
   currentTime = 0;
   prepared: string[] = [];
@@ -203,6 +230,41 @@ describe('VerovioPlaybackPrototype', () => {
 });
 
 describe('VerovioScorePreviewController', () => {
+  it('keeps the cursor at the measure start until an opening rest has elapsed', async () => {
+    const container = document.createElement('div');
+    const audio = new StubAudioEngine();
+    const controller = new VerovioScorePreviewController({
+      container,
+      adapter: new OpeningRestAdapter(),
+      audioEngine: audio,
+    });
+
+    await controller.loadScore('<score-partwise />');
+    const page = container.querySelector<HTMLElement>('[data-score-page="1"]')!;
+    const system = container.querySelector<HTMLElement>('.system')!;
+    const meterSignature = container.querySelector<HTMLElement>('.meterSig')!;
+    const note = container.querySelector<HTMLElement>('#note-1')!;
+    page.getBoundingClientRect = () => DOMRect.fromRect({ x: 20, y: 0, width: 500, height: 300 });
+    system.getBoundingClientRect = () => DOMRect.fromRect({ x: 40, y: 50, width: 440, height: 120 });
+    meterSignature.getBoundingClientRect = () => DOMRect.fromRect({ x: 70, y: 60, width: 30, height: 70 });
+    note.getBoundingClientRect = () => DOMRect.fromRect({ x: 180, y: 70, width: 20, height: 30 });
+
+    controller.resetCursor();
+    const cursor = container.querySelector<HTMLElement>('.score-playback-cursor')!;
+    expect(cursor.style.left).toBe('88px');
+
+    await controller.play();
+    controller.syncCursorToStep(0);
+    expect(cursor.style.left).toBe('88px');
+
+    audio.currentTime = 1.1;
+    controller.syncCursorToStep(0);
+    expect(cursor.style.left).toBe('170px');
+    expect(cursor.style.width).toBe('20px');
+
+    controller.dispose();
+  });
+
   it('renders pages, synchronizes the SVG cursor, resizes, and cleans up resources', async () => {
     const viewport = document.createElement('div');
     const container = document.createElement('div');
