@@ -93,8 +93,8 @@ def test_verovio_footer_mode_is_normalized_and_validated() -> None:
 def test_task_reliability_defaults_are_positive() -> None:
     settings = Settings()
 
-    assert settings.TASK_PENDING_STALE_SECONDS > 0
-    assert settings.TASK_PROGRESS_STALE_SECONDS > 0
+    assert settings.JOB_PENDING_STALE_SECONDS > 0
+    assert settings.JOB_PROGRESS_STALE_SECONDS > 0
     assert settings.ORPHAN_UPLOAD_TTL_SECONDS > 0
 
 

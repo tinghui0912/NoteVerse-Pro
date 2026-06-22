@@ -6,7 +6,7 @@ from typing import cast
 from celery.utils.log import get_task_logger
 
 from ..base import Step
-from ..context import TaskContext
+from ..context import JobContext
 
 logger = get_task_logger(__name__)
 
@@ -18,8 +18,8 @@ class ExtractXmlStep(Step):
     progress_start = 65
     progress_end = 70
 
-    def run(self, ctx: TaskContext) -> None:
-        logger.info(f"[{ctx.task_id}] Starting XML preparation")
+    def run(self, ctx: JobContext) -> None:
+        logger.info(f"[{ctx.job_id}] Starting XML preparation")
 
         if not ctx.omr_result:
             raise RuntimeError("OMR processing failed")
@@ -40,4 +40,4 @@ class ExtractXmlStep(Step):
             raise RuntimeError("OMR processing failed")
 
         ctx.main_xml = main_xml
-        logger.info(f"[{ctx.task_id}] XML preparation completed: {main_xml}")
+        logger.info(f"[{ctx.job_id}] XML preparation completed: {main_xml}")

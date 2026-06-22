@@ -1,0 +1,236 @@
+from __future__ import annotations
+
+import enum
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    UniqueConstraint,
+)
+from sqlmodel import Field, SQLModel
+
+from app.utils.timezone import utc_now_naive
+
+
+class MembershipRole(str, enum.Enum):
+    EDITOR = "EDITOR"
+    VIEWER = "VIEWER"
+
+
+class ShareGrantScope(str, enum.Enum):
+    VIEW = "VIEW"
+    EDIT_INVITE = "EDIT_INVITE"
+
+
+class ShareTargetMode(str, enum.Enum):
+    LATEST = "LATEST"
+    PINNED = "PINNED"
+
+
+class PublicationStatus(str, enum.Enum):
+    PUBLISHED = "PUBLISHED"
+    UNPUBLISHED = "UNPUBLISHED"
+
+
+class PublicationDiscoverability(str, enum.Enum):
+    LISTED = "LISTED"
+    UNLISTED = "UNLISTED"
+
+
+class AccessOrigin(str, enum.Enum):
+    OWNER = "OWNER"
+    MEMBERSHIP = "MEMBERSHIP"
+    SHARE = "SHARE"
+    PUBLICATION = "PUBLICATION"
+
+
+class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_memberships"
+    __table_args__ = (
+        UniqueConstraint("score_id", "user_id", name="uq_score_memberships_score_user"),
+        Index("idx_score_memberships_user_active", "user_id", "revoked_at"),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    score_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("scores.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
+    role: MembershipRole = Field(
+        sa_column=Column(SAEnum(MembershipRole, name="membershiprole"), nullable=False)
+    )
+    created_by_user_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+
+
+class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_share_grants"
+    __table_args__ = (
+        CheckConstraint(
+            "(target_mode = 'LATEST' AND target_revision_id IS NULL) OR "
+            "(target_mode = 'PINNED' AND target_revision_id IS NOT NULL)",
+            name="ck_score_share_grants_target",
+        ),
+        ForeignKeyConstraint(
+            ["score_id", "target_revision_id"],
+            ["score_revisions.score_id", "score_revisions.id"],
+            name="fk_score_share_grants_target_revision",
+        ),
+        Index("idx_score_share_grants_score_created", "score_id", "created_at"),
+        Index("idx_score_share_grants_token_hash", "token_hash", unique=True),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    score_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("scores.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    token_hash: str = Field(sa_column=Column(String(64), nullable=False))
+    scope: ShareGrantScope = Field(
+        sa_column=Column(SAEnum(ShareGrantScope, name="sharegrantscope"), nullable=False)
+    )
+    target_mode: ShareTargetMode = Field(
+        sa_column=Column(SAEnum(ShareTargetMode, name="sharetargetmode"), nullable=False)
+    )
+    target_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
+    allow_download: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, default=False, nullable=False),
+    )
+    allow_practice: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, default=False, nullable=False),
+    )
+    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    created_by_user_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class ScoreBookmark(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_bookmarks"
+    __table_args__ = (
+        UniqueConstraint("score_id", "user_id", name="uq_score_bookmarks_score_user"),
+        Index("idx_score_bookmarks_user_created", "user_id", "created_at"),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    score_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("scores.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class ShareGrantRedemption(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "share_grant_redemptions"
+    __table_args__ = (
+        UniqueConstraint("grant_id", "user_id", name="uq_share_grant_redemptions_grant_user"),
+        Index("idx_share_grant_redemptions_user_created", "user_id", "created_at"),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    grant_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("score_share_grants.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_publications"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["score_id", "published_revision_id"],
+            ["score_revisions.score_id", "score_revisions.id"],
+            name="fk_score_publications_revision",
+        ),
+        Index("idx_score_publications_status_discoverability", "status", "discoverability"),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    score_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("scores.id", ondelete="CASCADE"),
+            unique=True,
+            nullable=False,
+        )
+    )
+    public_slug: str = Field(sa_column=Column(String(128), unique=True, nullable=False))
+    published_revision_id: int = Field(sa_column=Column(BigInteger, nullable=False))
+    status: PublicationStatus = Field(
+        sa_column=Column(SAEnum(PublicationStatus, name="publicationstatus"), nullable=False)
+    )
+    discoverability: PublicationDiscoverability = Field(
+        sa_column=Column(
+            SAEnum(PublicationDiscoverability, name="publicationdiscoverability"),
+            nullable=False,
+        )
+    )
+    allow_download: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, default=False, nullable=False),
+    )
+    allow_practice: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, default=False, nullable=False),
+    )
+    published_by_user_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    )
+    published_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(
+            DateTime,
+            default=utc_now_naive,
+            onupdate=utc_now_naive,
+            nullable=False,
+        ),
+    )

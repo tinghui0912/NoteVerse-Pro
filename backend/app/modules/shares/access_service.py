@@ -59,11 +59,11 @@ class ShareAccessService:
             )
 
         from app.db.worker_session import get_db_session
-        from app.modules.tasks.worker_service import sync_task_service
+        from app.modules.tasks.legacy_projection_service import legacy_task_projection_service
 
         sync_db = get_db_session()
         try:
-            status_data = sync_task_service.get_task_status(sync_db, task.task_uuid)
+            status_data = legacy_task_projection_service.get_task_status(sync_db, task.task_uuid)
         finally:
             sync_db.close()
 

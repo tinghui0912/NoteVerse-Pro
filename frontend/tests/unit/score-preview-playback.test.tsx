@@ -80,4 +80,33 @@ describe('score preview playback ownership', () => {
     await waitFor(() => expect(result.current.loadError).toBe('Invalid score'));
     expect(controller.dispose).toHaveBeenCalledTimes(1);
   });
+
+  it('suspends window following on manual scroll and can return to playback', async () => {
+    const controller = createFakeController();
+    const { result } = renderHook(
+      () => useScorePreviewPlayback({
+        isOpen: true,
+        xmlString: '<score-partwise />',
+        createController: async () => controller,
+        followViewport: 'window',
+      }),
+      { wrapper: IntlWrapper }
+    );
+
+    act(() => result.current.scoreContainerRef(document.createElement('div')));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const playbackStateListener = vi.mocked(controller.onPlaybackStateChange).mock.calls[0][0];
+
+    act(() => playbackStateListener('PLAYING'));
+    act(() => window.dispatchEvent(new WheelEvent('wheel')));
+    expect(result.current.isFollowSuspended).toBe(true);
+    expect(controller.pause).not.toHaveBeenCalled();
+
+    act(() => result.current.returnToPlaybackPosition());
+    expect(result.current.isFollowSuspended).toBe(false);
+    expect(controller.ensureCursorVisible).toHaveBeenLastCalledWith({
+      scrollTarget: 'window',
+      force: true,
+    });
+  });
 });

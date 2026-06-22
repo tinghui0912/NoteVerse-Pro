@@ -2,10 +2,15 @@ import { expect, test } from '@playwright/test';
 
 const taskId = 'task-results-layout';
 const scoreTitle = 'Layout Test Score';
+const measures = Array.from({ length: 36 }, (_, index) => `
+  <measure number="${index + 1}">
+    ${index === 0 ? '<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>' : ''}
+    <note id="n${index + 1}"><pitch><step>${index % 2 === 0 ? 'C' : 'E'}</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note>
+  </measure>`).join('');
 const musicXml = `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
-  <part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part>
+  <part id="P1">${measures}</part>
 </score-partwise>`;
 
 test('shows explicit breadcrumbs, grouped actions, and a real editable share dialog', async ({
@@ -109,6 +114,30 @@ test('shows explicit breadcrumbs, grouped actions, and a real editable share dia
   await expect(page.getByRole('button', { name: 'Go back' })).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('History');
   await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).not.toContainText('My Uploads');
+
+  const dock = page.getByTestId('results-playback-dock');
+  const scoreViewport = page.getByTestId('score-preview-viewport');
+  await expect(dock).toBeVisible();
+  await expect(scoreViewport.locator('[data-score-page]')).not.toHaveCount(0);
+  await expect.poll(() => scoreViewport.evaluate((element) => (
+    element.scrollHeight <= element.clientHeight + 2
+  ))).toBe(true);
+  expect(await dock.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+  await expect(dock).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(dock).toBeVisible();
+  expect((await dock.boundingBox())?.width).toBeLessThanOrEqual(390);
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const footerBox = await page.locator('footer').boundingBox();
+  const dockBox = await dock.boundingBox();
+  expect(footerBox).not.toBeNull();
+  expect(dockBox).not.toBeNull();
+  expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(dockBox!.y + 1);
+  await page.evaluate(() => window.scrollTo(0, 0));
 
   const metadata = page.getByTestId('results-metadata');
   await metadata.getByRole('button', { name: 'Edit' }).click();

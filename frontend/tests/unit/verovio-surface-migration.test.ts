@@ -15,7 +15,7 @@ describe('Verovio listen surfaces', () => {
     expect(source).not.toContain('backend=');
   });
 
-  it('renders the results score player inline without a listen dialog', () => {
+  it('renders results with a shared viewport and persistent playback dock', () => {
     const page = readSource('src/app/[locale]/results/[id]/page.tsx');
     const actions = readSource('src/components/results/results-actions.tsx');
     const player = readSource('src/components/results/results-score-player.tsx');
@@ -23,7 +23,10 @@ describe('Verovio listen surfaces', () => {
     expect(page).toContain('<ResultsBreadcrumbs');
     expect(page).not.toContain('<ResultsScorePreview');
     expect(actions).not.toContain('<ListenModal');
-    expect(player).toContain('controlsClassName=');
+    expect(player).toContain('<ScorePreviewViewport');
+    expect(player).toContain('<ResultsPlaybackDock');
+    expect(player).toContain("followViewport: 'window'");
+    expect(player).not.toContain('<ScorePreviewPanel');
     expect(player).not.toContain('<CardTitle');
   });
 

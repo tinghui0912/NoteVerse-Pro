@@ -95,6 +95,7 @@ function ResultsPageContent({ id, source }: { id: string; source: 'shares' | 'up
         </div>
       </main>
       <Footer />
+      <div aria-hidden="true" className="h-36 shrink-0 md:h-28" />
     </div>
   );
 }

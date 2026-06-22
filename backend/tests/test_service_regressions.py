@@ -27,11 +27,12 @@ from app.modules.files.render_service import _store_rendered_image
 from app.modules.practice.service import PracticeService
 from app.modules.profile.service import AvatarService
 from app.modules.shares.service import ShareService
-from app.modules.tasks.execution_service import TaskExecutionService
+from app.modules.jobs.execution_service import JobExecutionService
 from app.modules.tasks.service import TaskService
-from app.modules.tasks.maintenance_service import TaskMaintenanceService
-from app.modules.tasks.worker_service import SyncTaskService, sync_task_service
-from app.modules.tasks.submission_service import TaskSubmissionService
+from app.modules.jobs.maintenance_service import JobMaintenanceService
+from app.modules.jobs.worker_service import sync_job_service
+from app.modules.tasks.legacy_projection_service import LegacyTaskProjectionService
+from app.modules.jobs.submission_service import JobSubmissionService
 from app.pipeline.files_recorder import _build_file_item
 from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
@@ -409,7 +410,7 @@ def test_files_recorder_uploads_task_output_to_storage_key() -> None:
             )
 
         assert item["storage_backend"] == "local"
-        assert item["storage_key"] == "tasks/task-1/preview_image/001-preview-01.svg"
+        assert item["storage_key"] == "jobs/task-1/preview_image/001-preview-01.svg"
         assert item["filename"] == "001-preview-01.svg"
         assert item["page_number"] == 1
         assert item["mime_type"] == "image/svg+xml"
@@ -432,7 +433,7 @@ def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
                 page=1,
             )
 
-        assert item["storage_key"] == "tasks/task-1/original_image/001-input.jpg"
+        assert item["storage_key"] == "jobs/task-1/original_image/001-input.jpg"
         assert "FileKind" not in item["storage_key"]
 
 
@@ -527,6 +528,7 @@ def test_s3_storage_avatar_public_url_uses_stable_object_url() -> None:
 
 def test_task_maintenance_fails_stale_tasks() -> None:
     stale_pending = SimpleNamespace(
+        job_uuid="job-pending",
         state=None,
         progress=30,
         error=None,
@@ -536,6 +538,7 @@ def test_task_maintenance_fails_stale_tasks() -> None:
         updated_at=None,
     )
     stale_progress = SimpleNamespace(
+        job_uuid="job-progress",
         state=None,
         progress=60,
         error=None,
@@ -545,30 +548,25 @@ def test_task_maintenance_fails_stale_tasks() -> None:
         updated_at=None,
     )
     repository = Mock()
-    repository.list_stale_pending_tasks.return_value = [stale_pending]
-    repository.list_stale_progress_tasks.return_value = [stale_progress]
-    service = TaskMaintenanceService(repository=repository)
+    repository.list_stale_pending.return_value = [stale_pending]
+    repository.list_stale_progress.return_value = [stale_progress]
+    service = JobMaintenanceService(repository=repository)
     db = Mock()
 
-    with patch("app.modules.tasks.maintenance_service.settings.TASK_PENDING_STALE_SECONDS", 600):
-        with patch("app.modules.tasks.maintenance_service.settings.TASK_PROGRESS_STALE_SECONDS", 900):
-            assert service.fail_stale_pending_tasks(db) == 1
-            assert service.fail_stale_progress_tasks(db) == 1
+    with patch("app.modules.jobs.maintenance_service.sync_job_service.finalize_failure") as fail:
+        assert service.fail_stale_pending(db) == 1
+        assert service.fail_stale_progress(db) == 1
 
-    assert stale_pending.state == "FAILURE"
-    assert stale_progress.state == "FAILURE"
-    assert stale_pending.code == "task_stale"
-    assert stale_progress.code == "task_stale"
-    assert stale_pending.finished_at is not None
-    assert stale_progress.finished_at is not None
-    assert db.commit.call_count == 2
+    assert fail.call_count == 2
+    assert fail.call_args_list[0].args[1] == "job-pending"
+    assert fail.call_args_list[1].args[1] == "job-progress"
 
 
 def test_task_maintenance_deletes_orphan_upload_file_and_row() -> None:
     repository = Mock()
     storage = Mock()
     storage.delete.return_value = True
-    service = TaskMaintenanceService(repository=repository, storage=storage)
+    service = JobMaintenanceService(repository=repository, storage=storage)
     db = Mock()
 
     upload = SimpleNamespace(
@@ -578,7 +576,7 @@ def test_task_maintenance_deletes_orphan_upload_file_and_row() -> None:
     repository.list_orphan_uploads.return_value = [upload]
 
     with patch(
-        "app.modules.tasks.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
+        "app.modules.jobs.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
         86400,
     ):
         deleted = service.cleanup_orphan_uploads(db)
@@ -591,20 +589,20 @@ def test_task_maintenance_deletes_orphan_upload_file_and_row() -> None:
 
 @pytest.mark.asyncio
 async def test_task_submission_marks_dispatch_failure() -> None:
-    service = TaskSubmissionService()
-    request = SimpleNamespace(file_ids=["abc"], options={})
+    service = JobSubmissionService()
+    request = SimpleNamespace(file_ids=["abc"], options={}, idempotency_key=None)
     current_user = SimpleNamespace(id=5)
 
     with patch.object(service, "_ensure_uploads_exist") as ensure_mock:
-        with patch.object(service, "_create_pending_task") as create_mock:
+        with patch.object(service, "_create_pending_job") as create_mock:
             with patch.object(
                 service,
-                "_dispatch_batch_processing",
+                "_dispatch",
                 side_effect=RuntimeError("broker publish failed"),
             ) as dispatch_mock:
                 with patch.object(service, "_mark_dispatch_failure") as mark_mock:
                     with pytest.raises(Exception) as context:
-                        await service.submit_batch(current_user, request)
+                        await service.submit(current_user, request)
 
     ensure_mock.assert_called_once_with(5, ["abc"])
     create_mock.assert_called_once()
@@ -616,7 +614,7 @@ async def test_task_submission_marks_dispatch_failure() -> None:
 
 @pytest.mark.asyncio
 async def test_task_submission_reuses_existing_idempotency_key() -> None:
-    service = TaskSubmissionService()
+    service = JobSubmissionService()
     request = SimpleNamespace(
         file_ids=["abc"],
         options={},
@@ -626,13 +624,13 @@ async def test_task_submission_reuses_existing_idempotency_key() -> None:
 
     with patch.object(
         service,
-        "_get_existing_task_uuid",
+        "_existing_job_uuid",
         return_value="existing-task",
     ) as existing_mock:
         with patch.object(service, "_ensure_uploads_exist") as ensure_mock:
-            result = await service.submit_batch(current_user, request)
+            result = await service.submit(current_user, request)
 
-    assert result == {"task_id": "existing-task", "count": 1}
+    assert result == {"job_id": "existing-task", "count": 1}
     existing_mock.assert_called_once_with(5, "submission-key-1")
     ensure_mock.assert_not_called()
 
@@ -640,19 +638,19 @@ async def test_task_submission_reuses_existing_idempotency_key() -> None:
 def test_task_execution_resolves_file_ids_inside_worker() -> None:
     storage = Mock()
     storage.resolve_score_uploads.return_value = ["C:/worker/cache/score.png"]
-    service = TaskExecutionService(storage=storage)
+    service = JobExecutionService(storage=storage)
 
     assert service._resolve_input_paths(["abc123"]) == ["C:/worker/cache/score.png"]
     storage.resolve_score_uploads.assert_called_once_with(["abc123"])
 
 
 def test_task_submission_rejects_upload_owned_by_another_user() -> None:
-    service = TaskSubmissionService(storage=Mock())
+    service = JobSubmissionService(storage=Mock())
     sync_db = Mock()
     upload = SimpleNamespace(uploader_user_id=99)
 
     with patch("app.db.worker_session.get_db_session", return_value=sync_db):
-        with patch.object(sync_task_service.repository, "get_upload_by_sha256", return_value=upload):
+        with patch.object(sync_job_service.repository, "get_upload_by_sha256", return_value=upload):
             with pytest.raises(ResourceNotFoundException) as context:
                 service._ensure_uploads_exist(5, ["abc"])
 
@@ -708,7 +706,7 @@ def test_worker_service_reset_session_state_rolls_back_failed_commit() -> None:
     db = Mock()
     db.commit.side_effect = RuntimeError("stale transaction")
 
-    SyncTaskService._reset_session_state(db)
+    LegacyTaskProjectionService._reset_session_state(db)
 
     db.expire_all.assert_called_once_with()
     db.commit.assert_called_once_with()

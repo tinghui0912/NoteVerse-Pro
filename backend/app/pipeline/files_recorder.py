@@ -1,16 +1,17 @@
 """
-Files recorder service for task outputs.
+Files recorder service for processing-job outputs.
 
 This module records task-related file paths into the database after worker-side
 pipeline steps complete.
 """
 
+import hashlib
 import mimetypes
 import os
 from enum import Enum
 from typing import List
 
-from app.modules.tasks.schemas import TaskFileReplaceItem
+from app.modules.jobs.schemas import JobArtifactItem
 from app.storage import file_storage
 
 
@@ -45,7 +46,7 @@ def _guess_mime_type(path: str) -> str:
 
 
 def replace_files(
-    task_id: str,
+    job_id: str,
     kind: object,
     abs_paths: List[str],
 ) -> None:
@@ -53,37 +54,41 @@ def replace_files(
     Write file records to the unified files table for a worker task.
 
     Args:
-        task_id: Task UUID.
+        job_id: Job UUID.
         kind: File kind, for example `original_image` or `final_xml`.
         abs_paths: Absolute file paths to record.
 
     Storage format:
         Files are uploaded to the configured storage adapter and recorded as
-        object keys under `tasks/{task_id}/{kind}/`.
+        object keys under `jobs/{job_id}/{kind}/`.
     """
     from app.db.worker_session import get_worker_db
-    from app.modules.tasks.worker_service import sync_task_service
+    from app.modules.jobs.worker_service import sync_job_service
 
     normalized_kind = _kind_value(kind)
-    items: List[TaskFileReplaceItem] = [
-        _build_file_item(task_id, normalized_kind, p, i + 1)
+    items: List[JobArtifactItem] = [
+        _build_file_item(job_id, normalized_kind, p, i + 1)
         for i, p in enumerate(abs_paths)
     ]
 
     with get_worker_db() as db:
-        sync_task_service.replace_files(db, task_id, normalized_kind, items)
+        sync_job_service.replace_artifacts(db, job_id, normalized_kind, items)
 
 
 def _build_file_item(
-    task_id: str,
+    job_id: str,
     kind: object,
     abs_path: str,
     page: int,
-) -> TaskFileReplaceItem:
+) -> JobArtifactItem:
     normalized_kind = _kind_value(kind)
     mime_type = _guess_mime_type(abs_path)
     size = os.path.getsize(abs_path) if os.path.exists(abs_path) else None
-    storage_key = _store_task_output(task_id, normalized_kind, abs_path, page, mime_type)
+    storage_key = _store_job_output(job_id, normalized_kind, abs_path, page, mime_type)
+    sha256 = None
+    if os.path.exists(abs_path):
+        with open(abs_path, "rb") as file_handle:
+            sha256 = hashlib.sha256(file_handle.read()).hexdigest()
 
     return {
         "storage_backend": file_storage.backend_name,
@@ -92,18 +97,19 @@ def _build_file_item(
         "page_number": page,
         "mime_type": mime_type,
         "size": size,
+        "sha256": sha256,
     }
 
 
-def _store_task_output(
-    task_id: str,
+def _store_job_output(
+    job_id: str,
     kind: str,
     abs_path: str,
     page: int,
     mime_type: str,
 ) -> str:
     filename = os.path.basename(abs_path)
-    key = f"tasks/{task_id}/{kind}/{page:03d}-{filename}"
+    key = f"jobs/{job_id}/{kind}/{page:03d}-{filename}"
 
     with open(abs_path, "rb") as file_handle:
         stored = file_storage.put_bytes(

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { RestorableTaskData, UploadableFile } from '@/components/upload/upload-types';
 import { getCompletedTaskRoute } from '@/components/upload/upload-types';
-import { useSubmitBatch, useTaskDetail } from '@/hooks/queries/use-task-queries';
+import { useJobDetail, useSubmitJob } from '@/hooks/queries/use-job-queries';
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, tasksApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
@@ -29,7 +29,7 @@ export function useUploadWorkflow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const submitBatchMutation = useSubmitBatch();
+  const submitJobMutation = useSubmitJob();
   const [files, setFiles] = useState<UploadableFile[]>([]);
   const filesRef = useRef<UploadableFile[]>([]);
   const submissionKeyRef = useRef<string | null>(null);
@@ -37,7 +37,7 @@ export function useUploadWorkflow() {
   const [difficulty, setDifficulty] = useState('difficultyIntermediate');
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [taskProgress, setTaskProgress] = useState(0);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [pollInterval, setPollInterval] = useState<number | false>(false);
@@ -78,42 +78,42 @@ export function useUploadWorkflow() {
     });
   }, [setTrackedFiles]);
 
-  const { data: statusResponse } = useTaskDetail(currentTaskId ?? '', {
-    enabled: Boolean(currentTaskId) && pollInterval !== false,
+  const { data: statusResponse } = useJobDetail(currentJobId ?? '', {
+    enabled: Boolean(currentJobId) && pollInterval !== false,
     refetchInterval: pollInterval,
   });
 
   useEffect(() => {
-    const task = statusResponse?.data;
-    if (!task || !currentTaskId) return;
+    const job = statusResponse?.data;
+    if (!job || !currentJobId) return;
 
     if (Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS) {
       const description = t('processingTimeoutDesc');
       toast({ title: t('processingTimeout'), description, variant: 'destructive' });
       setTaskError(description);
       setIsSubmitting(false);
-      setCurrentTaskId(null);
+      setCurrentJobId(null);
       setPollInterval(false);
       return;
     }
 
-    setTaskProgress(task.progress || 0);
-    const state = String(task.state).toUpperCase();
+    setTaskProgress(job.progress || 0);
+    const state = String(job.state).toUpperCase();
     if (state === 'PENDING_REVIEW' || state === 'SUCCESS') {
-      const completedTaskId = currentTaskId;
+      const completedTaskId = job.score_id ?? currentJobId;
       setIsSubmitting(false);
-      setCurrentTaskId(null);
+      setCurrentJobId(null);
       setPollInterval(false);
       setTaskProgress(0);
       clearFiles();
       router.push(getCompletedTaskRoute(completedTaskId, state));
     } else if (state === 'FAILURE') {
-      setTaskError(task.error || t('taskProcessingFailed'));
+      setTaskError(job.error || t('taskProcessingFailed'));
       setIsSubmitting(false);
-      setCurrentTaskId(null);
+      setCurrentJobId(null);
       setPollInterval(false);
     }
-  }, [clearFiles, currentTaskId, pollStartTime, router, statusResponse?.data, t, toast]);
+  }, [clearFiles, currentJobId, pollStartTime, router, statusResponse?.data, t, toast]);
 
   useEffect(() => {
     if (!urlTaskId) return;
@@ -160,7 +160,7 @@ export function useUploadWorkflow() {
 
         const state = String(data.state).toUpperCase();
         if (state === 'PENDING' || state === 'PROGRESS') {
-          setCurrentTaskId(urlTaskId);
+          setCurrentJobId(urlTaskId);
           setIsSubmitting(true);
           setTaskProgress(data.progress || 0);
           setPollStartTime(Date.now());
@@ -186,7 +186,7 @@ export function useUploadWorkflow() {
 
   const startRecognition = useCallback(async () => {
     if (filesRef.current.length === 0) return;
-    setCurrentTaskId(null);
+    setCurrentJobId(null);
     setTaskProgress(0);
     setTaskError(null);
     setIsUploading(true);
@@ -234,15 +234,15 @@ export function useUploadWorkflow() {
       setIsUploading(false);
       setIsSubmitting(true);
       submissionKeyRef.current ??= createSubmissionIdempotencyKey();
-      const response = await submitBatchMutation.mutateAsync({
+      const response = await submitJobMutation.mutateAsync({
         fileIds: uploadedFileIds,
         idempotencyKey: submissionKeyRef.current,
         options: { title: scoreName || undefined, difficulty },
       });
-      const taskId = response.data?.task_id;
-      if (!taskId) throw new Error(tCommon('operationFailed'));
+      const jobId = response.data?.job_id;
+      if (!jobId) throw new Error(tCommon('operationFailed'));
       submissionKeyRef.current = null;
-      setCurrentTaskId(taskId);
+      setCurrentJobId(jobId);
       setTaskProgress(5);
       setPollStartTime(Date.now());
       setPollInterval(TASK_POLL_INTERVAL_MS);
@@ -257,7 +257,7 @@ export function useUploadWorkflow() {
       setIsUploading(false);
       setIsSubmitting(false);
     }
-  }, [difficulty, scoreName, setTrackedFiles, submitBatchMutation, t, tCommon, toast]);
+  }, [difficulty, scoreName, setTrackedFiles, submitJobMutation, t, tCommon, toast]);
 
   return {
     appendFiles,

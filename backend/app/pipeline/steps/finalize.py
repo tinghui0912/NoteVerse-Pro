@@ -8,7 +8,7 @@ from celery.utils.log import get_task_logger
 from app.shared.file_kinds import FileKind
 
 from ..base import Step
-from ..context import TaskContext
+from ..context import JobContext
 
 logger = get_task_logger(__name__)
 
@@ -20,10 +20,10 @@ class FinalizeStep(Step):
     progress_start = 98
     progress_end = 99
 
-    def run(self, ctx: TaskContext) -> None:
+    def run(self, ctx: JobContext) -> None:
         main_xml = ctx.main_xml
         if not main_xml or not os.path.exists(main_xml):
-            logger.warning(f"[{ctx.task_id}] XML file not found; skipping current_xml creation")
+            logger.warning(f"[{ctx.job_id}] XML file not found; skipping current_xml creation")
             return
 
         from app.pipeline.files_recorder import replace_files
@@ -31,5 +31,5 @@ class FinalizeStep(Step):
         xml_dir = os.path.dirname(main_xml)
         current_path = os.path.join(xml_dir, "current.xml")
         shutil.copy2(main_xml, current_path)
-        replace_files(ctx.task_id, FileKind.CURRENT_XML, [os.path.abspath(current_path)])
-        logger.info(f"[{ctx.task_id}] Created current_xml: {current_path}")
+        replace_files(ctx.job_id, FileKind.CURRENT_XML, [os.path.abspath(current_path)])
+        logger.info(f"[{ctx.job_id}] Created current_xml: {current_path}")

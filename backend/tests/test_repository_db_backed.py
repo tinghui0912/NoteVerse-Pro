@@ -13,10 +13,12 @@ from app.db.models.practice import (
     PracticeSessionState,
     PracticeSourceType,
 )
+from app.db.models.processing_job import ProcessingJob, ProcessingJobState
 from app.db.models.share import SavedShare, Share
 from app.db.models.task import Task, TaskState, TaskStep, TaskStepStatus
 from app.db.models.user import User, UserRole
 from app.modules.files.repository import FilesRepository
+from app.modules.jobs.repository import JobRepository
 from app.modules.practice.repository import PracticeRepository
 from app.modules.shares.repository import SharesRepository
 from app.modules.tasks.repository import TaskRepository
@@ -131,6 +133,27 @@ def db_backed_session() -> Iterator[AsyncSessionAdapter]:
         title="Nocturne",
         progress=0,
     )
+    job_1 = ProcessingJob(
+        id=701,
+        job_uuid="job-1",
+        user_id=1,
+        state=ProcessingJobState.PENDING,
+        progress=0,
+    )
+    job_2 = ProcessingJob(
+        id=702,
+        job_uuid="job-2",
+        user_id=1,
+        state=ProcessingJobState.PROGRESS,
+        progress=40,
+    )
+    job_3 = ProcessingJob(
+        id=703,
+        job_uuid="job-3",
+        user_id=2,
+        state=ProcessingJobState.FAILURE,
+        progress=0,
+    )
     share_1 = Share(
         id=201,
         task_id=101,
@@ -193,6 +216,9 @@ def db_backed_session() -> Iterator[AsyncSessionAdapter]:
         task_1,
         task_2,
         task_3,
+        job_1,
+        job_2,
+        job_3,
         share_1,
         saved_share_1,
         file_1,
@@ -229,19 +255,27 @@ async def test_task_repository_counts_and_lists_tasks(db_backed_session: AsyncSe
         sort_by="title",
         sort_order="asc",
     )
-    statuses = await repository.batch_status(
-        db_backed_session,
-        ["task-1", "task-2", "task-3"],
-        user_id=1,
-    )
-
     assert total == 2
     assert filtered == 1
     assert [task.task_uuid for task in tasks] == ["task-2", "task-1"]
-    assert statuses == {
-        "task-1": {"state": TaskState.SUCCESS, "progress": 100, "error": None},
-        "task-2": {"state": TaskState.PROGRESS, "progress": 50, "error": None},
-    }
+
+
+@pytest.mark.asyncio
+async def test_job_repository_scopes_status_to_owner(
+    db_backed_session: AsyncSessionAdapter,
+) -> None:
+    repository = JobRepository()
+
+    job = await repository.get_by_uuid(db_backed_session, "job-1")
+    jobs = await repository.batch_status(
+        db_backed_session,
+        ["job-1", "job-2", "job-3"],
+        user_id=1,
+    )
+
+    assert job is not None
+    assert job.state == ProcessingJobState.PENDING
+    assert [item.job_uuid for item in jobs] == ["job-1", "job-2"]
 
 
 @pytest.mark.asyncio

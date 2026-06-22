@@ -1,6 +1,6 @@
 # NoteVerse Score Domain Architecture Migration Plan
 
-> Status: active plan, implementation not started  
+> Status: active plan, implementation in progress
 > Baseline date: 2026-06-22  
 > Scope: processing jobs, scores, revisions, artifacts, metadata, sharing,
 > publication, practice references, frontend contracts, and results playback layout.
@@ -716,7 +716,7 @@ Cutover is blocked while unresolved canonical XML or practice revision mappings 
 
 ### P0-1 Architecture decisions and contract fixtures
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** none.
 
 Tasks:
@@ -735,9 +735,27 @@ Acceptance:
 - deferred features remain documented as non-goals;
 - fixtures characterize current MusicXML and workflow behavior.
 
+Delivered:
+
+- ADR 0002 fixes job/score identity, linear immutable revisions, head/approved pointers,
+  content-hash idempotency, and classified revision conflicts;
+- ADR 0003 fixes the boundary between revision-owned stored artifacts and typed rebuildable
+  metadata projections, including logical-measure and changing key/meter/tempo semantics;
+- ADR 0004 fixes centralized policy actions, VIEW versus EDIT_INVITE grants, authenticated
+  edit redemption, bookmark separation, and revision-pinned publication;
+- `backend/docs/contracts/score-domain-v1.json` freezes enums, identities, invariants,
+  capabilities, target error codes, and request examples for both backend and frontend tests;
+- backend fixtures cover two-part logical measure counting, key/meter/tempo changes, repeats,
+  and well-formed MusicXML containing semantically invalid metadata;
+- repository search found no external `/api/v1/tasks` consumer beyond the bundled frontend
+  and tests, so the pre-release cutover may retain `/api/v1`; this decision must be revisited
+  if an external consumer appears before P3/P4;
+- focused validation passed: 4 backend contract/fixture tests, Ruff, 2 frontend contract
+  tests, and ESLint.
+
 ### P0-2 Results persistent playback dock
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** none; deliver independently before data-model work.
 
 Tasks:
@@ -750,9 +768,24 @@ Tasks:
 
 Acceptance: all criteria in section 8.5 pass.
 
+Delivered:
+
+- score viewport rendering is shared independently from controls presentation, while
+  `use-score-preview-playback` remains the single owner of playback state and lifecycle;
+- results renders the complete Verovio score without a nested vertical scroll area and keeps
+  a compact, mobile-safe playback dock fixed to the viewport bottom;
+- results reserves page-end space so the dock does not cover the final system or footer;
+- playback follows the active system through window scrolling, suspends that follow after
+  manual wheel, touch, keyboard, or scrollbar navigation, and exposes an explicit return action;
+- `ListenModal` and other preview surfaces retain their existing inline control presentation;
+- focused hook/controller tests cover follow suspension and window scrolling, while the
+  long-score Playwright scenario covers desktop, mobile, middle-scroll, and footer behavior;
+- validation passed: full ESLint, TypeScript, 48 unit/component tests, production build, and
+  the results layout Playwright scenario.
+
 ### P1-1 New schema and model layer
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P0-1.
 
 Tasks:
@@ -769,9 +802,26 @@ Acceptance:
 - model-layer mypy passes;
 - constraints reject invalid revision, grant, and publication combinations.
 
+Delivered:
+
+- added separate SQLModel ownership for processing jobs/artifacts, scores/revisions/artifacts/
+  metadata, and score access/publication records under `app/db/models`;
+- added an expand-only Alembic migration after `e7f8a9b0c123`; legacy task, file, share, and
+  practice columns remain available while nullable score-domain practice references coexist;
+- database constraints enforce UUID and idempotency identities, linear revision numbering and
+  same-score pointers, content deduplication, one canonical MusicXML artifact, rendered-page
+  identity, classified metadata failures, share target consistency, token hashes, memberships,
+  bookmarks, redemptions, publication slugs, and revision-pinned publication;
+- circular job/score/revision foreign keys are created and dropped in an explicit second phase;
+- DB-backed invariant coverage rejects cross-score revision, share, and publication references
+  plus duplicate artifacts, grants, memberships, and bookmarks;
+- validation passed: Ruff, full mypy, independent model-layer mypy, 209 backend tests, and a
+  clean PostgreSQL `upgrade head -> downgrade e7f8a9b0c123 -> upgrade head` cycle;
+- no application repository or API has switched to the new tables; that cutover starts in P1-2.
+
 ### P1-2 Processing job extraction
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P1-1.
 
 Tasks:
@@ -789,6 +839,25 @@ Acceptance:
 - processing can succeed/fail/retry without a Score row being required;
 - existing Celery reliability tests remain green under job naming;
 - no worker payload contains local paths.
+
+Delivered:
+
+- added the canonical `modules/jobs` router, schemas, service, submission, repositories,
+  synchronous worker service, execution service, dependencies, and maintenance ownership;
+- `POST /jobs`, `GET /jobs/{jobId}`, batch status, and delete now use `ProcessingJob`; the
+  retired task submit/status endpoints and frontend clients were removed;
+- upload submission and polling now exchange `job_id`, while the completed route temporarily
+  falls back to the matching legacy projection ID until P1-3 returns a real `score_id`;
+- pipeline ownership now uses `JobContext`, `job_id`, and `job_temp`; new durable outputs use
+  `jobs/{job_uuid}/{kind}/...` and are registered as `ProcessingArtifact` rows with hashes;
+- worker payloads contain upload hashes only and always materialize them through storage;
+- Job uploads are explicitly linked so orphan cleanup cannot delete queued or running inputs;
+- Celery keeps late acknowledgement, worker-lost rejection, failure acknowledgement, soft/hard
+  limits, prefetch 1, heartbeat updates, stale recovery, and dispatch-failure marking;
+- legacy Task/File writes live behind explicitly named projection service/repository files and
+  are one-way compatibility output for current review/results routes, not worker state input;
+- validation passed: Ruff, full and model-layer mypy, 213 backend tests, 49 frontend tests,
+  frontend lint/typecheck/build, and a clean PostgreSQL upgrade/downgrade/upgrade cycle.
 
 ### P1-3 Score creation and revision service
 

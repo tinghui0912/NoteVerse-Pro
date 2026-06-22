@@ -43,6 +43,7 @@
   "maximize": "Maximize",
   "loopPlay": "Loop Play",
   "cancelLoop": "Cancel Loop",
+  "returnToPlaybackPosition": "Return to playback position",
   "savingSuccess": "Saved Successfully",
   "scoreSaved": "Score saved",
   "copied": "Copied",

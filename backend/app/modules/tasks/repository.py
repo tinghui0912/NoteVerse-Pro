@@ -9,7 +9,6 @@ from app.db.models import Task
 from app.db.models.file import File, TaskUpload
 from app.db.models.share import SavedShare, Share
 from app.db.models.task import TaskStep
-from app.modules.tasks.schemas import BatchStatusEntry
 
 file_task_id_col = File.__table__.c.task_id
 saved_share_id_col = SavedShare.__table__.c.id
@@ -152,22 +151,6 @@ class TaskRepository:
         await db.execute(delete(File).where(File.task_id == task_id))
         await db.execute(delete(TaskUpload).where(TaskUpload.task_id == task_id))
         await db.execute(delete(Task).where(Task.id == task_id))
-
-    async def batch_status(
-        self,
-        db: AsyncSession,
-        task_uuids: List[str],
-        user_id: int,
-    ) -> Dict[str, BatchStatusEntry]:
-        tasks = await self.get_tasks_by_uuids_for_user(db, task_uuids, user_id)
-        return {
-            task.task_uuid: {
-                "state": task.state,
-                "progress": task.progress or 0,
-                "error": task.error,
-            }
-            for task in tasks
-        }
 
     async def list_files_for_tasks(
         self,

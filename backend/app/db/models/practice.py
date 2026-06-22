@@ -6,6 +6,7 @@ from sqlalchemy import BigInteger, Column, DateTime, Float, ForeignKey, Index, S
 from sqlmodel import SQLModel, Field, Relationship
 
 from app.utils.timezone import utc_now_naive
+from .score_access import AccessOrigin
 
 if TYPE_CHECKING:
     from .task import Task
@@ -43,6 +44,25 @@ class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]
     id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
     session_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     task_id: int = Field(sa_column=Column(BigInteger, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False))
+    score_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(BigInteger, ForeignKey("scores.id", ondelete="SET NULL")),
+    )
+    revision_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(BigInteger, ForeignKey("score_revisions.id", ondelete="SET NULL")),
+    )
+    access_origin: Optional[AccessOrigin] = Field(
+        default=None,
+        sa_column=Column(SAEnum(AccessOrigin, name="accessorigin")),
+    )
+    share_grant_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("score_share_grants.id", ondelete="SET NULL"),
+        ),
+    )
     user_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=True))
     share_token: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
     source_type: PracticeSourceType = Field(

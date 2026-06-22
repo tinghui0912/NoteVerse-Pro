@@ -41,6 +41,10 @@ export interface SavedShareQueryFilters {
  * used for broad invalidation; leaf factories own complete cache identity.
  */
 export const queryKeys = {
+    jobs: {
+        all: ['jobs'] as const,
+        detail: (id: string) => ['jobs', 'detail', { id }] as const,
+    },
     tasks: {
         all: ['tasks'] as const,
         lists: () => ['tasks', 'list'] as const,

@@ -1,4 +1,4 @@
-"""Worker-side synchronous repository helpers for task persistence."""
+"""Persistence helpers for the temporary legacy Task/File projection."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from app.db.models import File, Task, TaskStep, TaskUpload, Upload
 from app.db.models.task import TaskState
 
 
-class SyncTaskRepository:
-    """Encapsulate synchronous ORM access for worker-side task flows."""
+class LegacyTaskProjectionRepository:
+    """Encapsulate synchronous access to the legacy projection tables."""
 
     @staticmethod
     def get_task_by_uuid(db: Session, task_uuid: str) -> Task | None:
@@ -97,4 +97,4 @@ class SyncTaskRepository:
         )
 
 
-sync_task_repository = SyncTaskRepository()
+legacy_task_projection_repository = LegacyTaskProjectionRepository()

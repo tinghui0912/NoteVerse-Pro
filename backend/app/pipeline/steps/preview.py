@@ -11,7 +11,7 @@ from app.core.exceptions import (
 from app.shared.constants import ErrorCode
 
 from ..base import Step
-from ..context import TaskContext
+from ..context import JobContext
 
 logger = get_task_logger(__name__)
 
@@ -23,7 +23,7 @@ class PreviewGenerationStep(Step):
     progress_start = 90
     progress_end = 98
 
-    def run(self, ctx: TaskContext) -> None:
+    def run(self, ctx: JobContext) -> None:
         from app.processing.engines.render import create_score_render_engine
 
         main_xml = ctx.main_xml
@@ -33,7 +33,7 @@ class PreviewGenerationStep(Step):
         if ctx.remaining() <= 0:
             raise TimeoutException(details={"error": "Task deadline exceeded before preview generation"})
 
-        logger.info(f"[{ctx.task_id}] Starting preview generation")
+        logger.info(f"[{ctx.job_id}] Starting preview generation")
 
         engine = create_score_render_engine(
             output_folder=ctx.preview_dir,
@@ -65,15 +65,15 @@ class PreviewGenerationStep(Step):
                 from app.pipeline.files_recorder import replace_files
 
                 replace_files(
-                    ctx.task_id,
+                    ctx.job_id,
                     FileKind.PREVIEW_IMAGE,
                     preview_images,
                 )
-                logger.info(f"[{ctx.task_id}] Recorded {len(preview_images)} preview images")
+                logger.info(f"[{ctx.job_id}] Recorded {len(preview_images)} preview images")
 
-            logger.info(f"[{ctx.task_id}] Preview generation completed: {preview_images}")
+            logger.info(f"[{ctx.job_id}] Preview generation completed: {preview_images}")
         except ScoreRenderFailedException:
             raise
         except Exception as exc:
-            logger.error(f"[{ctx.task_id}] Preview generation failed: {exc}")
+            logger.error(f"[{ctx.job_id}] Preview generation failed: {exc}")
             raise ScoreRenderFailedException(details={"error": str(exc)})

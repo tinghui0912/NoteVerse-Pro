@@ -1,7 +1,8 @@
 """
-Worker-only synchronous task service.
+Legacy Task/File read-model projection service.
 
-This is the canonical worker helper boundary under the tasks module.
+Processing jobs are canonical. This temporary service mirrors job state and
+artifacts for existing review/results routes until the Score cutover.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from app.modules.tasks.schemas import (
     TaskStatusResult,
     TaskStatusUploadItem,
 )
-from app.modules.tasks.worker_repository import SyncTaskRepository
+from app.modules.tasks.legacy_projection_repository import LegacyTaskProjectionRepository
 from app.utils.timezone import utc_now_naive
 
 
@@ -30,11 +31,11 @@ def _kind_value(kind: object) -> str:
     return str(kind)
 
 
-class SyncTaskService:
-    """Synchronous task helper for Celery workers."""
+class LegacyTaskProjectionService:
+    """Maintain the temporary Task/File compatibility projection."""
 
-    def __init__(self, repository: SyncTaskRepository | None = None) -> None:
-        self.repository = repository or SyncTaskRepository()
+    def __init__(self, repository: LegacyTaskProjectionRepository | None = None) -> None:
+        self.repository = repository or LegacyTaskProjectionRepository()
 
     @staticmethod
     def _reset_session_state(db: Session) -> None:
@@ -363,4 +364,4 @@ class SyncTaskService:
             "upload_ids": upload_ids,
         }
 
-sync_task_service = SyncTaskService()
+legacy_task_projection_service = LegacyTaskProjectionService()

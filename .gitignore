@@ -39,4 +39,4 @@ scratch/
 backend/data/
 backend/logs/
 backend/celerybeat-schedule.*
-models/
+/models/

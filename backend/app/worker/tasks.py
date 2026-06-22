@@ -5,9 +5,9 @@ from typing import List, Optional
 from celery.utils.log import get_task_logger
 
 from app.db.worker_session import get_worker_db
-from app.modules.tasks.execution_service import task_execution_service
-from app.modules.tasks.maintenance_service import task_maintenance_service
-from app.modules.tasks.schemas import PipelineExecutionSuccessResult, TaskProcessingOptions
+from app.modules.jobs.execution_service import job_execution_service
+from app.modules.jobs.maintenance_service import job_maintenance_service
+from app.modules.jobs.schemas import JobProcessingOptions, PipelineExecutionSuccessResult
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import send_email
 from app.worker.celery_config import celery_app
@@ -17,18 +17,18 @@ logger = get_task_logger(__name__)
 
 @celery_app.task(
     bind=True,
-    name="app.worker.tasks.process_images_task",
+    name="app.worker.tasks.process_images_job",
     acks_late=True,
     reject_on_worker_lost=True,
 )
-def process_images_task(
+def process_images_job(
     self: CeleryTaskLike,
-    image_paths: List[str],
-    options: Optional[TaskProcessingOptions] = None,
+    upload_ids: List[str],
+    options: Optional[JobProcessingOptions] = None,
 ) -> PipelineExecutionSuccessResult:
     """Run the image-processing pipeline for one or more input images."""
 
-    return task_execution_service.run_pipeline(self, image_paths, options)
+    return job_execution_service.run_pipeline(self, upload_ids, options)
 
 
 @celery_app.task(
@@ -52,12 +52,12 @@ def send_email_task(
     return {"status": "sent", "to_email": to_email}
 
 
-@celery_app.task(name="app.worker.tasks.run_task_maintenance")
-def run_task_maintenance() -> dict[str, int]:
-    """Run periodic task/upload maintenance."""
+@celery_app.task(name="app.worker.tasks.run_job_maintenance")
+def run_job_maintenance() -> dict[str, int]:
+    """Run periodic processing-job/upload maintenance."""
 
     with get_worker_db() as db:
-        result = task_maintenance_service.run(db)
+        result = job_maintenance_service.run(db)
 
     return {
         "stale_pending_failed": result.stale_pending_failed,

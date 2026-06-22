@@ -12,8 +12,6 @@ from app.modules.tasks.dependencies import get_task_service, get_task_with_view_
 from app.modules.tasks.schemas import (
     BatchArchiveRequest,
     BatchDeleteTasksRequest,
-    BatchSubmitRequest,
-    BatchTaskStatusRequest,
     TaskUpdateRequest,
 )
 from app.modules.tasks.service import TaskService
@@ -87,20 +85,6 @@ async def update_task_info(
     )
 
 
-@router.post("/submit-batch")
-async def submit_batch_processing(
-    request: BatchSubmitRequest,
-    current_user: User = Depends(get_current_user),
-    task_service: TaskService = Depends(get_task_service),
-):
-    result = await task_service.submit_batch(current_user, request)
-
-    return success_response(
-        data=result,
-        message=SuccessCode.PROCESSING_STARTED,
-    )
-
-
 @router.delete("/{task_id}")
 async def delete_task(
     task_id: str,
@@ -127,18 +111,6 @@ async def batch_delete_tasks(
         data=result,
         message=SuccessCode.TASKS_DELETED,
     )
-
-
-@router.post("/status/batch")
-async def get_batch_status(
-    request: BatchTaskStatusRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    task_service: TaskService = Depends(get_task_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    task_statuses = await task_service.batch_status(db, request.task_ids, user_id)
-    return success_response(data={"tasks": task_statuses})
 
 
 @router.post("/archive")

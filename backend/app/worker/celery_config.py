@@ -37,8 +37,8 @@ celery_app.conf.update(
     result_expires=3600,
     beat_schedule_filename=str(beat_schedule_filename),
     beat_schedule={
-        "task-maintenance-every-five-minutes": {
-            "task": "app.worker.tasks.run_task_maintenance",
+        "job-maintenance-every-five-minutes": {
+            "task": "app.worker.tasks.run_job_maintenance",
             "schedule": 300.0,
         },
     },

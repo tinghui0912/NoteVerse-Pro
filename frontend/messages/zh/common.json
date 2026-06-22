@@ -43,6 +43,7 @@
   "maximize": "最大化",
   "loopPlay": "循环播放",
   "cancelLoop": "取消循环",
+  "returnToPlaybackPosition": "返回播放位置",
   "savingSuccess": "保存成功",
   "scoreSaved": "乐谱已保存",
   "copied": "已复制",

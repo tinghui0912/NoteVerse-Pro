@@ -8,7 +8,14 @@ export interface ScorePlaybackSnapshot {
   duration: number;
 }
 
-export interface CursorSyncOptions {
+export type ScoreCursorScrollTarget = 'container' | 'window';
+
+export interface CursorVisibilityOptions {
+  scrollTarget?: ScoreCursorScrollTarget;
+  force?: boolean;
+}
+
+export interface CursorSyncOptions extends CursorVisibilityOptions {
   scrollIntoView?: boolean;
 }
 
@@ -32,7 +39,7 @@ export interface ScorePlaybackController {
 export interface ScoreCursorController {
   resetCursor(options?: CursorSyncOptions): void;
   syncCursorToStep(step: number, options?: CursorSyncOptions): void;
-  ensureCursorVisible(): void;
+  ensureCursorVisible(options?: CursorVisibilityOptions): void;
 }
 
 export type ScorePreviewController = ScoreRenderer &

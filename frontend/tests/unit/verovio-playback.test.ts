@@ -324,6 +324,15 @@ describe('VerovioScorePreviewController', () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 550, behavior: 'smooth' });
     expect(scrollIntoView).not.toHaveBeenCalled();
 
+    const windowScrollTo = vi.fn();
+    window.scrollTo = windowScrollTo;
+    controller.ensureCursorVisible({ scrollTarget: 'window', force: true });
+    expect(windowScrollTo).toHaveBeenCalledWith(expect.objectContaining({
+      behavior: 'smooth',
+      top: expect.any(Number),
+    }));
+    expect(windowScrollTo.mock.calls[0][0].top).toBeGreaterThan(0);
+
     await controller.fitToContainer();
     expect(container.querySelectorAll('[data-score-page]')).toHaveLength(2);
     expect(

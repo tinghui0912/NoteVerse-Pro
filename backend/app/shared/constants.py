@@ -32,6 +32,8 @@ class ErrorCode:
     TASK_ERROR = "task_error"
     TASK_RUNNING = "task_running"
     TASK_TIMEOUT = "task_timeout"
+    JOB_NOT_FOUND = "job_not_found"
+    JOB_RUNNING = "job_running"
     NO_FILE_IDS = "no_file_ids"
     NO_TASK_IDS = "no_task_ids"
     NO_DELETABLE_TASKS = "no_deletable_tasks"

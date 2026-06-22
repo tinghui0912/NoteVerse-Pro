@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>invalid</fifths><mode>unknown</mode></key>
+        <time><beats>common</beats><beat-type>0</beat-type></time>
+      </attributes>
+      <direction><sound tempo="-10" /></direction>
+      <note><rest /><duration>1</duration><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>

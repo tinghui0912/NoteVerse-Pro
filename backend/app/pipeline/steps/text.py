@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.exceptions import TimeoutException
 
 from ..base import Step
-from ..context import TaskContext
+from ..context import JobContext
 
 if TYPE_CHECKING:
     from app.processing.processors.text_recognition import (
@@ -31,14 +31,14 @@ class TextOcrStep(Step):
     progress_start = 70
     progress_end = 85
 
-    def run(self, ctx: TaskContext) -> None:
+    def run(self, ctx: JobContext) -> None:
         ocr_result = self._recognize_text(ctx)
         if not ocr_result or not ocr_result.get("success"):
             return
 
         self._integrate_text(ctx, ocr_result)
 
-    def _recognize_text(self, ctx: TaskContext) -> TextRecognitionProcessSuccessResult | None:
+    def _recognize_text(self, ctx: JobContext) -> TextRecognitionProcessSuccessResult | None:
         """Run PaddleOCR and return classified text metadata."""
         from app.processing.processors.text_recognition import (
             TextRecognitionEngine,
@@ -47,12 +47,12 @@ class TextOcrStep(Step):
 
         image_path = ctx.first_image
         if not image_path or not os.path.exists(image_path):
-            logger.warning(f"[{ctx.task_id}] Input image missing; skipping text recognition")
+            logger.warning(f"[{ctx.job_id}] Input image missing; skipping text recognition")
             return None
         if ctx.remaining() <= 0:
             raise TimeoutException(details={"error": "Task deadline exceeded before text recognition"})
 
-        logger.info(f"[{ctx.task_id}] Starting PaddleOCR text recognition")
+        logger.info(f"[{ctx.job_id}] Starting PaddleOCR text recognition")
 
         try:
             engine = TextRecognitionEngine()
@@ -69,22 +69,22 @@ class TextOcrStep(Step):
                 typed_result = cast(TextRecognitionProcessSuccessResult, result)
                 classified = typed_result["classified_texts"]
                 logger.info(
-                    f"[{ctx.task_id}] Text recognition completed: "
+                    f"[{ctx.job_id}] Text recognition completed: "
                     f"{self._summarize_classified_texts(classified)}"
                 )
                 return typed_result
 
-            logger.warning(f"[{ctx.task_id}] Text recognition failed: {result.get('error')}")
+            logger.warning(f"[{ctx.job_id}] Text recognition failed: {result.get('error')}")
             return None
         except SoftTimeLimitExceeded:
             raise
         except Exception as exc:
-            logger.warning(f"[{ctx.task_id}] PaddleOCR failed: {exc}")
+            logger.warning(f"[{ctx.job_id}] PaddleOCR failed: {exc}")
             return None
 
     def _integrate_text(
         self,
-        ctx: TaskContext,
+        ctx: JobContext,
         ocr_result: TextRecognitionProcessSuccessResult,
     ) -> None:
         """Write recognized text metadata into the current XML file."""
@@ -95,16 +95,16 @@ class TextOcrStep(Step):
 
         main_xml = ctx.main_xml
         if not main_xml or not os.path.exists(main_xml):
-            logger.warning(f"[{ctx.task_id}] XML file missing; skipping text integration")
+            logger.warning(f"[{ctx.job_id}] XML file missing; skipping text integration")
             return
 
         text_info = ocr_result["classified_texts"]
         if not text_info:
-            logger.warning(f"[{ctx.task_id}] No text info available; skipping integration")
+            logger.warning(f"[{ctx.job_id}] No text info available; skipping integration")
             return
 
         logger.info(
-            f"[{ctx.task_id}] Integrating text into XML: "
+            f"[{ctx.job_id}] Integrating text into XML: "
             f"{self._summarize_classified_texts(text_info)}"
         )
 
@@ -113,7 +113,7 @@ class TextOcrStep(Step):
             result = engine.integrate_text_with_existing_info(main_xml, text_info)
 
             if not result.get("success"):
-                logger.warning(f"[{ctx.task_id}] Text integration failed: {result.get('error')}")
+                logger.warning(f"[{ctx.job_id}] Text integration failed: {result.get('error')}")
                 return
 
             enhanced_path = self._resolve_enhanced_xml_path(
@@ -121,14 +121,14 @@ class TextOcrStep(Step):
                 cast(TextIntegrationSuccessResult, result),
             )
             if not enhanced_path:
-                logger.info(f"[{ctx.task_id}] Text integration completed")
+                logger.info(f"[{ctx.job_id}] Text integration completed")
                 return
 
             ctx.main_xml = enhanced_path
-            logger.info(f"[{ctx.task_id}] Text integration completed: {enhanced_path}")
+            logger.info(f"[{ctx.job_id}] Text integration completed: {enhanced_path}")
             self._record_enhanced_xml(ctx, enhanced_path)
         except Exception as exc:
-            logger.warning(f"[{ctx.task_id}] Text integration error: {exc}")
+            logger.warning(f"[{ctx.job_id}] Text integration error: {exc}")
 
     def _resolve_enhanced_xml_path(
         self,
@@ -142,17 +142,17 @@ class TextOcrStep(Step):
 
         return None
 
-    def _record_enhanced_xml(self, ctx: TaskContext, enhanced_path: str) -> None:
+    def _record_enhanced_xml(self, ctx: JobContext, enhanced_path: str) -> None:
         """Persist the enhanced XML artifact in the pipeline file registry."""
         from app.pipeline.files_recorder import replace_files
         from app.shared.file_kinds import FileKind
 
         replace_files(
-            ctx.task_id,
+            ctx.job_id,
             FileKind.ENHANCED_XML,
             [os.path.abspath(enhanced_path)],
         )
-        logger.info(f"[{ctx.task_id}] Recorded enhanced_xml")
+        logger.info(f"[{ctx.job_id}] Recorded enhanced_xml")
 
     def _summarize_classified_texts(self, text_info: "ClassifiedTexts") -> str:
         """Return a compact, useful OCR classification summary for worker logs."""

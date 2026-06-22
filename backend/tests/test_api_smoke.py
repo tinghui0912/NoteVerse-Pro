@@ -49,6 +49,7 @@ def test_public_xml_source_contract_excludes_pipeline_artifacts(client: TestClie
 def test_protected_endpoints_require_authentication(client: TestClient) -> None:
     protected_paths = [
         "/api/v1/tasks",
+        "/api/v1/jobs/test-job",
         "/api/v1/profile",
         "/api/v1/shares",
         "/api/v1/xml/test-task/xml",
@@ -65,11 +66,22 @@ def test_tasks_feature_routes_require_authentication(client: TestClient) -> None
         ("get", "/api/v1/tasks", None),
         ("get", "/api/v1/tasks/test-task/details", None),
         ("patch", "/api/v1/tasks/test-task", {"title": "Updated"}),
-        ("post", "/api/v1/tasks/submit-batch", {"file_ids": ["file-1"]}),
         ("delete", "/api/v1/tasks/test-task", None),
         ("post", "/api/v1/tasks/batch-delete", {"task_ids": ["task-1"]}),
-        ("post", "/api/v1/tasks/status/batch", {"task_ids": ["task-1"]}),
         ("post", "/api/v1/tasks/archive", {"task_ids": ["task-1"], "include_types": ["image"]}),
+    ]
+
+    for method, path, payload in protected_requests:
+        response = _request(client, method, path, payload)
+        assert response.status_code == 401, f"{method.upper()} {path}"
+
+
+def test_jobs_feature_routes_require_authentication(client: TestClient) -> None:
+    protected_requests = [
+        ("post", "/api/v1/jobs", {"file_ids": ["file-1"]}),
+        ("get", "/api/v1/jobs/test-job", None),
+        ("post", "/api/v1/jobs/status/batch", {"job_ids": ["job-1"]}),
+        ("delete", "/api/v1/jobs/test-job", None),
     ]
 
     for method, path, payload in protected_requests:

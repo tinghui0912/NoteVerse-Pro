@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from celery.utils.log import get_task_logger
 
 from ..base import Step
-from ..context import TaskContext
+from ..context import JobContext
 
 logger = get_task_logger(__name__)
 
@@ -26,13 +26,13 @@ class XmlNormalizeStep(Step):
     A4_PAGE_HEIGHT = "1696.94"
     A4_MARGIN = "85.7252"
 
-    def run(self, ctx: TaskContext) -> None:
+    def run(self, ctx: JobContext) -> None:
         xml_path = ctx.main_xml
         if not xml_path or not os.path.exists(xml_path):
-            logger.warning(f"[{ctx.task_id}] XML file not found; skipping normalization")
+            logger.warning(f"[{ctx.job_id}] XML file not found; skipping normalization")
             return
 
-        logger.info(f"[{ctx.task_id}] Starting XML normalization: {xml_path}")
+        logger.info(f"[{ctx.job_id}] Starting XML normalization: {xml_path}")
 
         try:
             tree = ET.parse(xml_path)
@@ -42,9 +42,9 @@ class XmlNormalizeStep(Step):
             self._fix_measure_numbers(root)
             self._save_formatted_xml(tree, xml_path)
 
-            logger.info(f"[{ctx.task_id}] XML normalization completed")
+            logger.info(f"[{ctx.job_id}] XML normalization completed")
         except Exception as exc:
-            logger.warning(f"[{ctx.task_id}] XML normalization failed: {exc}")
+            logger.warning(f"[{ctx.job_id}] XML normalization failed: {exc}")
 
     def _force_a4_page_layout(self, root: ET.Element) -> None:
         """Rewrite `<defaults>` layout values to the A4 standard."""

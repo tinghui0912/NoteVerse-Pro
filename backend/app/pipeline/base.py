@@ -8,7 +8,7 @@ from celery.utils.log import get_task_logger
 from app.core.exceptions import TimeoutException
 
 if TYPE_CHECKING:
-    from .context import TaskContext
+    from .context import JobContext
 
 logger = get_task_logger(__name__)
 
@@ -21,11 +21,11 @@ class Step(ABC):
     progress_end: int = 0
 
     @abstractmethod
-    def run(self, ctx: "TaskContext") -> None:
+    def run(self, ctx: "JobContext") -> None:
         """Execute the step."""
         pass
 
-    def rollback(self, ctx: "TaskContext") -> None:
+    def rollback(self, ctx: "JobContext") -> None:
         """Optionally roll back side effects after a failure."""
         pass
 
@@ -50,7 +50,7 @@ class Pipeline:
         order_map["ocr_completed"] = len(self.steps) + 1
         return order_map
 
-    def run(self, ctx: "TaskContext") -> None:
+    def run(self, ctx: "JobContext") -> None:
         """Run all steps in order and roll back executed steps on failure."""
         ctx.set_order_map(self)
 
@@ -60,33 +60,33 @@ class Pipeline:
             try:
                 self._ensure_before_deadline(ctx, step.name)
                 ctx.status("PROGRESS", step.name, step.progress_start, current_step=step.name)
-                logger.info(f"[{ctx.task_id}] Step started: {step.name}")
+                logger.info(f"[{ctx.job_id}] Step started: {step.name}")
 
                 step.run(ctx)
                 executed_steps.append(step)
                 self._ensure_before_deadline(ctx, step.name)
 
                 ctx.status("PROGRESS", step.name, step.progress_end, current_step=step.name)
-                logger.info(f"[{ctx.task_id}] Step completed: {step.name}")
+                logger.info(f"[{ctx.job_id}] Step completed: {step.name}")
             except Exception as exc:
-                logger.error(f"[{ctx.task_id}] Step failed: {step.name} | Error: {exc}")
+                logger.error(f"[{ctx.job_id}] Step failed: {step.name} | Error: {exc}")
                 self._rollback(ctx, executed_steps)
                 raise
 
     @staticmethod
-    def _ensure_before_deadline(ctx: "TaskContext", step_name: str) -> None:
+    def _ensure_before_deadline(ctx: "JobContext", step_name: str) -> None:
         """Fail consistently when a step starts or finishes after the deadline."""
         if ctx.remaining() <= 0:
             raise TimeoutException(details={"step": step_name})
 
-    def _rollback(self, ctx: "TaskContext", executed_steps: List[Step]) -> None:
+    def _rollback(self, ctx: "JobContext", executed_steps: List[Step]) -> None:
         """Roll back executed steps in reverse order."""
         for step in reversed(executed_steps):
             try:
                 step.rollback(ctx)
             except Exception as exc:
                 logger.warning(
-                    f"[{ctx.task_id}] Step rollback failed: {step.name} | Error: {exc}"
+                    f"[{ctx.job_id}] Step rollback failed: {step.name} | Error: {exc}"
                 )
 
     def __repr__(self) -> str:

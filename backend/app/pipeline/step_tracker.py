@@ -1,16 +1,16 @@
 """
-Unified database-backed step tracking for worker tasks.
+Unified database-backed step tracking for worker jobs.
 
 Usage pattern inside a task:
     from app.db.worker_session import get_worker_db
-    from app.modules.tasks.worker_service import sync_task_service
+    from app.modules.jobs.worker_service import sync_job_service
 
     def _upsert(name, **kw):
         with get_worker_db() as db:
-            sync_task_service.upsert_step(db, task_id, name=name, **kw)
+            sync_job_service.upsert_step(db, job_id, name=name, **kw)
 
     # order_map is generated dynamically by Pipeline.build_order_map().
-    tracker = StepTracker(task_id, _upsert, order_map)
+    tracker = StepTracker(job_id, _upsert, order_map)
     tracker.on_progress("ocr")
     ...
     tracker.complete_last(final_step_name="ocr_completed")
@@ -35,7 +35,7 @@ class StepTracker:
 
     def __init__(
         self,
-        task_id: str,
+        job_id: str,
         upsert_fn: Callable[..., None],
         order_map: Dict[str, int],
     ) -> None:
@@ -43,11 +43,11 @@ class StepTracker:
         Initialize the step tracker.
 
         Args:
-            task_id: Task UUID.
+            job_id: Job UUID.
             upsert_fn: Function that upserts a step row into the database.
             order_map: Mapping of step names to display order.
         """
-        self.task_id = task_id
+        self.job_id = job_id
         self._upsert = upsert_fn
         self.order_map = order_map
         self.seen: Set[str] = set()
@@ -73,7 +73,7 @@ class StepTracker:
                     step_order=init_order,
                 )
             except Exception as exc:
-                logger.debug(f"[{self.task_id}] Failed to complete initialization step: {exc}")
+                logger.debug(f"[{self.job_id}] Failed to complete initialization step: {exc}")
 
         if self.last_step and self.last_step != step:
             try:
@@ -84,7 +84,7 @@ class StepTracker:
                 )
             except Exception as exc:
                 logger.debug(
-                    f"[{self.task_id}] Failed to complete previous step {self.last_step}: {exc}"
+                    f"[{self.job_id}] Failed to complete previous step {self.last_step}: {exc}"
                 )
 
         try:
@@ -100,7 +100,7 @@ class StepTracker:
             else:
                 self._upsert(step, status="running")
         except Exception as exc:
-            logger.debug(f"[{self.task_id}] Failed to mark step {step} as running: {exc}")
+            logger.debug(f"[{self.job_id}] Failed to mark step {step} as running: {exc}")
 
         self.last_step = step
 
@@ -122,7 +122,7 @@ class StepTracker:
                 )
             except Exception as exc:
                 logger.debug(
-                    f"[{self.task_id}] Failed to complete last step {self.last_step}: {exc}"
+                    f"[{self.job_id}] Failed to complete last step {self.last_step}: {exc}"
                 )
 
         if final_step_name:
@@ -136,7 +136,7 @@ class StepTracker:
                 )
             except Exception as exc:
                 logger.debug(
-                    f"[{self.task_id}] Failed to create final step {final_step_name}: {exc}"
+                    f"[{self.job_id}] Failed to create final step {final_step_name}: {exc}"
                 )
 
     def mark_failed(self, step_name: Optional[str]) -> None:
@@ -164,4 +164,4 @@ class StepTracker:
                     )
         except Exception as exc:
             failed_step = step_name or "initialization"
-            logger.debug(f"[{self.task_id}] Failed to mark step {failed_step} as failed: {exc}")
+            logger.debug(f"[{self.job_id}] Failed to mark step {failed_step} as failed: {exc}")

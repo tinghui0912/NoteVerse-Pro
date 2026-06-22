@@ -12,26 +12,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.db.models.task import TaskState
 
 
-class TaskStatusUpdate(TypedDict, total=False):
-    """Typed kwargs for synchronous task status updates."""
-
-    current_step: Optional[str]
-    error: Optional[str]
-    error_type: Optional[str]
-    code: Optional[str]
-    options: Optional["TaskProcessingOptions"]
-    started_at: Optional[datetime]
-    result: Optional[dict[str, object]]
-    finished_at: Optional[datetime]
-
-
-class TaskProcessingOptions(TypedDict, total=False):
-    """Supported processing options for batch task submission and pipeline execution."""
-
-    title: str
-    difficulty: str
-
-
 class TaskFileReplaceItem(TypedDict):
     """Worker-side file payload used when replacing task file records."""
 
@@ -41,12 +21,6 @@ class TaskFileReplaceItem(TypedDict):
     page_number: Optional[int]
     size: Optional[int]
     mime_type: Optional[str]
-
-
-class BatchSubmitRequestLike(Protocol):
-    file_ids: List[str]
-    options: Optional[TaskProcessingOptions]
-    idempotency_key: Optional[str]
 
 
 class BatchArchiveRequestLike(Protocol):
@@ -83,21 +57,6 @@ class BatchDeleteResult(TypedDict):
     deleted_count: int
     skipped_running: int
     not_found: int
-
-
-class BatchStatusEntry(TypedDict):
-    state: TaskState | str
-    progress: int
-    error: Optional[str]
-
-
-class BatchStatusResponse(TypedDict):
-    tasks: dict[str, BatchStatusEntry]
-
-
-class BatchSubmitResult(TypedDict):
-    task_id: str
-    count: int
 
 
 class PipelineExecutionSuccessResult(TypedDict):
@@ -150,28 +109,6 @@ class TaskStatusResult(TypedDict, total=False):
     upload_ids: List[TaskStatusUploadItem]
 
 
-class BatchSubmitRequest(BaseModel):
-    file_ids: List[str] = Field(..., min_length=1, description="Uploaded file ID list")
-    idempotency_key: Optional[str] = Field(
-        default=None,
-        min_length=8,
-        max_length=128,
-        description="Client-generated key used to make submission retries idempotent",
-    )
-    options: Optional[TaskProcessingOptions] = Field(
-        default=None,
-        description="Processing options",
-    )
-
-    @field_validator("idempotency_key")
-    @classmethod
-    def normalize_idempotency_key(cls, value: Optional[str]) -> Optional[str]:
-        if value is None:
-            return None
-        normalized = value.strip()
-        return normalized or None
-
-
 class TaskUpdateRequest(BaseModel):
     title: Optional[str] = Field(default=None, max_length=200, description="Task title")
     difficulty: Optional[str] = Field(default=None, max_length=50, description="Task difficulty")
@@ -179,10 +116,6 @@ class TaskUpdateRequest(BaseModel):
 
 class BatchDeleteTasksRequest(BaseModel):
     task_ids: List[str] = Field(..., min_length=1, description="Task UUID list to delete")
-
-
-class BatchTaskStatusRequest(BaseModel):
-    task_ids: List[str] = Field(..., min_length=1, description="Task UUID list to query")
 
 
 class BatchArchiveRequest(BaseModel):
@@ -205,7 +138,6 @@ class BatchArchiveRequest(BaseModel):
 
 class TaskBase(BaseModel):
     note: Optional[str] = None
-    options: Optional[TaskProcessingOptions] = None
 
 
 class TaskCreate(TaskBase):
@@ -243,16 +175,9 @@ __all__ = [
     "PipelineExecutionFailureResult",
     "PipelineExecutionSuccessResult",
     "BatchDeleteTasksRequest",
-    "BatchStatusEntry",
-    "BatchStatusResponse",
-    "BatchSubmitRequestLike",
-    "BatchSubmitResult",
-    "BatchSubmitRequest",
-    "BatchTaskStatusRequest",
     "TaskFileReplaceItem",
     "TaskListItem",
     "TaskListResponse",
-    "TaskProcessingOptions",
     "TaskStatusFileItem",
     "TaskStatusResult",
     "TaskStatusStepItem",
@@ -261,7 +186,6 @@ __all__ = [
     "TaskCreate",
     "TaskInDB",
     "TaskInDBBase",
-    "TaskStatusUpdate",
     "TaskUpdateResult",
     "TaskUpdate",
     "TaskUpdateRequest",

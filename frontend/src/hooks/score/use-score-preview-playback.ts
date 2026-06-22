@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { DEFAULT_TEMPO_BPM } from '@/lib/constants/audio';
 import { extractTempoBpm } from '@/lib/musicxml';
-import type { ScorePreviewController } from '@/lib/score/contracts';
+import type { ScoreCursorScrollTarget, ScorePreviewController } from '@/lib/score/contracts';
 
 export type ScorePreviewControllerFactory = (
   container: HTMLDivElement,
@@ -22,12 +22,14 @@ interface UseScorePreviewPlaybackOptions {
   isOpen: boolean;
   xmlString: string | null;
   createController?: ScorePreviewControllerFactory;
+  followViewport?: ScoreCursorScrollTarget;
 }
 
 export function useScorePreviewPlayback({
   isOpen,
   xmlString,
   createController = createVerovioController,
+  followViewport = 'container',
 }: UseScorePreviewPlaybackOptions) {
   const t = useTranslations('common');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -36,6 +38,7 @@ export function useScorePreviewPlayback({
   const [totalTime, setTotalTime] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLooping, setIsLooping] = useState(false);
+  const [isFollowSuspended, setIsFollowSuspended] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const controllerRef = useRef<ScorePreviewController | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -46,6 +49,13 @@ export function useScorePreviewPlayback({
   const seekTargetStepRef = useRef<number | null>(null);
   const previousPlayingRef = useRef(false);
   const loadGenerationRef = useRef(0);
+  const isPlayingRef = useRef(false);
+  const followSuspendedRef = useRef(false);
+
+  const updateFollowSuspended = useCallback((suspended: boolean) => {
+    followSuspendedRef.current = suspended;
+    setIsFollowSuspended(suspended);
+  }, []);
 
   const stopProgressLoop = useCallback(() => {
     if (progressRafRef.current !== null) {
@@ -82,16 +92,20 @@ export function useScorePreviewPlayback({
       const snapshot = controller.getPlaybackSnapshot();
       if (snapshot.state !== 'PLAYING') return;
       const target = Math.max(0, Math.min(snapshot.currentStep, snapshot.totalSteps - 1));
-      controller.syncCursorToStep(target, { scrollIntoView: true });
+      controller.syncCursorToStep(target, {
+        scrollIntoView: !followSuspendedRef.current,
+        scrollTarget: followViewport,
+      });
       cursorRafRef.current = requestAnimationFrame(update);
     };
     cursorRafRef.current = requestAnimationFrame(update);
-  }, [stopCursorLoop]);
+  }, [followViewport, stopCursorLoop]);
 
   const resetState = useCallback(() => {
     stopProgressLoop();
     stopCursorLoop();
     setIsPlaying(false);
+    isPlayingRef.current = false;
     setProgress(0);
     setCurrentTime(0);
   }, [stopCursorLoop, stopProgressLoop]);
@@ -126,7 +140,9 @@ export function useScorePreviewPlayback({
       if (generation !== loadGenerationRef.current || controllerRef.current !== controller) return;
 
       controller.onPlaybackIteration((notes) => {
-        controller?.ensureCursorVisible();
+        if (!followSuspendedRef.current) {
+          controller?.ensureCursorVisible({ scrollTarget: followViewport });
+        }
         if (notes.length === 0 && controller?.getPlaybackSnapshot().state === 'PLAYING') {
           void controller.stop();
         }
@@ -134,16 +150,19 @@ export function useScorePreviewPlayback({
       controller.onPlaybackStateChange((state) => {
         if (controllerRef.current !== controller) return;
         if (state === 'PLAYING') {
+          isPlayingRef.current = true;
           setIsPlaying(true);
           startProgressLoop();
           startCursorLoop();
         } else if (state === 'PAUSED') {
+          isPlayingRef.current = false;
           setIsPlaying(false);
           stopProgressLoop();
           stopCursorLoop();
         } else if (state === 'STOPPED') {
           resetState();
-          controller?.resetCursor({ scrollIntoView: true });
+          updateFollowSuspended(false);
+          controller?.resetCursor({ scrollIntoView: true, scrollTarget: followViewport });
         }
       });
 
@@ -160,7 +179,7 @@ export function useScorePreviewPlayback({
         setIsLoading(false);
       }
     }
-  }, [createController, isOpen, resetState, startCursorLoop, startProgressLoop, stopCursorLoop, stopProgressLoop, t, xmlString]);
+  }, [createController, followViewport, isOpen, resetState, startCursorLoop, startProgressLoop, stopCursorLoop, stopProgressLoop, t, updateFollowSuspended, xmlString]);
 
   const scoreContainerRef = useCallback((node: HTMLDivElement | null) => {
     if (node && isOpen && !controllerRef.current) void loadScore(node);
@@ -169,14 +188,47 @@ export function useScorePreviewPlayback({
   useEffect(() => {
     if (isOpen) return;
     disposeController();
-    resetState();
-    setIsLooping(false);
-    setIsLoading(true);
-    setLoadError(null);
-    setTotalTime(0);
-  }, [disposeController, isOpen, resetState]);
+    const resetTimer = window.setTimeout(() => {
+      resetState();
+      setIsLooping(false);
+      setIsLoading(true);
+      setLoadError(null);
+      setTotalTime(0);
+      updateFollowSuspended(false);
+    }, 0);
+    return () => window.clearTimeout(resetTimer);
+  }, [disposeController, isOpen, resetState, updateFollowSuspended]);
 
   useEffect(() => () => disposeController(), [disposeController]);
+
+  useEffect(() => {
+    if (!isOpen || followViewport !== 'window') return;
+
+    const suspendFollow = () => {
+      if (isPlayingRef.current) updateFollowSuspended(true);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.isContentEditable || target?.matches('input, textarea, select')) return;
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) {
+        suspendFollow();
+      }
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.clientX >= window.innerWidth - 24) suspendFollow();
+    };
+
+    window.addEventListener('wheel', suspendFollow, { passive: true });
+    window.addEventListener('touchmove', suspendFollow, { passive: true });
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      window.removeEventListener('wheel', suspendFollow);
+      window.removeEventListener('touchmove', suspendFollow);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [followViewport, isOpen, updateFollowSuspended]);
 
   useEffect(() => {
     if (!isOpen || !containerRef.current || !controllerRef.current) return;
@@ -240,8 +292,9 @@ export function useScorePreviewPlayback({
     manualStopRef.current = true;
     await controller.stop();
     controller.resetCursor();
+    updateFollowSuspended(false);
     resetState();
-  }, [resetState]);
+  }, [resetState, updateFollowSuspended]);
 
   const seekStart = useCallback(() => {
     const controller = controllerRef.current;
@@ -262,11 +315,22 @@ export function useScorePreviewPlayback({
     const totalSteps = controller.getPlaybackSnapshot().totalSteps;
     const targetStep = Math.min(Math.floor(totalSteps * percentage), Math.max(0, totalSteps - 1));
     controller.resetCursor();
-    controller.syncCursorToStep(targetStep, { scrollIntoView: true });
+    controller.syncCursorToStep(targetStep, {
+      scrollIntoView: !followSuspendedRef.current,
+      scrollTarget: followViewport,
+    });
     seekTargetStepRef.current = targetStep;
     setCurrentTime(totalTime * percentage);
     setProgress(value[0]);
-  }, [totalTime]);
+  }, [followViewport, totalTime]);
+
+  const returnToPlaybackPosition = useCallback(() => {
+    updateFollowSuspended(false);
+    controllerRef.current?.ensureCursorVisible({
+      scrollTarget: followViewport,
+      force: true,
+    });
+  }, [followViewport, updateFollowSuspended]);
 
   const seekEnd = useCallback(async () => {
     const controller = controllerRef.current;
@@ -295,9 +359,11 @@ export function useScorePreviewPlayback({
     isLoading,
     isLooping,
     isPlaying,
+    isFollowSuspended,
     loadError,
     playPause,
     progress,
+    returnToPlaybackPosition,
     scoreContainerRef,
     seek,
     seekEnd,

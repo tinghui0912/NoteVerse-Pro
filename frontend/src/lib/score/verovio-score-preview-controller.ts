@@ -2,6 +2,7 @@
 
 import type {
   CursorSyncOptions,
+  CursorVisibilityOptions,
   ScorePlaybackSnapshot,
   ScorePlaybackState,
   ScorePreviewController,
@@ -139,17 +140,40 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     this.applyCursor(this.playback.getCursorSnapshotForStep(step), options);
   }
 
-  ensureCursorVisible() {
+  ensureCursorVisible(options: CursorVisibilityOptions = {}) {
     const target = this.activeSystem ?? this.activeCursor;
-    const scrollContainer = findScrollableAncestor(this.container);
-    if (!target || !scrollContainer) {
+    if (!target) {
       return;
     }
 
     const targetRect = target.getBoundingClientRect();
+
+    if (options.scrollTarget === 'window') {
+      const safeTop = Math.min(180, Math.max(96, window.innerHeight * 0.2));
+      const safeBottom = window.innerHeight - Math.min(220, Math.max(140, window.innerHeight * 0.24));
+      if (!options.force && targetRect.top >= safeTop && targetRect.bottom <= safeBottom) {
+        return;
+      }
+
+      window.scrollTo({
+        top: Math.max(0, window.scrollY + targetRect.top - safeTop),
+        behavior: 'smooth',
+      });
+      return;
+    }
+
+    const scrollContainer = findScrollableAncestor(this.container);
+    if (!scrollContainer) {
+      return;
+    }
+
     const containerRect = scrollContainer.getBoundingClientRect();
     const margin = Math.min(120, Math.max(32, scrollContainer.clientHeight * 0.18));
-    if (targetRect.top >= containerRect.top + margin && targetRect.bottom <= containerRect.bottom - margin) {
+    if (
+      !options.force
+      && targetRect.top >= containerRect.top + margin
+      && targetRect.bottom <= containerRect.bottom - margin
+    ) {
       return;
     }
 
@@ -245,7 +269,7 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     this.activeEventIndex = snapshot.eventIndex;
     this.activeCursorMode = cursorMode;
     if (options?.scrollIntoView) {
-      this.ensureCursorVisible();
+      this.ensureCursorVisible(options);
     }
   }
 

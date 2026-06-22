@@ -32,7 +32,7 @@ def test_copy_image_step_copies_input_and_updates_context() -> None:
             file_handle.write(b"image-bytes")
 
         ctx = SimpleNamespace(
-            task_id="task-1",
+            job_id="job-1",
             image_paths=[source_path],
             raw_dir=raw_dir,
             raw_paths=[],
@@ -92,7 +92,7 @@ def test_preview_generation_step_renders_and_records_preview_images() -> None:
                 }
 
         ctx = SimpleNamespace(
-            task_id="task-2",
+            job_id="job-2",
             main_xml=main_xml,
             preview_dir=preview_dir,
             remaining=lambda: 120,
@@ -104,7 +104,7 @@ def test_preview_generation_step_renders_and_records_preview_images() -> None:
 
         replace_files_mock.assert_called_once()
         args, kwargs = replace_files_mock.call_args
-        assert args[0] == "task-2"
+        assert args[0] == "job-2"
         assert args[2]
         assert os.path.exists(args[2][0])
 
@@ -129,7 +129,7 @@ def test_xml_normalize_step_applies_a4_layout() -> None:
                 "</score-partwise>"
             )
 
-        ctx = SimpleNamespace(task_id="task-normalize", main_xml=xml_path)
+        ctx = SimpleNamespace(job_id="job-normalize", main_xml=xml_path)
         step.run(ctx)
 
         root = ET.parse(xml_path).getroot()

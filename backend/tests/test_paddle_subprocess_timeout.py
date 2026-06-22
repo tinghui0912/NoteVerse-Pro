@@ -143,7 +143,7 @@ def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch) -> No
 def test_text_ocr_step_caps_timeout_at_remaining_task_time() -> None:
     step = TextOcrStep()
     ctx = SimpleNamespace(
-        task_id="task-ocr",
+        job_id="job-ocr",
         first_image=__file__,
         remaining=lambda: 55,
     )
@@ -162,7 +162,7 @@ def test_text_ocr_step_caps_timeout_at_remaining_task_time() -> None:
 def test_text_ocr_step_caps_timeout_at_paddle_limit(monkeypatch) -> None:
     step = TextOcrStep()
     ctx = SimpleNamespace(
-        task_id="task-ocr",
+        job_id="job-ocr",
         first_image=__file__,
         remaining=lambda: 600,
     )

@@ -546,6 +546,10 @@ XML artifact boundary update (2026-06-20): the product XML read endpoint exposes
 
 Share creation contract update (2026-06-21): owner-created links persist `can_download`, `can_edit`, and either a bounded day count or a genuinely permanent `expires_at = NULL`. Results/share UI must consume these persisted fields; it must not simulate editable or permanent links with frontend-only state.
 
+Score-domain schema update (2026-06-22): new processing-job, score, immutable-revision, artifact, metadata, access-grant, membership, bookmark, and publication tables coexist with the legacy task schema through an expand-only migration. Cross-aggregate pointers are constrained to the same score, raw share tokens have no storage column, and canonical MusicXML uniqueness is enforced in the database. Until later cutover phases, existing modules continue reading and writing legacy tables; nullable score references on practice sessions are migration scaffolding, not an alternate runtime lookup path.
+
+Processing-job extraction update (2026-06-22): `modules/jobs` exclusively owns new submission, polling, idempotency, worker execution, step tracking, heartbeat, stale recovery, dispatch failure, and processing artifacts. Pipeline code uses `JobContext` and writes durable objects below `jobs/{job_uuid}`; Celery payloads contain upload hashes rather than local paths. Existing review/results compatibility is a one-way legacy Task/File projection with explicitly named projection files. New code must not query that projection to decide Job state, and the projection is removed after Score/revision cutover.
+
 ## Bottom Line
 
 这次后端迁移最大的收获不是某个目录名，而是一套工程节奏：

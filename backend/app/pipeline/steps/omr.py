@@ -8,7 +8,7 @@ from app.core.exceptions import FileNotFoundException, OmrFailedException, Timeo
 from app.processing.engines.omr import OmrFailureResult, OmrSuccessResult, create_omr_engine
 
 from ..base import Step
-from ..context import TaskContext
+from ..context import JobContext
 
 logger = get_task_logger(__name__)
 
@@ -35,8 +35,8 @@ class OmrStep(Step):
     progress_start = 8
     progress_end = 65
 
-    def run(self, ctx: TaskContext) -> None:
-        logger.info(f"[{ctx.task_id}] Starting OMR processing for {len(ctx.raw_paths)} page(s)")
+    def run(self, ctx: JobContext) -> None:
+        logger.info(f"[{ctx.job_id}] Starting OMR processing for {len(ctx.raw_paths)} page(s)")
 
         if not ctx.raw_paths:
             raise FileNotFoundException(details={"error": "No score image pages are available"})
@@ -53,5 +53,5 @@ class OmrStep(Step):
 
         ctx.omr_result = cast(OmrSuccessResult, result)
         logger.info(
-            f"[{ctx.task_id}] OMR processing completed via {ctx.omr_result['engine']}"
+            f"[{ctx.job_id}] OMR processing completed via {ctx.omr_result['engine']}"
         )

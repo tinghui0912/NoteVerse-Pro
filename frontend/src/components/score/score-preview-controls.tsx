@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
-interface ScorePreviewControlsProps {
+export interface ScorePreviewControlsProps {
+  compact?: boolean;
   currentTime: number;
   isLoading: boolean;
   isLooping: boolean;
@@ -31,8 +32,8 @@ export function formatPlaybackTime(seconds: number) {
 export function ScorePreviewControls(props: ScorePreviewControlsProps) {
   const t = useTranslations('common');
   return (
-    <>
-      <div className="flex items-center gap-4 w-full">
+    <div className={cn(props.compact ? 'flex flex-col gap-2 md:flex-row md:items-center md:gap-4' : 'contents')}>
+      <div className="flex w-full items-center gap-3 md:flex-1">
         <span className="text-xs font-mono">{formatPlaybackTime(props.currentTime)}</span>
         <Slider
           value={[props.progress]}
@@ -45,36 +46,36 @@ export function ScorePreviewControls(props: ScorePreviewControlsProps) {
         />
         <span className="text-xs font-mono">{formatPlaybackTime(props.totalTime)}</span>
       </div>
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex shrink-0 items-center justify-center gap-2">
         <Button
           variant="ghost"
           size="icon"
-          className={cn('rounded-full h-12 w-12', props.isLooping && 'bg-accent text-accent-foreground')}
+          className={cn('rounded-full', props.compact ? 'h-9 w-9' : 'h-12 w-12', props.isLooping && 'bg-accent text-accent-foreground')}
           onClick={props.onToggleLoop}
           disabled={props.isLoading}
           title={props.isLooping ? t('cancelLoop') : t('loopPlay')}
         >
-          <Repeat className="h-6 w-6" />
+          <Repeat className={cn(props.compact ? 'h-4 w-4' : 'h-6 w-6')} />
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full h-16 w-16"
+          className={cn('rounded-full', props.compact ? 'h-11 w-11' : 'h-16 w-16')}
           onClick={() => void props.onPlayPause()}
           disabled={props.isLoading}
         >
-          {props.isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
+          {props.isPlaying ? <Pause className={cn(props.compact ? 'h-5 w-5' : 'h-8 w-8')} /> : <Play className={cn(props.compact ? 'h-5 w-5' : 'h-8 w-8')} />}
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full h-12 w-12"
+          className={cn('rounded-full', props.compact ? 'h-9 w-9' : 'h-12 w-12')}
           onClick={() => void props.onStop()}
           disabled={props.isLoading}
         >
-          <Square className="h-6 w-6" />
+          <Square className={cn(props.compact ? 'h-4 w-4' : 'h-6 w-6')} />
         </Button>
       </div>
-    </>
+    </div>
   );
 }

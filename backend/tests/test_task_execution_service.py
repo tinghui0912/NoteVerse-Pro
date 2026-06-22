@@ -6,29 +6,29 @@ import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.exceptions import TimeoutException
-from app.modules.tasks.execution_service import TaskExecutionService
+from app.modules.jobs.execution_service import JobExecutionService
 from app.shared.constants import ErrorCode
 
 
 def test_soft_time_limit_maps_to_task_timeout() -> None:
     assert (
-        TaskExecutionService.get_error_code(SoftTimeLimitExceeded())
+        JobExecutionService.get_error_code(SoftTimeLimitExceeded())
         == ErrorCode.TASK_TIMEOUT
     )
 
 
 def test_pipeline_timeout_maps_to_task_timeout() -> None:
     assert (
-        TaskExecutionService.get_error_code(TimeoutException())
+        JobExecutionService.get_error_code(TimeoutException())
         == ErrorCode.TASK_TIMEOUT
     )
 
 
 def test_pipeline_failure_is_persisted_and_reraised() -> None:
-    service = TaskExecutionService(storage=Mock())
+    service = JobExecutionService(storage=Mock())
     service.storage.resolve_score_uploads.return_value = ["/work/score.png"]
     task = SimpleNamespace(
-        request=SimpleNamespace(id="task-123"),
+        request=SimpleNamespace(id="job-123"),
         update_state=Mock(),
     )
     pipeline = Mock()
@@ -44,19 +44,19 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
 
     with (
         patch(
-            "app.modules.tasks.execution_service.get_worker_db",
+            "app.modules.jobs.execution_service.get_worker_db",
             side_effect=database_scope,
         ),
         patch(
-            "app.modules.tasks.execution_service.TaskContext",
+            "app.modules.jobs.execution_service.JobContext",
             return_value=context,
         ),
         patch(
-            "app.modules.tasks.execution_service.PipelineBuilder.build",
+            "app.modules.jobs.execution_service.PipelineBuilder.build",
             return_value=pipeline,
         ),
         patch(
-            "app.modules.tasks.execution_service.sync_task_service.finalize_failure"
+            "app.modules.jobs.execution_service.sync_job_service.finalize_failure"
         ) as finalize_failure,
         pytest.raises(TimeoutException),
     ):
@@ -64,7 +64,7 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
 
     finalize_failure.assert_called_once_with(
         failure_db,
-        "task-123",
+        "job-123",
         error=ErrorCode.TASK_TIMEOUT,
         error_type="TimeoutException",
         code=ErrorCode.TASK_TIMEOUT,

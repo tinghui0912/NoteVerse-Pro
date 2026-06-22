@@ -202,8 +202,8 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
 
         celery_app.loader.import_default_modules()
         required = {
-            "app.worker.tasks.process_images_task",
-            "app.worker.tasks.run_task_maintenance",
+            "app.worker.tasks.process_images_job",
+            "app.worker.tasks.run_job_maintenance",
             "app.worker.tasks.send_email_task",
         }
         missing = sorted(required.difference(celery_app.tasks))

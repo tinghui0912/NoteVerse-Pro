@@ -37,20 +37,6 @@ export interface TaskFile {
   created_at?: string;
 }
 
-export interface BatchSubmitRequest {
-  file_ids: string[];
-  idempotency_key?: string;
-  options?: Record<string, unknown>;
-}
-
-export interface BatchStatusResponse {
-  tasks: Record<string, {
-    state: TaskState;
-    progress: number;
-    error?: string;
-  }>;
-}
-
 export interface BatchDeleteResponse {
   deleted_count: number;
   skipped_running: number;

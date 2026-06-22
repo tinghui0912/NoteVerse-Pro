@@ -9,7 +9,7 @@ from celery.utils.log import get_task_logger
 from app.core.exceptions import FileNotFoundException
 
 from ..base import Step
-from ..context import TaskContext
+from ..context import JobContext
 
 logger = get_task_logger(__name__)
 
@@ -21,8 +21,8 @@ class CopyImageStep(Step):
     progress_start = 2
     progress_end = 5
 
-    def run(self, ctx: TaskContext) -> None:
-        logger.info(f"[{ctx.task_id}] Starting input copy")
+    def run(self, ctx: JobContext) -> None:
+        logger.info(f"[{ctx.job_id}] Starting input copy")
 
         ctx.create_dirs()
 
@@ -38,7 +38,7 @@ class CopyImageStep(Step):
         try:
             shutil.copy2(abs_path, dst)
         except Exception as exc:
-            logger.debug(f"[{ctx.task_id}] copy2 failed for {abs_path}, using stream copy: {exc}")
+            logger.debug(f"[{ctx.job_id}] copy2 failed for {abs_path}, using stream copy: {exc}")
             with open(abs_path, "rb") as rf, open(dst, "wb") as wf:
                 wf.write(rf.read())
 
@@ -47,9 +47,9 @@ class CopyImageStep(Step):
         from app.shared.file_kinds import FileKind
         from app.pipeline.files_recorder import replace_files
 
-        replace_files(ctx.task_id, FileKind.ORIGINAL_IMAGE, [os.path.abspath(dst)])
+        replace_files(ctx.job_id, FileKind.ORIGINAL_IMAGE, [os.path.abspath(dst)])
 
-        logger.info(f"[{ctx.task_id}] Input copy completed: {dst}")
+        logger.info(f"[{ctx.job_id}] Input copy completed: {dst}")
 
 
 class CopyImagesStep(Step):
@@ -59,8 +59,8 @@ class CopyImagesStep(Step):
     progress_start = 2
     progress_end = 5
 
-    def run(self, ctx: TaskContext) -> None:
-        logger.info(f"[{ctx.task_id}] Starting input copy")
+    def run(self, ctx: JobContext) -> None:
+        logger.info(f"[{ctx.job_id}] Starting input copy")
 
         ctx.create_dirs()
 
@@ -76,7 +76,7 @@ class CopyImagesStep(Step):
             try:
                 shutil.copy2(path, dst)
             except Exception as exc:
-                logger.debug(f"[{ctx.task_id}] copy2 failed for {path}, using stream copy: {exc}")
+                logger.debug(f"[{ctx.job_id}] copy2 failed for {path}, using stream copy: {exc}")
                 with open(path, "rb") as rf, open(dst, "wb") as wf:
                     wf.write(rf.read())
 
@@ -88,9 +88,9 @@ class CopyImagesStep(Step):
         from app.pipeline.files_recorder import replace_files
 
         replace_files(
-            ctx.task_id,
+            ctx.job_id,
             FileKind.ORIGINAL_IMAGE,
             [os.path.abspath(path) for path in raw_paths],
         )
 
-        logger.info(f"[{ctx.task_id}] Input copy completed: {len(raw_paths)} images")
+        logger.info(f"[{ctx.job_id}] Input copy completed: {len(raw_paths)} images")

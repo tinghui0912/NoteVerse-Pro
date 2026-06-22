@@ -104,8 +104,8 @@ class Settings(BaseSettings):
         return str(Path(v).expanduser())
 
     @field_validator(
-        "TASK_PENDING_STALE_SECONDS",
-        "TASK_PROGRESS_STALE_SECONDS",
+        "JOB_PENDING_STALE_SECONDS",
+        "JOB_PROGRESS_STALE_SECONDS",
         "ORPHAN_UPLOAD_TTL_SECONDS",
         "MAX_PROCESSING_TIME",
         "PADDLEOCR_TIMEOUT_SECONDS",
@@ -128,8 +128,8 @@ class Settings(BaseSettings):
     # Celery defaults to REDIS_URL unless explicitly overridden.
     CELERY_BROKER_URL: Optional[str] = None
     CELERY_RESULT_BACKEND: Optional[str] = None
-    TASK_PENDING_STALE_SECONDS: int = 600
-    TASK_PROGRESS_STALE_SECONDS: int = 900
+    JOB_PENDING_STALE_SECONDS: int = 600
+    JOB_PROGRESS_STALE_SECONDS: int = 900
     ORPHAN_UPLOAD_TTL_SECONDS: int = 86400
 
     # File storage

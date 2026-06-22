@@ -14,6 +14,7 @@ export { authApi } from './auth';
 
 // 任务 API
 export { tasksApi } from './tasks';
+export { jobsApi } from './jobs';
 
 // 文件 API
 export { filesApi } from './files';

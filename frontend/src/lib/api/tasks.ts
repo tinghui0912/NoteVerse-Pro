@@ -6,7 +6,6 @@ import type {
     Task,
     TaskState,
     TaskDetails,
-    BatchStatusResponse,
     BatchDeleteResponse,
     ArchiveResult,
 } from '@/types/api';
@@ -63,18 +62,6 @@ export async function getTaskDetails(
  * @param fileIds 文件 ID 列表
  * @param options 处理选项
  */
-export async function submitBatch(
-    fileIds: string[],
-    options?: Record<string, unknown>,
-    idempotencyKey?: string
-): Promise<ApiResponse<{ task_id: string }>> {
-    return apiClient.post<ApiResponse<{ task_id: string }>>('/tasks/submit-batch', {
-        file_ids: fileIds,
-        idempotency_key: idempotencyKey,
-        options,
-    });
-}
-
 /**
  * 更新任务信息
  * @param taskId 任务 ID
@@ -109,14 +96,6 @@ export async function batchDeleteTasks(taskIds: string[]): Promise<ApiResponse<B
  * 批量查询任务状态
  * @param taskIds 任务 ID 列表
  */
-export async function getBatchStatus(taskIds: string[]): Promise<ApiResponse<BatchStatusResponse>> {
-    return apiClient.post<ApiResponse<BatchStatusResponse>>('/tasks/status/batch', {
-        task_ids: taskIds,
-    });
-}
-
-
-
 /**
  * 批量打包下载
  * @param taskIds 任务 ID 列表
@@ -144,11 +123,9 @@ export async function archiveTasks(
 export const tasksApi = {
     listTasks,
     getTaskDetails,
-    submitBatch,
     updateTask,
     deleteTask,
     batchDeleteTasks,
-    getBatchStatus,
     archiveTasks,
 };
 

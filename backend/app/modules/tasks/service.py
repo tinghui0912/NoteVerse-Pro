@@ -24,15 +24,11 @@ from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schemas import (
     BatchArchiveRequestLike,
     BatchDeleteResult,
-    BatchStatusEntry,
-    BatchSubmitRequestLike,
-    BatchSubmitResult,
     TaskListItem,
     TaskListResponse,
     TaskStatusResult,
     TaskUpdateResult,
 )
-from app.modules.tasks.submission_service import TaskSubmissionService
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
@@ -43,12 +39,10 @@ class TaskService:
     def __init__(
         self,
         repository: Optional[TaskRepository] = None,
-        submission_service: Optional[TaskSubmissionService] = None,
         archive_service: Optional[TaskArchiveService] = None,
         storage: Optional[FileStorage] = None,
     ):
         self.repository = repository or TaskRepository()
-        self.submission_service = submission_service or TaskSubmissionService()
         self.archive_service = archive_service or TaskArchiveService(self.repository)
         self.storage = storage or file_storage
 
@@ -240,30 +234,15 @@ class TaskService:
             except Exception as exc:
                 logger.warning(f"Failed to delete task work dir {work_task_dir}: {exc}")
 
-    async def batch_status(
-        self,
-        db: AsyncSession,
-        task_uuids: List[str],
-        user_id: int,
-    ) -> dict[str, BatchStatusEntry]:
-        return await self.repository.batch_status(db, task_uuids, user_id)
-
     async def get_task_details(self, task_uuid: str) -> TaskStatusResult:
         from app.db.worker_session import get_db_session
-        from app.modules.tasks.worker_service import sync_task_service
+        from app.modules.tasks.legacy_projection_service import legacy_task_projection_service
 
         sync_db = get_db_session()
         try:
-            return sync_task_service.get_task_status(sync_db, task_uuid)
+            return legacy_task_projection_service.get_task_status(sync_db, task_uuid)
         finally:
             sync_db.close()
-
-    async def submit_batch(
-        self,
-        current_user: User,
-        request: BatchSubmitRequestLike,
-    ) -> BatchSubmitResult:
-        return await self.submission_service.submit_batch(current_user, request)
 
     async def build_archive(
         self,

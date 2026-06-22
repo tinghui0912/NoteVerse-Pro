@@ -604,6 +604,10 @@ Editor ownership update (2026-06-20): document queries, draft recovery, validati
 
 Results ownership update (2026-06-21): `use-results-resources` loads task metadata and final XML without fetching redundant rendered-image previews. The results page composes an inline Verovio player, explicit history-origin breadcrumbs, grouped actions, a standalone difficulty editor, and a share dialog under `components/results`. The create-share contract persists view/edit permission and permanent or dated expiration; share controls must submit those real fields.
 
+Results playback layout update (2026-06-22): score viewport presentation is reusable independently from playback controls, but `use-score-preview-playback` remains the only playback-state owner. Results uses complete document-flow pages plus a viewport-fixed dock; only the hook decides whether cursor synchronization may scroll the window. Manual page navigation suspends automatic following without pausing audio, and the dock exposes the explicit return-to-playback action. Modal preview surfaces continue to use inline controls.
+
+Processing-job client update (2026-06-22): upload submission and polling use the dedicated `jobs` API/types/query keys and consume `job_id`. Task clients no longer expose processing submission or batch-status methods. Task identity remains only on the pre-Score library, review, results, editor, sharing, and practice compatibility surfaces until their scheduled cutover.
+
 History ownership update (2026-06-20): upload/share filters and pagination are independent tab state, selection is reset at tab boundaries, batch actions compose domain mutation hooks, and thumbnail access requests are cancellable with owned object URLs revoked on cleanup. History cards, toolbar, status, and pagination live under `components/history`.
 
 Practice resource ownership update (2026-06-20): session references and REST controls live in `use-practice-session`; WebSocket/heartbeat, AudioWorklet/MediaStream, and MediaRecorder/object URLs each have a dedicated hook with paired cleanup. The practice route composes those hooks and UI components while committed alignment and SVG work remain in the viewer/controller boundary.
@@ -614,7 +618,7 @@ Playback spike update (2026-06-20): Verovio base64 MIDI and XML-ID timemap data 
 
 Interactive listen migration update (2026-06-21): results, share, and editor use the single shared Verovio preview path. `ListenModal` contains no toolkit internals; its score playback hook dynamically loads the controller, while the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The previous renderer backend, compatibility patch, and dependencies have been removed.
 
-Post-migration ownership update (2026-06-21): editor-only hooks live under `hooks/editor`, editor undo history is explicitly named, draft/score lookup utilities live under `lib/editor`, API contracts are domain modules behind `types/api/index.ts`, and score-preview playback state lives in a dedicated score hook. The frontend package is `noteverse-pro-frontend`; frontend CI runs lint, typecheck, 44 unit/component tests, build, and 7 deterministic Playwright tests.
+Post-migration ownership update (2026-06-21): editor-only hooks live under `hooks/editor`, editor undo history is explicitly named, draft/score lookup utilities live under `lib/editor`, API contracts are domain modules behind `types/api/index.ts`, and score-preview playback state lives in a dedicated score hook. The frontend package is `noteverse-pro-frontend`; frontend CI runs lint, typecheck, 48 unit/component tests, build, and 7 deterministic Playwright tests.
 
 ## Bottom Line
 

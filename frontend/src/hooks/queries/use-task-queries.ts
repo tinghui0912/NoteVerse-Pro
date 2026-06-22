@@ -105,18 +105,6 @@ export function useDeleteTasks() {
 /**
  * 提交批量处理任务
  */
-export function useSubmitBatch() {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: ({ fileIds, options, idempotencyKey }: {
-            fileIds: string[];
-            options?: Record<string, unknown>;
-            idempotencyKey?: string;
-        }) => tasksApi.submitBatch(fileIds, options, idempotencyKey),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() }),
-    });
-}
-
 /**
  * 批量打包下载
  */

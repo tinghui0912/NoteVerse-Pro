@@ -1,0 +1,104 @@
+{
+  "contract_version": 1,
+  "api_namespace": "/api/v1",
+  "external_consumers_confirmed": false,
+  "enums": {
+    "processing_job_state": ["PENDING", "PROGRESS", "PENDING_REVIEW", "SUCCESS", "FAILURE"],
+    "score_state": ["IN_REVIEW", "ACTIVE", "ARCHIVED"],
+    "revision_origin": ["OMR", "EDIT", "IMPORT", "FINGERING"],
+    "metadata_status": ["PENDING", "READY", "FAILED"],
+    "artifact_kind": ["MUSICXML", "RENDERED_PAGE", "EXPORT_PDF", "AUDIO_PREVIEW", "DIAGNOSTIC_JSON"],
+    "membership_role": ["EDITOR", "VIEWER"],
+    "share_grant_scope": ["VIEW", "EDIT_INVITE"],
+    "share_target_mode": ["LATEST", "PINNED"],
+    "publication_status": ["PUBLISHED", "UNPUBLISHED"],
+    "publication_discoverability": ["LISTED", "UNLISTED"],
+    "access_origin": ["OWNER", "MEMBERSHIP", "SHARE", "PUBLICATION"]
+  },
+  "score_transitions": {
+    "IN_REVIEW": ["ACTIVE", "ARCHIVED"],
+    "ACTIVE": ["ARCHIVED"],
+    "ARCHIVED": []
+  },
+  "capabilities": [
+    "can_view",
+    "can_edit",
+    "can_download",
+    "can_practice",
+    "can_share",
+    "can_manage_members",
+    "can_publish",
+    "can_manage"
+  ],
+  "policy_actions": [
+    "VIEW_SCORE",
+    "VIEW_REVISION",
+    "EDIT_SCORE",
+    "DOWNLOAD_ARTIFACT",
+    "START_PRACTICE",
+    "CREATE_SHARE",
+    "MANAGE_MEMBERS",
+    "PUBLISH_SCORE",
+    "MANAGE_SCORE"
+  ],
+  "error_codes": [
+    "job_not_found",
+    "score_not_found",
+    "score_archived",
+    "revision_not_found",
+    "revision_conflict",
+    "revision_content_invalid",
+    "artifact_not_found",
+    "metadata_not_ready",
+    "metadata_extraction_failed",
+    "share_grant_not_found",
+    "share_grant_revoked",
+    "share_grant_expired",
+    "share_grant_login_required",
+    "membership_not_found",
+    "publication_not_found",
+    "publication_revision_invalid",
+    "score_access_denied"
+  ],
+  "identities": {
+    "submission_and_polling": "job_id",
+    "review": "job_id",
+    "results_editor_history_sharing": "score_id",
+    "practice_and_publication_snapshot": "revision_id"
+  },
+  "invariants": {
+    "revision_is_immutable": true,
+    "revision_history_is_linear": true,
+    "revision_save_requires_base_revision": true,
+    "revision_content_hash_is_idempotent": true,
+    "one_canonical_musicxml_per_revision": true,
+    "metadata_is_rebuildable_projection": true,
+    "publication_pins_revision": true,
+    "anonymous_edit_is_forbidden": true,
+    "bookmark_grants_access": false,
+    "raw_share_token_is_persisted": false,
+    "practice_pins_revision": true,
+    "public_access_is_read_only": true
+  },
+  "examples": {
+    "score_capabilities": {
+      "can_view": true,
+      "can_edit": false,
+      "can_download": true,
+      "can_practice": true,
+      "can_share": false,
+      "can_manage_members": false,
+      "can_publish": false,
+      "can_manage": false
+    },
+    "create_revision_request": {
+      "base_revision_id": "revision-uuid",
+      "content": "<score-partwise />",
+      "idempotency_key": "client-generated-request-id"
+    },
+    "create_practice_session_request": {
+      "score_id": "score-uuid",
+      "revision_id": "revision-uuid"
+    }
+  }
+}
