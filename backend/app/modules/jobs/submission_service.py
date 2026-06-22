@@ -4,9 +4,8 @@ import uuid
 
 from app.core.exceptions import ExternalServiceException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
-from app.db.models import ProcessingJob, ProcessingJobUpload, Task, TaskUpload, User
+from app.db.models import ProcessingJob, ProcessingJobUpload, User
 from app.db.models.processing_job import ProcessingJobState
-from app.db.models.task import TaskState
 from app.modules.jobs.schemas import JobProcessingOptions, JobSubmitRequestLike, JobSubmitResult
 from app.modules.jobs.worker_service import sync_job_service
 from app.shared.constants import ErrorCode
@@ -107,23 +106,6 @@ class JobSubmissionService:
             db.flush()
             job_id = require_persisted_id(job.id, entity="processing job")
 
-            # Temporary read-model projection for review/results until P1-3 creates Score.
-            legacy_task = Task(
-                user_id=user_id,
-                task_uuid=job_uuid,
-                state=TaskState.PENDING,
-                progress=0,
-                title=self._option(request.options, "title"),
-                difficulty=self._option(request.options, "difficulty"),
-                idempotency_key=idempotency_key,
-                requested_at=now,
-                created_at=now,
-                updated_at=now,
-            )
-            db.add(legacy_task)
-            db.flush()
-            task_id = require_persisted_id(legacy_task.id, entity="legacy task projection")
-
             for file_id in request.file_ids:
                 upload = sync_job_service.repository.get_upload_by_sha256(db, file_id)
                 if not upload or upload.uploader_user_id != user_id:
@@ -134,7 +116,6 @@ class JobSubmissionService:
                     )
                 upload_id = require_persisted_id(upload.id, entity="upload")
                 db.add(ProcessingJobUpload(job_id=job_id, upload_id=upload_id))
-                db.add(TaskUpload(task_id=task_id, upload_id=upload_id))
             db.commit()
         except Exception:
             db.rollback()

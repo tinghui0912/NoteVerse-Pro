@@ -1,18 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { getResultsShareStatus, getShareExpirationDays } from '@/lib/results/share';
 import { parseResultsHistorySource } from '@/lib/results/navigation';
-import type { Share } from '@/types/api';
+import type { ScoreGrant } from '@/types/api';
 
-function share(overrides: Partial<Share> = {}): Share {
+function share(overrides: Partial<ScoreGrant> = {}): ScoreGrant {
   return {
-    id: 1,
-    share_token: 'token',
-    task_id: 'task',
+    grant_id: 'grant',
+    scope: 'VIEW',
+    target_mode: 'LATEST',
+    target_revision_id: null,
+    allow_download: true,
+    allow_practice: true,
     created_at: '2026-01-01T00:00:00Z',
     expires_at: null,
     revoked_at: null,
     ...overrides,
-  } as Share;
+  };
 }
 
 describe('results share helpers', () => {

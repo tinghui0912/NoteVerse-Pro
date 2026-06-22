@@ -22,16 +22,16 @@ function ResultsPageContent({ id, source }: { id: string; source: 'shares' | 'up
   const errors = useTranslations('errors');
   const history = useTranslations('history');
   const resources = useResultsResources(id);
-  const error = resources.taskError instanceof ApiError && resources.taskError.code
-    ? errors(resources.taskError.code as never)
-    : resources.taskError instanceof Error
-      ? resources.taskError.message
+  const error = resources.scoreError instanceof ApiError && resources.scoreError.code
+    ? errors(resources.scoreError.code as never)
+    : resources.scoreError instanceof Error
+      ? resources.scoreError.message
       : null;
-  const scoreTitle = resources.task?.title || resources.parsedTitle || history('taskLabel', {
+  const scoreTitle = resources.score?.title || resources.parsedTitle || history('taskLabel', {
     id: id.slice(0, 8),
   });
 
-  if (resources.taskLoading) {
+  if (resources.scoreLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-gray-50">
         <div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1></div></div>
@@ -80,16 +80,22 @@ function ResultsPageContent({ id, source }: { id: string; source: 'shares' | 'up
             <div className="sticky top-8 space-y-6 lg:col-span-1">
               <ResultsMetadataEditor
                 imageCount={resources.imageCount}
-                taskId={id}
-                task={resources.task}
+                scoreId={id}
+                score={resources.score}
                 parsedTitle={resources.parsedTitle}
               />
               <ResultsActions
+                artifacts={resources.artifacts}
                 imageCount={resources.imageCount}
+                revisionId={resources.score?.head_revision_id}
                 scoreTitle={scoreTitle}
-                taskId={id}
+                scoreId={id}
               />
-              <ResultsDifficultyEditor difficulty={resources.task?.difficulty} taskId={id} />
+              <ResultsDifficultyEditor
+                difficulty={resources.score?.difficulty ?? undefined}
+                scoreId={id}
+                version={resources.score?.version ?? 1}
+              />
             </div>
           </div>
         </div>

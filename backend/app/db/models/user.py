@@ -8,8 +8,6 @@ from app.utils.timezone import utc_now_naive
 
 if TYPE_CHECKING:
     from .auth import RefreshToken
-    from .task import Task
-    from .share import Share, SavedShare
     from .file import Upload
     from .practice import PracticeSession
 
@@ -39,9 +37,6 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     created_at: datetime = Field(default_factory=utc_now_naive, sa_column=Column(DateTime, default=utc_now_naive, nullable=False))
     updated_at: datetime = Field(default_factory=utc_now_naive, sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False))
 
-    tasks: List["Task"] = Relationship(back_populates="user")
     uploads: List["Upload"] = Relationship(back_populates="uploader")
-    shares: List["Share"] = Relationship(back_populates="owner")
-    saved_shares: List["SavedShare"] = Relationship(back_populates="user")
     practice_sessions: List["PracticeSession"] = Relationship(back_populates="user")
     refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")

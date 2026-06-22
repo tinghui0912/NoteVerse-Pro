@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -19,6 +20,8 @@ from sqlalchemy import (
 from sqlmodel import Field, SQLModel
 
 from app.utils.timezone import utc_now_naive
+
+bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
 class ProcessingJobState(str, enum.Enum):
@@ -48,7 +51,10 @@ class ProcessingJob(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_processing_jobs_state", "state"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     job_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
     state: ProcessingJobState = Field(
@@ -75,6 +81,7 @@ class ProcessingJob(SQLModel, table=True):  # type: ignore[call-arg]
                 "scores.id",
                 name="fk_processing_jobs_score_id",
                 use_alter=True,
+                ondelete="SET NULL",
             ),
         ),
     )
@@ -100,7 +107,10 @@ class ProcessingJobStep(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_processing_job_steps_job_order", "job_id", "step_order"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     job_id: int = Field(
         sa_column=Column(
             BigInteger,
@@ -127,7 +137,10 @@ class ProcessingJobUpload(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_processing_job_uploads_job", "job_id"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     job_id: int = Field(
         sa_column=Column(
             BigInteger,
@@ -147,7 +160,14 @@ class ProcessingArtifact(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_processing_artifacts_job_kind", "job_id", "kind"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
+    artifact_uuid: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), unique=True, nullable=False),
+    )
     job_id: int = Field(
         sa_column=Column(
             BigInteger,

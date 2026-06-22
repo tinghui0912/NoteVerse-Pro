@@ -1,24 +1,30 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useScoreData } from '@/contexts/editor-provider';
-import { useTaskDetail } from '@/hooks/queries/use-task-queries';
-import { useXmlContent } from '@/hooks/queries/use-xml-queries';
+import {
+  useRevisionContent,
+  useScoreArtifacts,
+  useScoreDetail,
+} from '@/hooks/queries/use-score-queries';
 
-export function useResultsResources(taskId: string) {
+export function useResultsResources(scoreId: string) {
   const { setRawXml, setScoreData } = useScoreData();
-  const taskQuery = useTaskDetail(taskId);
-  const task = taskQuery.data?.data;
-  const xmlQuery = useXmlContent(taskId, 'final', { enabled: Boolean(task) });
+  const scoreQuery = useScoreDetail(scoreId);
+  const score = scoreQuery.data?.data;
+  const revisionId = score?.head_revision_id;
+  const revisionQuery = useRevisionContent(scoreId, revisionId);
+  const artifactQuery = useScoreArtifacts(scoreId, {
+    revisionId: revisionId ?? undefined,
+    enabled: Boolean(revisionId),
+  });
   const [parsedTitle, setParsedTitle] = useState('');
-  const finalImages = useMemo(() => task?.files?.final_image ?? [], [task?.files?.final_image]);
+  const xmlContent = revisionQuery.data?.data?.content;
 
   useEffect(() => {
-    const xmlContent = xmlQuery.data;
     if (!xmlContent) return;
     let cancelled = false;
     setRawXml(xmlContent);
-
     void import('@/lib/musicxml/parser').then(({ MusicXMLParser }) => {
       if (cancelled) return;
       try {
@@ -29,18 +35,18 @@ export function useResultsResources(taskId: string) {
         console.error('Failed to parse XML', error);
       }
     });
-
     return () => {
       cancelled = true;
     };
-  }, [setRawXml, setScoreData, xmlQuery.data]);
+  }, [setRawXml, setScoreData, xmlContent]);
 
   return {
-    imageCount: finalImages.length,
+    artifacts: artifactQuery.data?.data ?? [],
+    imageCount: artifactQuery.data?.data?.filter((artifact) => artifact.kind === 'RENDERED_PAGE').length ?? 0,
     parsedTitle,
-    rawXml: xmlQuery.data ?? '',
-    task,
-    taskError: taskQuery.error,
-    taskLoading: taskQuery.isLoading,
+    rawXml: xmlContent ?? '',
+    score,
+    scoreError: scoreQuery.error ?? revisionQuery.error ?? artifactQuery.error,
+    scoreLoading: scoreQuery.isLoading || revisionQuery.isLoading,
   };
 }

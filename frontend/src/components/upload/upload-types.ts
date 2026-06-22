@@ -18,6 +18,6 @@ export interface RestorableTaskData {
   upload_ids?: RestoredUploadInfo[];
 }
 
-export function getCompletedTaskRoute(taskId: string, state: string) {
-  return state === 'PENDING_REVIEW' ? `/review/${taskId}` : `/results/${taskId}`;
+export function getCompletedScoreRoute(scoreId: string, state: string) {
+  return state === 'PENDING_REVIEW' ? `/review/${scoreId}` : `/results/${scoreId}`;
 }

@@ -986,7 +986,10 @@ def process_score(args: argparse.Namespace, image_paths: list[Path], output_dir:
         page_musicxml_paths.append(musicxml_path)
         analysis = analyze_musicxml_systems(musicxml_path, running_measure_offset)
         page_analyses.append(analysis)
-        running_measure_offset += int(analysis["measure_count"])
+        measure_count = analysis["measure_count"]
+        if not isinstance(measure_count, int):
+            raise TypeError("MusicXML measure_count must be an integer")
+        running_measure_offset += measure_count
 
         page_svg_paths.append(
             render_musicxml_to_svgs(

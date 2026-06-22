@@ -1,8 +1,8 @@
-import type { Share } from '@/types/api';
+import type { ScoreGrant } from '@/types/api';
 
 export type ResultsShareStatus = 'active' | 'revoked' | 'expired';
 
-export function getResultsShareStatus(share: Share, now = new Date()): ResultsShareStatus {
+export function getResultsShareStatus(share: ScoreGrant, now = new Date()): ResultsShareStatus {
   if (share.revoked_at) return 'revoked';
   if (share.expires_at && new Date(share.expires_at) < now) return 'expired';
   return 'active';

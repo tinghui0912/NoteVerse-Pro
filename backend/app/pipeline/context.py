@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.modules.jobs.schemas import PipelineExecutionFailureResult, JobProcessingOptions
 from app.processing.engines.omr import OmrSuccessResult
 from app.modules.jobs.worker_service import sync_job_service as job_service
+from app.modules.scores.creation_service import sync_score_creation_service
 from app.pipeline.step_tracker import StepTracker
 
 if TYPE_CHECKING:
@@ -164,14 +165,20 @@ class JobContext:
         except Exception as exc:
             logger.debug(f"[{self.job_id}] tracker.complete_last failed: {exc}")
 
-        try:
-            total_time = int(time.time() - self._start_ts)
-            job_service.finalize_success(
-                self.db, self.job_id, total_time_seconds=total_time
-            )
-            logger.info(f"[{self.job_id}] Job completed in {total_time}s")
-        except Exception as exc:
-            logger.warning(f"[{self.job_id}] finalize_success failed: {exc}")
+        if not self.main_xml or not os.path.exists(self.main_xml):
+            raise FileNotFoundError("Canonical MusicXML was not produced")
+        sync_score_creation_service.create_from_job(
+            self.db,
+            self.job_id,
+            self.main_xml,
+            title=self.options.get("title"),
+            difficulty=self.options.get("difficulty"),
+        )
+        total_time = int(time.time() - self._start_ts)
+        job_service.finalize_success(
+            self.db, self.job_id, total_time_seconds=total_time
+        )
+        logger.info(f"[{self.job_id}] Job completed in {total_time}s")
 
     def update_celery_state(self, status: str, progress: int, current_step: str) -> None:
         """Update the Celery task state payload."""

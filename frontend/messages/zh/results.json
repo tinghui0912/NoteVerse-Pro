@@ -16,6 +16,8 @@
   "historyBreadcrumb": "历史记录",
   "actionsTitle": "功能操作",
   "createShareAction": "创建分享",
+  "publishScore": "公开发布",
+  "unpublishScore": "取消公开",
   "downloadImage": "下载图片",
   "downloadMusicXML": "下载 MusicXML",
   "saveSuccess": "保存成功",

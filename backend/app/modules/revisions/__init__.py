@@ -1,0 +1,1 @@
+"""Immutable score revision domain."""

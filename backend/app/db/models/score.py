@@ -53,6 +53,7 @@ class MetadataStatus(str, enum.Enum):
 
 
 metadata_json_type = JSON().with_variant(JSONB, "postgresql")
+bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
 class Score(SQLModel, table=True):  # type: ignore[call-arg]
@@ -75,7 +76,10 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_scores_state", "state"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     score_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     owner_user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
@@ -144,7 +148,10 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_score_revisions_score_created", "score_id", "created_at"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     revision_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     score_id: int = Field(
         sa_column=Column(
@@ -203,7 +210,10 @@ class ScoreArtifact(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_score_artifacts_revision_kind", "revision_id", "kind"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     artifact_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     revision_id: int = Field(
         sa_column=Column(

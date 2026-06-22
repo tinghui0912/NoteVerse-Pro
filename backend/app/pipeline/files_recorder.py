@@ -1,7 +1,7 @@
 """
 Files recorder service for processing-job outputs.
 
-This module records task-related file paths into the database after worker-side
+This module records job-related file paths into the database after worker-side
 pipeline steps complete.
 """
 
@@ -55,7 +55,7 @@ def replace_files(
 
     Args:
         job_id: Job UUID.
-        kind: File kind, for example `original_image` or `final_xml`.
+        kind: Processing artifact kind, for example `original_image`.
         abs_paths: Absolute file paths to record.
 
     Storage format:

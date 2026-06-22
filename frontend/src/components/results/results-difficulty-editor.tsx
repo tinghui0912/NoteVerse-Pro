@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useUpdateTask } from '@/hooks/queries/use-task-queries';
+import { useUpdateScore } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
 
 const difficultyOptions = [
@@ -16,14 +16,16 @@ const difficultyOptions = [
 
 export function ResultsDifficultyEditor({
   difficulty,
-  taskId,
+  scoreId,
+  version,
 }: {
   difficulty?: string;
-  taskId: string;
+  scoreId: string;
+  version: number;
 }) {
   const t = useTranslations('results');
   const upload = useTranslations('upload');
-  const mutation = useUpdateTask();
+  const mutation = useUpdateScore();
   const { toast } = useToast();
   const serverDifficulty = difficulty ?? '';
   const [optimisticDifficulty, setOptimisticDifficulty] = useState<{
@@ -41,7 +43,7 @@ export function ResultsDifficultyEditor({
     const previousDifficulty = selectedDifficulty;
     setOptimisticDifficulty({ serverValue: serverDifficulty, value: nextDifficulty });
     mutation.mutate(
-      { id: taskId, data: { difficulty: nextDifficulty } },
+      { scoreId, difficulty: nextDifficulty, expected_version: version },
       {
         onSuccess: () => {
           toast({ title: t('saveSuccess'), description: t('scoreInfoUpdated') });

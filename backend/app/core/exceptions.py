@@ -209,6 +209,21 @@ class BusinessRuleException(AppException):
         )
 
 
+class ConflictException(AppException):
+    """A write could not be applied to the current resource version."""
+
+    def __init__(
+        self,
+        code: str,
+        details: Optional[ErrorDetails] = None,
+    ):
+        super().__init__(
+            code=code,
+            status_code=status.HTTP_409_CONFLICT,
+            details=details,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Worker / pipeline exceptions
 # ---------------------------------------------------------------------------

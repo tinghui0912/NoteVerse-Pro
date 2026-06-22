@@ -1,0 +1,1 @@
+"""Stable score aggregate domain."""

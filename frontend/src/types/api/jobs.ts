@@ -19,4 +19,17 @@ export interface ProcessingJob {
   finished_at?: string;
   error?: string;
   code?: string;
+  artifacts?: Record<string, ProcessingArtifact[]>;
+  upload_ids?: Array<{ upload_id?: number; sha256: string; original_filename?: string }>;
+}
+
+export interface ProcessingArtifact {
+  artifact_id: string;
+  storage_backend: string;
+  storage_key: string;
+  filename: string;
+  page_number?: number;
+  size?: number;
+  mime_type?: string;
+  sha256?: string;
 }

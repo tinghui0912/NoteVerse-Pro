@@ -4,7 +4,12 @@ import { useTranslations } from 'next-intl';
 import { useBackendMessage } from '@/hooks/use-backend-message';
 import { Button } from '@/components/ui/button';
 import { practiceApi } from '@/lib/api';
-import { useXmlContent } from '@/hooks/queries/use-xml-queries';
+import {
+  useGrantContent,
+  usePublicScoreContent,
+  useRevisionContent,
+  useScoreDetail,
+} from '@/hooks/queries/use-score-queries';
 import {
   type PracticeAlignmentUpdateMessage,
   type PracticeServerMessage,
@@ -47,6 +52,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const router = useRouter();
   const searchParams = useSearchParams();
   const shareToken = searchParams.get('shareToken') || undefined;
+  const publicSlug = searchParams.get('publicSlug') || undefined;
   const { toast } = useToast();
 
   const [practiceStatus, setPracticeStatus] = useState<PracticeStatus>('idle');
@@ -101,7 +107,25 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       input_policy_confidence: 1,
     };
   }, [alignment, practiceStatus]);
-  const { data: xmlContent, isLoading: isLoadingXml } = useXmlContent(id, 'final', { shareToken });
+  const scoreQuery = useScoreDetail(id, !shareToken && !publicSlug);
+  const revisionQuery = useRevisionContent(id, scoreQuery.data?.data?.head_revision_id);
+  const grantContent = useGrantContent(shareToken ?? '');
+  const publicContent = usePublicScoreContent(publicSlug ?? '');
+  const xmlContent = shareToken
+    ? grantContent.data?.data?.content
+    : publicSlug
+      ? publicContent.data?.data?.content
+      : revisionQuery.data?.data?.content;
+  const revisionId = shareToken
+    ? grantContent.data?.data?.revision_id
+    : publicSlug
+      ? publicContent.data?.data?.revision_id
+      : scoreQuery.data?.data?.head_revision_id ?? undefined;
+  const isLoadingXml = shareToken
+    ? grantContent.isLoading
+    : publicSlug
+      ? publicContent.isLoading
+      : scoreQuery.isLoading || revisionQuery.isLoading;
 
   const practiceStatusRef = useRef<PracticeStatus>('idle');
   const preconnectStartedRef = useRef(false);
@@ -109,7 +133,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const socket = usePracticeSocket({ onMessage: handleSocketMessage, onClose: handleSocketClose });
   const audioStream = usePracticeAudioStream(socket.sendBinary);
   const recording = usePracticeRecording();
-  const practiceSession = usePracticeSession({ taskId: id, shareToken });
+  const practiceSession = usePracticeSession({
+    scoreId: id,
+    revisionId,
+    shareToken,
+    publicSlug,
+  });
   const { audioUrl: audioURL } = recording;
   const hasMicPermission = audioStream.hasMicPermission;
   const audioWorkletSupported = audioStream.isSupported;

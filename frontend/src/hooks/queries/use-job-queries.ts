@@ -14,6 +14,15 @@ export function useJobDetail(
   });
 }
 
+export function useJobList(page: number, pageSize: number, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.jobs.list(page, pageSize),
+    queryFn: ({ signal }) => jobsApi.listJobs(page, pageSize, signal),
+    enabled,
+    refetchInterval: enabled ? 5000 : false,
+  });
+}
+
 export function useSubmitJob() {
   return useMutation({
     mutationFn: ({ fileIds, options, idempotencyKey }: {

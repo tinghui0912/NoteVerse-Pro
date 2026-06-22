@@ -36,44 +36,24 @@ def test_docs_endpoints(client: TestClient) -> None:
     assert openapi_response.status_code == 200
 
 
-def test_public_xml_source_contract_excludes_pipeline_artifacts(client: TestClient) -> None:
+def test_legacy_task_as_score_routes_are_absent(client: TestClient) -> None:
     schema = client.get("/api/v1/openapi.json").json()
-    path = next(path for path in schema["paths"] if path.endswith("/xml/{task_id}/xml"))
-    parameters = schema["paths"][path]["get"]["parameters"]
-    source = next(parameter for parameter in parameters if parameter["name"] == "source")
-
-    assert source["required"] is True
-    assert source["schema"]["enum"] == ["final", "current"]
+    paths = schema["paths"]
+    assert not any(path.startswith("/api/v1/tasks") for path in paths)
+    assert not any(path.startswith("/api/v1/xml") for path in paths)
+    assert not any(path.startswith("/api/v1/shares") for path in paths)
 
 
 def test_protected_endpoints_require_authentication(client: TestClient) -> None:
     protected_paths = [
-        "/api/v1/tasks",
         "/api/v1/jobs/test-job",
+        "/api/v1/scores/test-score",
         "/api/v1/profile",
-        "/api/v1/shares",
-        "/api/v1/xml/test-task/xml",
-        "/api/v1/files/tasks/test-task",
     ]
 
     for path in protected_paths:
         response = client.get(path)
         assert response.status_code == 401, path
-
-
-def test_tasks_feature_routes_require_authentication(client: TestClient) -> None:
-    protected_requests = [
-        ("get", "/api/v1/tasks", None),
-        ("get", "/api/v1/tasks/test-task/details", None),
-        ("patch", "/api/v1/tasks/test-task", {"title": "Updated"}),
-        ("delete", "/api/v1/tasks/test-task", None),
-        ("post", "/api/v1/tasks/batch-delete", {"task_ids": ["task-1"]}),
-        ("post", "/api/v1/tasks/archive", {"task_ids": ["task-1"], "include_types": ["image"]}),
-    ]
-
-    for method, path, payload in protected_requests:
-        response = _request(client, method, path, payload)
-        assert response.status_code == 401, f"{method.upper()} {path}"
 
 
 def test_jobs_feature_routes_require_authentication(client: TestClient) -> None:
@@ -89,46 +69,44 @@ def test_jobs_feature_routes_require_authentication(client: TestClient) -> None:
         assert response.status_code == 401, f"{method.upper()} {path}"
 
 
+def test_scores_feature_routes_require_authentication(client: TestClient) -> None:
+    protected_requests = [
+        ("get", "/api/v1/scores/test-score", None),
+        ("patch", "/api/v1/scores/test-score", {"title": "Updated", "expected_version": 1}),
+        ("delete", "/api/v1/scores/test-score", None),
+        ("post", "/api/v1/scores/test-score/approve", None),
+        ("get", "/api/v1/scores/test-score/revisions", None),
+        (
+            "post",
+            "/api/v1/scores/test-score/revisions",
+            {
+                "content": "<score-partwise version='4.0'/>",
+                "base_revision_id": "revision-1",
+            },
+        ),
+        ("get", "/api/v1/scores/test-score/revisions/revision-1/content", None),
+        ("get", "/api/v1/scores/test-score/artifacts", None),
+        ("post", "/api/v1/scores/test-score/revisions/revision-1/render", None),
+        ("get", "/api/v1/scores/test-score/revisions/revision-1/metadata", None),
+        ("post", "/api/v1/scores/test-score/revisions/revision-1/metadata/rebuild", None),
+        ("get", "/api/v1/artifacts/artifact-1/download", None),
+        ("get", "/api/v1/artifacts/artifact-1/access-url", None),
+        ("post", "/api/v1/scores/test-score/grants", {"scope": "VIEW"}),
+        ("get", "/api/v1/scores/test-score/grants", None),
+        ("put", "/api/v1/scores/test-score/publication", {}),
+        ("delete", "/api/v1/scores/test-score/publication", None),
+        ("get", "/api/v1/score-bookmarks", None),
+    ]
+
+    for method, path, payload in protected_requests:
+        response = _request(client, method, path, payload)
+        assert response.status_code == 401, f"{method.upper()} {path}"
+
+
 def test_files_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
         ("post", "/api/v1/files/upload", None),
-        ("get", "/api/v1/files/tasks/test-task", None),
-        ("get", "/api/v1/files/download/final_xml/test-task", None),
-        ("get", "/api/v1/files/preview/test.png", None),
         ("delete", "/api/v1/files/test.png", None),
-        ("post", "/api/v1/files/export/excel", {"task_ids": ["task-1"]}),
-    ]
-
-    for method, path, payload in protected_requests:
-        response = _request(client, method, path, payload)
-        assert response.status_code == 401, f"{method.upper()} {path}"
-
-
-def test_shares_feature_routes_require_authentication(client: TestClient) -> None:
-    protected_requests = [
-        ("get", "/api/v1/shares", None),
-        ("post", "/api/v1/shares", {"task_id": "task-1"}),
-        ("get", "/api/v1/shares/fake-token", None),
-        ("delete", "/api/v1/shares/fake-token", None),
-        ("post", "/api/v1/shares/fake-token/revoke", None),
-        ("get", "/api/v1/shares/fake-token/download/final_xml", None),
-        ("get", "/api/v1/shares/fake-token/download/archive", None),
-        ("get", "/api/v1/shares/saved-shares", None),
-        ("post", "/api/v1/shares/save", {"token": "fake-token"}),
-        ("post", "/api/v1/shares/saved-shares/batch-delete", {"ids": [1]}),
-    ]
-
-    for method, path, payload in protected_requests:
-        response = _request(client, method, path, payload)
-        assert response.status_code == 401, f"{method.upper()} {path}"
-
-
-def test_xml_feature_routes_require_authentication(client: TestClient) -> None:
-    protected_requests = [
-        ("get", "/api/v1/xml/test-task/xml", None),
-        ("post", "/api/v1/xml/test-task/xml", {"content": "<score-partwise />"}),
-        ("post", "/api/v1/xml/test-task/confirm", {}),
-        ("post", "/api/v1/xml/test-task/fingering", {}),
     ]
 
     for method, path, payload in protected_requests:

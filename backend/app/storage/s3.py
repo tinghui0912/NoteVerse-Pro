@@ -86,6 +86,16 @@ class S3CompatibleStorage:
                 return False
             raise
 
+    def read_bytes(self, key: str) -> bytes:
+        normalized_key = self._normalize_key(key)
+        try:
+            response = self.client.get_object(Bucket=self.bucket, Key=normalized_key)
+            return response["Body"].read()
+        except Exception as exc:
+            if self._is_not_found_error(exc):
+                raise FileNotFoundError(normalized_key) from exc
+            raise
+
     def delete(self, key: str) -> bool:
         normalized_key = self._normalize_key(key)
         existed = self.exists(normalized_key)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -14,12 +15,15 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     String,
     UniqueConstraint,
 )
 from sqlmodel import Field, SQLModel
 
 from app.utils.timezone import utc_now_naive
+
+bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
 class MembershipRole(str, enum.Enum):
@@ -61,7 +65,10 @@ class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_score_memberships_user_active", "user_id", "revoked_at"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     score_id: int = Field(
         sa_column=Column(
             BigInteger,
@@ -100,7 +107,14 @@ class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_score_share_grants_token_hash", "token_hash", unique=True),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
+    grant_uuid: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), unique=True, nullable=False),
+    )
     score_id: int = Field(
         sa_column=Column(
             BigInteger,
@@ -142,7 +156,10 @@ class ScoreBookmark(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_score_bookmarks_user_created", "user_id", "created_at"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     score_id: int = Field(
         sa_column=Column(
             BigInteger,
@@ -164,7 +181,10 @@ class ShareGrantRedemption(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_share_grant_redemptions_user_created", "user_id", "created_at"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     grant_id: int = Field(
         sa_column=Column(
             BigInteger,
@@ -190,7 +210,10 @@ class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
         Index("idx_score_publications_status_discoverability", "status", "discoverability"),
     )
 
-    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
     score_id: int = Field(
         sa_column=Column(
             BigInteger,

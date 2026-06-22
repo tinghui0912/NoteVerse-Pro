@@ -7,6 +7,7 @@ const CSRF_COOKIE_NAME = process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME || 'noteverse_
 const CSRF_HEADER_NAME = process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || 'x-csrf-token';
 
 interface RequestOptions {
+  headers?: HeadersInit;
   suppressAuthRedirect?: boolean;
   signal?: AbortSignal;
 }
@@ -213,15 +214,15 @@ async function get<T>(
   return handleResponse<T>(response, options);
 }
 
-async function post<T>(url: string, data?: unknown): Promise<T> {
+async function post<T>(url: string, data?: unknown, options?: RequestOptions): Promise<T> {
   const response = await fetchWithAuthRetry(`${API_BASE_URL}${url}`, {
     method: 'POST',
-    headers: addCsrfHeader(buildHeaders()),
+    headers: addCsrfHeader(buildHeaders(options?.headers)),
     body: data ? JSON.stringify(data) : undefined,
     credentials: 'include',
   });
 
-  return handleResponse<T>(response);
+  return handleResponse<T>(response, options);
 }
 
 async function put<T>(url: string, data?: unknown): Promise<T> {

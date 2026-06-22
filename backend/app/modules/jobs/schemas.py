@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional, Protocol, TypedDict
+from typing import List, NotRequired, Optional, Protocol, TypedDict
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -20,6 +20,7 @@ class JobSubmitRequestLike(Protocol):
 
 
 class JobArtifactItem(TypedDict):
+    artifact_id: NotRequired[str]
     storage_backend: str
     storage_key: str
     filename: str

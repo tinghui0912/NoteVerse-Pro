@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -11,13 +10,7 @@ from app.db.models import ProcessingArtifact, ProcessingJobStep
 from app.db.models.processing_job import ProcessingJobState, ProcessingJobStepStatus
 from app.modules.jobs.repository import SyncJobRepository
 from app.modules.jobs.schemas import JobArtifactItem, JobDetail
-from app.modules.tasks.legacy_projection_service import legacy_task_projection_service
-from app.modules.tasks.schemas import TaskFileReplaceItem
 from app.utils.timezone import utc_now_naive
-
-
-def _value(value: object) -> str:
-    return str(value.value) if isinstance(value, Enum) else str(value)
 
 
 class SyncJobService:
@@ -60,10 +53,6 @@ class SyncJobService:
         job.last_heartbeat_at = now
         job.updated_at = now
         db.commit()
-        legacy_task_projection_service.update_progress(
-            db, job_uuid, state.value if isinstance(state, ProcessingJobState) else state,
-            progress, current_step, code, error, error_type, started_at
-        )
 
     def finalize_success(
         self,
@@ -82,7 +71,6 @@ class SyncJobService:
         job.finished_at = now
         job.updated_at = now
         db.commit()
-        legacy_task_projection_service.finalize_success(db, job_uuid, total_time_seconds)
 
     def finalize_failure(
         self,
@@ -106,7 +94,6 @@ class SyncJobService:
         job.finished_at = now
         job.updated_at = now
         db.commit()
-        legacy_task_projection_service.finalize_failure(db, job_uuid, error, error_type, code)
 
     def upsert_step(
         self,
@@ -141,9 +128,6 @@ class SyncJobService:
             )
             db.add(step)
         db.commit()
-        legacy_task_projection_service.upsert_step(
-            db, job_uuid, name, _value(status).lower(), start_time, end_time, step_order
-        )
         return step
 
     def replace_artifacts(
@@ -171,18 +155,6 @@ class SyncJobService:
                 sha256=item["sha256"],
             ))
         db.commit()
-        legacy_items: list[TaskFileReplaceItem] = [
-            {
-                "storage_backend": item["storage_backend"],
-                "storage_key": item["storage_key"],
-                "filename": item["filename"],
-                "page_number": item["page_number"],
-                "size": item["size"],
-                "mime_type": item["mime_type"],
-            }
-            for item in items
-        ]
-        legacy_task_projection_service.replace_files(db, job_uuid, kind, legacy_items)
 
     def get_detail(self, db: Session, job_uuid: str) -> JobDetail:
         job = self.repository.get_by_uuid(db, job_uuid)
@@ -192,6 +164,7 @@ class SyncJobService:
         artifacts: dict[str, list[JobArtifactItem]] = {}
         for row in self.repository.list_artifacts(db, job_id):
             artifacts.setdefault(row.kind, []).append({
+                "artifact_id": row.artifact_uuid,
                 "storage_backend": row.storage_backend,
                 "storage_key": row.storage_key,
                 "filename": row.filename,
@@ -200,15 +173,14 @@ class SyncJobService:
                 "mime_type": row.mime_type,
                 "sha256": row.sha256,
             })
-        legacy = self.repository.get_legacy_task(db, job_uuid)
         return {
             "job_id": job.job_uuid,
             "score_id": self.repository.get_score_uuid(db, job.score_id),
             "state": job.state,
             "progress": job.progress,
             "current_step": job.current_step,
-            "title": legacy.title if legacy else None,
-            "difficulty": legacy.difficulty if legacy else None,
+            "title": None,
+            "difficulty": None,
             "created_at": job.created_at.isoformat(),
             "updated_at": job.updated_at.isoformat(),
             "started_at": job.started_at.isoformat() if job.started_at else None,

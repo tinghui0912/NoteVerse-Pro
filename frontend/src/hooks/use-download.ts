@@ -1,17 +1,19 @@
 ﻿'use client';
 
 import { useCallback } from 'react';
-import { sharesApi, filesApi, tasksApi } from '@/lib/api';
+import { filesApi, scoresApi, scoreSharingApi } from '@/lib/api';
+import type { ScoreArtifact } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 
 interface UseDownloadOptions {
     /** 涓嬭浇妯″紡锛?share' 浣跨敤鍒嗕韩 API锛?task' 浣跨敤浠诲姟 API */
-    mode: 'share' | 'task';
+    mode: 'score' | 'grant';
     /** 鏍囪瘑绗︼細share 妯″紡涓?shareToken锛宼ask 妯″紡涓?taskId */
     id: string;
     /** 鍥剧墖椤垫暟锛岀敤浜庡垽鏂槸鍚﹂渶瑕佹墦鍖呬笅杞?*/
-    imageCount: number;
+    imageCount?: number;
+    artifacts?: ScoreArtifact[];
 }
 
 interface UseDownloadReturn {
@@ -33,7 +35,7 @@ function extensionFromBlob(blob: Blob): string {
  * 閫氱敤涓嬭浇 Hook
  * 鏀寔鍒嗕韩椤甸潰鍜岀粨鏋滈〉闈㈢殑鏂囦欢涓嬭浇
  */
-export function useDownload({ mode, id, imageCount }: UseDownloadOptions): UseDownloadReturn {
+export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): UseDownloadReturn {
     const { toast } = useToast();
     const t = useTranslations('download');
     const tErrors = useTranslations('errors');
@@ -41,29 +43,44 @@ export function useDownload({ mode, id, imageCount }: UseDownloadOptions): UseDo
     const handleDownload = useCallback(async (type: 'image' | 'xml') => {
         try {
             if (type === 'xml') {
-                // XML 鍙湁涓€涓枃浠讹紝鐩存帴涓嬭浇
-                const blob = mode === 'share'
-                    ? await sharesApi.downloadSharedFile(id, 'final_xml')
-                    : await filesApi.downloadFile('final_xml', id);
-                filesApi.triggerDownload(blob, `score_${id}.musicxml`);
-            } else {
-                // 鍥剧墖锛氭牴鎹〉鏁版櫤鑳戒笅杞?
-                if (imageCount <= 1) {
-                    // 鍗曢〉锛氱洿鎺ヤ笅杞?PNG
-                    const blob = mode === 'share'
-                        ? await sharesApi.downloadSharedFile(id, 'final_image')
-                        : await filesApi.downloadFile('final_image', id);
-                    filesApi.triggerDownload(blob, `score_${id}.${extensionFromBlob(blob)}`);
-                } else {
-                    // 澶氶〉锛氫笅杞?ZIP 鍖呭惈鎵€鏈夐〉闈?
-                    if (mode === 'share') {
-                        const blob = await sharesApi.downloadSharedArchive(id);
-                        filesApi.triggerDownload(blob, `score_${id}.zip`);
-                    } else {
-                        const result = await tasksApi.archiveTasks([id], ['image']);
-                        filesApi.triggerDownload(result.blob, `score_${id}.zip`);
-                    }
+                if (mode === 'grant') {
+                    const artifact = artifacts.find((item) => item.kind === 'MUSICXML');
+                    if (!artifact) throw new Error('FILE_NOT_FOUND');
+                    const blob = await scoreSharingApi.downloadArtifact(id, artifact.artifact_id);
+                    filesApi.triggerDownload(blob, `score_${artifact.revision_id}.musicxml`);
+                    return;
                 }
+                if (mode === 'score') {
+                    const artifact = artifacts.find((item) => item.kind === 'MUSICXML');
+                    if (!artifact) throw new Error('FILE_NOT_FOUND');
+                    const blob = await scoresApi.downloadArtifact(artifact.artifact_id);
+                    filesApi.triggerDownload(blob, `score_${id}.musicxml`);
+                    return;
+                }
+                // XML 鍙湁涓€涓枃浠讹紝鐩存帴涓嬭浇
+            } else {
+                if (mode === 'grant') {
+                    const pages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
+                    if (!pages.length) throw new Error('FILE_NOT_FOUND');
+                    for (const page of pages) {
+                        const blob = await scoreSharingApi.downloadArtifact(id, page.artifact_id);
+                        filesApi.triggerDownload(blob, page.filename);
+                    }
+                    return;
+                }
+                if (mode === 'score') {
+                    const pages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
+                    if (!pages.length) throw new Error('FILE_NOT_FOUND');
+                    const blob = pages.length === 1
+                        ? await scoresApi.downloadArtifact(pages[0].artifact_id)
+                        : await scoresApi.downloadArtifactArchive(id, pages[0].revision_id, 'RENDERED_PAGE');
+                    filesApi.triggerDownload(
+                        blob,
+                        pages.length === 1 ? `score_${id}.${extensionFromBlob(blob)}` : `score_${id}.zip`
+                    );
+                    return;
+                }
+                // 鍥剧墖锛氭牴鎹〉鏁版櫤鑳戒笅杞?
             }
         } catch (error: unknown) {
             const errorCode = typeof error === 'object' && error !== null && 'code' in error
@@ -75,7 +92,7 @@ export function useDownload({ mode, id, imageCount }: UseDownloadOptions): UseDo
                 variant: 'destructive',
             });
         }
-    }, [mode, id, imageCount, toast, t, tErrors]);
+    }, [mode, id, artifacts, toast, t, tErrors]);
 
     return { handleDownload };
 }

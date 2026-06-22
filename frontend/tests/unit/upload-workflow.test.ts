@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getCompletedTaskRoute } from '@/components/upload/upload-types';
+import { getCompletedScoreRoute } from '@/components/upload/upload-types';
 
-describe('upload task navigation', () => {
-  it('routes review tasks and completed results to their product pages', () => {
-    expect(getCompletedTaskRoute('review-task', 'PENDING_REVIEW')).toBe('/review/review-task');
-    expect(getCompletedTaskRoute('result-task', 'SUCCESS')).toBe('/results/result-task');
+describe('upload score navigation', () => {
+  it('routes review scores and completed results to their product pages', () => {
+    expect(getCompletedScoreRoute('review-score', 'PENDING_REVIEW')).toBe('/review/review-score');
+    expect(getCompletedScoreRoute('result-score', 'SUCCESS')).toBe('/results/result-score');
   });
 });

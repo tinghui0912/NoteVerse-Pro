@@ -28,15 +28,15 @@ class ErrorCode:
     NO_SHARE_ACCESS = "no_share_access"
     NO_DOWNLOAD_ACCESS = "no_download_access"
 
-    TASK_NOT_FOUND = "task_not_found"
     TASK_ERROR = "task_error"
-    TASK_RUNNING = "task_running"
     TASK_TIMEOUT = "task_timeout"
     JOB_NOT_FOUND = "job_not_found"
     JOB_RUNNING = "job_running"
+    SCORE_NOT_FOUND = "score_not_found"
+    REVISION_NOT_FOUND = "revision_not_found"
+    REVISION_CONFLICT = "revision_conflict"
+    REVISION_CONTENT_INVALID = "revision_content_invalid"
     NO_FILE_IDS = "no_file_ids"
-    NO_TASK_IDS = "no_task_ids"
-    NO_DELETABLE_TASKS = "no_deletable_tasks"
 
     FILE_ERROR = "file_error"
     FILE_NOT_FOUND = "file_not_found"
@@ -47,16 +47,12 @@ class ErrorCode:
     FILE_TYPE_NOT_ALLOWED = "file_type_not_allowed"
     NO_FILE_SELECTED = "no_file_selected"
 
-    INVALID_SOURCE_TYPE = "invalid_source_type"
     XML_NOT_FOUND = "xml_not_found"
-    TEMP_XML_NOT_FOUND = "temp_xml_not_found"
-    CURRENT_XML_NOT_FOUND = "current_xml_not_found"
 
     SHARE_NOT_FOUND = "share_not_found"
     SHARE_REVOKED = "share_revoked"
     SHARE_EXPIRED = "share_expired"
     SHARE_NO_DOWNLOAD = "share_no_download"
-    SHARE_ALREADY_SAVED = "share_already_saved"
 
     PRACTICE_SESSION_NOT_FOUND = "practice_session_not_found"
     PRACTICE_SESSION_INVALID_STATE = "practice_session_invalid_state"

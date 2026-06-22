@@ -12,15 +12,13 @@ import { EditorPageModals } from '@/components/editor/editor-page-modals';
 import { EditorSidebar } from '@/components/editor/editor-sidebar';
 import { ScoreInfoCard } from '@/components/editor/score-info-card';
 import { EditorProvider, useEditorState } from '@/contexts/editor-provider';
-import { ShareProvider } from '@/contexts/share-context';
 import { useEditorDocument } from '@/hooks/editor/use-editor-document';
-import { parseEditorSource, type EditorSource } from '@/lib/editor/route';
 
-function EditorPageContent({ id, source, returnUrl }: { id: string; source: EditorSource; returnUrl?: string }) {
+function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }) {
   const t = useTranslations('editor');
   const common = useTranslations('common');
   const router = useRouter();
-  const document = useEditorDocument({ id, source, returnUrl });
+  const document = useEditorDocument({ id, returnUrl });
   const { editorMode, selectTool } = useEditorState();
   const [listenOpen, setListenOpen] = useState(false);
 
@@ -103,16 +101,15 @@ export default function EditorPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const source = parseEditorSource(searchParams.get('source'));
   const returnUrl = searchParams.get('returnUrl') || undefined;
 
-  if (!id || !source) {
+  if (!id) {
     notFound();
   }
 
   return (
     <Suspense fallback={null}>
-      <ShareProvider><EditorProvider><EditorPageContent id={id} source={source} returnUrl={returnUrl} /></EditorProvider></ShareProvider>
+      <EditorProvider><EditorPageContent id={id} returnUrl={returnUrl} /></EditorProvider>
     </Suspense>
   );
 }

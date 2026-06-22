@@ -52,6 +52,10 @@ class LocalFileStorage:
     def exists(self, key: str) -> bool:
         return os.path.exists(self.local_path(key))
 
+    def read_bytes(self, key: str) -> bytes:
+        with open(self.local_path(key), "rb") as file_handle:
+            return file_handle.read()
+
     def delete(self, key: str) -> bool:
         path = self.local_path(key)
         if not os.path.exists(path):

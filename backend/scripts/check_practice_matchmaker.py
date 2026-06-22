@@ -1,5 +1,4 @@
-"""Diagnose Matchmaker practice engine initialization for a task or XML file."""
-
+"""Diagnose Matchmaker initialization for a pinned score revision or XML file."""
 from __future__ import annotations
 
 import argparse
@@ -8,74 +7,57 @@ import sys
 import traceback
 from pathlib import Path
 
+from sqlalchemy import select
+
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from app.db.model_utils import require_persisted_id
-from app.db.session import AsyncSessionLocal
-from app.modules.practice.repository import PracticeRepository
-from app.processing.engines.matchmaker_live import build_alignment_engine
-from app.shared.file_kinds import FileKind
-from app.storage.paths import materialize_storage_key
+from app.db.models import ArtifactKind, Score, ScoreArtifact, ScoreRevision  # noqa: E402
+from app.db.session import AsyncSessionLocal  # noqa: E402
+from app.processing.engines.matchmaker_live import build_alignment_engine  # noqa: E402
+from app.storage import file_storage  # noqa: E402
 
 
-SOURCE_TO_KIND = {
-    "current": FileKind.CURRENT_XML,
-    "final": FileKind.FINAL_XML,
-}
-
-
-async def resolve_task_xml(task_uuid: str, source: str) -> str:
-    repository = PracticeRepository()
+async def resolve_revision_xml(score_uuid: str, revision_uuid: str | None) -> str:
     async with AsyncSessionLocal() as db:
-        task = await repository.get_task_by_uuid(db, task_uuid)
-        if task is None:
-            raise RuntimeError(f"Task not found: {task_uuid}")
-        task_id = require_persisted_id(task.id, entity="task")
-        file_record = await repository.get_task_file_by_kind(
-            db,
-            task_id,
-            SOURCE_TO_KIND[source],
+        score = (await db.execute(select(Score).where(Score.score_uuid == score_uuid))).scalar_one_or_none()
+        if not score:
+            raise RuntimeError(f"Score not found: {score_uuid}")
+        revision = (
+            (await db.execute(select(ScoreRevision).where(ScoreRevision.revision_uuid == revision_uuid))).scalar_one_or_none()
+            if revision_uuid
+            else await db.get(ScoreRevision, score.head_revision_id)
         )
-        if file_record is None or not file_record.storage_key:
-            raise RuntimeError(f"{source} XML not found for task: {task_uuid}")
-        return materialize_storage_key(file_record.storage_key)
+        if not revision or revision.score_id != score.id:
+            raise RuntimeError("Revision does not belong to the score")
+        artifact = (await db.execute(select(ScoreArtifact).where(
+            ScoreArtifact.revision_id == revision.id,
+            ScoreArtifact.kind == ArtifactKind.MUSICXML,
+        ))).scalar_one_or_none()
+        if not artifact:
+            raise RuntimeError(f"Canonical MusicXML not found for revision: {revision.revision_uuid}")
+        return file_storage.materialize_to_local(
+            artifact.storage_key, file_storage.local_path(artifact.storage_key)
+        )
 
 
 async def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task-id", help="Task UUID to diagnose.")
-    parser.add_argument("--source", choices=sorted(SOURCE_TO_KIND), default="final")
-    parser.add_argument("--xml-path", help="Direct MusicXML path to diagnose.")
+    parser.add_argument("--score-id")
+    parser.add_argument("--revision-id")
+    parser.add_argument("--xml-path")
     parser.add_argument("--sample-rate", type=int, default=16000)
     args = parser.parse_args()
-
-    if not args.task_id and not args.xml_path:
-        parser.error("Either --task-id or --xml-path is required.")
-
+    if not args.score_id and not args.xml_path:
+        parser.error("Either --score-id or --xml-path is required.")
     try:
-        score_file_path = (
-            str(Path(args.xml_path).expanduser())
-            if args.xml_path
-            else await resolve_task_xml(args.task_id, args.source)
-        )
-        print(f"[INFO] score_file_path={score_file_path}")
-        engine = build_alignment_engine(
-            score_file_path=score_file_path,
-            sample_rate=args.sample_rate,
-            channels=1,
-            frame_format="pcm_s16le",
-        )
+        path = str(Path(args.xml_path).expanduser()) if args.xml_path else await resolve_revision_xml(args.score_id, args.revision_id)
+        engine = build_alignment_engine(path, args.sample_rate, 1, "pcm_s16le")
         engine.close()
         print("[OK] practice matchmaker engine initialized")
         return 0
     except Exception:
-        print("[FAIL] practice matchmaker engine initialization failed", file=sys.stderr)
         traceback.print_exc()
         return 1
 

@@ -4,29 +4,37 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useHistory, useScoreData } from '@/contexts/editor-provider';
-import { useShare } from '@/contexts/share-context';
 import { useAutoSave } from '@/hooks/editor/use-auto-save';
+import { useJobDetail } from '@/hooks/queries/use-job-queries';
+import {
+  useCreateRevision,
+  useRevisionContent,
+  useScoreDetail,
+} from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
-import { useTaskDetail } from '@/hooks/queries/use-task-queries';
-import { useSaveXml, useXmlContent } from '@/hooks/queries/use-xml-queries';
+import { jobsApi } from '@/lib/api';
+import { ApiError } from '@/lib/api-client';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { flattenAllMeasures } from '@/lib/musicxml/flatten';
 import { validateDataIntegrity, type ValidationResult } from '@/lib/musicxml/validator';
-import { fetchAuthenticatedImage } from '@/lib/utils/image';
-import { getEditorSaveTarget, type EditorSource } from '@/lib/editor/route';
 
-export function useEditorDocument({ id, source, returnUrl }: { id: string; source: EditorSource; returnUrl?: string }) {
+export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: string }) {
   const router = useRouter();
   const t = useTranslations('editor');
   const common = useTranslations('common');
   const auth = useTranslations('auth');
   const { toast } = useToast();
-  const { shareToken } = useShare();
   const { scoreData, setScoreData, setRawXml, currentXml, currentXmlRef, setCurrentXml } = useScoreData();
   const { initialize: initializeHistory } = useHistory();
-  const xmlQuery = useXmlContent(id, source, { shareToken });
-  const taskQuery = useTaskDetail(id, { shareToken });
-  const saveXml = useSaveXml();
+  const scoreQuery = useScoreDetail(id);
+  const score = scoreQuery.data?.data;
+  const [baseRevisionId, setBaseRevisionId] = useState('');
+  const revisionId = baseRevisionId || score?.head_revision_id || '';
+  const revisionQuery = useRevisionContent(id, revisionId);
+  const jobQuery = useJobDetail(score?.originating_job_id ?? '', {
+    enabled: Boolean(score?.originating_job_id),
+  });
+  const createRevision = useCreateRevision();
   const [initialized, setInitialized] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<DraftEntry | null>(null);
@@ -36,32 +44,37 @@ export function useEditorDocument({ id, source, returnUrl }: { id: string; sourc
   const [originalImages, setOriginalImages] = useState<{ src: string; alt: string }[]>([]);
   const ownedObjectUrlsRef = useRef(new Set<string>());
   const { clearDraft, isSaving: isAutoSaving } = useAutoSave(id, currentXml, {
-    source,
+    baseRevisionId: revisionId,
     returnUrl,
     debounceMs: 3000,
-    enabled: Boolean(currentXml),
+    enabled: Boolean(currentXml && revisionId),
   });
+  const xmlContent = revisionQuery.data?.data?.content;
 
   useEffect(() => {
-    if (!xmlQuery.data || initialized) return;
+    if (!score?.head_revision_id || baseRevisionId) return;
+    setBaseRevisionId(score.head_revision_id);
+  }, [baseRevisionId, score?.head_revision_id]);
+
+  useEffect(() => {
+    if (!xmlContent || !revisionId || initialized) return;
     let cancelled = false;
     void (async () => {
       try {
-        const draft = await loadDraft(id);
+        const draft = await loadDraft(id, revisionId);
         if (cancelled) return;
-        if (draft && draft.xml !== xmlQuery.data) {
+        if (draft && draft.xml !== xmlContent) {
           setPendingDraft(draft);
           setDraftDialogOpen(true);
         } else if (draft) {
-          await deleteDraft(id);
+          await deleteDraft(id, revisionId);
         }
         if (cancelled) return;
-        setRawXml(xmlQuery.data);
-        setCurrentXml(xmlQuery.data);
-        initializeHistory(xmlQuery.data);
+        setRawXml(xmlContent);
+        setCurrentXml(xmlContent);
+        initializeHistory(xmlContent);
         const { MusicXMLParser } = await import('@/lib/musicxml/parser');
-        if (cancelled) return;
-        setScoreData(new MusicXMLParser(xmlQuery.data).parse());
+        if (!cancelled) setScoreData(new MusicXMLParser(xmlContent).parse());
       } catch (error) {
         console.error('Failed to parse score XML:', error);
         if (!cancelled) {
@@ -76,49 +89,43 @@ export function useEditorDocument({ id, source, returnUrl }: { id: string; sourc
     return () => {
       cancelled = true;
     };
-  }, [id, initializeHistory, initialized, setCurrentXml, setRawXml, setScoreData, t, xmlQuery.data]);
+  }, [id, initializeHistory, initialized, revisionId, setCurrentXml, setRawXml, setScoreData, t, xmlContent]);
 
   useEffect(() => {
-    if (!xmlQuery.error) return;
-    setLoadError(t('loadFailedHint'));
-    setScoreData(null);
-    setRawXml(null);
-    setInitialized(true);
-  }, [setRawXml, setScoreData, t, xmlQuery.error]);
-
-  const originalImageCount = taskQuery.data?.data?.files?.original_image?.length ?? 0;
-  useEffect(() => {
+    const jobId = score?.originating_job_id;
+    const artifacts = jobQuery.data?.data?.artifacts?.original_image ?? [];
     const controller = new AbortController();
-    const ownedObjectUrls = ownedObjectUrlsRef.current;
-    let loaded: { src: string; alt: string }[] = [];
+    const owned = ownedObjectUrlsRef.current;
+    let loaded: string[] = [];
+    if (!jobId || !artifacts.length) {
+      setOriginalImages([]);
+      return;
+    }
     void Promise.all(
-      Array.from({ length: originalImageCount }, (_, index) =>
-        fetchAuthenticatedImage(id, 'original_image', index + 1, shareToken, undefined, controller.signal)
-      )
-    ).then((urls) => {
+      artifacts.map((artifact) => jobsApi.downloadJobArtifact(jobId, artifact.artifact_id))
+    ).then((blobs) => {
       if (controller.signal.aborted) return;
-      loaded = urls.flatMap((url, index) => url ? [{ src: url, alt: t('originalScorePage', { page: index + 1 }) }] : []);
-      loaded.forEach(({ src }) => {
-        if (src.startsWith('blob:')) ownedObjectUrls.add(src);
-      });
-      setOriginalImages(loaded);
+      loaded = blobs.map(URL.createObjectURL);
+      loaded.forEach((url) => owned.add(url));
+      setOriginalImages(loaded.map((src, index) => ({
+        src,
+        alt: t('originalScorePage', { page: index + 1 }),
+      })));
     });
     return () => {
       controller.abort();
-      loaded.forEach(({ src }) => {
-        if (src.startsWith('blob:')) {
-          URL.revokeObjectURL(src);
-          ownedObjectUrls.delete(src);
-        }
+      loaded.forEach((url) => {
+        URL.revokeObjectURL(url);
+        owned.delete(url);
       });
     };
-  }, [id, originalImageCount, shareToken, t]);
+  }, [jobQuery.data?.data?.artifacts?.original_image, score?.originating_job_id, t]);
 
   useEffect(() => {
-    const ownedObjectUrls = ownedObjectUrlsRef.current;
+    const urls = ownedObjectUrlsRef.current;
     return () => {
-      ownedObjectUrls.forEach((url) => URL.revokeObjectURL(url));
-      ownedObjectUrls.clear();
+      urls.forEach(URL.revokeObjectURL);
+      urls.clear();
     };
   }, []);
 
@@ -133,24 +140,29 @@ export function useEditorDocument({ id, source, returnUrl }: { id: string; sourc
   };
 
   const performSave = () => {
-    if (!currentXml) return;
-    const target = getEditorSaveTarget(source, id, returnUrl);
-    saveXml.mutate(
+    if (!currentXml || !revisionId) return;
+    createRevision.mutate(
       {
-        taskId: id,
+        scoreId: id,
         content: currentXml,
-        fileType: target.fileType,
-        imageType: target.imageType,
+        base_revision_id: revisionId,
+        idempotency_key: crypto.randomUUID(),
       },
       {
-        onSuccess: async () => {
+        onSuccess: async (response) => {
+          const nextRevision = response.data?.revision_id;
           await clearDraft();
+          if (nextRevision) setBaseRevisionId(nextRevision);
           toast({ title: common('savingSuccess'), description: common('scoreSaved') });
-          router.push(target.redirectTo);
+          router.push(returnUrl || `/results/${id}`);
         },
         onError: (error) => {
-          console.error('Failed to save score:', error);
-          toast({ title: t('saveFailed'), description: t('saveFailedDesc'), variant: 'destructive' });
+          const conflict = error instanceof ApiError && error.code === 'revision_conflict';
+          toast({
+            title: t('saveFailed'),
+            description: conflict ? t('saveFailedDesc') : t('saveFailedDesc'),
+            variant: 'destructive',
+          });
         },
       }
     );
@@ -171,7 +183,6 @@ export function useEditorDocument({ id, source, returnUrl }: { id: string; sourc
     setValidationResult(null);
     performSave();
   };
-
   const recoverDraft = async () => {
     if (pendingDraft) {
       setCurrentXml(pendingDraft.xml);
@@ -182,24 +193,18 @@ export function useEditorDocument({ id, source, returnUrl }: { id: string; sourc
     }
     setPendingDraft(null);
   };
-
   const discardDraft = async () => {
-    await deleteDraft(id);
+    if (revisionId) await deleteDraft(id, revisionId);
     setPendingDraft(null);
     toast({ title: t('draftDiscarded'), description: t('draftDiscardedDesc') });
   };
-
   const mergeParts = async () => {
     if (!currentXml) return;
-    try {
-      const flattenedXml = flattenAllMeasures(currentXml);
-      setCurrentXml(flattenedXml);
-      initializeHistory(flattenedXml);
-      const { MusicXMLParser } = await import('@/lib/musicxml/parser');
-      setScoreData(new MusicXMLParser(flattenedXml).parse());
-    } catch (error) {
-      console.error('Failed to merge parts:', error);
-    }
+    const flattenedXml = flattenAllMeasures(currentXml);
+    setCurrentXml(flattenedXml);
+    initializeHistory(flattenedXml);
+    const { MusicXMLParser } = await import('@/lib/musicxml/parser');
+    setScoreData(new MusicXMLParser(flattenedXml).parse());
   };
 
   return {
@@ -207,16 +212,16 @@ export function useEditorDocument({ id, source, returnUrl }: { id: string; sourc
     currentXmlRef,
     discardDraft,
     draftDialogOpen,
-    finalLoadError: xmlQuery.error ? t('loadFailedHint') : loadError,
+    finalLoadError: scoreQuery.error || revisionQuery.error ? t('loadFailedHint') : loadError,
     isAutoSaving,
-    isLoading: xmlQuery.isLoading || taskQuery.isLoading || (Boolean(xmlQuery.data) && !initialized),
+    isLoading: scoreQuery.isLoading || revisionQuery.isLoading || (Boolean(xmlContent) && !initialized),
     mergeParts,
     originalImages,
     pendingDraft,
     recoverDraft,
     save,
     saveIgnoringWarnings,
-    savePending: saveXml.isPending,
+    savePending: createRevision.isPending,
     scoreData,
     setDraftDialogOpen,
     setValidationDialogOpen,

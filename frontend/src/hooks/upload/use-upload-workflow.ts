@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { RestorableTaskData, UploadableFile } from '@/components/upload/upload-types';
-import { getCompletedTaskRoute } from '@/components/upload/upload-types';
+import type { UploadableFile } from '@/components/upload/upload-types';
+import { getCompletedScoreRoute } from '@/components/upload/upload-types';
 import { useJobDetail, useSubmitJob } from '@/hooks/queries/use-job-queries';
 import { useToast } from '@/hooks/use-toast';
-import { filesApi, tasksApi } from '@/lib/api';
+import { filesApi, jobsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
-import { fetchAuthenticatedImage } from '@/lib/utils/image';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
 const TASK_WAIT_TIMEOUT_MS = 18 * 60 * 1_000;
@@ -42,7 +41,7 @@ export function useUploadWorkflow() {
   const [taskError, setTaskError] = useState<string | null>(null);
   const [pollInterval, setPollInterval] = useState<number | false>(false);
   const [pollStartTime, setPollStartTime] = useState(0);
-  const urlTaskId = searchParams.get('task_id');
+  const urlJobId = searchParams.get('job_id');
 
   const setTrackedFiles = useCallback((next: UploadableFile[] | ((current: UploadableFile[]) => UploadableFile[])) => {
     setFiles((current) => {
@@ -100,13 +99,20 @@ export function useUploadWorkflow() {
     setTaskProgress(job.progress || 0);
     const state = String(job.state).toUpperCase();
     if (state === 'PENDING_REVIEW' || state === 'SUCCESS') {
-      const completedTaskId = job.score_id ?? currentJobId;
+      const completedScoreId = job.score_id;
+      if (!completedScoreId) {
+        setTaskError(t('taskProcessingFailed'));
+        setIsSubmitting(false);
+        setCurrentJobId(null);
+        setPollInterval(false);
+        return;
+      }
       setIsSubmitting(false);
       setCurrentJobId(null);
       setPollInterval(false);
       setTaskProgress(0);
       clearFiles();
-      router.push(getCompletedTaskRoute(completedTaskId, state));
+      router.push(getCompletedScoreRoute(completedScoreId, state));
     } else if (state === 'FAILURE') {
       setTaskError(job.error || t('taskProcessingFailed'));
       setIsSubmitting(false);
@@ -116,31 +122,28 @@ export function useUploadWorkflow() {
   }, [clearFiles, currentJobId, pollStartTime, router, statusResponse?.data, t, toast]);
 
   useEffect(() => {
-    if (!urlTaskId) return;
+    if (!urlJobId) return;
     const controller = new AbortController();
     const restoredBlobUrls: string[] = [];
 
     void Promise.resolve().then(async () => {
       try {
-        const response = await tasksApi.getTaskDetails(urlTaskId, undefined, controller.signal);
+        const response = await jobsApi.getJob(urlJobId, controller.signal);
         const data = response.data;
         if (!data || controller.signal.aborted) return;
 
         if (data.title) setScoreName(data.title);
         if (data.difficulty) setDifficulty(data.difficulty);
 
-        const originalImages = data.files?.original_image ?? [];
-        const uploadIds = (data as RestorableTaskData).upload_ids ?? [];
+        const originalImages = data.artifacts?.original_image ?? [];
+        const uploadIds = data.upload_ids ?? [];
         const restoredFiles: UploadableFile[] = [];
         for (let index = 0; index < originalImages.length; index += 1) {
-          const preview = await fetchAuthenticatedImage(
-            urlTaskId,
-            'original_image',
-            index + 1,
-            undefined,
-            undefined,
-            controller.signal
+          const blob = await jobsApi.downloadJobArtifact(
+            urlJobId,
+            originalImages[index].artifact_id
           );
+          const preview = URL.createObjectURL(blob);
           if (!preview || controller.signal.aborted) continue;
           if (preview.startsWith('blob:')) restoredBlobUrls.push(preview);
           const uploadInfo = uploadIds[index];
@@ -160,7 +163,7 @@ export function useUploadWorkflow() {
 
         const state = String(data.state).toUpperCase();
         if (state === 'PENDING' || state === 'PROGRESS') {
-          setCurrentJobId(urlTaskId);
+          setCurrentJobId(urlJobId);
           setIsSubmitting(true);
           setTaskProgress(data.progress || 0);
           setPollStartTime(Date.now());
@@ -178,7 +181,7 @@ export function useUploadWorkflow() {
       controller.abort();
       restoredBlobUrls.forEach(revokePreview);
     };
-  }, [setTrackedFiles, t, urlTaskId]);
+  }, [setTrackedFiles, t, urlJobId]);
 
   useEffect(() => () => {
     filesRef.current.forEach(({ preview }) => revokePreview(preview));

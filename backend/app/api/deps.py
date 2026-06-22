@@ -113,6 +113,22 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    session: AsyncSession = Depends(get_db),
+    session_cookie: str | None = Cookie(
+        default=None,
+        alias=settings.AUTH_COOKIE_NAME,
+    ),
+) -> User | None:
+    """Resolve an optional principal for exact anonymous access routes."""
+    if not session_cookie:
+        return None
+    try:
+        return await get_current_user(session, session_cookie)
+    except AuthenticationException:
+        return None
+
+
 async def get_current_active_superuser(
     current_user: User = Depends(get_current_user),
 ) -> User:

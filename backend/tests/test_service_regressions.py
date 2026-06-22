@@ -21,17 +21,14 @@ from app.processing.engines.matchmaker_live import (
     BrowserAudioStreamAdapter,
     MatchmakerLiveEngine,
 )
-from app.db.models.practice import PracticeReportStatus, PracticeSessionState, PracticeSourceType
+from app.db.models.practice import PracticeReportStatus, PracticeSessionState
+from app.db.models.score_access import AccessOrigin
 from app.modules.files.service import FilesService
-from app.modules.files.render_service import _store_rendered_image
 from app.modules.practice.service import PracticeService
 from app.modules.profile.service import AvatarService
-from app.modules.shares.service import ShareService
 from app.modules.jobs.execution_service import JobExecutionService
-from app.modules.tasks.service import TaskService
 from app.modules.jobs.maintenance_service import JobMaintenanceService
 from app.modules.jobs.worker_service import sync_job_service
-from app.modules.tasks.legacy_projection_service import LegacyTaskProjectionService
 from app.modules.jobs.submission_service import JobSubmissionService
 from app.pipeline.files_recorder import _build_file_item
 from app.shared.constants import ErrorCode
@@ -77,132 +74,6 @@ class FakeS3Client:
 
 class FakeS3NotFound(Exception):
     response = {"Error": {"Code": "NoSuchKey"}}
-
-
-@pytest.mark.asyncio
-async def test_get_task_raises_not_found_when_repository_returns_none() -> None:
-    repository = Mock()
-    repository.get_task_by_uuid = AsyncMock(return_value=None)
-    service = TaskService(repository=repository)
-
-    with pytest.raises(ResourceNotFoundException) as context:
-        await service.get_task(AsyncMock(), "missing-task")
-
-    assert context.value.code == ErrorCode.TASK_NOT_FOUND
-
-
-@pytest.mark.asyncio
-async def test_update_task_rejects_non_owner() -> None:
-    repository = Mock()
-    service = TaskService(repository=repository)
-    db = AsyncMock()
-    task = SimpleNamespace(user_id=1, title="Old", difficulty="easy")
-    service.get_task = AsyncMock(return_value=task)
-
-    with pytest.raises(UnauthorizedException) as context:
-        await service.update_task(db, "task-1", user_id=2, title="New")
-
-    assert context.value.code == ErrorCode.NO_EDIT_ACCESS
-    db.commit.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_update_task_refreshes_updated_at() -> None:
-    service = TaskService(repository=Mock())
-    db = AsyncMock()
-    task = SimpleNamespace(
-        user_id=1,
-        title="Old",
-        difficulty="difficultyBeginner",
-        updated_at=None,
-    )
-    service.get_task = AsyncMock(return_value=task)
-
-    before_update = utc_now_naive()
-    result = await service.update_task(
-        db,
-        "task-1",
-        user_id=1,
-        title="New",
-        difficulty="difficultyAdvanced",
-    )
-
-    assert result == {"title": "New", "difficulty": "difficultyAdvanced"}
-    assert task.updated_at >= before_update
-    db.commit.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_create_share_persists_editable_permanent_contract() -> None:
-    repository = Mock()
-    repository.get_task_by_uuid = AsyncMock(
-        return_value=SimpleNamespace(id=10, user_id=1)
-    )
-    service = ShareService(repository=repository)
-    db = AsyncMock()
-    db.add = Mock()
-
-    result = await service.create_share(
-        db,
-        user_id=1,
-        task_id="task-1",
-        expires_in_days=None,
-        can_download=True,
-        can_edit=True,
-    )
-
-    created_share = db.add.call_args.args[0]
-    assert created_share.expires_at is None
-    assert created_share.can_download is True
-    assert created_share.can_edit is True
-    assert result["expires_at"] is None
-    db.commit.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_batch_delete_rejects_empty_task_ids() -> None:
-    repository = Mock()
-    service = TaskService(repository=repository)
-
-    with pytest.raises(ValidationException) as context:
-        await service.batch_delete(AsyncMock(), [], user_id=1)
-
-    assert context.value.code == ErrorCode.NO_TASK_IDS
-
-
-@pytest.mark.asyncio
-async def test_batch_delete_returns_expected_counts() -> None:
-    repository = Mock()
-    repository.get_tasks_by_uuids_for_user = AsyncMock(
-        return_value=[
-            SimpleNamespace(id=1, task_uuid="task-1", state="SUCCESS"),
-            SimpleNamespace(id=2, task_uuid="task-2", state="PROGRESS"),
-        ]
-    )
-    repository.get_share_ids_for_tasks = AsyncMock(return_value=[10, 11])
-    repository.list_files_for_tasks = AsyncMock(
-        return_value={
-            1: [
-                SimpleNamespace(storage_key="tasks/task-1/preview_image/page-01.svg"),
-            ]
-        }
-    )
-    repository.delete_task_graph = AsyncMock()
-    service = TaskService(repository=repository)
-    service._cleanup_task_files = Mock()
-    db = AsyncMock()
-
-    result = await service.batch_delete(db, ["task-1", "task-2", "task-3"], user_id=1)
-
-    assert result == {"deleted_count": 1, "skipped_running": 1, "not_found": 1}
-    service._cleanup_task_files.assert_called_once_with(
-        "task-1",
-        ["tasks/task-1/preview_image/page-01.svg"],
-    )
-    repository.list_files_for_tasks.assert_awaited_once_with(db, [1])
-    repository.get_share_ids_for_tasks.assert_awaited_once_with(db, [1])
-    repository.delete_task_graph.assert_awaited_once_with(db, [1], share_ids=[10, 11])
-    db.commit.assert_awaited_once()
 
 
 def test_allowed_file_accepts_supported_extensions() -> None:
@@ -435,28 +306,6 @@ def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
 
         assert item["storage_key"] == "jobs/task-1/original_image/001-input.jpg"
         assert "FileKind" not in item["storage_key"]
-
-
-def test_render_service_uses_file_kind_values_in_storage_keys() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
-        image_dir = os.path.join(temp_dir, "work", "task-1", "preview")
-        os.makedirs(image_dir, exist_ok=True)
-        output_path = os.path.join(image_dir, "preview-01.svg")
-        with open(output_path, "w", encoding="utf-8") as file_handle:
-            file_handle.write("<svg />")
-
-        with patch("app.modules.files.render_service.file_storage", storage):
-            storage_key = _store_rendered_image(
-                task_id=1,
-                image_kind=FileKind.PREVIEW_IMAGE,
-                img_path=output_path,
-                page=1,
-                mime_type="image/svg+xml",
-            )
-
-        assert storage_key == "tasks/task-1/preview_image/001-preview-01.svg"
-        assert "FileKind" not in storage_key
 
 
 def test_avatar_service_stores_processed_image_through_storage() -> None:
@@ -702,67 +551,61 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     db.commit.assert_awaited_once()
 
 
-def test_worker_service_reset_session_state_rolls_back_failed_commit() -> None:
-    db = Mock()
-    db.commit.side_effect = RuntimeError("stale transaction")
-
-    LegacyTaskProjectionService._reset_session_state(db)
-
-    db.expire_all.assert_called_once_with()
-    db.commit.assert_called_once_with()
-    db.rollback.assert_called_once_with()
-
-
 @pytest.mark.asyncio
-async def test_practice_service_create_session_rejects_missing_task() -> None:
-    repository = Mock()
-    repository.get_task_by_uuid = AsyncMock(return_value=None)
-    service = PracticeService(repository=repository)
+async def test_practice_service_create_session_rejects_missing_score() -> None:
+    access_policy = Mock()
+    access_policy.authorize = AsyncMock(
+        side_effect=ResourceNotFoundException("score", "missing-score", ErrorCode.SCORE_NOT_FOUND)
+    )
+    service = PracticeService(access_policy=access_policy)
 
     with pytest.raises(ResourceNotFoundException) as context:
         await service.create_session(
             AsyncMock(),
-            task_uuid="missing-task",
+            score_uuid="missing-score",
             user_id=1,
-            source="final",
+            revision_uuid=None,
             sample_rate=16000,
             channels=1,
             frame_format="pcm_s16le",
         )
 
-    assert context.value.code == ErrorCode.TASK_NOT_FOUND
+    assert context.value.code == ErrorCode.SCORE_NOT_FOUND
 
 
 @pytest.mark.asyncio
-async def test_practice_service_rejects_missing_current_xml_without_fallback() -> None:
-    repository = Mock()
-    repository.get_task_file_by_kind = AsyncMock(return_value=None)
-    service = PracticeService(repository=repository)
-    db = AsyncMock()
+async def test_practice_service_rejects_missing_canonical_revision_artifact() -> None:
+    access_policy = Mock()
+    access_policy.authorize = AsyncMock(return_value=SimpleNamespace(
+        score=SimpleNamespace(id=101, score_uuid="score-1"),
+        revision=SimpleNamespace(id=201, revision_uuid="revision-1"),
+        origin=AccessOrigin.OWNER,
+        grant=None,
+    ))
+    score_repository = Mock()
+    score_repository.canonical_artifact = AsyncMock(return_value=None)
+    service = PracticeService(
+        access_policy=access_policy,
+        score_repository=score_repository,
+    )
 
     with pytest.raises(ResourceNotFoundException) as context:
-        await service._prepare_score_file(db, task_id=101, source="current")
+        await service.create_session(
+            AsyncMock(),
+            score_uuid="score-1",
+            user_id=1,
+            revision_uuid="revision-1",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+        )
 
     assert context.value.code == ErrorCode.FILE_NOT_FOUND
-    repository.get_task_file_by_kind.assert_awaited_once_with(
-        db,
-        101,
-        FileKind.CURRENT_XML,
-    )
 
 
 @pytest.mark.asyncio
-async def test_practice_service_create_session_allows_valid_share_token_access() -> None:
+async def test_practice_service_create_session_pins_share_revision_without_storing_token() -> None:
     repository = Mock()
-    repository.get_task_by_uuid = AsyncMock(
-        return_value=SimpleNamespace(id=101, task_uuid="task-1", user_id=1)
-    )
-    repository.get_share_by_token = AsyncMock(
-        return_value=SimpleNamespace(task_id=101, revoked_at=None, expires_at=None)
-    )
-    repository.get_task_file_by_kind = AsyncMock(
-        return_value=SimpleNamespace(storage_key="tasks/task-1/final_xml/final.xml")
-    )
     repository.create_session = AsyncMock(
         return_value=SimpleNamespace(
             session_uuid="session-1",
@@ -770,25 +613,38 @@ async def test_practice_service_create_session_allows_valid_share_token_access()
         )
     )
     runtime_registry = Mock()
+    access_policy = Mock()
+    access_policy.authorize = AsyncMock(return_value=SimpleNamespace(
+        score=SimpleNamespace(id=101, score_uuid="score-1"),
+        revision=SimpleNamespace(id=201, revision_uuid="revision-1"),
+        origin=AccessOrigin.SHARE,
+        grant=SimpleNamespace(id=301),
+    ))
+    score_repository = Mock()
+    score_repository.canonical_artifact = AsyncMock(
+        return_value=SimpleNamespace(storage_key="scores/score-1/revisions/revision-1/score.musicxml")
+    )
+    storage = Mock()
+    storage.local_path.return_value = "C:/tmp/final.xml"
+    storage.materialize_to_local.return_value = "C:/tmp/final.xml"
     service = PracticeService(
         repository=repository,
         runtime_registry=runtime_registry,
+        access_policy=access_policy,
+        score_repository=score_repository,
+        storage=storage,
     )
 
-    with patch(
-        "app.modules.practice.service.materialize_storage_key",
-        return_value="C:/tmp/final.xml",
-    ):
-        result = await service.create_session(
-            AsyncMock(),
-            task_uuid="task-1",
-            user_id=2,
-            source="final",
-            sample_rate=16000,
-            channels=1,
-            frame_format="pcm_s16le",
-            share_token="share-1",
-        )
+    result = await service.create_session(
+        AsyncMock(),
+        score_uuid="score-1",
+        user_id=2,
+        revision_uuid=None,
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+        share_token="share-1",
+    )
 
     assert result == {
         "session_id": "session-1",
@@ -796,6 +652,9 @@ async def test_practice_service_create_session_allows_valid_share_token_access()
         "ws_url": "/api/v1/practice/sessions/session-1/stream",
     }
     runtime_registry.register.assert_called_once()
+    created_session = repository.create_session.await_args.args[1]
+    assert created_session.revision_id == 201
+    assert created_session.share_grant_id == 301
 
 
 @pytest.mark.asyncio
@@ -804,9 +663,9 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
     session = SimpleNamespace(
         session_uuid="session-1",
         user_id=1,
-        task_id=101,
-        share_token=None,
-        source_type=PracticeSourceType.final,
+        score_id=201,
+        revision_id=301,
+        access_origin=AccessOrigin.OWNER,
         state=PracticeSessionState.CREATED,
         sample_rate=16000,
         channels=1,
@@ -819,10 +678,14 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
         report_payload=None,
     )
     repository.get_session_by_uuid = AsyncMock(return_value=session)
-    repository.get_task_by_id = AsyncMock(return_value=SimpleNamespace(task_uuid="task-1"))
     repository.save_session = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
     service = PracticeService(repository=repository)
     db = AsyncMock()
+    db.get = AsyncMock(side_effect=lambda model, _identity: (
+        SimpleNamespace(score_uuid="score-1")
+        if model.__name__ == "Score"
+        else SimpleNamespace(revision_uuid="revision-1")
+    ))
 
     paused = await service.pause_session(db, "session-1", user_id=1)
     assert paused["state"] == PracticeSessionState.PAUSED.value
@@ -893,7 +756,7 @@ async def test_practice_service_request_report_persists_structured_payload() -> 
         session_uuid="session-1",
         user_id=1,
         state=PracticeSessionState.FINISHED,
-        source_type=PracticeSourceType.final,
+        access_origin=AccessOrigin.OWNER,
         started_at=None,
         finished_at=None,
         last_beat_position=18.5,

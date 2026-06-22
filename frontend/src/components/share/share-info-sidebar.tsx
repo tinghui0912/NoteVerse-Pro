@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useDownload } from '@/hooks/use-download';
+import type { ScoreArtifact } from '@/types/api';
 
 interface ShareInfoSidebarProps {
   canDownload: boolean;
@@ -16,6 +17,7 @@ interface ShareInfoSidebarProps {
   scoreTitle: string;
   shareId: string;
   sharedBy: string;
+  artifacts: ScoreArtifact[];
 }
 
 export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
@@ -23,7 +25,12 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
   const common = useTranslations('common');
   const results = useTranslations('results');
   const upload = useTranslations('upload');
-  const { handleDownload } = useDownload({ mode: 'share', id: props.shareId, imageCount: props.imageCount });
+  const { handleDownload } = useDownload({
+    mode: 'grant',
+    id: props.shareId,
+    imageCount: props.imageCount,
+    artifacts: props.artifacts,
+  });
   return (
     <div className="sticky top-8 space-y-6 lg:col-span-1">
       <Card className="rounded-2xl bg-white shadow-lg"><CardHeader><CardTitle>{results('scoreInfo')}</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><div className="flex items-center justify-between gap-2"><Label className="shrink-0 text-muted-foreground">{results('scoreName')}</Label><span className="flex-1 truncate text-right text-sm font-medium">{props.scoreTitle}</span></div><div className="flex justify-between"><Label className="text-muted-foreground">{results('scoreDifficulty')}</Label><p className="font-medium">{props.difficulty ? upload(props.difficulty as never) : ''}</p></div></CardContent></Card>

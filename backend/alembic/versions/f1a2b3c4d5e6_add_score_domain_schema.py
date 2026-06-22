@@ -184,6 +184,7 @@ def upgrade() -> None:
         "scores",
         ["score_id"],
         ["id"],
+        ondelete="SET NULL",
     )
 
     op.create_table(
@@ -222,6 +223,7 @@ def upgrade() -> None:
     op.create_table(
         "processing_artifacts",
         sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("artifact_uuid", sa.String(length=36), nullable=False),
         sa.Column("job_id", sa.BigInteger(), nullable=False),
         sa.Column("kind", sa.String(length=64), nullable=False),
         sa.Column("storage_backend", sa.String(length=32), nullable=False),
@@ -234,6 +236,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["job_id"], ["processing_jobs.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("artifact_uuid"),
         sa.UniqueConstraint("storage_key", name="uq_processing_artifacts_storage_key"),
     )
     op.create_index(
@@ -409,6 +412,7 @@ def upgrade() -> None:
     op.create_table(
         "score_share_grants",
         sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("grant_uuid", sa.String(length=36), nullable=False),
         sa.Column("score_id", sa.BigInteger(), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
         sa.Column(
@@ -441,6 +445,7 @@ def upgrade() -> None:
             name="fk_score_share_grants_target_revision",
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("grant_uuid"),
     )
     op.create_index(
         "idx_score_share_grants_score_created",
@@ -554,6 +559,7 @@ def upgrade() -> None:
         name="accessorigin",
     ).create(op.get_bind(), checkfirst=True)
     op.add_column("practice_sessions", sa.Column("score_id", sa.BigInteger(), nullable=True))
+    op.alter_column("practice_sessions", "task_id", existing_type=sa.BigInteger(), nullable=True)
     op.add_column("practice_sessions", sa.Column("revision_id", sa.BigInteger(), nullable=True))
     op.add_column(
         "practice_sessions",
@@ -615,6 +621,7 @@ def downgrade() -> None:
     op.drop_column("practice_sessions", "access_origin")
     op.drop_column("practice_sessions", "revision_id")
     op.drop_column("practice_sessions", "score_id")
+    op.alter_column("practice_sessions", "task_id", existing_type=sa.BigInteger(), nullable=False)
 
     op.drop_index(
         "idx_score_publications_status_discoverability",

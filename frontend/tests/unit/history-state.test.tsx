@@ -2,7 +2,7 @@
 
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { getTaskLink, mapStatusToTaskState, mapTaskStateToStatus } from '@/components/history/history-types';
+import { getHistoryLink, mapJobStateToStatus, mapScoreStateToStatus } from '@/components/history/history-types';
 import { useHistorySelection } from '@/hooks/history/use-history-selection';
 import { useHistoryViewState } from '@/hooks/history/use-history-view-state';
 
@@ -39,12 +39,12 @@ describe('history state boundaries', () => {
   });
 });
 
-describe('history task mapping', () => {
-  it('maps backend states and routes consistently', () => {
-    expect(mapTaskStateToStatus('PENDING_REVIEW')).toBe('pending-review');
-    expect(mapStatusToTaskState('completed')).toBe('SUCCESS');
-    expect(getTaskLink({ id: '1', name: '', date: '', status: 'failed', thumbnail: '' })).toBe('/upload?task_id=1');
-    expect(getTaskLink({ id: '2', name: '', date: '', status: 'pending-review', thumbnail: '' })).toBe('/review/2');
-    expect(getTaskLink({ id: '3', name: '', date: '', status: 'completed', thumbnail: '' })).toBe('/results/3?from=uploads');
+describe('history identity mapping', () => {
+  it('keeps score and processing job routes distinct', () => {
+    expect(mapJobStateToStatus('PENDING_REVIEW')).toBe('pending-review');
+    expect(mapScoreStateToStatus('ACTIVE')).toBe('completed');
+    expect(getHistoryLink({ id: '1', selectionId: 'job:1', entity: 'job', name: '', date: '', status: 'failed', thumbnail: '' })).toBe('/upload?job_id=1');
+    expect(getHistoryLink({ id: '2', selectionId: 'score:2', entity: 'score', name: '', date: '', status: 'pending-review', thumbnail: '' })).toBe('/review/2');
+    expect(getHistoryLink({ id: '3', selectionId: 'score:3', entity: 'score', name: '', date: '', status: 'completed', thumbnail: '' })).toBe('/results/3?from=uploads');
   });
 });

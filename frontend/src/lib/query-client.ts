@@ -43,6 +43,8 @@ export interface SavedShareQueryFilters {
 export const queryKeys = {
     jobs: {
         all: ['jobs'] as const,
+        lists: () => ['jobs', 'list'] as const,
+        list: (page: number, pageSize: number) => ['jobs', 'list', { page, pageSize }] as const,
         detail: (id: string) => ['jobs', 'detail', { id }] as const,
     },
     tasks: {
@@ -71,5 +73,23 @@ export const queryKeys = {
             ['xml', 'content', { taskId, source, shareToken: shareToken ?? null }] as const,
         shares: () => ['xml', 'share'] as const,
         share: (shareId: string) => ['xml', 'share', { shareId }] as const,
+    },
+    scores: {
+        all: ['scores'] as const,
+        lists: () => ['scores', 'list'] as const,
+        list: (page: number, pageSize: number, search?: string) =>
+            ['scores', 'list', { page, pageSize, search: search ?? null }] as const,
+        details: () => ['scores', 'detail'] as const,
+        detail: (scoreId: string) => ['scores', 'detail', { scoreId }] as const,
+        revisions: (scoreId: string) => ['scores', 'revision', { scoreId }] as const,
+        revision: (scoreId: string, revisionId: string) =>
+            ['scores', 'revision', { scoreId, revisionId }] as const,
+        artifacts: (scoreId: string, revisionId?: string, kind?: string) =>
+            ['scores', 'artifact', { scoreId, revisionId: revisionId ?? null, kind: kind ?? null }] as const,
+        grants: (scoreId: string) => ['scores', 'grant', { scoreId }] as const,
+        grantAccess: (token: string) => ['scores', 'grant-access', { token }] as const,
+        bookmarks: () => ['scores', 'bookmark'] as const,
+        publication: (slug: string) => ['scores', 'publication', { slug }] as const,
+        scorePublication: (scoreId: string) => ['scores', 'score-publication', { scoreId }] as const,
     },
 } as const;

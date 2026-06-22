@@ -1,110 +1,81 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { filesApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
-import { useBackendMessage } from '@/hooks/use-backend-message';
+import { filesApi, jobsApi, scoreSharingApi, scoresApi } from '@/lib/api';
+import { queryKeys } from '@/lib/query-client';
 import { useToast } from '@/hooks/use-toast';
-import { useArchiveTasks, useDeleteTasks } from '@/hooks/queries/use-task-queries';
-import { useDeleteSavedShares } from '@/hooks/queries/use-share-queries';
-import type { HistoryTab, ShareHistoryItem } from '@/components/history/history-types';
+import { useDeleteScores } from '@/hooks/queries/use-score-queries';
+import type { HistoryTab, TaskHistoryItem } from '@/components/history/history-types';
 
-interface HistoryBatchActionsOptions {
+export function useHistoryBatchActions({
+  activeTab,
+  selectedItems,
+  uploads,
+  onComplete,
+}: {
   activeTab: HistoryTab;
   selectedItems: string[];
-  shares: ShareHistoryItem[];
+  uploads: TaskHistoryItem[];
   onComplete: () => void;
-}
-
-export function useHistoryBatchActions({ activeTab, selectedItems, shares, onComplete }: HistoryBatchActionsOptions) {
+}) {
   const t = useTranslations('history');
-  const backendMessage = useBackendMessage();
   const { toast } = useToast();
-  const deleteTasks = useDeleteTasks();
-  const deleteSavedShares = useDeleteSavedShares();
-  const archiveTasks = useArchiveTasks();
+  const queryClient = useQueryClient();
+  const deleteScores = useDeleteScores();
+  const deleteOthers = useMutation({
+    mutationFn: async () => {
+      if (activeTab === 'shares') {
+        const ids = selectedItems.map((id) => Number(id.split(':')[1]));
+        return scoreSharingApi.deleteBookmarks(ids);
+      }
+      const jobIds = selectedItems.filter((id) => id.startsWith('job:')).map((id) => id.slice(4));
+      await Promise.all(jobIds.map((id) => jobsApi.deleteJob(id)));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.lists() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.bookmarks() });
+    },
+  });
+  const download = useMutation({
+    mutationFn: async () => {
+      const selectedScores = uploads.filter(
+        (item) => selectedItems.includes(item.selectionId) && item.entity === 'score' && item.headRevisionId
+      );
+      for (const item of selectedScores) {
+        const blob = await scoresApi.downloadArtifactArchive(
+          item.id,
+          item.headRevisionId!,
+          'RENDERED_PAGE'
+        );
+        filesApi.triggerDownload(blob, `score_${item.id}.zip`);
+      }
+      return selectedScores.length;
+    },
+  });
 
   const deleteSelected = () => {
-    if (selectedItems.length === 0) return;
-    const onError = (error: Error) => {
-      toast({
-        title: t('downloadFailed'),
-        description: error instanceof ApiError ? error.message : t('batchDeleteFailed'),
-        variant: 'destructive',
-      });
-    };
-
-    if (activeTab === 'uploads') {
-      deleteTasks.mutate(selectedItems, {
-        onSuccess: (response) => {
-          toast({
-            title: t('deleteSuccess'),
-            description: t('deletedTasks', { count: String(response.data?.deleted_count || selectedItems.length) }),
-          });
-          onComplete();
-        },
-        onError,
-      });
-      return;
-    }
-
-    deleteSavedShares.mutate(selectedItems.map((id) => Number.parseInt(id, 10)), {
-      onSuccess: () => {
-        toast({ title: t('deleteSuccess'), description: t('deletedShares', { count: String(selectedItems.length) }) });
-        onComplete();
-      },
-      onError,
+    const scoreIds = selectedItems.filter((id) => id.startsWith('score:')).map((id) => id.slice(6));
+    void Promise.all([
+      scoreIds.length ? deleteScores.mutateAsync(scoreIds) : Promise.resolve(),
+      deleteOthers.mutateAsync(),
+    ]).then(() => {
+      toast({ title: t('deleteSuccess'), description: t('deletedTasks', { count: String(selectedItems.length) }) });
+      onComplete();
     });
   };
 
-  const downloadSelected = () => {
-    if (selectedItems.length === 0) return;
-    const taskIds = activeTab === 'uploads'
-      ? selectedItems
-      : selectedItems
-          .map((id) => shares.find((share) => String(share.id) === id)?.taskId)
-          .filter((id): id is string => Boolean(id));
-
-    if (taskIds.length === 0) {
-      toast({ title: t('downloadFailed'), description: t('noDownloadable'), variant: 'destructive' });
-      return;
-    }
-
-    archiveTasks.mutate(
-      { taskIds, includeTypes: ['image', 'xml'] },
-      {
-        onSuccess: (result) => {
-          filesApi.triggerDownload(result.blob, `scores_${Date.now()}.zip`);
-          toast(
-            result.skippedCount > 0
-              ? {
-                  title: t('downloadPartial'),
-                  description: t('downloadPartialDesc', { success: String(result.downloadedCount), skipped: String(result.skippedCount) }),
-                }
-              : {
-                  title: t('downloadSuccess'),
-                  description: t('downloadSuccessDesc', { count: String(result.downloadedCount) }),
-                }
-          );
-          onComplete();
-        },
-        onError: (error) => {
-          toast({
-            title: t('downloadFailed'),
-            description: error instanceof ApiError && error.code
-              ? backendMessage(error.code as never)
-              : error.message || t('downloadFailedDesc'),
-            variant: 'destructive',
-          });
-        },
-      }
-    );
-  };
+  const downloadSelected = () => download.mutate(undefined, {
+    onSuccess: (count) => {
+      toast({ title: t('downloadSuccess'), description: t('downloadSuccessDesc', { count: String(count) }) });
+      onComplete();
+    },
+  });
 
   return {
     deleteSelected,
     downloadSelected,
-    isDeleting: deleteTasks.isPending || deleteSavedShares.isPending,
-    isDownloading: archiveTasks.isPending,
+    isDeleting: deleteScores.isPending || deleteOthers.isPending,
+    isDownloading: download.isPending,
   };
 }

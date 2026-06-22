@@ -13,20 +13,20 @@ export {
 export { authApi } from './auth';
 
 // 任务 API
-export { tasksApi } from './tasks';
 export { jobsApi } from './jobs';
 
 // 文件 API
 export { filesApi } from './files';
 
 // XML 编辑 API
-export { xmlApi } from './xml';
 
 // 分享 API
-export { sharesApi } from './shares';
 
 // 个人资料 API
 export { profileApi } from './profile';
 
 // 练琴应用 API
 export { practiceApi } from './practice';
+export { scoresApi } from './scores';
+export { scoreSharingApi } from './score-sharing';
+export { publicationsApi } from './publications';

@@ -10,11 +10,13 @@ import {
 import type { PracticeSessionDetail, PracticeSessionState } from '@/types/api';
 
 interface UsePracticeSessionOptions {
-  taskId: string;
+  scoreId: string;
+  revisionId?: string;
   shareToken?: string;
+  publicSlug?: string;
 }
 
-export function usePracticeSession({ taskId, shareToken }: UsePracticeSessionOptions) {
+export function usePracticeSession({ scoreId, revisionId, shareToken, publicSlug }: UsePracticeSessionOptions) {
   const [session, setSession] = useState<PracticeSessionDetail | null>(null);
   const detailRef = useRef<PracticeSessionDetail | null>(null);
 
@@ -31,13 +33,12 @@ export function usePracticeSession({ taskId, shareToken }: UsePracticeSessionOpt
 
   const create = useCallback(async () => {
     const response = await practiceApi.createPracticeSession({
-      task_id: taskId,
-      source: 'final',
-      share_token: shareToken,
+      score_id: scoreId,
+      revision_id: revisionId,
       sample_rate: PCM_SAMPLE_RATE,
       channels: PCM_CHANNELS,
       frame_format: PCM_FRAME_FORMAT,
-    });
+    }, { grantToken: shareToken, publicSlug });
     if (!response.data?.session_id || !response.data.ws_url) {
       throw new Error(response.message || 'Practice session creation failed.');
     }
@@ -46,7 +47,7 @@ export function usePracticeSession({ taskId, shareToken }: UsePracticeSessionOpt
       throw new Error(detailResponse.message || 'Practice session details are unavailable.');
     }
     return { detail: sync(detailResponse.data), wsUrl: response.data.ws_url };
-  }, [shareToken, sync, taskId]);
+  }, [publicSlug, revisionId, scoreId, shareToken, sync]);
 
   const runRestControl = useCallback(
     async (action: 'pause' | 'resume' | 'finish', sessionId = detailRef.current?.session_id) => {

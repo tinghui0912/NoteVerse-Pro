@@ -1,11 +1,9 @@
-export type PracticeSource = 'final' | 'current';
 export type PracticeSessionState = 'CREATED' | 'STREAMING' | 'PAUSED' | 'FINISHED' | 'FAILED';
 export type PracticeReportStatus = 'NOT_REQUESTED' | 'PENDING' | 'READY' | 'FAILED';
 
 export interface CreatePracticeSessionRequest {
-  task_id: string;
-  source: PracticeSource;
-  share_token?: string;
+  score_id: string;
+  revision_id?: string;
   sample_rate?: number;
   channels?: number;
   frame_format?: string;
@@ -19,10 +17,10 @@ export interface PracticeSessionSummary {
 
 export interface PracticeSessionDetail {
   session_id: string;
-  task_id: string;
+  score_id: string;
+  revision_id: string;
+  access_origin: 'OWNER' | 'MEMBERSHIP' | 'SHARE' | 'PUBLICATION';
   state: PracticeSessionState;
-  source: PracticeSource;
-  share_token?: string | null;
   sample_rate: number;
   channels: number;
   frame_format: string;

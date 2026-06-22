@@ -1,14 +1,12 @@
-from typing import Literal, Optional
-
-from typing_extensions import TypedDict
+from typing import Optional
 
 from pydantic import BaseModel, Field
+from typing_extensions import TypedDict
 
 
 class CreatePracticeSessionRequest(BaseModel):
-    task_id: str = Field(..., min_length=1)
-    source: Literal["final", "current"] = "final"
-    share_token: Optional[str] = None
+    score_id: str = Field(..., min_length=1)
+    revision_id: Optional[str] = None
     sample_rate: int = Field(default=16000, ge=1)
     channels: int = Field(default=1, ge=1)
     frame_format: str = Field(default="pcm_s16le", min_length=1)
@@ -22,10 +20,10 @@ class PracticeSessionSummary(BaseModel):
 
 class PracticeSessionDetail(BaseModel):
     session_id: str
-    task_id: str
+    score_id: str
+    revision_id: str
+    access_origin: str
     state: str
-    source: str
-    share_token: Optional[str] = None
     sample_rate: int
     channels: int
     frame_format: str
@@ -56,10 +54,10 @@ class PracticeSessionSummaryResult(TypedDict):
 
 class PracticeSessionDetailResult(TypedDict):
     session_id: str
-    task_id: str
+    score_id: str
+    revision_id: str
+    access_origin: str
     state: str
-    source: str
-    share_token: Optional[str]
     sample_rate: int
     channels: int
     frame_format: str

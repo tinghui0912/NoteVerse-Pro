@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import hashlib
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db.model_utils import require_persisted_id
+from app.db.models import (
+    ProcessingJob,
+    Score,
+    ScoreArtifact,
+    ScoreRevision,
+    ScoreRevisionMetadata,
+)
+from app.db.models.score import (
+    ArtifactKind,
+    MetadataStatus,
+    RevisionOrigin,
+    ScoreState,
+)
+from app.storage import FileStorage, file_storage
+from app.modules.metadata.service import rebuild_metadata_sync
+from app.utils.timezone import utc_now_naive
+
+
+class SyncScoreCreationService:
+    """Create the stable score aggregate exactly once for a completed OMR job."""
+
+    def __init__(self, storage: FileStorage | None = None) -> None:
+        self.storage = storage or file_storage
+
+    def create_from_job(
+        self,
+        db: Session,
+        job_uuid: str,
+        musicxml_path: str,
+        *,
+        title: str | None = None,
+        difficulty: str | None = None,
+    ) -> str:
+        job = db.execute(
+            select(ProcessingJob)
+            .where(ProcessingJob.job_uuid == job_uuid)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not job:
+            raise ValueError(f"Processing job {job_uuid} not found")
+        if job.score_id is not None:
+            existing = db.get(Score, job.score_id)
+            if existing:
+                return existing.score_uuid
+
+        with open(musicxml_path, "rb") as source:
+            content = source.read()
+        if not content.strip():
+            raise ValueError("Canonical MusicXML is empty")
+
+        score_uuid = str(uuid.uuid4())
+        revision_uuid = str(uuid.uuid4())
+        storage_key = (
+            f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
+        )
+        content_hash = hashlib.sha256(content).hexdigest()
+        stored = self.storage.put_bytes(
+            key=storage_key,
+            content=content,
+            content_type="application/vnd.recordare.musicxml+xml",
+        )
+
+        try:
+            now = utc_now_naive()
+            score = Score(
+                score_uuid=score_uuid,
+                owner_user_id=job.user_id,
+                title=(title or "Untitled score").strip(),
+                difficulty=difficulty,
+                state=ScoreState.IN_REVIEW,
+                originating_job_id=require_persisted_id(job.id, entity="processing job"),
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(score)
+            db.flush()
+            score_id = require_persisted_id(score.id, entity="score")
+            revision = ScoreRevision(
+                revision_uuid=revision_uuid,
+                score_id=score_id,
+                revision_number=1,
+                content_hash=content_hash,
+                idempotency_key=f"job:{job_uuid}",
+                origin=RevisionOrigin.OMR,
+                created_by_user_id=job.user_id,
+                created_by_job_id=require_persisted_id(job.id, entity="processing job"),
+                created_at=now,
+            )
+            db.add(revision)
+            db.flush()
+            revision_id = require_persisted_id(revision.id, entity="score revision")
+            db.add(
+                ScoreArtifact(
+                    artifact_uuid=str(uuid.uuid4()),
+                    revision_id=revision_id,
+                    kind=ArtifactKind.MUSICXML,
+                    storage_backend=self.storage.backend_name,
+                    storage_key=stored.storage_key,
+                    filename=stored.filename,
+                    mime_type="application/vnd.recordare.musicxml+xml",
+                    size_bytes=stored.size_bytes,
+                    sha256=content_hash,
+                    generator="omr-pipeline",
+                    generator_version="1",
+                    created_at=now,
+                )
+            )
+            db.add(
+                ScoreRevisionMetadata(
+                    revision_id=revision_id,
+                    status=MetadataStatus.PENDING,
+                    extractor_version="pending",
+                )
+            )
+            score.head_revision_id = revision_id
+            job.score_id = score_id
+            job.updated_at = now
+            db.commit()
+            try:
+                rebuild_metadata_sync(db, revision_id, self.storage)
+            except Exception:
+                # Projection failures never invalidate the immutable revision.
+                db.rollback()
+            return score_uuid
+        except Exception:
+            db.rollback()
+            try:
+                self.storage.delete(stored.storage_key)
+            except Exception:
+                pass
+            raise
+
+
+sync_score_creation_service = SyncScoreCreationService()

@@ -1,6 +1,6 @@
 """Realtime practice routes under the practice module boundary."""
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, Header, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -29,6 +29,8 @@ router = APIRouter()
 @router.post("/sessions")
 async def create_practice_session(
     request: CreatePracticeSessionRequest,
+    score_grant: str | None = Header(default=None, alias="X-Score-Grant"),
+    publication_slug: str | None = Header(default=None, alias="X-Publication-Slug"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     practice_service: PracticeService = Depends(get_practice_service),
@@ -36,13 +38,14 @@ async def create_practice_session(
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await practice_service.create_session(
         db,
-        task_uuid=request.task_id,
+        score_uuid=request.score_id,
         user_id=user_id,
-        source=request.source,
+        revision_uuid=request.revision_id,
         sample_rate=request.sample_rate,
         channels=request.channels,
         frame_format=request.frame_format,
-        share_token=request.share_token,
+        share_token=score_grant,
+        public_slug=publication_slug,
     )
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_CREATED)
 

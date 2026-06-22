@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ResourceNotFoundException, UnauthorizedException, ValidationException
+from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
 from app.db.models import ProcessingJob, User
 from app.db.models.processing_job import ProcessingJobState
 from app.db.model_utils import require_persisted_id
@@ -10,6 +10,8 @@ from app.modules.jobs.repository import JobRepository
 from app.modules.jobs.schemas import JobDetail, JobStatusEntry, JobSubmitRequestLike, JobSubmitResult
 from app.modules.jobs.submission_service import JobSubmissionService
 from app.modules.jobs.worker_service import sync_job_service
+from app.modules.artifacts.service import ArtifactDelivery
+from app.storage import FileStorage, file_storage
 from app.shared.constants import ErrorCode
 
 
@@ -18,12 +20,33 @@ class JobService:
         self,
         repository: JobRepository | None = None,
         submission_service: JobSubmissionService | None = None,
+        storage: FileStorage | None = None,
     ) -> None:
         self.repository = repository or JobRepository()
         self.submission_service = submission_service or JobSubmissionService()
+        self.storage = storage or file_storage
 
     async def submit(self, current_user: User, request: JobSubmitRequestLike) -> JobSubmitResult:
         return await self.submission_service.submit(current_user, request)
+
+    async def list_jobs(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        *,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[JobDetail], int]:
+        rows, total = await self.repository.list_for_user(
+            db, user_id, page=page, page_size=page_size
+        )
+        from app.db.worker_session import get_db_session
+
+        sync_db = get_db_session()
+        try:
+            return [sync_job_service.get_detail(sync_db, row.job_uuid) for row in rows], total
+        finally:
+            sync_db.close()
 
     async def get_owned_job(
         self,
@@ -74,6 +97,43 @@ class JobService:
         require_persisted_id(job.id, entity="processing job")
         await db.delete(job)
         await db.commit()
+
+    async def artifact_delivery(
+        self,
+        db: AsyncSession,
+        job_uuid: str,
+        artifact_uuid: str,
+        user_id: int,
+    ) -> ArtifactDelivery:
+        job = await self.get_owned_job(db, job_uuid, user_id)
+        artifact = await self.repository.artifact_by_uuid(db, artifact_uuid)
+        if not artifact or artifact.job_id != job.id:
+            raise ResourceNotFoundException(
+                "processing_artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND
+            )
+        if not self.storage.exists(artifact.storage_key):
+            raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.storage_key)
+        media_type = artifact.mime_type or "application/octet-stream"
+        if self.storage.backend_name != "local":
+            url = self.storage.download_url(
+                artifact.storage_key,
+                filename=artifact.filename,
+                content_type=media_type,
+            )
+            if not url:
+                raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.storage_key)
+            return ArtifactDelivery(
+                filename=artifact.filename,
+                media_type=media_type,
+                redirect_url=url,
+            )
+        return ArtifactDelivery(
+            filename=artifact.filename,
+            media_type=media_type,
+            path=self.storage.materialize_to_local(
+                artifact.storage_key, self.storage.local_path(artifact.storage_key)
+            ),
+        )
 
 
 job_service = JobService()

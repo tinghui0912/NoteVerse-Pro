@@ -3,82 +3,90 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useTaskDetail } from '@/hooks/queries/use-task-queries';
-import { useConfirmRecognition } from '@/hooks/queries/use-xml-queries';
-import { fetchAuthenticatedImage } from '@/lib/utils/image';
-import type { TaskFile } from '@/types/api';
+import { useJobDetail } from '@/hooks/queries/use-job-queries';
+import { useApproveScore, useScoreDetail } from '@/hooks/queries/use-score-queries';
+import { jobsApi } from '@/lib/api';
+import type { ProcessingArtifact } from '@/types/api';
 
-const getImageVersion = (image: TaskFile | undefined) =>
-  [image?.storage_key, image?.size, image?.created_at].filter(Boolean).join(':');
-
-function useReviewImages(taskId: string, fileType: 'original_image' | 'preview_image', files: TaskFile[]) {
+function useReviewArtifacts(jobId: string | null, artifacts: ProcessingArtifact[]) {
   const [urls, setUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const ownedObjectUrlsRef = useRef(new Set<string>());
-  const signature = useMemo(() => files.map(getImageVersion).join('|'), [files]);
+  const ownedUrls = useRef(new Set<string>());
+  const signature = artifacts.map((item) => `${item.artifact_id}:${item.sha256 ?? ''}`).join('|');
 
   useEffect(() => {
     const controller = new AbortController();
-    const ownedObjectUrls = ownedObjectUrlsRef.current;
-    let loaded: string[] = [];
+    const owned = ownedUrls.current;
+    let created: string[] = [];
+    if (!jobId || artifacts.length === 0) return;
     void Promise.resolve().then(async () => {
+      setLoading(true);
+      return Promise.all(
+        artifacts.map((artifact) => jobsApi.downloadJobArtifact(jobId, artifact.artifact_id))
+      );
+    }).then((blobs) => {
       if (controller.signal.aborted) return;
-      setLoading(files.length > 0);
-      setUrls([]);
-      const results = await Promise.all(files.map((file, index) =>
-        fetchAuthenticatedImage(taskId, fileType, index + 1, undefined, getImageVersion(file), controller.signal)
-      ));
-      if (controller.signal.aborted) return;
-      loaded = results.filter((url): url is string => Boolean(url));
-      loaded.forEach((url) => {
-        if (url.startsWith('blob:')) ownedObjectUrls.add(url);
-      });
-      setUrls(loaded);
-      setLoading(false);
+      created = blobs.map(URL.createObjectURL);
+      created.forEach((url) => owned.add(url));
+      setUrls(created);
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
     });
     return () => {
       controller.abort();
-      loaded.forEach((url) => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-          ownedObjectUrls.delete(url);
-        }
+      created.forEach((url) => {
+        URL.revokeObjectURL(url);
+        owned.delete(url);
       });
     };
-  }, [files, fileType, signature, taskId]);
+  }, [artifacts, jobId, signature]);
 
   useEffect(() => {
-    const ownedObjectUrls = ownedObjectUrlsRef.current;
+    const urls = ownedUrls.current;
     return () => {
-      ownedObjectUrls.forEach((url) => URL.revokeObjectURL(url));
-      ownedObjectUrls.clear();
+      urls.forEach(URL.revokeObjectURL);
+      urls.clear();
     };
   }, []);
 
-  return { loading, urls };
+  return { loading, urls: jobId && artifacts.length ? urls : [] };
 }
 
-export function useReviewPageData(taskId: string) {
+export function useReviewPageData(scoreId: string) {
   const t = useTranslations('review');
   const router = useRouter();
-  const taskQuery = useTaskDetail(taskId);
-  const task = taskQuery.data?.data ?? null;
-  const originalFiles = useMemo(() => task?.files?.original_image ?? [], [task?.files?.original_image]);
-  const previewFiles = useMemo(() => task?.files?.preview_image ?? [], [task?.files?.preview_image]);
-  const original = useReviewImages(taskId, 'original_image', originalFiles);
-  const preview = useReviewImages(taskId, 'preview_image', previewFiles);
-  const confirm = useConfirmRecognition();
+  const scoreQuery = useScoreDetail(scoreId);
+  const score = scoreQuery.data?.data;
+  const jobId = score?.originating_job_id ?? null;
+  const jobQuery = useJobDetail(jobId ?? '', { enabled: Boolean(jobId) });
+  const job = jobQuery.data?.data;
+  const originalFiles = useMemo(() => job?.artifacts?.original_image ?? [], [job?.artifacts?.original_image]);
+  const previewFiles = useMemo(() => job?.artifacts?.preview_image ?? [], [job?.artifacts?.preview_image]);
+  const original = useReviewArtifacts(jobId, originalFiles);
+  const preview = useReviewArtifacts(jobId, previewFiles);
+  const approve = useApproveScore();
   const error = useMemo(() => {
-    if (taskQuery.error) return taskQuery.error instanceof Error ? taskQuery.error.message : t('loadFailed');
-    if (task && task.state !== 'SUCCESS' && task.state !== 'PENDING_REVIEW') return t('invalidTaskState', { state: task.state });
+    const queryError = scoreQuery.error ?? jobQuery.error;
+    if (queryError) return queryError instanceof Error ? queryError.message : t('loadFailed');
+    if (score && score.state !== 'ACTIVE' && score.state !== 'IN_REVIEW') {
+      return t('invalidTaskState', { state: score.state });
+    }
+    if (score && !jobId) return t('loadFailed');
     return null;
-  }, [t, task, taskQuery.error]);
+  }, [jobId, jobQuery.error, score, scoreQuery.error, t]);
 
-  const confirmRecognition = () => confirm.mutate({ taskId }, {
+  const confirmRecognition = () => approve.mutate(scoreId, {
     onSuccess: (response) => {
-      if (response.success) router.push(`/results/${taskId}`);
+      if (response.success) router.push(`/results/${scoreId}`);
     },
   });
 
-  return { confirmRecognition, confirming: confirm.isPending, error, loading: taskQuery.isLoading, original, preview };
+  return {
+    confirmRecognition,
+    confirming: approve.isPending,
+    error,
+    loading: scoreQuery.isLoading || (Boolean(jobId) && jobQuery.isLoading),
+    original,
+    preview,
+  };
 }

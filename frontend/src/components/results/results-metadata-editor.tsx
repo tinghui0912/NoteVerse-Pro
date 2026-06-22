@@ -8,14 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useUpdateTask } from '@/hooks/queries/use-task-queries';
-import type { TaskDetails } from '@/types/api';
+import { useUpdateScore } from '@/hooks/queries/use-score-queries';
+import type { ScoreDetail } from '@/types/api';
 
 interface ResultsMetadataEditorProps {
   imageCount: number;
   parsedTitle: string;
-  task?: TaskDetails;
-  taskId: string;
+  score?: ScoreDetail;
+  scoreId: string;
 }
 
 function formatDateTime(value: string | undefined, locale: string) {
@@ -31,16 +31,16 @@ function formatDateTime(value: string | undefined, locale: string) {
 export function ResultsMetadataEditor({
   imageCount,
   parsedTitle,
-  task,
-  taskId,
+  score,
+  scoreId,
 }: ResultsMetadataEditorProps) {
   const t = useTranslations('results');
   const common = useTranslations('common');
   const locale = useLocale();
   const { toast } = useToast();
-  const mutation = useUpdateTask();
+  const mutation = useUpdateScore();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const currentTitle = task?.title || parsedTitle || '';
+  const currentTitle = score?.title || parsedTitle || '';
   const [title, setTitle] = useState(currentTitle);
   const [editing, setEditing] = useState(false);
 
@@ -65,7 +65,7 @@ export function ResultsMetadataEditor({
       return;
     }
     mutation.mutate(
-      { id: taskId, data: { title: nextTitle } },
+      { scoreId, title: nextTitle, expected_version: score?.version ?? 1 },
       {
         onSuccess: () => {
           toast({ title: t('saveSuccess'), description: t('scoreInfoUpdated') });
@@ -131,14 +131,14 @@ export function ResultsMetadataEditor({
         </div>
         <div className="flex items-center justify-between gap-4 text-sm">
           <span className="text-muted-foreground">{t('uploadTime')}</span>
-          <time dateTime={task?.created_at} className="text-right font-medium">
-            {formatDateTime(task?.created_at, locale)}
+          <time dateTime={score?.created_at} className="text-right font-medium">
+            {formatDateTime(score?.created_at, locale)}
           </time>
         </div>
         <div className="flex items-center justify-between gap-4 text-sm">
           <span className="text-muted-foreground">{t('lastModifiedTime')}</span>
-          <time dateTime={task?.updated_at} className="text-right font-medium">
-            {formatDateTime(task?.updated_at, locale)}
+          <time dateTime={score?.updated_at} className="text-right font-medium">
+            {formatDateTime(score?.updated_at, locale)}
           </time>
         </div>
         <div className="flex items-center justify-between gap-4 text-sm">

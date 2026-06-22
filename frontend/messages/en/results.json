@@ -16,6 +16,8 @@
   "historyBreadcrumb": "History",
   "actionsTitle": "Actions",
   "createShareAction": "Create Share",
+  "publishScore": "Publish Publicly",
+  "unpublishScore": "Unpublish",
   "downloadImage": "Download Image",
   "downloadMusicXML": "Download MusicXML",
   "saveSuccess": "Save Successful",

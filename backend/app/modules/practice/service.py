@@ -16,7 +16,8 @@ from app.db.models import (
     PracticeReportStatus,
     PracticeSession,
     PracticeSessionState,
-    PracticeSourceType,
+    Score,
+    ScoreRevision,
 )
 from app.db.model_utils import require_persisted_id
 from app.processing.engines.matchmaker_live import AlignmentUpdate
@@ -34,9 +35,10 @@ from app.modules.practice.schemas import (
     PracticeSessionDetailResult,
     PracticeSessionSummaryResult,
 )
+from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.scores.repository import ScoreRepository
 from app.shared.constants import ErrorCode
-from app.shared.file_kinds import FileKind
-from app.storage.paths import materialize_storage_key
+from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -48,40 +50,54 @@ class PracticeService:
         repository: PracticeRepository | None = None,
         runtime_registry: PracticeSessionRuntimeRegistry | None = None,
         report_builder: PracticeReportBuilder | None = None,
+        access_policy: ScoreAccessPolicy | None = None,
+        score_repository: ScoreRepository | None = None,
+        storage: FileStorage | None = None,
     ) -> None:
         self.repository = repository or PracticeRepository()
         self.runtime_registry = runtime_registry or practice_runtime_registry
         self.report_builder = report_builder or practice_report_builder
+        self.access_policy = access_policy or ScoreAccessPolicy()
+        self.score_repository = score_repository or ScoreRepository()
+        self.storage = storage or file_storage
 
     async def create_session(
         self,
         db: AsyncSession,
-        task_uuid: str,
+        score_uuid: str,
         user_id: int,
-        source: str,
+        revision_uuid: str | None,
         sample_rate: int,
         channels: int,
         frame_format: str,
         share_token: str | None = None,
+        public_slug: str | None = None,
     ) -> PracticeSessionSummaryResult:
-        task = await self.repository.get_task_by_uuid(db, task_uuid)
-        if not task:
-            raise ResourceNotFoundException(
-                resource_type="task",
-                resource_id=task_uuid,
-                code=ErrorCode.TASK_NOT_FOUND,
-            )
-
-        await self._validate_task_access(db, task, user_id, share_token)
-        task_id = require_persisted_id(task.id, entity="task")
-        score_file_path = await self._prepare_score_file(db, task_id, source)
+        access = await self.access_policy.authorize(
+            db,
+            score_uuid,
+            ScoreAction.PRACTICE,
+            user_id=user_id,
+            revision_uuid=revision_uuid,
+            share_token=share_token,
+            public_slug=public_slug,
+        )
+        score_id = require_persisted_id(access.score.id, entity="score")
+        revision_id = require_persisted_id(access.revision.id, entity="score revision")
+        artifact = await self.score_repository.canonical_artifact(db, revision_id)
+        if not artifact:
+            raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        score_file_path = self.storage.materialize_to_local(
+            artifact.storage_key, self.storage.local_path(artifact.storage_key)
+        )
 
         session = PracticeSession(
             session_uuid=str(uuid4()),
-            task_id=task_id,
+            score_id=score_id,
+            revision_id=revision_id,
+            access_origin=access.origin,
+            share_grant_id=access.grant.id if access.grant else None,
             user_id=user_id,
-            share_token=share_token,
-            source_type=PracticeSourceType(source),
             state=PracticeSessionState.CREATED,
             sample_rate=sample_rate,
             channels=channels,
@@ -92,7 +108,7 @@ class PracticeService:
         try:
             self.runtime_registry.register(
                 session_id=session.session_uuid,
-                task_id=task.task_uuid,
+                task_id=access.score.score_uuid,
                 state=session.state.value,
                 score_file_path=score_file_path,
                 sample_rate=sample_rate,
@@ -102,9 +118,9 @@ class PracticeService:
         except Exception as exc:
             logger.exception(
                 "practice_session_runtime_registration_failed "
-                f"task_id={task.task_uuid} "
+                f"score_id={access.score.score_uuid} "
                 f"session_id={session.session_uuid} "
-                f"source={source}"
+                f"revision_id={access.revision.revision_uuid}"
             )
             session.state = PracticeSessionState.FAILED
             session.error = str(exc)
@@ -123,14 +139,7 @@ class PracticeService:
         user_id: int,
     ) -> PracticeSessionDetailResult:
         session = await self._require_session_for_user(db, session_uuid, user_id)
-        task = await self.repository.get_task_by_id(db, session.task_id)
-        if not task:
-            raise ResourceNotFoundException(
-                resource_type="task",
-                resource_id=str(session.task_id),
-                code=ErrorCode.TASK_NOT_FOUND,
-            )
-        return self._to_session_detail(session, task.task_uuid)
+        return await self._to_session_detail(db, session)
 
     async def require_session_access(
         self,
@@ -157,14 +166,7 @@ class PracticeService:
             session.started_at = utc_now_naive()
         session = await self.repository.save_session(db, session)
         self._update_runtime_state(session.session_uuid, session.state.value)
-        task = await self.repository.get_task_by_id(db, session.task_id)
-        if not task:
-            raise ResourceNotFoundException(
-                resource_type="task",
-                resource_id=str(session.task_id),
-                code=ErrorCode.TASK_NOT_FOUND,
-            )
-        return self._to_session_detail(session, task.task_uuid)
+        return await self._to_session_detail(db, session)
 
     async def pause_session(
         self,
@@ -181,14 +183,7 @@ class PracticeService:
         session.state = PracticeSessionState.PAUSED
         session = await self.repository.save_session(db, session)
         self._update_runtime_state(session.session_uuid, session.state.value)
-        task = await self.repository.get_task_by_id(db, session.task_id)
-        if not task:
-            raise ResourceNotFoundException(
-                resource_type="task",
-                resource_id=str(session.task_id),
-                code=ErrorCode.TASK_NOT_FOUND,
-            )
-        return self._to_session_detail(session, task.task_uuid)
+        return await self._to_session_detail(db, session)
 
     async def resume_session(
         self,
@@ -207,14 +202,7 @@ class PracticeService:
             session.started_at = utc_now_naive()
         session = await self.repository.save_session(db, session)
         self._update_runtime_state(session.session_uuid, session.state.value)
-        task = await self.repository.get_task_by_id(db, session.task_id)
-        if not task:
-            raise ResourceNotFoundException(
-                resource_type="task",
-                resource_id=str(session.task_id),
-                code=ErrorCode.TASK_NOT_FOUND,
-            )
-        return self._to_session_detail(session, task.task_uuid)
+        return await self._to_session_detail(db, session)
 
     async def finish_session(
         self,
@@ -234,14 +222,7 @@ class PracticeService:
         session.finished_at = utc_now_naive()
         session = await self.repository.save_session(db, session)
         self.runtime_registry.release(session.session_uuid)
-        task = await self.repository.get_task_by_id(db, session.task_id)
-        if not task:
-            raise ResourceNotFoundException(
-                resource_type="task",
-                resource_id=str(session.task_id),
-                code=ErrorCode.TASK_NOT_FOUND,
-            )
-        return self._to_session_detail(session, task.task_uuid)
+        return await self._to_session_detail(db, session)
 
     async def request_report(
         self,
@@ -324,54 +305,6 @@ class PracticeService:
             )
         return session
 
-    async def _validate_task_access(
-        self,
-        db: AsyncSession,
-        task,
-        user_id: int,
-        share_token: str | None,
-    ) -> None:
-        if task.user_id == user_id:
-            return
-
-        if not share_token:
-            raise UnauthorizedException(
-                code=ErrorCode.NO_PRACTICE_ACCESS,
-                details={"task_id": task.task_uuid},
-            )
-
-        share = await self.repository.get_share_by_token(db, share_token)
-        if not share or share.task_id != require_persisted_id(task.id, entity="task"):
-            raise UnauthorizedException(
-                code=ErrorCode.NO_PRACTICE_ACCESS,
-                details={"task_id": task.task_uuid},
-            )
-        if share.revoked_at:
-            raise ValidationException(code=ErrorCode.SHARE_REVOKED, field="share_token")
-        if share.expires_at and share.expires_at < utc_now_naive():
-            raise ValidationException(code=ErrorCode.SHARE_EXPIRED, field="share_token")
-
-    async def _prepare_score_file(
-        self,
-        db: AsyncSession,
-        task_id: int,
-        source: str,
-    ) -> str:
-        if source == PracticeSourceType.final.value:
-            file_record = await self.repository.get_task_file_by_kind(db, task_id, FileKind.FINAL_XML)
-        else:
-            file_record = await self.repository.get_task_file_by_kind(db, task_id, FileKind.CURRENT_XML)
-
-        if file_record is None:
-            raise ResourceNotFoundException(
-                resource_type="xml",
-                resource_id=str(task_id),
-                code=ErrorCode.FILE_NOT_FOUND,
-            )
-
-        xml_path = materialize_storage_key(file_record.storage_key)
-        return xml_path
-
     def _update_runtime_state(self, session_uuid: str, state: str) -> None:
         runtime = self.runtime_registry.get(session_uuid)
         if runtime is not None:
@@ -386,16 +319,22 @@ class PracticeService:
         }
 
     @staticmethod
-    def _to_session_detail(
+    async def _to_session_detail(
+        db: AsyncSession,
         session: PracticeSession,
-        task_uuid: str,
     ) -> PracticeSessionDetailResult:
+        score = await db.get(Score, session.score_id)
+        revision = await db.get(ScoreRevision, session.revision_id)
+        if not score or not revision or not session.access_origin:
+            raise ResourceNotFoundException(
+                "practice_revision", session.session_uuid, ErrorCode.REVISION_NOT_FOUND
+            )
         return {
             "session_id": session.session_uuid,
-            "task_id": task_uuid,
+            "score_id": score.score_uuid,
+            "revision_id": revision.revision_uuid,
+            "access_origin": session.access_origin.value,
             "state": session.state.value,
-            "source": session.source_type.value,
-            "share_token": session.share_token,
             "sample_rate": session.sample_rate,
             "channels": session.channels,
             "frame_format": session.frame_format,

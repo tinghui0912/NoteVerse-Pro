@@ -21,7 +21,7 @@ interface HistoryScoreCardProps {
 export function HistoryScoreCard({ item, isSelected, selectionMode, isUpload, onSelect, onOpen }: HistoryScoreCardProps) {
   const t = useTranslations('history');
   const tResults = useTranslations('results');
-  const itemId = isUpload ? (item as TaskHistoryItem).id : String((item as ShareHistoryItem).id);
+  const itemId = item.selectionId;
 
   return (
     <Card

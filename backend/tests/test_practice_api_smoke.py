@@ -44,10 +44,10 @@ class FakePracticeService:
             )
         return {
             "session_id": session_uuid,
-            "task_id": "task-1",
+            "score_id": "score-1",
+            "revision_id": "revision-1",
+            "access_origin": "OWNER",
             "state": "FINISHED",
-            "source": "final",
-            "share_token": None,
             "sample_rate": 16000,
             "channels": 1,
             "frame_format": "pcm_s16le",
@@ -87,7 +87,7 @@ def clear_dependency_overrides():
 
 def test_practice_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
-        ("post", "/api/v1/practice/sessions", {"task_id": "task-1", "source": "final"}),
+        ("post", "/api/v1/practice/sessions", {"score_id": "score-1"}),
         ("get", "/api/v1/practice/sessions/session-1", None),
         ("post", "/api/v1/practice/sessions/session-1/pause", None),
         ("post", "/api/v1/practice/sessions/session-1/resume", None),

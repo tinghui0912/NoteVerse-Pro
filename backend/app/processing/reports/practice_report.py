@@ -25,7 +25,7 @@ class PracticeReportBuilder:
             ),
             "metrics": {
                 "state": session.state.value,
-                "source": session.source_type.value,
+                "access_origin": session.access_origin.value,
                 "duration_seconds": duration_seconds,
                 "last_beat_position": session.last_beat_position,
                 "last_confidence": session.last_confidence,

@@ -34,6 +34,9 @@ class FileStorage(Protocol):
     def exists(self, key: str) -> bool:
         ...
 
+    def read_bytes(self, key: str) -> bytes:
+        ...
+
     def delete(self, key: str) -> bool:
         ...
 

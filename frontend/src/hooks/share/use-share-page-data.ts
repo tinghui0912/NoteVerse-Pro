@@ -2,63 +2,63 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useShareAccess, useSharedXmlContent } from '@/hooks/queries/use-share-queries';
-import { fetchSharedImage } from '@/lib/utils/image';
+import { useGrantAccess, useGrantContent } from '@/hooks/queries/use-score-queries';
+import { scoreSharingApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 
 export type ShareAccessErrorType = 'not_found' | 'revoked' | 'expired' | 'unknown';
 
 export function useSharePageData(shareId: string) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const accessQuery = useShareAccess(shareId, { enabled: !authLoading });
+  const accessQuery = useGrantAccess(shareId);
   const shareData = accessQuery.data?.data ?? null;
-  const xmlQuery = useSharedXmlContent(shareId, { enabled: Boolean(shareData) });
+  const contentQuery = useGrantContent(shareId);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
   const ownedObjectUrlsRef = useRef(new Set<string>());
-  const finalImages = useMemo(() => shareData?.task.files?.final_image ?? [], [shareData?.task.files?.final_image]);
-  const imageSignature = useMemo(() => finalImages.map((image) => image.storage_key).join('|'), [finalImages]);
+  const images = useMemo(
+    () => shareData?.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE') ?? [],
+    [shareData?.artifacts]
+  );
+  const signature = images.map((image) => `${image.artifact_id}:${image.sha256}`).join('|');
 
   useEffect(() => {
     const controller = new AbortController();
-    const ownedObjectUrls = ownedObjectUrlsRef.current;
+    const owned = ownedObjectUrlsRef.current;
     let loaded: string[] = [];
+    if (!images.length) return;
     void Promise.resolve().then(async () => {
-      if (controller.signal.aborted) return;
-      setImagesLoading(finalImages.length > 0);
-      setImageUrls([]);
-      const urls = await Promise.all(
-        finalImages.map((_, index) => fetchSharedImage(shareId, index + 1, 'final_image', controller.signal))
+      setImagesLoading(true);
+      return Promise.all(
+        images.map((image) => scoreSharingApi.viewArtifact(shareId, image.artifact_id))
       );
+    }).then((blobs) => {
       if (controller.signal.aborted) return;
-      loaded = urls.filter((url): url is string => Boolean(url));
-      loaded.forEach((url) => {
-        if (url.startsWith('blob:')) ownedObjectUrls.add(url);
-      });
+      loaded = blobs.map(URL.createObjectURL);
+      loaded.forEach((url) => owned.add(url));
       setImageUrls(loaded);
-      setImagesLoading(false);
+    }).finally(() => {
+      if (!controller.signal.aborted) setImagesLoading(false);
     });
     return () => {
       controller.abort();
       loaded.forEach((url) => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-          ownedObjectUrls.delete(url);
-        }
+        URL.revokeObjectURL(url);
+        owned.delete(url);
       });
     };
-  }, [finalImages, imageSignature, shareId]);
+  }, [images, shareId, signature]);
 
   useEffect(() => {
-    const ownedObjectUrls = ownedObjectUrlsRef.current;
+    const owned = ownedObjectUrlsRef.current;
     return () => {
-      ownedObjectUrls.forEach((url) => URL.revokeObjectURL(url));
-      ownedObjectUrls.clear();
+      owned.forEach(URL.revokeObjectURL);
+      owned.clear();
     };
   }, []);
 
   const error = useMemo(() => {
-    const queryError = accessQuery.error;
+    const queryError = accessQuery.error ?? contentQuery.error;
     if (!queryError) return null;
     if (!(queryError instanceof ApiError)) return { type: 'unknown' as const, message: '' };
     const type: ShareAccessErrorType = queryError.code === 'share_not_found'
@@ -68,21 +68,17 @@ export function useSharePageData(shareId: string) {
         : queryError.code === 'share_expired'
           ? 'expired'
           : 'unknown';
-    return {
-      type,
-      message: queryError.message,
-      expiredAt: queryError.details?.expired_at as string | undefined,
-    };
-  }, [accessQuery.error]);
+    return { type, message: queryError.message };
+  }, [accessQuery.error, contentQuery.error]);
 
   return {
     authLoading,
     error,
-    imageUrls,
+    imageUrls: images.length ? imageUrls : [],
     imagesLoading,
     isAuthenticated,
-    loading: accessQuery.isLoading,
-    rawXml: xmlQuery.data ?? null,
+    loading: accessQuery.isLoading || contentQuery.isLoading,
+    rawXml: contentQuery.data?.data?.content ?? null,
     shareData,
   };
 }
