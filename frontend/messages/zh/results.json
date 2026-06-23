@@ -16,6 +16,8 @@
   "uploadTime": "上传时间",
   "lastModifiedTime": "最后修改时间",
   "totalPages": "总页数",
+  "measureCount": "小节数",
+  "keySignature": "调号",
   "pageCount": "{count} 页",
   "breadcrumbLabel": "面包屑导航",
   "historyBreadcrumb": "历史记录",

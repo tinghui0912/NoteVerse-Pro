@@ -16,6 +16,8 @@
   "uploadTime": "Uploaded",
   "lastModifiedTime": "Last modified",
   "totalPages": "Total pages",
+  "measureCount": "Measures",
+  "keySignature": "Key signature",
   "pageCount": "{count, plural, one {# page} other {# pages}}",
   "breadcrumbLabel": "Breadcrumb",
   "historyBreadcrumb": "History",

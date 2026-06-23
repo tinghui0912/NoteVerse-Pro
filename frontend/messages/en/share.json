@@ -17,6 +17,7 @@
   "revoke": "Revoke share",
   "reinstate": "Reinstate share",
   "sharedBy": "Shared by",
+  "sharedAt": "Shared on {date}",
   "info": "Share Information",
   "author": "Author",
   "permissionLabel": "Permission",

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Eye, Loader2, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import { useHistoryThumbnails } from '@/hooks/history/use-history-thumbnails';
 import { useHistoryViewState } from '@/hooks/history/use-history-view-state';
 import { useJobList } from '@/hooks/queries/use-job-queries';
 import { useScoreBookmarks, useScoreList } from '@/hooks/queries/use-score-queries';
+import { formatApiDateTime } from '@/lib/score/metadata-display';
 import { cn } from '@/lib/utils';
 
 export default function HistoryPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
@@ -34,6 +35,7 @@ export default function HistoryPage({ searchParams }: { searchParams: Promise<{ 
   const initialTab: HistoryTab = tab === 'shares' ? 'shares' : 'uploads';
   const t = useTranslations('history');
   const common = useTranslations('common');
+  const locale = useLocale();
   const router = useRouter();
   const historyState = useHistoryViewState(initialTab);
   const { activeTab, activeState, uploads: uploadState, shares: shareState } = historyState;
@@ -152,7 +154,7 @@ export default function HistoryPage({ searchParams }: { searchParams: Promise<{ 
             <div className="flex min-w-0 flex-1 items-center gap-4">
               {selection.selectionMode ? <Checkbox checked={selected} onCheckedChange={() => selection.toggleItem(item.selectionId)} onClick={(event) => event.stopPropagation()} className="h-5 w-5" /> : null}
               <Music className="h-6 w-6 text-primary" />
-              <div className="truncate"><h3 className="truncate font-semibold">{item.name}</h3><p className="text-sm text-muted-foreground">{item.date}</p></div>
+              <div className="truncate"><h3 className="truncate font-semibold">{item.name}</h3><p className="text-sm text-muted-foreground">{formatApiDateTime(item.date, locale)}</p></div>
             </div>
             <div className="flex shrink-0 items-center gap-4">
               {uploads ? <HistoryStatusIndicator status={(item as TaskHistoryItem).status} /> : <Eye className="h-4 w-4 text-primary" />}

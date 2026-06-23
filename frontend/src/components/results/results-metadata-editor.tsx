@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
+import { formatApiDateTime, formatKeySignature } from '@/lib/score/metadata-display';
 import type { ScoreDetail } from '@/types/api';
 
 interface ResultsMetadataEditorProps {
@@ -16,16 +17,6 @@ interface ResultsMetadataEditorProps {
   parsedTitle: string;
   score?: ScoreDetail;
   scoreId: string;
-}
-
-function formatDateTime(value: string | undefined, locale: string) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
 }
 
 export function ResultsMetadataEditor({
@@ -130,20 +121,30 @@ export function ResultsMetadataEditor({
           )}
         </div>
         <div className="flex items-center justify-between gap-4 text-sm">
+          <span className="text-muted-foreground">{t('keySignature')}</span>
+          <span className="font-medium">
+            {formatKeySignature(score?.metadata?.primary_key_fifths, score?.metadata?.primary_mode)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <span className="text-muted-foreground">{t('measureCount')}</span>
+          <span className="font-medium">{score?.metadata?.measure_count ?? '-'}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <span className="text-muted-foreground">{t('totalPages')}</span>
+          <span className="font-medium">{t('pageCount', { count: imageCount })}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4 text-sm">
           <span className="text-muted-foreground">{t('uploadTime')}</span>
           <time dateTime={score?.created_at} className="text-right font-medium">
-            {formatDateTime(score?.created_at, locale)}
+            {formatApiDateTime(score?.created_at, locale)}
           </time>
         </div>
         <div className="flex items-center justify-between gap-4 text-sm">
           <span className="text-muted-foreground">{t('lastModifiedTime')}</span>
           <time dateTime={score?.updated_at} className="text-right font-medium">
-            {formatDateTime(score?.updated_at, locale)}
+            {formatApiDateTime(score?.updated_at, locale)}
           </time>
-        </div>
-        <div className="flex items-center justify-between gap-4 text-sm">
-          <span className="text-muted-foreground">{t('totalPages')}</span>
-          <span className="font-medium">{t('pageCount', { count: imageCount })}</span>
         </div>
       </CardContent>
     </Card>

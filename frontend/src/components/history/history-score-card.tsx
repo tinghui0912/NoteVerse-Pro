@@ -2,9 +2,10 @@
 
 import Image from 'next/image';
 import { Clock, Music } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { formatApiDateTime } from '@/lib/score/metadata-display';
 import { cn } from '@/lib/utils';
 import { HistoryStatusIndicator } from './history-status-indicator';
 import type { ShareHistoryItem, TaskHistoryItem } from './history-types';
@@ -21,7 +22,9 @@ interface HistoryScoreCardProps {
 export function HistoryScoreCard({ item, isSelected, selectionMode, isUpload, onSelect, onOpen }: HistoryScoreCardProps) {
   const t = useTranslations('history');
   const tResults = useTranslations('results');
+  const locale = useLocale();
   const itemId = item.selectionId;
+  const formattedDate = formatApiDateTime(item.date, locale);
 
   return (
     <Card
@@ -67,9 +70,9 @@ export function HistoryScoreCard({ item, isSelected, selectionMode, isUpload, on
         <div>
           <h3 className="mb-1 truncate text-base font-semibold">{item.name}</h3>
           {isUpload ? (
-            <p className="text-xs text-muted-foreground"><Clock className="mr-1 inline h-3 w-3" />{item.date}</p>
+            <p className="text-xs text-muted-foreground"><Clock className="mr-1 inline h-3 w-3" />{formattedDate}</p>
           ) : (
-            <p className="text-xs text-muted-foreground">{t('sharedByAt', { by: (item as ShareHistoryItem).sharedBy, date: item.date })}</p>
+            <p className="text-xs text-muted-foreground">{t('sharedByAt', { by: (item as ShareHistoryItem).sharedBy, date: formattedDate })}</p>
           )}
         </div>
       </CardContent>

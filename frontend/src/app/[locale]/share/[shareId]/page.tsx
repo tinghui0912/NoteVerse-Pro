@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowLeft, Ban, CircleAlert, Clock3, Loader2, SearchX } from 'lucide-react';
+import { Ban, CircleAlert, Clock3, Loader2, SearchX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -56,22 +56,12 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
     return (
       <div className="flex min-h-screen flex-col bg-gray-50">
         <div className="bg-gray-900">
-          <div className="mx-auto max-w-7xl px-4 pb-16 pt-32">
-            <div className="flex w-full items-center">
-              <Button
-                variant="ghost"
-                onClick={() => router.back()}
-                className="h-12 w-12 rounded-full text-white"
-              >
-                <ArrowLeft />
-              </Button>
-              <div className="flex-1 text-center">
-                <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">
-                  {t('sharedScore')}
-                </h1>
-                <p className="text-lg text-gray-300">{config.title}</p>
-              </div>
-              <div className="w-12" />
+          <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center">
+            <div>
+              <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">
+                {t('sharedScore')}
+              </h1>
+              <p className="text-lg text-gray-300">{config.title}</p>
             </div>
           </div>
         </div>
@@ -94,22 +84,12 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <div className="bg-gray-900">
-        <div className="mx-auto max-w-7xl px-4 pb-16 pt-32">
-          <div className="flex w-full items-center">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="h-12 w-12 rounded-full text-white"
-            >
-              <ArrowLeft />
-            </Button>
-            <div className="flex-1 text-center">
-              <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">
-                {t('sharedScore')}
-              </h1>
-              <p className="text-lg text-gray-300">{t('sharedScoreSubtitle')}</p>
-            </div>
-            <div className="w-12" />
+        <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center">
+          <div>
+            <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">
+              {t('sharedScore')}
+            </h1>
+            <p className="text-lg text-gray-300">{t('sharedScoreSubtitle')}</p>
           </div>
         </div>
       </div>

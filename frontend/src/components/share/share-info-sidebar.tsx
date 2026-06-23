@@ -19,6 +19,7 @@ import { useDownload } from '@/hooks/use-download';
 import { useToast } from '@/hooks/use-toast';
 import { scoreSharingApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
+import { formatApiDateTime, formatKeySignature } from '@/lib/score/metadata-display';
 import { SCORE_GENRE_TAGS, taxonomyTagKey } from '@/lib/score/taxonomy';
 import type { ScoreArtifact, ScoreGrantAccess, ScoreTaxonomyTag } from '@/types/api';
 
@@ -33,16 +34,6 @@ interface ShareInfoSidebarProps {
   shareData: ScoreGrantAccess;
   shareId: string;
   taxonomyTags: ScoreTaxonomyTag[];
-}
-
-function formatDateTime(value: string | undefined, locale: string) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
 }
 
 function fallbackInitial(name: string) {
@@ -105,7 +96,7 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
           <div className="min-w-0">
             <p className="truncate font-medium">{sharedByName}</p>
             <time className="text-sm text-muted-foreground" dateTime={props.shareData.shared_at}>
-              {formatDateTime(props.shareData.shared_at, locale)}
+              {t('sharedAt', { date: formatApiDateTime(props.shareData.shared_at, locale) })}
             </time>
           </div>
         </CardContent>
@@ -120,9 +111,9 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
             <Label className="shrink-0 text-muted-foreground">{results('scoreName')}</Label>
             <span className="flex-1 truncate text-right font-medium">{props.scoreTitle}</span>
           </div>
-          <div className="space-y-2">
-            <Label className="text-muted-foreground">{results('scoreStyles')}</Label>
-            <div className="flex flex-wrap gap-2">
+          <div className="flex items-start justify-between gap-4">
+            <Label className="shrink-0 pt-1 text-muted-foreground">{results('scoreStyles')}</Label>
+            <div className="flex max-w-[70%] flex-wrap justify-end gap-2">
               {genreTags.length > 0 ? genreTags.map((tag) => (
                 <span
                   key={taxonomyTagKey(tag)}
@@ -132,6 +123,19 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
                 </span>
               )) : <span className="text-sm text-muted-foreground">{results('noStyleTags')}</span>}
             </div>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">{results('keySignature')}</span>
+            <span className="font-medium">
+              {formatKeySignature(
+                props.shareData.metadata?.primary_key_fifths,
+                props.shareData.metadata?.primary_mode
+              )}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">{results('measureCount')}</span>
+            <span className="font-medium">{props.shareData.metadata?.measure_count ?? '-'}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">{results('totalPages')}</span>

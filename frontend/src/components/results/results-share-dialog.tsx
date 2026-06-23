@@ -38,6 +38,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
 import { getShareExpirationDays } from '@/lib/results/share';
+import { formatApiDateTime, parseApiDate } from '@/lib/score/metadata-display';
 import type { ScoreGrant } from '@/types/api';
 
 function absoluteShareUrl(token: string, locale: string) {
@@ -64,6 +65,7 @@ export function ResultsShareDialog({
   const [customDate, setCustomDate] = useState('');
   const [created, setCreated] = useState<{ grantId: string; token: string } | null>(null);
   const [createdTokens, setCreatedTokens] = useState<Record<string, string>>({});
+  const [now] = useState(() => Date.now());
   const [minimumCustomDate] = useState(
     () => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
   );
@@ -126,13 +128,24 @@ export function ResultsShareDialog({
   };
 
   const isActive = (grant: ScoreGrant) =>
-    !grant.revoked_at && (!grant.expires_at || new Date(grant.expires_at) > new Date());
+    !grant.revoked_at && (!grant.expires_at || (parseApiDate(grant.expires_at)?.getTime() ?? 0) > now);
   const isExpired = (grant: ScoreGrant) =>
-    Boolean(grant.expires_at && new Date(grant.expires_at) <= new Date());
-  const formatExpiration = (grant: ScoreGrant) =>
-    grant.expires_at
-      ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(grant.expires_at))
-      : t('permanent');
+    Boolean(grant.expires_at && (parseApiDate(grant.expires_at)?.getTime() ?? 0) <= now);
+  const daysUntilExpiration = (grant: ScoreGrant) => {
+    const expiresAt = parseApiDate(grant.expires_at ?? undefined);
+    if (!expiresAt) return null;
+    return Math.max(0, Math.ceil((expiresAt.getTime() - now) / 86_400_000));
+  };
+  const formatExpirationSummary = (grant: ScoreGrant) => {
+    if (grant.revoked_at) return t('disabled');
+    if (isExpired(grant)) return t('expired');
+    const days = daysUntilExpiration(grant);
+    if (days === null) return t('permanentValid');
+    if (days === 0) return t('expiresToday');
+    return t('expiresInDays', { count: days });
+  };
+  const formatExpirationDetail = (grant: ScoreGrant) =>
+    grant.expires_at ? t('expiresAt', { date: formatApiDateTime(grant.expires_at, locale) }) : null;
   const mutationBusy = revokeGrant.isPending || restoreGrant.isPending || deleteGrant.isPending;
 
   const revoke = (grantId: string) => {
@@ -286,24 +299,25 @@ export function ResultsShareDialog({
                   {grants.map((grant) => {
                     const active = isActive(grant);
                     const expired = isExpired(grant);
-                    const knownToken = createdTokens[grant.grant_id] ?? null;
-                    const status = active
-                      ? formatExpiration(grant)
-                      : grant.revoked_at
-                        ? t('disabled')
-                        : t('expired');
+                    const knownToken = grant.token ?? createdTokens[grant.grant_id] ?? null;
+                    const expirationDetail = formatExpirationDetail(grant);
 
                     return (
                       <div
                         key={grant.grant_id}
-                        className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                        className="grid gap-3 py-3 sm:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)_auto] sm:items-center"
                       >
                         <div className="flex min-w-0 items-center gap-3">
                           <LockKeyhole className="h-4 w-4 shrink-0" />
                           <div className="min-w-0">
                             <p className="font-medium">{t('viewOnly')}</p>
-                            <p className="truncate text-xs text-muted-foreground">{status}</p>
                           </div>
+                        </div>
+                        <div className="min-w-0 text-sm">
+                          <p className="font-medium">{formatExpirationSummary(grant)}</p>
+                          {expirationDetail ? (
+                            <p className="truncate text-xs text-muted-foreground">{expirationDetail}</p>
+                          ) : null}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <Button

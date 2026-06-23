@@ -17,6 +17,7 @@
   "revoke": "撤销分享",
   "reinstate": "恢复分享",
   "sharedBy": "分享者",
+  "sharedAt": "分享于 {date}",
   "info": "分享信息",
   "author": "作者",
   "permissionLabel": "权限",

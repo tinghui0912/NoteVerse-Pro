@@ -10,6 +10,7 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 function share(overrides: Partial<ScoreGrant> = {}): ScoreGrant {
   return {
     grant_id: 'grant',
+    token: 'grant',
     target_mode: 'LATEST',
     target_revision_id: null,
     allow_download: true,

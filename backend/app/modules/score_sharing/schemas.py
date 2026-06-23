@@ -40,6 +40,7 @@ class GrantCreatedRead(BaseModel):
 
 class GrantRead(BaseModel):
     grant_id: str
+    token: str | None = None
     target_mode: ShareTargetMode
     target_revision_id: str | None
     allow_download: bool

@@ -1,8 +1,9 @@
-"""
-Shared API response models and helpers.
-"""
+"""Shared API response models and helpers."""
+
+from datetime import datetime, timezone
 from typing import Generic, Optional, Sequence, TypeVar
 
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
@@ -42,6 +43,33 @@ class PaginatedResponsePayload(TypedDict):
     success: bool
     data: list[object]
     pagination: PaginationMeta
+
+
+def format_utc_datetime(value: datetime) -> str:
+    """Serialize a UTC timestamp with an explicit `Z` suffix.
+
+    Database columns in this project store UTC as timezone-naive datetimes. API
+    responses must still be explicit so browsers and cross-region clients do
+    not interpret those timestamps as local time.
+    """
+
+    utc_value = (
+        value.replace(tzinfo=timezone.utc)
+        if value.tzinfo is None
+        else value.astimezone(timezone.utc)
+    )
+    return utc_value.isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def encode_response_data(value: object) -> object:
+    """Encode API payloads with the project's UTC timestamp contract."""
+
+    return jsonable_encoder(
+        value,
+        custom_encoder={
+            datetime: format_utc_datetime,
+        },
+    )
 
 
 class APIResponse(BaseModel, Generic[T]):
@@ -97,7 +125,7 @@ def success_response(
 ) -> SuccessResponsePayload:
     response: SuccessResponsePayload = {"success": True}
     if data is not None:
-        response["data"] = data
+        response["data"] = encode_response_data(data)
     if message:
         response["message"] = message
     if code:
@@ -128,7 +156,7 @@ def paginated_response(
 ) -> PaginatedResponsePayload:
     return {
         "success": True,
-        "data": list(data),
+        "data": encode_response_data(list(data)),
         "pagination": {
             "page": page,
             "page_size": page_size,

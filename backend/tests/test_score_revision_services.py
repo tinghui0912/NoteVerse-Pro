@@ -442,8 +442,11 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     stored_grant = session.query(ScoreShareGrant).filter_by(
         grant_uuid=created.grant_id
     ).one()
+    assert created.token == created.grant_id
     assert stored_grant.token_hash == hash_share_token(created.token)
     assert created.token not in stored_grant.token_hash
+    listed_grants = await service.list_grants(db, "sharing-score", 1)  # type: ignore[arg-type]
+    assert listed_grants[0].token == created.token
 
     bookmarked = await service.bookmark_grant(
         db, created.token, 2  # type: ignore[arg-type]

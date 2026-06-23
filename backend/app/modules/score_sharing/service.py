@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import secrets
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,11 +85,12 @@ class ScoreSharingService:
                 target.revision.id, entity="score revision"
             )
             target_revision_uuid = target.revision.revision_uuid
-        token = secrets.token_urlsafe(32)
+        grant_uuid = str(uuid.uuid4())
+        token = grant_uuid
         now = utc_now_naive()
         expires_at = to_utc_naive(request.expires_at)
         grant = ScoreShareGrant(
-            grant_uuid=str(uuid.uuid4()),
+            grant_uuid=grant_uuid,
             score_id=require_persisted_id(access.score.id, entity="score"),
             token_hash=hash_share_token(token),
             target_mode=request.target_mode,
@@ -126,6 +126,11 @@ class ScoreSharingService:
             result.append(
                 GrantRead(
                     grant_id=grant.grant_uuid,
+                    token=(
+                        grant.grant_uuid
+                        if grant.token_hash == hash_share_token(grant.grant_uuid)
+                        else None
+                    ),
                     target_mode=grant.target_mode,
                     target_revision_id=await self.repository.revision_uuid(
                         db, grant.target_revision_id
@@ -168,8 +173,14 @@ class ScoreSharingService:
     async def _grant_read(
         self, db: AsyncSession, grant: ScoreShareGrant
     ) -> GrantRead:
+        token = (
+            grant.grant_uuid
+            if grant.token_hash == hash_share_token(grant.grant_uuid)
+            else None
+        )
         return GrantRead(
             grant_id=grant.grant_uuid,
+            token=token,
             target_mode=grant.target_mode,
             target_revision_id=await self.repository.revision_uuid(
                 db, grant.target_revision_id

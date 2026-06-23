@@ -89,6 +89,7 @@ export interface ScoreArtifact {
 
 export interface ScoreGrant {
   grant_id: string;
+  token: string | null;
   target_mode: 'LATEST' | 'PINNED';
   target_revision_id: string | null;
   allow_download: boolean;
@@ -98,7 +99,7 @@ export interface ScoreGrant {
   created_at: string;
 }
 
-export interface CreatedScoreGrant extends Omit<ScoreGrant, 'revoked_at'> {
+export interface CreatedScoreGrant extends Omit<ScoreGrant, 'revoked_at' | 'token'> {
   token: string;
 }
 
