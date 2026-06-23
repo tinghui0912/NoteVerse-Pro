@@ -9,7 +9,6 @@
     "metadata_status": ["PENDING", "READY", "FAILED"],
     "artifact_kind": ["MUSICXML", "RENDERED_PAGE", "EXPORT_PDF", "AUDIO_PREVIEW", "DIAGNOSTIC_JSON"],
     "membership_role": ["EDITOR", "VIEWER"],
-    "share_grant_scope": ["VIEW", "EDIT_INVITE"],
     "share_target_mode": ["LATEST", "PINNED"],
     "publication_status": ["PUBLISHED", "UNPUBLISHED"],
     "publication_discoverability": ["LISTED", "UNLISTED"],

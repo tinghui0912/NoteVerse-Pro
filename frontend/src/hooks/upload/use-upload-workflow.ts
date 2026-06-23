@@ -9,6 +9,7 @@ import { useJobDetail, useSubmitJob } from '@/hooks/queries/use-job-queries';
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, jobsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
+import type { ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
 const TASK_WAIT_TIMEOUT_MS = 18 * 60 * 1_000;
@@ -33,7 +34,7 @@ export function useUploadWorkflow() {
   const filesRef = useRef<UploadableFile[]>([]);
   const submissionKeyRef = useRef<string | null>(null);
   const [scoreName, setScoreName] = useState('');
-  const [difficulty, setDifficulty] = useState('difficultyIntermediate');
+  const [taxonomyTags, setTaxonomyTags] = useState<ScoreTaxonomyTagValue[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
@@ -133,7 +134,9 @@ export function useUploadWorkflow() {
         if (!data || controller.signal.aborted) return;
 
         if (data.title) setScoreName(data.title);
-        if (data.difficulty) setDifficulty(data.difficulty);
+        if (data.taxonomy_tags) {
+          setTaxonomyTags(data.taxonomy_tags as ScoreTaxonomyTagValue[]);
+        }
 
         const originalImages = data.artifacts?.original_image ?? [];
         const uploadIds = data.upload_ids ?? [];
@@ -240,7 +243,7 @@ export function useUploadWorkflow() {
       const response = await submitJobMutation.mutateAsync({
         fileIds: uploadedFileIds,
         idempotencyKey: submissionKeyRef.current,
-        options: { title: scoreName || undefined, difficulty },
+        options: { title: scoreName || undefined, taxonomy_tags: taxonomyTags },
       });
       const jobId = response.data?.job_id;
       if (!jobId) throw new Error(tCommon('operationFailed'));
@@ -260,23 +263,23 @@ export function useUploadWorkflow() {
       setIsUploading(false);
       setIsSubmitting(false);
     }
-  }, [difficulty, scoreName, setTrackedFiles, submitJobMutation, t, tCommon, toast]);
+  }, [scoreName, setTrackedFiles, submitJobMutation, t, taxonomyTags, tCommon, toast]);
 
   return {
     appendFiles,
     clearFiles,
-    difficulty,
     files,
     isProcessing: isUploading || isSubmitting,
     isSubmitting,
     isUploading,
     removeFile,
     scoreName,
-    setDifficulty,
     setScoreName,
+    setTaxonomyTags,
     startRecognition,
     taskError,
     taskErrorMessage: taskError && t.has(taskError as never) ? t(taskError as never) : taskError ?? '',
     taskProgress,
+    taxonomyTags,
   };
 }

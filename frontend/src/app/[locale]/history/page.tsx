@@ -23,6 +23,7 @@ import {
 } from '@/components/history/history-types';
 import { useHistoryBatchActions } from '@/hooks/history/use-history-batch-actions';
 import { useHistorySelection } from '@/hooks/history/use-history-selection';
+import { useHistoryThumbnails } from '@/hooks/history/use-history-thumbnails';
 import { useHistoryViewState } from '@/hooks/history/use-history-view-state';
 import { useJobList } from '@/hooks/queries/use-job-queries';
 import { useScoreBookmarks, useScoreList } from '@/hooks/queries/use-score-queries';
@@ -40,17 +41,33 @@ export default function HistoryPage({ searchParams }: { searchParams: Promise<{ 
   const scoreQuery = useScoreList(uploadState.page, pageSize, uploadState.searchQuery || undefined);
   const jobQuery = useJobList(uploadState.page, pageSize, activeTab === 'uploads');
   const bookmarkQuery = useScoreBookmarks();
+  const thumbnailTargets = useMemo(() => {
+    const scoreTargets = (scoreQuery.data?.data ?? []).map((score) => ({
+      id: `score:${score.score_id}`,
+      scoreId: score.score_id,
+      revisionId: score.head_revision_id,
+    }));
+    const bookmarkTargets = (bookmarkQuery.data?.data ?? []).map((bookmark) => ({
+      id: `bookmark:${bookmark.bookmark_id}`,
+      scoreId: bookmark.score_id,
+      enabled: bookmark.available,
+    }));
+    return [...scoreTargets, ...bookmarkTargets];
+  }, [bookmarkQuery.data?.data, scoreQuery.data?.data]);
+  const thumbnails = useHistoryThumbnails(thumbnailTargets);
 
   const uploadItems = useMemo<TaskHistoryItem[]>(() => {
     const scores = (scoreQuery.data?.data ?? []).map((score) => ({
+      ...(thumbnails[`score:${score.score_id}`] ?? {}),
       id: score.score_id,
       selectionId: `score:${score.score_id}`,
       entity: 'score' as const,
       name: score.title || t('taskLabel', { id: score.score_id.slice(0, 8) }),
       date: score.updated_at,
       status: mapScoreStateToStatus(score.state),
-      thumbnail: '',
-      thumbnailError: true,
+      thumbnail: thumbnails[`score:${score.score_id}`]?.thumbnail ?? '',
+      thumbnailError: thumbnails[`score:${score.score_id}`]?.thumbnailError ?? false,
+      thumbnailLoading: thumbnails[`score:${score.score_id}`]?.thumbnailLoading ?? false,
       headRevisionId: score.head_revision_id,
     }));
     const jobs = (jobQuery.data?.data ?? [])
@@ -63,13 +80,14 @@ export default function HistoryPage({ searchParams }: { searchParams: Promise<{ 
         date: job.updated_at || job.created_at || new Date().toISOString(),
         status: mapJobStateToStatus(job.state),
         thumbnail: '',
-        thumbnailError: true,
+        thumbnailError: false,
+        thumbnailLoading: false,
       }));
     const status = uploadState.statusFilter;
     return [...jobs, ...scores]
       .filter((item) => status === 'all' || item.status === status)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [jobQuery.data?.data, scoreQuery.data?.data, t, uploadState.statusFilter]);
+  }, [jobQuery.data?.data, scoreQuery.data?.data, t, thumbnails, uploadState.statusFilter]);
 
   const bookmarkItems = useMemo<ShareHistoryItem[]>(() =>
     (bookmarkQuery.data?.data ?? []).map((bookmark) => ({
@@ -78,11 +96,12 @@ export default function HistoryPage({ searchParams }: { searchParams: Promise<{ 
       name: bookmark.title,
       sharedBy: '',
       date: bookmark.created_at,
-      thumbnail: '',
-      thumbnailError: true,
+      thumbnail: thumbnails[`bookmark:${bookmark.bookmark_id}`]?.thumbnail ?? '',
+      thumbnailError: thumbnails[`bookmark:${bookmark.bookmark_id}`]?.thumbnailError ?? false,
+      thumbnailLoading: thumbnails[`bookmark:${bookmark.bookmark_id}`]?.thumbnailLoading ?? false,
       scoreId: bookmark.score_id,
       available: bookmark.available,
-    })), [bookmarkQuery.data?.data]);
+    })), [bookmarkQuery.data?.data, thumbnails]);
 
   const currentIds = activeTab === 'uploads'
     ? uploadItems.map((item) => item.selectionId)

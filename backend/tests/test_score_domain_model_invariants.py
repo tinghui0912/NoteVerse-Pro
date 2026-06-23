@@ -25,7 +25,6 @@ from app.db.models.score_access import (
     ScoreMembership,
     ScorePublication,
     ScoreShareGrant,
-    ShareGrantScope,
     ShareTargetMode,
 )
 from app.db.models.user import User, UserRole
@@ -217,7 +216,6 @@ def test_share_target_and_token_hash_are_constrained(score_session: Session) -> 
             id=300,
             score_id=10,
             token_hash="1" * 64,
-            scope=ShareGrantScope.VIEW,
             target_mode=ShareTargetMode.PINNED,
             target_revision_id=None,
             created_by_user_id=1,
@@ -229,7 +227,6 @@ def test_share_target_and_token_hash_are_constrained(score_session: Session) -> 
             id=301,
             score_id=10,
             token_hash="2" * 64,
-            scope=ShareGrantScope.VIEW,
             target_mode=ShareTargetMode.PINNED,
             target_revision_id=101,
             created_by_user_id=1,
@@ -241,7 +238,6 @@ def test_share_target_and_token_hash_are_constrained(score_session: Session) -> 
             id=302,
             score_id=10,
             token_hash="3" * 64,
-            scope=ShareGrantScope.VIEW,
             target_mode=ShareTargetMode.LATEST,
             created_by_user_id=1,
         )
@@ -253,7 +249,6 @@ def test_share_target_and_token_hash_are_constrained(score_session: Session) -> 
             id=303,
             score_id=10,
             token_hash="3" * 64,
-            scope=ShareGrantScope.VIEW,
             target_mode=ShareTargetMode.LATEST,
             created_by_user_id=1,
         ),

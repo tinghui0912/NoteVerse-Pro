@@ -1,0 +1,20 @@
+{
+  "category": {
+    "genre": "Style"
+  },
+  "genre": {
+    "classical": "Classical",
+    "pop": "Pop",
+    "jazz": "Jazz",
+    "rock": "Rock",
+    "folk": "Folk",
+    "blues": "Blues",
+    "soundtrack": "Soundtrack",
+    "anime_game": "Anime / Game",
+    "religious": "Religious / Hymn",
+    "latin": "Latin",
+    "children": "Children",
+    "original": "Original",
+    "other": "Other"
+  }
+}

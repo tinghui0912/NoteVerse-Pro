@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/layout/footer';
 import { ResultsActions } from '@/components/results/results-actions';
 import { ResultsBreadcrumbs } from '@/components/results/results-breadcrumbs';
-import { ResultsDifficultyEditor } from '@/components/results/results-difficulty-editor';
 import { ResultsMetadataEditor } from '@/components/results/results-metadata-editor';
 import { ResultsScorePlayer } from '@/components/results/results-score-player';
+import { ResultsStyleTagsEditor } from '@/components/results/results-style-tags-editor';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { useResultsResources } from '@/hooks/results/use-results-resources';
 import { ApiError } from '@/lib/api-client';
@@ -91,17 +91,17 @@ function ResultsPageContent({ id, source }: { id: string; source: 'shares' | 'up
                 scoreTitle={scoreTitle}
                 scoreId={id}
               />
-              <ResultsDifficultyEditor
-                difficulty={resources.score?.difficulty ?? undefined}
+              <ResultsStyleTagsEditor
+                taxonomyTags={resources.score?.taxonomy_tags ?? []}
                 scoreId={id}
                 version={resources.score?.version ?? 1}
               />
             </div>
           </div>
+          <div aria-hidden="true" className="h-36 md:h-28" />
         </div>
       </main>
       <Footer />
-      <div aria-hidden="true" className="h-36 shrink-0 md:h-28" />
     </div>
   );
 }

@@ -23,6 +23,7 @@ interface UseScorePreviewPlaybackOptions {
   xmlString: string | null;
   createController?: ScorePreviewControllerFactory;
   followViewport?: ScoreCursorScrollTarget;
+  suspendFollowOnManualScroll?: boolean;
 }
 
 export function useScorePreviewPlayback({
@@ -30,6 +31,7 @@ export function useScorePreviewPlayback({
   xmlString,
   createController = createVerovioController,
   followViewport = 'container',
+  suspendFollowOnManualScroll = true,
 }: UseScorePreviewPlaybackOptions) {
   const t = useTranslations('common');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -202,7 +204,7 @@ export function useScorePreviewPlayback({
   useEffect(() => () => disposeController(), [disposeController]);
 
   useEffect(() => {
-    if (!isOpen || followViewport !== 'window') return;
+    if (!isOpen || followViewport !== 'window' || !suspendFollowOnManualScroll) return;
 
     const suspendFollow = () => {
       if (isPlayingRef.current) updateFollowSuspended(true);
@@ -228,7 +230,7 @@ export function useScorePreviewPlayback({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('pointerdown', handlePointerDown);
     };
-  }, [followViewport, isOpen, updateFollowSuspended]);
+  }, [followViewport, isOpen, suspendFollowOnManualScroll, updateFollowSuspended]);
 
   useEffect(() => {
     if (!isOpen || !containerRef.current || !controllerRef.current) return;

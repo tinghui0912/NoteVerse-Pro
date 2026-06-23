@@ -22,13 +22,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SCORE_GENRE_TAGS, taxonomyTagKey, type ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
 import { cn } from '@/lib/utils';
 
 interface UploadFormProps {
   files: UploadableFile[];
   scoreName: string;
-  difficulty: string;
+  taxonomyTags: ScoreTaxonomyTagValue[];
   isProcessing: boolean;
   isUploading: boolean;
   isSubmitting: boolean;
@@ -39,7 +39,7 @@ interface UploadFormProps {
   onClearFiles: () => void;
   onRemoveFile: (index: number) => void;
   onScoreNameChange: (name: string) => void;
-  onDifficultyChange: (difficulty: string) => void;
+  onTaxonomyTagsChange: (tags: ScoreTaxonomyTagValue[]) => void;
   onSubmit: () => void;
 }
 
@@ -56,6 +56,7 @@ function DropzoneContent() {
 
 export function UploadForm(props: UploadFormProps) {
   const t = useTranslations('upload');
+  const scoreStyles = useTranslations('scoreStyles.genre');
   const tCommon = useTranslations('common');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewStartIndex, setPreviewStartIndex] = useState(0);
@@ -78,6 +79,16 @@ export function UploadForm(props: UploadFormProps) {
     setPreviewStartIndex(index);
     setPreviewOpen(true);
   };
+  const selectedTagKeys = new Set(props.taxonomyTags.map(taxonomyTagKey));
+  const toggleGenreTag = (tag: ScoreTaxonomyTagValue) => {
+    if (props.isProcessing) return;
+    const key = taxonomyTagKey(tag);
+    props.onTaxonomyTagsChange(
+      selectedTagKeys.has(key)
+        ? props.taxonomyTags.filter((item) => taxonomyTagKey(item) !== key)
+        : [...props.taxonomyTags, tag]
+    );
+  };
 
   return (
     <>
@@ -95,18 +106,31 @@ export function UploadForm(props: UploadFormProps) {
                 disabled={props.isProcessing}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="score-difficulty">{t('difficultyLabel')}</Label>
-              <Select value={props.difficulty} onValueChange={props.onDifficultyChange} disabled={props.isProcessing}>
-                <SelectTrigger id="score-difficulty" className="h-12 bg-white">
-                  <SelectValue placeholder={t('difficultyLabel')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="difficultyBeginner">{t('difficultyBeginner')}</SelectItem>
-                  <SelectItem value="difficultyIntermediate">{t('difficultyIntermediate')}</SelectItem>
-                  <SelectItem value="difficultyAdvanced">{t('difficultyAdvanced')}</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <Label>{t('styleTagsLabel')}</Label>
+              <div className="flex flex-wrap gap-2">
+                {SCORE_GENRE_TAGS.map((tag) => {
+                  const selected = selectedTagKeys.has(taxonomyTagKey(tag));
+                  return (
+                    <button
+                      key={taxonomyTagKey(tag)}
+                      type="button"
+                      onClick={() => toggleGenreTag(tag)}
+                      disabled={props.isProcessing}
+                      aria-pressed={selected}
+                      className={cn(
+                        'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50',
+                        selected
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-orange-200 hover:bg-orange-50'
+                      )}
+                    >
+                      {scoreStyles(tag.code)}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">{t('styleTagsHint')}</p>
             </div>
           </div>
 

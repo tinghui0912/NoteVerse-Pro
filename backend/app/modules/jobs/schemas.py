@@ -3,14 +3,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, NotRequired, Optional, Protocol, TypedDict
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.db.models.processing_job import ProcessingJobState
+from app.modules.scores.schemas import ScoreTaxonomyTagInput
 
 
 class JobProcessingOptions(TypedDict, total=False):
     title: str
-    difficulty: str
+    taxonomy_tags: list[dict[str, str]]
 
 
 class JobSubmitRequestLike(Protocol):
@@ -62,7 +63,7 @@ class JobDetail(TypedDict, total=False):
     progress: int
     current_step: Optional[str]
     title: Optional[str]
-    difficulty: Optional[str]
+    taxonomy_tags: list[dict[str, str]]
     created_at: Optional[str]
     updated_at: Optional[str]
     started_at: Optional[str]
@@ -85,9 +86,30 @@ class PipelineExecutionFailureResult(TypedDict):
 
 
 class JobSubmitRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     file_ids: List[str] = Field(..., min_length=1)
     idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=128)
     options: Optional[JobProcessingOptions] = None
+
+    @field_validator("options")
+    @classmethod
+    def validate_options(
+        cls, value: Optional[JobProcessingOptions]
+    ) -> Optional[JobProcessingOptions]:
+        if value is None:
+            return None
+        taxonomy_tags = value.get("taxonomy_tags")
+        if taxonomy_tags is not None:
+            normalized_tags: list[dict[str, str]] = []
+            for tag in taxonomy_tags:
+                normalized = ScoreTaxonomyTagInput.model_validate(tag)
+                normalized_tags.append({
+                    "category": normalized.category,
+                    "code": normalized.code,
+                })
+            value["taxonomy_tags"] = normalized_tags
+        return value
 
     @field_validator("idempotency_key")
     @classmethod

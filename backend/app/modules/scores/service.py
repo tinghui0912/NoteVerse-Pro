@@ -19,7 +19,11 @@ from app.db.models import (
 from app.db.models.processing_job import ProcessingJobState
 from app.db.models.score import ScoreState
 from app.modules.scores.repository import ScoreRepository
-from app.modules.scores.schemas import ScoreRead, ScoreUpdateRequest
+from app.modules.scores.schemas import (
+    ScoreRead,
+    ScoreTaxonomyTagRead,
+    ScoreUpdateRequest,
+)
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
@@ -102,8 +106,13 @@ class ScoreService:
             )
         if request.title is not None:
             score.title = request.title.strip()
-        if "difficulty" in request.model_fields_set:
-            score.difficulty = request.difficulty
+        if request.taxonomy_tags is not None:
+            score_id = require_persisted_id(score.id, entity="score")
+            await self.repository.replace_taxonomy_tags(
+                db,
+                score_id,
+                [(tag.category, tag.code) for tag in request.taxonomy_tags],
+            )
         score.version += 1
         score.updated_at = utc_now_naive()
         await db.commit()
@@ -184,7 +193,17 @@ class ScoreService:
         return ScoreRead(
             score_id=score.score_uuid,
             title=score.title,
-            difficulty=score.difficulty,
+            taxonomy_tags=[
+                ScoreTaxonomyTagRead(
+                    category=category,
+                    code=code,
+                    source=source,
+                    confidence=confidence,
+                )
+                for category, code, source, confidence in await self.repository.taxonomy_tags(
+                    db, require_persisted_id(score.id, entity="score")
+                )
+            ],
             state=score.state,
             version=score.version,
             head_revision_id=head.revision_uuid if head else None,

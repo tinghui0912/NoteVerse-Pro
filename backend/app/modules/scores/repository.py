@@ -1,10 +1,19 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ProcessingJob, Score, ScoreArtifact, ScoreRevision
+from app.db.models import (
+    ProcessingJob,
+    Score,
+    ScoreArtifact,
+    ScoreRevision,
+    ScoreTaxonomyTag,
+    TaxonomyCategory,
+    TaxonomyTag,
+)
 from app.db.models.score import ArtifactKind
+from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
 score_title_col = Score.__table__.c.title
 score_updated_col = Score.__table__.c.updated_at
@@ -76,3 +85,50 @@ class ScoreRepository:
         if job_id is None:
             return None
         return await db.get(ProcessingJob, job_id)
+
+    async def taxonomy_tags(
+        self, db: AsyncSession, score_id: int
+    ) -> list[tuple[str, str, str, float | None]]:
+        rows = await db.execute(
+            select(
+                TaxonomyCategory.code,
+                TaxonomyTag.code,
+                ScoreTaxonomyTag.source,
+                ScoreTaxonomyTag.confidence,
+            )
+            .join(TaxonomyTag, ScoreTaxonomyTag.tag_id == TaxonomyTag.id)
+            .join(TaxonomyCategory, TaxonomyTag.category_id == TaxonomyCategory.id)
+            .where(ScoreTaxonomyTag.score_id == score_id)
+            .order_by(TaxonomyCategory.sort_order, TaxonomyTag.sort_order)
+        )
+        return list(rows.all())
+
+    async def replace_taxonomy_tags(
+        self,
+        db: AsyncSession,
+        score_id: int,
+        tags: list[tuple[str, str]],
+    ) -> None:
+        await db.execute(delete(ScoreTaxonomyTag).where(ScoreTaxonomyTag.score_id == score_id))
+        if not tags:
+            return
+        rows = await db.execute(
+            select(TaxonomyCategory.code, TaxonomyTag.code, TaxonomyTag.id)
+            .join(TaxonomyCategory, TaxonomyTag.category_id == TaxonomyCategory.id)
+            .where(tuple_(TaxonomyCategory.code, TaxonomyTag.code).in_(tags))
+            .where(TaxonomyCategory.is_active.is_(True), TaxonomyTag.is_active.is_(True))
+        )
+        tag_ids = {
+            (category, code): tag_id
+            for category, code, tag_id in rows.all()
+        }
+        missing = [
+            f"{category}:{code}"
+            for category, code in tags
+            if (category, code) not in tag_ids
+        ]
+        if missing:
+            raise ValueError(f"Taxonomy tags are not seeded: {', '.join(missing)}")
+        for category, code in sorted(tags, key=lambda item: TAXONOMY_SORT_ORDER[item]):
+            tag_id = tag_ids[(category, code)]
+            db.add(ScoreTaxonomyTag(score_id=score_id, tag_id=tag_id, source="USER"))

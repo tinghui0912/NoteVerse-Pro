@@ -172,7 +172,10 @@ class JobContext:
             self.job_id,
             self.main_xml,
             title=self.options.get("title"),
-            difficulty=self.options.get("difficulty"),
+            taxonomy_tags=[
+                (tag["category"], tag["code"])
+                for tag in self.options.get("taxonomy_tags", [])
+            ],
         )
         total_time = int(time.time() - self._start_ts)
         job_service.finalize_success(

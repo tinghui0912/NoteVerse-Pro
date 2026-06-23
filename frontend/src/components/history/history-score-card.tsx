@@ -42,15 +42,19 @@ export function HistoryScoreCard({ item, isSelected, selectionMode, isUpload, on
       <div className="relative aspect-4/3 bg-gray-100">
         {item.thumbnail ? (
           <Image src={item.thumbnail} alt={item.name} fill unoptimized className="object-cover transition-transform duration-300 group-hover:scale-105" />
+        ) : item.thumbnailLoading ? (
+          <div className="absolute inset-0 flex animate-pulse flex-col items-center justify-center">
+            <Music className="h-8 w-8 text-gray-300" />
+            <div className="mt-2 h-2 w-16 rounded bg-gray-200" />
+          </div>
         ) : item.thumbnailError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <Music className="h-8 w-8 text-gray-300" />
             <p className="mt-2 text-xs text-gray-400">{tResults('imageLoadFailed')}</p>
           </div>
         ) : (
-          <div className="absolute inset-0 flex animate-pulse flex-col items-center justify-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
             <Music className="h-8 w-8 text-gray-300" />
-            <div className="mt-2 h-2 w-16 rounded bg-gray-200" />
           </div>
         )}
         {isUpload && (

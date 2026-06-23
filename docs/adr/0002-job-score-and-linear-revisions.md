@@ -20,7 +20,7 @@ introduced before that cutover, the replacement contract moves to `/api/v2`.
 
 1. `ProcessingJob` owns submission, progress, steps, retries, heartbeat, stale recovery,
    idempotency, and processing errors.
-2. `Score` is the stable user-owned resource and owns title, difficulty, lifecycle, and
+2. `Score` is the stable user-owned resource and owns title, taxonomy tags, lifecycle, and
    revision pointers.
 3. A job may fail without producing a score. Once normalized editable MusicXML exists, the
    job creates a score and records its `score_id`.
@@ -76,4 +76,3 @@ workflow completion; it does not make the job the score identity.
 - Add a revision graph now: rejected because the editor has no merge product contract.
 - Continue `current_xml`/`final_xml`: rejected because role replacement cannot express
   immutable history or publication pinning.
-

@@ -1,41 +1,196 @@
 'use client';
 
-import { Download } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useMutation } from '@tanstack/react-query';
+import { Bookmark, ChevronDown, Download, FileImage, FileMusic, Gamepad2, Loader2 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Link, routing } from '@/i18n/routing';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { useDownload } from '@/hooks/use-download';
-import type { ScoreArtifact } from '@/types/api';
+import { useToast } from '@/hooks/use-toast';
+import { scoreSharingApi } from '@/lib/api';
+import { ApiError } from '@/lib/api-client';
+import { SCORE_GENRE_TAGS, taxonomyTagKey } from '@/lib/score/taxonomy';
+import type { ScoreArtifact, ScoreGrantAccess, ScoreTaxonomyTag } from '@/types/api';
 
 interface ShareInfoSidebarProps {
-  canDownload: boolean;
-  canEdit: boolean;
-  difficulty: string;
-  expiresAt: string;
-  imageCount: number;
-  scoreTitle: string;
-  shareId: string;
-  sharedBy: string;
   artifacts: ScoreArtifact[];
+  canDownload: boolean;
+  canPractice: boolean;
+  imageCount: number;
+  isAuthenticated: boolean;
+  scoreId: string;
+  scoreTitle: string;
+  shareData: ScoreGrantAccess;
+  shareId: string;
+  taxonomyTags: ScoreTaxonomyTag[];
+}
+
+function formatDateTime(value: string | undefined, locale: string) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function fallbackInitial(name: string) {
+  return name.trim().slice(0, 1).toUpperCase() || 'U';
 }
 
 export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
   const t = useTranslations('share');
   const common = useTranslations('common');
   const results = useTranslations('results');
-  const upload = useTranslations('upload');
+  const practice = useTranslations('practice');
+  const scoreStyles = useTranslations('scoreStyles.genre');
+  const locale = useLocale();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const bookmark = useMutation({ mutationFn: () => scoreSharingApi.bookmark(props.shareId) });
   const { handleDownload } = useDownload({
     mode: 'grant',
     id: props.shareId,
     imageCount: props.imageCount,
     artifacts: props.artifacts,
   });
+  const query = searchParams.toString();
+  const localizedSharePath = locale === routing.defaultLocale
+    ? `/share/${props.shareId}`
+    : `/${locale}/share/${props.shareId}`;
+  const returnPath = `${pathname || localizedSharePath}${query ? `?${query}` : ''}`;
+  const loginHref = `/login?returnUrl=${encodeURIComponent(returnPath)}`;
+  const sharedByName = props.shareData.shared_by?.display_name || t('anonymousUser');
+  const genreTags = props.taxonomyTags
+    .map((tag) => SCORE_GENRE_TAGS.find((item) => item.category === tag.category && item.code === tag.code))
+    .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag));
+  const actionButtonClass = 'h-16 w-full justify-start gap-3 bg-white px-4 text-left';
+  const iconClass = 'h-5 w-5 shrink-0';
+
+  const save = () => bookmark.mutate(undefined, {
+    onSuccess: () => toast({
+      title: t('saveSuccessTitle'),
+      description: t('saveSuccessDesc', { scoreName: props.scoreTitle }),
+    }),
+    onError: (error) => toast({
+      title: t('saveFailed'),
+      description: error instanceof ApiError ? error.message : t('saveFailedDesc'),
+      variant: 'destructive',
+    }),
+  });
+
   return (
     <div className="sticky top-8 space-y-6 lg:col-span-1">
-      <Card className="rounded-2xl bg-white shadow-lg"><CardHeader><CardTitle>{results('scoreInfo')}</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><div className="flex items-center justify-between gap-2"><Label className="shrink-0 text-muted-foreground">{results('scoreName')}</Label><span className="flex-1 truncate text-right text-sm font-medium">{props.scoreTitle}</span></div><div className="flex justify-between"><Label className="text-muted-foreground">{results('scoreDifficulty')}</Label><p className="font-medium">{props.difficulty ? upload(props.difficulty as never) : ''}</p></div></CardContent></Card>
-      <Card className="rounded-2xl bg-white shadow-lg"><CardHeader><CardTitle>{t('info')}</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><div className="flex justify-between"><span className="text-muted-foreground">{t('sharedBy')}</span><span className="font-medium">{props.sharedBy}</span></div><div className="flex justify-between"><span className="text-muted-foreground">{t('permissionLabel')}</span><span className="font-medium">{t(props.canEdit ? 'canEdit' : 'viewOnly')}</span></div><div className="flex justify-between"><span className="text-muted-foreground">{t('expirationDate')}</span><span className="font-medium">{props.expiresAt || t('permanent')}</span></div></CardContent></Card>
-      <Card className="rounded-2xl bg-white shadow-lg"><CardHeader><CardTitle>{common('download')}</CardTitle></CardHeader><CardContent className="flex flex-col space-y-3"><Button variant="outline" className="w-full justify-start bg-white" onClick={() => handleDownload('image')} disabled={!props.canDownload}><Download className="mr-2 h-4 w-4" />{results('downloadImage')}</Button><Button variant="outline" className="w-full justify-start bg-white" onClick={() => handleDownload('xml')} disabled={!props.canDownload}><Download className="mr-2 h-4 w-4" />{results('downloadMusicXML')}</Button></CardContent></Card>
+      <Card className="rounded-2xl bg-white shadow-lg">
+        <CardHeader>
+          <CardTitle>{t('sharedBy')}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center gap-3">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={props.shareData.shared_by?.avatar_url ?? undefined} alt={sharedByName} />
+            <AvatarFallback>{fallbackInitial(sharedByName)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="truncate font-medium">{sharedByName}</p>
+            <time className="text-sm text-muted-foreground" dateTime={props.shareData.shared_at}>
+              {formatDateTime(props.shareData.shared_at, locale)}
+            </time>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl bg-white shadow-lg">
+        <CardHeader>
+          <CardTitle>{results('scoreInfo')}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="shrink-0 text-muted-foreground">{results('scoreName')}</Label>
+            <span className="flex-1 truncate text-right font-medium">{props.scoreTitle}</span>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-muted-foreground">{results('scoreStyles')}</Label>
+            <div className="flex flex-wrap gap-2">
+              {genreTags.length > 0 ? genreTags.map((tag) => (
+                <span
+                  key={taxonomyTagKey(tag)}
+                  className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700"
+                >
+                  {scoreStyles(tag.code)}
+                </span>
+              )) : <span className="text-sm text-muted-foreground">{results('noStyleTags')}</span>}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">{results('totalPages')}</span>
+            <span className="font-medium">{results('pageCount', { count: props.imageCount })}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl bg-white shadow-lg">
+        <CardHeader>
+          <CardTitle>{results('actionsTitle')}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className={actionButtonClass} disabled={!props.canDownload}>
+                <Download className={iconClass} />
+                <span className="flex min-w-0 flex-1 items-center gap-1">
+                  <span className="truncate">{common('download')}</span>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleDownload('image')}>
+                <FileImage className="mr-2 h-4 w-4" />
+                {results('downloadImage')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload('xml')}>
+                <FileMusic className="mr-2 h-4 w-4" />
+                {results('downloadMusicXML')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {props.canPractice ? (
+            <Button asChild variant="outline" className={actionButtonClass}>
+              <Link href={`/practice/${props.scoreId}?shareToken=${props.shareId}`}>
+                <Gamepad2 className={iconClass} />
+                <span className="truncate">{practice('mode')}</span>
+              </Link>
+            </Button>
+          ) : null}
+
+          {props.isAuthenticated ? (
+            <Button variant="outline" className={actionButtonClass} onClick={save} disabled={bookmark.isPending}>
+              {bookmark.isPending ? <Loader2 className={`${iconClass} animate-spin`} /> : <Bookmark className={iconClass} />}
+              <span className="truncate">{t('saveToHistory')}</span>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" className={actionButtonClass}>
+              <Link href={loginHref}>
+                <Bookmark className={iconClass} />
+                <span className="truncate">{t('saveToHistory')}</span>
+              </Link>
+            </Button>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

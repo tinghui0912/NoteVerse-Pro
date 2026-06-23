@@ -14,7 +14,14 @@ export const scoresApi = {
     apiClient.get<PaginatedResponse<ScoreDetail>>('/scores', params, { signal }),
   detail: (scoreId: string, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<ScoreDetail>>(`/scores/${scoreId}`, undefined, { signal }),
-  update: (scoreId: string, input: { title?: string; difficulty?: string | null; expected_version: number }) =>
+  update: (
+    scoreId: string,
+    input: {
+      title?: string;
+      taxonomy_tags?: Array<{ category: string; code: string }>;
+      expected_version: number;
+    }
+  ) =>
     apiClient.patch<ApiResponse<ScoreDetail>>(`/scores/${scoreId}`, input),
   remove: (scoreId: string) => apiClient.delete<ApiResponse<never>>(`/scores/${scoreId}`),
   batchDelete: (scoreIds: string[]) =>

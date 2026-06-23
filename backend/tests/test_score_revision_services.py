@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import event
@@ -31,7 +31,6 @@ from app.db.models.score_access import (
     MembershipRole,
     PublicationDiscoverability,
     PublicationStatus,
-    ShareGrantScope,
     ShareTargetMode,
 )
 from app.db.models.user import UserRole
@@ -141,10 +140,10 @@ def test_completed_job_creates_one_score_and_initial_revision(
     service = SyncScoreCreationService(storage)
 
     first_id = service.create_from_job(
-        session, "job-1", str(source), title="Recognized score", difficulty="intermediate"
+        session, "job-1", str(source), title="Recognized score"
     )
     second_id = service.create_from_job(
-        session, "job-1", str(source), title="Recognized score", difficulty="intermediate"
+        session, "job-1", str(source), title="Recognized score"
     )
 
     assert first_id == second_id
@@ -335,7 +334,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
             ScoreShareGrant(
                 score_id=70,
                 token_hash=hash_share_token("view-token"),
-                scope=ShareGrantScope.VIEW,
                 target_mode=ShareTargetMode.PINNED,
                 target_revision_id=71,
                 allow_download=True,
@@ -345,7 +343,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
             ScoreShareGrant(
                 score_id=70,
                 token_hash=hash_share_token("expired-token"),
-                scope=ShareGrantScope.VIEW,
                 target_mode=ShareTargetMode.LATEST,
                 expires_at=utc_now_naive() - timedelta(minutes=1),
                 created_by_user_id=1,
@@ -408,7 +405,7 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
 
 
 @pytest.mark.asyncio
-async def test_grant_redemption_bookmark_and_edit_membership_have_distinct_lifecycles(
+async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -440,7 +437,7 @@ async def test_grant_redemption_bookmark_and_edit_membership_have_distinct_lifec
         db,  # type: ignore[arg-type]
         "sharing-score",
         1,
-        GrantCreateRequest(scope=ShareGrantScope.VIEW),
+        GrantCreateRequest(),
     )
     stored_grant = session.query(ScoreShareGrant).filter_by(
         grant_uuid=created.grant_id
@@ -453,27 +450,58 @@ async def test_grant_redemption_bookmark_and_edit_membership_have_distinct_lifec
     )
     assert bookmarked.available is True
     assert (await service.list_bookmarks(db, 2))[0].available is True  # type: ignore[arg-type]
+    access = await service.access_grant(db, created.token, None)  # type: ignore[arg-type]
+    assert access.shared_by is not None
+    assert access.shared_by.display_name == "owner"
+    assert access.shared_at == stored_grant.created_at
 
     await service.revoke_grant(db, created.grant_id, 1)  # type: ignore[arg-type]
     unavailable = await service.list_bookmarks(db, 2)  # type: ignore[arg-type]
     assert unavailable[0].available is False
     assert session.query(ScoreBookmark).count() == 1
 
-    edit_invite = await service.create_grant(
+
+@pytest.mark.asyncio
+async def test_create_grant_normalizes_aware_expiration_to_naive_utc(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    score = Score(
+        id=85,
+        score_uuid="sharing-expiration-score",
+        owner_user_id=1,
+        title="Sharing expiration score",
+        state=ScoreState.ACTIVE,
+    )
+    revision = ScoreRevision(
+        id=86,
+        revision_uuid="sharing-expiration-revision",
+        score_id=85,
+        revision_number=1,
+        content_hash="8" * 64,
+        origin=RevisionOrigin.IMPORT,
+    )
+    session.add_all([score, revision])
+    session.commit()
+    score.head_revision_id = 86
+    session.commit()
+
+    db = AsyncSessionAdapter(session)
+    service = ScoreSharingService()
+    expires_at = datetime(2026, 6, 30, 13, 41, 35, tzinfo=timezone.utc)
+
+    created = await service.create_grant(
         db,  # type: ignore[arg-type]
-        "sharing-score",
+        "sharing-expiration-score",
         1,
-        GrantCreateRequest(scope=ShareGrantScope.EDIT_INVITE),
+        GrantCreateRequest(expires_at=expires_at),
     )
-    accepted = await service.accept_edit_invite(
-        db, edit_invite.token, 2  # type: ignore[arg-type]
-    )
-    assert accepted.capabilities.can_edit is True
-    await service.revoke_grant(db, edit_invite.grant_id, 1)  # type: ignore[arg-type]
-    membership_access = await ScoreAccessPolicy().resolve(
-        db, "sharing-score", user_id=2  # type: ignore[arg-type]
-    )
-    assert membership_access.capabilities.can_edit is True
+
+    stored_grant = session.query(ScoreShareGrant).filter_by(
+        grant_uuid=created.grant_id
+    ).one()
+    assert stored_grant.expires_at == datetime(2026, 6, 30, 13, 41, 35)
+    assert stored_grant.expires_at.tzinfo is None
 
 
 @pytest.mark.asyncio

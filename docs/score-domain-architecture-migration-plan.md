@@ -1,6 +1,6 @@
 # NoteVerse Score Domain Architecture Migration Plan
 
-> Status: active plan, implementation in progress
+> Status: completed, implementation and current development database cutover verified
 > Baseline date: 2026-06-22  
 > Scope: processing jobs, scores, revisions, artifacts, metadata, sharing,
 > publication, practice references, frontend contracts, and results playback layout.
@@ -36,7 +36,8 @@ frontend architecture plan remains historical context, not the task board for th
 3. Use artifacts for stored payloads such as MusicXML, SVG, PDF, audio, and diagnostics.
 4. Keep revisions linear. A parent revision records provenance, not a branching graph.
 5. Keep publication separate from score editing and pin a published revision.
-6. Require authentication before an editable share grant can become write access.
+6. Keep public access and ordinary share links view-only; editable collaboration requires
+   an authenticated invite or membership acceptance flow.
 7. Compute authorization on the backend for every request; frontend capabilities only
    describe already-enforced backend decisions.
 8. Do not preserve indefinite compatibility endpoints or re-export layers after cutover.
@@ -61,7 +62,7 @@ frontend architecture plan remains historical context, not the task board for th
 
 | Current model | Mixed responsibility | Migration consequence |
 | --- | --- | --- |
-| `Task` | processing state, title, difficulty, durable score identity | split into `ProcessingJob` and `Score` |
+| `Task` | processing state, legacy score metadata, durable score identity | split into `ProcessingJob` and `Score` |
 | `TaskStep` | job execution steps | move unchanged to `ProcessingJobStep` |
 | `File` | inputs, pipeline intermediates, canonical XML, rendered outputs | split job artifacts from revision-aware score artifacts |
 | `TaskUpload` | uploaded source linkage | rename to processing-job input linkage |
@@ -154,7 +155,7 @@ score_id nullable, created_at, updated_at
 Stable product aggregate:
 
 ```text
-id, score_uuid, owner_user_id, title, difficulty
+id, score_uuid, owner_user_id, title
 state = IN_REVIEW | ACTIVE | ARCHIVED
 head_revision_id
 approved_revision_id nullable
@@ -164,7 +165,8 @@ version, created_at, updated_at
 
 - `head_revision_id` is the latest editable document.
 - `approved_revision_id` records review approval, not public publication.
-- title and difficulty belong to the score, not the processing job.
+- title belongs to the score, not the processing job.
+- style/genre classification uses the taxonomy tag model rather than a fixed score column.
 - `version` supports optimistic concurrency for score-level metadata changes.
 - public visibility is deliberately absent; publication is a separate entity.
 
@@ -280,11 +282,10 @@ created_by, created_at, revoked_at nullable
 
 ### 4.8 ScoreShareGrant
 
-Bearer entrance grant:
+Bearer entrance grant for view-only share links:
 
 ```text
 id, score_id, token_hash
-scope = VIEW | EDIT_INVITE
 target_mode = LATEST | PINNED
 target_revision_id nullable
 allow_download, allow_practice
@@ -293,9 +294,8 @@ created_by, created_at
 ```
 
 - raw tokens are returned once and never stored; only a secure hash is persisted;
-- VIEW may authorize anonymous read access while valid;
-- EDIT_INVITE never authorizes anonymous writes;
-- an authenticated user redeems EDIT_INVITE into an EDITOR membership;
+- a valid grant may authorize anonymous read access while valid;
+- share links never authorize editing;
 - grant expiry/revocation is evaluated on every protected read or redemption;
 - target invariants require a revision only for `PINNED` mode.
 
@@ -309,10 +309,9 @@ ShareGrantRedemption(grant_id, user_id, created_at)
 ```
 
 - saving a shared score creates a bookmark and records which valid grant was redeemed;
-- a redeemed VIEW grant remains bounded by the original grant expiry and revocation;
+- a redeemed share grant remains bounded by the original grant expiry and revocation;
 - an inaccessible bookmark may remain visible with an unavailable state, but cannot bypass
   authorization;
-- EDIT_INVITE redemption creates membership instead of permanent token-based write access.
 
 ### 4.10 ScorePublication
 
@@ -462,7 +461,6 @@ POST   /scores/{scoreId}/share-grants
 POST   /scores/{scoreId}/share-grants/{grantId}/revoke
 GET    /share-grants/{token}
 POST   /share-grants/{token}/bookmark
-POST   /share-grants/{token}/accept-edit-invite
 GET    /scores/{scoreId}/members
 DELETE /scores/{scoreId}/members/{userId}
 ```
@@ -722,7 +720,7 @@ Cutover is blocked while unresolved canonical XML or practice revision mappings 
 Tasks:
 
 1. Record short ADRs for job/score identity, linear revisions, metadata projection, artifact
-   boundaries, share-edit redemption, and publication pinning.
+   boundaries, view-only sharing, and publication pinning.
 2. Freeze target enums, invariants, error codes, and response examples.
 3. Add representative MusicXML fixtures for changing key/meter/tempo, repeats, multi-part
    scores, and malformed metadata.
@@ -741,8 +739,8 @@ Delivered:
   content-hash idempotency, and classified revision conflicts;
 - ADR 0003 fixes the boundary between revision-owned stored artifacts and typed rebuildable
   metadata projections, including logical-measure and changing key/meter/tempo semantics;
-- ADR 0004 fixes centralized policy actions, VIEW versus EDIT_INVITE grants, authenticated
-  edit redemption, bookmark separation, and revision-pinned publication;
+- ADR 0004 fixes centralized policy actions, view-only share grants, bookmark separation,
+  and revision-pinned publication;
 - `backend/docs/contracts/score-domain-v1.json` freezes enums, identities, invariants,
   capabilities, target error codes, and request examples for both backend and frontend tests;
 - backend fixtures cover two-part logical measure counting, key/meter/tempo changes, repeats,
@@ -755,7 +753,7 @@ Delivered:
 
 ### P0-2 Results persistent playback dock
 
-**Status:** completed on 2026-06-22.
+**Status:** completed on 2026-06-23.
 **Dependencies:** none; deliver independently before data-model work.
 
 Tasks:
@@ -846,22 +844,22 @@ Delivered:
   synchronous worker service, execution service, dependencies, and maintenance ownership;
 - `POST /jobs`, `GET /jobs/{jobId}`, batch status, and delete now use `ProcessingJob`; the
   retired task submit/status endpoints and frontend clients were removed;
-- upload submission and polling now exchange `job_id`, while the completed route temporarily
-  falls back to the matching legacy projection ID until P1-3 returns a real `score_id`;
+- upload submission and polling exchange `job_id`; completed jobs now return real `score_id`
+  values from the score-domain creation path, with no legacy projection fallback;
 - pipeline ownership now uses `JobContext`, `job_id`, and `job_temp`; new durable outputs use
   `jobs/{job_uuid}/{kind}/...` and are registered as `ProcessingArtifact` rows with hashes;
 - worker payloads contain upload hashes only and always materialize them through storage;
 - Job uploads are explicitly linked so orphan cleanup cannot delete queued or running inputs;
 - Celery keeps late acknowledgement, worker-lost rejection, failure acknowledgement, soft/hard
   limits, prefetch 1, heartbeat updates, stale recovery, and dispatch-failure marking;
-- legacy Task/File writes live behind explicitly named projection service/repository files and
-  are one-way compatibility output for current review/results routes, not worker state input;
-- validation passed: Ruff, full and model-layer mypy, 213 backend tests, 49 frontend tests,
-  frontend lint/typecheck/build, and a clean PostgreSQL upgrade/downgrade/upgrade cycle.
+- legacy Task/File compatibility projection was removed during P4; score-facing routes now use
+  Score, Revision, Artifact, Grant, Publication, and Practice contracts directly;
+- validation passed after P4: backend Ruff, backend mypy, 193 backend tests, frontend
+  lint/typecheck/build, 47 frontend unit/component tests, and 4 deterministic Playwright tests.
 
 ### P1-3 Score creation and revision service
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P1-2.
 
 Tasks:
@@ -881,9 +879,15 @@ Acceptance:
 - concurrent stale saves return a classified conflict;
 - review approval is a pointer/state transition, not a file copy.
 
+**Result:** `modules/scores` and `modules/revisions` own score creation, immutable revision
+append, deduplication, base-revision conflict handling, approval pointers, and deletion
+retention rules. Completed jobs create a Score plus initial canonical MusicXML artifact in
+one transaction; later saves append revisions instead of overwriting `current` or `final`
+objects.
+
 ### P1-4 Artifact boundary and file delivery
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P1-3.
 
 Tasks:
@@ -901,9 +905,14 @@ Acceptance:
 - backend rendering does not mutate older revision artifacts;
 - downloads enforce score/revision access before storage URL creation.
 
+**Result:** score and processing artifacts are separate boundaries. XML, render, download,
+archive, access-URL, diagnostics, and fingering flows go through artifact IDs and
+score/revision authorization. `enhanced_xml` remains only a processing artifact; it is not a
+frontend source or fallback.
+
 ### P1-5 Metadata extraction and projection
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P1-3.
 
 Tasks:
@@ -921,9 +930,14 @@ Acceptance:
 - results never displays fabricated zero values after extraction failure;
 - common metadata reads do not parse MusicXML in the request path.
 
+**Result:** metadata extraction lives behind typed MusicXML processing results with extractor
+versioning and per-revision projection rows. Revision commits schedule or record metadata
+states, the rebuild command can regenerate projections from canonical MusicXML, and UI/API
+read models expose unavailable or processing states instead of invented zeros.
+
 ### P2-1 Central score authorization
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P1-3.
 
 Tasks:
@@ -941,30 +955,39 @@ Acceptance:
 - no route or repository independently reconstructs access rules;
 - invalid, expired, revoked, or mismatched grants cannot access score artifacts.
 
+**Result:** `modules/score_access` is the central capability and enforcement boundary for
+owner, member, share grant, public publication, download, practice, and artifact access.
+The old ad hoc permission helper was removed, and score-domain services resolve typed
+capabilities before serving reads or mutations.
+
 ### P2-2 Share grants, memberships, and bookmarks
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P2-1.
 
 Tasks:
 
 1. Store only hashed share tokens.
-2. Implement VIEW and EDIT_INVITE grant flows.
-3. Require login and explicit acceptance for edit membership.
+2. Implement view-only grant flows.
+3. Keep edit membership separate from share links.
 4. Split bookmark creation from authorization and record grant redemption.
 5. Migrate history “saved shares” to bookmark read models with unavailable states.
 6. Preserve expiry, revocation, download, and practice restrictions.
 
 Acceptance:
 
-- anonymous VIEW works only through a valid token;
-- anonymous EDIT never writes;
+- anonymous share access works only through a valid token;
+- share links never grant editing;
 - revoking a grant removes grant-derived access without silently deleting bookmarks;
 - editor membership survives token rotation according to explicit owner actions.
 
+**Result:** share grants persist hashed tokens only, record redemptions, split bookmarks
+from authorization, and keep revocation/expiry/download policy in the capability layer.
+Share links are view-only; edit access belongs to authenticated membership.
+
 ### P2-3 Publication and public page
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P2-1, P1-5.
 
 Tasks:
@@ -982,9 +1005,13 @@ Acceptance:
 - unpublish removes public access without affecting owner/member/share access;
 - public routes cannot expose management controls or unpublished revisions.
 
+**Result:** publications pin explicit revisions and expose a public read model/capability
+set separate from owner/member/share access. Publishing, republishing, and unpublishing are
+owner-only transitions, and `/public/[slug]` is the only public publication surface.
+
 ### P3-1 New API contract and frontend data layer
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P1-3 through P2-3 as applicable.
 
 Tasks:
@@ -1001,9 +1028,14 @@ Acceptance:
 - Query invalidation follows domain ownership;
 - no page contains direct backend fetches.
 
+**Result:** frontend score, revision, artifact, grant, publication, metadata, jobs, history,
+and practice contracts live in domain API/type modules behind stable facades and query keys.
+Requests support cancellation where relevant, revision conflicts are classified, and pages
+compose domain hooks instead of direct backend fetches.
+
 ### P3-2 Upload and review cutover
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P1-2, P3-1.
 
 Tasks:
@@ -1020,16 +1052,20 @@ Acceptance:
 - approval performs no current-to-final copy;
 - failed jobs remain diagnosable without fake Score rows.
 
+**Result:** upload and review use jobs for processing lifecycle and score IDs for score
+routes after creation. Review approval advances the approved/head revision pointer, while
+failed jobs remain processing records with diagnostics rather than fake Score rows.
+
 ### P3-3 Results, editor, and history cutover
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P3-1, P0-2.
 
 Tasks:
 
 1. Make results compose score, head revision, metadata, artifacts, grants, publication, and
    capabilities.
-2. Make title/difficulty mutations target Score with concurrency control.
+2. Make title/taxonomy tag mutations target Score with concurrency control.
 3. Make editor autosave append deduplicated revisions against a base revision.
 4. Change draft storage identity to score ID plus base revision.
 5. Replace current/final source routing and query keys.
@@ -1042,15 +1078,20 @@ Acceptance:
 - stale editor saves surface a recoverable conflict;
 - history pagination and selection do not mix job and score IDs.
 
+**Result:** results, editor, and history compose Score/Revisions/Artifacts/Metadata/Grants/
+Publication capabilities. Title and taxonomy tags mutate Score state, editor autosave appends
+deduplicated revisions against a base revision, draft identity includes score/revision, and
+history keeps processing entries and score assets as separate identities.
+
 ### P3-4 Share, public, and practice cutover
 
-**Status:** pending.  
+**Status:** completed on 2026-06-22.
 **Dependencies:** P2-2, P2-3, P3-1.
 
 Tasks:
 
 1. Make share consume grant read models and backend capabilities.
-2. Add edit-invite acceptance before editor navigation.
+2. Keep share links read-only before editor navigation.
 3. Add public score page with publication policy controls.
 4. Make practice create sessions for a pinned revision.
 5. Remove raw token persistence from practice sessions and frontend session DTOs.
@@ -1062,9 +1103,14 @@ Acceptance:
   covered end to end;
 - active practice sessions are unchanged by later edits or republication.
 
+**Result:** share and public pages consume grant/publication read models with backend
+capabilities, practice sessions pin score and revision identity, and the frontend no longer
+stores raw grant tokens in practice DTOs. Practice access credentials travel as request
+headers and session state records the resolved access origin.
+
 ### P4-1 Backfill, cutover, and legacy removal
 
-**Status:** pending.  
+**Status:** completed on 2026-06-23.
 **Dependencies:** all earlier data and contract phases.
 
 Tasks:
@@ -1083,6 +1129,30 @@ Acceptance:
 - every canonical score has a head revision and MusicXML artifact;
 - every practice session references a valid revision;
 - full backend/frontend quality gates pass.
+
+**Result:** `scripts/backfill_score_domain.py` provides a deterministic dry-run/apply
+backfill and validation report for legacy task, file, share, saved-share, and practice
+rows. The cleanup migration enforces non-null practice score/revision/access-origin
+references, verifies that legacy jobs/XML scores/shares/bookmarks have been mapped, and
+drops legacy task/share/file tables and enums only after validation. Runtime routers,
+services, models, frontend facades, query hooks, types, and tests for task-as-score, XML
+source routing, saved-share authorization, and task-owned file delivery were removed.
+
+Current development database migration on 2026-06-23 completed the safe sequence
+`e7f8a9b0c123 -> f1a2b3c4d5e6 -> backfill dry-run -> backfill --apply -> head`.
+Backfill applied 2 scores, 2 revisions, 2 grants, and 4 practice-session mappings with
+zero validation blockers. Post-cleanup structural audit found no ORM-obsolete tables,
+no ORM-missing tables, no legacy `tasks/files/shares/saved_shares/task_*` tables, no
+legacy `practice_sessions.task_id/share_token/source_type` columns, and no legacy
+`taskstate/taskstepstatus/filekind/practicesourcetype` enum types.
+
+Operational note: if the API reports `relation "scores" does not exist`, the running
+database is behind the new score-domain code. For a disposable local database, reset or
+recreate the database and run `docker compose -f docker-compose.backend-dev.yml run --rm api
+migrate`. For a database with legacy `tasks/files/shares/practice_sessions` data, do not
+run `migrate` straight to head. Upgrade only to `f1a2b3c4d5e6`, run
+`python scripts/backfill_score_domain.py` until the dry-run report is clean, run
+`python scripts/backfill_score_domain.py --apply`, then upgrade to head.
 
 ## 11. Test And Quality Gates
 
@@ -1150,7 +1220,7 @@ No phase is complete until:
 | metadata becomes stale | revision-keyed projection and versioned rebuild command |
 | artifact abstraction becomes EAV | closed artifact kinds and typed domain services |
 | public content changes unexpectedly | publication pins an immutable revision |
-| edit token enables anonymous writes | EDIT_INVITE requires login and membership redemption |
+| share link grants editing | ordinary share links are VIEW only; editing requires login and membership acceptance |
 | bookmark accidentally grants access | bookmark and grant redemption remain separate |
 | storage migration causes data loss | leave existing keys in place; verify hashes before optional copy |
 | practice changes while session runs | session pins revision at creation |
@@ -1185,12 +1255,12 @@ frontend route cutover in one change. Each should remain independently reviewabl
 The migration is complete only when:
 
 - processing jobs and scores have distinct identities and APIs;
-- title, difficulty, library, sharing, publication, and practice are score-owned;
+- title, taxonomy tags, library, sharing, publication, and practice are score-owned;
 - canonical MusicXML saves create immutable linear revisions;
 - head, approved, and published revision semantics are explicit;
 - artifacts identify their revision and metadata is rebuildable;
 - enhanced XML remains internal and no current/final compatibility role is exposed;
-- edit links require authenticated membership redemption;
+- share/public links are view-only, and edit access requires authenticated membership acceptance;
 - public access pins a revision and remains read-only;
 - backend capabilities and endpoint authorization share one policy source;
 - results shows complete pages with a continuously available playback dock;

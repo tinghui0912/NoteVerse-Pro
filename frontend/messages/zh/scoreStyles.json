@@ -1,0 +1,20 @@
+{
+  "category": {
+    "genre": "风格"
+  },
+  "genre": {
+    "classical": "古典",
+    "pop": "流行",
+    "jazz": "爵士",
+    "rock": "摇滚",
+    "folk": "民谣",
+    "blues": "布鲁斯",
+    "soundtrack": "影视 / 原声",
+    "anime_game": "动漫 / 游戏",
+    "religious": "圣诗 / 宗教",
+    "latin": "拉丁",
+    "children": "儿童",
+    "original": "原创",
+    "other": "其他"
+  }
+}

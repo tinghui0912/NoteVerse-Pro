@@ -36,7 +36,6 @@ def test_score_domain_contract_freezes_identity_and_revision_invariants() -> Non
 def test_score_domain_contract_freezes_access_and_error_vocabulary() -> None:
     contract = load_contract()
 
-    assert contract["enums"]["share_grant_scope"] == ["VIEW", "EDIT_INVITE"]
     assert contract["enums"]["membership_role"] == ["EDITOR", "VIEWER"]
     assert contract["invariants"]["anonymous_edit_is_forbidden"] is True
     assert contract["invariants"]["bookmark_grants_access"] is False

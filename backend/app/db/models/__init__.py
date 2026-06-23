@@ -22,7 +22,10 @@ from .score import (
     ScoreArtifact,
     ScoreRevision,
     ScoreRevisionMetadata,
+    ScoreTaxonomyTag,
     ScoreState,
+    TaxonomyCategory,
+    TaxonomyTag,
 )
 from .score_access import (
     AccessOrigin,
@@ -34,7 +37,6 @@ from .score_access import (
     ScorePublication,
     ScoreShareGrant,
     ShareGrantRedemption,
-    ShareGrantScope,
     ShareTargetMode,
 )
 
@@ -59,7 +61,10 @@ __all__ = [
     "ScoreArtifact",
     "ScoreRevision",
     "ScoreRevisionMetadata",
+    "ScoreTaxonomyTag",
     "ScoreState",
+    "TaxonomyCategory",
+    "TaxonomyTag",
     "AccessOrigin",
     "MembershipRole",
     "PublicationDiscoverability",
@@ -69,6 +74,5 @@ __all__ = [
     "ScorePublication",
     "ScoreShareGrant",
     "ShareGrantRedemption",
-    "ShareGrantScope",
     "ShareTargetMode",
 ]

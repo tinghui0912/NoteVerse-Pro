@@ -144,8 +144,6 @@ class ScoreAccessPolicy:
                             can_view=True,
                             can_download=grant.allow_download,
                             can_practice=grant.allow_practice,
-                            # EDIT_INVITE becomes edit capability only after membership acceptance.
-                            can_edit=False,
                         ),
                     )
 

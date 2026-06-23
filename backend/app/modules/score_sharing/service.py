@@ -6,7 +6,6 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
-    BusinessRuleException,
     ResourceNotFoundException,
     UnauthorizedException,
     ValidationException,
@@ -15,11 +14,11 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
     ScoreBookmark,
-    ScoreMembership,
     ScoreShareGrant,
     ShareGrantRedemption,
+    User,
 )
-from app.db.models.score_access import MembershipRole, ShareGrantScope, ShareTargetMode
+from app.db.models.score_access import ShareTargetMode
 from app.modules.score_access.policy import (
     ScoreAccessPolicy,
     ScoreAction,
@@ -38,9 +37,11 @@ from app.modules.score_sharing.schemas import (
     GrantCreatedRead,
     GrantContentRead,
     GrantRead,
+    ShareActorRead,
 )
+from app.modules.scores.schemas import ScoreTaxonomyTagRead
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.utils.timezone import to_utc_naive, utc_now_naive
 
 
 class ScoreSharingService:
@@ -87,16 +88,16 @@ class ScoreSharingService:
             target_revision_uuid = target.revision.revision_uuid
         token = secrets.token_urlsafe(32)
         now = utc_now_naive()
+        expires_at = to_utc_naive(request.expires_at)
         grant = ScoreShareGrant(
             grant_uuid=str(uuid.uuid4()),
             score_id=require_persisted_id(access.score.id, entity="score"),
             token_hash=hash_share_token(token),
-            scope=request.scope,
             target_mode=request.target_mode,
             target_revision_id=target_revision_id,
             allow_download=request.allow_download,
             allow_practice=request.allow_practice,
-            expires_at=request.expires_at,
+            expires_at=expires_at,
             created_by_user_id=user_id,
             created_at=now,
         )
@@ -105,7 +106,6 @@ class ScoreSharingService:
         return GrantCreatedRead(
             grant_id=grant.grant_uuid,
             token=token,
-            scope=grant.scope,
             target_mode=grant.target_mode,
             target_revision_id=target_revision_uuid,
             allow_download=grant.allow_download,
@@ -126,7 +126,6 @@ class ScoreSharingService:
             result.append(
                 GrantRead(
                     grant_id=grant.grant_uuid,
-                    scope=grant.scope,
                     target_mode=grant.target_mode,
                     target_revision_id=await self.repository.revision_uuid(
                         db, grant.target_revision_id
@@ -143,19 +142,34 @@ class ScoreSharingService:
     async def revoke_grant(
         self, db: AsyncSession, grant_uuid: str, user_id: int
     ) -> GrantRead:
-        grant = await self._grant_by_uuid(db, grant_uuid)
-        score = await db.get(Score, grant.score_id)
-        if not score:
-            raise ResourceNotFoundException("score", grant_uuid, ErrorCode.SCORE_NOT_FOUND)
-        await self.access_policy.authorize(
-            db, score.score_uuid, ScoreAction.MANAGE_SHARING, user_id=user_id
-        )
+        grant = await self._managed_grant(db, grant_uuid, user_id)
         if grant.revoked_at is None:
             grant.revoked_at = utc_now_naive()
         await db.commit()
+        return await self._grant_read(db, grant)
+
+    async def restore_grant(
+        self, db: AsyncSession, grant_uuid: str, user_id: int
+    ) -> GrantRead:
+        grant = await self._managed_grant(db, grant_uuid, user_id)
+        if grant.expires_at is not None and grant.expires_at <= utc_now_naive():
+            raise ValidationException(ErrorCode.SHARE_EXPIRED, field="expires_at")
+        grant.revoked_at = None
+        await db.commit()
+        return await self._grant_read(db, grant)
+
+    async def delete_grant(
+        self, db: AsyncSession, grant_uuid: str, user_id: int
+    ) -> None:
+        grant = await self._managed_grant(db, grant_uuid, user_id)
+        await db.delete(grant)
+        await db.commit()
+
+    async def _grant_read(
+        self, db: AsyncSession, grant: ScoreShareGrant
+    ) -> GrantRead:
         return GrantRead(
             grant_id=grant.grant_uuid,
-            scope=grant.scope,
             target_mode=grant.target_mode,
             target_revision_id=await self.repository.revision_uuid(
                 db, grant.target_revision_id
@@ -188,12 +202,31 @@ class ScoreSharingService:
             revision_uuid=access.revision.revision_uuid,
             share_token=token,
         )
+        shared_by = await db.get(User, grant.created_by_user_id)
         return GrantAccessRead(
             score_id=score.score_uuid,
             revision_id=access.revision.revision_uuid,
             title=score.title,
-            difficulty=score.difficulty,
-            scope=grant.scope,
+            taxonomy_tags=[
+                ScoreTaxonomyTagRead(
+                    category=category,
+                    code=code,
+                    source=source,
+                    confidence=confidence,
+                )
+                for category, code, source, confidence in await self.score_repository.taxonomy_tags(
+                    db, require_persisted_id(score.id, entity="score")
+                )
+            ],
+            shared_by=(
+                ShareActorRead(
+                    display_name=shared_by.display_name,
+                    avatar_url=shared_by.avatar_url,
+                )
+                if shared_by
+                else None
+            ),
+            shared_at=grant.created_at,
             capabilities=access.capabilities,
             metadata=(
                 MetadataProjectionService.to_read(access.revision, projection)
@@ -248,47 +281,6 @@ class ScoreSharingService:
             user_id,
             share_token=token,
             action=ScoreAction.DOWNLOAD if download else ScoreAction.VIEW,
-        )
-
-    async def accept_edit_invite(
-        self, db: AsyncSession, token: str, user_id: int
-    ) -> GrantAccessRead:
-        grant = await self._grant_by_token(db, token)
-        if grant.scope != ShareGrantScope.EDIT_INVITE:
-            raise BusinessRuleException(
-                ErrorCode.BUSINESS_RULE_VIOLATION, rule="edit_invite_required"
-            )
-        score = await db.get(Score, grant.score_id)
-        if not score:
-            raise ResourceNotFoundException("score", token, ErrorCode.SCORE_NOT_FOUND)
-        await self.access_policy.resolve(db, score.score_uuid, share_token=token)
-        grant_id = require_persisted_id(grant.id, entity="share grant")
-        if not await self.repository.redemption(db, grant_id, user_id):
-            db.add(ShareGrantRedemption(grant_id=grant_id, user_id=user_id))
-        membership = await self.repository.membership(db, grant.score_id, user_id)
-        if membership:
-            membership.role = MembershipRole.EDITOR
-            membership.revoked_at = None
-        else:
-            db.add(
-                ScoreMembership(
-                    score_id=grant.score_id,
-                    user_id=user_id,
-                    role=MembershipRole.EDITOR,
-                    created_by_user_id=score.owner_user_id,
-                )
-            )
-        await db.commit()
-        access = await self.access_policy.resolve(db, score.score_uuid, user_id=user_id)
-        return GrantAccessRead(
-            score_id=score.score_uuid,
-            revision_id=access.revision.revision_uuid,
-            title=score.title,
-            difficulty=score.difficulty,
-            scope=grant.scope,
-            capabilities=access.capabilities,
-            metadata=None,
-            artifacts=[],
         )
 
     async def bookmark_grant(
@@ -375,4 +367,16 @@ class ScoreSharingService:
             raise ResourceNotFoundException(
                 "share_grant", grant_uuid, ErrorCode.SHARE_NOT_FOUND
             )
+        return grant
+
+    async def _managed_grant(
+        self, db: AsyncSession, grant_uuid: str, user_id: int
+    ) -> ScoreShareGrant:
+        grant = await self._grant_by_uuid(db, grant_uuid)
+        score = await db.get(Score, grant.score_id)
+        if not score:
+            raise ResourceNotFoundException("score", grant_uuid, ErrorCode.SCORE_NOT_FOUND)
+        await self.access_policy.authorize(
+            db, score.score_uuid, ScoreAction.MANAGE_SHARING, user_id=user_id
+        )
         return grant

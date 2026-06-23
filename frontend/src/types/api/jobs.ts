@@ -12,7 +12,7 @@ export interface ProcessingJob {
   progress: number;
   current_step?: string;
   title?: string;
-  difficulty?: string;
+  taxonomy_tags?: Array<{ category: string; code: string }>;
   created_at?: string;
   updated_at?: string;
   started_at?: string;

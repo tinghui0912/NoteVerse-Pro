@@ -31,11 +31,6 @@ class MembershipRole(str, enum.Enum):
     VIEWER = "VIEWER"
 
 
-class ShareGrantScope(str, enum.Enum):
-    VIEW = "VIEW"
-    EDIT_INVITE = "EDIT_INVITE"
-
-
 class ShareTargetMode(str, enum.Enum):
     LATEST = "LATEST"
     PINNED = "PINNED"
@@ -123,9 +118,6 @@ class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
         )
     )
     token_hash: str = Field(sa_column=Column(String(64), nullable=False))
-    scope: ShareGrantScope = Field(
-        sa_column=Column(SAEnum(ShareGrantScope, name="sharegrantscope"), nullable=False)
-    )
     target_mode: ShareTargetMode = Field(
         sa_column=Column(SAEnum(ShareTargetMode, name="sharetargetmode"), nullable=False)
     )

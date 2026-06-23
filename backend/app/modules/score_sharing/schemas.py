@@ -4,14 +4,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.db.models.score_access import ShareGrantScope, ShareTargetMode
+from app.db.models.score_access import ShareTargetMode
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.artifacts.schemas import ArtifactRead
 from app.modules.metadata.schemas import MetadataRead
+from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
 class GrantCreateRequest(BaseModel):
-    scope: ShareGrantScope = ShareGrantScope.VIEW
     target_mode: ShareTargetMode = ShareTargetMode.LATEST
     target_revision_id: str | None = None
     allow_download: bool = True
@@ -30,7 +30,6 @@ class GrantCreateRequest(BaseModel):
 class GrantCreatedRead(BaseModel):
     grant_id: str
     token: str
-    scope: ShareGrantScope
     target_mode: ShareTargetMode
     target_revision_id: str | None
     allow_download: bool
@@ -41,7 +40,6 @@ class GrantCreatedRead(BaseModel):
 
 class GrantRead(BaseModel):
     grant_id: str
-    scope: ShareGrantScope
     target_mode: ShareTargetMode
     target_revision_id: str | None
     allow_download: bool
@@ -51,12 +49,18 @@ class GrantRead(BaseModel):
     created_at: datetime
 
 
+class ShareActorRead(BaseModel):
+    display_name: str | None
+    avatar_url: str | None
+
+
 class GrantAccessRead(BaseModel):
     score_id: str
     revision_id: str
     title: str
-    difficulty: str | None
-    scope: ShareGrantScope
+    taxonomy_tags: list[ScoreTaxonomyTagRead]
+    shared_by: ShareActorRead | None
+    shared_at: datetime
     capabilities: ScoreCapabilities
     metadata: MetadataRead | None
     artifacts: list[ArtifactRead]

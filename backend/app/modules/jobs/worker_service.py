@@ -180,7 +180,7 @@ class SyncJobService:
             "progress": job.progress,
             "current_step": job.current_step,
             "title": None,
-            "difficulty": None,
+            "taxonomy_tags": [],
             "created_at": job.created_at.isoformat(),
             "updated_at": job.updated_at.isoformat(),
             "started_at": job.started_at.isoformat() if job.started_at else None,

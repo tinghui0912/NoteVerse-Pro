@@ -26,6 +26,8 @@ from app.modules.publications.schemas import (
     PublicScoreRead,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.scores.repository import ScoreRepository
+from app.modules.scores.schemas import ScoreTaxonomyTagRead
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 from app.storage import FileStorage, file_storage
@@ -37,10 +39,12 @@ class PublicationService:
         repository: PublicationRepository | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         artifact_service: ArtifactService | None = None,
+        score_repository: ScoreRepository | None = None,
         storage: FileStorage | None = None,
     ) -> None:
         self.repository = repository or PublicationRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
+        self.score_repository = score_repository or ScoreRepository()
         self.storage = storage or file_storage
         self.artifact_service = artifact_service or ArtifactService(
             access_policy=self.access_policy
@@ -169,7 +173,17 @@ class PublicationService:
                 publication, score, access.revision.revision_uuid
             ),
             title=score.title,
-            difficulty=score.difficulty,
+            taxonomy_tags=[
+                ScoreTaxonomyTagRead(
+                    category=category,
+                    code=code,
+                    source=source,
+                    confidence=confidence,
+                )
+                for category, code, source, confidence in await self.score_repository.taxonomy_tags(
+                    db, require_persisted_id(score.id, entity="score")
+                )
+            ],
             metadata=(
                 MetadataProjectionService.to_read(access.revision, projection)
                 if projection

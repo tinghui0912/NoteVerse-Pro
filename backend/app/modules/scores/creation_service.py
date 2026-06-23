@@ -13,6 +13,9 @@ from app.db.models import (
     ScoreArtifact,
     ScoreRevision,
     ScoreRevisionMetadata,
+    ScoreTaxonomyTag,
+    TaxonomyCategory,
+    TaxonomyTag,
 )
 from app.db.models.score import (
     ArtifactKind,
@@ -22,6 +25,7 @@ from app.db.models.score import (
 )
 from app.storage import FileStorage, file_storage
 from app.modules.metadata.service import rebuild_metadata_sync
+from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER, ordered_unique_pairs
 from app.utils.timezone import utc_now_naive
 
 
@@ -38,7 +42,7 @@ class SyncScoreCreationService:
         musicxml_path: str,
         *,
         title: str | None = None,
-        difficulty: str | None = None,
+        taxonomy_tags: list[tuple[str, str]] | None = None,
     ) -> str:
         job = db.execute(
             select(ProcessingJob)
@@ -75,7 +79,6 @@ class SyncScoreCreationService:
                 score_uuid=score_uuid,
                 owner_user_id=job.user_id,
                 title=(title or "Untitled score").strip(),
-                difficulty=difficulty,
                 state=ScoreState.IN_REVIEW,
                 originating_job_id=require_persisted_id(job.id, entity="processing job"),
                 created_at=now,
@@ -84,6 +87,35 @@ class SyncScoreCreationService:
             db.add(score)
             db.flush()
             score_id = require_persisted_id(score.id, entity="score")
+            normalized_tags = ordered_unique_pairs(taxonomy_tags or [])
+            if normalized_tags:
+                tag_rows = (
+                    db.query(TaxonomyCategory.code, TaxonomyTag.code, TaxonomyTag.id)
+                    .join(TaxonomyCategory, TaxonomyTag.category_id == TaxonomyCategory.id)
+                    .filter(TaxonomyCategory.is_active.is_(True), TaxonomyTag.is_active.is_(True))
+                    .all()
+                )
+                tag_ids = {
+                    (category, code): tag_id
+                    for category, code, tag_id in tag_rows
+                }
+                missing = [
+                    f"{category}:{code}"
+                    for category, code in normalized_tags
+                    if (category, code) not in tag_ids
+                ]
+                if missing:
+                    raise ValueError(f"Taxonomy tags are not seeded: {', '.join(missing)}")
+                for category, code in sorted(
+                    normalized_tags, key=lambda item: TAXONOMY_SORT_ORDER[item]
+                ):
+                    db.add(
+                        ScoreTaxonomyTag(
+                            score_id=score_id,
+                            tag_id=tag_ids[(category, code)],
+                            source="USER",
+                        )
+                    )
             revision = ScoreRevision(
                 revision_uuid=revision_uuid,
                 score_id=score_id,

@@ -14,7 +14,6 @@ export const scoreSharingApi = {
   createGrant: (
     scoreId: string,
     input: {
-      scope: 'VIEW' | 'EDIT_INVITE';
       target_mode?: 'LATEST' | 'PINNED';
       target_revision_id?: string;
       allow_download: boolean;
@@ -24,13 +23,15 @@ export const scoreSharingApi = {
   ) => apiClient.post<ApiResponse<CreatedScoreGrant>>(`/scores/${scoreId}/grants`, input),
   revokeGrant: (grantId: string) =>
     apiClient.post<ApiResponse<ScoreGrant>>(`/scores/grants/${grantId}/revoke`),
+  restoreGrant: (grantId: string) =>
+    apiClient.post<ApiResponse<ScoreGrant>>(`/scores/grants/${grantId}/restore`),
+  deleteGrant: (grantId: string) =>
+    apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/scores/grants/${grantId}`),
   access: (token: string, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<ScoreGrantAccess>>(`/score-grants/${token}`, undefined, {
       signal,
       suppressAuthRedirect: true,
     }),
-  accept: (token: string) =>
-    apiClient.post<ApiResponse<ScoreGrantAccess>>(`/score-grants/${token}/accept`),
   content: (token: string, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<ScoreGrantContent>>(`/score-grants/${token}/content`, undefined, {
       signal,

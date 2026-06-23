@@ -91,7 +91,7 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
         ("post", "/api/v1/scores/test-score/revisions/revision-1/metadata/rebuild", None),
         ("get", "/api/v1/artifacts/artifact-1/download", None),
         ("get", "/api/v1/artifacts/artifact-1/access-url", None),
-        ("post", "/api/v1/scores/test-score/grants", {"scope": "VIEW"}),
+        ("post", "/api/v1/scores/test-score/grants", {}),
         ("get", "/api/v1/scores/test-score/grants", None),
         ("put", "/api/v1/scores/test-score/publication", {}),
         ("delete", "/api/v1/scores/test-score/publication", None),

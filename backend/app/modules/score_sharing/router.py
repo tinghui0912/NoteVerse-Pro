@@ -52,6 +52,30 @@ async def revoke_score_grant(
     return success_response(data=result.model_dump())
 
 
+@score_router.post("/grants/{grant_id}/restore")
+async def restore_score_grant(
+    grant_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreSharingService = Depends(get_score_sharing_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.restore_grant(db, grant_id, user_id)
+    return success_response(data=result.model_dump())
+
+
+@score_router.delete("/grants/{grant_id}")
+async def delete_score_grant(
+    grant_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreSharingService = Depends(get_score_sharing_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    await service.delete_grant(db, grant_id, user_id)
+    return success_response(data={"deleted": True})
+
+
 @grant_router.get("/{token}")
 async def access_score_grant(
     token: str,
@@ -61,18 +85,6 @@ async def access_score_grant(
 ):
     user_id = current_user.id if current_user else None
     result = await service.access_grant(db, token, user_id)
-    return success_response(data=result.model_dump())
-
-
-@grant_router.post("/{token}/accept")
-async def accept_score_edit_invite(
-    token: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: ScoreSharingService = Depends(get_score_sharing_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.accept_edit_invite(db, token, user_id)
     return success_response(data=result.model_dump())
 
 

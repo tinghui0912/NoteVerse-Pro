@@ -9,8 +9,10 @@ test('protected routes preserve return URL while share grants stay anonymous', a
 
   await page.route('**/api/v1/score-grants/public-token', (route) => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {
-      score_id: 'score-public', revision_id: 'revision-public', title: 'Public Score', difficulty: null,
-      scope: 'VIEW', metadata: null, artifacts: [], capabilities: {
+      score_id: 'score-public', revision_id: 'revision-public', title: 'Public Score', taxonomy_tags: [],
+      shared_by: { display_name: 'Sharer', avatar_url: null },
+      shared_at: '2026-06-23T00:00:00Z',
+      metadata: null, artifacts: [], capabilities: {
         can_view: true, can_edit: false, can_delete: false, can_manage_sharing: false,
         can_download: false, can_practice: true, can_publish: false, can_approve: false,
       },

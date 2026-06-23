@@ -6,10 +6,12 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
     Enum as SAEnum,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -85,7 +87,6 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
     )
     title: str = Field(sa_column=Column(String(255), nullable=False))
-    difficulty: Optional[str] = Field(default=None, sa_column=Column(String(32)))
     state: ScoreState = Field(
         sa_column=Column(SAEnum(ScoreState, name="scorestate"), nullable=False)
     )
@@ -112,6 +113,96 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
             onupdate=utc_now_naive,
             nullable=False,
         ),
+    )
+
+
+class TaxonomyCategory(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "taxonomy_categories"
+    __table_args__ = (
+        UniqueConstraint("code", name="uq_taxonomy_categories_code"),
+        Index("idx_taxonomy_categories_active_sort", "is_active", "sort_order"),
+    )
+
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
+    code: str = Field(sa_column=Column(String(64), nullable=False))
+    name_key: str = Field(sa_column=Column(String(128), nullable=False))
+    sort_order: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
+    is_active: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, default=True, nullable=False),
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class TaxonomyTag(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "taxonomy_tags"
+    __table_args__ = (
+        UniqueConstraint("category_id", "code", name="uq_taxonomy_tags_category_code"),
+        Index("idx_taxonomy_tags_category_active_sort", "category_id", "is_active", "sort_order"),
+    )
+
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
+    category_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("taxonomy_categories.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    code: str = Field(sa_column=Column(String(64), nullable=False))
+    name_key: str = Field(sa_column=Column(String(128), nullable=False))
+    aliases: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(metadata_json_type, default=list, nullable=False),
+    )
+    sort_order: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
+    is_active: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, default=True, nullable=False),
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class ScoreTaxonomyTag(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_taxonomy_tags"
+    __table_args__ = (
+        Index("idx_score_taxonomy_tags_tag_score", "tag_id", "score_id"),
+    )
+
+    score_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("scores.id", ondelete="CASCADE"),
+            primary_key=True,
+        )
+    )
+    tag_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("taxonomy_tags.id", ondelete="RESTRICT"),
+            primary_key=True,
+        )
+    )
+    source: str = Field(
+        default="USER",
+        sa_column=Column(String(32), default="USER", nullable=False),
+    )
+    confidence: Optional[float] = Field(default=None, sa_column=Column(Float))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
     )
 
 

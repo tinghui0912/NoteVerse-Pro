@@ -34,10 +34,17 @@ export interface ScoreMetadata {
   computed_at: string | null;
 }
 
+export interface ScoreTaxonomyTag {
+  category: string;
+  code: string;
+  source: string;
+  confidence: number | null;
+}
+
 export interface ScoreDetail {
   score_id: string;
   title: string;
-  difficulty: string | null;
+  taxonomy_tags: ScoreTaxonomyTag[];
   state: ScoreState;
   version: number;
   head_revision_id: string | null;
@@ -82,7 +89,6 @@ export interface ScoreArtifact {
 
 export interface ScoreGrant {
   grant_id: string;
-  scope: 'VIEW' | 'EDIT_INVITE';
   target_mode: 'LATEST' | 'PINNED';
   target_revision_id: string | null;
   allow_download: boolean;
@@ -100,8 +106,12 @@ export interface ScoreGrantAccess {
   score_id: string;
   revision_id: string;
   title: string;
-  difficulty: string | null;
-  scope: 'VIEW' | 'EDIT_INVITE';
+  taxonomy_tags: ScoreTaxonomyTag[];
+  shared_by: {
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+  shared_at: string;
   capabilities: ScoreCapabilities;
   metadata: ScoreMetadata | null;
   artifacts: ScoreArtifact[];
@@ -138,7 +148,7 @@ export interface Publication {
 export interface PublicScore {
   publication: Publication;
   title: string;
-  difficulty: string | null;
+  taxonomy_tags: ScoreTaxonomyTag[];
   metadata: ScoreMetadata | null;
   artifacts: ScoreArtifact[];
   capabilities: ScoreCapabilities;

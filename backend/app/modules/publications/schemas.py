@@ -11,6 +11,7 @@ from app.db.models.score_access import (
 from app.modules.artifacts.schemas import ArtifactRead
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
+from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
 class PublicationUpsertRequest(BaseModel):
@@ -38,7 +39,7 @@ class PublicationRead(BaseModel):
 class PublicScoreRead(BaseModel):
     publication: PublicationRead
     title: str
-    difficulty: str | None
+    taxonomy_tags: list[ScoreTaxonomyTagRead]
     metadata: MetadataRead | None
     artifacts: list[ArtifactRead]
     capabilities: ScoreCapabilities

@@ -1,6 +1,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { jobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
+import type { ProcessingJob } from '@/types/api';
+
+const ACTIVE_JOB_STATES = new Set<ProcessingJob['state']>(['PENDING', 'PROGRESS']);
+
+function hasActiveJobs(jobs: ProcessingJob[] | undefined) {
+  return (jobs ?? []).some((job) => ACTIVE_JOB_STATES.has(job.state));
+}
 
 export function useJobDetail(
   jobId: string,
@@ -19,7 +26,10 @@ export function useJobList(page: number, pageSize: number, enabled = true) {
     queryKey: queryKeys.jobs.list(page, pageSize),
     queryFn: ({ signal }) => jobsApi.listJobs(page, pageSize, signal),
     enabled,
-    refetchInterval: enabled ? 5000 : false,
+    refetchInterval: (query) => {
+      if (!enabled) return false;
+      return hasActiveJobs(query.state.data?.data) ? 5000 : false;
+    },
   });
 }
 

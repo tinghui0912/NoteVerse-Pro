@@ -13,6 +13,7 @@ export interface TaskHistoryItem {
   status: UploadStatus;
   thumbnail: string;
   thumbnailError?: boolean;
+  thumbnailLoading?: boolean;
   headRevisionId?: string | null;
 }
 
@@ -26,6 +27,7 @@ export interface ShareHistoryItem {
   scoreId: string;
   available: boolean;
   thumbnailError?: boolean;
+  thumbnailLoading?: boolean;
 }
 
 export function mapJobStateToStatus(state: ProcessingJobState): UploadStatus {

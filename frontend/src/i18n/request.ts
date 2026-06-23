@@ -10,6 +10,7 @@ const namespaces = [
   'editor',
   'results',
   'resultsShare',
+  'errors',
   'history',
   'share',
   'profile',
@@ -18,6 +19,7 @@ const namespaces = [
   'help',
   'backend',
   'metadata',
+  'scoreStyles',
 ] as const;
 
 export default getRequestConfig(async ({ requestLocale }) => {

@@ -62,7 +62,12 @@ export function useScoreArtifacts(
 export function useUpdateScore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ scoreId, ...input }: { scoreId: string; title?: string; difficulty?: string | null; expected_version: number }) =>
+    mutationFn: ({ scoreId, ...input }: {
+      scoreId: string;
+      title?: string;
+      taxonomy_tags?: Array<{ category: string; code: string }>;
+      expected_version: number;
+    }) =>
       scoresApi.update(scoreId, input),
     onSuccess: (response) => {
       const score = response.data;
@@ -133,6 +138,26 @@ export function useRevokeScoreGrant(scoreId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (grantId: string) => scoreSharingApi.revokeGrant(grantId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.grants(scoreId) });
+    },
+  });
+}
+
+export function useRestoreScoreGrant(scoreId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (grantId: string) => scoreSharingApi.restoreGrant(grantId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.grants(scoreId) });
+    },
+  });
+}
+
+export function useDeleteScoreGrant(scoreId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (grantId: string) => scoreSharingApi.deleteGrant(grantId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.grants(scoreId) });
     },

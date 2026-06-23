@@ -10,7 +10,7 @@ import hashlib
 import json
 import uuid
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select, text
@@ -83,7 +83,7 @@ def ensure_job(db: Any, task: Any) -> ProcessingJob:
     return job
 
 
-def xml_candidates(db: Any, task_id: int) -> list[Any]:
+def xml_candidates(db: Any, task_id: int) -> list[tuple[Any, str, bool]]:
     rows = read_legacy_rows(
         db,
         "SELECT kind, storage_backend, storage_key, filename, size_bytes, mime_type, created_at "
@@ -91,14 +91,19 @@ def xml_candidates(db: Any, task_id: int) -> list[Any]:
         "ORDER BY CASE kind WHEN 'current_xml' THEN 1 ELSE 2 END, created_at, id",
         {"task_id": task_id},
     )
-    unique: list[Any] = []
-    seen: set[str] = set()
+    unique: list[tuple[Any, str, bool]] = []
+    positions_by_digest: dict[str, int] = {}
     for row in rows:
         content = file_storage.read_bytes(row["storage_key"])
         digest = hashlib.sha256(content).hexdigest()
-        if digest not in seen:
-            unique.append((row, digest))
-            seen.add(digest)
+        is_final = row["kind"] == "final_xml"
+        position = positions_by_digest.get(digest)
+        if position is None:
+            positions_by_digest[digest] = len(unique)
+            unique.append((row, digest, is_final))
+            continue
+        existing_row, existing_digest, existing_is_final = unique[position]
+        unique[position] = (existing_row, existing_digest, existing_is_final or is_final)
     return unique
 
 
@@ -129,7 +134,7 @@ def backfill_task(db: Any, task: Any, counts: Counter[str]) -> Score:
         db.flush()
     parent_id: int | None = None
     final_revision_id: int | None = None
-    for number, (legacy_file, digest) in enumerate(candidates, start=1):
+    for number, (legacy_file, digest, has_final_source) in enumerate(candidates, start=1):
         revision_uuid = stable_uuid("revision", task["task_uuid"], digest)
         revision = db.execute(select(ScoreRevision).where(ScoreRevision.revision_uuid == revision_uuid)).scalar_one_or_none()
         if not revision:
@@ -164,7 +169,7 @@ def backfill_task(db: Any, task: Any, counts: Counter[str]) -> Score:
             ))
             db.add(ScoreRevisionMetadata(revision_id=revision_id, status=MetadataStatus.PENDING, extractor_version="pending"))
         parent_id = require_persisted_id(revision.id, entity="revision")
-        if legacy_file["kind"] == "final_xml":
+        if has_final_source:
             final_revision_id = parent_id
     score.head_revision_id = parent_id
     score.approved_revision_id = final_revision_id
@@ -272,7 +277,7 @@ def run(apply: bool) -> dict[str, object]:
             "counts": dict(counts),
             "checks": checks,
             "errors": errors,
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         }
     finally:
         db.close()
