@@ -22,6 +22,7 @@ from app.modules.scores.repository import ScoreRepository
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.schemas import (
     ScoreRead,
+    ScoreBatchArchiveRequest,
     ScoreTaxonomyTagRead,
     ScoreUpdateRequest,
 )
@@ -95,6 +96,26 @@ class ScoreService:
                 continue
             removed += 1
         return removed
+
+    async def batch_archive(
+        self, db: AsyncSession, request: ScoreBatchArchiveRequest, user_id: int
+    ) -> int:
+        changed = 0
+        now = utc_now_naive()
+        for score_uuid in request.score_ids:
+            access = await self.access_policy.authorize(
+                db, score_uuid, ScoreAction.EDIT, user_id=user_id
+            )
+            score = await self.repository.get(db, access.score.score_uuid, lock=True)
+            assert score is not None
+            if score.state == ScoreState.ARCHIVED:
+                continue
+            score.state = ScoreState.ARCHIVED
+            score.version += 1
+            score.updated_at = now
+            changed += 1
+        await db.commit()
+        return changed
 
     async def update(
         self,

@@ -23,6 +23,7 @@ from app.modules.library.repository import LibraryRepository
 from app.modules.library.schemas import (
     FolderDeleteMode,
     LibraryEntryBatchMoveRequest,
+    LibraryEntryBatchUpdateRequest,
     LibraryEntryRead,
     LibraryEntryUpdateRequest,
     LibraryFolderCreateRequest,
@@ -30,6 +31,7 @@ from app.modules.library.schemas import (
     LibraryFolderRead,
     LibraryFolderTreeRead,
     LibraryFolderUpdateRequest,
+    LibraryOwnedScoreBatchAddRequest,
     LibrarySort,
     LibraryView,
 )
@@ -42,6 +44,8 @@ from app.utils.timezone import utc_now_naive
 
 
 class LibraryService:
+    MAX_FOLDER_LEVEL = 2
+
     def __init__(
         self,
         repository: LibraryRepository | None = None,
@@ -134,14 +138,18 @@ class LibraryService:
         self, db: AsyncSession, user_id: int, request: LibraryFolderCreateRequest
     ) -> LibraryFolderRead:
         parent = await self._optional_folder(db, user_id, request.parent_folder_id)
+        folders = await self.repository.folders(db, user_id)
+        parent_id = (
+            require_persisted_id(parent.id, entity="library folder")
+            if parent
+            else None
+        )
+        if self._folder_level(folders, parent_id) + 1 > self.MAX_FOLDER_LEVEL:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
         now = utc_now_naive()
         folder = ScoreLibraryFolder(
             user_id=user_id,
-            parent_folder_id=(
-                require_persisted_id(parent.id, entity="library folder")
-                if parent
-                else None
-            ),
+            parent_folder_id=parent_id,
             name=request.name,
             created_at=now,
             updated_at=now,
@@ -174,6 +182,12 @@ class LibraryService:
             parent = await self._optional_folder(db, user_id, request.parent_folder_id)
             parent_id = require_persisted_id(parent.id, entity="library folder") if parent else None
             if parent_id == folder_id or parent_id in self._descendant_ids(folders, folder_id):
+                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
+            if (
+                self._folder_level(folders, parent_id)
+                + self._subtree_height(folders, folder_id)
+                > self.MAX_FOLDER_LEVEL
+            ):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
             folder.parent_folder_id = parent_id
         folder.updated_at = utc_now_naive()
@@ -261,6 +275,44 @@ class LibraryService:
             moved += 1
         await db.commit()
         return moved
+
+    async def batch_set_favorite(
+        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
+    ) -> int:
+        return await self._batch_update_entries(
+            db, user_id, request.entry_ids, favorite=True
+        )
+
+    async def batch_archive(
+        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
+    ) -> int:
+        return await self._batch_update_entries(
+            db, user_id, request.entry_ids, archive=True
+        )
+
+    async def batch_trash(
+        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
+    ) -> int:
+        return await self._batch_update_entries(
+            db, user_id, request.entry_ids, trash=True
+        )
+
+    async def batch_add_owned_scores(
+        self, db: AsyncSession, user_id: int, request: LibraryOwnedScoreBatchAddRequest
+    ) -> int:
+        for score_uuid in request.score_ids:
+            score = await self.score_repository.get(db, score_uuid)
+            if not score or score.owner_user_id != user_id:
+                raise ResourceNotFoundException("score", score_uuid)
+            score_id = require_persisted_id(score.id, entity="score")
+            await self.ensure_entry(
+                db,
+                user_id=user_id,
+                score_id=score_id,
+                source_type=LibraryEntrySourceType.SELF_ADDED,
+            )
+        await db.commit()
+        return len(request.score_ids)
 
     async def update_entry(
         self,
@@ -364,6 +416,33 @@ class LibraryService:
             updated_at=entry.updated_at,
         )
 
+    async def _batch_update_entries(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        entry_uuids: list[str],
+        *,
+        favorite: bool = False,
+        archive: bool = False,
+        trash: bool = False,
+    ) -> int:
+        changed = 0
+        now = utc_now_naive()
+        for entry_uuid in entry_uuids:
+            entry = await self.repository.entry_by_uuid(db, user_id, entry_uuid)
+            if not entry:
+                continue
+            if favorite:
+                entry.is_favorite = True
+            if archive:
+                entry.is_archived = True
+            if trash:
+                entry.deleted_at = now
+            entry.updated_at = now
+            changed += 1
+        await db.commit()
+        return changed
+
     async def _optional_folder(
         self, db: AsyncSession, user_id: int, folder_uuid: str | None
     ) -> ScoreLibraryFolder | None:
@@ -415,3 +494,38 @@ class LibraryService:
 
         visit(folder_id)
         return result
+
+    @staticmethod
+    def _folder_level(folders: list[ScoreLibraryFolder], folder_id: int | None) -> int:
+        if folder_id is None:
+            return 0
+        level = 1
+        by_id = {
+            require_persisted_id(folder.id, entity="library folder"): folder
+            for folder in folders
+        }
+        current = by_id.get(folder_id)
+        seen = {folder_id}
+        while current and current.parent_folder_id is not None:
+            parent_id = current.parent_folder_id
+            if parent_id in seen:
+                break
+            seen.add(parent_id)
+            level += 1
+            current = by_id.get(parent_id)
+        return level
+
+    @classmethod
+    def _subtree_height(cls, folders: list[ScoreLibraryFolder], folder_id: int) -> int:
+        children: dict[int | None, list[ScoreLibraryFolder]] = {}
+        for folder in folders:
+            children.setdefault(folder.parent_folder_id, []).append(folder)
+
+        def visit(parent_id: int) -> int:
+            child_heights = [
+                visit(require_persisted_id(child.id, entity="library folder"))
+                for child in children.get(parent_id, [])
+            ]
+            return 1 + (max(child_heights) if child_heights else 0)
+
+        return visit(folder_id)

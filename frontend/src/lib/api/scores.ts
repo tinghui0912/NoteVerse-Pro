@@ -26,6 +26,8 @@ export const scoresApi = {
   remove: (scoreId: string) => apiClient.delete<ApiResponse<never>>(`/scores/${scoreId}`),
   batchDelete: (scoreIds: string[]) =>
     apiClient.post<ApiResponse<{ removed: number }>>('/scores/batch-delete', { score_ids: scoreIds }),
+  batchArchive: (scoreIds: string[]) =>
+    apiClient.post<ApiResponse<{ archived: number }>>('/scores/batch-archive', { score_ids: scoreIds }),
   approve: (scoreId: string) =>
     apiClient.post<ApiResponse<ScoreDetail>>(`/scores/${scoreId}/approve`),
   revisions: (scoreId: string, signal?: AbortSignal) =>

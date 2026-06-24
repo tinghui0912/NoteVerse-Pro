@@ -56,6 +56,10 @@ class ScoreBatchDeleteRequest(BaseModel):
     score_ids: list[str] = Field(min_length=1)
 
 
+class ScoreBatchArchiveRequest(BaseModel):
+    score_ids: list[str] = Field(min_length=1)
+
+
 class ScoreRead(BaseModel):
     score_id: str
     title: str

@@ -72,6 +72,7 @@ def test_jobs_feature_routes_require_authentication(client: TestClient) -> None:
 def test_scores_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
         ("get", "/api/v1/scores/test-score", None),
+        ("post", "/api/v1/scores/batch-archive", {"score_ids": ["score-1"]}),
         ("patch", "/api/v1/scores/test-score", {"title": "Updated", "expected_version": 1}),
         ("delete", "/api/v1/scores/test-score", None),
         ("post", "/api/v1/scores/test-score/approve", None),
@@ -111,6 +112,10 @@ def test_library_feature_routes_require_authentication(client: TestClient) -> No
         ("delete", "/api/v1/library/folders/folder-1", None),
         ("get", "/api/v1/library/entries", None),
         ("post", "/api/v1/library/entries/batch-move", {"entry_ids": ["entry-1"]}),
+        ("post", "/api/v1/library/entries/batch-favorite", {"entry_ids": ["entry-1"]}),
+        ("post", "/api/v1/library/entries/batch-archive", {"entry_ids": ["entry-1"]}),
+        ("post", "/api/v1/library/entries/batch-trash", {"entry_ids": ["entry-1"]}),
+        ("post", "/api/v1/library/entries/batch-self-add", {"score_ids": ["score-1"]}),
     ]
 
     for method, path, payload in protected_requests:

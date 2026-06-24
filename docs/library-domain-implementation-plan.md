@@ -1,61 +1,51 @@
-# NoteVerse Library Domain Implementation Plan
+# NoteVerse Library Domain Baseline
 
-> Status: v1 baseline, IA split, and learning workspace complete
+> Status: completed v1 baseline
 > Baseline date: 2026-06-24
-> Scope: replace the old History surface with a private library baseline, then split
-> creator asset management (`/my-scores`) from learning/collection organization (`/library`).
+> Scope: private learning library, creator-owned My Scores, and legacy History redirect.
 
 ## 1. Purpose
 
-The old `/history` page was no longer only a processing history surface. It mixed owned
-scores, processing entries, saved shared scores, thumbnails, filters, pagination, and batch
-actions. The first migration replaced it with a private library baseline:
+The old `/history` surface mixed processing history, owned scores, saved shares, thumbnails,
+filters, pagination, and batch actions. The current product separates those concerns:
 
-- users organize saved scores and, during the v1 baseline, uploaded scores;
-- saved shared scores are library entries, not an authorization mechanism;
-- folders organize the user's personal library;
-- future public score discovery should be a separate public library/catalog domain.
+- `/my-scores` is creator asset management for scores owned by the current user.
+- `/library` is the user's private learning and collection workspace.
+- `/history` is a legacy redirect to `/library`.
+- future public discovery belongs to a separate public catalog/community domain.
 
-The next architecture refinement separates two product mindsets:
-
-- `/my-scores` is creator mode: assets the user owns and manages.
-- `/library` is learning/collection mode: scores the user wants to practice, save, organize,
-  and revisit, regardless of who owns the source score.
-
-This avoids the long-term confusion of showing the same owned score as both a managed work
-and a "my upload" inside the library tree. Because the project is still in development and
-local data can be cleared, this plan avoids legacy compatibility surfaces and request-time
-fallbacks.
+This split prevents the same score from being presented as both an owned work and a saved
+learning-library item in the same tree.
 
 ## 2. Product Principles
 
 1. `/my-scores` is the only creator asset management surface for owned scores.
-2. `/library` is the user's learning and collection space, not an ownership management page.
-3. Library virtual nodes should emphasize learning state and collection behavior, such as
-   recent practice, favorites, to-practice, mastered, and user folders.
-4. User-created folders belong to Library only. My Scores uses ownership/status filters,
-   search, sorting, and tags rather than a folder tree.
-5. A folder organizes library entries; deleting a folder must not silently delete score assets.
-6. A bookmark is a library source, not a permission grant.
-7. Folder membership is per user. Moving a bookmarked score does not affect the owner or
-   other users.
-8. URL state must fully describe the current view, folder, search, sort, and page.
-9. The private library, creator asset management, and future public library/catalog are
-   separate domains.
+2. `/library` organizes learning, practice, favorites, bookmarks, and user folders.
+3. Library folders organize per-user entries, not canonical score ownership.
+4. Deleting a library folder must never silently delete score revisions or artifacts.
+5. A bookmark is a library source, not an authorization mechanism.
+6. Share links grant access; library entries organize a user's own view.
+7. Library source labels describe why an entry is in the library, not who owns the score.
+8. URL state should describe the current view, folder, search, sort, and page.
+9. Public catalog/community, team libraries, and marketplace features are separate future domains.
 
-## 3. Target Navigation
+## 3. Current Routes
 
-Current Library route options:
+Library:
 
 ```text
 /library
 /library?view=all
 /library?view=favorites
+/library?view=recent_practice
+/library?view=to_practice
+/library?view=mastered
+/library?view=bookmarks
 /library?folder=<folder_uuid>
 /library?folder=<folder_uuid>&search=chopin&sort=updated_desc&page=2
 ```
 
-Planned My Scores route options:
+My Scores:
 
 ```text
 /my-scores
@@ -66,60 +56,28 @@ Planned My Scores route options:
 /my-scores?search=canon&sort=updated_desc&page=2
 ```
 
-Development route policy:
-
-- `/history` redirects to `/library`;
-- update internal links and product copy to separate "我的乐谱库" from "我的作品";
-- avoid adding new history-named APIs or types.
-
-Target application sidebar:
+Legacy:
 
 ```text
-Dashboard
-
-Practice
-
-Library
-  最近练习
-  收藏
-  待练习
-  已掌握
-  目录树
-
-My Scores
-  全部作品
-  草稿
-  私有
-  已发布
-  最近修改
-
-Community
+/history -> /library
 ```
 
-Library folder examples:
+Results return origins:
 
 ```text
-新建目录
-古典
-  肖邦
-  贝多芬
-流行
-待练习
-演出曲目
+/results/<score_id>?from=my-scores
+/results/<score_id>?from=shares
 ```
 
-The database may support arbitrary nesting with cycle prevention, but the product UI should
-keep the recommended depth to 2-3 levels.
-
-## 4. Backend Data Model
+## 4. Backend Model
 
 ### 4.1 `ScoreLibraryFolder`
 
-Suggested table: `score_library_folders`
+Table: `score_library_folders`
 
 ```text
 id
-folder_uuid unique
+folder_uuid
 user_id
 parent_folder_id nullable
 name
@@ -131,117 +89,106 @@ deleted_at nullable
 
 Rules:
 
-- `(user_id, parent_folder_id, name)` should be unique for active folders.
+- `(user_id, parent_folder_id, name)` is unique for active folders.
 - `parent_folder_id = null` means root-level folder.
-- folder deletion is soft delete.
-- deleting a parent folder soft-deletes or relocates child folders according to the selected
-  delete mode.
-- prevent cycles when moving folders.
+- folder deletion is soft deletion.
+- folder moves prevent cycles.
+- non-empty folder deletion uses an explicit content handling mode.
 
 ### 4.2 `ScoreLibraryEntry`
 
-Suggested table: `score_library_entries`
+Table: `score_library_entries`
 
 ```text
 id
-entry_uuid unique
+entry_uuid
 user_id
 score_id
 source_type = SELF_ADDED | BOOKMARK | SHARED | OFFICIAL | AI_RECOMMENDED
 folder_id nullable
 is_favorite
 is_archived
+practice_state = TO_PRACTICE | IN_PROGRESS | MASTERED
 pinned_at nullable
 last_opened_at nullable
 last_practiced_at nullable
-practice_state = TO_PRACTICE | IN_PROGRESS | MASTERED
-deleted_at nullable
 created_at
 updated_at
+deleted_at nullable
 ```
 
 Rules:
 
 - one active entry per `(user_id, score_id, source_type)`;
-- owned score creation always creates a score visible in `/my-scores`;
-- adding an owned score to the learning library creates a `SELF_ADDED` library entry;
-- bookmarking a shared/public score creates a `BOOKMARK` library entry;
-- `folder_id = null` means root of the user's library;
-- `deleted_at` means removed from the user's library view, not necessarily score deletion;
-- `is_favorite` powers the virtual "收藏" node.
+- `SELF_ADDED` means the user intentionally added a score to their learning library;
+- `BOOKMARK` means the user saved a shared/public score;
+- `SHARED`, `OFFICIAL`, and `AI_RECOMMENDED` are reserved future sources;
+- `OWNED` is intentionally not a Library source type;
+- uploaded/owned scores appear in `/my-scores` without automatic Library entries;
+- finishing a practice session updates active library entries for that user and score:
+  `last_practiced_at = now`, and `TO_PRACTICE` advances to `IN_PROGRESS`.
 
-`OWNED` is not a good long-term Library source label because it blurs creator management
-with learning organization. Use `SELF_ADDED` when the user intentionally adds one of their
-own scores to Library.
+### 4.3 Taxonomy Baseline
 
-Deferred fields:
+The score style/genre selector uses the taxonomy tag model:
 
-- `custom_name`: add only when users need per-user aliases for saved scores;
-- `source_detail`: add later if import sources need rich provenance;
-- `trash_expires_at`: add when automated trash retention is implemented.
+```text
+TaxonomyCategory(code='genre')
+TaxonomyTag(code='classical' | 'pop' | 'jazz' | ...)
+ScoreTaxonomyTag(score_id, tag_id)
+```
+
+The database migration chain includes a taxonomy seed baseline so worker-created scores can
+attach submitted tags such as `genre:pop` without request-time fallback.
 
 ## 5. Backend API
 
-Create a new module:
+Registered prefixes:
 
 ```text
-backend/app/modules/library/
-  router.py
-  schemas.py
-  service.py
-  repository.py
+/api/v1/library
+/api/v1/my-scores
 ```
 
-Register it in `backend/app/api/v1/router.py`.
-
-Create a separate My Scores module or score-owner read model:
-
-```text
-backend/app/modules/my_scores/
-  router.py
-  schemas.py
-  service.py
-  repository.py
-```
-
-`/my-scores` reads from `scores WHERE owner_user_id = current_user`. It should not read from
-`score_library_entries` as its primary source of truth.
-
-### 5.1 Folder APIs
+### 5.1 Library Folders
 
 ```text
 GET    /api/v1/library/folders
 POST   /api/v1/library/folders
 PATCH  /api/v1/library/folders/{folder_id}
-DELETE /api/v1/library/folders/{folder_id}
-POST   /api/v1/library/folders/{folder_id}/move
+DELETE /api/v1/library/folders/{folder_id}?mode=<mode>
 ```
 
-Delete request:
-
-```json
-{
-  "mode": "MOVE_CONTENTS_TO_PARENT" 
-}
-```
-
-Supported modes:
-
-- `MOVE_CONTENTS_TO_PARENT`
-- `MOVE_CONTENTS_TO_ROOT`
-- `TRASH_CONTENTS`
-
-### 5.2 Entry APIs
+Delete modes:
 
 ```text
-GET  /api/v1/library/entries
-POST /api/v1/library/entries/batch-move
-POST /api/v1/library/entries/batch-favorite
-POST /api/v1/library/entries/batch-archive
-POST /api/v1/library/entries/batch-trash
+MOVE_CONTENTS_TO_PARENT
+MOVE_CONTENTS_TO_ROOT
+TRASH_CONTENTS
 ```
 
-Query parameters:
+`GET /library/folders` returns:
+
+```text
+all_count
+favorite_count
+recent_practice_count
+to_practice_count
+mastered_count
+folders[]
+```
+
+Each folder includes direct and recursive entry counts.
+
+### 5.2 Library Entries
+
+```text
+GET   /api/v1/library/entries
+PATCH /api/v1/library/entries/{entry_id}
+POST  /api/v1/library/entries/batch-move
+```
+
+Supported entry list query:
 
 ```text
 view=all|favorites|recent_practice|to_practice|mastered|bookmarks|archived|trash
@@ -252,14 +199,17 @@ page=1
 page_size=20
 ```
 
-Next IA refinement should remove `owned` as a primary Library view and replace it with
-learning/collection views:
+`PATCH /library/entries/{entry_id}` updates the entry's per-user state:
 
-```text
-view=all|favorites|recent_practice|to_practice|mastered|bookmarks|archived|trash
+```json
+{
+  "practice_state": "MASTERED",
+  "is_favorite": true,
+  "is_archived": false
+}
 ```
 
-Batch move request:
+`POST /library/entries/batch-move` moves selected entries to a folder or root:
 
 ```json
 {
@@ -268,328 +218,287 @@ Batch move request:
 }
 ```
 
-### 5.3 Read Model
-
-`LibraryEntryRead` should include enough score data for the list without the frontend
-reconstructing state from multiple APIs:
+### 5.3 My Scores
 
 ```text
-entry_id
-score_id
-source_type
-folder_id
-title
-taxonomy_tags
-thumbnail_artifact_id nullable
-metadata summary nullable
-capabilities
-is_favorite
-is_archived
-pinned_at
-last_opened_at
-last_practiced_at
-created_at
-updated_at
+GET /api/v1/my-scores
 ```
 
-Counts for tree nodes can be returned by `GET /library/folders`:
+Query:
 
 ```text
-all_count
-favorite_count
-recent_practice_count
-to_practice_count
-mastered_count
-folder_counts: [{ folder_id, direct_count, recursive_count }]
+view=all|drafts|private|published
+search=<text>
+sort=updated_desc|updated_asc|name_asc|name_desc
+page=1
+page_size=20
 ```
 
-## 6. Data Migration
+My Scores reads owned score rows directly from `scores.owner_user_id`. It does not derive
+ownership from `score_library_entries`.
 
-Add an Alembic migration that:
+## 6. Frontend Ownership
 
-1. creates `score_library_folders`;
-2. creates `score_library_entries`;
-3. does not backfill old score or bookmark rows.
-
-Development databases may be cleared before applying this migration. New uploads create
-owned `Score` rows visible in `/my-scores`; saved shares create `BOOKMARK` library entries.
-The next IA refinement should stop creating automatic `OWNED` library entries. If the product
-wants owned scores to appear in Library, create an explicit `SELF_ADDED` entry through an
-"Add to Library" action or an upload option. Do not add fallback code that synthesizes library
-entries from legacy score/bookmark tables at request time.
-
-## 7. Frontend Ownership
-
-Introduce library naming while migrating from the existing history implementation:
+Current API/type owners:
 
 ```text
-frontend/src/components/library/
-  library-shell.tsx
-  library-sidebar.tsx
-  library-folder-tree.tsx
-  library-entry-grid.tsx
-  library-entry-list.tsx
-  library-toolbar.tsx
-  library-move-dialog.tsx
-  library-folder-dialog.tsx
-
-frontend/src/hooks/library/
-  use-library-url-state.ts
-  use-library-selection.ts
-  use-library-batch-actions.ts
-  use-library-thumbnails.ts
-
 frontend/src/lib/api/library.ts
-frontend/src/types/api/library.ts
-```
-
-Add My Scores ownership separately:
-
-```text
-frontend/src/components/my-scores/
-  my-scores-shell.tsx
-  my-scores-toolbar.tsx
-  my-scores-grid.tsx
-  my-scores-card.tsx
-
-frontend/src/hooks/my-scores/
-  use-my-scores-url-state.ts
-  use-my-scores-selection.ts
-
 frontend/src/lib/api/my-scores.ts
+frontend/src/types/api/library.ts
 frontend/src/types/api/my-scores.ts
-```
-
-Query hooks:
-
-```text
 frontend/src/hooks/queries/use-library-queries.ts
-```
-
-Query key root:
-
-```text
+frontend/src/hooks/queries/use-my-scores-queries.ts
 queryKeys.library
+queryKeys.myScores
 ```
 
-Page route:
+Current routes:
 
 ```text
 frontend/src/app/[locale]/library/page.tsx
+frontend/src/app/[locale]/my-scores/page.tsx
+frontend/src/app/[locale]/history/page.tsx
 ```
 
-Route transition:
+`history/page.tsx` exists only as a localized redirect. There are no active
+`components/history` or `hooks/history` runtime implementations.
 
-- `/history` redirects to `/library`;
-- old `components/history/*` should be deleted once no runtime references remain;
-- user-visible copy changes from "历史记录" to "我的乐谱库".
+## 7. Current UX
 
-## 8. UX Behavior
+Library sidebar:
 
-### 8.1 Sidebar
+- All scores -> `view=all`
+- Recent practice -> `view=recent_practice`
+- Favorites -> `view=favorites`
+- To practice -> `view=to_practice`
+- Mastered -> `view=mastered`
+- User folders -> `folder=<folder_uuid>`
 
-- "最近练习" selects `view=recent_practice`.
-- "收藏" selects `view=favorites`.
-- "待练习" selects `view=to_practice`.
-- "已掌握" selects `view=mastered`.
-- "新建目录" opens a folder creation dialog.
-- User folders select `folder=<folder_uuid>`.
-- Folder row actions: rename, move, delete.
-- Counts should prefer recursive counts for folder tree display.
+Library entries:
 
-Do not show "我的上传" as a Library primary node. Owned-score management belongs to
-`/my-scores`.
+- support grid cards;
+- support batch selection and move;
+- show per-user learning state;
+- allow changing learning state from the card;
+- route saved shared scores back through `from=shares`;
+- route non-bookmark entries through `from=my-scores`.
 
-### 8.2 Entry List
+My Scores:
 
-- preserve grid/list toggle;
-- preserve batch selection;
-- add "移动到目录" batch action;
-- keep download/delete/archive actions capability-gated;
-- moving entries updates library cache and selected folder counts.
+- lists owned score assets;
+- supports owner status views;
+- is the source of truth for creator management.
 
-### 8.3 Delete Folder
+## 8. Relationship To Sharing And Publication
 
-When a folder is not empty, show explicit choices:
+- Share grants are view-only access grants.
+- Saving a shared score creates/restores a `BOOKMARK` library entry.
+- Revoked or expired share access may leave an unavailable library entry.
+- Public publication is separate from private Library organization.
+- Owned score publication, owner sharing, editing, deletion, and revision management belong
+  to My Scores and score-owner flows, not the Library folder tree.
 
-1. move contents to parent;
-2. move contents to root;
-3. move contents to trash;
-4. cancel.
-
-No folder deletion should physically delete score revisions or artifacts.
-
-## 9. Relationship To Sharing And Publication
-
-- Share links grant access; library entries organize a user's view.
-- Saving a shared score creates or restores a library entry.
-- Revoked/expired share access can leave the entry visible as unavailable.
-- Owned scores are managed in `/my-scores`. Publishing, unpublishing, deleting, editing,
-  version management, and owner share management happen there.
-- Library may include an owned score only when the user explicitly adds it to the learning
-  library as `SELF_ADDED`.
-- Public score discovery should use a future `public_library` or `catalog` surface, not the
-  private `/library` folder tree.
-
-## 10. Implementation Phases
+## 9. Completed Phases
 
 ### P0 - Contract Decisions `[completed]`
 
-1. Keep `/library` as the only product surface and make `/history` redirect to it.
-2. Decide folder delete modes for v1.
-3. Decide whether `ScoreBookmark` remains separate permanently or becomes a source event.
-4. Decide whether "收藏" uses `is_favorite` or existing bookmark records for v1.
+- `/library` is the product surface.
+- `/history` redirects to `/library`.
+- virtual nodes are not persisted folders.
+- folder deletion modes are explicit.
 
-Acceptance:
+### P1 - Backend Schema And Read Model `[completed]`
 
-- product copy and route strategy are documented;
-- no code path treats virtual nodes as persisted folders.
+- added `ScoreLibraryFolder`;
+- added `ScoreLibraryEntry`;
+- added source type enum cleanup with `SELF_ADDED`;
+- added learning state with `TO_PRACTICE`, `IN_PROGRESS`, `MASTERED`;
+- added taxonomy seed baseline for genre/style tags;
+- added Library and My Scores API modules.
 
-### P1 - Backend Schema And Read Model `[completed for v1 baseline]`
+### P2 - Frontend Data Layer `[completed]`
 
-1. Add ORM models and Alembic migration.
-2. Do not backfill legacy owned/bookmark entries; development databases may be cleared.
-3. Add repository and service methods.
-4. Add folder tree and entry list APIs.
-5. Add focused tests for ownership, virtual counts, folder moves, and soft deletion.
+- added Library API facade, types, query keys, and query hooks;
+- added My Scores API facade, types, query keys, and query hooks.
 
-Acceptance:
+### P3 - Library And My Scores Pages `[completed]`
 
-- v1 baseline creates library entries for new owned scores and newly saved shared scores;
-- P7 will remove automatic owned-score library entries and replace them with explicit
-  `SELF_ADDED` behavior;
-- folder tree counts are stable;
-- unauthorized users cannot see or move another user's entries.
+- added `/library`;
+- added `/my-scores`;
+- changed `/history` into a redirect;
+- updated nav and result return origins.
 
-### P2 - Frontend Data Layer `[completed for v1 baseline]`
+### P4 - Folder Mutations And Batch Move `[completed]`
 
-1. Add `types/api/library.ts`.
-2. Add `lib/api/library.ts`.
-3. Add `queryKeys.library` and `use-library-queries.ts`.
-4. Add URL-state hook for `view`, `folder`, `search`, `sort`, and `page`.
+- create, rename, move, and delete folder are wired to API;
+- batch move selected library entries is wired to API;
+- deletion does not delete score assets.
 
-Acceptance:
+### P5 - Cleanup And Documentation `[completed]`
 
-- no page-level direct fetch;
-- query invalidation updates folder counts and entries after mutations.
+- removed obsolete History component/hook runtime files;
+- kept only the legacy redirect route;
+- updated docs and routing tests.
 
-### P3 - New Library Page Layout `[completed for v1 baseline]`
+### P6 - My Scores / Library IA Split `[completed]`
 
-1. Add `/library` route.
-2. Build sidebar tree and right-side list/grid layout.
-3. Rename copy to "我的乐谱库".
-4. Keep existing score card, thumbnail, status, and pagination behavior where still valid.
-5. Add `/history` redirect only.
+- owned score management is under My Scores;
+- Library is learning/collection organization;
+- Library no longer has an `owned` primary view.
 
-Acceptance:
+### P7 - Library Source-Type Cleanup `[completed]`
 
-- refresh, back/forward, and direct URL open restore the same library view;
-- existing upload and saved-share flows still navigate to the right score results.
+- `OWNED` was removed from Library sources;
+- `SELF_ADDED` is the explicit learning-library source for user-owned scores;
+- automatic Library entry creation for upload was removed.
 
-### P4 - Folder Mutations And Batch Move `[completed for v1 baseline]`
+### P8 - Library Learning State `[completed]`
 
-1. Create folder dialog is wired to the real API.
-2. Rename/delete/move folder actions are wired to the real API.
-3. Batch move selected entries to an existing folder or root is wired to the real API.
-4. Empty and error states are present for the v1 baseline.
+- entries have per-user `practice_state`;
+- Library has recent-practice, to-practice, and mastered views;
+- practice completion updates recent-practice state for active library entries.
 
-Acceptance:
+## 10. Validation Performed
 
-- batch move is persisted and reflected after refresh;
-- deleting folders never deletes score assets silently;
-- unavailable shared/bookmarked scores remain clearly marked.
+Recent validation for this baseline included:
 
-### P5 - Cleanup And Documentation `[completed for v1 baseline]`
-
-1. Move or delete obsolete `components/history` code.
-2. Rename hooks and types from history to library where they now represent library behavior.
-3. Update frontend/backend engineering principles where the library domain affects current rules.
-4. Update E2E/tests from history wording to library wording.
-
-Acceptance:
-
-- no new `history`-named API/type owns library behavior;
-- docs describe private library versus future public score library clearly.
-
-### P6 - My Scores / Library IA Split `[completed for v1 split]`
-
-1. Add `/my-scores` as the creator asset management surface.
-2. Add backend owner read model/API for My Scores based on `scores.owner_user_id`.
-3. Move owner actions to My Scores: edit, delete, publish/unpublish, owner sharing, versions,
-   metadata management, and visibility state.
-4. Update navigation to show both "我的乐谱库" and "我的作品".
-5. Keep `/library` focused on learning, practice, favorites, bookmarks, and folder
-   organization.
-6. Remove "我的上传" / `owned` as a primary Library product concept.
-
-Acceptance:
-
-- owned score management is only presented in My Scores;
-- Library does not imply ownership management;
-- a user can add an owned score to Library only through explicit `SELF_ADDED` semantics;
-- results/editor/share routes preserve correct return paths for both entry points.
-
-### P7 - Library Source-Type Cleanup `[completed for v1 split]`
-
-1. Replace Library `source_type=OWNED` with `SELF_ADDED` in schema, API, frontend types, and UI.
-2. Stop auto-creating Library entries for every uploaded score unless the upload flow explicitly
-   asks to add the score to Library.
-3. Keep `BOOKMARK` for saved shared/public scores.
-4. Reserve `SHARED`, `OFFICIAL`, and `AI_RECOMMENDED` for future entry sources.
-5. Because the project is still pre-production, clear local development data rather than adding
-   compatibility fallbacks.
-
-Acceptance:
-
-- Library source labels describe why a score is in the learning library, not who owns it;
-- My Scores remains the source of truth for owned-score management;
-- no request-time fallback creates missing Library entries from owned scores.
-
-### P8 - Library Learning State `[completed for v1 learning workspace]`
-
-1. Add `practice_state` or equivalent read/write model for Library entries:
-   `TO_PRACTICE`, `IN_PROGRESS`, `MASTERED`.
-2. Add recent-practice read model using practice sessions or `last_practiced_at`.
-3. Update Library virtual nodes to: recent practice, favorites, to-practice, mastered, folders.
-4. Keep directory depth technically flexible but product-guided to 2-3 levels.
-
-Acceptance:
-
-- Library feels like a learning workspace, not a duplicate score-management table;
-- practice status and folder placement are per user;
-- deleting folders never deletes score ownership, revisions, or artifacts.
-
-## 11. Validation
-
-Backend:
-
-```powershell
-docker run --rm --env-file backend/.env.docker -v "${PWD}\backend:/app" -w /app noteverse-backend-runtime:dev pytest tests/test_library_domain.py -q
-docker run --rm --env-file backend/.env.docker -v "${PWD}\backend:/app" -w /app noteverse-backend-runtime:dev pytest tests/test_score_revision_services.py -q
-```
-
-Frontend:
-
-```powershell
-cd frontend
-npm run lint
+```text
+python -m py_compile backend changed files and migrations
 npm run typecheck
-npm run test
+npm run lint
+npm run test:unit
+docker compose -f docker-compose.backend-dev.yml run --rm api alembic heads
+docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade head
+docker compose -f docker-compose.backend-dev.yml run --rm api alembic current
+docker compose -f docker-compose.backend-dev.yml run --rm api pytest tests/test_api_smoke.py -q
 ```
 
-E2E:
+Known test gap:
 
-- owned score appears in "我的作品";
-- a self-added owned score appears in Library only after explicit add-to-library behavior;
-- bookmarked score appears in "收藏";
-- create folder, move selected scores, refresh, and verify placement;
-- delete non-empty folder with move-to-root behavior;
-- revoked share bookmark remains unavailable, not silently removed.
+- there is no dedicated `backend/tests/test_library_domain.py` yet;
+- current backend coverage is smoke-level for route protection plus migration/runtime checks.
 
-## 12. Non-Goals
+## 11. Deferred Work
 
-- public community catalog implementation;
-- organization/team libraries;
-- comments, ratings, recommendations, or marketplace features;
-- physical deletion of score revisions/artifacts through folder deletion;
-- generic file-drive abstraction for non-score resources.
+These are intentionally not part of the completed v1 baseline:
+
+- public community catalog;
+- team/organization libraries;
+- marketplace, comments, ratings, recommendations;
+- per-user custom score aliases;
+- automated trash retention;
+- richer thumbnail/capability projection in Library entries;
+- full drag-and-drop folder reordering;
+- collaborative edit invitations and team libraries.
+
+## 12. Next Implementation Phases
+
+The v1 baseline proves the domain split, but the product is not yet competitive with mature
+content platforms. The following phases turn the baseline into a production-grade management
+surface.
+
+### P9 - Processing Queue In My Scores `[in progress]`
+
+Purpose: users must not need to remain on `/upload` to know whether a score succeeded.
+
+Tasks:
+
+- surface active and failed `ProcessingJob` rows in `/my-scores`; `[completed: initial UI]`
+- add My Scores views for processing and failed uploads; `[completed: initial UI]`
+- show processing progress, current step, failure reason, and produced score link when ready;
+- allow failed jobs to be dismissed or retried through explicit job actions;
+- keep failed jobs out of `/library`, because they are not playable learning entries yet.
+
+Initial implementation notes:
+
+- `/my-scores` now combines owned scores with active/failed processing jobs from `/jobs`;
+- processing and failed views are frontend aggregate views, not score API views;
+- failed jobs can be dismissed or sent back to upload again;
+- a dedicated retry endpoint remains deferred until the retry contract is designed.
+
+Acceptance:
+
+- uploading a score creates a visible item in My Scores immediately;
+- a failed upload remains visible after navigation or refresh;
+- users can inspect the failure and take a next action;
+- successful jobs route to the produced score identity, not the job identity.
+
+### P10 - My Scores Management Actions `[in progress]`
+
+Purpose: `/my-scores` should behave like a creator asset manager, not a static card list.
+
+Tasks:
+
+- add visible search and sort controls wired to existing API parameters; `[completed: initial UI]`
+- add batch selection; `[completed]`
+- add owner actions: delete, archive, and add to Library as `SELF_ADDED`; `[completed]`
+- add owner actions: publish and unpublish; `[planned]`
+- add restore-from-archive after the score model gains an explicit restore-state contract; `[planned]`
+- show richer owner status: processing, failed, draft, private, published, archived; `[completed: initial UI]`
+- add pagination controls and empty states for each view; `[completed: pagination controls]`
+
+Initial implementation notes:
+
+- `/my-scores` supports selecting visible score cards and clearing selection;
+- selected owned scores can be deleted through `POST /scores/batch-delete`;
+- selected owned scores can be archived through `POST /scores/batch-archive`;
+- selected owned scores can be added to the learning Library through
+  `POST /library/entries/batch-self-add`, which creates `SELF_ADDED` entries only for
+  current-user-owned scores;
+- paginated My Scores API results can be traversed from the page UI without losing filters;
+- publish/unpublish remains intentionally deferred until batch publication UX and backend
+  lifecycle semantics are designed together.
+
+Acceptance:
+
+- users can find, sort, and manage owned scores without opening each score;
+- owned-score management stays out of the Library folder tree;
+- adding an owned score to Library is explicit and creates a Library entry.
+
+### P11 - Library Management Actions And Folder Depth `[planned]`
+
+Purpose: `/library` should behave like a personal learning workspace.
+
+Tasks:
+
+- add visible search and sort controls wired to existing API parameters; `[completed: initial UI]`
+- add pagination controls wired to existing API pagination; `[completed]`
+- add batch favorite, archive, trash, and move actions; `[completed]`
+- enforce a product folder depth limit of 2 levels in UI and backend validation; `[completed]`
+- keep database hierarchy cycle protection;
+- expose clear empty states for recent practice, to-practice, mastered, favorites, and folders.
+
+Acceptance:
+
+- users can manage many saved scores at once;
+- folder depth cannot exceed the product limit through UI or API;
+- Library actions do not affect score ownership or canonical revisions.
+
+### P12 - Component Extraction And Dedicated Tests `[in progress]`
+
+Purpose: keep the new management surfaces maintainable as behavior grows.
+
+Tasks:
+
+- split `/library` into domain components and hooks under `components/library` and
+  `hooks/library` where useful; `[completed: initial components]`
+- split `/my-scores` into domain components and hooks under `components/my-scores` and
+  `hooks/my-scores` where useful; `[completed: initial components]`
+- add backend Library/My Scores domain tests beyond route-auth smoke; `[completed: service regressions]`
+- add frontend tests for URL state, search/sort, batch actions, processing/failed states,
+  and legacy `/history` redirect behavior.
+
+Initial implementation notes:
+
+- `/my-scores` now delegates filter controls, bulk actions, score cards, processing-job cards,
+  and pagination to `components/my-scores`;
+- `/library` now delegates sidebar navigation, entry cards, folder dialogs, filter controls,
+  pagination, and bulk actions to `components/library`;
+- backend service regressions cover owned-score archive and explicit self-add-to-library
+  behavior.
+
+Acceptance:
+
+- page files remain composition layers;
+- domain behavior has focused tests;
+- future Library/My Scores changes do not reintroduce History or `OWNED` semantics.

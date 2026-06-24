@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { jobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { ProcessingJob } from '@/types/api';
@@ -40,5 +40,13 @@ export function useSubmitJob() {
       options?: Record<string, unknown>;
       idempotencyKey?: string;
     }) => jobsApi.submitJob(fileIds, options, idempotencyKey),
+  });
+}
+
+export function useDeleteJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: jobsApi.deleteJob,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all }),
   });
 }

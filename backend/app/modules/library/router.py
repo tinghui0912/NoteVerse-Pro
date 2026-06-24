@@ -8,10 +8,12 @@ from app.modules.library.dependencies import get_library_service
 from app.modules.library.schemas import (
     FolderDeleteMode,
     LibraryEntryBatchMoveRequest,
+    LibraryEntryBatchUpdateRequest,
     LibraryEntryUpdateRequest,
     LibraryFolderCreateRequest,
     LibraryFolderDeleteRequest,
     LibraryFolderUpdateRequest,
+    LibraryOwnedScoreBatchAddRequest,
     LibrarySort,
     LibraryView,
 )
@@ -107,6 +109,54 @@ async def batch_move_library_entries(
     user_id = require_persisted_id(current_user.id, entity="user")
     moved = await service.batch_move(db, user_id, request)
     return success_response(data={"moved": moved}, message=SuccessCode.UPDATE_SUCCESS)
+
+
+@router.post("/entries/batch-favorite")
+async def batch_favorite_library_entries(
+    request: LibraryEntryBatchUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: LibraryService = Depends(get_library_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    updated = await service.batch_set_favorite(db, user_id, request)
+    return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
+
+
+@router.post("/entries/batch-archive")
+async def batch_archive_library_entries(
+    request: LibraryEntryBatchUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: LibraryService = Depends(get_library_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    updated = await service.batch_archive(db, user_id, request)
+    return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
+
+
+@router.post("/entries/batch-trash")
+async def batch_trash_library_entries(
+    request: LibraryEntryBatchUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: LibraryService = Depends(get_library_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    updated = await service.batch_trash(db, user_id, request)
+    return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
+
+
+@router.post("/entries/batch-self-add")
+async def batch_add_owned_scores_to_library(
+    request: LibraryOwnedScoreBatchAddRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: LibraryService = Depends(get_library_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    added = await service.batch_add_owned_scores(db, user_id, request)
+    return success_response(data={"added": added}, message=SuccessCode.UPDATE_SUCCESS)
 
 
 @router.patch("/entries/{entry_id}")

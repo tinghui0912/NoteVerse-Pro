@@ -1,7 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { myScoresApi } from '@/lib/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { myScoresApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { MyScoresSort, MyScoresView } from '@/types/api';
 
@@ -11,6 +11,7 @@ export function useMyScores(params: {
   sort?: MyScoresSort;
   page: number;
   pageSize: number;
+  enabled?: boolean;
 }) {
   return useQuery({
     queryKey: queryKeys.myScores.list(params),
@@ -25,5 +26,29 @@ export function useMyScores(params: {
         },
         signal
       ),
+    enabled: params.enabled ?? true,
+  });
+}
+
+export function useDeleteMyScores() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scoreIds: string[]) => scoresApi.batchDelete(scoreIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.myScores.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scores.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
+    },
+  });
+}
+
+export function useArchiveMyScores() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scoreIds: string[]) => scoresApi.batchArchive(scoreIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.myScores.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scores.all });
+    },
   });
 }

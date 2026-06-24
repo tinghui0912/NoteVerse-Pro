@@ -7,7 +7,7 @@ export type ProcessingJobState =
 
 export interface ProcessingJob {
   job_id: string;
-  score_id?: string;
+  score_id?: string | null;
   state: ProcessingJobState;
   progress: number;
   current_step?: string;

@@ -75,6 +75,38 @@ export function useMoveLibraryEntries() {
   });
 }
 
+export function useFavoriteLibraryEntries() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: libraryApi.batchFavorite,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+  });
+}
+
+export function useArchiveLibraryEntries() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: libraryApi.batchArchive,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+  });
+}
+
+export function useTrashLibraryEntries() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: libraryApi.batchTrash,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+  });
+}
+
+export function useAddOwnedScoresToLibrary() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: libraryApi.batchSelfAdd,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+  });
+}
+
 export function useUpdateLibraryEntry() {
   const queryClient = useQueryClient();
   return useMutation({

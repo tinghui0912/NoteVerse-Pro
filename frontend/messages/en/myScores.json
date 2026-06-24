@@ -3,24 +3,61 @@
   "subtitle": "Manage the scores you upload, edit, publish, and share.",
   "views": {
     "all": "All works",
+    "processing": "Processing",
+    "failed": "Failed",
     "drafts": "Drafts",
     "private": "Private",
-    "published": "Published"
+    "published": "Published",
+    "archived": "Archived"
   },
-  "totalScores": "{count} scores",
+  "totalScores": "{count} items",
   "uploadScore": "Upload score",
+  "searchPlaceholder": "Search works...",
+  "search": "Search",
+  "clearSearch": "Clear",
+  "selectVisible": "Select visible",
+  "clearSelection": "Clear selection",
+  "selectedCount": "{count} selected",
+  "selectScore": "Select {title}",
+  "addToLibrary": "Add to library",
+  "archiveSelected": "Archive selected",
+  "deleteSelected": "Delete selected",
+  "confirmDeleteSelected": "Delete {count} selected score(s)? This cannot be undone.",
+  "pagination": "Page {page} of {totalPages}",
+  "previousPage": "Previous",
+  "nextPage": "Next",
+  "sort": {
+    "updatedDesc": "Recently updated",
+    "nameAsc": "Name A-Z"
+  },
   "edit": "Edit",
   "loadFailed": "My Scores failed to load",
   "loadFailedDesc": "Unable to load your scores.",
   "emptySearch": "No matching scores found",
   "empty": {
     "all": "You have not uploaded any scores yet",
+    "processing": "No scores are being processed",
+    "failed": "No failed uploads",
     "drafts": "No draft scores",
     "private": "No private scores",
-    "published": "No published scores"
+    "published": "No published scores",
+    "archived": "No archived scores"
   },
   "draftStatus": "Draft",
   "privateStatus": "Private",
   "publishedStatus": "Published",
-  "archivedStatus": "Archived"
+  "archivedStatus": "Archived",
+  "jobStatus": {
+    "PENDING": "Queued",
+    "PROGRESS": "Processing",
+    "PENDING_REVIEW": "Ready",
+    "SUCCESS": "Done",
+    "FAILURE": "Failed"
+  },
+  "jobProgress": "{progress}% · {step}",
+  "jobStepPending": "Waiting",
+  "jobFailedFallback": "Processing failed. You can upload the score again.",
+  "openScore": "Open score",
+  "uploadAgain": "Upload again",
+  "dismissJob": "Dismiss"
 }

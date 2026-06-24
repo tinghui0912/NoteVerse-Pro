@@ -45,4 +45,12 @@ export const libraryApi = {
   ) => apiClient.patch<ApiResponse<LibraryEntry>>(`/library/entries/${entryId}`, input),
   batchMove: (input: { entry_ids: string[]; target_folder_id?: string | null }) =>
     apiClient.post<ApiResponse<{ moved: number }>>('/library/entries/batch-move', input),
+  batchFavorite: (input: { entry_ids: string[] }) =>
+    apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-favorite', input),
+  batchArchive: (input: { entry_ids: string[] }) =>
+    apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-archive', input),
+  batchTrash: (input: { entry_ids: string[] }) =>
+    apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-trash', input),
+  batchSelfAdd: (input: { score_ids: string[] }) =>
+    apiClient.post<ApiResponse<{ added: number }>>('/library/entries/batch-self-add', input),
 };

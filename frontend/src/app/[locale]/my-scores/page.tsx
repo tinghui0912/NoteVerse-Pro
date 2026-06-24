@@ -1,30 +1,41 @@
 'use client';
 
 import React from 'react';
-import { CircleAlert, Edit, Loader2, Music, Upload } from 'lucide-react';
+import { CircleAlert, Loader2, Music, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { MyScoresBulkActions } from '@/components/my-scores/my-scores-bulk-actions';
+import { MyScoresFilterBar } from '@/components/my-scores/my-scores-filter-bar';
+import { MyScoresPagination } from '@/components/my-scores/my-scores-pagination';
+import { MyScoreCard } from '@/components/my-scores/my-score-card';
+import { isProcessingJob, ProcessingJobCard } from '@/components/my-scores/processing-job-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Footer } from '@/components/layout/footer';
-import { useMyScores } from '@/hooks/queries/use-my-scores-queries';
-import { formatApiDateTime } from '@/lib/score/metadata-display';
-import { cn } from '@/lib/utils';
-import type { MyScoresSort, MyScoresView, ScoreState } from '@/types/api';
+import { useAddOwnedScoresToLibrary } from '@/hooks/queries/use-library-queries';
+import { useDeleteJob, useJobList } from '@/hooks/queries/use-job-queries';
+import { useArchiveMyScores, useDeleteMyScores, useMyScores } from '@/hooks/queries/use-my-scores-queries';
+import type { MyScoresPageView, MyScoresSort, MyScoresView } from '@/types/api';
 
-const VIEWS: MyScoresView[] = ['all', 'drafts', 'private', 'published'];
+const SCORE_VIEWS: MyScoresView[] = ['all', 'drafts', 'private', 'published', 'archived'];
+const VIEWS: MyScoresPageView[] = [
+  'all',
+  'processing',
+  'failed',
+  'drafts',
+  'private',
+  'published',
+  'archived',
+];
 
-function normalizeView(value?: string): MyScoresView {
-  return VIEWS.includes(value as MyScoresView) ? (value as MyScoresView) : 'all';
+function normalizeView(value?: string): MyScoresPageView {
+  return VIEWS.includes(value as MyScoresPageView) ? (value as MyScoresPageView) : 'all';
 }
 
-function stateLabelKey(state: ScoreState, view: MyScoresView) {
-  if (view === 'published') return 'publishedStatus';
-  if (state === 'IN_REVIEW') return 'draftStatus';
-  if (state === 'ARCHIVED') return 'archivedStatus';
-  return 'privateStatus';
+function isScoreView(view: MyScoresPageView): view is MyScoresView {
+  return SCORE_VIEWS.includes(view as MyScoresView);
 }
 
 export default function MyScoresPage({
@@ -42,26 +53,102 @@ export default function MyScoresPage({
   const router = useRouter();
   const view = normalizeView(params.view);
   const sort: MyScoresSort = params.sort === 'name_asc' ? 'name_asc' : 'updated_desc';
+  const [searchInput, setSearchInput] = React.useState(params.search ?? '');
   const page = Math.max(1, Number(params.page ?? 1));
   const pageSize = 20;
+  const scoreView = isScoreView(view) ? view : 'all';
+  const showScores = isScoreView(view);
   const scoresQuery = useMyScores({
-    view,
+    view: scoreView,
     search: params.search,
     sort,
     page,
     pageSize,
+    enabled: showScores,
   });
-  const scores = scoresQuery.data?.data ?? [];
-  const total = scoresQuery.data?.pagination.total ?? 0;
+  const jobsQuery = useJobList(1, 20);
+  const deleteJob = useDeleteJob();
+  const addToLibrary = useAddOwnedScoresToLibrary();
+  const deleteScores = useDeleteMyScores();
+  const archiveScores = useArchiveMyScores();
+  const scores = React.useMemo(() => scoresQuery.data?.data ?? [], [scoresQuery.data?.data]);
+  const jobs = jobsQuery.data?.data ?? [];
+  const [selectedScoreIds, setSelectedScoreIds] = React.useState<Set<string>>(new Set());
+  const selectedCount = selectedScoreIds.size;
+  const scoreIds = React.useMemo(() => scores.map((score) => score.score_id), [scores]);
+  const visibleJobs = jobs.filter((job) => {
+    if (view === 'processing') return isProcessingJob(job);
+    if (view === 'failed') return job.state === 'FAILURE';
+    return isProcessingJob(job) || job.state === 'FAILURE';
+  });
+  const total = showScores
+    ? (scoresQuery.data?.pagination.total ?? 0) + (view === 'all' ? visibleJobs.length : 0)
+    : visibleJobs.length;
+  const scorePagination = scoresQuery.data?.pagination;
+  const canGoPrevious = showScores && scorePagination ? scorePagination.page > 1 : false;
+  const canGoNext = showScores && scorePagination
+    ? scorePagination.page < scorePagination.total_pages
+    : false;
 
-  const navigate = (next: { view?: MyScoresView; page?: number }) => {
+  React.useEffect(() => {
+    setSelectedScoreIds(new Set());
+  }, [view, params.search, sort, page]);
+
+  const toggleScoreSelection = (scoreId: string) => {
+    setSelectedScoreIds((current) => {
+      const next = new Set(current);
+      if (next.has(scoreId)) {
+        next.delete(scoreId);
+      } else {
+        next.add(scoreId);
+      }
+      return next;
+    });
+  };
+  const selectVisibleScores = () => setSelectedScoreIds(new Set(scoreIds));
+  const clearSelection = () => setSelectedScoreIds(new Set());
+  const selectedIds = () => Array.from(selectedScoreIds);
+
+  const navigate = (next: {
+    view?: MyScoresPageView;
+    search?: string | null;
+    sort?: MyScoresSort;
+    page?: number;
+  }) => {
     const query = new URLSearchParams();
     query.set('view', next.view ?? view);
-    if (params.search) query.set('search', params.search);
-    if (params.sort) query.set('sort', params.sort);
+    const nextSearch = next.search === undefined ? params.search : next.search;
+    const nextSort = next.sort ?? sort;
+    if (nextSearch) query.set('search', nextSearch);
+    if (nextSort !== 'updated_desc') query.set('sort', nextSort);
     if (next.page && next.page > 1) query.set('page', String(next.page));
     router.push(`/my-scores?${query.toString()}`);
   };
+  const handleAddToLibrary = () => {
+    addToLibrary.mutate(
+      { score_ids: selectedIds() },
+      { onSuccess: clearSelection }
+    );
+  };
+  const handleDeleteSelected = () => {
+    if (!window.confirm(t('confirmDeleteSelected', { count: selectedCount }))) {
+      return;
+    }
+    deleteScores.mutate(selectedIds(), { onSuccess: clearSelection });
+  };
+  const handleArchiveSelected = () => {
+    archiveScores.mutate(selectedIds(), { onSuccess: clearSelection });
+  };
+  const goToPage = (nextPage: number) => {
+    navigate({ page: nextPage });
+  };
+  const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    navigate({ search: searchInput.trim() || null, page: 1 });
+  };
+  const isLoading = (showScores && scoresQuery.isLoading) || jobsQuery.isLoading;
+  const isError = (showScores && scoresQuery.isError) || jobsQuery.isError;
+  const loadError = scoresQuery.error ?? jobsQuery.error;
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -92,65 +179,72 @@ export default function MyScoresPage({
               </Link>
             </Button>
           </div>
+          <MyScoresFilterBar
+            searchInput={searchInput}
+            sort={sort}
+            hasSearch={Boolean(params.search)}
+            onSearchInputChange={setSearchInput}
+            onSubmit={submitSearch}
+            onSortChange={(value) => navigate({ sort: value, page: 1 })}
+            onClearSearch={() => {
+              setSearchInput('');
+              navigate({ search: null, page: 1 });
+            }}
+            t={t}
+          />
           <div className="mb-5">
             <h2 className="text-2xl font-bold">{t(`views.${view}`)}</h2>
             <p className="text-sm text-muted-foreground">{t('totalScores', { count: total })}</p>
           </div>
-          {scoresQuery.isLoading ? (
+          {showScores && scores.length ? (
+            <MyScoresBulkActions
+              selectedCount={selectedCount}
+              addToLibraryPending={addToLibrary.isPending}
+              archivePending={archiveScores.isPending}
+              deletePending={deleteScores.isPending}
+              onSelectVisible={selectVisibleScores}
+              onClearSelection={clearSelection}
+              onAddToLibrary={handleAddToLibrary}
+              onArchiveSelected={handleArchiveSelected}
+              onDeleteSelected={handleDeleteSelected}
+              t={t}
+            />
+          ) : null}
+          {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : scoresQuery.isError ? (
+          ) : isError ? (
             <Alert variant="destructive">
               <CircleAlert className="h-4 w-4" />
               <AlertTitle>{t('loadFailed')}</AlertTitle>
               <AlertDescription>
-                {scoresQuery.error instanceof Error ? scoresQuery.error.message : t('loadFailedDesc')}
+                {loadError instanceof Error ? loadError.message : t('loadFailedDesc')}
               </AlertDescription>
             </Alert>
-          ) : scores.length ? (
+          ) : visibleJobs.length || scores.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {scores.map((score) => (
-                <Card
-                  key={score.score_id}
-                  className="cursor-pointer rounded-2xl transition hover:-translate-y-0.5 hover:shadow-lg"
-                  onClick={() => router.push(`/results/${score.score_id}?from=my-scores`)}
-                >
-                  <CardContent className="p-5">
-                    <div className="mb-4 flex h-32 items-center justify-center rounded-xl bg-muted">
-                      <Music className="h-10 w-10 text-muted-foreground" />
-                    </div>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="truncate font-semibold">{score.title}</h3>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatApiDateTime(score.updated_at)}
-                        </p>
-                      </div>
-                      <span
-                        className={cn(
-                          'rounded-full px-2 py-1 text-xs',
-                          score.state === 'IN_REVIEW'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-primary/10 text-primary'
-                        )}
-                      >
-                        {t(stateLabelKey(score.state, view))}
-                      </span>
-                    </div>
-                    <div className="mt-4 flex gap-2">
-                      <Button asChild size="sm" variant="outline" onClick={(event) => event.stopPropagation()}>
-                        <Link
-                          href={`/editor/${score.score_id}?returnUrl=${encodeURIComponent(`/results/${score.score_id}?from=my-scores`)}`}
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          {t('edit')}
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+              {visibleJobs.map((job) => (
+                <ProcessingJobCard
+                  key={job.job_id}
+                  job={job}
+                  deletePending={deleteJob.isPending}
+                  onOpenScore={() => router.push(`/results/${job.score_id}?from=my-scores`)}
+                  onDismiss={() => deleteJob.mutate(job.job_id)}
+                  t={t}
+                />
               ))}
+              {showScores ? scores.map((score) => (
+                <MyScoreCard
+                  key={score.score_id}
+                  score={score}
+                  view={scoreView}
+                  selected={selectedScoreIds.has(score.score_id)}
+                  onOpen={() => router.push(`/results/${score.score_id}?from=my-scores`)}
+                  onToggleSelection={() => toggleScoreSelection(score.score_id)}
+                  t={t}
+                />
+              )) : null}
             </div>
           ) : (
             <Card className="rounded-2xl">
@@ -165,6 +259,16 @@ export default function MyScoresPage({
               </CardContent>
             </Card>
           )}
+          {showScores && scorePagination && scorePagination.total_pages > 1 ? (
+            <MyScoresPagination
+              page={scorePagination.page}
+              totalPages={scorePagination.total_pages}
+              canGoPrevious={canGoPrevious}
+              canGoNext={canGoNext}
+              onPageChange={goToPage}
+              t={t}
+            />
+          ) : null}
         </div>
       </main>
       <Footer />

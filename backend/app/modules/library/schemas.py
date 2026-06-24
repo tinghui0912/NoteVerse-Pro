@@ -66,6 +66,14 @@ class LibraryEntryBatchMoveRequest(BaseModel):
     target_folder_id: str | None = None
 
 
+class LibraryEntryBatchUpdateRequest(BaseModel):
+    entry_ids: list[str] = Field(min_length=1)
+
+
+class LibraryOwnedScoreBatchAddRequest(BaseModel):
+    score_ids: list[str] = Field(min_length=1)
+
+
 class LibraryEntryUpdateRequest(BaseModel):
     practice_state: LibraryPracticeState | None = None
     is_favorite: bool | None = None

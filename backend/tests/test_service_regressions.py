@@ -22,10 +22,16 @@ from app.processing.engines.matchmaker_live import (
     MatchmakerLiveEngine,
 )
 from app.db.models.practice import PracticeReportStatus, PracticeSessionState
+from app.db.models import LibraryEntrySourceType
+from app.db.models.score import ScoreState
 from app.db.models.score_access import AccessOrigin
 from app.modules.files.service import FilesService
+from app.modules.library.schemas import LibraryOwnedScoreBatchAddRequest
+from app.modules.library.service import LibraryService
 from app.modules.practice.service import PracticeService
 from app.modules.profile.service import AvatarService
+from app.modules.scores.schemas import ScoreBatchArchiveRequest
+from app.modules.scores.service import ScoreService
 from app.modules.jobs.execution_service import JobExecutionService
 from app.modules.jobs.maintenance_service import JobMaintenanceService
 from app.modules.jobs.worker_service import sync_job_service
@@ -83,6 +89,86 @@ def test_allowed_file_accepts_supported_extensions() -> None:
     assert service.allowed_file("score.TIFF") is True
     assert service.allowed_file("score.pdf") is False
     assert service.allowed_file("score") is False
+
+
+@pytest.mark.asyncio
+async def test_score_service_batch_archive_marks_owned_scores_archived() -> None:
+    score = SimpleNamespace(
+        score_uuid="score-1",
+        state=ScoreState.ACTIVE,
+        version=1,
+        updated_at=None,
+    )
+    repository = Mock()
+    repository.get = AsyncMock(return_value=score)
+    access_policy = Mock()
+    access_policy.authorize = AsyncMock(
+        return_value=SimpleNamespace(score=SimpleNamespace(score_uuid="score-1"))
+    )
+    service = ScoreService(repository=repository, access_policy=access_policy)
+    db = AsyncMock()
+
+    archived = await service.batch_archive(
+        db,
+        ScoreBatchArchiveRequest(score_ids=["score-1"]),
+        user_id=7,
+    )
+
+    assert archived == 1
+    assert score.state == ScoreState.ARCHIVED
+    assert score.version == 2
+    db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_library_service_batch_self_add_requires_owned_score() -> None:
+    score_repository = Mock()
+    score_repository.get = AsyncMock(
+        return_value=SimpleNamespace(id=10, owner_user_id=8, score_uuid="score-1")
+    )
+    repository = Mock()
+    repository.entry = AsyncMock(return_value=None)
+    service = LibraryService(repository=repository, score_repository=score_repository)
+    db = Mock()
+    db.add = Mock()
+    db.commit = AsyncMock()
+
+    with pytest.raises(ResourceNotFoundException):
+        await service.batch_add_owned_scores(
+            db,
+            user_id=7,
+            request=LibraryOwnedScoreBatchAddRequest(score_ids=["score-1"]),
+        )
+
+    db.add.assert_not_called()
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_library_service_batch_self_add_creates_self_added_entry() -> None:
+    score_repository = Mock()
+    score_repository.get = AsyncMock(
+        return_value=SimpleNamespace(id=10, owner_user_id=7, score_uuid="score-1")
+    )
+    repository = Mock()
+    repository.entry = AsyncMock(return_value=None)
+    service = LibraryService(repository=repository, score_repository=score_repository)
+    db = Mock()
+    db.add = Mock()
+    db.commit = AsyncMock()
+
+    added = await service.batch_add_owned_scores(
+        db,
+        user_id=7,
+        request=LibraryOwnedScoreBatchAddRequest(score_ids=["score-1"]),
+    )
+
+    assert added == 1
+    created_entry = db.add.call_args.args[0]
+    assert created_entry.user_id == 7
+    assert created_entry.score_id == 10
+    assert created_entry.source_type == LibraryEntrySourceType.SELF_ADDED
+    db.commit.assert_awaited_once()
 
 
 def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_path) -> None:
@@ -602,7 +688,9 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
     )
     repository.get_session_by_uuid = AsyncMock(return_value=session)
     repository.save_session = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
-    service = PracticeService(repository=repository)
+    library_service = Mock()
+    library_service.mark_practiced = AsyncMock()
+    service = PracticeService(repository=repository, library_service=library_service)
     db = AsyncMock()
     db.get = AsyncMock(side_effect=lambda model, _identity: (
         SimpleNamespace(score_uuid="score-1")

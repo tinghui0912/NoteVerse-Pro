@@ -3,24 +3,61 @@
   "subtitle": "管理你上传、编辑、发布和分享的乐谱作品。",
   "views": {
     "all": "全部作品",
+    "processing": "处理中",
+    "failed": "处理失败",
     "drafts": "草稿",
     "private": "私有",
-    "published": "已发布"
+    "published": "已发布",
+    "archived": "已归档"
   },
-  "totalScores": "{count} 份作品",
+  "totalScores": "{count} 项",
   "uploadScore": "上传乐谱",
+  "searchPlaceholder": "搜索作品...",
+  "search": "搜索",
+  "clearSearch": "清除",
+  "selectVisible": "选择当前页",
+  "clearSelection": "清除选择",
+  "selectedCount": "已选择 {count} 项",
+  "selectScore": "选择 {title}",
+  "addToLibrary": "加入乐谱库",
+  "archiveSelected": "归档所选",
+  "deleteSelected": "删除所选",
+  "confirmDeleteSelected": "确定删除选中的 {count} 份乐谱吗？此操作不可撤销。",
+  "pagination": "第 {page} / {totalPages} 页",
+  "previousPage": "上一页",
+  "nextPage": "下一页",
+  "sort": {
+    "updatedDesc": "最近更新",
+    "nameAsc": "名称 A-Z"
+  },
   "edit": "编辑",
   "loadFailed": "我的作品加载失败",
   "loadFailedDesc": "无法加载你的作品。",
   "emptySearch": "没有找到匹配的作品",
   "empty": {
     "all": "你还没有上传作品",
+    "processing": "当前没有正在处理的乐谱",
+    "failed": "没有处理失败的上传",
     "drafts": "暂无草稿作品",
     "private": "暂无私有作品",
-    "published": "暂无已发布作品"
+    "published": "暂无已发布作品",
+    "archived": "暂无已归档作品"
   },
   "draftStatus": "草稿",
   "privateStatus": "私有",
   "publishedStatus": "已发布",
-  "archivedStatus": "已归档"
+  "archivedStatus": "已归档",
+  "jobStatus": {
+    "PENDING": "排队中",
+    "PROGRESS": "处理中",
+    "PENDING_REVIEW": "可查看",
+    "SUCCESS": "已完成",
+    "FAILURE": "失败"
+  },
+  "jobProgress": "{progress}% · {step}",
+  "jobStepPending": "等待开始",
+  "jobFailedFallback": "处理失败。你可以重新上传这份乐谱。",
+  "openScore": "打开乐谱",
+  "uploadAgain": "重新上传",
+  "dismissJob": "移除"
 }
