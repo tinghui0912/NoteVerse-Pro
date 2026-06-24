@@ -103,6 +103,27 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
         assert response.status_code == 401, f"{method.upper()} {path}"
 
 
+def test_library_feature_routes_require_authentication(client: TestClient) -> None:
+    protected_requests = [
+        ("get", "/api/v1/library/folders", None),
+        ("post", "/api/v1/library/folders", {"name": "Practice"}),
+        ("patch", "/api/v1/library/folders/folder-1", {"name": "Updated"}),
+        ("delete", "/api/v1/library/folders/folder-1", None),
+        ("get", "/api/v1/library/entries", None),
+        ("post", "/api/v1/library/entries/batch-move", {"entry_ids": ["entry-1"]}),
+    ]
+
+    for method, path, payload in protected_requests:
+        response = _request(client, method, path, payload)
+        assert response.status_code == 401, f"{method.upper()} {path}"
+
+
+def test_my_scores_feature_routes_require_authentication(client: TestClient) -> None:
+    response = client.get("/api/v1/my-scores")
+
+    assert response.status_code == 401
+
+
 def test_files_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
         ("post", "/api/v1/files/upload", None),

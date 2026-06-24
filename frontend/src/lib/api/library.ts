@@ -1,0 +1,48 @@
+import { apiClient } from '@/lib/api-client';
+import type {
+  ApiResponse,
+  FolderDeleteMode,
+  LibraryEntry,
+  LibraryFolder,
+  LibraryFolderTree,
+  LibraryPracticeState,
+  LibrarySort,
+  LibraryView,
+  PaginatedResponse,
+} from '@/types/api';
+
+export const libraryApi = {
+  folders: (signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<LibraryFolderTree>>('/library/folders', undefined, { signal }),
+  createFolder: (input: { name: string; parent_folder_id?: string | null }) =>
+    apiClient.post<ApiResponse<LibraryFolder>>('/library/folders', input),
+  updateFolder: (
+    folderId: string,
+    input: { name?: string; parent_folder_id?: string | null; position?: number }
+  ) => apiClient.patch<ApiResponse<LibraryFolder>>(`/library/folders/${folderId}`, input),
+  deleteFolder: (folderId: string, mode: FolderDeleteMode = 'MOVE_CONTENTS_TO_PARENT') =>
+    apiClient.delete<ApiResponse<never>>(
+      `/library/folders/${folderId}?mode=${encodeURIComponent(mode)}`
+    ),
+  entries: (
+    params: {
+      view?: LibraryView;
+      folder_id?: string;
+      search?: string;
+      sort?: LibrarySort;
+      page: number;
+      page_size: number;
+    },
+    signal?: AbortSignal
+  ) => apiClient.get<PaginatedResponse<LibraryEntry>>('/library/entries', params, { signal }),
+  updateEntry: (
+    entryId: string,
+    input: {
+      practice_state?: LibraryPracticeState;
+      is_favorite?: boolean;
+      is_archived?: boolean;
+    }
+  ) => apiClient.patch<ApiResponse<LibraryEntry>>(`/library/entries/${entryId}`, input),
+  batchMove: (input: { entry_ids: string[]; target_folder_id?: string | null }) =>
+    apiClient.post<ApiResponse<{ moved: number }>>('/library/entries/batch-move', input),
+};

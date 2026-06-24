@@ -1,0 +1,26 @@
+{
+  "title": "我的作品",
+  "subtitle": "管理你上传、编辑、发布和分享的乐谱作品。",
+  "views": {
+    "all": "全部作品",
+    "drafts": "草稿",
+    "private": "私有",
+    "published": "已发布"
+  },
+  "totalScores": "{count} 份作品",
+  "uploadScore": "上传乐谱",
+  "edit": "编辑",
+  "loadFailed": "我的作品加载失败",
+  "loadFailedDesc": "无法加载你的作品。",
+  "emptySearch": "没有找到匹配的作品",
+  "empty": {
+    "all": "你还没有上传作品",
+    "drafts": "暂无草稿作品",
+    "private": "暂无私有作品",
+    "published": "暂无已发布作品"
+  },
+  "draftStatus": "草稿",
+  "privateStatus": "私有",
+  "publishedStatus": "已发布",
+  "archivedStatus": "已归档"
+}

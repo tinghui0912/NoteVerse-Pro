@@ -36,6 +36,23 @@ export interface SavedShareQueryFilters {
     search?: string;
 }
 
+export interface LibraryEntryQueryFilters {
+    view?: string;
+    folderId?: string;
+    search?: string;
+    sort?: string;
+    page: number;
+    pageSize: number;
+}
+
+export interface MyScoresQueryFilters {
+    view?: string;
+    search?: string;
+    sort?: string;
+    page: number;
+    pageSize: number;
+}
+
 /**
  * Query keys follow [domain, scope, identity/filter]. Prefix factories are
  * used for broad invalidation; leaf factories own complete cache identity.
@@ -91,5 +108,16 @@ export const queryKeys = {
         bookmarks: () => ['scores', 'bookmark'] as const,
         publication: (slug: string) => ['scores', 'publication', { slug }] as const,
         scorePublication: (scoreId: string) => ['scores', 'score-publication', { scoreId }] as const,
+    },
+    library: {
+        all: ['library'] as const,
+        folders: () => ['library', 'folders'] as const,
+        entries: () => ['library', 'entries'] as const,
+        entryList: (filters: LibraryEntryQueryFilters) => ['library', 'entries', filters] as const,
+    },
+    myScores: {
+        all: ['my-scores'] as const,
+        lists: () => ['my-scores', 'list'] as const,
+        list: (filters: MyScoresQueryFilters) => ['my-scores', 'list', filters] as const,
     },
 } as const;

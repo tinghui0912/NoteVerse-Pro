@@ -6,6 +6,12 @@ from .practice import (
     PracticeSession,
     PracticeSessionState,
 )
+from .library import (
+    LibraryEntrySourceType,
+    LibraryPracticeState,
+    ScoreLibraryEntry,
+    ScoreLibraryFolder,
+)
 from .processing_job import (
     ProcessingArtifact,
     ProcessingJob,
@@ -48,6 +54,10 @@ __all__ = [
     "PracticeSession",
     "PracticeSessionState",
     "PracticeReportStatus",
+    "LibraryEntrySourceType",
+    "LibraryPracticeState",
+    "ScoreLibraryEntry",
+    "ScoreLibraryFolder",
     "ProcessingArtifact",
     "ProcessingJob",
     "ProcessingJobState",

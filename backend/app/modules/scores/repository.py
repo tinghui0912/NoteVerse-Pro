@@ -7,12 +7,15 @@ from app.db.models import (
     ProcessingJob,
     Score,
     ScoreArtifact,
+    ScorePublication,
     ScoreRevision,
     ScoreTaxonomyTag,
     TaxonomyCategory,
     TaxonomyTag,
 )
-from app.db.models.score import ArtifactKind
+from app.db.models.score_access import PublicationStatus
+from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
+from app.db.models.score import ArtifactKind, ScoreState
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
 score_title_col = Score.__table__.c.title
@@ -29,19 +32,48 @@ class ScoreRepository:
         page: int,
         page_size: int,
         search: str | None = None,
+        view: MyScoresView = MyScoresView.ALL,
+        sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
     ) -> tuple[list[Score], int]:
         filters = [Score.owner_user_id == user_id]
         if search:
             filters.append(score_title_col.ilike(f"%{search}%"))
+        if view == MyScoresView.DRAFTS:
+            filters.append(Score.state == ScoreState.IN_REVIEW)
+        elif view == MyScoresView.PUBLISHED:
+            filters.append(
+                select(ScorePublication.id)
+                .where(
+                    ScorePublication.score_id == Score.id,
+                    ScorePublication.status == PublicationStatus.PUBLISHED,
+                )
+                .exists()
+            )
+        elif view == MyScoresView.PRIVATE:
+            filters.append(Score.state != ScoreState.IN_REVIEW)
+            filters.append(
+                ~select(ScorePublication.id)
+                .where(
+                    ScorePublication.score_id == Score.id,
+                    ScorePublication.status == PublicationStatus.PUBLISHED,
+                )
+                .exists()
+            )
         total = int(
             (
                 await db.execute(select(func.count(Score.id)).where(*filters))
             ).scalar_one()
         )
+        order_by = {
+            MyScoresSort.UPDATED_DESC: [score_updated_col.desc()],
+            MyScoresSort.UPDATED_ASC: [score_updated_col.asc()],
+            MyScoresSort.NAME_ASC: [score_title_col.asc()],
+            MyScoresSort.NAME_DESC: [score_title_col.desc()],
+        }[sort]
         rows = await db.execute(
             select(Score)
             .where(*filters)
-            .order_by(score_updated_col.desc())
+            .order_by(*order_by)
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

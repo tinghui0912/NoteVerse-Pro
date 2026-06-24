@@ -1,0 +1,26 @@
+{
+  "title": "My Scores",
+  "subtitle": "Manage the scores you upload, edit, publish, and share.",
+  "views": {
+    "all": "All works",
+    "drafts": "Drafts",
+    "private": "Private",
+    "published": "Published"
+  },
+  "totalScores": "{count} scores",
+  "uploadScore": "Upload score",
+  "edit": "Edit",
+  "loadFailed": "My Scores failed to load",
+  "loadFailedDesc": "Unable to load your scores.",
+  "emptySearch": "No matching scores found",
+  "empty": {
+    "all": "You have not uploaded any scores yet",
+    "drafts": "No draft scores",
+    "private": "No private scores",
+    "published": "No published scores"
+  },
+  "draftStatus": "Draft",
+  "privateStatus": "Private",
+  "publishedStatus": "Published",
+  "archivedStatus": "Archived"
+}

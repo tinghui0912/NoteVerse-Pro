@@ -19,6 +19,7 @@ from app.db.models import (
 from app.db.models.processing_job import ProcessingJobState
 from app.db.models.score import ScoreState
 from app.modules.scores.repository import ScoreRepository
+from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.schemas import (
     ScoreRead,
     ScoreTaxonomyTagRead,
@@ -63,9 +64,17 @@ class ScoreService:
         page: int,
         page_size: int,
         search: str | None = None,
+        view: MyScoresView = MyScoresView.ALL,
+        sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
     ) -> tuple[list[ScoreRead], int]:
         rows, total = await self.repository.list_owned(
-            db, user_id, page=page, page_size=page_size, search=search
+            db,
+            user_id,
+            page=page,
+            page_size=page_size,
+            search=search,
+            view=view,
+            sort=sort,
         )
         result: list[ScoreRead] = []
         for score in rows:

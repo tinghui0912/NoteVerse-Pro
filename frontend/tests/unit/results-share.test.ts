@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { getResultsShareStatus, getShareExpirationDays } from '@/lib/results/share';
-import { parseResultsHistorySource } from '@/lib/results/navigation';
+import { parseResultsLibrarySource } from '@/lib/results/navigation';
 import type { ScoreGrant } from '@/types/api';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -23,11 +23,11 @@ function share(overrides: Partial<ScoreGrant> = {}): ScoreGrant {
 }
 
 describe('results share helpers', () => {
-  it('accepts only explicit history origins', () => {
-    expect(parseResultsHistorySource('uploads')).toBe('uploads');
-    expect(parseResultsHistorySource('shares')).toBe('shares');
-    expect(parseResultsHistorySource(undefined)).toBeNull();
-    expect(parseResultsHistorySource('invalid')).toBeNull();
+  it('accepts only explicit library origins', () => {
+    expect(parseResultsLibrarySource('my-scores')).toBe('my-scores');
+    expect(parseResultsLibrarySource('shares')).toBe('shares');
+    expect(parseResultsLibrarySource(undefined)).toBeNull();
+    expect(parseResultsLibrarySource('invalid')).toBeNull();
   });
 
   it('prioritizes revoked status and detects expiration', () => {

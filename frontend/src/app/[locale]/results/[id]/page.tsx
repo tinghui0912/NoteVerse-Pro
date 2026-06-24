@@ -14,20 +14,19 @@ import { ResultsStyleTagsEditor } from '@/components/results/results-style-tags-
 import { EditorProvider } from '@/contexts/editor-provider';
 import { useResultsResources } from '@/hooks/results/use-results-resources';
 import { ApiError } from '@/lib/api-client';
-import { parseResultsHistorySource } from '@/lib/results/navigation';
+import { parseResultsLibrarySource } from '@/lib/results/navigation';
 
-function ResultsPageContent({ id, source }: { id: string; source: 'shares' | 'uploads' | null }) {
+function ResultsPageContent({ id, source }: { id: string; source: 'shares' | 'my-scores' | null }) {
   const t = useTranslations('results');
   const common = useTranslations('common');
   const errors = useTranslations('errors');
-  const history = useTranslations('history');
   const resources = useResultsResources(id);
   const error = resources.scoreError instanceof ApiError && resources.scoreError.code
     ? errors(resources.scoreError.code as never)
     : resources.scoreError instanceof Error
       ? resources.scoreError.message
       : null;
-  const scoreTitle = resources.score?.title || resources.parsedTitle || history('taskLabel', {
+  const scoreTitle = resources.score?.title || resources.parsedTitle || t('scoreFallbackTitle', {
     id: id.slice(0, 8),
   });
 
@@ -51,7 +50,11 @@ function ResultsPageContent({ id, source }: { id: string; source: 'shares' | 'up
             <h2 className="mb-3 text-2xl font-bold text-gray-900">{common('loadFailed')}</h2>
             <p className="mb-2 text-gray-600">{error}</p>
             <p className="mb-8 text-sm text-gray-500">{t('loadFailedHint')}</p>
-            <Button asChild className="px-8"><Link href="/history">{t('backToHistory')}</Link></Button>
+            <Button asChild className="px-8">
+              <Link href={source === 'my-scores' ? '/my-scores' : '/library'}>
+                {source === 'my-scores' ? common('nav.myScores') : t('backToLibrary')}
+              </Link>
+            </Button>
           </div>
         </main>
         <Footer />
@@ -115,7 +118,7 @@ export default function ResultsPageWithProvider({
 }) {
   const { id } = React.use(params);
   const { from } = React.use(searchParams);
-  const source = parseResultsHistorySource(from);
+  const source = parseResultsLibrarySource(from);
   return (
     <Suspense fallback={null}>
       <EditorProvider><ResultsPageContent id={id} source={source} /></EditorProvider>

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -11,8 +12,10 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
+    LibraryEntrySourceType,
     Score,
     ScoreBookmark,
+    ScoreLibraryEntry,
     ScoreShareGrant,
     ShareGrantRedemption,
     User,
@@ -311,6 +314,15 @@ class ScoreSharingService:
         if not bookmark:
             bookmark = ScoreBookmark(score_id=grant.score_id, user_id=user_id)
             db.add(bookmark)
+        if not await self._library_entry(db, grant.score_id, user_id):
+            db.add(
+                ScoreLibraryEntry(
+                    score_id=grant.score_id,
+                    user_id=user_id,
+                    source_type=LibraryEntrySourceType.BOOKMARK,
+                    is_favorite=True,
+                )
+            )
         await db.commit()
         await db.refresh(bookmark)
         return BookmarkRead(
@@ -350,9 +362,14 @@ class ScoreSharingService:
         self, db: AsyncSession, bookmark_ids: list[int], user_id: int
     ) -> int:
         removed = 0
+        now = utc_now_naive()
         for bookmark_id in bookmark_ids:
             bookmark = await db.get(ScoreBookmark, bookmark_id)
             if bookmark and bookmark.user_id == user_id:
+                entry = await self._library_entry(db, bookmark.score_id, user_id)
+                if entry:
+                    entry.deleted_at = now
+                    entry.updated_at = now
                 await db.delete(bookmark)
                 removed += 1
         await db.commit()
@@ -369,6 +386,20 @@ class ScoreSharingService:
         if grant.expires_at is not None and grant.expires_at <= utc_now_naive():
             raise ValidationException(ErrorCode.SHARE_EXPIRED, field="token")
         return grant
+
+    async def _library_entry(
+        self, db: AsyncSession, score_id: int, user_id: int
+    ) -> ScoreLibraryEntry | None:
+        return (
+            await db.execute(
+                select(ScoreLibraryEntry).where(
+                    ScoreLibraryEntry.score_id == score_id,
+                    ScoreLibraryEntry.user_id == user_id,
+                    ScoreLibraryEntry.source_type == LibraryEntrySourceType.BOOKMARK,
+                    ScoreLibraryEntry.deleted_at.is_(None),
+                )
+            )
+        ).scalar_one_or_none()
 
     async def _grant_by_uuid(
         self, db: AsyncSession, grant_uuid: str

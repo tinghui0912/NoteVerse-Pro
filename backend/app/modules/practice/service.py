@@ -37,6 +37,7 @@ from app.modules.practice.schemas import (
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.scores.repository import ScoreRepository
+from app.modules.library.service import LibraryService
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
@@ -52,6 +53,7 @@ class PracticeService:
         report_builder: PracticeReportBuilder | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         score_repository: ScoreRepository | None = None,
+        library_service: LibraryService | None = None,
         storage: FileStorage | None = None,
     ) -> None:
         self.repository = repository or PracticeRepository()
@@ -59,6 +61,7 @@ class PracticeService:
         self.report_builder = report_builder or practice_report_builder
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.score_repository = score_repository or ScoreRepository()
+        self.library_service = library_service or LibraryService()
         self.storage = storage or file_storage
 
     async def create_session(
@@ -221,6 +224,8 @@ class PracticeService:
         session.state = PracticeSessionState.FINISHED
         session.finished_at = utc_now_naive()
         session = await self.repository.save_session(db, session)
+        await self.library_service.mark_practiced(db, user_id, session.score_id)
+        await db.commit()
         self.runtime_registry.release(session.session_uuid)
         return await self._to_session_detail(db, session)
 

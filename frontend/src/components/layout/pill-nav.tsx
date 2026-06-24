@@ -125,7 +125,8 @@ export default function PillNav() {
     ? [
       { label: 'nav.home' as const, href: '/' as const },
       { label: 'nav.upload' as const, href: '/upload' as const },
-      { label: 'nav.history' as const, href: '/history' as const },
+      { label: 'nav.myScores' as const, href: '/my-scores' as const },
+      { label: 'nav.library' as const, href: '/library' as const },
       { label: 'nav.pricing' as const, href: '/subscriptions' as const },
       { label: 'nav.help' as const, href: '/help' as const },
     ]

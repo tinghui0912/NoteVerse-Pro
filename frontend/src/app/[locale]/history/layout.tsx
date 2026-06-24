@@ -9,8 +9,8 @@ export async function generateMetadata({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'metadata' });
   return {
-    title: t('historyTitle'),
-    description: t('historyDescription'),
+    title: t('libraryTitle'),
+    description: t('libraryDescription'),
   };
 }
 

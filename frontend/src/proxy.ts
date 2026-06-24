@@ -9,6 +9,8 @@ const REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || 'noteverse_refres
 const PROTECTED_PATH_PREFIXES = [
   '/upload',
   '/history',
+  '/library',
+  '/my-scores',
   '/profile',
   '/review',
   '/results',

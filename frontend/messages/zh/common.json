@@ -3,7 +3,8 @@
     "home": "首页",
     "features": "功能",
     "pricing": "定价",
-    "history": "历史记录",
+    "library": "我的乐谱库",
+    "myScores": "我的作品",
     "help": "帮助",
     "login": "登录",
     "getStarted": "注册",
@@ -23,7 +24,7 @@
   "edit": "编辑",
   "upgrade": "升级",
   "freePlan": "免费版",
-  "add": "添加",
+  "add": "插入",
   "delete": "删除",
   "cancel": "取消",
   "confirm": "确认",
@@ -64,7 +65,7 @@
   "tryAgain": "重试",
   "returnHome": "返回首页",
   "pageNotFound": "页面未找到",
-  "pageNotFoundDesc": "您正在查找的页面不存在或已被移除。",
+  "pageNotFoundDesc": "你正在查找的页面不存在或已被移除。",
   "saving": "保存中...",
   "saved": "已保存"
 }

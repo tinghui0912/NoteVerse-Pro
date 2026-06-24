@@ -183,13 +183,13 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
           {props.isAuthenticated ? (
             <Button variant="outline" className={actionButtonClass} onClick={save} disabled={bookmark.isPending}>
               {bookmark.isPending ? <Loader2 className={`${iconClass} animate-spin`} /> : <Bookmark className={iconClass} />}
-              <span className="truncate">{t('saveToHistory')}</span>
+              <span className="truncate">{t('saveToLibrary')}</span>
             </Button>
           ) : (
             <Button asChild variant="outline" className={actionButtonClass}>
               <Link href={loginHref}>
                 <Bookmark className={iconClass} />
-                <span className="truncate">{t('saveToHistory')}</span>
+                <span className="truncate">{t('saveToLibrary')}</span>
               </Link>
             </Button>
           )}
