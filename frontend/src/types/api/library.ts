@@ -56,6 +56,7 @@ export interface LibraryEntry {
   folder_id: string | null;
   title: string;
   score_state: ScoreState;
+  thumbnail_artifact_id: string | null;
   taxonomy_tags: ScoreTaxonomyTag[];
   metadata: ScoreMetadata | null;
   is_favorite: boolean;

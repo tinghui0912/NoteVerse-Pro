@@ -107,6 +107,7 @@ class LibraryEntryRead(BaseModel):
     folder_id: str | None
     title: str
     score_state: ScoreState
+    thumbnail_artifact_id: str | None
     taxonomy_tags: list[ScoreTaxonomyTagRead]
     metadata: MetadataRead | None
     is_favorite: bool

@@ -161,6 +161,9 @@ class SyncJobService:
         if not job:
             return {"error": "Job not found"}
         job_id = require_persisted_id(job.id, entity="processing job")
+        requested_options = job.requested_options or {}
+        requested_title = requested_options.get("title")
+        requested_taxonomy_tags = requested_options.get("taxonomy_tags")
         artifacts: dict[str, list[JobArtifactItem]] = {}
         for row in self.repository.list_artifacts(db, job_id):
             artifacts.setdefault(row.kind, []).append({
@@ -179,8 +182,10 @@ class SyncJobService:
             "state": job.state,
             "progress": job.progress,
             "current_step": job.current_step,
-            "title": None,
-            "taxonomy_tags": [],
+            "title": requested_title if isinstance(requested_title, str) else None,
+            "taxonomy_tags": (
+                requested_taxonomy_tags if isinstance(requested_taxonomy_tags, list) else []
+            ),
             "created_at": job.created_at.isoformat(),
             "updated_at": job.updated_at.isoformat(),
             "started_at": job.started_at.isoformat() if job.started_at else None,

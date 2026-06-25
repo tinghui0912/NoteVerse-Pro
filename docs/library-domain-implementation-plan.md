@@ -387,7 +387,7 @@ These are intentionally not part of the completed v1 baseline:
 - marketplace, comments, ratings, recommendations;
 - per-user custom score aliases;
 - automated trash retention;
-- richer thumbnail/capability projection in Library entries;
+- richer capability projection in Library entries;
 - full drag-and-drop folder reordering;
 - collaborative edit invitations and team libraries.
 
@@ -397,7 +397,7 @@ The v1 baseline proves the domain split, but the product is not yet competitive 
 content platforms. The following phases turn the baseline into a production-grade management
 surface.
 
-### P9 - Processing Queue In My Scores `[in progress]`
+### P9 - Processing Queue In My Scores `[completed]`
 
 Purpose: users must not need to remain on `/upload` to know whether a score succeeded.
 
@@ -405,16 +405,19 @@ Tasks:
 
 - surface active and failed `ProcessingJob` rows in `/my-scores`; `[completed: initial UI]`
 - add My Scores views for processing and failed uploads; `[completed: initial UI]`
-- show processing progress, current step, failure reason, and produced score link when ready;
-- allow failed jobs to be dismissed or retried through explicit job actions;
+- show processing progress, current step, failure reason, and produced score link when ready; `[completed]`
+- allow failed jobs to be dismissed or retried through explicit job actions; `[completed]`
 - keep failed jobs out of `/library`, because they are not playable learning entries yet.
 
 Initial implementation notes:
 
 - `/my-scores` now combines owned scores with active/failed processing jobs from `/jobs`;
 - processing and failed views are frontend aggregate views, not score API views;
-- failed jobs can be dismissed or sent back to upload again;
-- a dedicated retry endpoint remains deferred until the retry contract is designed.
+- job submission stores `requested_options`, so retries preserve score title and taxonomy tags;
+- failed jobs can be dismissed or retried through `POST /jobs/{job_id}/retry`;
+- retry creates a new processing job from the original uploaded files and saved request options;
+- if the original upload file has been removed, retry fails explicitly instead of silently
+  asking the user to re-upload.
 
 Acceptance:
 
@@ -423,7 +426,7 @@ Acceptance:
 - users can inspect the failure and take a next action;
 - successful jobs route to the produced score identity, not the job identity.
 
-### P10 - My Scores Management Actions `[in progress]`
+### P10 - My Scores Management Actions `[completed]`
 
 Purpose: `/my-scores` should behave like a creator asset manager, not a static card list.
 
@@ -432,8 +435,8 @@ Tasks:
 - add visible search and sort controls wired to existing API parameters; `[completed: initial UI]`
 - add batch selection; `[completed]`
 - add owner actions: delete, archive, and add to Library as `SELF_ADDED`; `[completed]`
-- add owner actions: publish and unpublish; `[planned]`
-- add restore-from-archive after the score model gains an explicit restore-state contract; `[planned]`
+- add owner actions: publish and unpublish; `[completed]`
+- add restore-from-archive after the score model gains an explicit restore-state contract; `[completed]`
 - show richer owner status: processing, failed, draft, private, published, archived; `[completed: initial UI]`
 - add pagination controls and empty states for each view; `[completed: pagination controls]`
 
@@ -442,12 +445,16 @@ Initial implementation notes:
 - `/my-scores` supports selecting visible score cards and clearing selection;
 - selected owned scores can be deleted through `POST /scores/batch-delete`;
 - selected owned scores can be archived through `POST /scores/batch-archive`;
+- archived scores store `archived_from_state`, and selected archived scores can be restored
+  through `POST /scores/batch-restore` without guessing whether they were drafts or active;
 - selected owned scores can be added to the learning Library through
   `POST /library/entries/batch-self-add`, which creates `SELF_ADDED` entries only for
   current-user-owned scores;
 - paginated My Scores API results can be traversed from the page UI without losing filters;
-- publish/unpublish remains intentionally deferred until batch publication UX and backend
-  lifecycle semantics are designed together.
+- Score reads include a lightweight publication summary so My Scores can show published state
+  without fetching each score's publication separately;
+- batch publish is exposed only in the Private view; batch unpublish is exposed only in the
+  Published view; archived scores cannot be published at the backend service layer.
 
 Acceptance:
 
@@ -455,7 +462,7 @@ Acceptance:
 - owned-score management stays out of the Library folder tree;
 - adding an owned score to Library is explicit and creates a Library entry.
 
-### P11 - Library Management Actions And Folder Depth `[planned]`
+### P11 - Library Management Actions And Folder Depth `[completed]`
 
 Purpose: `/library` should behave like a personal learning workspace.
 
@@ -465,8 +472,8 @@ Tasks:
 - add pagination controls wired to existing API pagination; `[completed]`
 - add batch favorite, archive, trash, and move actions; `[completed]`
 - enforce a product folder depth limit of 2 levels in UI and backend validation; `[completed]`
-- keep database hierarchy cycle protection;
-- expose clear empty states for recent practice, to-practice, mastered, favorites, and folders.
+- keep database hierarchy cycle protection; `[completed]`
+- expose clear empty states for recent practice, to-practice, mastered, favorites, and folders; `[completed]`
 
 Acceptance:
 
@@ -474,7 +481,7 @@ Acceptance:
 - folder depth cannot exceed the product limit through UI or API;
 - Library actions do not affect score ownership or canonical revisions.
 
-### P12 - Component Extraction And Dedicated Tests `[in progress]`
+### P12 - Component Extraction And Dedicated Tests `[completed]`
 
 Purpose: keep the new management surfaces maintainable as behavior grows.
 
@@ -485,8 +492,9 @@ Tasks:
 - split `/my-scores` into domain components and hooks under `components/my-scores` and
   `hooks/my-scores` where useful; `[completed: initial components]`
 - add backend Library/My Scores domain tests beyond route-auth smoke; `[completed: service regressions]`
+- add frontend tests for Library folder tree and My Scores view helpers; `[completed]`
 - add frontend tests for URL state, search/sort, batch actions, processing/failed states,
-  and legacy `/history` redirect behavior.
+  and legacy `/history` redirect behavior; `[completed]`
 
 Initial implementation notes:
 
@@ -494,6 +502,20 @@ Initial implementation notes:
   and pagination to `components/my-scores`;
 - `/library` now delegates sidebar navigation, entry cards, folder dialogs, filter controls,
   pagination, and bulk actions to `components/library`;
+- My Scores and Library cards default to browsing mode without checkboxes; checkboxes and
+  batch action bars appear only after the user enters batch edit mode;
+- score cards keep primary navigation clean and expose secondary actions through a hover/focus
+  overflow menu instead of permanent card-level buttons;
+- My Scores and Library read models include `thumbnail_artifact_id`, allowing cards to render
+  the first generated `RENDERED_PAGE` artifact while keeping list payloads light;
+- Library folder tree helpers live in `lib/library/folder-tree.ts` with unit coverage for
+  view normalization, folder depth, subtree height, descendants, and sorting;
+- My Scores view helpers live in `lib/my-scores/views.ts` with unit coverage for
+  score-backed views versus processing/failed aggregate views;
+- Library and My Scores URL builders live in `lib/library/state.ts` and
+  `lib/my-scores/state.ts`, with unit coverage for search, sort, folder/view, and page state;
+- My Scores batch action visibility is covered for private, published, and archived views;
+- legacy `/history` redirect behavior is covered by a focused route test;
 - backend service regressions cover owned-score archive and explicit self-add-to-library
   behavior.
 

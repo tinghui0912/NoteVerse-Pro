@@ -1,18 +1,28 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
-from app.db.models import ProcessingJob, User
+from app.db.models import ProcessingJob, ProcessingJobUpload, Upload, User
 from app.db.models.processing_job import ProcessingJobState
 from app.db.model_utils import require_persisted_id
 from app.modules.jobs.repository import JobRepository
-from app.modules.jobs.schemas import JobDetail, JobStatusEntry, JobSubmitRequestLike, JobSubmitResult
+from app.modules.jobs.schemas import JobDetail, JobProcessingOptions, JobStatusEntry, JobSubmitRequestLike, JobSubmitResult
 from app.modules.jobs.submission_service import JobSubmissionService
 from app.modules.jobs.worker_service import sync_job_service
 from app.modules.artifacts.service import ArtifactDelivery
 from app.storage import FileStorage, file_storage
 from app.shared.constants import ErrorCode
+
+
+@dataclass(frozen=True)
+class RetryJobRequest:
+    file_ids: list[str]
+    options: JobProcessingOptions | None
+    idempotency_key: str | None = None
 
 
 class JobService:
@@ -28,6 +38,38 @@ class JobService:
 
     async def submit(self, current_user: User, request: JobSubmitRequestLike) -> JobSubmitResult:
         return await self.submission_service.submit(current_user, request)
+
+    async def retry(
+        self,
+        db: AsyncSession,
+        job_uuid: str,
+        current_user: User,
+        user_id: int,
+    ) -> JobSubmitResult:
+        job = await self.get_owned_job(db, job_uuid, user_id)
+        if job.state != ProcessingJobState.FAILURE:
+            raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="state")
+        job_id = require_persisted_id(job.id, entity="processing job")
+        rows = await db.execute(
+            select(Upload.sha256)
+            .join(ProcessingJobUpload, ProcessingJobUpload.upload_id == Upload.id)
+            .where(ProcessingJobUpload.job_id == job_id)
+        )
+        file_ids = list(rows.scalars().all())
+        if not file_ids:
+            raise ResourceNotFoundException("job_upload", job_uuid, ErrorCode.FILE_NOT_FOUND)
+        options = (
+            job.requested_options
+            if isinstance(job.requested_options, dict)
+            else None
+        )
+        return await self.submission_service.submit(
+            current_user,
+            RetryJobRequest(
+                file_ids=file_ids,
+                options=options,  # type: ignore[arg-type]
+            ),
+        )
 
     async def list_jobs(
         self,

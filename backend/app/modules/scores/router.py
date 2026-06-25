@@ -10,6 +10,7 @@ from app.modules.scores.dependencies import get_revision_service, get_score_serv
 from app.modules.scores.schemas import (
     ScoreBatchArchiveRequest,
     ScoreBatchDeleteRequest,
+    ScoreBatchRestoreRequest,
     ScoreUpdateRequest,
 )
 from app.modules.scores.service import ScoreService
@@ -59,6 +60,18 @@ async def batch_archive_scores(
     user_id = require_persisted_id(current_user.id, entity="user")
     archived = await service.batch_archive(db, request, user_id)
     return success_response(data={"archived": archived}, message=SuccessCode.UPDATE_SUCCESS)
+
+
+@router.post("/batch-restore")
+async def batch_restore_scores(
+    request: ScoreBatchRestoreRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreService = Depends(get_score_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    restored = await service.batch_restore(db, request, user_id)
+    return success_response(data={"restored": restored}, message=SuccessCode.UPDATE_SUCCESS)
 
 
 @router.get("/{score_id}")

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
     ConflictException,
+    BusinessRuleException,
     ResourceNotFoundException,
     UnauthorizedException,
 )
@@ -23,6 +24,8 @@ from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.schemas import (
     ScoreRead,
     ScoreBatchArchiveRequest,
+    ScoreBatchRestoreRequest,
+    ScorePublicationSummaryRead,
     ScoreTaxonomyTagRead,
     ScoreUpdateRequest,
 )
@@ -110,7 +113,35 @@ class ScoreService:
             assert score is not None
             if score.state == ScoreState.ARCHIVED:
                 continue
+            score.archived_from_state = score.state
             score.state = ScoreState.ARCHIVED
+            score.version += 1
+            score.updated_at = now
+            changed += 1
+        await db.commit()
+        return changed
+
+    async def batch_restore(
+        self, db: AsyncSession, request: ScoreBatchRestoreRequest, user_id: int
+    ) -> int:
+        changed = 0
+        now = utc_now_naive()
+        for score_uuid in request.score_ids:
+            access = await self.access_policy.authorize(
+                db, score_uuid, ScoreAction.EDIT, user_id=user_id
+            )
+            score = await self.repository.get(db, access.score.score_uuid, lock=True)
+            assert score is not None
+            if score.state != ScoreState.ARCHIVED:
+                continue
+            if score.archived_from_state is None:
+                raise BusinessRuleException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    rule="archived_score_missing_restore_state",
+                    details={"score_id": score.score_uuid},
+                )
+            score.state = score.archived_from_state
+            score.archived_from_state = None
             score.version += 1
             score.updated_at = now
             changed += 1
@@ -220,6 +251,18 @@ class ScoreService:
             if score.head_revision_id
             else None
         )
+        thumbnail = (
+            await self.repository.first_rendered_page_artifact(db, score.head_revision_id)
+            if score.head_revision_id
+            else None
+        )
+        score_id = require_persisted_id(score.id, entity="score")
+        publication = await self.repository.publication(db, score_id)
+        published_revision = (
+            await db.get(ScoreRevision, publication.published_revision_id)
+            if publication
+            else None
+        )
         return ScoreRead(
             score_id=score.score_uuid,
             title=score.title,
@@ -230,14 +273,24 @@ class ScoreService:
                     source=source,
                     confidence=confidence,
                 )
-                for category, code, source, confidence in await self.repository.taxonomy_tags(
-                    db, require_persisted_id(score.id, entity="score")
-                )
+                for category, code, source, confidence in await self.repository.taxonomy_tags(db, score_id)
             ],
             state=score.state,
+            archived_from_state=score.archived_from_state,
             version=score.version,
             head_revision_id=head.revision_uuid if head else None,
             approved_revision_id=approved.revision_uuid if approved else None,
+            thumbnail_artifact_id=thumbnail.artifact_uuid if thumbnail else None,
+            publication=(
+                ScorePublicationSummaryRead(
+                    public_slug=publication.public_slug,
+                    revision_id=published_revision.revision_uuid,
+                    status=publication.status,
+                    discoverability=publication.discoverability,
+                )
+                if publication and published_revision
+                else None
+            ),
             originating_job_id=job.job_uuid if job else None,
             metadata=(
                 MetadataProjectionService.to_read(head, projection)

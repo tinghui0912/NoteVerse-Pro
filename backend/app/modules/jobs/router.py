@@ -39,6 +39,18 @@ async def submit_job(
     return success_response(data=result, message=SuccessCode.PROCESSING_STARTED)
 
 
+@router.post("/{job_id}/retry")
+async def retry_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: JobService = Depends(get_job_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.retry(db, job_id, current_user, user_id)
+    return success_response(data=result, message=SuccessCode.PROCESSING_STARTED)
+
+
 @router.get("/{job_id}")
 async def get_job(
     job_id: str,

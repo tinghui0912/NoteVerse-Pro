@@ -13,15 +13,18 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 from app.utils.timezone import utc_now_naive
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
+metadata_json_type = JSON().with_variant(JSONB, "postgresql")
 
 
 class ProcessingJobState(str, enum.Enum):
@@ -66,6 +69,10 @@ class ProcessingJob(SQLModel, table=True):  # type: ignore[call-arg]
     progress: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     current_step: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     idempotency_key: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    requested_options: Optional[dict[str, object]] = Field(
+        default=None,
+        sa_column=Column(metadata_json_type),
+    )
     code: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     error: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_type: Optional[str] = Field(default=None, sa_column=Column(String(64)))

@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.db.models.score import ScoreState
+from app.db.models.score_access import PublicationDiscoverability, PublicationStatus
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.scores.taxonomy import ordered_unique_pairs, validate_taxonomy_pair
@@ -60,14 +61,28 @@ class ScoreBatchArchiveRequest(BaseModel):
     score_ids: list[str] = Field(min_length=1)
 
 
+class ScoreBatchRestoreRequest(BaseModel):
+    score_ids: list[str] = Field(min_length=1)
+
+
+class ScorePublicationSummaryRead(BaseModel):
+    public_slug: str
+    revision_id: str
+    status: PublicationStatus
+    discoverability: PublicationDiscoverability
+
+
 class ScoreRead(BaseModel):
     score_id: str
     title: str
     taxonomy_tags: list[ScoreTaxonomyTagRead]
     state: ScoreState
+    archived_from_state: ScoreState | None
     version: int
     head_revision_id: str | None
     approved_revision_id: str | None
+    thumbnail_artifact_id: str | None
+    publication: ScorePublicationSummaryRead | None
     originating_job_id: str | None
     metadata: MetadataRead | None
     capabilities: ScoreCapabilities

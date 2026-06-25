@@ -50,3 +50,14 @@ export function useDeleteJob() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all }),
   });
 }
+
+export function useRetryJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: jobsApi.retryJob,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myScores.all });
+    },
+  });
+}

@@ -90,6 +90,10 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
     state: ScoreState = Field(
         sa_column=Column(SAEnum(ScoreState, name="scorestate"), nullable=False)
     )
+    archived_from_state: Optional[ScoreState] = Field(
+        default=None,
+        sa_column=Column(SAEnum(ScoreState, name="scorestate"), nullable=True),
+    )
     head_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     approved_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     originating_job_id: Optional[int] = Field(

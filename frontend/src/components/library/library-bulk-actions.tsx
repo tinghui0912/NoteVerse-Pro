@@ -21,6 +21,7 @@ interface LibraryBulkActionsProps {
   favoritePending: boolean;
   archivePending: boolean;
   trashPending: boolean;
+  onSelectVisible: () => void;
   onMoveTargetChange: (folderId: string) => void;
   onMoveSelected: () => void;
   onFavoriteSelected: () => void;
@@ -39,6 +40,7 @@ export function LibraryBulkActions({
   favoritePending,
   archivePending,
   trashPending,
+  onSelectVisible,
   onMoveTargetChange,
   onMoveSelected,
   onFavoriteSelected,
@@ -50,9 +52,17 @@ export function LibraryBulkActions({
   return (
     <Card className="mb-5 rounded-2xl">
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <MoveRight className="h-4 w-4" />
-          {t('selectedCount', { count: selectedCount })}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onSelectVisible}>
+            {t('selectVisible')}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onClearSelection} disabled={!selectedCount}>
+            {t('clearSelection')}
+          </Button>
+          <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <MoveRight className="h-4 w-4" />
+            {t('selectedCount', { count: selectedCount })}
+          </span>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Select value={moveTargetFolderId} onValueChange={onMoveTargetChange}>
@@ -68,13 +78,13 @@ export function LibraryBulkActions({
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={onMoveSelected} disabled={movePending}>
+          <Button onClick={onMoveSelected} disabled={!selectedCount || movePending}>
             {t('moveSelected')}
           </Button>
           <Button
             variant="outline"
             onClick={onFavoriteSelected}
-            disabled={favoritePending}
+            disabled={!selectedCount || favoritePending}
           >
             <Star className="mr-2 h-4 w-4" />
             {t('favoriteSelected')}
@@ -82,7 +92,7 @@ export function LibraryBulkActions({
           <Button
             variant="outline"
             onClick={onArchiveSelected}
-            disabled={archivePending}
+            disabled={!selectedCount || archivePending}
           >
             <Archive className="mr-2 h-4 w-4" />
             {t('archiveSelected')}
@@ -90,12 +100,12 @@ export function LibraryBulkActions({
           <Button
             variant="destructive"
             onClick={onTrashSelected}
-            disabled={trashPending}
+            disabled={!selectedCount || trashPending}
           >
             <Trash2 className="mr-2 h-4 w-4" />
             {t('trashSelected')}
           </Button>
-          <Button variant="ghost" size="icon" onClick={onClearSelection}>
+          <Button variant="ghost" size="icon" onClick={onClearSelection} disabled={!selectedCount}>
             <X className="h-4 w-4" />
           </Button>
         </div>

@@ -98,6 +98,7 @@ class JobSubmissionService:
                 state=ProcessingJobState.PENDING,
                 progress=0,
                 idempotency_key=idempotency_key,
+                requested_options=request.options,
                 requested_at=now,
                 created_at=now,
                 updated_at=now,

@@ -381,6 +381,11 @@ class LibraryService:
             available = False
         head = await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
         score_id = require_persisted_id(score.id, entity="score")
+        thumbnail = (
+            await self.score_repository.first_rendered_page_artifact(db, score.head_revision_id)
+            if score.head_revision_id
+            else None
+        )
         return LibraryEntryRead(
             entry_id=entry.entry_uuid,
             score_id=score.score_uuid,
@@ -388,6 +393,7 @@ class LibraryService:
             folder_id=await self._folder_uuid(db, entry.folder_id),
             title=score.title,
             score_state=score.state,
+            thumbnail_artifact_id=thumbnail.artifact_uuid if thumbnail else None,
             taxonomy_tags=[
                 ScoreTaxonomyTagRead(
                     category=category,

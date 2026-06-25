@@ -114,12 +114,36 @@ class ScoreRepository:
             )
         ).scalar_one_or_none()
 
+    async def first_rendered_page_artifact(
+        self, db: AsyncSession, revision_id: int
+    ) -> ScoreArtifact | None:
+        return (
+            await db.execute(
+                select(ScoreArtifact)
+                .where(
+                    ScoreArtifact.revision_id == revision_id,
+                    ScoreArtifact.kind == ArtifactKind.RENDERED_PAGE,
+                )
+                .order_by(ScoreArtifact.page_number.asc(), ScoreArtifact.created_at.asc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
     async def originating_job(
         self, db: AsyncSession, job_id: int | None
     ) -> ProcessingJob | None:
         if job_id is None:
             return None
         return await db.get(ProcessingJob, job_id)
+
+    async def publication(
+        self, db: AsyncSession, score_id: int
+    ) -> ScorePublication | None:
+        return (
+            await db.execute(
+                select(ScorePublication).where(ScorePublication.score_id == score_id)
+            )
+        ).scalar_one_or_none()
 
     async def taxonomy_tags(
         self, db: AsyncSession, score_id: int

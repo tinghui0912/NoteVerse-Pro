@@ -40,4 +40,8 @@ export async function deleteJob(jobId: string): Promise<ApiResponse<never>> {
   return apiClient.delete<ApiResponse<never>>(`/jobs/${jobId}`);
 }
 
-export const jobsApi = { deleteJob, downloadJobArtifact, getJob, listJobs, submitJob };
+export async function retryJob(jobId: string): Promise<ApiResponse<{ job_id: string }>> {
+  return apiClient.post<ApiResponse<{ job_id: string }>>(`/jobs/${jobId}/retry`);
+}
+
+export const jobsApi = { deleteJob, downloadJobArtifact, getJob, listJobs, retryJob, submitJob };

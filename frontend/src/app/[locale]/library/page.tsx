@@ -36,68 +36,30 @@ import {
   useUpdateLibraryFolder,
   useUpdateLibraryEntry,
 } from '@/hooks/queries/use-library-queries';
+import {
+  folderDepth,
+  folderDescendantIds,
+  folderLevel,
+  folderSubtreeHeight,
+  MAX_LIBRARY_FOLDER_LEVEL,
+  normalizeLibraryView,
+  sortedLibraryFolders,
+} from '@/lib/library/folder-tree';
+import {
+  buildLibraryHref,
+  normalizeLibrarySort,
+  normalizePage,
+} from '@/lib/library/state';
 import type { FolderDeleteMode, LibraryFolder, LibraryPracticeState, LibraryView } from '@/types/api';
 
 const ROOT_FOLDER_VALUE = '__root__';
-const MAX_FOLDER_LEVEL = 2;
-const LIBRARY_VIEWS = [
-  'all',
-  'favorites',
-  'recent_practice',
-  'to_practice',
-  'mastered',
-  'bookmarks',
-  'archived',
-  'trash',
-] as const satisfies readonly LibraryView[];
 
 type FolderFormState =
   | { mode: 'create'; folder: null }
   | { mode: 'edit'; folder: LibraryFolder };
 
-function folderDepth(folder: LibraryFolder, folders: LibraryFolder[]): number {
-  let depth = 0;
-  let parentId = folder.parent_folder_id;
-  while (parentId) {
-    const parent = folders.find((item) => item.folder_id === parentId);
-    if (!parent) break;
-    depth += 1;
-    parentId = parent.parent_folder_id;
-  }
-  return depth;
-}
-
-function folderLevel(folder: LibraryFolder, folders: LibraryFolder[]): number {
-  return folderDepth(folder, folders) + 1;
-}
-
-function folderSubtreeHeight(folder: LibraryFolder, folders: LibraryFolder[]): number {
-  const childHeights: number[] = folders
-    .filter((item) => item.parent_folder_id === folder.folder_id)
-    .map((child) => folderSubtreeHeight(child, folders));
-  return 1 + (childHeights.length ? Math.max(...childHeights) : 0);
-}
-
-function folderDescendantIds(folder: LibraryFolder, folders: LibraryFolder[]) {
-  const result = new Set<string>();
-  const visit = (parentId: string) => {
-    for (const item of folders) {
-      if (item.parent_folder_id === parentId) {
-        result.add(item.folder_id);
-        visit(item.folder_id);
-      }
-    }
-  };
-  visit(folder.folder_id);
-  return result;
-}
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function normalizeLibraryView(value: string | undefined): LibraryView {
-  return LIBRARY_VIEWS.includes(value as LibraryView) ? (value as LibraryView) : 'all';
 }
 
 export default function LibraryPage({
@@ -114,6 +76,7 @@ export default function LibraryPage({
   const params = React.use(searchParams);
   const t = useTranslations('library');
   const router = useRouter();
+  const [batchMode, setBatchMode] = useState(false);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [moveTargetFolderId, setMoveTargetFolderId] = useState<string>(ROOT_FOLDER_VALUE);
   const [folderForm, setFolderForm] = useState<FolderFormState | null>(null);
@@ -132,14 +95,14 @@ export default function LibraryPage({
   const updateEntry = useUpdateLibraryEntry();
   const view = normalizeLibraryView(params.view);
   const folderId = params.folder;
-  const page = Math.max(1, Number(params.page ?? 1));
+  const page = normalizePage(params.page);
   const pageSize = 20;
   const foldersQuery = useLibraryFolders();
   const entriesQuery = useLibraryEntries({
     view,
     folderId,
     search: params.search,
-    sort: params.sort === 'name_asc' ? 'name_asc' : 'updated_desc',
+    sort: normalizeLibrarySort(params.sort),
     page,
     pageSize,
   });
@@ -197,17 +160,14 @@ export default function LibraryPage({
   ];
 
   const sortedFolders = useMemo(
-    () =>
-      [...folders].sort((a, b) => {
-        const depthDelta = folderDepth(a, folders) - folderDepth(b, folders);
-        if (depthDelta !== 0) return depthDelta;
-        return a.position - b.position || a.name.localeCompare(b.name);
-      }),
+    () => sortedLibraryFolders(folders),
     [folders]
   );
   const selectableParentFolders = useMemo(() => {
     if (!folderForm || folderForm.mode === 'create') {
-      return sortedFolders.filter((folder) => folderLevel(folder, folders) < MAX_FOLDER_LEVEL);
+      return sortedFolders.filter(
+        (folder) => folderLevel(folder, folders) < MAX_LIBRARY_FOLDER_LEVEL
+      );
     }
     const excludedIds = folderDescendantIds(folderForm.folder, folders);
     excludedIds.add(folderForm.folder.folder_id);
@@ -215,33 +175,29 @@ export default function LibraryPage({
     return sortedFolders.filter(
       (folder) =>
         !excludedIds.has(folder.folder_id) &&
-        folderDepth(folder, folders) + subtreeHeight < MAX_FOLDER_LEVEL
+        folderDepth(folder, folders) + subtreeHeight < MAX_LIBRARY_FOLDER_LEVEL
     );
   }, [folderForm, sortedFolders, folders]);
 
   const navigate = (next: { view?: LibraryView; folder?: string | null; page?: number }) => {
-    const query = new URLSearchParams();
-    if (next.folder) query.set('folder', next.folder);
-    else query.set('view', next.view ?? 'all');
-    if (params.search) query.set('search', params.search);
-    if (params.sort) query.set('sort', params.sort);
-    if (next.page && next.page > 1) query.set('page', String(next.page));
-    router.push(`/library?${query.toString()}`);
+    router.push(
+      buildLibraryHref(
+        { view, folderId, search: params.search, sort: params.sort },
+        next
+      )
+    );
   };
   const navigateWithFilters = (next: {
     search?: string | null;
     sort?: string;
     page?: number;
   }) => {
-    const query = new URLSearchParams();
-    if (folderId) query.set('folder', folderId);
-    else query.set('view', view);
-    const nextSearch = next.search === undefined ? params.search : next.search;
-    const nextSort = next.sort ?? params.sort;
-    if (nextSearch) query.set('search', nextSearch);
-    if (nextSort && nextSort !== 'updated_desc') query.set('sort', nextSort);
-    if (next.page && next.page > 1) query.set('page', String(next.page));
-    router.push(`/library?${query.toString()}`);
+    router.push(
+      buildLibraryHref(
+        { view, folderId, search: params.search, sort: params.sort },
+        next
+      )
+    );
   };
   const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -252,7 +208,7 @@ export default function LibraryPage({
     setFolderName('');
     const currentFolder = folders.find((folder) => folder.folder_id === folderId);
     setFolderParentId(
-      currentFolder && folderLevel(currentFolder, folders) < MAX_FOLDER_LEVEL
+      currentFolder && folderLevel(currentFolder, folders) < MAX_LIBRARY_FOLDER_LEVEL
         ? currentFolder.folder_id
         : ROOT_FOLDER_VALUE
     );
@@ -306,6 +262,8 @@ export default function LibraryPage({
       checked ? [...current, entryId] : current.filter((id) => id !== entryId)
     );
   };
+  const selectVisibleEntries = () =>
+    setSelectedEntryIds(entries.map((entry) => entry.entry_id));
   const clearSelection = () => setSelectedEntryIds([]);
   const moveSelectedEntries = () => {
     if (!selectedEntryIds.length) return;
@@ -364,6 +322,11 @@ export default function LibraryPage({
       ? t('emptyFolder')
       : (emptyMessages[view] ?? t('empty'));
 
+  React.useEffect(() => {
+    setSelectedEntryIds([]);
+    setBatchMode(false);
+  }, [view, folderId, params.search, params.sort, page]);
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <div className="bg-gray-900">
@@ -403,11 +366,25 @@ export default function LibraryPage({
                   </p>
                 ) : null}
               </div>
-              <Button onClick={() => router.push('/upload')}>{t('uploadScore')}</Button>
+              <div className="flex flex-wrap gap-2">
+                {entries.length ? (
+                  <Button
+                    variant={batchMode ? 'secondary' : 'outline'}
+                    onClick={() => {
+                      setBatchMode((current) => !current);
+                      setSelectedEntryIds([]);
+                    }}
+                  >
+                    {batchMode ? t('cancelBatchEdit') : t('batchEdit')}
+                  </Button>
+                ) : null}
+                <Button onClick={() => router.push('/upload')}>{t('uploadScore')}</Button>
+              </div>
             </div>
+            {!batchMode ? (
             <LibraryFilterBar
               searchInput={searchInput}
-              sort={params.sort === 'name_asc' ? 'name_asc' : 'updated_desc'}
+              sort={normalizeLibrarySort(params.sort)}
               hasSearch={Boolean(params.search)}
               onSearchInputChange={setSearchInput}
               onSubmit={submitSearch}
@@ -418,6 +395,7 @@ export default function LibraryPage({
               }}
               t={t}
             />
+            ) : null}
             {mutationError ? (
               <Alert variant="destructive" className="mb-5">
                 <CircleAlert className="h-4 w-4" />
@@ -425,7 +403,7 @@ export default function LibraryPage({
                 <AlertDescription>{errorMessage(mutationError)}</AlertDescription>
               </Alert>
             ) : null}
-            {selectedEntryIds.length ? (
+            {batchMode && entries.length ? (
               <LibraryBulkActions
                 selectedCount={selectedEntryIds.length}
                 moveTargetFolderId={moveTargetFolderId}
@@ -435,6 +413,7 @@ export default function LibraryPage({
                 favoritePending={favoriteEntries.isPending}
                 archivePending={archiveEntries.isPending}
                 trashPending={trashEntries.isPending}
+                onSelectVisible={selectVisibleEntries}
                 onMoveTargetChange={setMoveTargetFolderId}
                 onMoveSelected={moveSelectedEntries}
                 onFavoriteSelected={favoriteSelectedEntries}
@@ -466,8 +445,11 @@ export default function LibraryPage({
                   <LibraryEntryCard
                     key={entry.entry_id}
                     entry={entry}
+                    batchMode={batchMode}
                     selected={selectedEntrySet.has(entry.entry_id)}
                     updatePending={updateEntry.isPending}
+                    movePending={moveEntries.isPending}
+                    folders={sortedFolders}
                     practiceStateLabel={practiceStateLabel}
                     onOpen={() =>
                       router.push(
@@ -481,6 +463,12 @@ export default function LibraryPage({
                     }
                     onUpdatePracticeState={(practiceState) =>
                       updatePracticeState(entry.entry_id, practiceState)
+                    }
+                    onMoveToFolder={(targetFolderId) =>
+                      moveEntries.mutate({
+                        entry_ids: [entry.entry_id],
+                        target_folder_id: targetFolderId,
+                      })
                     }
                     t={t}
                   />

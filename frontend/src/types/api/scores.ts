@@ -41,14 +41,24 @@ export interface ScoreTaxonomyTag {
   confidence: number | null;
 }
 
+export interface ScorePublicationSummary {
+  public_slug: string;
+  revision_id: string;
+  status: 'PUBLISHED' | 'UNPUBLISHED';
+  discoverability: 'LISTED' | 'UNLISTED';
+}
+
 export interface ScoreDetail {
   score_id: string;
   title: string;
   taxonomy_tags: ScoreTaxonomyTag[];
   state: ScoreState;
+  archived_from_state: ScoreState | null;
   version: number;
   head_revision_id: string | null;
   approved_revision_id: string | null;
+  thumbnail_artifact_id: string | null;
+  publication: ScorePublicationSummary | null;
   originating_job_id: string | null;
   metadata: ScoreMetadata | null;
   capabilities: ScoreCapabilities;

@@ -9,34 +9,34 @@ import { MyScoresBulkActions } from '@/components/my-scores/my-scores-bulk-actio
 import { MyScoresFilterBar } from '@/components/my-scores/my-scores-filter-bar';
 import { MyScoresPagination } from '@/components/my-scores/my-scores-pagination';
 import { MyScoreCard } from '@/components/my-scores/my-score-card';
-import { isProcessingJob, ProcessingJobCard } from '@/components/my-scores/processing-job-card';
+import { ProcessingJobCard } from '@/components/my-scores/processing-job-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Footer } from '@/components/layout/footer';
 import { useAddOwnedScoresToLibrary } from '@/hooks/queries/use-library-queries';
-import { useDeleteJob, useJobList } from '@/hooks/queries/use-job-queries';
-import { useArchiveMyScores, useDeleteMyScores, useMyScores } from '@/hooks/queries/use-my-scores-queries';
-import type { MyScoresPageView, MyScoresSort, MyScoresView } from '@/types/api';
-
-const SCORE_VIEWS: MyScoresView[] = ['all', 'drafts', 'private', 'published', 'archived'];
-const VIEWS: MyScoresPageView[] = [
-  'all',
-  'processing',
-  'failed',
-  'drafts',
-  'private',
-  'published',
-  'archived',
-];
-
-function normalizeView(value?: string): MyScoresPageView {
-  return VIEWS.includes(value as MyScoresPageView) ? (value as MyScoresPageView) : 'all';
-}
-
-function isScoreView(view: MyScoresPageView): view is MyScoresView {
-  return SCORE_VIEWS.includes(view as MyScoresView);
-}
+import { useDeleteJob, useJobList, useRetryJob } from '@/hooks/queries/use-job-queries';
+import {
+  useArchiveMyScores,
+  useDeleteMyScores,
+  useMyScores,
+  usePublishMyScores,
+  useRestoreMyScores,
+  useUnpublishMyScores,
+} from '@/hooks/queries/use-my-scores-queries';
+import {
+  buildMyScoresHref,
+  isMyScoreView,
+  MY_SCORE_PAGE_VIEWS,
+  myScoresBulkVisibility,
+  myScoresTotal,
+  normalizeMyScoresSort,
+  normalizeMyScoresView,
+  normalizePage,
+  scoreBackedView,
+  visibleMyScoreJobs,
+} from '@/lib/my-scores/state';
+import type { MyScoresPageView, MyScoresSort } from '@/types/api';
 
 export default function MyScoresPage({
   searchParams,
@@ -51,13 +51,13 @@ export default function MyScoresPage({
   const params = React.use(searchParams);
   const t = useTranslations('myScores');
   const router = useRouter();
-  const view = normalizeView(params.view);
-  const sort: MyScoresSort = params.sort === 'name_asc' ? 'name_asc' : 'updated_desc';
+  const view = normalizeMyScoresView(params.view);
+  const sort: MyScoresSort = normalizeMyScoresSort(params.sort);
   const [searchInput, setSearchInput] = React.useState(params.search ?? '');
-  const page = Math.max(1, Number(params.page ?? 1));
+  const page = normalizePage(params.page);
   const pageSize = 20;
-  const scoreView = isScoreView(view) ? view : 'all';
-  const showScores = isScoreView(view);
+  const scoreView = scoreBackedView(view);
+  const showScores = isMyScoreView(view);
   const scoresQuery = useMyScores({
     view: scoreView,
     search: params.search,
@@ -68,22 +68,32 @@ export default function MyScoresPage({
   });
   const jobsQuery = useJobList(1, 20);
   const deleteJob = useDeleteJob();
+  const retryJob = useRetryJob();
   const addToLibrary = useAddOwnedScoresToLibrary();
   const deleteScores = useDeleteMyScores();
   const archiveScores = useArchiveMyScores();
+  const restoreScores = useRestoreMyScores();
+  const publishScores = usePublishMyScores();
+  const unpublishScores = useUnpublishMyScores();
   const scores = React.useMemo(() => scoresQuery.data?.data ?? [], [scoresQuery.data?.data]);
-  const jobs = jobsQuery.data?.data ?? [];
+  const jobs = React.useMemo(() => jobsQuery.data?.data ?? [], [jobsQuery.data?.data]);
+  const [batchMode, setBatchMode] = React.useState(false);
   const [selectedScoreIds, setSelectedScoreIds] = React.useState<Set<string>>(new Set());
+  const [selectedJobIds, setSelectedJobIds] = React.useState<Set<string>>(new Set());
   const selectedCount = selectedScoreIds.size;
+  const selectedJobCount = selectedJobIds.size;
   const scoreIds = React.useMemo(() => scores.map((score) => score.score_id), [scores]);
-  const visibleJobs = jobs.filter((job) => {
-    if (view === 'processing') return isProcessingJob(job);
-    if (view === 'failed') return job.state === 'FAILURE';
-    return isProcessingJob(job) || job.state === 'FAILURE';
+  const visibleJobs = visibleMyScoreJobs(jobs, view);
+  const visibleFailedJobIds = visibleJobs
+    .filter((job) => job.state === 'FAILURE')
+    .map((job) => job.job_id);
+  const total = myScoresTotal({
+    showScores,
+    scoreTotal: scoresQuery.data?.pagination.total ?? 0,
+    view,
+    visibleJobCount: visibleJobs.length,
   });
-  const total = showScores
-    ? (scoresQuery.data?.pagination.total ?? 0) + (view === 'all' ? visibleJobs.length : 0)
-    : visibleJobs.length;
+  const bulkVisibility = myScoresBulkVisibility(view);
   const scorePagination = scoresQuery.data?.pagination;
   const canGoPrevious = showScores && scorePagination ? scorePagination.page > 1 : false;
   const canGoNext = showScores && scorePagination
@@ -92,6 +102,8 @@ export default function MyScoresPage({
 
   React.useEffect(() => {
     setSelectedScoreIds(new Set());
+    setSelectedJobIds(new Set());
+    setBatchMode(false);
   }, [view, params.search, sort, page]);
 
   const toggleScoreSelection = (scoreId: string) => {
@@ -105,9 +117,24 @@ export default function MyScoresPage({
       return next;
     });
   };
-  const selectVisibleScores = () => setSelectedScoreIds(new Set(scoreIds));
-  const clearSelection = () => setSelectedScoreIds(new Set());
+  const toggleJobSelection = (jobId: string) => {
+    setSelectedJobIds((current) => {
+      const next = new Set(current);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  };
+  const selectVisibleScores = () => {
+    setSelectedScoreIds(new Set(scoreIds));
+    setSelectedJobIds(new Set(visibleFailedJobIds));
+  };
+  const clearSelection = () => {
+    setSelectedScoreIds(new Set());
+    setSelectedJobIds(new Set());
+  };
   const selectedIds = () => Array.from(selectedScoreIds);
+  const selectedJobs = () => Array.from(selectedJobIds);
 
   const navigate = (next: {
     view?: MyScoresPageView;
@@ -115,14 +142,7 @@ export default function MyScoresPage({
     sort?: MyScoresSort;
     page?: number;
   }) => {
-    const query = new URLSearchParams();
-    query.set('view', next.view ?? view);
-    const nextSearch = next.search === undefined ? params.search : next.search;
-    const nextSort = next.sort ?? sort;
-    if (nextSearch) query.set('search', nextSearch);
-    if (nextSort !== 'updated_desc') query.set('sort', nextSort);
-    if (next.page && next.page > 1) query.set('page', String(next.page));
-    router.push(`/my-scores?${query.toString()}`);
+    router.push(buildMyScoresHref({ view, search: params.search, sort }, next));
   };
   const handleAddToLibrary = () => {
     addToLibrary.mutate(
@@ -136,8 +156,33 @@ export default function MyScoresPage({
     }
     deleteScores.mutate(selectedIds(), { onSuccess: clearSelection });
   };
+  const deleteSingleScore = (scoreId: string) => {
+    if (!window.confirm(t('confirmDeleteSelected', { count: 1 }))) {
+      return;
+    }
+    deleteScores.mutate([scoreId]);
+  };
   const handleArchiveSelected = () => {
     archiveScores.mutate(selectedIds(), { onSuccess: clearSelection });
+  };
+  const handleRestoreSelected = () => {
+    restoreScores.mutate(selectedIds(), { onSuccess: clearSelection });
+  };
+  const handlePublishSelected = () => {
+    publishScores.mutate(selectedIds(), { onSuccess: clearSelection });
+  };
+  const handleUnpublishSelected = () => {
+    unpublishScores.mutate(selectedIds(), { onSuccess: clearSelection });
+  };
+  const handleRetrySelectedJobs = () => {
+    Promise.all(selectedJobs().map((jobId) => retryJob.mutateAsync(jobId)))
+      .then(clearSelection)
+      .catch(() => undefined);
+  };
+  const handleDismissSelectedJobs = () => {
+    Promise.all(selectedJobs().map((jobId) => deleteJob.mutateAsync(jobId)))
+      .then(clearSelection)
+      .catch(() => undefined);
   };
   const goToPage = (nextPage: number) => {
     navigate({ page: nextPage });
@@ -162,7 +207,7 @@ export default function MyScoresPage({
         <div className="mx-auto max-w-7xl px-4 py-10">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap gap-2">
-              {VIEWS.map((item) => (
+              {MY_SCORE_PAGE_VIEWS.map((item) => (
                 <Button
                   key={item}
                   variant={item === view ? 'default' : 'outline'}
@@ -172,13 +217,24 @@ export default function MyScoresPage({
                 </Button>
               ))}
             </div>
-            <Button asChild>
-              <Link href="/upload">
-                <Upload className="mr-2 h-4 w-4" />
-                {t('uploadScore')}
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {scores.length || visibleFailedJobIds.length ? (
+                <Button variant={batchMode ? 'secondary' : 'outline'} onClick={() => {
+                  setBatchMode((current) => !current);
+                  clearSelection();
+                  }}>
+                  {batchMode ? t('cancelBatchEdit') : t('batchEdit')}
+                </Button>
+              ) : null}
+              <Button asChild>
+                <Link href="/upload">
+                  <Upload className="mr-2 h-4 w-4" />
+                  {t('uploadScore')}
+                </Link>
+              </Button>
+            </div>
           </div>
+          {!batchMode ? (
           <MyScoresFilterBar
             searchInput={searchInput}
             sort={sort}
@@ -192,21 +248,38 @@ export default function MyScoresPage({
             }}
             t={t}
           />
+          ) : null}
           <div className="mb-5">
             <h2 className="text-2xl font-bold">{t(`views.${view}`)}</h2>
             <p className="text-sm text-muted-foreground">{t('totalScores', { count: total })}</p>
           </div>
-          {showScores && scores.length ? (
+          {batchMode && (scores.length || visibleFailedJobIds.length) ? (
             <MyScoresBulkActions
               selectedCount={selectedCount}
+              selectedJobCount={selectedJobCount}
               addToLibraryPending={addToLibrary.isPending}
               archivePending={archiveScores.isPending}
+              restorePending={restoreScores.isPending}
+              publishPending={publishScores.isPending}
+              unpublishPending={unpublishScores.isPending}
+              retryJobsPending={retryJob.isPending}
+              dismissJobsPending={deleteJob.isPending}
               deletePending={deleteScores.isPending}
+              showArchiveAction={bulkVisibility.archive}
+              showRestoreAction={bulkVisibility.restore}
+              showPublishAction={bulkVisibility.publish}
+              showUnpublishAction={bulkVisibility.unpublish}
+              showJobActions={visibleFailedJobIds.length > 0}
               onSelectVisible={selectVisibleScores}
               onClearSelection={clearSelection}
               onAddToLibrary={handleAddToLibrary}
               onArchiveSelected={handleArchiveSelected}
+              onRestoreSelected={handleRestoreSelected}
+              onPublishSelected={handlePublishSelected}
+              onUnpublishSelected={handleUnpublishSelected}
               onDeleteSelected={handleDeleteSelected}
+              onRetrySelectedJobs={handleRetrySelectedJobs}
+              onDismissSelectedJobs={handleDismissSelectedJobs}
               t={t}
             />
           ) : null}
@@ -229,7 +302,12 @@ export default function MyScoresPage({
                   key={job.job_id}
                   job={job}
                   deletePending={deleteJob.isPending}
+                  retryPending={retryJob.isPending}
+                  batchMode={batchMode}
+                  selected={selectedJobIds.has(job.job_id)}
                   onOpenScore={() => router.push(`/results/${job.score_id}?from=my-scores`)}
+                  onToggleSelection={() => toggleJobSelection(job.job_id)}
+                  onRetry={() => retryJob.mutate(job.job_id)}
                   onDismiss={() => deleteJob.mutate(job.job_id)}
                   t={t}
                 />
@@ -239,9 +317,11 @@ export default function MyScoresPage({
                   key={score.score_id}
                   score={score}
                   view={scoreView}
+                  batchMode={batchMode}
                   selected={selectedScoreIds.has(score.score_id)}
                   onOpen={() => router.push(`/results/${score.score_id}?from=my-scores`)}
                   onToggleSelection={() => toggleScoreSelection(score.score_id)}
+                  onDelete={() => deleteSingleScore(score.score_id)}
                   t={t}
                 />
               )) : null}
