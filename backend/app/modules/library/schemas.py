@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
@@ -25,7 +25,6 @@ class LibrarySort(str, Enum):
     UPDATED_ASC = "updated_asc"
     NAME_ASC = "name_asc"
     NAME_DESC = "name_desc"
-    OPENED_DESC = "opened_desc"
     PRACTICED_DESC = "practiced_desc"
 
 
@@ -74,10 +73,6 @@ class LibraryEntryBatchPracticeStateRequest(BaseModel):
     practice_state: LibraryPracticeState
 
 
-class LibraryOwnedScoreBatchAddRequest(BaseModel):
-    score_ids: list[str] = Field(min_length=1)
-
-
 class LibraryEntryUpdateRequest(BaseModel):
     practice_state: LibraryPracticeState | None = None
     is_favorite: bool | None = None
@@ -117,8 +112,7 @@ class LibraryEntryRead(BaseModel):
     practice_state: LibraryPracticeState
     available: bool
     unavailable_reason: str | None
-    pinned_at: datetime | None
-    last_opened_at: datetime | None
     last_practiced_at: datetime | None
     created_at: datetime
     updated_at: datetime
+

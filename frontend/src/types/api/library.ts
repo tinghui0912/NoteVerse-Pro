@@ -1,11 +1,6 @@
-import type { ScoreMetadata, ScoreState, ScoreTaxonomyTag } from './scores';
+﻿import type { ScoreMetadata, ScoreState, ScoreTaxonomyTag } from './scores';
 
-export type LibraryEntrySourceType =
-  | 'SELF_ADDED'
-  | 'BOOKMARK'
-  | 'SHARED'
-  | 'OFFICIAL'
-  | 'AI_RECOMMENDED';
+export type LibraryEntrySourceType = 'SELF_ADDED' | 'BOOKMARK';
 export type LibraryPracticeState = 'TO_PRACTICE' | 'IN_PROGRESS' | 'MASTERED';
 export type LibraryView =
   | 'all'
@@ -20,7 +15,6 @@ export type LibrarySort =
   | 'updated_asc'
   | 'name_asc'
   | 'name_desc'
-  | 'opened_desc'
   | 'practiced_desc';
 
 export type FolderDeleteMode =
@@ -62,8 +56,6 @@ export interface LibraryEntry {
   practice_state: LibraryPracticeState;
   available: boolean;
   unavailable_reason: string | null;
-  pinned_at: string | null;
-  last_opened_at: string | null;
   last_practiced_at: string | null;
   created_at: string;
   updated_at: string;

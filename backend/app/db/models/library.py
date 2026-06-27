@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import enum
 import uuid
@@ -29,9 +29,6 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class LibraryEntrySourceType(str, enum.Enum):
     SELF_ADDED = "SELF_ADDED"
     BOOKMARK = "BOOKMARK"
-    SHARED = "SHARED"
-    OFFICIAL = "OFFICIAL"
-    AI_RECOMMENDED = "AI_RECOMMENDED"
 
 
 class LibraryPracticeState(str, enum.Enum):
@@ -152,8 +149,6 @@ class ScoreLibraryEntry(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
-    pinned_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    last_opened_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     last_practiced_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     created_at: datetime = Field(
         default_factory=utc_now_naive,
@@ -169,3 +164,4 @@ class ScoreLibraryEntry(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+

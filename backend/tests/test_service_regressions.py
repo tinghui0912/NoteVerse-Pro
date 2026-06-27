@@ -26,11 +26,8 @@ from app.db.models import LibraryEntrySourceType
 from app.db.models.score import ScoreState
 from app.db.models.score_access import AccessOrigin
 from app.modules.files.service import FilesService
-from app.modules.library.schemas import LibraryOwnedScoreBatchAddRequest
-from app.modules.library.service import LibraryService
 from app.modules.practice.service import PracticeService
 from app.modules.profile.service import AvatarService
-from app.modules.scores.schemas import ScoreBatchArchiveRequest
 from app.modules.scores.service import ScoreService
 from app.modules.jobs.execution_service import JobExecutionService
 from app.modules.jobs.maintenance_service import JobMaintenanceService
@@ -82,20 +79,15 @@ class FakeS3NotFound(Exception):
     response = {"Error": {"Code": "NoSuchKey"}}
 
 
-def test_allowed_file_accepts_supported_extensions() -> None:
-    service = FilesService(repository=Mock())
-
-    assert service.allowed_file("score.png") is True
-    assert service.allowed_file("score.TIFF") is True
-    assert service.allowed_file("score.pdf") is False
-    assert service.allowed_file("score") is False
-
-
 @pytest.mark.asyncio
-async def test_score_service_batch_archive_marks_owned_scores_archived() -> None:
+async def test_score_approve_adds_owned_score_to_library() -> None:
     score = SimpleNamespace(
+        id=10,
         score_uuid="score-1",
-        state=ScoreState.ACTIVE,
+        state=ScoreState.IN_REVIEW,
+        head_revision_id=20,
+        approved_revision_id=None,
+        originating_job_id=None,
         version=1,
         updated_at=None,
     )
@@ -105,70 +97,37 @@ async def test_score_service_batch_archive_marks_owned_scores_archived() -> None
     access_policy.authorize = AsyncMock(
         return_value=SimpleNamespace(score=SimpleNamespace(score_uuid="score-1"))
     )
-    service = ScoreService(repository=repository, access_policy=access_policy)
+    library_service = Mock()
+    library_service.ensure_entry = AsyncMock()
+    service = ScoreService(
+        repository=repository,
+        access_policy=access_policy,
+        library_service=library_service,
+    )
+    service._read = AsyncMock(return_value=SimpleNamespace(score_id="score-1"))  # type: ignore[method-assign]
     db = AsyncMock()
+    db.get = AsyncMock(return_value=None)
 
-    archived = await service.batch_archive(
+    await service.approve(db, "score-1", user_id=7)
+
+    assert score.state == ScoreState.ACTIVE
+    assert score.approved_revision_id == 20
+    library_service.ensure_entry.assert_awaited_once_with(
         db,
-        ScoreBatchArchiveRequest(score_ids=["score-1"]),
         user_id=7,
+        score_id=10,
+        source_type=LibraryEntrySourceType.SELF_ADDED,
     )
-
-    assert archived == 1
-    assert score.state == ScoreState.ARCHIVED
-    assert score.version == 2
     db.commit.assert_awaited_once()
 
 
-@pytest.mark.asyncio
-async def test_library_service_batch_self_add_requires_owned_score() -> None:
-    score_repository = Mock()
-    score_repository.get = AsyncMock(
-        return_value=SimpleNamespace(id=10, owner_user_id=8, score_uuid="score-1")
-    )
-    repository = Mock()
-    repository.entry = AsyncMock(return_value=None)
-    service = LibraryService(repository=repository, score_repository=score_repository)
-    db = Mock()
-    db.add = Mock()
-    db.commit = AsyncMock()
+def test_allowed_file_accepts_supported_extensions() -> None:
+    service = FilesService(repository=Mock())
 
-    with pytest.raises(ResourceNotFoundException):
-        await service.batch_add_owned_scores(
-            db,
-            user_id=7,
-            request=LibraryOwnedScoreBatchAddRequest(score_ids=["score-1"]),
-        )
-
-    db.add.assert_not_called()
-    db.commit.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_library_service_batch_self_add_creates_self_added_entry() -> None:
-    score_repository = Mock()
-    score_repository.get = AsyncMock(
-        return_value=SimpleNamespace(id=10, owner_user_id=7, score_uuid="score-1")
-    )
-    repository = Mock()
-    repository.entry = AsyncMock(return_value=None)
-    service = LibraryService(repository=repository, score_repository=score_repository)
-    db = Mock()
-    db.add = Mock()
-    db.commit = AsyncMock()
-
-    added = await service.batch_add_owned_scores(
-        db,
-        user_id=7,
-        request=LibraryOwnedScoreBatchAddRequest(score_ids=["score-1"]),
-    )
-
-    assert added == 1
-    created_entry = db.add.call_args.args[0]
-    assert created_entry.user_id == 7
-    assert created_entry.score_id == 10
-    assert created_entry.source_type == LibraryEntrySourceType.SELF_ADDED
-    db.commit.assert_awaited_once()
+    assert service.allowed_file("score.png") is True
+    assert service.allowed_file("score.TIFF") is True
+    assert service.allowed_file("score.pdf") is False
+    assert service.allowed_file("score") is False
 
 
 def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_path) -> None:

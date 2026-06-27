@@ -10,6 +10,7 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
+    LibraryEntrySourceType,
     ProcessingJob,
     Score,
     ScoreArtifact,
@@ -30,6 +31,7 @@ from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.artifacts.render_service import RevisionRenderService
+from app.modules.library.service import LibraryService
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
@@ -42,6 +44,7 @@ class ScoreService:
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         render_service: RevisionRenderService | None = None,
+        library_service: LibraryService | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.storage = storage or file_storage
@@ -50,6 +53,7 @@ class ScoreService:
             access_policy=self.access_policy,
             storage=self.storage,
         )
+        self.library_service = library_service or LibraryService()
 
     async def get(self, db: AsyncSession, score_uuid: str, user_id: int) -> ScoreRead:
         access = await self.access_policy.authorize(
@@ -146,6 +150,12 @@ class ScoreService:
             if job:
                 job.state = ProcessingJobState.SUCCESS
                 job.updated_at = utc_now_naive()
+        await self.library_service.ensure_entry(
+            db,
+            user_id=user_id,
+            score_id=require_persisted_id(score.id, entity="score"),
+            source_type=LibraryEntrySourceType.SELF_ADDED,
+        )
         await db.commit()
         await db.refresh(score)
         head = await db.get(ScoreRevision, score.head_revision_id)

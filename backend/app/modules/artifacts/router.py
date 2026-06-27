@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+﻿from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,8 +8,9 @@ from app.db.models import User
 from app.db.models.score import ArtifactKind
 from app.modules.artifacts.dependencies import get_artifact_service, get_revision_render_service
 from app.modules.artifacts.render_service import RevisionRenderService
+from app.modules.artifacts.schemas import ArtifactAccessRead, ArtifactDiagnosticsRead, ArtifactRead
 from app.modules.artifacts.service import ArtifactService
-from app.shared.responses import success_response
+from app.shared.responses import APIResponse, success_response
 
 router = APIRouter()
 score_artifact_router = APIRouter()
@@ -33,7 +34,7 @@ async def download_artifact(
     )
 
 
-@router.get("/{artifact_id}/access-url")
+@router.get("/{artifact_id}/access-url", response_model=APIResponse[ArtifactAccessRead])
 async def get_artifact_access_url(
     artifact_id: str,
     current_user: User = Depends(get_current_user),
@@ -42,10 +43,10 @@ async def get_artifact_access_url(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.access_url(db, artifact_id, user_id)
-    return success_response(data=result.model_dump())
+    return success_response(data=result)
 
 
-@score_artifact_router.get("/{score_id}/artifacts")
+@score_artifact_router.get("/{score_id}/artifacts", response_model=APIResponse[list[ArtifactRead]])
 async def list_score_artifacts(
     score_id: str,
     revision_id: str | None = Query(default=None),
@@ -58,10 +59,10 @@ async def list_score_artifacts(
     result = await service.list(
         db, score_id, user_id, revision_uuid=revision_id, kind=kind
     )
-    return success_response(data=[item.model_dump() for item in result])
+    return success_response(data=result)
 
 
-@score_artifact_router.post("/{score_id}/revisions/{revision_id}/render")
+@score_artifact_router.post("/{score_id}/revisions/{revision_id}/render", response_model=APIResponse[list[ArtifactRead]])
 async def render_revision(
     score_id: str,
     revision_id: str,
@@ -74,7 +75,7 @@ async def render_revision(
     result = await service.render(
         db, score_id, revision_id, user_id, profile=profile
     )
-    return success_response(data=[item.model_dump() for item in result])
+    return success_response(data=result)
 
 
 @score_artifact_router.get("/{score_id}/artifact-archive")
@@ -101,7 +102,7 @@ async def archive_score_artifacts(
     )
 
 
-@score_artifact_router.get("/{score_id}/revisions/{revision_id}/artifact-diagnostics")
+@score_artifact_router.get("/{score_id}/revisions/{revision_id}/artifact-diagnostics", response_model=APIResponse[ArtifactDiagnosticsRead])
 async def diagnose_revision_artifacts(
     score_id: str,
     revision_id: str,
@@ -111,10 +112,10 @@ async def diagnose_revision_artifacts(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.diagnostics(db, score_id, revision_id, user_id)
-    return success_response(data=result.model_dump())
+    return success_response(data=result)
 
 
-@score_artifact_router.delete("/{score_id}/revisions/{revision_id}/missing-artifacts")
+@score_artifact_router.delete("/{score_id}/revisions/{revision_id}/missing-artifacts", response_model=APIResponse[dict[str, int]])
 async def cleanup_missing_revision_artifacts(
     score_id: str,
     revision_id: str,
@@ -125,3 +126,4 @@ async def cleanup_missing_revision_artifacts(
     user_id = require_persisted_id(current_user.id, entity="user")
     removed = await service.cleanup_missing_derived(db, score_id, revision_id, user_id)
     return success_response(data={"removed": removed})
+

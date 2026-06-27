@@ -1,4 +1,4 @@
-# ADR 0004: Centralize Score Access And Separate Grants From Publication
+﻿# ADR 0004: Centralize Score Access And Separate Grants From Publication
 
 - Status: Accepted
 - Date: 2026-06-22
@@ -25,7 +25,7 @@ make permissions difficult to audit.
    authenticated membership workflow, not through a public/share link.
 7. Raw grant tokens are returned once and never persisted. Lookup uses a deterministic secure
    digest of the high-entropy token.
-8. `ScoreBookmark` organizes a user's library and grants no access by itself.
+8. `ScoreLibraryEntry` organizes a user's library and grants no access by itself.
 9. A saved VIEW link records `ShareGrantRedemption`; its access remains bounded by the source
    grant's expiry and revocation.
 10. `ScorePublication` is a public-channel configuration that pins one revision. Only the owner
@@ -92,3 +92,4 @@ pinned revision, never a raw share token.
   lifecycles.
 - Add per-revision ACLs: rejected because no current product requirement varies member rights
   by revision.
+

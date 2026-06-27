@@ -21,12 +21,12 @@ from app.db.models.score_access import (
     MembershipRole,
     PublicationDiscoverability,
     PublicationStatus,
-    ScoreBookmark,
     ScoreMembership,
     ScorePublication,
     ScoreShareGrant,
     ShareTargetMode,
 )
+from app.db.models.library import LibraryEntrySourceType, ScoreLibraryEntry
 from app.db.models.user import User, UserRole
 
 
@@ -255,7 +255,7 @@ def test_share_target_and_token_hash_are_constrained(score_session: Session) -> 
     )
 
 
-def test_membership_and_bookmark_are_unique_per_user(score_session: Session) -> None:
+def test_membership_and_library_entry_are_unique_per_user_and_source(score_session: Session) -> None:
     score_session.add_all(
         [
             ScoreMembership(
@@ -265,7 +265,7 @@ def test_membership_and_bookmark_are_unique_per_user(score_session: Session) -> 
                 role=MembershipRole.VIEWER,
                 created_by_user_id=1,
             ),
-            ScoreBookmark(id=500, score_id=10, user_id=2),
+            ScoreLibraryEntry(id=500, score_id=10, user_id=2, source_type=LibraryEntrySourceType.BOOKMARK),
         ]
     )
     score_session.commit()
@@ -282,7 +282,7 @@ def test_membership_and_bookmark_are_unique_per_user(score_session: Session) -> 
     )
     assert_commit_rejected(
         score_session,
-        ScoreBookmark(id=501, score_id=10, user_id=2),
+        ScoreLibraryEntry(id=501, score_id=10, user_id=2, source_type=LibraryEntrySourceType.BOOKMARK),
     )
 
 

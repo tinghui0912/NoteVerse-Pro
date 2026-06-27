@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, Globe2, Trash2 } from 'lucide-react';
+import { Globe2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -8,14 +8,12 @@ interface MyScoresBulkActionsProps {
   selectedCount: number;
   selectedJobCount: number;
   allSelected: boolean;
-  addToLibraryPending: boolean;
   publishPending: boolean;
   unpublishPending: boolean;
   deletePending: boolean;
   showPublishAction: boolean;
   showUnpublishAction: boolean;
   onToggleSelectAll: (checked: boolean) => void;
-  onAddToLibrary: () => void;
   onPublishSelected: () => void;
   onUnpublishSelected: () => void;
   onDeleteSelected: () => void;
@@ -26,14 +24,12 @@ export function MyScoresBulkActions({
   selectedCount,
   selectedJobCount,
   allSelected,
-  addToLibraryPending,
   publishPending,
   unpublishPending,
   deletePending,
   showPublishAction,
   showUnpublishAction,
   onToggleSelectAll,
-  onAddToLibrary,
   onPublishSelected,
   onUnpublishSelected,
   onDeleteSelected,
@@ -57,16 +53,6 @@ export function MyScoresBulkActions({
         </span>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={!selectedCount || addToLibraryPending}
-          onClick={onAddToLibrary}
-        >
-          <BookOpen className="mr-2 h-4 w-4" />
-          {t('addToLibrary')}
-        </Button>
         {showPublishAction ? (
           <Button
             type="button"

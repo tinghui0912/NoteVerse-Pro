@@ -1,24 +1,23 @@
-'use client';
+﻿'use client';
 
 import { QueryClient } from '@tanstack/react-query';
 
 /**
- * TanStack Query 全局配置
+ * Global TanStack Query configuration.
  */
 export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 30 * 1000,       // 30s 内认为数据新鲜
-            gcTime: 5 * 60 * 1000,      // 5 分钟后垃圾回收
-            retry: 1,                    // 失败重试 1 次
-            refetchOnWindowFocus: false, // 不在窗口聚焦时自动刷新
+            staleTime: 30 * 1000,
+            gcTime: 5 * 60 * 1000,
+            retry: 1,
+            refetchOnWindowFocus: false,
         },
         mutations: {
-            retry: 0,                    // mutation 不自动重试
+            retry: 0,
         },
     },
 });
-
 export interface TaskListQueryFilters {
     page: number;
     pageSize: number;
@@ -105,7 +104,6 @@ export const queryKeys = {
             ['scores', 'artifact', { scoreId, revisionId: revisionId ?? null, kind: kind ?? null }] as const,
         grants: (scoreId: string) => ['scores', 'grant', { scoreId }] as const,
         grantAccess: (token: string) => ['scores', 'grant-access', { token }] as const,
-        bookmarks: () => ['scores', 'bookmark'] as const,
         publication: (slug: string) => ['scores', 'publication', { slug }] as const,
         scorePublication: (scoreId: string) => ['scores', 'score-publication', { scoreId }] as const,
     },
@@ -121,3 +119,4 @@ export const queryKeys = {
         list: (filters: MyScoresQueryFilters) => ['my-scores', 'list', filters] as const,
     },
 } as const;
+

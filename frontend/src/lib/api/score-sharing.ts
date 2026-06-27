@@ -2,8 +2,8 @@ import { apiClient } from '@/lib/api-client';
 import type {
   ApiResponse,
   CreatedScoreGrant,
-  ScoreBookmark,
   ScoreGrant,
+  ScoreGrantBookmark,
   ScoreGrantAccess,
   ScoreGrantContent,
 } from '@/types/api';
@@ -46,11 +46,5 @@ export const scoreSharingApi = {
       suppressAuthRedirect: true,
     }),
   bookmark: (token: string) =>
-    apiClient.post<ApiResponse<ScoreBookmark>>(`/score-grants/${token}/bookmark`),
-  bookmarks: (signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreBookmark[]>>('/score-bookmarks', undefined, { signal }),
-  deleteBookmarks: (bookmarkIds: number[]) =>
-    apiClient.post<ApiResponse<{ removed: number }>>('/score-bookmarks/batch-delete', {
-      bookmark_ids: bookmarkIds,
-    }),
+    apiClient.post<ApiResponse<ScoreGrantBookmark>>(`/score-grants/${token}/bookmark`),
 };

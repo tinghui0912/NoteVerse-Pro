@@ -14,7 +14,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Footer } from '@/components/layout/footer';
-import { useAddOwnedScoresToLibrary } from '@/hooks/queries/use-library-queries';
 import { useDeleteJob, useJobList } from '@/hooks/queries/use-job-queries';
 import {
   useDeleteMyScores,
@@ -64,9 +63,9 @@ export default function MyScoresPage({
     pageSize,
     enabled: showScores,
   });
-  const jobsQuery = useJobList(1, 20);
+  const showJobs = view === 'all' || view === 'processing' || view === 'failed';
+  const jobsQuery = useJobList(1, 20, showJobs);
   const deleteJob = useDeleteJob();
-  const addToLibrary = useAddOwnedScoresToLibrary();
   const deleteScores = useDeleteMyScores();
   const publishScores = usePublishMyScores();
   const unpublishScores = useUnpublishMyScores();
@@ -143,12 +142,6 @@ export default function MyScoresPage({
     page?: number;
   }) => {
     router.push(buildMyScoresHref({ view, search: params.search, sort }, next));
-  };
-  const handleAddToLibrary = () => {
-    addToLibrary.mutate(
-      { score_ids: selectedIds() },
-      { onSuccess: clearSelection }
-    );
   };
   const handleDeleteSelected = () => {
     const totalSelected = selectedCount + selectedJobCount;
@@ -248,14 +241,12 @@ export default function MyScoresPage({
               selectedCount={selectedCount}
               selectedJobCount={selectedJobCount}
               allSelected={allVisibleSelected}
-              addToLibraryPending={addToLibrary.isPending}
               publishPending={publishScores.isPending}
               unpublishPending={unpublishScores.isPending}
               deletePending={deleteScores.isPending || deleteJob.isPending}
               showPublishAction={bulkVisibility.publish}
               showUnpublishAction={bulkVisibility.unpublish}
               onToggleSelectAll={toggleVisibleSelection}
-              onAddToLibrary={handleAddToLibrary}
               onPublishSelected={handlePublishSelected}
               onUnpublishSelected={handleUnpublishSelected}
               onDeleteSelected={handleDeleteSelected}

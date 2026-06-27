@@ -1,5 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import secrets
 import uuid
 
 from sqlalchemy import select
@@ -7,14 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
     ResourceNotFoundException,
-    UnauthorizedException,
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     LibraryEntrySourceType,
     Score,
-    ScoreBookmark,
     ScoreLibraryEntry,
     ScoreShareGrant,
     ShareGrantRedemption,
@@ -33,7 +32,7 @@ from app.storage import FileStorage, file_storage
 from app.db.models import ScoreRevisionMetadata
 from app.modules.score_sharing.repository import ScoreSharingRepository
 from app.modules.score_sharing.schemas import (
-    BookmarkRead,
+    GrantBookmarkRead,
     GrantAccessRead,
     GrantCreateRequest,
     GrantCreatedRead,
@@ -89,7 +88,7 @@ class ScoreSharingService:
             )
             target_revision_uuid = target.revision.revision_uuid
         grant_uuid = str(uuid.uuid4())
-        token = grant_uuid
+        token = f"{grant_uuid}.{secrets.token_urlsafe(32)}"
         now = utc_now_naive()
         expires_at = to_utc_naive(request.expires_at)
         grant = ScoreShareGrant(
@@ -129,11 +128,7 @@ class ScoreSharingService:
             result.append(
                 GrantRead(
                     grant_id=grant.grant_uuid,
-                    token=(
-                        grant.grant_uuid
-                        if grant.token_hash == hash_share_token(grant.grant_uuid)
-                        else None
-                    ),
+                    token=None,
                     target_mode=grant.target_mode,
                     target_revision_id=await self.repository.revision_uuid(
                         db, grant.target_revision_id
@@ -176,14 +171,9 @@ class ScoreSharingService:
     async def _grant_read(
         self, db: AsyncSession, grant: ScoreShareGrant
     ) -> GrantRead:
-        token = (
-            grant.grant_uuid
-            if grant.token_hash == hash_share_token(grant.grant_uuid)
-            else None
-        )
         return GrantRead(
             grant_id=grant.grant_uuid,
-            token=token,
+            token=None,
             target_mode=grant.target_mode,
             target_revision_id=await self.repository.revision_uuid(
                 db, grant.target_revision_id
@@ -299,7 +289,7 @@ class ScoreSharingService:
 
     async def bookmark_grant(
         self, db: AsyncSession, token: str, user_id: int
-    ) -> BookmarkRead:
+    ) -> GrantBookmarkRead:
         grant = await self._grant_by_token(db, token)
         score = await db.get(Score, grant.score_id)
         if not score:
@@ -310,70 +300,29 @@ class ScoreSharingService:
         grant_id = require_persisted_id(grant.id, entity="share grant")
         if not await self.repository.redemption(db, grant_id, user_id):
             db.add(ShareGrantRedemption(grant_id=grant_id, user_id=user_id))
-        bookmark = await self.repository.bookmark(db, grant.score_id, user_id)
-        if not bookmark:
-            bookmark = ScoreBookmark(score_id=grant.score_id, user_id=user_id)
-            db.add(bookmark)
-        if not await self._library_entry(db, grant.score_id, user_id):
-            db.add(
-                ScoreLibraryEntry(
-                    score_id=grant.score_id,
-                    user_id=user_id,
-                    source_type=LibraryEntrySourceType.BOOKMARK,
-                    is_favorite=True,
-                )
+        entry = await self._library_entry(db, grant.score_id, user_id)
+        if entry:
+            if not entry.is_favorite:
+                entry.is_favorite = True
+            entry.updated_at = utc_now_naive()
+        else:
+            entry = ScoreLibraryEntry(
+                score_id=grant.score_id,
+                user_id=user_id,
+                source_type=LibraryEntrySourceType.BOOKMARK,
+                is_favorite=True,
             )
+            db.add(entry)
         await db.commit()
-        await db.refresh(bookmark)
-        return BookmarkRead(
-            bookmark_id=require_persisted_id(bookmark.id, entity="bookmark"),
+        await db.refresh(entry)
+        return GrantBookmarkRead(
+            entry_id=entry.entry_uuid,
             score_id=score.score_uuid,
             title=score.title,
             available=True,
             unavailable_reason=None,
-            created_at=bookmark.created_at,
+            created_at=entry.created_at,
         )
-
-    async def list_bookmarks(
-        self, db: AsyncSession, user_id: int
-    ) -> list[BookmarkRead]:
-        result: list[BookmarkRead] = []
-        for bookmark, score in await self.repository.bookmarks(db, user_id):
-            available = True
-            try:
-                await self.access_policy.authorize(
-                    db, score.score_uuid, ScoreAction.VIEW, user_id=user_id
-                )
-            except UnauthorizedException:
-                available = False
-            result.append(
-                BookmarkRead(
-                    bookmark_id=require_persisted_id(bookmark.id, entity="bookmark"),
-                    score_id=score.score_uuid,
-                    title=score.title,
-                    available=available,
-                    unavailable_reason=None if available else "access_unavailable",
-                    created_at=bookmark.created_at,
-                )
-            )
-        return result
-
-    async def delete_bookmarks(
-        self, db: AsyncSession, bookmark_ids: list[int], user_id: int
-    ) -> int:
-        removed = 0
-        now = utc_now_naive()
-        for bookmark_id in bookmark_ids:
-            bookmark = await db.get(ScoreBookmark, bookmark_id)
-            if bookmark and bookmark.user_id == user_id:
-                entry = await self._library_entry(db, bookmark.score_id, user_id)
-                if entry:
-                    entry.deleted_at = now
-                    entry.updated_at = now
-                await db.delete(bookmark)
-                removed += 1
-        await db.commit()
-        return removed
 
     async def _grant_by_token(
         self, db: AsyncSession, token: str
@@ -422,3 +371,5 @@ class ScoreSharingService:
             db, score.score_uuid, ScoreAction.MANAGE_SHARING, user_id=user_id
         )
         return grant
+
+

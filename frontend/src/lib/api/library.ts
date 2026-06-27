@@ -53,6 +53,4 @@ export const libraryApi = {
       '/library/entries/batch-practice-state',
       input
     ),
-  batchSelfAdd: (input: { score_ids: string[] }) =>
-    apiClient.post<ApiResponse<{ added: number }>>('/library/entries/batch-self-add', input),
 };

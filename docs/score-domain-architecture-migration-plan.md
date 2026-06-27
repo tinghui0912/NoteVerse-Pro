@@ -1,4 +1,4 @@
-# NoteVerse Score Domain Architecture Migration Plan
+﻿# NoteVerse Score Domain Architecture Migration Plan
 
 > Status: completed, implementation and current development database cutover verified
 > Baseline date: 2026-06-22  
@@ -108,7 +108,7 @@ replace a role such as `current_xml` or `final_xml`; it cannot represent immutab
 - window-level score following is not a first-class policy after removing the constrained
   inner viewport;
 - the existing controller may scroll an internal overflow ancestor, but there is no explicit
-  manual-scroll suspension or “return to playback position” interaction.
+  manual-scroll suspension or 鈥渞eturn to playback position鈥?interaction.
 
 ## 4. Target Domain Model
 
@@ -122,7 +122,7 @@ ProcessingJob ---- ProcessingJobStep
   | produces
   v
 Score ---- ScoreMembership
-  |  \----- ScoreBookmark
+  |  \----- ScoreLibraryEntry
   |  \----- ScoreShareGrant ---- ShareGrantRedemption
   |  `----- ScorePublication
   |
@@ -299,18 +299,18 @@ created_by, created_at
 - grant expiry/revocation is evaluated on every protected read or redemption;
 - target invariants require a revision only for `PINNED` mode.
 
-### 4.9 ScoreBookmark And ShareGrantRedemption
+### 4.9 ScoreLibraryEntry And ShareGrantRedemption
 
 Bookmarks organize the user's library and are not authorization by themselves:
 
 ```text
-ScoreBookmark(score_id, user_id, created_at)
+ScoreLibraryEntry(score_id, user_id, source_type=BOOKMARK, is_favorite, folder_id, practice_status, created_at)
 ShareGrantRedemption(grant_id, user_id, created_at)
 ```
 
-- saving a shared score creates a bookmark and records which valid grant was redeemed;
+- saving a shared score creates or updates a library entry with `source_type=BOOKMARK` and records which valid grant was redeemed;
 - a redeemed share grant remains bounded by the original grant expiry and revocation;
-- an inaccessible bookmark may remain visible with an unavailable state, but cannot bypass
+- an inaccessible library entry may remain visible with an unavailable state, but cannot bypass
   authorization;
 
 ### 4.10 ScorePublication
@@ -597,14 +597,14 @@ This work is independent from the database migration and should ship first.
 
 ```text
 ResultsScorePlayer
-├── ScorePreviewViewport
-├── ResultsPlaybackDock
-└── useScorePreviewPlayback
+鈹溾攢鈹€ ScorePreviewViewport
+鈹溾攢鈹€ ResultsPlaybackDock
+鈹斺攢鈹€ useScorePreviewPlayback
 
 ListenModal
-├── ScorePreviewViewport
-├── InlineScorePreviewControls
-└── useScorePreviewPlayback
+鈹溾攢鈹€ ScorePreviewViewport
+鈹溾攢鈹€ InlineScorePreviewControls
+鈹斺攢鈹€ useScorePreviewPlayback
 ```
 
 Do not add renderer-specific behavior to results components. The hook owns playback state and
@@ -615,7 +615,7 @@ resource cleanup; the Verovio controller owns rendered SVG and cursor DOM.
 - window/document scrolling becomes an explicit supported target;
 - automatic following scrolls only when the active system leaves a safe viewport region;
 - wheel, touch, scrollbar, Page Up/Down, Home/End, or manual navigation suspends auto-follow;
-- while suspended, playback continues and a “return to playback position” control appears;
+- while suspended, playback continues and a 鈥渞eturn to playback position鈥?control appears;
 - resuming follow performs one controlled scroll and then restores threshold-based following;
 - stopping or seeking to the beginning must not unexpectedly move the page unless the user
   explicitly resumes follow;
@@ -634,7 +634,7 @@ resource cleanup; the Verovio controller owns rendered SVG and cursor DOM.
 2. A long multi-page score has one browser scrollbar and no visible nested score scrollbar.
 3. The final score system and footer are not obscured by the dock.
 4. Manual scrolling is not immediately undone during playback.
-5. “Return to playback position” restores following.
+5. 鈥淩eturn to playback position鈥?restores following.
 6. Cursor, opening-rest position, seek, loop, relayout, and AudioContext cleanup still pass.
 7. Desktop and mobile Playwright coverage verifies the dock and safe-area layout.
 
@@ -971,7 +971,7 @@ Tasks:
 2. Implement view-only grant flows.
 3. Keep edit membership separate from share links.
 4. Split bookmark creation from authorization and record grant redemption.
-5. Migrate history “saved shares” to bookmark read models with unavailable states.
+5. Migrate history 鈥渟aved shares鈥?to bookmark read models with unavailable states.
 6. Preserve expiry, revocation, download, and practice restrictions.
 
 Acceptance:
@@ -1042,8 +1042,8 @@ Tasks:
 
 1. Make upload poll jobs and navigate using returned score IDs.
 2. Make review load job inputs plus produced score head.
-3. Make “looks good” approve the head revision.
-4. Make “needs edit” open `/editor/{scoreId}` without source strings.
+3. Make 鈥渓ooks good鈥?approve the head revision.
+4. Make 鈥渘eeds edit鈥?open `/editor/{scoreId}` without source strings.
 5. Preserve retry/recovery behavior for pending and failed jobs.
 
 Acceptance:
@@ -1130,8 +1130,7 @@ Acceptance:
 - every practice session references a valid revision;
 - full backend/frontend quality gates pass.
 
-**Result:** `scripts/backfill_score_domain.py` provides a deterministic dry-run/apply
-backfill and validation report for legacy task, file, share, saved-share, and practice
+**Result:** legacy task-to-score backfill has been removed from the active development baseline; disposable local data should be recreated and migrated to head.\nbackfill and validation report for legacy task, file, share, saved-share, and practice
 rows. The cleanup migration enforces non-null practice score/revision/access-origin
 references, verifies that legacy jobs/XML scores/shares/bookmarks have been mapped, and
 drops legacy task/share/file tables and enums only after validation. Runtime routers,
@@ -1151,8 +1150,7 @@ database is behind the new score-domain code. For a disposable local database, r
 recreate the database and run `docker compose -f docker-compose.backend-dev.yml run --rm api
 migrate`. For a database with legacy `tasks/files/shares/practice_sessions` data, do not
 run `migrate` straight to head. Upgrade only to `f1a2b3c4d5e6`, run
-`python scripts/backfill_score_domain.py` until the dry-run report is clean, run
-`python scripts/backfill_score_domain.py --apply`, then upgrade to head.
+recreate the disposable local database, then upgrade directly to head.
 
 ## 11. Test And Quality Gates
 
@@ -1267,3 +1265,5 @@ The migration is complete only when:
 - manual score navigation is respected during playback;
 - old task-as-score tables, routes, frontend types, Query keys, and tests are removed;
 - migration validation and all backend/frontend quality gates pass.
+
+

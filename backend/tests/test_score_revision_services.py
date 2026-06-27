@@ -16,14 +16,16 @@ from app.db.models import (
     ProcessingJob,
     Score,
     ScoreArtifact,
-    ScoreBookmark,
     ScoreRevision,
     ScoreRevisionMetadata,
+    ScoreLibraryEntry,
     ScoreMembership,
     ScorePublication,
     ScoreShareGrant,
+    ShareGrantRedemption,
     User,
 )
+from app.db.models.library import LibraryEntrySourceType
 from app.db.models.processing_job import ProcessingJobState
 from app.db.models.score import ArtifactKind, RevisionOrigin, ScoreState
 from app.db.models.score import MetadataStatus
@@ -442,26 +444,27 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     stored_grant = session.query(ScoreShareGrant).filter_by(
         grant_uuid=created.grant_id
     ).one()
-    assert created.token == created.grant_id
+    assert created.token.startswith(f"{created.grant_id}.")
     assert stored_grant.token_hash == hash_share_token(created.token)
     assert created.token not in stored_grant.token_hash
     listed_grants = await service.list_grants(db, "sharing-score", 1)  # type: ignore[arg-type]
-    assert listed_grants[0].token == created.token
+    assert listed_grants[0].token is None
 
     bookmarked = await service.bookmark_grant(
         db, created.token, 2  # type: ignore[arg-type]
     )
     assert bookmarked.available is True
-    assert (await service.list_bookmarks(db, 2))[0].available is True  # type: ignore[arg-type]
     access = await service.access_grant(db, created.token, None)  # type: ignore[arg-type]
     assert access.shared_by is not None
     assert access.shared_by.display_name == "owner"
     assert access.shared_at == stored_grant.created_at
 
     await service.revoke_grant(db, created.grant_id, 1)  # type: ignore[arg-type]
-    unavailable = await service.list_bookmarks(db, 2)  # type: ignore[arg-type]
-    assert unavailable[0].available is False
-    assert session.query(ScoreBookmark).count() == 1
+    assert session.query(ShareGrantRedemption).count() == 1
+    library_entry = session.query(ScoreLibraryEntry).one()
+    assert library_entry.source_type == LibraryEntrySourceType.BOOKMARK
+    assert library_entry.is_favorite is True
+    assert library_entry.deleted_at is None
 
 
 @pytest.mark.asyncio

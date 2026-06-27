@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, model_validator
 
 from app.db.models.score_access import ShareTargetMode
 from app.modules.score_access.schemas import ScoreCapabilities
@@ -74,14 +74,10 @@ class GrantContentRead(BaseModel):
     mime_type: str
 
 
-class BookmarkRead(BaseModel):
-    bookmark_id: int
+class GrantBookmarkRead(BaseModel):
+    entry_id: str
     score_id: str
     title: str
     available: bool
     unavailable_reason: str | None
     created_at: datetime
-
-
-class BookmarkDeleteRequest(BaseModel):
-    bookmark_ids: list[int] = Field(min_length=1)

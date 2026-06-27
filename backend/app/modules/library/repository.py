@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -206,7 +206,6 @@ class LibraryRepository:
             LibrarySort.UPDATED_DESC: [entry_updated_col.desc()],
             LibrarySort.NAME_ASC: [score_title_col.asc()],
             LibrarySort.NAME_DESC: [score_title_col.desc()],
-            LibrarySort.OPENED_DESC: [ScoreLibraryEntry.last_opened_at.desc().nullslast(), entry_updated_col.desc()],
             LibrarySort.PRACTICED_DESC: [ScoreLibraryEntry.last_practiced_at.desc().nullslast(), entry_updated_col.desc()],
         }[sort]
         rows = await db.execute(
@@ -233,3 +232,4 @@ class LibraryRepository:
             )
         )
         return list(rows.scalars().all())
+

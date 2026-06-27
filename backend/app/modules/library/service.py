@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +32,6 @@ from app.modules.library.schemas import (
     LibraryFolderRead,
     LibraryFolderTreeRead,
     LibraryFolderUpdateRequest,
-    LibraryOwnedScoreBatchAddRequest,
     LibrarySort,
     LibraryView,
 )
@@ -306,23 +305,6 @@ class LibraryService:
             practice_state=request.practice_state,
         )
 
-    async def batch_add_owned_scores(
-        self, db: AsyncSession, user_id: int, request: LibraryOwnedScoreBatchAddRequest
-    ) -> int:
-        for score_uuid in request.score_ids:
-            score = await self.score_repository.get(db, score_uuid)
-            if not score or score.owner_user_id != user_id:
-                raise ResourceNotFoundException("score", score_uuid)
-            score_id = require_persisted_id(score.id, entity="score")
-            await self.ensure_entry(
-                db,
-                user_id=user_id,
-                score_id=score_id,
-                source_type=LibraryEntrySourceType.SELF_ADDED,
-            )
-        await db.commit()
-        return len(request.score_ids)
-
     async def update_entry(
         self,
         db: AsyncSession,
@@ -421,8 +403,6 @@ class LibraryService:
             practice_state=entry.practice_state,
             available=available,
             unavailable_reason=None if available else "access_unavailable",
-            pinned_at=entry.pinned_at,
-            last_opened_at=entry.last_opened_at,
             last_practiced_at=entry.last_practiced_at,
             created_at=entry.created_at,
             updated_at=entry.updated_at,
@@ -541,3 +521,4 @@ class LibraryService:
             return 1 + (max(child_heights) if child_heights else 0)
 
         return visit(folder_id)
+

@@ -180,12 +180,6 @@ export function useGrantContent(token: string) {
   });
 }
 
-export function useScoreBookmarks() {
-  return useQuery({
-    queryKey: queryKeys.scores.bookmarks(),
-    queryFn: ({ signal }) => scoreSharingApi.bookmarks(signal),
-  });
-}
 
 export function usePublicScore(slug: string) {
   return useQuery({

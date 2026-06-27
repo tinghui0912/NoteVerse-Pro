@@ -134,8 +134,8 @@ export interface ScoreGrantContent {
   mime_type: string;
 }
 
-export interface ScoreBookmark {
-  bookmark_id: number;
+export interface ScoreGrantBookmark {
+  entry_id: string;
   score_id: string;
   title: string;
   available: boolean;

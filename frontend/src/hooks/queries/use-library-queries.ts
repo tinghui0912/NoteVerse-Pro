@@ -99,14 +99,6 @@ export function useSetLibraryEntriesPracticeState() {
   });
 }
 
-export function useAddOwnedScoresToLibrary() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: libraryApi.batchSelfAdd,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
-  });
-}
-
 export function useUpdateLibraryEntry() {
   const queryClient = useQueryClient();
   return useMutation({

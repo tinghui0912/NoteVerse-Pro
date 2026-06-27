@@ -1,8 +1,8 @@
-# NoteVerse Library Domain Baseline
+﻿# NoteVerse Library Domain Baseline
 
 > Status: completed v1 baseline
 > Baseline date: 2026-06-24
-> Scope: private learning library, creator-owned My Scores, and legacy History redirect.
+> Scope: private learning library and creator-owned My Scores.
 
 ## 1. Purpose
 
@@ -11,7 +11,6 @@ filters, pagination, and batch actions. The current product separates those conc
 
 - `/my-scores` is creator asset management for scores owned by the current user.
 - `/library` is the user's private learning and collection workspace.
-- `/history` is a legacy redirect to `/library`.
 - future public discovery belongs to a separate public catalog/community domain.
 
 This split prevents the same score from being presented as both an owned work and a saved
@@ -56,12 +55,6 @@ My Scores:
 /my-scores?search=canon&sort=updated_desc&page=2
 ```
 
-Legacy:
-
-```text
-/history -> /library
-```
-
 Results return origins:
 
 ```text
@@ -104,13 +97,10 @@ id
 entry_uuid
 user_id
 score_id
-source_type = SELF_ADDED | BOOKMARK | SHARED | OFFICIAL | AI_RECOMMENDED
+source_type = SELF_ADDED | BOOKMARK
 folder_id nullable
 is_favorite
-is_archived
 practice_state = TO_PRACTICE | IN_PROGRESS | MASTERED
-pinned_at nullable
-last_opened_at nullable
 last_practiced_at nullable
 created_at
 updated_at
@@ -122,9 +112,8 @@ Rules:
 - one active entry per `(user_id, score_id, source_type)`;
 - `SELF_ADDED` means the user intentionally added a score to their learning library;
 - `BOOKMARK` means the user saved a shared/public score;
-- `SHARED`, `OFFICIAL`, and `AI_RECOMMENDED` are reserved future sources;
 - `OWNED` is intentionally not a Library source type;
-- uploaded/owned scores appear in `/my-scores` without automatic Library entries;
+- uploaded/owned scores appear in `/my-scores`; confirmed scores are added to `/library` from the review completion flow;
 - finishing a practice session updates active library entries for that user and score:
   `last_practiced_at = now`, and `TO_PRACTICE` advances to `IN_PROGRESS`.
 
@@ -191,10 +180,10 @@ POST  /api/v1/library/entries/batch-move
 Supported entry list query:
 
 ```text
-view=all|favorites|recent_practice|to_practice|mastered|bookmarks|archived|trash
+view=all|favorites|recent_practice|to_practice|mastered|bookmarks|trash
 folder_id=<folder_uuid>
 search=<text>
-sort=updated_desc|updated_asc|name_asc|name_desc|opened_desc|practiced_desc
+sort=updated_desc|updated_asc|name_asc|name_desc|practiced_desc
 page=1
 page_size=20
 ```
@@ -205,7 +194,6 @@ page_size=20
 {
   "practice_state": "MASTERED",
   "is_favorite": true,
-  "is_archived": false
 }
 ```
 
@@ -260,8 +248,6 @@ frontend/src/app/[locale]/my-scores/page.tsx
 frontend/src/app/[locale]/history/page.tsx
 ```
 
-`history/page.tsx` exists only as a localized redirect. There are no active
-`components/history` or `hooks/history` runtime implementations.
 
 ## 7. Current UX
 
@@ -303,7 +289,7 @@ My Scores:
 ### P0 - Contract Decisions `[completed]`
 
 - `/library` is the product surface.
-- `/history` redirects to `/library`.
+- legacy `/history` has been removed; `/library` is the canonical route.
 - virtual nodes are not persisted folders.
 - folder deletion modes are explicit.
 
@@ -325,7 +311,7 @@ My Scores:
 
 - added `/library`;
 - added `/my-scores`;
-- changed `/history` into a redirect;
+- removed legacy `/history`;
 - updated nav and result return origins.
 
 ### P4 - Folder Mutations And Batch Move `[completed]`
@@ -434,22 +420,17 @@ Tasks:
 
 - add visible search and sort controls wired to existing API parameters; `[completed: initial UI]`
 - add batch selection; `[completed]`
-- add owner actions: delete, archive, and add to Library as `SELF_ADDED`; `[completed]`
+- add owner actions: delete; `[completed]`
 - add owner actions: publish and unpublish; `[completed]`
 - add restore-from-archive after the score model gains an explicit restore-state contract; `[completed]`
-- show richer owner status: processing, failed, draft, private, published, archived; `[completed: initial UI]`
+- show richer owner status: processing, failed, draft, private, published; `[completed: initial UI]`
 - add pagination controls and empty states for each view; `[completed: pagination controls]`
 
 Initial implementation notes:
 
 - `/my-scores` supports selecting visible score cards and clearing selection;
 - selected owned scores can be deleted through `POST /scores/batch-delete`;
-- selected owned scores can be archived through `POST /scores/batch-archive`;
-- archived scores store `archived_from_state`, and selected archived scores can be restored
-  through `POST /scores/batch-restore` without guessing whether they were drafts or active;
-- selected owned scores can be added to the learning Library through
-  `POST /library/entries/batch-self-add`, which creates `SELF_ADDED` entries only for
-  current-user-owned scores;
+- confirmed owned scores are added to the learning Library from the review completion flow;
 - paginated My Scores API results can be traversed from the page UI without losing filters;
 - Score reads include a lightweight publication summary so My Scores can show published state
   without fetching each score's publication separately;
@@ -460,7 +441,7 @@ Acceptance:
 
 - users can find, sort, and manage owned scores without opening each score;
 - owned-score management stays out of the Library folder tree;
-- adding an owned score to Library is explicit and creates a Library entry.
+- Library membership for owned scores is created by review confirmation, not by a manual My Scores action.
 
 ### P11 - Library Management Actions And Folder Depth `[completed]`
 
@@ -493,8 +474,7 @@ Tasks:
   `hooks/my-scores` where useful; `[completed: initial components]`
 - add backend Library/My Scores domain tests beyond route-auth smoke; `[completed: service regressions]`
 - add frontend tests for Library folder tree and My Scores view helpers; `[completed]`
-- add frontend tests for URL state, search/sort, batch actions, processing/failed states,
-  and legacy `/history` redirect behavior; `[completed]`
+- add frontend tests for URL state, search/sort, batch actions, and processing/failed states; `[completed]`
 
 Initial implementation notes:
 
@@ -514,13 +494,14 @@ Initial implementation notes:
   score-backed views versus processing/failed aggregate views;
 - Library and My Scores URL builders live in `lib/library/state.ts` and
   `lib/my-scores/state.ts`, with unit coverage for search, sort, folder/view, and page state;
-- My Scores batch action visibility is covered for private, published, and archived views;
-- legacy `/history` redirect behavior is covered by a focused route test;
-- backend service regressions cover owned-score archive and explicit self-add-to-library
-  behavior.
+- My Scores batch action visibility is covered for private and published views;
+- backend service regressions cover review-confirmed Library entry creation and owner deletion behavior.
 
 Acceptance:
 
 - page files remain composition layers;
 - domain behavior has focused tests;
 - future Library/My Scores changes do not reintroduce History or `OWNED` semantics.
+
+
+

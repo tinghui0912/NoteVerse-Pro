@@ -1,4 +1,4 @@
-# NoteVerse Backend Engineering Principles
+﻿# NoteVerse Backend Engineering Principles
 
 > Current baseline: score-domain architecture after the completed migration in
 > `../../docs/score-domain-architecture-migration-plan.md`.
@@ -71,7 +71,7 @@ ProcessingJob ---- ProcessingJobStep
   | produces
   v
 Score ---- ScoreMembership
-  |  \----- ScoreBookmark
+  |  \----- ScoreLibraryEntry
   |  \----- ScoreShareGrant ---- ShareGrantRedemption
   |  `----- ScorePublication
   |
@@ -93,7 +93,7 @@ Core rules:
 - `ProcessingArtifact` stores job internals such as OMR output, enhanced XML, diagnostics,
   and other non-product pipeline artifacts.
 - `ScoreRevisionMetadata` is a rebuildable typed projection from canonical MusicXML.
-- `ScoreShareGrant`, `ScoreMembership`, `ScoreBookmark`, `ShareGrantRedemption`, and
+- `ScoreShareGrant`, `ScoreMembership`, `ScoreLibraryEntry`, `ShareGrantRedemption`, and
   `ScorePublication` have distinct authorization and product semantics.
 - `PracticeSession` pins `score_id`, `revision_id`, and `access_origin` at creation time.
 
@@ -304,20 +304,13 @@ task-as-score tables and columns have been removed:
 If another database still contains legacy task/share/file data, do not run straight to
 Alembic head unless the database is disposable.
 
-Safe cutover sequence:
+Development cutover sequence:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade f1a2b3c4d5e6
-docker compose -f docker-compose.backend-dev.yml run --rm api python scripts/backfill_score_domain.py
-docker compose -f docker-compose.backend-dev.yml run --rm api python scripts/backfill_score_domain.py --apply
 docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade head
 ```
 
-The dry-run report must be clean before `--apply`. Cleanup migrations should fail closed
-when score, revision, artifact, share, bookmark, or practice mappings are incomplete.
-
-For disposable local databases, recreating the database and running `migrate` is acceptable.
-For any database with user data, use the safe sequence above.
+This project is still in development. Prefer clearing disposable local data over keeping legacy backfill scripts alive. Cleanup migrations should fail closed when score, revision, artifact, share, library, or practice mappings are incomplete.
 
 ## 9. Coding Standards
 
@@ -481,3 +474,6 @@ Backend code is usually healthy when:
 When a change needs explanations like "temporarily use this old path", "both names are
 fine", "this source fallback is harmless", or "we will test this later", it is probably
 creating the next round of architecture debt.
+
+
+

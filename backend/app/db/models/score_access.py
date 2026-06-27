@@ -141,30 +141,6 @@ class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
     )
 
 
-class ScoreBookmark(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "score_bookmarks"
-    __table_args__ = (
-        UniqueConstraint("score_id", "user_id", name="uq_score_bookmarks_score_user"),
-        Index("idx_score_bookmarks_user_created", "user_id", "created_at"),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    score_id: int = Field(
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("scores.id", ondelete="CASCADE"),
-            nullable=False,
-        )
-    )
-    user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
-    created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-
 
 class ShareGrantRedemption(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "share_grant_redemptions"
