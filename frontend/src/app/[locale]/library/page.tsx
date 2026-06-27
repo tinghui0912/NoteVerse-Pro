@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useMemo, useState } from 'react';
 import {
@@ -53,7 +53,7 @@ import {
   normalizeLibrarySort,
   normalizePage,
 } from '@/lib/library/state';
-import type { FolderDeleteMode, LibraryEntry, LibraryFolder, LibraryPracticeState, LibraryView } from '@/types/api';
+import type { FolderDeleteMode, LibraryEntry, LibraryFolder, LibraryPracticeState, LibraryView, UserSettableLibraryPracticeState } from '@/types/api';
 
 const ROOT_FOLDER_VALUE = '__root__';
 
@@ -95,7 +95,7 @@ export default function LibraryPage({
   const [deleteMode, setDeleteMode] = useState<FolderDeleteMode>('MOVE_CONTENTS_TO_PARENT');
   const [searchInput, setSearchInput] = useState(params.search ?? '');
   const [entryAction, setEntryAction] = useState<EntryActionState>(null);
-  const [practiceState, setPracticeState] = useState<LibraryPracticeState>('TO_PRACTICE');
+  const [practiceState, setPracticeState] = useState<UserSettableLibraryPracticeState>('TO_PRACTICE');
   const createFolder = useCreateLibraryFolder();
   const updateFolder = useUpdateLibraryFolder();
   const deleteFolder = useDeleteLibraryFolder();
@@ -139,7 +139,7 @@ export default function LibraryPage({
     trashEntries.error ??
     setEntriesPracticeState.error;
   const folderTree = foldersQuery.data?.data;
-  const virtualNodes = [
+  const quickNodes = [
     {
       view: 'all' as const,
       label: t('allScores'),
@@ -147,16 +147,19 @@ export default function LibraryPage({
       icon: Music,
     },
     {
-      view: 'recent_practice' as const,
-      label: t('recentPractice'),
-      count: folderTree?.recent_practice_count ?? 0,
-      icon: Clock3,
-    },
-    {
       view: 'favorites' as const,
       label: t('favorites'),
       count: folderTree?.favorite_count ?? 0,
       icon: Star,
+    },
+  ];
+
+  const practiceNodes = [
+    {
+      view: 'recent_practice' as const,
+      label: t('recentPractice'),
+      count: folderTree?.recent_practice_count ?? 0,
+      icon: Clock3,
     },
     {
       view: 'to_practice' as const,
@@ -283,7 +286,7 @@ export default function LibraryPage({
   const entryActionIds = entryAction?.entry ? [entryAction.entry.entry_id] : selectedEntryIds;
   const entryActionCount = entryActionIds.length;
   const openPracticeStateAction = (entry: LibraryEntry | null) => {
-    setPracticeState(entry?.practice_state ?? 'TO_PRACTICE');
+    setPracticeState(entry?.practice_state === 'MASTERED' ? 'MASTERED' : 'TO_PRACTICE');
     setEntryAction({ type: 'practice', entry });
   };
   const openMoveAction = (entry: LibraryEntry | null) => {
@@ -367,7 +370,8 @@ export default function LibraryPage({
           <LibrarySidebar
             currentView={view}
             currentFolderId={folderId}
-            virtualNodes={virtualNodes}
+            quickNodes={quickNodes}
+            practiceNodes={practiceNodes}
             folders={sortedFolders}
             folderDepth={(folder) => folderDepth(folder, folders)}
             foldersError={foldersQuery.isError ? foldersQuery.error : null}
@@ -583,3 +587,5 @@ export default function LibraryPage({
     </div>
   );
 }
+
+

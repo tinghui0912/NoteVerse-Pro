@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import io
@@ -95,7 +95,10 @@ async def test_score_approve_adds_owned_score_to_library() -> None:
     repository.get = AsyncMock(return_value=score)
     access_policy = Mock()
     access_policy.authorize = AsyncMock(
-        return_value=SimpleNamespace(score=SimpleNamespace(score_uuid="score-1"))
+        return_value=SimpleNamespace(
+            score=SimpleNamespace(score_uuid="score-1"),
+            capabilities=SimpleNamespace(),
+        )
     )
     library_service = Mock()
     library_service.ensure_entry = AsyncMock()
@@ -772,3 +775,4 @@ async def test_practice_service_get_report_parses_existing_payload() -> None:
             "recommendations": ["keep going"],
         },
     }
+

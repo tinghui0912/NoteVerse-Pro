@@ -14,6 +14,7 @@ from app.modules.revisions.service import RevisionService
 from app.modules.scores.dependencies import get_revision_service, get_score_service
 from app.modules.scores.schemas import (
     ScoreBatchDeleteRequest,
+    ScoreRead,
     ScoreUpdateRequest,
 )
 from app.modules.scores.service import ScoreService
@@ -148,6 +149,7 @@ async def generate_score_fingering(
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.generate_fingering(db, score_id, user_id, request)
     return success_response(data=result, message=SuccessCode.FINGERING_GENERATED)
+
 
 
 

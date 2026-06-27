@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { CircleAlert, Loader2, Music, Upload } from 'lucide-react';
@@ -217,26 +217,25 @@ export default function MyScoresPage({
               </Button>
             </div>
           </div>
-          {!batchMode ? (
-          <MyScoresFilterBar
-            searchInput={searchInput}
-            sort={sort}
-            hasSearch={Boolean(params.search)}
-            onSearchInputChange={setSearchInput}
-            onSubmit={submitSearch}
-            onSortChange={(value) => navigate({ sort: value, page: 1 })}
-            onClearSearch={() => {
-              setSearchInput('');
-              navigate({ search: null, page: 1 });
-            }}
-            t={t}
-          />
-          ) : null}
           <div className="mb-5">
             <h2 className="text-2xl font-bold">{t(`views.${view}`)}</h2>
             <p className="text-sm text-muted-foreground">{t('totalScores', { count: total })}</p>
           </div>
-          {batchMode && (scores.length || visibleFailedJobIds.length) ? (
+          {!batchMode ? (
+            <MyScoresFilterBar
+              searchInput={searchInput}
+              sort={sort}
+              hasSearch={Boolean(params.search)}
+              onSearchInputChange={setSearchInput}
+              onSubmit={submitSearch}
+              onSortChange={(value) => navigate({ sort: value, page: 1 })}
+              onClearSearch={() => {
+                setSearchInput('');
+                navigate({ search: null, page: 1 });
+              }}
+              t={t}
+            />
+          ) : (scores.length || visibleFailedJobIds.length) ? (
             <MyScoresBulkActions
               selectedCount={selectedCount}
               selectedJobCount={selectedJobCount}
@@ -329,3 +328,4 @@ export default function MyScoresPage({
     </div>
   );
 }
+

@@ -1,11 +1,11 @@
-import { apiClient } from '@/lib/api-client';
+﻿import { apiClient } from '@/lib/api-client';
 import type {
   ApiResponse,
   FolderDeleteMode,
   LibraryEntry,
   LibraryFolder,
   LibraryFolderTree,
-  LibraryPracticeState,
+  UserSettableLibraryPracticeState,
   LibrarySort,
   LibraryView,
   PaginatedResponse,
@@ -38,7 +38,7 @@ export const libraryApi = {
   updateEntry: (
     entryId: string,
     input: {
-      practice_state?: LibraryPracticeState;
+      practice_state?: UserSettableLibraryPracticeState;
       is_favorite?: boolean;
     }
   ) => apiClient.patch<ApiResponse<LibraryEntry>>(`/library/entries/${entryId}`, input),
@@ -48,9 +48,10 @@ export const libraryApi = {
     apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-favorite', input),
   batchTrash: (input: { entry_ids: string[] }) =>
     apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-trash', input),
-  batchPracticeState: (input: { entry_ids: string[]; practice_state: LibraryPracticeState }) =>
+  batchPracticeState: (input: { entry_ids: string[]; practice_state: UserSettableLibraryPracticeState }) =>
     apiClient.post<ApiResponse<{ updated: number }>>(
       '/library/entries/batch-practice-state',
       input
     ),
 };
+

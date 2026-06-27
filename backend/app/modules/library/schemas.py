@@ -72,10 +72,28 @@ class LibraryEntryBatchPracticeStateRequest(BaseModel):
     entry_ids: list[str] = Field(min_length=1)
     practice_state: LibraryPracticeState
 
+    @field_validator("practice_state")
+    @classmethod
+    def reject_system_practice_state(
+        cls, value: LibraryPracticeState
+    ) -> LibraryPracticeState:
+        if value == LibraryPracticeState.IN_PROGRESS:
+            raise ValueError("IN_PROGRESS is managed by practice activity")
+        return value
+
 
 class LibraryEntryUpdateRequest(BaseModel):
     practice_state: LibraryPracticeState | None = None
     is_favorite: bool | None = None
+
+    @field_validator("practice_state")
+    @classmethod
+    def reject_system_practice_state(
+        cls, value: LibraryPracticeState | None
+    ) -> LibraryPracticeState | None:
+        if value == LibraryPracticeState.IN_PROGRESS:
+            raise ValueError("IN_PROGRESS is managed by practice activity")
+        return value
 
 
 class LibraryFolderRead(BaseModel):
@@ -115,4 +133,5 @@ class LibraryEntryRead(BaseModel):
     last_practiced_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
 

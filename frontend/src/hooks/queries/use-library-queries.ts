@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libraryApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { FolderDeleteMode, LibraryPracticeState, LibrarySort, LibraryView } from '@/types/api';
+import type { FolderDeleteMode, LibrarySort, LibraryView, UserSettableLibraryPracticeState } from '@/types/api';
 
 export function useLibraryFolders() {
   return useQuery({
@@ -107,9 +107,10 @@ export function useUpdateLibraryEntry() {
       ...input
     }: {
       entryId: string;
-      practice_state?: LibraryPracticeState;
+      practice_state?: UserSettableLibraryPracticeState;
       is_favorite?: boolean;
     }) => libraryApi.updateEntry(entryId, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
+

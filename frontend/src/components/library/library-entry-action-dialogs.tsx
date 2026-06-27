@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Trash2 } from 'lucide-react';
 import {
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { LibraryFolder, LibraryPracticeState } from '@/types/api';
+import type { LibraryFolder, LibraryPracticeState, UserSettableLibraryPracticeState } from '@/types/api';
 
 interface SharedDialogProps {
   count: number;
@@ -32,9 +32,9 @@ interface SharedDialogProps {
 
 interface LibraryPracticeStateDialogProps extends SharedDialogProps {
   open: boolean;
-  value: LibraryPracticeState;
+  value: UserSettableLibraryPracticeState;
   onOpenChange: (open: boolean) => void;
-  onValueChange: (value: LibraryPracticeState) => void;
+  onValueChange: (value: UserSettableLibraryPracticeState) => void;
   onConfirm: () => void;
 }
 
@@ -54,9 +54,8 @@ interface LibraryDeleteEntriesDialogProps extends SharedDialogProps {
   onConfirm: () => void;
 }
 
-const practiceStateOptions: LibraryPracticeState[] = [
+const practiceStateOptions: UserSettableLibraryPracticeState[] = [
   'TO_PRACTICE',
-  'IN_PROGRESS',
   'MASTERED',
 ];
 
@@ -91,7 +90,7 @@ export function LibraryPracticeStateDialog({
         <RadioGroup
           className="grid gap-3"
           value={value}
-          onValueChange={(next) => onValueChange(next as LibraryPracticeState)}
+          onValueChange={(next) => onValueChange(next as UserSettableLibraryPracticeState)}
         >
           {practiceStateOptions.map((option) => (
             <Label
@@ -208,3 +207,4 @@ export function LibraryDeleteEntriesDialog({
     </AlertDialog>
   );
 }
+

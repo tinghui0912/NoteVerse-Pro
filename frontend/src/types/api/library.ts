@@ -2,6 +2,7 @@
 
 export type LibraryEntrySourceType = 'SELF_ADDED' | 'BOOKMARK';
 export type LibraryPracticeState = 'TO_PRACTICE' | 'IN_PROGRESS' | 'MASTERED';
+export type UserSettableLibraryPracticeState = 'TO_PRACTICE' | 'MASTERED';
 export type LibraryView =
   | 'all'
   | 'favorites'
@@ -60,3 +61,4 @@ export interface LibraryEntry {
   created_at: string;
   updated_at: string;
 }
+

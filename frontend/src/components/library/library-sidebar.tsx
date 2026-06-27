@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import type { LucideIcon } from 'lucide-react';
 import { CircleAlert, Folder, FolderInput, MoreHorizontal, Pencil, RefreshCw, Trash2 } from 'lucide-react';
@@ -24,7 +24,8 @@ export interface LibraryVirtualNode {
 interface LibrarySidebarProps {
   currentView: LibraryView;
   currentFolderId?: string;
-  virtualNodes: LibraryVirtualNode[];
+  quickNodes: LibraryVirtualNode[];
+  practiceNodes: LibraryVirtualNode[];
   folders: LibraryFolder[];
   folderDepth: (folder: LibraryFolder) => number;
   foldersError: unknown;
@@ -42,7 +43,8 @@ interface LibrarySidebarProps {
 export function LibrarySidebar({
   currentView,
   currentFolderId,
-  virtualNodes,
+  quickNodes,
+  practiceNodes,
   folders,
   folderDepth,
   foldersError,
@@ -72,28 +74,21 @@ export function LibrarySidebar({
         </Alert>
       ) : null}
       <Card className="rounded-2xl">
-        <CardContent className="space-y-1 p-3">
-          {virtualNodes.map((node) => {
-            const Icon = node.icon;
-            return (
-              <button
-                key={node.view}
-                className={cn(
-                  'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm',
-                  !currentFolderId && currentView === node.view
-                    ? 'bg-primary/10 text-primary'
-                    : 'hover:bg-muted'
-                )}
-                onClick={() => onNavigateView(node.view)}
-              >
-                <span className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  {node.label}
-                </span>
-                <span>{node.count}</span>
-              </button>
-            );
-          })}
+        <CardContent className="space-y-4 p-3">
+          <SidebarNodeGroup
+            title={t('quickViews')}
+            nodes={quickNodes}
+            currentView={currentView}
+            currentFolderId={currentFolderId}
+            onNavigateView={onNavigateView}
+          />
+          <SidebarNodeGroup
+            title={t('practiceStatus')}
+            nodes={practiceNodes}
+            currentView={currentView}
+            currentFolderId={currentFolderId}
+            onNavigateView={onNavigateView}
+          />
         </CardContent>
       </Card>
       <Card className="rounded-2xl">
@@ -168,3 +163,50 @@ export function LibrarySidebar({
     </aside>
   );
 }
+interface SidebarNodeGroupProps {
+  title: string;
+  nodes: LibraryVirtualNode[];
+  currentView: LibraryView;
+  currentFolderId?: string;
+  onNavigateView: (view: LibraryView) => void;
+}
+
+function SidebarNodeGroup({
+  title,
+  nodes,
+  currentView,
+  currentFolderId,
+  onNavigateView,
+}: SidebarNodeGroupProps) {
+  return (
+    <div>
+      <h2 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h2>
+      <div className="space-y-1">
+        {nodes.map((node) => {
+          const Icon = node.icon;
+          return (
+            <button
+              key={node.view}
+              className={cn(
+                'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm',
+                !currentFolderId && currentView === node.view
+                  ? 'bg-primary/10 text-primary'
+                  : 'hover:bg-muted'
+              )}
+              onClick={() => onNavigateView(node.view)}
+            >
+              <span className="flex items-center gap-2">
+                <Icon className="h-4 w-4" />
+                {node.label}
+              </span>
+              <span>{node.count}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+

@@ -115,7 +115,7 @@ Rules:
 - `OWNED` is intentionally not a Library source type;
 - uploaded/owned scores appear in `/my-scores`; confirmed scores are added to `/library` from the review completion flow;
 - finishing a practice session updates active library entries for that user and score:
-  `last_practiced_at = now`, and `TO_PRACTICE` advances to `IN_PROGRESS`.
+  `last_practiced_at = now`, and `TO_PRACTICE` advances to system-managed `IN_PROGRESS`.
 
 ### 4.3 Taxonomy Baseline
 
@@ -340,7 +340,7 @@ My Scores:
 
 ### P8 - Library Learning State `[completed]`
 
-- entries have per-user `practice_state`;
+- entries have per-user `practice_state`; `IN_PROGRESS` is system-managed and not exposed as a manual mark option;
 - Library has recent-practice, to-practice, and mastered views;
 - practice completion updates recent-practice state for active library entries.
 
@@ -502,6 +502,8 @@ Acceptance:
 - page files remain composition layers;
 - domain behavior has focused tests;
 - future Library/My Scores changes do not reintroduce History or `OWNED` semantics.
+
+
 
 
 
