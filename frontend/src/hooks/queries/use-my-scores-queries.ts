@@ -42,28 +42,6 @@ export function useDeleteMyScores() {
   });
 }
 
-export function useArchiveMyScores() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (scoreIds: string[]) => scoresApi.batchArchive(scoreIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.myScores.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scores.all });
-    },
-  });
-}
-
-export function useRestoreMyScores() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (scoreIds: string[]) => scoresApi.batchRestore(scoreIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.myScores.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scores.all });
-    },
-  });
-}
-
 export function usePublishMyScores() {
   const queryClient = useQueryClient();
   return useMutation({

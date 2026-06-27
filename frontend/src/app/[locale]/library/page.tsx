@@ -16,6 +16,11 @@ import { useRouter } from 'next/navigation';
 import { LibraryBulkActions } from '@/components/library/library-bulk-actions';
 import { LibraryDeleteFolderDialog } from '@/components/library/library-delete-folder-dialog';
 import { LibraryEntryCard } from '@/components/library/library-entry-card';
+import {
+  LibraryDeleteEntriesDialog,
+  LibraryMoveEntriesDialog,
+  LibraryPracticeStateDialog,
+} from '@/components/library/library-entry-action-dialogs';
 import { LibraryFilterBar } from '@/components/library/library-filter-bar';
 import { LibraryFolderDialog } from '@/components/library/library-folder-dialog';
 import { LibraryPagination } from '@/components/library/library-pagination';
@@ -27,14 +32,12 @@ import { Footer } from '@/components/layout/footer';
 import {
   useCreateLibraryFolder,
   useDeleteLibraryFolder,
-  useArchiveLibraryEntries,
-  useFavoriteLibraryEntries,
   useLibraryEntries,
   useLibraryFolders,
   useMoveLibraryEntries,
+  useSetLibraryEntriesPracticeState,
   useTrashLibraryEntries,
   useUpdateLibraryFolder,
-  useUpdateLibraryEntry,
 } from '@/hooks/queries/use-library-queries';
 import {
   folderDepth,
@@ -50,13 +53,19 @@ import {
   normalizeLibrarySort,
   normalizePage,
 } from '@/lib/library/state';
-import type { FolderDeleteMode, LibraryFolder, LibraryPracticeState, LibraryView } from '@/types/api';
+import type { FolderDeleteMode, LibraryEntry, LibraryFolder, LibraryPracticeState, LibraryView } from '@/types/api';
 
 const ROOT_FOLDER_VALUE = '__root__';
 
 type FolderFormState =
   | { mode: 'create'; folder: null }
   | { mode: 'edit'; folder: LibraryFolder };
+
+type EntryActionState =
+  | { type: 'practice'; entry: LibraryEntry | null }
+  | { type: 'move'; entry: LibraryEntry | null }
+  | { type: 'delete'; entry: LibraryEntry | null }
+  | null;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -85,14 +94,14 @@ export default function LibraryPage({
   const [deleteTarget, setDeleteTarget] = useState<LibraryFolder | null>(null);
   const [deleteMode, setDeleteMode] = useState<FolderDeleteMode>('MOVE_CONTENTS_TO_PARENT');
   const [searchInput, setSearchInput] = useState(params.search ?? '');
+  const [entryAction, setEntryAction] = useState<EntryActionState>(null);
+  const [practiceState, setPracticeState] = useState<LibraryPracticeState>('TO_PRACTICE');
   const createFolder = useCreateLibraryFolder();
   const updateFolder = useUpdateLibraryFolder();
   const deleteFolder = useDeleteLibraryFolder();
   const moveEntries = useMoveLibraryEntries();
-  const favoriteEntries = useFavoriteLibraryEntries();
-  const archiveEntries = useArchiveLibraryEntries();
+  const setEntriesPracticeState = useSetLibraryEntriesPracticeState();
   const trashEntries = useTrashLibraryEntries();
-  const updateEntry = useUpdateLibraryEntry();
   const view = normalizeLibraryView(params.view);
   const folderId = params.folder;
   const page = normalizePage(params.page);
@@ -110,21 +119,25 @@ export default function LibraryPage({
     () => foldersQuery.data?.data?.folders ?? [],
     [foldersQuery.data?.data?.folders]
   );
-  const entries = entriesQuery.data?.data ?? [];
+  const entries = useMemo(
+    () => entriesQuery.data?.data ?? [],
+    [entriesQuery.data?.data]
+  );
   const pagination = entriesQuery.data?.pagination;
   const canGoPrevious = pagination ? pagination.page > 1 : false;
   const canGoNext = pagination ? pagination.page < pagination.total_pages : false;
   const selectedFolder = folders.find((folder) => folder.folder_id === folderId);
   const selectedEntrySet = useMemo(() => new Set(selectedEntryIds), [selectedEntryIds]);
+  const visibleEntryIds = useMemo(() => entries.map((entry) => entry.entry_id), [entries]);
+  const allVisibleSelected =
+    visibleEntryIds.length > 0 && visibleEntryIds.every((entryId) => selectedEntrySet.has(entryId));
   const mutationError =
     createFolder.error ??
     updateFolder.error ??
     deleteFolder.error ??
     moveEntries.error ??
-    favoriteEntries.error ??
-    archiveEntries.error ??
     trashEntries.error ??
-    updateEntry.error;
+    setEntriesPracticeState.error;
   const folderTree = foldersQuery.data?.data;
   const virtualNodes = [
     {
@@ -262,33 +275,48 @@ export default function LibraryPage({
       checked ? [...current, entryId] : current.filter((id) => id !== entryId)
     );
   };
-  const selectVisibleEntries = () =>
-    setSelectedEntryIds(entries.map((entry) => entry.entry_id));
+  const toggleVisibleEntries = (checked: boolean) => {
+    setSelectedEntryIds(checked ? visibleEntryIds : []);
+  };
   const clearSelection = () => setSelectedEntryIds([]);
-  const moveSelectedEntries = () => {
-    if (!selectedEntryIds.length) return;
+  const closeEntryAction = () => setEntryAction(null);
+  const entryActionIds = entryAction?.entry ? [entryAction.entry.entry_id] : selectedEntryIds;
+  const entryActionCount = entryActionIds.length;
+  const openPracticeStateAction = (entry: LibraryEntry | null) => {
+    setPracticeState(entry?.practice_state ?? 'TO_PRACTICE');
+    setEntryAction({ type: 'practice', entry });
+  };
+  const openMoveAction = (entry: LibraryEntry | null) => {
+    setMoveTargetFolderId(entry?.folder_id ?? ROOT_FOLDER_VALUE);
+    setEntryAction({ type: 'move', entry });
+  };
+  const openDeleteAction = (entry: LibraryEntry | null) => {
+    setEntryAction({ type: 'delete', entry });
+  };
+  const onEntryActionSuccess = () => {
+    if (!entryAction?.entry) clearSelection();
+    closeEntryAction();
+  };
+  const moveActionEntries = () => {
+    if (!entryActionIds.length) return;
     moveEntries.mutate(
       {
-        entry_ids: selectedEntryIds,
+        entry_ids: entryActionIds,
         target_folder_id: moveTargetFolderId === ROOT_FOLDER_VALUE ? null : moveTargetFolderId,
       },
-      { onSuccess: clearSelection }
+      { onSuccess: onEntryActionSuccess }
     );
   };
-  const favoriteSelectedEntries = () => {
-    if (!selectedEntryIds.length) return;
-    favoriteEntries.mutate({ entry_ids: selectedEntryIds }, { onSuccess: clearSelection });
+  const setPracticeStateForActionEntries = () => {
+    if (!entryActionIds.length) return;
+    setEntriesPracticeState.mutate(
+      { entry_ids: entryActionIds, practice_state: practiceState },
+      { onSuccess: onEntryActionSuccess }
+    );
   };
-  const archiveSelectedEntries = () => {
-    if (!selectedEntryIds.length) return;
-    archiveEntries.mutate({ entry_ids: selectedEntryIds }, { onSuccess: clearSelection });
-  };
-  const trashSelectedEntries = () => {
-    if (!selectedEntryIds.length) return;
-    trashEntries.mutate({ entry_ids: selectedEntryIds }, { onSuccess: clearSelection });
-  };
-  const updatePracticeState = (entryId: string, practiceState: LibraryPracticeState) => {
-    updateEntry.mutate({ entryId, practice_state: practiceState });
+  const trashActionEntries = () => {
+    if (!entryActionIds.length) return;
+    trashEntries.mutate({ entry_ids: entryActionIds }, { onSuccess: onEntryActionSuccess });
   };
   const viewTitle = selectedFolder?.name ?? {
     all: t('allScores'),
@@ -297,7 +325,6 @@ export default function LibraryPage({
     to_practice: t('toPractice'),
     mastered: t('mastered'),
     bookmarks: t('bookmarks'),
-    archived: t('archived'),
     trash: t('trash'),
   }[view];
   const practiceStateLabel = (practiceState: LibraryPracticeState) =>
@@ -406,20 +433,16 @@ export default function LibraryPage({
             {batchMode && entries.length ? (
               <LibraryBulkActions
                 selectedCount={selectedEntryIds.length}
-                moveTargetFolderId={moveTargetFolderId}
-                rootFolderValue={ROOT_FOLDER_VALUE}
-                folders={sortedFolders}
-                movePending={moveEntries.isPending}
-                favoritePending={favoriteEntries.isPending}
-                archivePending={archiveEntries.isPending}
-                trashPending={trashEntries.isPending}
-                onSelectVisible={selectVisibleEntries}
-                onMoveTargetChange={setMoveTargetFolderId}
-                onMoveSelected={moveSelectedEntries}
-                onFavoriteSelected={favoriteSelectedEntries}
-                onArchiveSelected={archiveSelectedEntries}
-                onTrashSelected={trashSelectedEntries}
-                onClearSelection={clearSelection}
+                allSelected={allVisibleSelected}
+                pending={
+                  moveEntries.isPending ||
+                  trashEntries.isPending ||
+                  setEntriesPracticeState.isPending
+                }
+                onToggleSelectAll={toggleVisibleEntries}
+                onOpenPracticeStateDialog={() => openPracticeStateAction(null)}
+                onOpenMoveDialog={() => openMoveAction(null)}
+                onOpenDeleteDialog={() => openDeleteAction(null)}
                 t={t}
               />
             ) : null}
@@ -447,9 +470,8 @@ export default function LibraryPage({
                     entry={entry}
                     batchMode={batchMode}
                     selected={selectedEntrySet.has(entry.entry_id)}
-                    updatePending={updateEntry.isPending}
+                    updatePending={setEntriesPracticeState.isPending}
                     movePending={moveEntries.isPending}
-                    folders={sortedFolders}
                     practiceStateLabel={practiceStateLabel}
                     onOpen={() =>
                       router.push(
@@ -461,15 +483,9 @@ export default function LibraryPage({
                     onToggleSelection={(checked) =>
                       toggleEntrySelection(entry.entry_id, checked)
                     }
-                    onUpdatePracticeState={(practiceState) =>
-                      updatePracticeState(entry.entry_id, practiceState)
-                    }
-                    onMoveToFolder={(targetFolderId) =>
-                      moveEntries.mutate({
-                        entry_ids: [entry.entry_id],
-                        target_folder_id: targetFolderId,
-                      })
-                    }
+                    onOpenPracticeStateDialog={() => openPracticeStateAction(entry)}
+                    onOpenMoveDialog={() => openMoveAction(entry)}
+                    onOpenDeleteDialog={() => openDeleteAction(entry)}
                     t={t}
                   />
                 ))}
@@ -525,6 +541,42 @@ export default function LibraryPage({
         }}
         onDeleteModeChange={setDeleteMode}
         onConfirm={confirmDeleteFolder}
+        t={t}
+      />
+      <LibraryPracticeStateDialog
+        open={entryAction?.type === 'practice'}
+        count={entryActionCount}
+        value={practiceState}
+        pending={setEntriesPracticeState.isPending}
+        onOpenChange={(open) => {
+          if (!open) closeEntryAction();
+        }}
+        onValueChange={setPracticeState}
+        onConfirm={setPracticeStateForActionEntries}
+        t={t}
+      />
+      <LibraryMoveEntriesDialog
+        open={entryAction?.type === 'move'}
+        count={entryActionCount}
+        folderId={moveTargetFolderId}
+        rootFolderValue={ROOT_FOLDER_VALUE}
+        folders={sortedFolders}
+        pending={moveEntries.isPending}
+        onOpenChange={(open) => {
+          if (!open) closeEntryAction();
+        }}
+        onFolderChange={setMoveTargetFolderId}
+        onConfirm={moveActionEntries}
+        t={t}
+      />
+      <LibraryDeleteEntriesDialog
+        open={entryAction?.type === 'delete'}
+        count={entryActionCount}
+        pending={trashEntries.isPending}
+        onOpenChange={(open) => {
+          if (!open) closeEntryAction();
+        }}
+        onConfirm={trashActionEntries}
         t={t}
       />
       <Footer />

@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
     ConflictException,
-    BusinessRuleException,
     ResourceNotFoundException,
     UnauthorizedException,
 )
@@ -23,8 +22,6 @@ from app.modules.scores.repository import ScoreRepository
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.schemas import (
     ScoreRead,
-    ScoreBatchArchiveRequest,
-    ScoreBatchRestoreRequest,
     ScorePublicationSummaryRead,
     ScoreTaxonomyTagRead,
     ScoreUpdateRequest,
@@ -99,54 +96,6 @@ class ScoreService:
                 continue
             removed += 1
         return removed
-
-    async def batch_archive(
-        self, db: AsyncSession, request: ScoreBatchArchiveRequest, user_id: int
-    ) -> int:
-        changed = 0
-        now = utc_now_naive()
-        for score_uuid in request.score_ids:
-            access = await self.access_policy.authorize(
-                db, score_uuid, ScoreAction.EDIT, user_id=user_id
-            )
-            score = await self.repository.get(db, access.score.score_uuid, lock=True)
-            assert score is not None
-            if score.state == ScoreState.ARCHIVED:
-                continue
-            score.archived_from_state = score.state
-            score.state = ScoreState.ARCHIVED
-            score.version += 1
-            score.updated_at = now
-            changed += 1
-        await db.commit()
-        return changed
-
-    async def batch_restore(
-        self, db: AsyncSession, request: ScoreBatchRestoreRequest, user_id: int
-    ) -> int:
-        changed = 0
-        now = utc_now_naive()
-        for score_uuid in request.score_ids:
-            access = await self.access_policy.authorize(
-                db, score_uuid, ScoreAction.EDIT, user_id=user_id
-            )
-            score = await self.repository.get(db, access.score.score_uuid, lock=True)
-            assert score is not None
-            if score.state != ScoreState.ARCHIVED:
-                continue
-            if score.archived_from_state is None:
-                raise BusinessRuleException(
-                    ErrorCode.BUSINESS_RULE_VIOLATION,
-                    rule="archived_score_missing_restore_state",
-                    details={"score_id": score.score_uuid},
-                )
-            score.state = score.archived_from_state
-            score.archived_from_state = None
-            score.version += 1
-            score.updated_at = now
-            changed += 1
-        await db.commit()
-        return changed
 
     async def update(
         self,
@@ -276,7 +225,6 @@ class ScoreService:
                 for category, code, source, confidence in await self.repository.taxonomy_tags(db, score_id)
             ],
             state=score.state,
-            archived_from_state=score.archived_from_state,
             version=score.version,
             head_revision_id=head.revision_uuid if head else None,
             approved_revision_id=approved.revision_uuid if approved else None,

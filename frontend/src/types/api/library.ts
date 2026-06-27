@@ -14,7 +14,6 @@ export type LibraryView =
   | 'to_practice'
   | 'mastered'
   | 'bookmarks'
-  | 'archived'
   | 'trash';
 export type LibrarySort =
   | 'updated_desc'
@@ -60,7 +59,6 @@ export interface LibraryEntry {
   taxonomy_tags: ScoreTaxonomyTag[];
   metadata: ScoreMetadata | null;
   is_favorite: boolean;
-  is_archived: boolean;
   practice_state: LibraryPracticeState;
   available: boolean;
   unavailable_reason: string | null;

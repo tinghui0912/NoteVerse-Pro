@@ -8,6 +8,7 @@ from app.modules.library.dependencies import get_library_service
 from app.modules.library.schemas import (
     FolderDeleteMode,
     LibraryEntryBatchMoveRequest,
+    LibraryEntryBatchPracticeStateRequest,
     LibraryEntryBatchUpdateRequest,
     LibraryEntryUpdateRequest,
     LibraryFolderCreateRequest,
@@ -123,18 +124,6 @@ async def batch_favorite_library_entries(
     return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
 
 
-@router.post("/entries/batch-archive")
-async def batch_archive_library_entries(
-    request: LibraryEntryBatchUpdateRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: LibraryService = Depends(get_library_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    updated = await service.batch_archive(db, user_id, request)
-    return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
-
-
 @router.post("/entries/batch-trash")
 async def batch_trash_library_entries(
     request: LibraryEntryBatchUpdateRequest,
@@ -144,6 +133,18 @@ async def batch_trash_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_trash(db, user_id, request)
+    return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
+
+
+@router.post("/entries/batch-practice-state")
+async def batch_practice_state_library_entries(
+    request: LibraryEntryBatchPracticeStateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: LibraryService = Depends(get_library_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    updated = await service.batch_set_practice_state(db, user_id, request)
     return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
 
 

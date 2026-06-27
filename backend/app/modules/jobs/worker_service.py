@@ -176,6 +176,10 @@ class SyncJobService:
                 "mime_type": row.mime_type,
                 "sha256": row.sha256,
             })
+        thumbnail = (
+            (artifacts.get("preview_image") or [None])[0]
+            or (artifacts.get("original_image") or [None])[0]
+        )
         return {
             "job_id": job.job_uuid,
             "score_id": self.repository.get_score_uuid(db, job.score_id),
@@ -186,6 +190,7 @@ class SyncJobService:
             "taxonomy_tags": (
                 requested_taxonomy_tags if isinstance(requested_taxonomy_tags, list) else []
             ),
+            "thumbnail_artifact_id": thumbnail.get("artifact_id") if thumbnail else None,
             "created_at": job.created_at.isoformat(),
             "updated_at": job.updated_at.isoformat(),
             "started_at": job.started_at.isoformat() if job.started_at else None,

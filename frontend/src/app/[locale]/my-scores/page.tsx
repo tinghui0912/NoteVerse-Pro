@@ -15,13 +15,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Footer } from '@/components/layout/footer';
 import { useAddOwnedScoresToLibrary } from '@/hooks/queries/use-library-queries';
-import { useDeleteJob, useJobList, useRetryJob } from '@/hooks/queries/use-job-queries';
+import { useDeleteJob, useJobList } from '@/hooks/queries/use-job-queries';
 import {
-  useArchiveMyScores,
   useDeleteMyScores,
   useMyScores,
   usePublishMyScores,
-  useRestoreMyScores,
   useUnpublishMyScores,
 } from '@/hooks/queries/use-my-scores-queries';
 import {
@@ -68,11 +66,8 @@ export default function MyScoresPage({
   });
   const jobsQuery = useJobList(1, 20);
   const deleteJob = useDeleteJob();
-  const retryJob = useRetryJob();
   const addToLibrary = useAddOwnedScoresToLibrary();
   const deleteScores = useDeleteMyScores();
-  const archiveScores = useArchiveMyScores();
-  const restoreScores = useRestoreMyScores();
   const publishScores = usePublishMyScores();
   const unpublishScores = useUnpublishMyScores();
   const scores = React.useMemo(() => scoresQuery.data?.data ?? [], [scoresQuery.data?.data]);
@@ -87,6 +82,11 @@ export default function MyScoresPage({
   const visibleFailedJobIds = visibleJobs
     .filter((job) => job.state === 'FAILURE')
     .map((job) => job.job_id);
+  const visibleSelectableCount = scoreIds.length + visibleFailedJobIds.length;
+  const allVisibleSelected =
+    visibleSelectableCount > 0 &&
+    scoreIds.every((scoreId) => selectedScoreIds.has(scoreId)) &&
+    visibleFailedJobIds.every((jobId) => selectedJobIds.has(jobId));
   const total = myScoresTotal({
     showScores,
     scoreTotal: scoresQuery.data?.pagination.total ?? 0,
@@ -125,9 +125,9 @@ export default function MyScoresPage({
       return next;
     });
   };
-  const selectVisibleScores = () => {
-    setSelectedScoreIds(new Set(scoreIds));
-    setSelectedJobIds(new Set(visibleFailedJobIds));
+  const toggleVisibleSelection = (checked: boolean) => {
+    setSelectedScoreIds(checked ? new Set(scoreIds) : new Set());
+    setSelectedJobIds(checked ? new Set(visibleFailedJobIds) : new Set());
   };
   const clearSelection = () => {
     setSelectedScoreIds(new Set());
@@ -151,10 +151,16 @@ export default function MyScoresPage({
     );
   };
   const handleDeleteSelected = () => {
-    if (!window.confirm(t('confirmDeleteSelected', { count: selectedCount }))) {
+    const totalSelected = selectedCount + selectedJobCount;
+    if (!totalSelected || !window.confirm(t('confirmDeleteSelected', { count: totalSelected }))) {
       return;
     }
-    deleteScores.mutate(selectedIds(), { onSuccess: clearSelection });
+    Promise.all([
+      selectedCount ? deleteScores.mutateAsync(selectedIds()) : Promise.resolve(),
+      ...selectedJobs().map((jobId) => deleteJob.mutateAsync(jobId)),
+    ])
+      .then(clearSelection)
+      .catch(() => undefined);
   };
   const deleteSingleScore = (scoreId: string) => {
     if (!window.confirm(t('confirmDeleteSelected', { count: 1 }))) {
@@ -162,27 +168,11 @@ export default function MyScoresPage({
     }
     deleteScores.mutate([scoreId]);
   };
-  const handleArchiveSelected = () => {
-    archiveScores.mutate(selectedIds(), { onSuccess: clearSelection });
-  };
-  const handleRestoreSelected = () => {
-    restoreScores.mutate(selectedIds(), { onSuccess: clearSelection });
-  };
   const handlePublishSelected = () => {
     publishScores.mutate(selectedIds(), { onSuccess: clearSelection });
   };
   const handleUnpublishSelected = () => {
     unpublishScores.mutate(selectedIds(), { onSuccess: clearSelection });
-  };
-  const handleRetrySelectedJobs = () => {
-    Promise.all(selectedJobs().map((jobId) => retryJob.mutateAsync(jobId)))
-      .then(clearSelection)
-      .catch(() => undefined);
-  };
-  const handleDismissSelectedJobs = () => {
-    Promise.all(selectedJobs().map((jobId) => deleteJob.mutateAsync(jobId)))
-      .then(clearSelection)
-      .catch(() => undefined);
   };
   const goToPage = (nextPage: number) => {
     navigate({ page: nextPage });
@@ -257,29 +247,18 @@ export default function MyScoresPage({
             <MyScoresBulkActions
               selectedCount={selectedCount}
               selectedJobCount={selectedJobCount}
+              allSelected={allVisibleSelected}
               addToLibraryPending={addToLibrary.isPending}
-              archivePending={archiveScores.isPending}
-              restorePending={restoreScores.isPending}
               publishPending={publishScores.isPending}
               unpublishPending={unpublishScores.isPending}
-              retryJobsPending={retryJob.isPending}
-              dismissJobsPending={deleteJob.isPending}
-              deletePending={deleteScores.isPending}
-              showArchiveAction={bulkVisibility.archive}
-              showRestoreAction={bulkVisibility.restore}
+              deletePending={deleteScores.isPending || deleteJob.isPending}
               showPublishAction={bulkVisibility.publish}
               showUnpublishAction={bulkVisibility.unpublish}
-              showJobActions={visibleFailedJobIds.length > 0}
-              onSelectVisible={selectVisibleScores}
-              onClearSelection={clearSelection}
+              onToggleSelectAll={toggleVisibleSelection}
               onAddToLibrary={handleAddToLibrary}
-              onArchiveSelected={handleArchiveSelected}
-              onRestoreSelected={handleRestoreSelected}
               onPublishSelected={handlePublishSelected}
               onUnpublishSelected={handleUnpublishSelected}
               onDeleteSelected={handleDeleteSelected}
-              onRetrySelectedJobs={handleRetrySelectedJobs}
-              onDismissSelectedJobs={handleDismissSelectedJobs}
               t={t}
             />
           ) : null}
@@ -302,12 +281,10 @@ export default function MyScoresPage({
                   key={job.job_id}
                   job={job}
                   deletePending={deleteJob.isPending}
-                  retryPending={retryJob.isPending}
                   batchMode={batchMode}
                   selected={selectedJobIds.has(job.job_id)}
-                  onOpenScore={() => router.push(`/results/${job.score_id}?from=my-scores`)}
+                  onOpenScore={() => router.push(`/upload?job_id=${encodeURIComponent(job.job_id)}`)}
                   onToggleSelection={() => toggleJobSelection(job.job_id)}
-                  onRetry={() => retryJob.mutate(job.job_id)}
                   onDismiss={() => deleteJob.mutate(job.job_id)}
                   t={t}
                 />
@@ -319,7 +296,13 @@ export default function MyScoresPage({
                   view={scoreView}
                   batchMode={batchMode}
                   selected={selectedScoreIds.has(score.score_id)}
-                  onOpen={() => router.push(`/results/${score.score_id}?from=my-scores`)}
+                  onOpen={() =>
+                    router.push(
+                      score.state === 'IN_REVIEW'
+                        ? `/review/${score.score_id}`
+                        : `/results/${score.score_id}?from=my-scores`
+                    )
+                  }
                   onToggleSelection={() => toggleScoreSelection(score.score_id)}
                   onDelete={() => deleteSingleScore(score.score_id)}
                   t={t}

@@ -9,7 +9,6 @@ export const LIBRARY_VIEWS = [
   'to_practice',
   'mastered',
   'bookmarks',
-  'archived',
   'trash',
 ] as const satisfies readonly LibraryView[];
 

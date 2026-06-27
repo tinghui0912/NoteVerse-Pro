@@ -83,18 +83,18 @@ export function useFavoriteLibraryEntries() {
   });
 }
 
-export function useArchiveLibraryEntries() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: libraryApi.batchArchive,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
-  });
-}
-
 export function useTrashLibraryEntries() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: libraryApi.batchTrash,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+  });
+}
+
+export function useSetLibraryEntriesPracticeState() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: libraryApi.batchPracticeState,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
@@ -117,7 +117,6 @@ export function useUpdateLibraryEntry() {
       entryId: string;
       practice_state?: LibraryPracticeState;
       is_favorite?: boolean;
-      is_archived?: boolean;
     }) => libraryApi.updateEntry(entryId, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });

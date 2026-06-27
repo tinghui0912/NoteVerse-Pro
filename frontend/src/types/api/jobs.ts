@@ -13,6 +13,7 @@ export interface ProcessingJob {
   current_step?: string;
   title?: string;
   taxonomy_tags?: Array<{ category: string; code: string }>;
+  thumbnail_artifact_id?: string | null;
   created_at?: string;
   updated_at?: string;
   started_at?: string;

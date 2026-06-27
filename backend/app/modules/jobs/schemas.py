@@ -64,6 +64,7 @@ class JobDetail(TypedDict, total=False):
     current_step: Optional[str]
     title: Optional[str]
     taxonomy_tags: list[dict[str, str]]
+    thumbnail_artifact_id: Optional[str]
     created_at: Optional[str]
     updated_at: Optional[str]
     started_at: Optional[str]

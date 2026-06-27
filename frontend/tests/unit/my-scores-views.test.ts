@@ -24,7 +24,7 @@ function job(jobId: string, state: ProcessingJob['state']): ProcessingJob {
 
 describe('my scores view helpers', () => {
   it('keeps score-backed views separate from aggregate processing views', () => {
-    expect(MY_SCORE_VIEWS).toEqual(['all', 'drafts', 'private', 'published', 'archived']);
+    expect(MY_SCORE_VIEWS).toEqual(['all', 'drafts', 'private', 'published']);
     expect(MY_SCORE_PAGE_VIEWS).toEqual([
       'all',
       'processing',
@@ -32,7 +32,6 @@ describe('my scores view helpers', () => {
       'drafts',
       'private',
       'published',
-      'archived',
     ]);
     expect(isMyScoreView('all')).toBe(true);
     expect(isMyScoreView('processing')).toBe(false);
@@ -40,7 +39,7 @@ describe('my scores view helpers', () => {
   });
 
   it('normalizes unknown views to all', () => {
-    expect(normalizeMyScoresView('archived')).toBe('archived');
+    expect(normalizeMyScoresView('archived')).toBe('all');
     expect(normalizeMyScoresView('missing')).toBe('all');
     expect(normalizeMyScoresView(undefined)).toBe('all');
   });
@@ -74,6 +73,9 @@ describe('my scores view helpers', () => {
       'progress',
       'failed',
     ]);
+    expect(visibleMyScoreJobs(jobs, 'drafts')).toEqual([]);
+    expect(visibleMyScoreJobs(jobs, 'private')).toEqual([]);
+    expect(visibleMyScoreJobs(jobs, 'published')).toEqual([]);
   });
 
   it('counts aggregate jobs only where the UI shows them', () => {
@@ -99,22 +101,12 @@ describe('my scores view helpers', () => {
 
   it('keeps bulk actions scoped to the relevant owner views', () => {
     expect(myScoresBulkVisibility('private')).toEqual({
-      archive: true,
-      restore: false,
       publish: true,
       unpublish: false,
     });
     expect(myScoresBulkVisibility('published')).toEqual({
-      archive: true,
-      restore: false,
       publish: false,
       unpublish: true,
-    });
-    expect(myScoresBulkVisibility('archived')).toEqual({
-      archive: false,
-      restore: true,
-      publish: false,
-      unpublish: false,
     });
   });
 

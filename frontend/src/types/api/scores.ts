@@ -1,4 +1,4 @@
-export type ScoreState = 'IN_REVIEW' | 'ACTIVE' | 'ARCHIVED';
+export type ScoreState = 'IN_REVIEW' | 'ACTIVE';
 export type RevisionOrigin = 'OMR' | 'EDIT' | 'IMPORT' | 'FINGERING';
 export type ArtifactKind =
   | 'MUSICXML'
@@ -53,7 +53,6 @@ export interface ScoreDetail {
   title: string;
   taxonomy_tags: ScoreTaxonomyTag[];
   state: ScoreState;
-  archived_from_state: ScoreState | null;
   version: number;
   head_revision_id: string | null;
   approved_revision_id: string | null;

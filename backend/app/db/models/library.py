@@ -144,10 +144,6 @@ class ScoreLibraryEntry(SQLModel, table=True):  # type: ignore[call-arg]
         default=False,
         sa_column=Column(Boolean, default=False, nullable=False),
     )
-    is_archived: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, default=False, nullable=False),
-    )
     practice_state: LibraryPracticeState = Field(
         default=LibraryPracticeState.TO_PRACTICE,
         sa_column=Column(

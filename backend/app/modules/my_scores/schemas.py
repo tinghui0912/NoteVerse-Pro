@@ -8,7 +8,6 @@ class MyScoresView(str, Enum):
     DRAFTS = "drafts"
     PRIVATE = "private"
     PUBLISHED = "published"
-    ARCHIVED = "archived"
 
 
 class MyScoresSort(str, Enum):

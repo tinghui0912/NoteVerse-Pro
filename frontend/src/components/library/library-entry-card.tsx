@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Clock3, FolderInput, MoreVertical, Target } from 'lucide-react';
+import { FolderInput, MoreVertical, Tags, Trash2 } from 'lucide-react';
 import { ScoreThumbnail } from '@/components/score/score-thumbnail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,14 +9,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatApiDateTime } from '@/lib/score/metadata-display';
 import { cn } from '@/lib/utils';
-import type { LibraryEntry, LibraryFolder, LibraryPracticeState } from '@/types/api';
+import type { LibraryEntry, LibraryPracticeState } from '@/types/api';
 
 interface LibraryEntryCardProps {
   entry: LibraryEntry;
@@ -24,12 +21,12 @@ interface LibraryEntryCardProps {
   selected: boolean;
   updatePending: boolean;
   movePending: boolean;
-  folders: LibraryFolder[];
   practiceStateLabel: (practiceState: LibraryPracticeState) => string;
   onOpen: () => void;
   onToggleSelection: (checked: boolean) => void;
-  onUpdatePracticeState: (practiceState: LibraryPracticeState) => void;
-  onMoveToFolder: (folderId: string | null) => void;
+  onOpenPracticeStateDialog: () => void;
+  onOpenMoveDialog: () => void;
+  onOpenDeleteDialog: () => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
 
@@ -39,12 +36,12 @@ export function LibraryEntryCard({
   selected,
   updatePending,
   movePending,
-  folders,
   practiceStateLabel,
   onOpen,
   onToggleSelection,
-  onUpdatePracticeState,
-  onMoveToFolder,
+  onOpenPracticeStateDialog,
+  onOpenMoveDialog,
+  onOpenDeleteDialog,
   t,
 }: LibraryEntryCardProps) {
   return (
@@ -109,37 +106,18 @@ export function LibraryEntryCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-                <DropdownMenuItem disabled={updatePending} onClick={() => onUpdatePracticeState('TO_PRACTICE')}>
-                  <Target className="h-4 w-4" />
-                  {t('practiceStateToPractice')}
+                <DropdownMenuItem disabled={updatePending} onClick={onOpenPracticeStateDialog}>
+                  <Tags className="h-4 w-4" />
+                  {t('markAs')}
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={updatePending} onClick={() => onUpdatePracticeState('IN_PROGRESS')}>
-                  <Clock3 className="h-4 w-4" />
-                  {t('practiceStateInProgress')}
+                <DropdownMenuItem disabled={movePending} onClick={onOpenMoveDialog}>
+                  <FolderInput className="h-4 w-4" />
+                  {t('moveTo')}
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={updatePending} onClick={() => onUpdatePracticeState('MASTERED')}>
-                  <CheckCircle2 className="h-4 w-4" />
-                  {t('practiceStateMastered')}
+                <DropdownMenuItem className="text-destructive" onClick={onOpenDeleteDialog}>
+                  <Trash2 className="h-4 w-4" />
+                  {t('deleteEntry')}
                 </DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger disabled={movePending}>
-                    <FolderInput className="h-4 w-4" />
-                    {t('moveToFolder')}
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuItem onClick={() => onMoveToFolder(null)}>
-                      {t('libraryRoot')}
-                    </DropdownMenuItem>
-                    {folders.map((folder) => (
-                      <DropdownMenuItem
-                        key={folder.folder_id}
-                        onClick={() => onMoveToFolder(folder.folder_id)}
-                      >
-                        {folder.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

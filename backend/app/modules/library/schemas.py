@@ -17,7 +17,6 @@ class LibraryView(str, Enum):
     TO_PRACTICE = "to_practice"
     MASTERED = "mastered"
     BOOKMARKS = "bookmarks"
-    ARCHIVED = "archived"
     TRASH = "trash"
 
 
@@ -70,6 +69,11 @@ class LibraryEntryBatchUpdateRequest(BaseModel):
     entry_ids: list[str] = Field(min_length=1)
 
 
+class LibraryEntryBatchPracticeStateRequest(BaseModel):
+    entry_ids: list[str] = Field(min_length=1)
+    practice_state: LibraryPracticeState
+
+
 class LibraryOwnedScoreBatchAddRequest(BaseModel):
     score_ids: list[str] = Field(min_length=1)
 
@@ -77,7 +81,6 @@ class LibraryOwnedScoreBatchAddRequest(BaseModel):
 class LibraryEntryUpdateRequest(BaseModel):
     practice_state: LibraryPracticeState | None = None
     is_favorite: bool | None = None
-    is_archived: bool | None = None
 
 
 class LibraryFolderRead(BaseModel):
@@ -111,7 +114,6 @@ class LibraryEntryRead(BaseModel):
     taxonomy_tags: list[ScoreTaxonomyTagRead]
     metadata: MetadataRead | None
     is_favorite: bool
-    is_archived: bool
     practice_state: LibraryPracticeState
     available: bool
     unavailable_reason: str | None

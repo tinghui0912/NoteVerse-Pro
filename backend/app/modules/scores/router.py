@@ -8,13 +8,10 @@ from app.modules.revisions.schemas import FingeringRevisionRequest, RevisionCrea
 from app.modules.revisions.service import RevisionService
 from app.modules.scores.dependencies import get_revision_service, get_score_service
 from app.modules.scores.schemas import (
-    ScoreBatchArchiveRequest,
     ScoreBatchDeleteRequest,
-    ScoreBatchRestoreRequest,
     ScoreUpdateRequest,
 )
 from app.modules.scores.service import ScoreService
-from app.shared.constants import SuccessCode
 from app.shared.responses import paginated_response, success_response
 
 router = APIRouter()
@@ -48,30 +45,6 @@ async def batch_delete_scores(
     user_id = require_persisted_id(current_user.id, entity="user")
     removed = await service.batch_delete(db, request.score_ids, user_id)
     return success_response(data={"removed": removed})
-
-
-@router.post("/batch-archive")
-async def batch_archive_scores(
-    request: ScoreBatchArchiveRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: ScoreService = Depends(get_score_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    archived = await service.batch_archive(db, request, user_id)
-    return success_response(data={"archived": archived}, message=SuccessCode.UPDATE_SUCCESS)
-
-
-@router.post("/batch-restore")
-async def batch_restore_scores(
-    request: ScoreBatchRestoreRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: ScoreService = Depends(get_score_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    restored = await service.batch_restore(db, request, user_id)
-    return success_response(data={"restored": restored}, message=SuccessCode.UPDATE_SUCCESS)
 
 
 @router.get("/{score_id}")

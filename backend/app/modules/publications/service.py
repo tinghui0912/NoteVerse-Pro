@@ -5,7 +5,7 @@ import re
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import BusinessRuleException, ResourceNotFoundException
+from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
@@ -14,7 +14,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
 )
-from app.db.models.score import ArtifactKind, ScoreState
+from app.db.models.score import ArtifactKind
 from app.db.models.score_access import PublicationStatus
 from app.modules.artifacts.service import ArtifactService
 from app.modules.metadata.service import MetadataProjectionService
@@ -65,12 +65,6 @@ class PublicationService:
             revision_uuid=request.revision_id,
         )
         score = access.score
-        if score.state == ScoreState.ARCHIVED:
-            raise BusinessRuleException(
-                ErrorCode.BUSINESS_RULE_VIOLATION,
-                rule="cannot_publish_archived_score",
-                details={"score_id": score.score_uuid},
-            )
         revision = access.revision
         score_id = require_persisted_id(score.id, entity="score")
         publication = await self.repository.by_score(db, score_id)

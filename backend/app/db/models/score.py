@@ -30,7 +30,6 @@ from app.utils.timezone import utc_now_naive
 class ScoreState(str, enum.Enum):
     IN_REVIEW = "IN_REVIEW"
     ACTIVE = "ACTIVE"
-    ARCHIVED = "ARCHIVED"
 
 
 class RevisionOrigin(str, enum.Enum):
@@ -89,10 +88,6 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
     title: str = Field(sa_column=Column(String(255), nullable=False))
     state: ScoreState = Field(
         sa_column=Column(SAEnum(ScoreState, name="scorestate"), nullable=False)
-    )
-    archived_from_state: Optional[ScoreState] = Field(
-        default=None,
-        sa_column=Column(SAEnum(ScoreState, name="scorestate"), nullable=True),
     )
     head_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     approved_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))

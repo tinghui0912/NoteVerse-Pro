@@ -93,7 +93,6 @@ class LibraryRepository:
                     select(func.count(ScoreLibraryEntry.id)).where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
-                        ScoreLibraryEntry.is_archived.is_(False),
                     )
                 )
             ).scalar_one()
@@ -115,7 +114,6 @@ class LibraryRepository:
                     select(func.count(ScoreLibraryEntry.id)).where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
-                        ScoreLibraryEntry.is_archived.is_(False),
                         ScoreLibraryEntry.last_practiced_at.is_not(None),
                     )
                 )
@@ -127,7 +125,6 @@ class LibraryRepository:
                     select(func.count(ScoreLibraryEntry.id)).where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
-                        ScoreLibraryEntry.is_archived.is_(False),
                         ScoreLibraryEntry.practice_state == LibraryPracticeState.TO_PRACTICE,
                     )
                 )
@@ -139,7 +136,6 @@ class LibraryRepository:
                     select(func.count(ScoreLibraryEntry.id)).where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
-                        ScoreLibraryEntry.is_archived.is_(False),
                         ScoreLibraryEntry.practice_state == LibraryPracticeState.MASTERED,
                     )
                 )
@@ -169,7 +165,7 @@ class LibraryRepository:
         user_id: int,
         *,
         view: LibraryView,
-        folder_id: int | None,
+        folder_ids: set[int] | None,
         search: str | None,
         sort: LibrarySort,
         page: int,
@@ -191,12 +187,8 @@ class LibraryRepository:
             filters.append(ScoreLibraryEntry.practice_state == LibraryPracticeState.MASTERED)
         elif view == LibraryView.BOOKMARKS:
             filters.append(ScoreLibraryEntry.source_type == LibraryEntrySourceType.BOOKMARK)
-        elif view == LibraryView.ARCHIVED:
-            filters.append(ScoreLibraryEntry.is_archived.is_(True))
-        elif view != LibraryView.TRASH:
-            filters.append(ScoreLibraryEntry.is_archived.is_(False))
-        if folder_id is not None:
-            filters.append(ScoreLibraryEntry.folder_id == folder_id)
+        if folder_ids is not None:
+            filters.append(ScoreLibraryEntry.folder_id.in_(folder_ids))
         if search:
             filters.append(score_title_col.ilike(f"%{search}%"))
 

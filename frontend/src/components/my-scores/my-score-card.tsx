@@ -1,7 +1,6 @@
 'use client';
 
-import { Edit, MoreVertical, Trash2 } from 'lucide-react';
-import Link from 'next/link';
+import { MoreVertical, Trash2 } from 'lucide-react';
 import { ScoreThumbnail } from '@/components/score/score-thumbnail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +18,6 @@ import type { MyScoresView, ScoreDetail, ScoreState } from '@/types/api';
 function stateLabelKey(state: ScoreState, view: MyScoresView) {
   if (view === 'published') return 'publishedStatus';
   if (state === 'IN_REVIEW') return 'draftStatus';
-  if (state === 'ARCHIVED') return 'archivedStatus';
   return 'privateStatus';
 }
 
@@ -117,17 +115,9 @@ export function MyScoreCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link
-                    href={`/editor/${score.score_id}?returnUrl=${encodeURIComponent(`/results/${score.score_id}?from=my-scores`)}`}
-                  >
-                    <Edit className="h-4 w-4" />
-                    {t('edit')}
-                  </Link>
-                </DropdownMenuItem>
                 <DropdownMenuItem className="text-destructive" onClick={onDelete}>
                   <Trash2 className="h-4 w-4" />
-                  {t('deleteScore')}
+                  {t('delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -57,14 +57,6 @@ class ScoreBatchDeleteRequest(BaseModel):
     score_ids: list[str] = Field(min_length=1)
 
 
-class ScoreBatchArchiveRequest(BaseModel):
-    score_ids: list[str] = Field(min_length=1)
-
-
-class ScoreBatchRestoreRequest(BaseModel):
-    score_ids: list[str] = Field(min_length=1)
-
-
 class ScorePublicationSummaryRead(BaseModel):
     public_slug: str
     revision_id: str
@@ -77,7 +69,6 @@ class ScoreRead(BaseModel):
     title: str
     taxonomy_tags: list[ScoreTaxonomyTagRead]
     state: ScoreState
-    archived_from_state: ScoreState | None
     version: int
     head_revision_id: str | None
     approved_revision_id: str | None

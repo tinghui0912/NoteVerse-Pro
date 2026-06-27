@@ -58,14 +58,6 @@ export function LibrarySidebar({
 }: LibrarySidebarProps) {
   return (
     <aside className="space-y-3">
-      <Button
-        className="w-full justify-start"
-        variant="outline"
-        onClick={onCreateFolder}
-        disabled={createFolderPending}
-      >
-        {t('newFolder')}
-      </Button>
       {foldersError ? (
         <Alert variant="destructive">
           <CircleAlert className="h-4 w-4" />
@@ -106,9 +98,19 @@ export function LibrarySidebar({
       </Card>
       <Card className="rounded-2xl">
         <CardContent className="p-3">
-          <h2 className="mb-2 px-3 text-sm font-semibold text-muted-foreground">
-            {t('folders')}
-          </h2>
+          <div className="mb-2 flex items-center justify-between gap-2 px-3">
+            <h2 className="text-sm font-semibold text-muted-foreground">
+              {t('folders')}
+            </h2>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onCreateFolder}
+              disabled={createFolderPending}
+            >
+              {t('newFolder')}
+            </Button>
+          </div>
           <div className="space-y-1">
             {folders.map((folder) => (
               <div

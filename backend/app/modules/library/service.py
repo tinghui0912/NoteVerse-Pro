@@ -23,6 +23,7 @@ from app.modules.library.repository import LibraryRepository
 from app.modules.library.schemas import (
     FolderDeleteMode,
     LibraryEntryBatchMoveRequest,
+    LibraryEntryBatchPracticeStateRequest,
     LibraryEntryBatchUpdateRequest,
     LibraryEntryRead,
     LibraryEntryUpdateRequest,
@@ -244,11 +245,16 @@ class LibraryService:
         page_size: int,
     ) -> tuple[list[LibraryEntryRead], int]:
         folder = await self._optional_folder(db, user_id, folder_id)
+        folder_ids = None
+        if folder:
+            folders = await self.repository.folders(db, user_id)
+            selected_folder_id = require_persisted_id(folder.id, entity="library folder")
+            folder_ids = {selected_folder_id, *self._descendant_ids(folders, selected_folder_id)}
         rows, total = await self.repository.list_entries(
             db,
             user_id,
             view=view,
-            folder_id=require_persisted_id(folder.id, entity="library folder") if folder else None,
+            folder_ids=folder_ids,
             search=search,
             sort=sort,
             page=page,
@@ -283,18 +289,21 @@ class LibraryService:
             db, user_id, request.entry_ids, favorite=True
         )
 
-    async def batch_archive(
-        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
-    ) -> int:
-        return await self._batch_update_entries(
-            db, user_id, request.entry_ids, archive=True
-        )
-
     async def batch_trash(
         self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
     ) -> int:
         return await self._batch_update_entries(
             db, user_id, request.entry_ids, trash=True
+        )
+
+    async def batch_set_practice_state(
+        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchPracticeStateRequest
+    ) -> int:
+        return await self._batch_update_entries(
+            db,
+            user_id,
+            request.entry_ids,
+            practice_state=request.practice_state,
         )
 
     async def batch_add_owned_scores(
@@ -328,8 +337,6 @@ class LibraryService:
             entry.practice_state = request.practice_state
         if request.is_favorite is not None:
             entry.is_favorite = request.is_favorite
-        if request.is_archived is not None:
-            entry.is_archived = request.is_archived
         entry.updated_at = utc_now_naive()
         await db.commit()
         await db.refresh(entry)
@@ -411,7 +418,6 @@ class LibraryService:
                 else None
             ),
             is_favorite=entry.is_favorite,
-            is_archived=entry.is_archived,
             practice_state=entry.practice_state,
             available=available,
             unavailable_reason=None if available else "access_unavailable",
@@ -429,8 +435,8 @@ class LibraryService:
         entry_uuids: list[str],
         *,
         favorite: bool = False,
-        archive: bool = False,
         trash: bool = False,
+        practice_state: LibraryPracticeState | None = None,
     ) -> int:
         changed = 0
         now = utc_now_naive()
@@ -440,10 +446,10 @@ class LibraryService:
                 continue
             if favorite:
                 entry.is_favorite = True
-            if archive:
-                entry.is_archived = True
             if trash:
                 entry.deleted_at = now
+            if practice_state is not None:
+                entry.practice_state = practice_state
             entry.updated_at = now
             changed += 1
         await db.commit()

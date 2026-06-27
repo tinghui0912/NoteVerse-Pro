@@ -1,6 +1,7 @@
 'use client';
 
-import { CircleAlert, Loader2, MoreVertical, RefreshCw, Trash2 } from 'lucide-react';
+import { CircleAlert, Loader2, MoreVertical, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { jobsApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/score/metadata-display';
 import { cn } from '@/lib/utils';
 import { isProcessingJob } from '@/lib/my-scores/state';
@@ -22,12 +24,10 @@ function jobTitle(job: ProcessingJob) {
 interface ProcessingJobCardProps {
   job: ProcessingJob;
   deletePending: boolean;
-  retryPending: boolean;
   batchMode: boolean;
   selected: boolean;
   onOpenScore: () => void;
   onToggleSelection: () => void;
-  onRetry: () => void;
   onDismiss: () => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
@@ -35,27 +35,56 @@ interface ProcessingJobCardProps {
 export function ProcessingJobCard({
   job,
   deletePending,
-  retryPending,
   batchMode,
   selected,
   onOpenScore,
   onToggleSelection,
-  onRetry,
   onDismiss,
   t,
 }: ProcessingJobCardProps) {
   const processing = isProcessingJob(job);
   const selectable = job.state === 'FAILURE';
+  const [thumbnail, setThumbnail] = useState<{ artifactId: string; url: string } | null>(null);
+  const thumbnailArtifactId = job.thumbnail_artifact_id ?? null;
+  const thumbnailUrl =
+    thumbnailArtifactId && thumbnail?.artifactId === thumbnailArtifactId
+      ? thumbnail.url
+      : null;
+
+  useEffect(() => {
+    if (!thumbnailArtifactId) return;
+    let active = true;
+    let objectUrl: string | null = null;
+    void jobsApi
+      .downloadJobArtifact(job.job_id, thumbnailArtifactId)
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setThumbnail({ artifactId: thumbnailArtifactId, url: objectUrl });
+      })
+      .catch(() => {
+        if (active) setThumbnail(null);
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [job.job_id, thumbnailArtifactId]);
 
   return (
     <Card
       className={cn(
         'group rounded-2xl',
+        !batchMode && selectable && 'cursor-pointer',
         batchMode && selectable && 'cursor-pointer',
         selected && 'ring-2 ring-primary'
       )}
       onClick={() => {
-        if (batchMode && selectable) onToggleSelection();
+        if (batchMode && selectable) {
+          onToggleSelection();
+          return;
+        }
+        if (!batchMode && selectable) onOpenScore();
       }}
     >
       <CardContent className="relative p-5">
@@ -71,12 +100,24 @@ export function ProcessingJobCard({
             />
           </div>
         ) : null}
-        <div className="mb-4 flex h-32 items-center justify-center rounded-xl bg-muted">
-          {processing ? (
+        <div className="relative mb-4 flex h-32 items-center justify-center overflow-hidden rounded-xl bg-muted">
+          {thumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbnailUrl}
+              alt={jobTitle(job)}
+              className="h-full w-full object-contain p-2"
+            />
+          ) : processing ? (
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
           ) : (
             <CircleAlert className="h-10 w-10 text-destructive" />
           )}
+          {processing && thumbnailUrl ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : null}
         </div>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -111,13 +152,12 @@ export function ProcessingJobCard({
               })}
             </p>
           </div>
-        ) : (
-          <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">
-            {job.error || t('jobFailedFallback')}
-          </p>
-        )}
+        ) : null}
         {!batchMode ? (
-        <div className="absolute bottom-4 right-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        <div
+          className="absolute bottom-4 right-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+          onClick={(event) => event.stopPropagation()}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -130,22 +170,11 @@ export function ProcessingJobCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {job.score_id ? (
-                <DropdownMenuItem onClick={onOpenScore}>
-                  {t('openScore')}
-                </DropdownMenuItem>
-              ) : null}
               {job.state === 'FAILURE' ? (
-                <>
-                  <DropdownMenuItem disabled={retryPending} onClick={onRetry}>
-                    <RefreshCw className="h-4 w-4" />
-                    {t('retryJob')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={deletePending} onClick={onDismiss}>
-                    <Trash2 className="h-4 w-4" />
-                    {t('dismissJob')}
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem disabled={deletePending} onClick={onDismiss}>
+                  <Trash2 className="h-4 w-4" />
+                  {t('delete')}
+                </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>

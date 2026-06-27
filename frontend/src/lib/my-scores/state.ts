@@ -5,7 +5,6 @@ export const MY_SCORE_VIEWS: MyScoresView[] = [
   'drafts',
   'private',
   'published',
-  'archived',
 ];
 
 export const MY_SCORE_PAGE_VIEWS: MyScoresPageView[] = [
@@ -15,7 +14,6 @@ export const MY_SCORE_PAGE_VIEWS: MyScoresPageView[] = [
   'drafts',
   'private',
   'published',
-  'archived',
 ];
 
 export function normalizeMyScoresView(value?: string): MyScoresPageView {
@@ -49,7 +47,8 @@ export function visibleMyScoreJobs(jobs: ProcessingJob[], view: MyScoresPageView
   return jobs.filter((job) => {
     if (view === 'processing') return isProcessingJob(job);
     if (view === 'failed') return job.state === 'FAILURE';
-    return isProcessingJob(job) || job.state === 'FAILURE';
+    if (view === 'all') return isProcessingJob(job) || job.state === 'FAILURE';
+    return false;
   });
 }
 
@@ -65,8 +64,6 @@ export function myScoresTotal(params: {
 
 export function myScoresBulkVisibility(view: MyScoresPageView) {
   return {
-    archive: view !== 'archived',
-    restore: view === 'archived',
     publish: view === 'private',
     unpublish: view === 'published',
   };

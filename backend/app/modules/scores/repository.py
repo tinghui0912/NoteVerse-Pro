@@ -40,8 +40,6 @@ class ScoreRepository:
             filters.append(score_title_col.ilike(f"%{search}%"))
         if view == MyScoresView.DRAFTS:
             filters.append(Score.state == ScoreState.IN_REVIEW)
-        elif view == MyScoresView.ARCHIVED:
-            filters.append(Score.state == ScoreState.ARCHIVED)
         elif view == MyScoresView.PUBLISHED:
             filters.append(
                 select(ScorePublication.id)
@@ -53,7 +51,6 @@ class ScoreRepository:
             )
         elif view == MyScoresView.PRIVATE:
             filters.append(Score.state != ScoreState.IN_REVIEW)
-            filters.append(Score.state != ScoreState.ARCHIVED)
             filters.append(
                 ~select(ScorePublication.id)
                 .where(
