@@ -22,7 +22,7 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useScoreData, type EditorMode } from '@/contexts/editor-provider';
-import { BeamSymbol, SlurSymbol, TieSymbol } from './music-symbols';
+import { SlurSymbol, TieSymbol } from './music-symbols';
 
 // 工具按钮类型定义
 type ToolItem = { icon: React.ElementType; label: string; mode?: EditorMode };
@@ -40,8 +40,6 @@ const DeleteConnectionIcon = ({ icon: Icon }: { icon: React.ElementType }) => (
     </div>
 );
 const tieTools: ToolItem[] = [
-    { icon: BeamSymbol, label: 'addBeam', mode: 'addBeam' },
-    { icon: () => <DeleteConnectionIcon icon={BeamSymbol} />, label: 'deleteBeam', mode: 'deleteBeam' },
     { icon: TieSymbol, label: 'addTie', mode: 'addTie' },
     { icon: () => <DeleteConnectionIcon icon={TieSymbol} />, label: 'deleteTie', mode: 'deleteTie' },
     { icon: SlurSymbol, label: 'addSlur', mode: 'addSlur' },

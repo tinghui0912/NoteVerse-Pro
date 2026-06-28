@@ -19,6 +19,7 @@ import {
     createNoteElementFromPitch,
 } from '@/lib/musicxml/elements';
 import { recalculateBackups } from '@/lib/musicxml/backup';
+import { rebuildAutomaticBeamsForMeasure } from '@/lib/musicxml/automatic-beams';
 
 export interface UpdateExistingEntityParams {
     updatedEntity: ScoreEntity;
@@ -142,6 +143,7 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
         }
 
         recalculateBackups(measureEl);
+        rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
 
         const newXml = serializeXml(xmlDoc);
         const newParser = new MusicXMLParser(newXml, { expectedVoices: getExpectedVoices(scoreData) });

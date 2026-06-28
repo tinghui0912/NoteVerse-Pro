@@ -19,6 +19,7 @@ import {
     updateSingleNoteInXml,
 } from '@/lib/musicxml/elements';
 import { recalculateBackups } from '@/lib/musicxml/backup';
+import { rebuildAutomaticBeamsForMeasure } from '@/lib/musicxml/automatic-beams';
 
 export interface InsertEntityParams {
     updatedEntity: ScoreEntity;
@@ -133,6 +134,7 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
             }
 
             recalculateBackups(measureEl);
+            rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
 
             const chordNewXml = serializeXml(xmlDoc);
             const chordNewParser = new MusicXMLParser(chordNewXml, { expectedVoices: getExpectedVoices(scoreData) });
@@ -162,6 +164,7 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
         }
 
         recalculateBackups(measureEl);
+        rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
 
         const newXml = serializeXml(xmlDoc);
         const newParser = new MusicXMLParser(newXml, { expectedVoices: getExpectedVoices(scoreData) });

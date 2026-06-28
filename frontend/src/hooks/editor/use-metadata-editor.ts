@@ -11,6 +11,7 @@
 import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useXmlUpdater } from './use-xml-updater';
+import { rebuildAutomaticBeams } from '@/lib/musicxml/automatic-beams';
 
 // 项目 A4 MusicXML 坐标配置（与后端 text_config.py XmlLayoutConfig 一致）
 const CREDIT_CONFIG = {
@@ -188,6 +189,7 @@ export function useMetadataEditor() {
                 time.appendChild(bt);
             }
             bt.textContent = beatType;
+            rebuildAutomaticBeams(xmlDoc);
         }, t('updateTimeSignature'));
     }, [updateMusicXML, t]);
 

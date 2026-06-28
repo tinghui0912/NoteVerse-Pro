@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 /**
  * 瀹炰綋缂栬緫 Hook - 绠＄悊瀹炰綋鐨勫鍒犳敼
@@ -17,6 +17,7 @@ import {
     getEntityGroupsFromMeasure,
 } from '@/lib/musicxml/core';
 import { recalculateBackups } from '@/lib/musicxml/backup';
+import { rebuildAutomaticBeamsForMeasure } from '@/lib/musicxml/automatic-beams';
 import { insertEntity } from './entity-editor/insert-entity';
 import { updateExistingEntity } from './entity-editor/update-existing-entity';
 
@@ -209,6 +210,7 @@ export function useEntityEditor() {
 
             // 閲嶆柊璁＄畻 backup 鍏冪礌鐨?duration
             recalculateBackups(measureEl);
+            rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
 
             // 2. 搴忓垪鍖栨柊 XML
             const newXml = serializeXml(xmlDoc);
