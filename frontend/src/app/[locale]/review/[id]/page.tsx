@@ -8,6 +8,7 @@ import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/layout/footer';
 import { ReviewScoreComparison } from '@/components/review/review-score-comparison';
+import { ReviewValidationWarnings } from '@/components/review/review-validation-warnings';
 import { useReviewPageData } from '@/hooks/review/use-review-page-data';
 
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +44,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       <div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1><p className="text-lg text-gray-300">{t('subtitle')}</p></div></div>
       <main className="grow">
         <div className="mx-auto max-w-7xl px-4 py-16">
+          <ReviewValidationWarnings warnings={page.validationWarnings} />
           <ReviewScoreComparison original={page.original} preview={page.preview} />
           <div className="mt-8 flex justify-center gap-4">
             <Button asChild variant="outline" size="lg" className="rounded-full bg-white shadow-lg"><Link href={editorHref}><Edit className="mr-2 h-5 w-5" />{t('needsEdit')}</Link></Button>

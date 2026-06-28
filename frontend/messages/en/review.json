@@ -12,5 +12,7 @@
   "loadTaskFailed": "Failed to load task details",
   "originalScorePage": "Original Score Page {page}",
   "recognizedScorePage": "Recognized Score Page {page}",
-  "processing": "Processing..."
+  "processing": "Processing...",
+  "attentionTitle": "Review {count} suggested checks",
+  "attentionDescription": "The recognition result may have measure-duration issues or unpaired ties, slurs, or beams. Please pay special attention to these spots before confirming."
 }

@@ -12,5 +12,7 @@
   "loadTaskFailed": "无法加载任务详情",
   "originalScorePage": "原始乐谱第 {page} 页",
   "recognizedScorePage": "识别结果第 {page} 页",
-  "processing": "处理中..."
+  "processing": "处理中...",
+  "attentionTitle": "建议重点核对 {count} 处",
+  "attentionDescription": "识别结果可能存在小节时值不满/超出拍号，或未配对的延音线、连奏线、连音符。确认前请重点检查这些位置。"
 }
