@@ -1,4 +1,4 @@
-﻿
+
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -7,9 +7,6 @@ import {
     Plus,
     Trash2,
     Combine,
-    Link as TieIcon,
-    Equal as BeamIcon,
-    Spline as SlurIcon,
     XCircle,
 } from 'lucide-react';
 import React, { useSyncExternalStore } from 'react';
@@ -25,8 +22,9 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useScoreData, type EditorMode } from '@/contexts/editor-provider';
+import { BeamSymbol, SlurSymbol, TieSymbol } from './music-symbols';
 
-// 宸ュ叿鎸夐挳绫诲瀷瀹氫箟
+// 工具按钮类型定义
 type ToolItem = { icon: React.ElementType; label: string; mode?: EditorMode };
 
 const noteTools: ToolItem[] = [
@@ -34,13 +32,20 @@ const noteTools: ToolItem[] = [
     { icon: Trash2, label: 'delete', mode: 'delete' },
 ];
 
+
+const DeleteConnectionIcon = ({ icon: Icon }: { icon: React.ElementType }) => (
+    <div className="relative">
+        <Icon className="h-6 w-6" />
+        <XCircle className="absolute -right-2 -top-1 h-4 w-4 rounded-full bg-destructive-foreground text-destructive" />
+    </div>
+);
 const tieTools: ToolItem[] = [
-    { icon: BeamIcon, label: 'addBeam', mode: 'addBeam' },
-    { icon: () => <div className="relative"><BeamIcon className="h-6 w-6" /><XCircle className="absolute -right-2 -top-1 h-4 w-4 text-destructive bg-destructive-foreground rounded-full" /></div>, label: 'deleteBeam', mode: 'deleteBeam' },
-    { icon: TieIcon, label: 'addTie', mode: 'addTie' },
-    { icon: () => <div className="relative"><TieIcon className="h-6 w-6" /><XCircle className="absolute -right-2 -top-1 h-4 w-4 text-destructive bg-destructive-foreground rounded-full" /></div>, label: 'deleteTie', mode: 'deleteTie' },
-    { icon: SlurIcon, label: 'addSlur', mode: 'addSlur' },
-    { icon: () => <div className="relative"><SlurIcon className="h-6 w-6" /><XCircle className="absolute -right-2 -top-1 h-4 w-4 text-destructive bg-destructive-foreground rounded-full" /></div>, label: 'deleteSlur', mode: 'deleteSlur' },
+    { icon: BeamSymbol, label: 'addBeam', mode: 'addBeam' },
+    { icon: () => <DeleteConnectionIcon icon={BeamSymbol} />, label: 'deleteBeam', mode: 'deleteBeam' },
+    { icon: TieSymbol, label: 'addTie', mode: 'addTie' },
+    { icon: () => <DeleteConnectionIcon icon={TieSymbol} />, label: 'deleteTie', mode: 'deleteTie' },
+    { icon: SlurSymbol, label: 'addSlur', mode: 'addSlur' },
+    { icon: () => <DeleteConnectionIcon icon={SlurSymbol} />, label: 'deleteSlur', mode: 'deleteSlur' },
 ];
 
 const ToolButton = ({ tool, isActive, onToolSelect }: { tool: ToolItem, isActive: boolean, onToolSelect: (mode: EditorMode) => void }) => {

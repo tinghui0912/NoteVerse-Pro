@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -7,6 +6,7 @@ import React, { useState } from 'react';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogFooter,
@@ -51,47 +51,21 @@ export function NoteEditorModal({
   const tCommon = useTranslations('common');
 
 
+    const pitchMatch = note.type === 'note' && 'pitch' in note && note.pitch
+        ? note.pitch.match(/^([A-Ga-g][#b]?)(\d)$/)
+        : null;
+
+    const legacyDefaultChoice = ['a', 'u', 't', 'o'].join('');
+    const normalizeEmptyChoice = (value?: string) => value && value !== legacyDefaultChoice ? value : 'none';
+
     // Form state
     const [activeTab, setActiveTab] = useState<'note' | 'rest' | 'blank'>(note.type);
-    const [pitch, setPitch] = useState('C');
-    const [octave, setOctave] = useState('4');
+    const [pitch, setPitch] = useState(pitchMatch?.[1] || 'C');
+    const [octave, setOctave] = useState(pitchMatch?.[2] || '4');
     const [duration, setDuration] = useState<Duration>(note.duration || 'durationQuarter');
-    const [dotted, setDotted] = useState(false);
-    const [stemDirection, setStemDirection] = useState('auto');
-    const [fingering, setFingering] = useState('auto');
-
-    const [prevNote, setPrevNote] = useState(note);
-    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
-
-    if (note !== prevNote || isOpen !== prevIsOpen) {
-        setPrevNote(note);
-        setPrevIsOpen(isOpen);
-        
-        setActiveTab(note.type);
-        setDuration(note.duration || 'durationQuarter');
-        setDotted(note.dotted || false);
-
-        if (note.type === 'note' && 'pitch' in note && note.pitch) {
-            // Parse pitch like "C4" or "C#5"
-            const pitchMatch = note.pitch.match(/^([A-Ga-g][#b]?)(\d)$/);
-            if (pitchMatch) {
-                setPitch(pitchMatch[1]);
-                setOctave(pitchMatch[2]);
-            } else {
-                setPitch('C');
-                setOctave('4');
-            }
-            // 从 note 对象读取 stemDirection 和 fingering
-            setStemDirection(note.stemDirection || 'auto');
-            setFingering(note.fingering || 'auto');
-        } else {
-            setPitch('C');
-            setOctave('4');
-            setStemDirection('auto');
-            setFingering('auto');
-        }
-    }
-
+    const [dotted, setDotted] = useState(note.dotted || false);
+    const [stemDirection, setStemDirection] = useState<string>(note.type === 'note' ? normalizeEmptyChoice(note.stemDirection) : 'none');
+    const [fingering, setFingering] = useState(note.type === 'note' ? normalizeEmptyChoice(note.fingering) : 'none');
     const handleSave = () => {
         const result: NoteEditorResult = {
             type: activeTab,
@@ -117,6 +91,9 @@ export function NoteEditorModal({
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{isBlank ? t('editBlank') : t('editNote')}</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        {isBlank ? t('editBlank') : t('editNote')}
+                    </DialogDescription>
                     <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
                         <X className="h-4 w-4" />
                         <span className="sr-only">Close</span>
@@ -213,7 +190,6 @@ export function NoteEditorModal({
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="auto">{t('stemDirectionAuto')}</SelectItem>
                                             <SelectItem value="up">{t('stemDirectionUp')}</SelectItem>
                                             <SelectItem value="down">{t('stemDirectionDown')}</SelectItem>
                                             <SelectItem value="none">{t('stemDirectionNone')}</SelectItem>
@@ -224,10 +200,9 @@ export function NoteEditorModal({
                                     <Label htmlFor="fingering">{t('fingeringLabel')}</Label>
                                     <Select value={fingering} onValueChange={setFingering}>
                                         <SelectTrigger id="fingering">
-                                            <SelectValue placeholder={t('fingeringAuto')} />
+                                            <SelectValue placeholder={t('fingeringNone')} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="auto">{t('fingeringAuto')}</SelectItem>
                                             <SelectItem value="1">1</SelectItem>
                                             <SelectItem value="2">2</SelectItem>
                                             <SelectItem value="3">3</SelectItem>

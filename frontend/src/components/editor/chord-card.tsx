@@ -7,56 +7,26 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { Chord } from '@/types/score-types';
 import { useScoreData } from '@/contexts/editor-provider';
 import { cn } from '@/lib/utils';
-import { useLongPress } from '@/hooks/use-long-press';
 import { useEntityCard } from '@/hooks/editor/use-entity-card';
-import { AddButton, articulationIcons } from './add-button';
-import { useBottomSheet } from './bottom-sheet-context';
+import { articulationIcons } from './articulation-icons';
 
-/**
- * 和弦卡片组件
- */
-export const ChordCard = ({ chord, onClick, isHoveredInInsertMode, onInsertBefore, onInsertAfter }: { chord: Chord, onClick: () => void, isHoveredInInsertMode: boolean, onInsertBefore: () => void, onInsertAfter: () => void }) => {
+export const ChordCard = ({ chord, onClick }: { chord: Chord, onClick: () => void }) => {
     const t = useTranslations('editor');
     const { scoreData } = useScoreData();
     const connections = scoreData?.connections;
-
-    // 使用公共 Hook 获取共享逻辑
     const { articulations, getDurationDisplay, getPositionLine, getConnectionLines } = useEntityCard(chord, connections);
 
-    // 构建 Tooltip 内容
     const getTooltipContent = () => {
         const lines: string[] = [];
 
-        // 第一行：和弦 + 所有音高 + 时值
         lines.push(`${t('cardTypeChord')}: ${chord.pitches.join(' + ')} ${getDurationDisplay()}`);
 
-        // 第二行：位置信息
         const positionLine = getPositionLine();
-        if (positionLine) {
-            lines.push(positionLine);
-        }
-
-        // 连线详细信息
+        if (positionLine) lines.push(positionLine);
         lines.push(...getConnectionLines());
 
         return lines;
     };
-
-    // 长按打开底部抽屉
-    const bottomSheet = useBottomSheet();
-    const longPressHandlers = useLongPress({
-        onLongPress: () => {
-            const tooltipContent = getTooltipContent();
-            if (bottomSheet && tooltipContent.length > 0) {
-                bottomSheet.openSheet({
-                    title: tooltipContent[0],
-                    lines: tooltipContent.slice(1)
-                });
-            }
-        },
-        delay: 450,
-        disabled: false
-    });
 
     return (
         <div className="relative shrink-0">
@@ -65,9 +35,9 @@ export const ChordCard = ({ chord, onClick, isHoveredInInsertMode, onInsertBefor
                     <Button
                         variant="ghost"
                         onClick={onClick}
-                        {...longPressHandlers}
-                        className={cn("w-32 h-29.5 rounded-lg flex flex-col items-start text-left justify-between relative p-3 gap-2 transition-all duration-300 border shadow-sm",
-                            isHoveredInInsertMode ? 'border-dashed border-primary bg-primary/5' : 'bg-gray-50 text-gray-900 hover:shadow-xl hover:-translate-y-1'
+                        className={cn(
+                            'w-32 h-29.5 rounded-lg flex flex-col items-start text-left justify-between relative p-3 gap-2 transition-all duration-300 border shadow-sm',
+                            'bg-gray-50 text-gray-900 hover:shadow-xl hover:-translate-y-1'
                         )}
                     >
                         {articulations.length > 0 && (
@@ -102,18 +72,12 @@ export const ChordCard = ({ chord, onClick, isHoveredInInsertMode, onInsertBefor
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                     {getTooltipContent().map((line, i) => (
-                        <p key={i} className={i === 0 ? "font-semibold" : "text-sm text-muted-foreground"}>
+                        <p key={i} className={i === 0 ? 'font-semibold' : 'text-sm text-muted-foreground'}>
                             {line}
                         </p>
                     ))}
                 </TooltipContent>
             </Tooltip>
-            {isHoveredInInsertMode && (
-                <>
-                    <AddButton onClick={onInsertBefore} className="-left-4" />
-                    <AddButton onClick={onInsertAfter} className="-right-4" />
-                </>
-            )}
         </div>
     );
-}
+};

@@ -1,4 +1,3 @@
-﻿
 'use client';
 
 import { useTranslations } from 'next-intl';
@@ -7,6 +6,7 @@ import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -50,38 +50,21 @@ export function ChordEditorModal({
   const t = useTranslations('editor');
   const tCommon = useTranslations('common');
 
+  const initialPitches = chord.pitches;
+  const legacyDefaultChoice = ['a', 'u', 't', 'o'].join('');
+  const normalizeEmptyChoice = (value?: string) => value && value !== legacyDefaultChoice ? value : 'none';
+
   // Form state
-  const [pitches, setPitches] = useState<string[]>([]);
-  const [fingerings, setFingerings] = useState<string[]>([]);
+  const [pitches, setPitches] = useState<string[]>(() => [...initialPitches]);
+  const [fingerings, setFingerings] = useState<string[]>(() =>
+    initialPitches.map((_, i) => normalizeEmptyChoice(chord.fingerings?.[i]))
+  );
   const [duration, setDuration] = useState<Duration>(chord.duration || 'durationQuarter');
-  const [dotted, setDotted] = useState(false);
-  const [stemDirection, setStemDirection] = useState('auto');
-
-  const [prevChord, setPrevChord] = useState(chord);
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
-
-  if (isOpen !== prevIsOpen || chord !== prevChord) {
-    setPrevIsOpen(isOpen);
-    setPrevChord(chord);
-
-    if (isOpen) {
-      const initPitches = chord.pitches || ['C4'];
-      setPitches(initPitches);
-      // 鍒濆鍖?fingerings锛屼笌 pitches 鏁伴噺瀵瑰簲
-      const initFingerings = chord.fingerings || initPitches.map(() => 'auto');
-      // 纭繚闀垮害鍖归厤
-      setFingerings(initFingerings.length === initPitches.length
-        ? initFingerings
-        : initPitches.map((_, i) => initFingerings[i] || 'auto'));
-      setDuration(chord.duration || 'durationQuarter');
-      setDotted(chord.dotted || false);
-      setStemDirection(chord.stemDirection || 'auto');
-    }
-  }
-
+  const [dotted, setDotted] = useState(chord.dotted || false);
+  const [stemDirection, setStemDirection] = useState<string>(normalizeEmptyChoice(chord.stemDirection));
   const handleAddNote = () => {
     setPitches([...pitches, 'C4']);
-    setFingerings([...fingerings, 'auto']);
+    setFingerings([...fingerings, 'none']);
   };
 
   const handleRemoveNote = (indexToRemove: number) => {
@@ -128,6 +111,9 @@ export function ChordEditorModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t('editChord')}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {t('editChord')} - {t('notesInChord')}
+          </DialogDescription>
           <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
@@ -172,7 +158,6 @@ export function ChordEditorModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auto">{t('stemDirectionAuto')}</SelectItem>
                   <SelectItem value="up">{t('stemDirectionUp')}</SelectItem>
                   <SelectItem value="down">{t('stemDirectionDown')}</SelectItem>
                   <SelectItem value="none">{t('stemDirectionNone')}</SelectItem>
@@ -240,14 +225,13 @@ export function ChordEditorModal({
                       <div className="space-y-1">
                         <Label htmlFor={`note-fingering-${index}`} className="text-xs">{t('fingeringLabel')}</Label>
                         <Select
-                          value={fingerings[index] || 'auto'}
+                          value={fingerings[index] || 'none'}
                           onValueChange={(value) => handleFingeringChange(index, value)}
                         >
                           <SelectTrigger id={`note-fingering-${index}`} className="h-8 text-xs">
-                            <SelectValue placeholder={t('fingeringAuto')} />
+                            <SelectValue placeholder={t('fingeringNone')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="auto">{t('fingeringAuto')}</SelectItem>
                             <SelectItem value="1">1</SelectItem>
                             <SelectItem value="2">2</SelectItem>
                             <SelectItem value="3">3</SelectItem>
@@ -278,7 +262,7 @@ export function ChordEditorModal({
           <Button variant="outline" onClick={onClose}>
             {tCommon('cancel')}
           </Button>
-          <Button onClick={handleSave}>{t('saveChanges')}</Button>
+          <Button onClick={handleSave} disabled={pitches.length === 0}>{t('saveChanges')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

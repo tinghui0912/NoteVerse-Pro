@@ -28,7 +28,7 @@ export type Note = {
   pitch: string;
   duration: Duration;
   dotted?: boolean;
-  stemDirection?: 'auto' | 'up' | 'down' | 'none';
+  stemDirection?: 'up' | 'down' | 'none';
   fingering?: string;
   articulation?: Articulation[];
   meta?: EntityMeta;
@@ -39,7 +39,7 @@ export type Chord = {
   pitches: string[];
   duration: Duration;
   dotted?: boolean;
-  stemDirection?: 'auto' | 'up' | 'down' | 'none';
+  stemDirection?: 'up' | 'down' | 'none';
   fingerings?: string[];  // 每个音符的指法，与 pitches 数组对应
   articulation?: Articulation[];
   meta?: EntityMeta;

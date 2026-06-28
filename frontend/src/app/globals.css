@@ -1,3 +1,13 @@
+@font-face {
+  font-family: 'Leland';
+  src: url('/fonts/leland/Leland.otf') format('opentype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'LelandText';
+  src: url('/fonts/leland/LelandText.otf') format('opentype');
+  font-display: block;
+}
 @import 'tailwindcss';
 @plugin 'tailwindcss-animate';
 @custom-variant dark (&:is(.dark *));

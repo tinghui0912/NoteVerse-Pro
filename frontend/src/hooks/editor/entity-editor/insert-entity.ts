@@ -16,6 +16,7 @@ import {
 } from '@/lib/musicxml/core';
 import {
     createNoteElementFromPitch,
+    updateSingleNoteInXml,
 } from '@/lib/musicxml/elements';
 import { recalculateBackups } from '@/lib/musicxml/backup';
 
@@ -58,6 +59,11 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
         let noteEl: Element;
         if (updatedEntity.type === 'note' && 'pitch' in updatedEntity) {
             noteEl = createNoteElementFromPitch(xmlDoc, updatedEntity.pitch, updatedEntity.duration, voiceNum, staffNumber, divisions, false);
+            updateSingleNoteInXml(noteEl, updatedEntity.pitch, updatedEntity.duration, divisions, false, {
+                dotted: updatedEntity.dotted,
+                stemDirection: updatedEntity.stemDirection,
+                fingering: updatedEntity.fingering,
+            });
         } else if (updatedEntity.type === 'rest') {
             noteEl = xmlDoc.createElement('note');
             const restEl = xmlDoc.createElement('common.rest');
@@ -92,7 +98,13 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
             if (pitches.length === 0) return { success: false };
 
             // 创建第一个音符（无 chord 标签）
+            const fingerings = updatedEntity.fingerings || [];
             noteEl = createNoteElementFromPitch(xmlDoc, pitches[0], updatedEntity.duration, voiceNum, staffNumber, divisions, false);
+            updateSingleNoteInXml(noteEl, pitches[0], updatedEntity.duration, divisions, false, {
+                dotted: updatedEntity.dotted,
+                stemDirection: updatedEntity.stemDirection,
+                fingering: fingerings[0],
+            });
 
             // 找到插入位置
             const chordEntityGroups = getEntityGroupsFromMeasure(measureEl, staffNumber, voiceNum);
@@ -111,6 +123,11 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
             let prevNote = noteEl;
             for (let i = 1; i < pitches.length; i++) {
                 const chordNote = createNoteElementFromPitch(xmlDoc, pitches[i], updatedEntity.duration, voiceNum, staffNumber, divisions, true);
+                updateSingleNoteInXml(chordNote, pitches[i], updatedEntity.duration, divisions, true, {
+                    dotted: updatedEntity.dotted,
+                    stemDirection: updatedEntity.stemDirection,
+                    fingering: fingerings[i],
+                });
                 prevNote.parentNode?.insertBefore(chordNote, prevNote.nextSibling);
                 prevNote = chordNote;
             }

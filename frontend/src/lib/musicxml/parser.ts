@@ -272,9 +272,9 @@ export class MusicXMLParser {
                 // 添加指法到 fingerings 数组，确保数组存在
                 if (!lastEntity.fingerings) {
                   // 如果 fingerings 不存在，初始化为与现有 pitches 长度匹配的数组
-                  lastEntity.fingerings = lastEntity.pitches.slice(0, -1).map(() => 'auto');
+                  lastEntity.fingerings = lastEntity.pitches.slice(0, -1).map(() => 'none');
                 }
-                lastEntity.fingerings.push(currentFingering || 'auto');
+                lastEntity.fingerings.push(currentFingering || 'none');
               }
             } else if (lastEntity && lastEntity.type === 'note') {
               // Convert previous note to a chord, preserve meta from original note
@@ -284,7 +284,7 @@ export class MusicXMLParser {
                 duration: lastEntity.duration,
                 dotted: lastEntity.dotted || hasDot,
                 stemDirection: lastEntity.stemDirection,
-                fingerings: [lastEntity.fingering || 'auto', currentFingering || 'auto'],
+                fingerings: [lastEntity.fingering || 'none', currentFingering || 'none'],
                 articulation: lastEntity.articulation,
                 meta: lastEntity.meta, // 保留原音符的 meta（包含 startTick）
               };
@@ -316,7 +316,7 @@ export class MusicXMLParser {
               // 解析符干方向
               const stemEl = noteNode.querySelector('stem');
               const stemText = stemEl?.textContent?.trim().toLowerCase();
-              let stemDirection: 'auto' | 'up' | 'down' | 'none' | undefined;
+              let stemDirection: 'up' | 'down' | 'none' | undefined;
               if (stemText === 'up' || stemText === 'down' || stemText === 'none') {
                 stemDirection = stemText;
               }

@@ -133,7 +133,7 @@ export function updateSingleNoteInXml(
     }
 
     // Handle stem element
-    if (options?.stemDirection && options.stemDirection !== 'auto') {
+    if (options?.stemDirection === 'up' || options?.stemDirection === 'down') {
         let stemEl = noteEl.querySelector('stem');
         if (!stemEl) {
             stemEl = xmlDoc.createElement('stem');
@@ -148,14 +148,13 @@ export function updateSingleNoteInXml(
                 noteEl.appendChild(stemEl);
             }
         }
-        stemEl.textContent = options.stemDirection === 'none' ? 'none' : options.stemDirection;
-    } else if (options?.stemDirection === 'auto') {
+        stemEl.textContent = options.stemDirection;
+    } else if (options?.stemDirection === 'none') {
         const stemEl = noteEl.querySelector('stem');
         if (stemEl) stemEl.remove();
     }
-
     // Handle fingering element
-    if (options?.fingering !== undefined && options.fingering !== 'auto' && options.fingering) {
+    if (options?.fingering && /^[1-5]$/.test(options.fingering)) {
         let notationsEl = noteEl.querySelector('notations');
         if (!notationsEl) {
             notationsEl = xmlDoc.createElement('notations');
@@ -172,7 +171,7 @@ export function updateSingleNoteInXml(
             technicalEl.appendChild(fingeringEl);
         }
         fingeringEl.textContent = options.fingering;
-    } else if (options?.fingering === 'auto' || options?.fingering === '') {
+    } else if (options?.fingering === 'none' || options?.fingering === '') {
         const fingeringEl = noteEl.querySelector('notations > technical > fingering');
         if (fingeringEl) {
             const technicalEl = fingeringEl.parentElement;
