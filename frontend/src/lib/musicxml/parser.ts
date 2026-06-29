@@ -4,6 +4,8 @@ import { extractPitch, isDottedDuration, parseArticulations, parseDuration } fro
 
 // A subset of melody-forge's parsing logic, adapted for modern TypeScript and our types.
 
+const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
+
 type NoteElementInfo = {
   entityId: string;
   pitch: string;
@@ -49,6 +51,15 @@ export class MusicXMLParser {
 
   private generateId(): string {
     return `entity_${++this.entityIdCounter}_${Date.now()}`;
+  }
+
+  private getStableElementId(element: Element): string {
+    return (
+      element.getAttributeNS(XML_NAMESPACE, 'id') ||
+      element.getAttribute('xml:id') ||
+      element.getAttribute('id') ||
+      this.generateId()
+    );
   }
 
 
@@ -257,6 +268,7 @@ export class MusicXMLParser {
           const hasDot = noteNode.querySelector('dot') !== null;
 
           if (noteNode.querySelector('chord')) {
+            const noteId = this.getStableElementId(noteNode);
             // It's part of a chord, find the last entity and add to it if it is a chord
             // 和弦成员不推进时间游标，使用前一个音符的 startTick
             const lastEntity = voiceEntities[voiceKey][voiceEntities[voiceKey].length - 1];
@@ -275,8 +287,12 @@ export class MusicXMLParser {
                   lastEntity.fingerings = lastEntity.pitches.slice(0, -1).map(() => 'none');
                 }
                 lastEntity.fingerings.push(currentFingering || 'none');
+                if (lastEntity.meta) {
+                  lastEntity.meta.sourceIds = [...(lastEntity.meta.sourceIds || [lastEntity.meta.id]), noteId];
+                }
               }
             } else if (lastEntity && lastEntity.type === 'note') {
+              const firstNoteId = lastEntity.meta?.id;
               // Convert previous note to a chord, preserve meta from original note
               const newChord: Chord = {
                 type: 'chord',
@@ -286,7 +302,9 @@ export class MusicXMLParser {
                 stemDirection: lastEntity.stemDirection,
                 fingerings: [lastEntity.fingering || 'none', currentFingering || 'none'],
                 articulation: lastEntity.articulation,
-                meta: lastEntity.meta, // 保留原音符的 meta（包含 startTick）
+                meta: lastEntity.meta
+                  ? { ...lastEntity.meta, sourceIds: [firstNoteId, noteId].filter(Boolean) as string[] }
+                  : undefined, // 保留原音符的 meta（包含 startTick）
               };
               voiceEntities[voiceKey][voiceEntities[voiceKey].length - 1] = newChord;
             }
@@ -297,7 +315,8 @@ export class MusicXMLParser {
               duration: parseDuration(noteNode, this.divisions),
               dotted: hasDot,
               meta: {
-                id: this.generateId(),
+                id: this.getStableElementId(noteNode),
+                sourceIds: [this.getStableElementId(noteNode)],
                 measureIndex,
                 staveIndex: staffIndex - 1,
                 xmlVoice: voiceIndex,
@@ -334,7 +353,8 @@ export class MusicXMLParser {
                 fingering: fingering,
                 articulation: parseArticulations(noteNode),
                 meta: {
-                  id: this.generateId(),
+                  id: this.getStableElementId(noteNode),
+                  sourceIds: [this.getStableElementId(noteNode)],
                   measureIndex,
                   staveIndex: staffIndex - 1,
                   xmlVoice: voiceIndex,
@@ -372,7 +392,8 @@ export class MusicXMLParser {
             duration: parseDuration(forwardNode, this.divisions),
             dotted: isDotted,
             meta: {
-              id: this.generateId(),
+              id: this.getStableElementId(forwardNode),
+              sourceIds: [this.getStableElementId(forwardNode)],
               measureIndex,
               staveIndex: staffIndex - 1,
               xmlVoice: voiceIndex,

@@ -24,6 +24,8 @@ type VerovioScorePreviewControllerOptions = {
 
 type CursorPlacementOptions = CursorSyncOptions & {
   alignToMeasureStart?: boolean;
+  alignBeforeFirstEventToMeasureStart?: boolean;
+  keepCurrentBeforeFirstEvent?: boolean;
 };
 
 function escapeCssId(id: string) {
@@ -80,7 +82,6 @@ export class VerovioScorePreviewController implements ScorePreviewController {
       this.playback.setTempo(this.initialBpm);
     }
     this.renderPages(this.adapter.renderAllPages());
-    this.resetCursor();
   }
 
   async fitToContainer() {
@@ -93,7 +94,9 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     this.renderPages(
       this.adapter.relayout({ pageWidth: Math.max(900, Math.round(width * 2.25)) })
     );
-    this.syncCursorToStep(snapshot.currentStep);
+    if (snapshot.state !== 'STOPPED' || snapshot.currentTime > 0 || snapshot.currentStep > 0) {
+      this.applyCursor(this.playback.getCursorSnapshotForStep(snapshot.currentStep));
+    }
   }
 
   play() {
@@ -130,14 +133,32 @@ export class VerovioScorePreviewController implements ScorePreviewController {
 
   resetCursor(options?: CursorSyncOptions) {
     this.clearCursor();
-    this.applyCursor(this.playback.getCursorSnapshotForStep(0), {
-      ...options,
-      alignToMeasureStart: true,
-    });
+    const firstVisibleEvent = this.findFirstVisibleEventElement();
+    if (firstVisibleEvent) {
+      this.applyCursorToElement(firstVisibleEvent, {
+        ...options,
+        eventIndex: -1,
+        mode: 'note',
+      });
+      return;
+    }
+
+    this.applyCursor(this.playback.getCursorSnapshotForStep(0), options);
+  }
+
+  hideCursor() {
+    this.clearCursor();
   }
 
   syncCursorToStep(step: number, options?: CursorSyncOptions) {
     this.applyCursor(this.playback.getCursorSnapshotForStep(step), options);
+  }
+
+  syncCursorDuringPlayback(step: number, options?: CursorSyncOptions) {
+    this.applyCursor(this.playback.getCursorSnapshotForStep(step), {
+      ...options,
+      keepCurrentBeforeFirstEvent: true,
+    });
   }
 
   ensureCursorVisible(options: CursorVisibilityOptions = {}) {
@@ -219,7 +240,11 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     const isBeforeFirstEvent = snapshot.eventIndex === 0
       && snapshot.time > 0
       && playbackSnapshot.currentTime < snapshot.time;
-    const cursorMode = (options?.alignToMeasureStart || isBeforeFirstEvent) && snapshot.time > 0
+    if (options?.keepCurrentBeforeFirstEvent && isBeforeFirstEvent && this.activeCursor && this.container.contains(this.activeCursor)) {
+      return;
+    }
+    const shouldAlignBeforeFirstEvent = options?.alignBeforeFirstEventToMeasureStart !== false;
+    const cursorMode = (options?.alignToMeasureStart || (shouldAlignBeforeFirstEvent && isBeforeFirstEvent)) && snapshot.time > 0
       ? 'measure-start'
       : 'note';
     if (
@@ -237,20 +262,36 @@ export class VerovioScorePreviewController implements ScorePreviewController {
       return;
     }
 
-    const page = noteElement.closest<HTMLElement>('[data-score-page]');
-    const system = noteElement.closest('.system') ?? noteElement.closest('svg');
+    this.applyCursorToElement(noteElement, {
+      eventIndex: snapshot.eventIndex,
+      mode: cursorMode,
+    });
+    if (options?.scrollIntoView) {
+      this.ensureCursorVisible(options);
+    }
+  }
+
+  private applyCursorToElement(
+    element: HTMLElement,
+    options: {
+      eventIndex: number | null;
+      mode: 'measure-start' | 'note';
+    }
+  ) {
+    const page = element.closest<HTMLElement>('[data-score-page]');
+    const system = element.closest('.system') ?? element.closest('svg');
     if (!page || !system) {
       this.clearCursor();
       return;
     }
 
     const pageRect = page.getBoundingClientRect();
-    const noteRect = noteElement.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
     const systemRect = system.getBoundingClientRect();
-    const targetLeft = cursorMode === 'measure-start'
-      ? this.getInitialMeasureLeft(pageRect, noteElement, system)
-      : noteRect.left - pageRect.left + noteRect.width / 2;
-    const cursorWidth = Math.max(10, Math.min(20, noteRect.width + 4));
+    const targetLeft = options.mode === 'measure-start'
+      ? this.getInitialMeasureLeft(pageRect, element, system)
+      : elementRect.left - pageRect.left + elementRect.width / 2;
+    const cursorWidth = Math.max(10, Math.min(20, elementRect.width + 4));
     const cursor = this.activeCursor ?? document.createElement('div');
     if (!this.activeCursor) {
       cursor.className = 'score-playback-cursor';
@@ -266,11 +307,8 @@ export class VerovioScorePreviewController implements ScorePreviewController {
 
     this.activeCursor = cursor;
     this.activeSystem = system;
-    this.activeEventIndex = snapshot.eventIndex;
-    this.activeCursorMode = cursorMode;
-    if (options?.scrollIntoView) {
-      this.ensureCursorVisible(options);
-    }
+    this.activeEventIndex = options.eventIndex;
+    this.activeCursorMode = options.mode;
   }
 
   private clearCursor() {
@@ -297,6 +335,23 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     }
 
     return system.getBoundingClientRect().left - pageRect.left;
+  }
+
+  private findFirstVisibleEventElement() {
+    return this.container.querySelector<HTMLElement>([
+      '[data-score-page="1"] [data-class="rest"]',
+      '[data-score-page="1"] .rest',
+      '[data-score-page="1"] [data-class="mRest"]',
+      '[data-score-page="1"] .mRest',
+      '[data-score-page="1"] [data-class="note"]',
+      '[data-score-page="1"] .note',
+      '[data-score-page] [data-class="rest"]',
+      '[data-score-page] .rest',
+      '[data-score-page] [data-class="mRest"]',
+      '[data-score-page] .mRest',
+      '[data-score-page] [data-class="note"]',
+      '[data-score-page] .note',
+    ].join(', '));
   }
 
   private findElement(noteId: string) {

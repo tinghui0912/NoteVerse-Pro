@@ -15,10 +15,12 @@ import {
 
 class FakeToolkit implements VerovioToolkitLike {
   loadedXml = '';
+  options: Record<string, unknown> = {};
 
   constructor(private readonly pageCount = 2) {}
 
-  setOptions() {
+  setOptions(options: Record<string, unknown>) {
+    this.options = options;
     return true;
   }
 
@@ -91,6 +93,49 @@ describe('VerovioScoreAdapter', () => {
     expect(sanitized).not.toContain('<chord');
     expect(sanitized).not.toContain('<beam');
     expect(sanitized).toContain('<rest');
+  });
+
+  it('adds ordinary ids before Verovio receives the XML so SVG hit testing can map notes', async () => {
+    const toolkit = new FakeToolkit(1);
+    const adapter = new VerovioScoreAdapter(async () => toolkit);
+
+    await adapter.loadMusicXml(`
+      <score-partwise><part><measure number="1">
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch>
+          <duration>1</duration>
+          <voice>1</voice>
+          <type>quarter</type>
+          <staff>1</staff>
+        </note>
+      </measure></part></score-partwise>
+    `);
+
+    expect(toolkit.loadedXml).toContain('xml:id="nv-');
+    expect(toolkit.loadedXml).toContain('id="nv-');
+  });
+
+  it('uses editor Verovio layout options so header credits and footer rights can render together', async () => {
+    const toolkit = new FakeToolkit(1);
+    const adapter = new VerovioScoreAdapter(async () => toolkit);
+
+    await adapter.loadMusicXml('<score-partwise />');
+
+    expect(toolkit.options).toMatchObject({
+      inputFrom: 'xml',
+      pageHeight: 2970,
+      pageWidth: 2100,
+      scale: 40,
+      header: 'auto',
+      footer: 'always',
+      adjustPageHeight: true,
+      justifyVertically: false,
+      pageMarginTop: 140,
+      pageMarginBottom: 40,
+      usePgFooterForAll: true,
+      svgHtml5: true,
+      breaks: 'encoded',
+    });
   });
 });
 

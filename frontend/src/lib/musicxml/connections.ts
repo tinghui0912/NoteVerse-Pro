@@ -1,7 +1,7 @@
 /**
  * MusicXML Connection Operations
  * 
- * Tie/Slur/Beam 连接线操作函数
+ * Tie/Slur 连接线操作函数
  * 
  * @module lib/musicxml-connections
  */
@@ -10,33 +10,12 @@ import type { EntityMeta } from '@/types/score-types';
 import { findConnectionNoteElements, orderConnectionEndpoints } from './connection-targets';
 
 // ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * 可连音的时值类型（八分音符及更短）
- */
-const BEAMABLE_DURATIONS = [
-    'durationEighth',   // 八分音符
-    'duration16th',     // 十六分音符
-    'duration32nd',     // 三十二分音符
-];
-
-// ============================================================================
 // Internal Helper Functions
 // ============================================================================
 
 /**
  * 根据位置信息查找 XML 中的 note 元素
  */
-/**
- * 从 note 元素中删除所有 beam 子元素
- */
-function removeBeamFromNote(noteElement: Element): void {
-    const beams = noteElement.querySelectorAll('beam');
-    beams.forEach(beam => beam.parentNode?.removeChild(beam));
-}
-
 /**
  * 从 note 元素中删除所有 tie 子元素
  */
@@ -62,7 +41,7 @@ function addTieElementToNote(xmlDoc: XMLDocument, noteElement: Element, tieType:
     const existingTie = noteElement.querySelector(`tie[type="${tieType}"]`);
     if (existingTie) return;
 
-    const tie = xmlDoc.createElement('common.tie');
+    const tie = xmlDoc.createElement('tie');
     tie.setAttribute('type', tieType);
 
     const durationElement = noteElement.querySelector('duration');
@@ -145,7 +124,7 @@ function addSlurElementToNote(
         noteElement.appendChild(notations);
     }
 
-    const slur = xmlDoc.createElement('common.slur');
+    const slur = xmlDoc.createElement('slur');
     slur.setAttribute('type', slurType);
     slur.setAttribute('number', slurNumber.toString());
 
@@ -156,49 +135,9 @@ function addSlurElementToNote(
     notations.appendChild(slur);
 }
 
-/**
- * 为音符元素添加 beam 元素
- */
-function addBeamElementToNote(
-    xmlDoc: XMLDocument,
-    noteElement: Element,
-    beamNumber: number,
-    beamType: 'begin' | 'continue' | 'end'
-): void {
-    const beam = xmlDoc.createElement('common.beam');
-    beam.setAttribute('number', beamNumber.toString());
-    beam.textContent = beamType;
-
-    const staffEl = noteElement.querySelector('staff');
-    if (staffEl && staffEl.nextSibling) {
-        noteElement.insertBefore(beam, staffEl.nextSibling);
-    } else {
-        noteElement.appendChild(beam);
-    }
-}
-
 // ============================================================================
 // Exported Functions - Remove Connections
 // ============================================================================
-
-/**
- * 删除指定实体的所有 beam 连接
- */
-export function removeBeamElementsFromXML(
-    xmlDoc: XMLDocument,
-    entityMetas: EntityMeta[]
-): void {
-    for (const meta of entityMetas) {
-        const notes = findConnectionNoteElements(
-            xmlDoc,
-            meta.measureIndex,
-            meta.staveIndex,
-            meta.xmlVoice,
-            meta.entityIndex
-        );
-        notes.forEach(note => removeBeamFromNote(note));
-    }
-}
 
 /**
  * 删除指定实体的所有 tie 连接
@@ -337,59 +276,3 @@ export function addSlurElementsToXML(
     addSlurElementToNote(xmlDoc, endNotes[0], 'stop', slurNumber);
 }
 
-/**
- * 为两个实体之间的所有音符添加连音符
- */
-export function addBeamElementsToXML(
-    xmlDoc: XMLDocument,
-    startMeta: EntityMeta,
-    endMeta: EntityMeta
-): void {
-    if (startMeta.measureIndex !== endMeta.measureIndex) {
-        console.error('连音符不能跨小节');
-        return;
-    }
-
-    const [actualStartMeta, actualEndMeta] = orderConnectionEndpoints(startMeta, endMeta);
-
-    const measureIndex = actualStartMeta.measureIndex;
-    const staveIndex = actualStartMeta.staveIndex;
-    const voiceIndex = actualStartMeta.xmlVoice;
-
-    const startEntityIndex = actualStartMeta.entityIndex;
-    const endEntityIndex = actualEndMeta.entityIndex;
-
-    const beamNumber = 1;
-
-    for (let entityIndex = startEntityIndex; entityIndex <= endEntityIndex; entityIndex++) {
-        const notes = findConnectionNoteElements(
-            xmlDoc,
-            measureIndex,
-            staveIndex,
-            voiceIndex,
-            entityIndex
-        );
-
-        if (notes.length === 0) continue;
-
-        let beamType: 'begin' | 'continue' | 'end';
-        if (entityIndex === startEntityIndex) {
-            beamType = 'begin';
-        } else if (entityIndex === endEntityIndex) {
-            beamType = 'end';
-        } else {
-            beamType = 'continue';
-        }
-
-        notes.forEach(note => {
-            addBeamElementToNote(xmlDoc, note, beamNumber, beamType);
-        });
-    }
-}
-
-/**
- * 检查音符时值是否可以添加连音符（八分或更短）
- */
-export function isBeamableDuration(duration: string): boolean {
-    return BEAMABLE_DURATIONS.includes(duration);
-}

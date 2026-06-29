@@ -106,7 +106,7 @@ function flattenMeasureToSingleVoice(xmlDoc: XMLDocument, measureEl: Element): v
             const copy = element.cloneNode(true) as Element;
             let voiceEl = copy.querySelector('voice');
             if (!voiceEl) {
-                voiceEl = xmlDoc.createElement('common.voice');
+                voiceEl = xmlDoc.createElement('voice');
                 copy.appendChild(voiceEl);
             }
             // 高音谱表 voice=1，低音谱表 voice=5
@@ -227,7 +227,7 @@ function flattenMeasureToSingleVoice(xmlDoc: XMLDocument, measureEl: Element): v
                 staffEl.textContent = String(staff);
                 forward.appendChild(staffEl);
 
-                const voiceEl = xmlDoc.createElement('common.voice');
+                const voiceEl = xmlDoc.createElement('voice');
                 voiceEl.textContent = String(targetVoice);
                 forward.appendChild(voiceEl);
 
@@ -269,7 +269,7 @@ function cleanupXMLStructure(xmlDoc: XMLDocument): void {
     // 确保所有音符都有 voice 元素
     Array.from(xmlDoc.querySelectorAll('note')).forEach(note => {
         if (!note.querySelector('voice')) {
-            const voice = xmlDoc.createElement('common.voice');
+            const voice = xmlDoc.createElement('voice');
             voice.textContent = '1';
             note.appendChild(voice);
         }

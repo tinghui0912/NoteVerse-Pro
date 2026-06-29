@@ -235,7 +235,7 @@ export function createNoteElementFromPitch(
     durationEl.textContent = String(getDurationValue(duration, divisions));
     noteEl.appendChild(durationEl);
 
-    const voiceEl = xmlDoc.createElement('common.voice');
+    const voiceEl = xmlDoc.createElement('voice');
     voiceEl.textContent = String(voice);
     noteEl.appendChild(voiceEl);
 

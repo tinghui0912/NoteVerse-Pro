@@ -20,6 +20,7 @@ import {
 } from '@/lib/musicxml/elements';
 import { recalculateBackups } from '@/lib/musicxml/backup';
 import { rebuildAutomaticBeamsForMeasure } from '@/lib/musicxml/automatic-beams';
+import { ensureStableMusicXmlIds } from '@/lib/musicxml/stable-ids';
 
 export interface UpdateExistingEntityParams {
     updatedEntity: ScoreEntity;
@@ -93,10 +94,13 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
             if (updatedEntity.type === 'rest' || updatedEntity.type === 'blank') {
                 const existingPitch = mainNote.querySelector('pitch');
                 if (existingPitch) existingPitch.remove();
+                mainNote.querySelector('chord')?.remove();
+                mainNote.querySelector('stem')?.remove();
+                mainNote.querySelector('notations')?.remove();
 
                 let restEl = mainNote.querySelector('rest');
                 if (!restEl) {
-                    restEl = xmlDoc.createElement('common.rest');
+                    restEl = xmlDoc.createElement('rest');
                     mainNote.insertBefore(restEl, mainNote.firstChild);
                 }
 
@@ -144,6 +148,7 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
 
         recalculateBackups(measureEl);
         rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
+        ensureStableMusicXmlIds(xmlDoc);
 
         const newXml = serializeXml(xmlDoc);
         const newParser = new MusicXMLParser(newXml, { expectedVoices: getExpectedVoices(scoreData) });

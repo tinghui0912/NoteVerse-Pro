@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 瀹炰綋缂栬緫 Hook - 绠＄悊瀹炰綋鐨勫鍒犳敼
+ * 实体编辑 Hook - 管理事件的新增、修改和删除
  */
 
 import { useCallback } from 'react';
@@ -9,7 +9,7 @@ import { useScoreData } from '@/contexts/score-data-context';
 import { useEditorState } from '@/contexts/editor-state-context';
 import { useHistory } from '@/contexts/editor-history-context';
 import { useTranslations } from 'next-intl';
-import type { ScoreEntity, ScoreEntityType, AddLocation, EntityLocation } from '@/types/score-types';
+import type { ScoreEntity, AddLocation, EntityLocation } from '@/types/score-types';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
 import {
     parseXml,
@@ -18,6 +18,7 @@ import {
 } from '@/lib/musicxml/core';
 import { recalculateBackups } from '@/lib/musicxml/backup';
 import { rebuildAutomaticBeamsForMeasure } from '@/lib/musicxml/automatic-beams';
+import { createDefaultEditableEvent, toScoreEntity } from '@/lib/editor/editable-event';
 import { insertEntity } from './entity-editor/insert-entity';
 import { updateExistingEntity } from './entity-editor/update-existing-entity';
 
@@ -33,108 +34,82 @@ export function useEntityEditor() {
     } = useScoreData();
 
     const {
+        editingEntity,
         setEditingEntity,
         editingEntityLocation,
         setEditingEntityLocation,
-        isAddEntityModalOpen,
-        setIsAddEntityModalOpen,
-        currentAddLocation,
-        setCurrentAddLocation,
         pendingInsert,
         setPendingInsert,
         pendingInsertRef,
+        setInspectorOpen,
+        selectTool,
     } = useEditorState();
 
     const history = useHistory();
 
     /**
-     * 鎵撳紑缂栬緫瀹炰綋妯℃€佹
+     * Open the Inspector for an existing event.
      */
     const handleEditEntity = useCallback((entity: ScoreEntity, location: EntityLocation) => {
         setEditingEntity(entity);
         setEditingEntityLocation(location);
-    }, [setEditingEntity, setEditingEntityLocation]);
+        setInspectorOpen(true);
+    }, [setEditingEntity, setEditingEntityLocation, setInspectorOpen]);
 
     /**
-     * 鎵撳紑娣诲姞瀹炰綋妯℃€佹
+     * Add mode creates an empty-pitch event first.
+     * The Inspector then lets the user turn it into a note or chord by adding pitches.
      */
     const handleAddEntity = useCallback((location: AddLocation) => {
-        setCurrentAddLocation(location);
-        setIsAddEntityModalOpen(true);
-    }, [setCurrentAddLocation, setIsAddEntityModalOpen]);
+        const newEntity = toScoreEntity(createDefaultEditableEvent());
+        const insertData = { entity: newEntity, location };
 
-    /**
-     * 鍏抽棴妯℃€佹
-     */
-    const handleCloseModal = useCallback(() => {
-        setEditingEntity(null);
-        setEditingEntityLocation(null);
-        setIsAddEntityModalOpen(false);
-        setCurrentAddLocation(null);
-        setPendingInsert(null);
-    }, [setEditingEntity, setEditingEntityLocation, setIsAddEntityModalOpen, setCurrentAddLocation, setPendingInsert]);
-
-    /**
-     * 閫夋嫨瀹炰綋绫诲瀷鍚庡垱寤洪粯璁ゅ疄浣?     */
-    const handleSelectEntityType = useCallback((type: ScoreEntityType) => {
-        if (!currentAddLocation) return;
-
-        let newEntity: ScoreEntity;
-
-        if (type === 'note') {
-            newEntity = {
-                type: 'note',
-                pitch: 'C4',
-                duration: 'durationQuarter',
-                dotted: false,
-            };
-        } else if (type === 'rest') {
-            newEntity = {
-                type: 'rest',
-                duration: 'durationQuarter',
-                dotted: false,
-            };
-        } else if (type === 'chord') {
-            newEntity = {
-                type: 'chord',
-                pitches: ['C4', 'E4', 'G4'],
-                duration: 'durationQuarter',
-                dotted: false,
-            };
-        } else if (type === 'blank') {
-            newEntity = {
-                type: 'blank',
-                duration: 'durationQuarter',
-                dotted: false,
-            };
-        } else {
-            return;
-        }
-
-        // 淇濆瓨寰呮彃鍏ョ姸鎬侊紙鍖呭惈瀹炰綋鍜屼綅缃級
-        const insertData = { entity: newEntity, location: currentAddLocation };
         setPendingInsert(insertData);
         pendingInsertRef.current = insertData;
-
-        // 鍏抽棴绫诲瀷閫夋嫨妯℃€佹锛屾墦寮€缂栬緫妯℃€佹
-        setIsAddEntityModalOpen(false);
         setEditingEntity(newEntity);
         setEditingEntityLocation({
-            measureIndex: currentAddLocation.measureIndex,
-            staveIndex: currentAddLocation.staveIndex,
-            xmlVoice: currentAddLocation.xmlVoice,
-            entityIndex: currentAddLocation.position === 'before'
-                ? currentAddLocation.entityIndex
-                : currentAddLocation.entityIndex + 1,
+            measureIndex: location.measureIndex,
+            staveIndex: location.staveIndex,
+            xmlVoice: location.xmlVoice,
+            entityIndex: 0,
         });
-    }, [currentAddLocation, setPendingInsert, pendingInsertRef, setIsAddEntityModalOpen, setEditingEntity, setEditingEntityLocation]);
+        setInspectorOpen(true);
+    }, [
+        pendingInsertRef,
+        setEditingEntity,
+        setEditingEntityLocation,
+        setInspectorOpen,
+        setPendingInsert,
+    ]);
 
     /**
-     * 鏇存柊瀹炰綋锛堢紪杈戞垨鏂板锛?     */
+     * Close the Inspector and clear any pending insert state.
+     */
+    const handleCloseModal = useCallback(() => {
+        const wasPendingInsert = Boolean(pendingInsertRef.current);
+        setEditingEntity(null);
+        setEditingEntityLocation(null);
+        setPendingInsert(null);
+        pendingInsertRef.current = null;
+        setInspectorOpen(false);
+        if (wasPendingInsert) {
+            selectTool('select');
+        }
+    }, [
+        pendingInsertRef,
+        selectTool,
+        setEditingEntity,
+        setEditingEntityLocation,
+        setInspectorOpen,
+        setPendingInsert,
+    ]);
+
+    /**
+     * Save either a pending insert or an existing event edit.
+     */
     const updateEntity = useCallback((updatedEntity: ScoreEntity) => {
         const currentPendingInsert = pendingInsertRef.current;
 
-        // 妫€鏌ユ槸鍚︽槸鏂板鎿嶄綔
         if (currentPendingInsert) {
             const { location } = currentPendingInsert;
 
@@ -159,10 +134,11 @@ export function useEntityEditor() {
             pendingInsertRef.current = null;
             setEditingEntity(null);
             setEditingEntityLocation(null);
+            setInspectorOpen(false);
+            selectTool('select');
             return;
         }
 
-        // 浠ヤ笅鏄紪杈戠幇鏈夊疄浣撶殑閫昏緫
         if (!editingEntityLocation || !currentXml || !scoreData) return;
 
         const result = updateExistingEntity({
@@ -182,10 +158,11 @@ export function useEntityEditor() {
 
         setEditingEntity(null);
         setEditingEntityLocation(null);
-    }, [currentXml, scoreData, editingEntityLocation, pendingInsertRef, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, setPendingInsert, setEditingEntity, setEditingEntityLocation, t]);
+        setInspectorOpen(false);
+    }, [currentXml, scoreData, editingEntityLocation, pendingInsertRef, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, setPendingInsert, setEditingEntity, setEditingEntityLocation, setInspectorOpen, selectTool, t]);
 
     /**
-     * 鍒犻櫎瀹炰綋
+     * Delete an existing event from the MusicXML measure.
      */
     const handleDeleteEntity = useCallback((location: EntityLocation) => {
         const { measureIndex, staveIndex, xmlVoice, entityIndex } = location;
@@ -197,7 +174,6 @@ export function useEntityEditor() {
         const voiceNum = xmlVoice;
 
         try {
-            // 1. 瑙ｆ瀽 XML 骞跺垹闄ょ洰鏍囧疄浣?
             const xmlDoc = parseXml(currentXml);
             const measureEl = xmlDoc.querySelector(`measure[number="${measureNumber}"]`);
             if (!measureEl) return;
@@ -208,21 +184,16 @@ export function useEntityEditor() {
 
             targetGroup.elements.forEach(el => el.parentNode?.removeChild(el));
 
-            // 閲嶆柊璁＄畻 backup 鍏冪礌鐨?duration
             recalculateBackups(measureEl);
             rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
 
-            // 2. 搴忓垪鍖栨柊 XML
             const newXml = serializeXml(xmlDoc);
 
-            // 3. 璁板綍鍘嗗彶
             history.push(newXml, t('deleteNote'));
 
-            // 4. 鏇存柊 XML 鐘舵€?
             currentXmlRef.current = newXml;
             setCurrentXml(newXml);
 
-            // 5. 閲嶆柊瑙ｆ瀽 XML
             const newParser = new MusicXMLParser(newXml, {
                 expectedVoices: getExpectedVoices(scoreData)
             });
@@ -235,17 +206,15 @@ export function useEntityEditor() {
     }, [currentXml, scoreData, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, t]);
 
     return {
-        // 鐘舵€?        editingEntity,
+        // State
+        editingEntity,
         editingEntityLocation,
-        isAddEntityModalOpen,
-        currentAddLocation,
         pendingInsert,
 
-        // 鎿嶄綔
+        // Actions
         handleEditEntity,
         handleDeleteEntity,
         handleAddEntity,
-        handleSelectEntityType,
         handleCloseModal,
         updateEntity,
     };

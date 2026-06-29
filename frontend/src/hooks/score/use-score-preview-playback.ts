@@ -44,6 +44,7 @@ export function useScorePreviewPlayback({
   const [loadError, setLoadError] = useState<string | null>(null);
   const controllerRef = useRef<ScorePreviewController | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const scoreContainerNodeRef = useRef<HTMLDivElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
   const cursorRafRef = useRef<number | null>(null);
   const manualStopRef = useRef(false);
@@ -51,6 +52,7 @@ export function useScorePreviewPlayback({
   const seekTargetStepRef = useRef<number | null>(null);
   const previousPlayingRef = useRef(false);
   const loadGenerationRef = useRef(0);
+  const loadedXmlRef = useRef<string | null>(null);
   const isPlayingRef = useRef(false);
   const followSuspendedRef = useRef(false);
 
@@ -94,7 +96,8 @@ export function useScorePreviewPlayback({
       const snapshot = controller.getPlaybackSnapshot();
       if (snapshot.state !== 'PLAYING') return;
       const target = Math.max(0, Math.min(snapshot.currentStep, snapshot.totalSteps - 1));
-      controller.syncCursorToStep(target, {
+      const syncCursor = controller.syncCursorDuringPlayback?.bind(controller) ?? controller.syncCursorToStep.bind(controller);
+      syncCursor(target, {
         scrollIntoView: !followSuspendedRef.current,
         scrollTarget: followViewport,
       });
@@ -118,6 +121,7 @@ export function useScorePreviewPlayback({
     stopCursorLoop();
     const controller = controllerRef.current;
     controllerRef.current = null;
+    loadedXmlRef.current = null;
     controller?.dispose();
   }, [stopCursorLoop, stopProgressLoop]);
 
@@ -164,11 +168,12 @@ export function useScorePreviewPlayback({
         } else if (state === 'STOPPED') {
           resetState();
           updateFollowSuspended(false);
-          controller?.resetCursor({ scrollIntoView: true, scrollTarget: followViewport });
+          controller?.hideCursor();
         }
       });
 
       const duration = controller.getPlaybackSnapshot().duration;
+      loadedXmlRef.current = xmlString;
       setTotalTime(duration > 0 ? duration : 0);
       setIsLoading(false);
     } catch (error) {
@@ -184,8 +189,25 @@ export function useScorePreviewPlayback({
   }, [createController, followViewport, isOpen, resetState, startCursorLoop, startProgressLoop, stopCursorLoop, stopProgressLoop, t, updateFollowSuspended, xmlString]);
 
   const scoreContainerRef = useCallback((node: HTMLDivElement | null) => {
+    scoreContainerNodeRef.current = node;
     if (node && isOpen && !controllerRef.current) void loadScore(node);
   }, [isOpen, loadScore]);
+
+  useEffect(() => {
+    const scoreContainer = scoreContainerNodeRef.current;
+    if (!isOpen || !xmlString || !scoreContainer) return;
+    if (!loadedXmlRef.current || loadedXmlRef.current === xmlString) return;
+
+    disposeController();
+    queueMicrotask(() => {
+      resetState();
+      setTotalTime(0);
+      setIsLoading(true);
+      setLoadError(null);
+      updateFollowSuspended(false);
+      void loadScore(scoreContainer);
+    });
+  }, [disposeController, isOpen, loadScore, resetState, updateFollowSuspended, xmlString]);
 
   useEffect(() => {
     if (isOpen) return;
@@ -281,19 +303,22 @@ export function useScorePreviewPlayback({
         await controller.playFromStep(seekTargetStepRef.current);
         seekTargetStepRef.current = null;
       } else {
+        if (controller.getPlaybackSnapshot().currentTime === 0) {
+          controller.resetCursor({ scrollIntoView: true, scrollTarget: followViewport });
+        }
         await controller.play();
       }
     } catch (error) {
       console.error('[ScorePreview] Failed to change playback state:', error);
     }
-  }, [isLoading]);
+  }, [followViewport, isLoading]);
 
   const stop = useCallback(async () => {
     const controller = controllerRef.current;
     if (!controller) return;
     manualStopRef.current = true;
     await controller.stop();
-    controller.resetCursor();
+    controller.hideCursor();
     updateFollowSuspended(false);
     resetState();
   }, [resetState, updateFollowSuspended]);
@@ -313,17 +338,25 @@ export function useScorePreviewPlayback({
   const seek = useCallback((value: number[]) => {
     const controller = controllerRef.current;
     if (!controller || totalTime <= 0) return;
-    const percentage = value[0] / 100;
+    const percentage = Math.max(0, Math.min(1, value[0] / 100));
     const totalSteps = controller.getPlaybackSnapshot().totalSteps;
     const targetStep = Math.min(Math.floor(totalSteps * percentage), Math.max(0, totalSteps - 1));
-    controller.resetCursor();
-    controller.syncCursorToStep(targetStep, {
+    const cursorOptions = {
       scrollIntoView: !followSuspendedRef.current,
       scrollTarget: followViewport,
-    });
-    seekTargetStepRef.current = targetStep;
+    };
+    if (percentage === 0) {
+      controller.resetCursor(cursorOptions);
+      seekTargetStepRef.current = null;
+    } else {
+      controller.syncCursorToStep(targetStep, {
+        ...cursorOptions,
+        alignBeforeFirstEventToMeasureStart: false,
+      });
+      seekTargetStepRef.current = targetStep;
+    }
     setCurrentTime(totalTime * percentage);
-    setProgress(value[0]);
+    setProgress(percentage * 100);
   }, [followViewport, totalTime]);
 
   const returnToPlaybackPosition = useCallback(() => {

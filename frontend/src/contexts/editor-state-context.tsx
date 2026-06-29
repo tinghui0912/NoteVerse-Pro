@@ -8,14 +8,12 @@ import type { ScoreEntity, AddLocation, EntityLocation } from '@/types/score-typ
  */
 export type EditorMode =
     | 'select'
-    | 'insert'
+    | 'add'
     | 'delete'
     | 'addTie'
     | 'deleteTie'
     | 'addSlur'
-    | 'deleteSlur'
-    | 'addBeam'
-    | 'deleteBeam';
+    | 'deleteSlur';
 
 /**
  * EditorState Context - 管理编辑器 UI 状态
@@ -31,12 +29,6 @@ interface EditorStateContextType {
     editingEntityLocation: EntityLocation | null;
     setEditingEntityLocation: React.Dispatch<React.SetStateAction<EntityLocation | null>>;
 
-    // 添加实体状态
-    isAddEntityModalOpen: boolean;
-    setIsAddEntityModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    currentAddLocation: AddLocation | null;
-    setCurrentAddLocation: React.Dispatch<React.SetStateAction<AddLocation | null>>;
-
     // 待插入实体
     pendingInsert: { entity: ScoreEntity; location: AddLocation } | null;
     setPendingInsert: React.Dispatch<React.SetStateAction<{ entity: ScoreEntity; location: AddLocation } | null>>;
@@ -49,6 +41,14 @@ interface EditorStateContextType {
     // 清空选择状态的回调（用于 Connection 操作）
     onToolChange: ((mode: EditorMode) => void) | null;
     setOnToolChange: (callback: ((mode: EditorMode) => void) | null) => void;
+
+    // Workbench UI 状态
+    activeTrackId: string | null;
+    setActiveTrackId: React.Dispatch<React.SetStateAction<string | null>>;
+    visibleTrackIds: string[];
+    setVisibleTrackIds: React.Dispatch<React.SetStateAction<string[]>>;
+    inspectorOpen: boolean;
+    setInspectorOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const EditorStateContext = createContext<EditorStateContextType | undefined>(undefined);
@@ -75,11 +75,12 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
     const [editorMode, setEditorMode] = useState<EditorMode>('select');
     const [editingEntity, setEditingEntity] = useState<ScoreEntity | null>(null);
     const [editingEntityLocation, setEditingEntityLocation] = useState<EntityLocation | null>(null);
-    const [isAddEntityModalOpen, setIsAddEntityModalOpen] = useState(false);
-    const [currentAddLocation, setCurrentAddLocation] = useState<AddLocation | null>(null);
     const [pendingInsert, setPendingInsert] = useState<{ entity: ScoreEntity; location: AddLocation } | null>(null);
     const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
     const [onToolChange, setOnToolChangeState] = useState<((mode: EditorMode) => void) | null>(null);
+    const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
+    const [visibleTrackIds, setVisibleTrackIds] = useState<string[]>([]);
+    const [inspectorOpen, setInspectorOpen] = useState(false);
 
     // Ref for pending insert
     const pendingInsertRef = React.useRef<{ entity: ScoreEntity; location: AddLocation } | null>(null);
@@ -107,10 +108,6 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
         setEditingEntity,
         editingEntityLocation,
         setEditingEntityLocation,
-        isAddEntityModalOpen,
-        setIsAddEntityModalOpen,
-        currentAddLocation,
-        setCurrentAddLocation,
         pendingInsert,
         setPendingInsert,
         pendingInsertRef,
@@ -118,10 +115,17 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
         setIsImageViewerOpen,
         onToolChange,
         setOnToolChange,
+        activeTrackId,
+        setActiveTrackId,
+        visibleTrackIds,
+        setVisibleTrackIds,
+        inspectorOpen,
+        setInspectorOpen,
     }), [
         editorMode, selectTool, editingEntity, editingEntityLocation,
-        isAddEntityModalOpen, currentAddLocation, pendingInsert,
-        isImageViewerOpen, onToolChange, setOnToolChange
+        pendingInsert,
+        isImageViewerOpen, onToolChange, setOnToolChange,
+        activeTrackId, visibleTrackIds, inspectorOpen
     ]);
 
     return (

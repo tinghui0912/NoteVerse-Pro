@@ -35,7 +35,3 @@ export function SlurSymbol({ className, style, ...props }: MusicSymbolProps) {
         />
     );
 }
-
-export function BeamSymbol(props: MusicSymbolProps) {
-    return <SmuflSymbol glyph={'\uE1F3'} {...props} />;
-}

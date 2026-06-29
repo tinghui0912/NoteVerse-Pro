@@ -16,6 +16,7 @@ export interface CursorVisibilityOptions {
 }
 
 export interface CursorSyncOptions extends CursorVisibilityOptions {
+  alignBeforeFirstEventToMeasureStart?: boolean;
   scrollIntoView?: boolean;
 }
 
@@ -38,7 +39,9 @@ export interface ScorePlaybackController {
 
 export interface ScoreCursorController {
   resetCursor(options?: CursorSyncOptions): void;
+  hideCursor(): void;
   syncCursorToStep(step: number, options?: CursorSyncOptions): void;
+  syncCursorDuringPlayback?(step: number, options?: CursorSyncOptions): void;
   ensureCursorVisible(options?: CursorVisibilityOptions): void;
 }
 

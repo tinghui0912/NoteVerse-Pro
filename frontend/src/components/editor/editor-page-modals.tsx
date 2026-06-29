@@ -2,12 +2,8 @@
 
 import { AlertTriangle, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { AddEntityModal } from '@/components/editor/add-entity-modal';
-import { ChordEditorModal } from '@/components/editor/chord-editor-modal';
 import { DraftRecoveryDialog } from '@/components/editor/draft-recovery-dialog';
-import { NoteEditorModal } from '@/components/editor/note-editor-modal';
 import { OriginalImageViewer } from '@/components/media/original-image-viewer';
-import { ListenModal } from '@/components/score/listen-modal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,78 +14,34 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useEditorState, useEntityEditor, useScoreData } from '@/contexts/editor-provider';
+import { useEditorState } from '@/contexts/editor-provider';
 import type { DraftEntry } from '@/lib/editor/draft-storage';
 import type { ValidationResult } from '@/lib/musicxml/validator';
-import type { Blank, Chord, Note, Rest } from '@/types/score-types';
 
 interface EditorPageModalsProps {
   draft: DraftEntry | null;
   draftOpen: boolean;
-  listenOpen: boolean;
   originalImages: { src: string; alt: string }[];
-  previewXml: string | null;
   validationOpen: boolean;
   validationResult: ValidationResult | null;
   onDiscardDraft: () => Promise<void>;
   onDraftOpenChange: (open: boolean) => void;
-  onListenOpenChange: (open: boolean) => void;
   onRecoverDraft: () => Promise<void>;
   onSaveIgnoringWarnings: () => void;
   onValidationOpenChange: (open: boolean) => void;
 }
 
 export function EditorPageModals(props: EditorPageModalsProps) {
-  const t = useTranslations('editor');
   const common = useTranslations('common');
   const auth = useTranslations('auth');
-  const { scoreData } = useScoreData();
   const {
-    editingEntity,
-    isAddEntityModalOpen,
-    currentAddLocation,
     isImageViewerOpen,
-    setIsAddEntityModalOpen,
     setIsImageViewerOpen,
   } = useEditorState();
-  const { handleSelectEntityType, handleCloseModal, updateEntity } = useEntityEditor();
-  const noteModalOpen = editingEntity !== null && ['note', 'rest', 'blank'].includes(editingEntity.type);
-  const chordModalOpen = editingEntity?.type === 'chord';
-
-  const voiceName = (() => {
-    if (!currentAddLocation || !scoreData) return '';
-    const stave = scoreData.measures[currentAddLocation.measureIndex]?.staves[currentAddLocation.staveIndex];
-    const voice = stave?.voices.find((item) => item.name.includes(`${currentAddLocation.xmlVoice}`));
-    if (!voice) return '';
-    const [key, number] = voice.name.split(' ');
-    return `${t(key as never)} ${number}`;
-  })();
 
   return (
     <>
       <OriginalImageViewer images={props.originalImages} isOpen={isImageViewerOpen} onClose={() => setIsImageViewerOpen(false)} />
-      <ListenModal
-        isOpen={props.listenOpen}
-        onOpenChange={props.onListenOpenChange}
-        xmlString={props.previewXml}
-      />
-      <AddEntityModal isOpen={isAddEntityModalOpen} onClose={() => setIsAddEntityModalOpen(false)} onSelect={handleSelectEntityType} voiceName={voiceName} />
-      {editingEntity && noteModalOpen && (
-        <NoteEditorModal
-          isOpen
-          onClose={handleCloseModal}
-          onSave={(result) => updateEntity({ ...editingEntity, ...result } as Note | Rest | Blank)}
-          note={editingEntity as Note | Rest | Blank}
-        />
-      )}
-      {editingEntity && chordModalOpen && (
-        <ChordEditorModal
-          isOpen
-          onClose={handleCloseModal}
-          onSave={(result) => updateEntity({ ...editingEntity, ...result } as Chord)}
-          chord={editingEntity as Chord}
-        />
-      )}
 
       <AlertDialog open={props.validationOpen} onOpenChange={props.onValidationOpenChange}>
         <AlertDialogContent className="flex max-h-[85vh] max-w-lg flex-col">

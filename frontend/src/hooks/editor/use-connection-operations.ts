@@ -5,13 +5,10 @@ import { useTranslations } from 'next-intl';
 import { useState, useCallback } from 'react';
 import type { ScoreData, ScoreEntity, EntityLocation, EntityMeta } from '@/types/score-types';
 import {
-    removeBeamElementsFromXML,
     removeTieElementsFromXML,
     removeSlurElementsFromXML,
     addTieElementsToXML,
     addSlurElementsToXML,
-    addBeamElementsToXML,
-    isBeamableDuration
 } from '@/lib/musicxml/connections';
 import { findEntityMetaById } from '@/lib/editor/score-lookup';
 
@@ -28,13 +25,6 @@ type SelectedNote = {
     location: EntityLocation;
 };
 
-/**
- * 判断两个位置是否在同一谱表、同一声部
- */
-function isSameStaveAndVoice(first: EntityLocation, second: EntityLocation): boolean {
-    return first.staveIndex === second.staveIndex && first.xmlVoice === second.xmlVoice;
-}
-
 // Hook 参数类型
 type UseConnectionOperationsParams = {
     scoreData: ScoreData | null;
@@ -43,7 +33,7 @@ type UseConnectionOperationsParams = {
 };
 
 /**
- * 连接操作 Hook - 管理 beam/tie/slur 的添加和删除
+ * 连接操作 Hook - 管理 tie/slur 的添加和删除
  */
 export function useConnectionOperations({
     scoreData,
@@ -56,60 +46,10 @@ export function useConnectionOperations({
     // 选中状态
     const [selectedNotesForTie, setSelectedNotesForTie] = useState<SelectedNote[]>([]);
     const [selectedNotesForSlur, setSelectedNotesForSlur] = useState<SelectedNote[]>([]);
-    const [selectedNotesForBeam, setSelectedNotesForBeam] = useState<SelectedNote[]>([]);
 
     // 清除选中状态的函数（供 selectTool 调用）
     const clearTieSelection = useCallback(() => setSelectedNotesForTie([]), []);
     const clearSlurSelection = useCallback(() => setSelectedNotesForSlur([]), []);
-    const clearBeamSelection = useCallback(() => setSelectedNotesForBeam([]), []);
-
-    // 删除连音符（beam）
-    const handleDeleteBeam = (entity: ScoreEntity): OperationResult => {
-        // 详细检查每个条件
-        if (!scoreData) {
-            return { success: false, message: t('noScoreData') };
-        }
-        if (!scoreData.connections) {
-            return { success: false, message: t('noConnectionData') };
-        }
-        if (!scoreData.connections.noteConnections) {
-            return { success: false, message: t('noConnectionData') };
-        }
-        if (!entity.meta?.id) {
-            return { success: false, message: t('noNoteData') };
-        }
-        if (!currentXml) {
-            return { success: false, message: t('noScoreData') };
-        }
-
-        const entityId = entity.meta.id;
-        const entityConns = scoreData.connections.noteConnections.get(entityId);
-
-        if (!entityConns || entityConns.beams.length === 0) {
-            return { success: false, message: t('noteHasNoBeam') };
-        }
-
-        const allNoteIds = new Set<string>();
-        const entityMetas: EntityMeta[] = [];
-
-        entityConns.beams.forEach(beam => {
-            beam.noteIds.forEach(id => {
-                if (!allNoteIds.has(id)) {
-                    allNoteIds.add(id);
-                    const meta = findEntityMetaById(scoreData, id);
-                    if (meta) entityMetas.push(meta);
-                }
-            });
-        });
-
-        const count = allNoteIds.size;
-
-        updateMusicXML((xmlDoc) => {
-            removeBeamElementsFromXML(xmlDoc, entityMetas);
-        }, t('deleteBeam'));
-
-        return { success: true, message: (t('beamDeleted') as string).replace('{count}', String(count)), count };
-    };
 
     // 删除连音线（tie）
     const handleDeleteTie = (entity: ScoreEntity): OperationResult => {
@@ -146,7 +86,7 @@ export function useConnectionOperations({
             removeTieElementsFromXML(xmlDoc, entityMetas);
         }, t('deleteTie'));
 
-        return { success: true, message: (t('tieDeleted') as string).replace('{count}', String(count)), count };
+        return { success: true, message: t('tieDeleted', { count }), count };
     };
 
     // 删除连奏线（slur）
@@ -181,7 +121,7 @@ export function useConnectionOperations({
             removeSlurElementsFromXML(xmlDoc, entityMetas);
         }, t('deleteSlur'));
 
-        return { success: true, message: (t('slurDeleted') as string).replace('{count}', String(count)), count };
+        return { success: true, message: t('slurDeleted', { count }), count };
     };
 
     // 添加连音线
@@ -191,7 +131,7 @@ export function useConnectionOperations({
         }
 
         if (entity.type !== 'note' && entity.type !== 'chord') {
-            return { success: false, message: (t('onlyNoteOrChord') as string).replace('{type}', tCommon('tie')) };
+            return { success: false, message: t('onlyNoteOrChord', { type: tCommon('tie') }) };
         }
 
         if (selectedNotesForTie.some(n => n.entity.meta?.id === entity.meta?.id)) {
@@ -207,7 +147,7 @@ export function useConnectionOperations({
 
         // 连音线只需要在同一谱表，允许跨声部（钢琴谱或复杂乐谱场景）
         if (firstNote.location.staveIndex !== location.staveIndex) {
-            return { success: false, message: (t('mustSameStave') as string).replace('{type}', tCommon('tie')) };
+            return { success: false, message: t('mustSameStave', { type: tCommon('tie') }) };
         }
 
         const getEntityPitches = (e: ScoreEntity): string[] => {
@@ -286,7 +226,7 @@ export function useConnectionOperations({
         }
 
         if (entity.type !== 'note' && entity.type !== 'chord') {
-            return { success: false, message: (t('onlyNoteOrChord') as string).replace('{type}', tCommon('slur')) };
+            return { success: false, message: t('onlyNoteOrChord', { type: tCommon('slur') }) };
         }
 
         if (selectedNotesForSlur.some(n => n.entity.meta?.id === entity.meta?.id)) {
@@ -313,121 +253,18 @@ export function useConnectionOperations({
         return { success: true, message: t('slurCreated') };
     };
 
-    // 添加连音符
-    const handleAddBeamSelection = (location: EntityLocation, entity: ScoreEntity): OperationResult => {
-        if (!currentXml || !entity.meta) {
-            return { success: false, message: t('noNoteData') };
-        }
-
-        if (entity.type !== 'note' && entity.type !== 'chord') {
-            return { success: false, message: (t('onlyNoteOrChord') as string).replace('{type}', tCommon('beam')) };
-        }
-
-        const getDuration = (e: ScoreEntity): string => {
-            if (e.type === 'note') return e.duration;
-            if (e.type === 'chord') return e.duration;
-            return '';
-        };
-
-        const duration = getDuration(entity);
-        if (!isBeamableDuration(duration)) {
-            return { success: false, message: t('beamOnlyShortNotes') };
-        }
-
-        if (selectedNotesForBeam.some(n => n.entity.meta?.id === entity.meta?.id)) {
-            return { success: false, message: t('noteAlreadySelected') };
-        }
-
-        if (selectedNotesForBeam.length === 0) {
-            setSelectedNotesForBeam([{ entity, location }]);
-            return { success: true, message: t('firstNoteSelected') };
-        }
-
-        const firstNote = selectedNotesForBeam[0];
-
-        if (!isSameStaveAndVoice(firstNote.location, location)) {
-            return { success: false, message: t('beamMustSameStaveVoice') };
-        }
-
-        if (firstNote.location.measureIndex !== location.measureIndex) {
-            return { success: false, message: t('beamCannotCrossMeasure') };
-        }
-
-        // addBeamElementsToXML 会根据 startTick 自动确定顺序，无需手动检查
-
-        // 验证中间音符
-        if (scoreData) {
-            const { measureIndex } = firstNote.location;
-            const startEntityIndex = firstNote.location.entityIndex;
-            const endEntityIndex = location.entityIndex;
-
-            const measure = scoreData.measures[measureIndex];
-            // xmlVoice 已经是 1-based
-            const voiceName = `voiceLabel ${location.xmlVoice}`;
-
-            let targetVoice = null;
-            for (const stave of measure?.staves || []) {
-                for (const voice of stave.voices) {
-                    if (voice.name === voiceName) {
-                        targetVoice = voice;
-                        break;
-                    }
-                }
-                if (targetVoice) break;
-            }
-
-            if (targetVoice) {
-                // 使用 startTick 确定正确的顺序（允许反向选择）
-                const firstMeta = firstNote.entity.meta!;
-                const secondMeta = entity.meta!;
-                const firstTick = firstMeta.measureIndex * 1000000 + (firstMeta.startTick ?? 0);
-                const secondTick = secondMeta.measureIndex * 1000000 + (secondMeta.startTick ?? 0);
-
-                const actualStartIndex = firstTick <= secondTick ? startEntityIndex : endEntityIndex;
-                const actualEndIndex = firstTick <= secondTick ? endEntityIndex : startEntityIndex;
-
-                for (let i = actualStartIndex + 1; i < actualEndIndex; i++) {
-                    const middleEntity = targetVoice.notes[i];
-                    if (!middleEntity) continue;
-
-                    if (middleEntity.type === 'rest' || middleEntity.type === 'blank') {
-                        return { success: false, message: t('beamCannotIncludeRest') };
-                    }
-
-                    const middleDuration = (middleEntity.type === 'note' || middleEntity.type === 'chord')
-                        ? middleEntity.duration
-                        : '';
-                    if (!isBeamableDuration(middleDuration)) {
-                        return { success: false, message: t('beamAllNotesMustBeShort') };
-                    }
-                }
-            }
-        }
-
-        updateMusicXML((xmlDoc) => {
-            addBeamElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!);
-        }, t('addBeam'));
-
-        setSelectedNotesForBeam([]);
-        return { success: true, message: t('beamCreated') };
-    };
-
     return {
         // 选中状态
         selectedNotesForTie,
         selectedNotesForSlur,
-        selectedNotesForBeam,
         // 清除函数
         clearTieSelection,
         clearSlurSelection,
-        clearBeamSelection,
         // 删除操作
-        handleDeleteBeam,
         handleDeleteTie,
         handleDeleteSlur,
         // 添加操作
         handleAddTieSelection,
         handleAddSlurSelection,
-        handleAddBeamSelection,
     };
 }

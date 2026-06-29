@@ -1,17 +1,15 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import { ArrowLeft, CircleAlert, Loader2 } from 'lucide-react';
+import { Suspense } from 'react';
+import { CircleAlert, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/layout/footer';
-import { CardBasedEditor } from '@/components/editor/card-based-editor';
 import { EditorPageHeader } from '@/components/editor/editor-page-header';
 import { EditorPageModals } from '@/components/editor/editor-page-modals';
-import { EditorSidebar } from '@/components/editor/editor-sidebar';
-import { ScoreInfoCard } from '@/components/editor/score-info-card';
-import { EditorProvider, useEditorState } from '@/contexts/editor-provider';
+import { EditorWorkbench } from '@/components/editor/editor-workbench';
+import { EditorProvider } from '@/contexts/editor-provider';
 import { useEditorDocument } from '@/hooks/editor/use-editor-document';
 
 function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }) {
@@ -19,8 +17,6 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
   const common = useTranslations('common');
   const router = useRouter();
   const document = useEditorDocument({ id, returnUrl });
-  const { editorMode, selectTool } = useEditorState();
-  const [listenOpen, setListenOpen] = useState(false);
 
   if (document.isLoading) {
     return (
@@ -49,9 +45,7 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
       <div className="bg-gray-900">
         <div className="mx-auto max-w-7xl px-4 pb-16 pt-32">
           <div className="flex w-full items-center">
-            <div className="w-12 shrink-0"><Button variant="ghost" onClick={() => router.back()} className="h-12 w-12 rounded-full text-white hover:bg-white/10 hover:text-white [&_svg]:size-6"><ArrowLeft /></Button></div>
             <div className="flex-1 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1><p className="text-lg text-gray-300">{t('subtitle')}</p></div>
-            <div className="w-12 shrink-0" />
           </div>
         </div>
       </div>
@@ -62,33 +56,23 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
           isAutoSaving={document.isAutoSaving}
           savePending={document.savePending}
           onSave={document.save}
-          onPreview={() => document.currentXml && setListenOpen(true)}
           onMergeParts={() => void document.mergeParts()}
         />
-        <main className="grow">
-          <div className="mx-auto max-w-7xl px-4 pb-16 pt-8">
-            <div className="flex items-start gap-8">
-              <aside className="sticky top-24 hidden h-[calc(100vh-8.5rem)] w-64 shrink-0 md:block">
-                <div className="h-full overflow-hidden rounded-2xl bg-white/80 shadow-lg backdrop-blur-sm"><div className="h-full overflow-y-auto p-4 hide-scrollbar"><EditorSidebar editorMode={editorMode} onToolSelect={selectTool} onMergeParts={() => void document.mergeParts()} /></div></div>
-              </aside>
-              <div className="min-w-0 flex-1"><div className="flex flex-col gap-4"><ScoreInfoCard /><CardBasedEditor /></div></div>
-            </div>
-          </div>
-        </main>
+        <EditorWorkbench
+          currentXml={document.currentXml}
+          onMergeParts={() => void document.mergeParts()}
+        />
       </div>
 
       <Footer />
       <EditorPageModals
         draft={document.pendingDraft}
         draftOpen={document.draftDialogOpen}
-        listenOpen={listenOpen}
         originalImages={document.originalImages}
-        previewXml={document.currentXml}
         validationOpen={document.validationDialogOpen}
         validationResult={document.validationResult}
         onDiscardDraft={document.discardDraft}
         onDraftOpenChange={document.setDraftDialogOpen}
-        onListenOpenChange={setListenOpen}
         onRecoverDraft={document.recoverDraft}
         onSaveIgnoringWarnings={document.saveIgnoringWarnings}
         onValidationOpenChange={document.setValidationDialogOpen}

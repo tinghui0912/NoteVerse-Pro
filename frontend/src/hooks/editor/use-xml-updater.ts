@@ -13,6 +13,7 @@ import {
     parseXml,
     serializeXml,
 } from '@/lib/musicxml/core';
+import { ensureStableMusicXmlIds } from '@/lib/musicxml/stable-ids';
 
 export function useXmlUpdater() {
     const t = useTranslations('editor.actions');
@@ -33,6 +34,7 @@ export function useXmlUpdater() {
             const oldXml = currentXmlRef.current || currentXml || '';
             const xmlDoc = parseXml(oldXml);
             updater(xmlDoc);
+            ensureStableMusicXmlIds(xmlDoc);
             const newXmlString = serializeXml(xmlDoc);
 
             if (oldXml !== newXmlString) {

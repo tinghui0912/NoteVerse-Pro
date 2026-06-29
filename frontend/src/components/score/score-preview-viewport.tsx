@@ -1,6 +1,7 @@
 'use client';
 
 import type { RefObject } from 'react';
+import type { MouseEvent } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -10,6 +11,9 @@ interface ScorePreviewViewportProps {
   containerRef: RefObject<HTMLDivElement | null>;
   isLoading: boolean;
   loadError: string | null;
+  onScoreClick?: (event: MouseEvent<HTMLDivElement>) => void;
+  onScoreMouseLeave?: (event: MouseEvent<HTMLDivElement>) => void;
+  onScoreMouseMove?: (event: MouseEvent<HTMLDivElement>) => void;
   scoreContainerRef: (node: HTMLDivElement | null) => void;
 }
 
@@ -18,6 +22,9 @@ export function ScorePreviewViewport({
   containerRef,
   isLoading,
   loadError,
+  onScoreClick,
+  onScoreMouseLeave,
+  onScoreMouseMove,
   scoreContainerRef,
 }: ScorePreviewViewportProps) {
   const t = useTranslations('common');
@@ -50,7 +57,6 @@ export function ScorePreviewViewport({
           z-index: 2;
           width: 12px;
           min-height: 1px;
-          border-left: 2px solid #f97316;
           border-radius: 2px;
           background: rgb(249 115 22 / 24%);
           box-shadow: 0 0 0 1px rgb(255 255 255 / 55%);
@@ -58,13 +64,72 @@ export function ScorePreviewViewport({
           transform: translateX(-50%);
           transition: left 80ms linear, top 120ms ease, height 120ms ease;
         }
+        .verovio-preview-page .score-metadata-placeholder {
+          position: absolute;
+          z-index: 3;
+          border: 1px dashed rgb(148 163 184 / 60%);
+          border-radius: 0.375rem;
+          background: rgb(255 255 255 / 72%);
+          color: rgb(100 116 139);
+          font-size: 0.75rem;
+          line-height: 1rem;
+          padding: 0.125rem 0.375rem;
+          pointer-events: auto;
+          cursor: text;
+        }
+        .verovio-preview-page .score-metadata-placeholder:hover {
+          border-color: rgb(37 99 235 / 70%);
+          color: rgb(37 99 235);
+        }
+        .verovio-preview-page .score-metadata-placeholder-title {
+          left: 50%;
+          top: 1.25rem;
+          transform: translateX(-50%);
+        }
+        .verovio-preview-page .score-metadata-placeholder-subtitle {
+          left: 50%;
+          top: 2.75rem;
+          transform: translateX(-50%);
+        }
+        .verovio-preview-page .score-metadata-placeholder-lyricist {
+          right: 2.5rem;
+          top: 4rem;
+        }
+        .verovio-preview-page .score-metadata-placeholder-composer {
+          right: 2.5rem;
+          top: 5.25rem;
+        }
+        .score-preview-editable .verovio-preview-page [data-id],
+        .score-preview-editable .verovio-preview-page [id] {
+          cursor: pointer;
+        }
+        .score-preview-editable .score-editor-selected,
+        .score-preview-editable .score-editor-selected path,
+        .score-preview-editable .score-editor-selected ellipse,
+        .score-preview-editable .score-editor-selected circle,
+        .score-preview-editable .score-editor-selected polygon,
+        .score-preview-editable .score-editor-selected rect,
+        .score-preview-editable .score-editor-selected line,
+        .score-preview-editable .score-editor-selected polyline,
+        .score-preview-editable .score-editor-selected use {
+          color: #2563eb;
+          fill: #2563eb;
+          stroke: #2563eb;
+        }
+        .score-preview-editable .score-editor-hidden {
+          display: none;
+        }
       `}</style>
 
       <div
         ref={containerRef}
         data-testid="score-preview-viewport"
+        onClick={onScoreClick}
+        onMouseLeave={onScoreMouseLeave}
+        onMouseMove={onScoreMouseMove}
         className={cn(
           'score-preview-scroll-area relative min-h-[40vh] w-full flex-1 overflow-y-auto overflow-x-hidden rounded-lg bg-white',
+          onScoreClick && 'score-preview-editable',
           className
         )}
       >

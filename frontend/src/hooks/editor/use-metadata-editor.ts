@@ -159,7 +159,7 @@ export function useMetadataEditor() {
                 key.appendChild(fifths);
             }
             fifths.textContent = newKey;
-        }, t('updateKey'));
+        }, t('updateKeySignature'));
     }, [updateMusicXML, t]);
 
     const updateTimeSignature = useCallback((newTime: string) => {

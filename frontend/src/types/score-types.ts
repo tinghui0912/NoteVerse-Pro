@@ -15,6 +15,8 @@ export type Duration =
 // 实体位置元数据
 export type EntityMeta = {
   id: string;
+  /** All source XML ids represented by this UI entity, useful for chord-member SVG hit testing. */
+  sourceIds?: string[];
   measureIndex: number;
   staveIndex: number;
   /** XML voice 值 (1-based)，直接来自 MusicXML 的 voice 元素 */
@@ -130,14 +132,16 @@ export type ScoreData = {
   connections?: ConnectionData;
 };
 
-export type AddLocation = {
+export type TimelineInsertLocation = {
   measureIndex: number;
   staveIndex: number;
   /** XML voice 值 (1-based)，直接来自 MusicXML 的 voice 元素 */
   xmlVoice: number;
-  entityIndex: number; // The index of the card being hovered
-  position: 'before' | 'after'; // Where to insert relative to the card
+  /** 小节内 tick 位置；新 timeline 插入的主定位字段 */
+  tick: number;
 };
+
+export type AddLocation = TimelineInsertLocation;
 
 export type EntityLocation = {
   measureIndex: number;

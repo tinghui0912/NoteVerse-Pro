@@ -1,5 +1,6 @@
 import { sanitizeMusicXmlForVerovio } from './sanitize';
 import { createVerovioToolkit } from './toolkit';
+import { ensureStableMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import type {
   VerovioLoadOptions,
   VerovioRenderedPage,
@@ -9,14 +10,18 @@ import type {
 
 const DEFAULT_TOOLKIT_OPTIONS: Record<string, unknown> = {
   inputFrom: 'xml',
-  pageHeight: 2600,
-  pageWidth: 1800,
-  scale: 42,
+  pageHeight: 2970,
+  pageWidth: 2100,
+  scale: 40,
   header: 'auto',
-  footer: 'auto',
+  footer: 'always',
   adjustPageHeight: true,
+  justifyVertically: false,
+  pageMarginTop: 140,
+  pageMarginBottom: 40,
+  usePgFooterForAll: true,
   svgHtml5: true,
-  breaks: 'auto',
+  breaks: 'encoded',
 };
 
 export class VerovioScoreAdapter {
@@ -31,7 +36,7 @@ export class VerovioScoreAdapter {
       ...options.toolkitOptions,
     });
 
-    if (!toolkit.loadData(sanitizeMusicXmlForVerovio(xml))) {
+    if (!toolkit.loadData(sanitizeMusicXmlForVerovio(ensureStableMusicXmlIdsString(xml)))) {
       throw new Error('Verovio failed to load the score.');
     }
 

@@ -86,6 +86,7 @@ class OpeningRestAdapter extends StubAdapter {
           '<g class="system">',
           '<g class="measure">',
           '<g class="meterSig" />',
+          '<g class="rest" id="rest-1"><path /></g>',
           '<g id="note-1"><path /></g>',
           '</g>',
           '</g>',
@@ -230,7 +231,7 @@ describe('VerovioPlaybackPrototype', () => {
 });
 
 describe('VerovioScorePreviewController', () => {
-  it('keeps the cursor at the measure start until an opening rest has elapsed', async () => {
+  it('keeps the cursor hidden after load and can reset it to the first visible rest', async () => {
     const container = document.createElement('div');
     const audio = new StubAudioEngine();
     const controller = new VerovioScorePreviewController({
@@ -240,27 +241,34 @@ describe('VerovioScorePreviewController', () => {
     });
 
     await controller.loadScore('<score-partwise />');
+    expect(container.querySelector('.score-playback-cursor')).toBeNull();
+
     const page = container.querySelector<HTMLElement>('[data-score-page="1"]')!;
     const system = container.querySelector<HTMLElement>('.system')!;
     const meterSignature = container.querySelector<HTMLElement>('.meterSig')!;
+    const rest = container.querySelector<HTMLElement>('#rest-1')!;
     const note = container.querySelector<HTMLElement>('#note-1')!;
     page.getBoundingClientRect = () => DOMRect.fromRect({ x: 20, y: 0, width: 500, height: 300 });
     system.getBoundingClientRect = () => DOMRect.fromRect({ x: 40, y: 50, width: 440, height: 120 });
     meterSignature.getBoundingClientRect = () => DOMRect.fromRect({ x: 70, y: 60, width: 30, height: 70 });
+    rest.getBoundingClientRect = () => DOMRect.fromRect({ x: 120, y: 70, width: 16, height: 30 });
     note.getBoundingClientRect = () => DOMRect.fromRect({ x: 180, y: 70, width: 20, height: 30 });
 
     controller.resetCursor();
     const cursor = container.querySelector<HTMLElement>('.score-playback-cursor')!;
-    expect(cursor.style.left).toBe('88px');
+    expect(cursor.style.left).toBe('108px');
 
     await controller.play();
-    controller.syncCursorToStep(0);
-    expect(cursor.style.left).toBe('88px');
+    controller.syncCursorDuringPlayback(0);
+    expect(cursor.style.left).toBe('108px');
 
     audio.currentTime = 1.1;
-    controller.syncCursorToStep(0);
+    controller.syncCursorDuringPlayback(0);
     expect(cursor.style.left).toBe('170px');
     expect(cursor.style.width).toBe('20px');
+
+    controller.hideCursor();
+    expect(container.querySelector('.score-playback-cursor')).toBeNull();
 
     controller.dispose();
   });
@@ -336,8 +344,8 @@ describe('VerovioScorePreviewController', () => {
     await controller.fitToContainer();
     expect(container.querySelectorAll('[data-score-page]')).toHaveLength(2);
     expect(
-      container.querySelector('[data-score-page="1"] .score-playback-cursor')
-    ).not.toBeNull();
+      container.querySelector('[data-score-page] .score-playback-cursor')
+    ).toBeNull();
 
     controller.dispose();
     expect(container).toBeEmptyDOMElement();

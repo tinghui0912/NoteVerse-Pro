@@ -16,6 +16,7 @@ import { jobsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { flattenAllMeasures } from '@/lib/musicxml/flatten';
+import { ensureStableMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import { validateDataIntegrity, type ValidationResult } from '@/lib/musicxml/validator';
 
 export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: string }) {
@@ -70,11 +71,12 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
           await deleteDraft(id, revisionId);
         }
         if (cancelled) return;
-        setRawXml(xmlContent);
-        setCurrentXml(xmlContent);
-        initializeHistory(xmlContent);
+        const normalizedXml = ensureStableMusicXmlIdsString(xmlContent);
+        setRawXml(normalizedXml);
+        setCurrentXml(normalizedXml);
+        initializeHistory(normalizedXml);
         const { MusicXMLParser } = await import('@/lib/musicxml/parser');
-        if (!cancelled) setScoreData(new MusicXMLParser(xmlContent).parse());
+        if (!cancelled) setScoreData(new MusicXMLParser(normalizedXml).parse());
       } catch (error) {
         console.error('Failed to parse score XML:', error);
         if (!cancelled) {
@@ -185,10 +187,11 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
   };
   const recoverDraft = async () => {
     if (pendingDraft) {
-      setCurrentXml(pendingDraft.xml);
-      initializeHistory(pendingDraft.xml);
+      const normalizedXml = ensureStableMusicXmlIdsString(pendingDraft.xml);
+      setCurrentXml(normalizedXml);
+      initializeHistory(normalizedXml);
       const { MusicXMLParser } = await import('@/lib/musicxml/parser');
-      setScoreData(new MusicXMLParser(pendingDraft.xml).parse());
+      setScoreData(new MusicXMLParser(normalizedXml).parse());
       toast({ title: t('draftRecovered'), description: t('draftRecoveredDesc') });
     }
     setPendingDraft(null);
@@ -200,7 +203,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
   };
   const mergeParts = async () => {
     if (!currentXml) return;
-    const flattenedXml = flattenAllMeasures(currentXml);
+    const flattenedXml = ensureStableMusicXmlIdsString(flattenAllMeasures(currentXml));
     setCurrentXml(flattenedXml);
     initializeHistory(flattenedXml);
     const { MusicXMLParser } = await import('@/lib/musicxml/parser');
