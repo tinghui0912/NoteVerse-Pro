@@ -86,7 +86,7 @@ const ToolButton = ({ tool, isActive, onToolSelect }: { tool: ToolItem, isActive
     );
 };
 
-export function EditorSidebar({ editorMode, onToolSelect, onMergeParts }: { editorMode: EditorMode, onToolSelect: (mode: EditorMode) => void, onMergeParts?: () => void }) {
+export function EditorSidebar({ editorMode, onToolSelect, onNormalizeVoices }: { editorMode: EditorMode, onToolSelect: (mode: EditorMode) => void, onNormalizeVoices?: () => void }) {
     const t = useTranslations('editor');
 
     return (
@@ -128,10 +128,10 @@ export function EditorSidebar({ editorMode, onToolSelect, onMergeParts }: { edit
                     <Button
                         variant="outline"
                         className="flex flex-col w-full h-20 items-center justify-center hover:bg-accent"
-                        onClick={onMergeParts}
+                        onClick={onNormalizeVoices}
                     >
                         <div className="h-6 w-6 mb-1 flex items-center justify-center"><Combine /></div>
-                        <span className="text-xs text-center">{t('mergeParts')}</span>
+                        <span className="text-xs text-center">{t('normalizeVoices')}</span>
                     </Button>
                 </div>
             </div>

@@ -201,7 +201,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     setPendingDraft(null);
     toast({ title: t('draftDiscarded'), description: t('draftDiscardedDesc') });
   };
-  const mergeParts = async () => {
+  const normalizeVoices = async () => {
     if (!currentXml) return;
     const flattenedXml = ensureStableMusicXmlIdsString(flattenAllMeasures(currentXml));
     setCurrentXml(flattenedXml);
@@ -218,7 +218,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     finalLoadError: scoreQuery.error || revisionQuery.error ? t('loadFailedHint') : loadError,
     isAutoSaving,
     isLoading: scoreQuery.isLoading || revisionQuery.isLoading || (Boolean(xmlContent) && !initialized),
-    mergeParts,
+    normalizeVoices,
     originalImages,
     pendingDraft,
     recoverDraft,

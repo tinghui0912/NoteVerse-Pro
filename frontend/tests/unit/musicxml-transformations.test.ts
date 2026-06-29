@@ -27,7 +27,7 @@ describe('MusicXML transformations', () => {
     expect(measure.querySelector('backup duration')?.textContent).toBe('8');
   });
 
-  it('flattens voices while preserving chord and staff semantics', () => {
+  it('normalizes every staff to voice one while preserving chord and staff semantics', () => {
     const flattened = flattenAllMeasures(readFixture('chords-voices.musicxml'));
     const document = parseXml(flattened);
     const notes = Array.from(document.querySelectorAll('note'));
@@ -37,7 +37,7 @@ describe('MusicXML transformations', () => {
     expect(notes.map((note) => note.querySelector('voice')?.textContent)).toEqual([
       '1',
       '1',
-      '5',
+      '1',
     ]);
     expect(document.querySelectorAll('note chord')).toHaveLength(1);
     expect(document.querySelector('backup duration')?.textContent).toBe('4');

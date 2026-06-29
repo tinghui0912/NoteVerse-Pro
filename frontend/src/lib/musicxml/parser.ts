@@ -538,6 +538,7 @@ export class MusicXMLParser {
     type TieEvent = {
       type: 'start' | 'stop';
       entityId: string;
+      sourceId: string;
       pitch: string;
       staff: number;
       voice: number;
@@ -592,12 +593,13 @@ export class MusicXMLParser {
           // 收集 tie 事件
           if (currentEntityId && !isRest) {
             const pitch = extractPitch(noteNode) || '';
+            const sourceId = this.getStableElementId(noteNode);
 
             noteNode.querySelectorAll('tie').forEach((tieNode) => {
               const type = tieNode.getAttribute('type') as 'start' | 'stop';
               if (type === 'start' || type === 'stop') {
                 const globalTick = entityStartTickMap.get(currentEntityId!) ?? 0;
-                tieEvents.push({ type, entityId: currentEntityId!, pitch, staff, voice, globalTick });
+                tieEvents.push({ type, entityId: currentEntityId!, sourceId, pitch, staff, voice, globalTick });
               }
             });
           }
@@ -608,26 +610,44 @@ export class MusicXMLParser {
     // 第二遍：按 globalTick 排序后配对
     tieEvents.sort((a, b) => a.globalTick - b.globalTick);
 
-    const tieStarts: Map<string, { entityId: string; pitch: string }> = new Map();
+    const tieStarts: Map<string, { entityId: string; sourceId: string; pitch: string }> = new Map();
     for (const event of tieEvents) {
       const tieKey = `${event.pitch}-${event.staff}-${event.voice}`;
 
       if (event.type === 'start') {
-        tieStarts.set(tieKey, { entityId: event.entityId, pitch: event.pitch });
+        tieStarts.set(tieKey, { entityId: event.entityId, sourceId: event.sourceId, pitch: event.pitch });
       } else if (event.type === 'stop') {
         const startInfo = tieStarts.get(tieKey);
         if (startInfo && startInfo.entityId !== event.entityId) {
           const startConn = ensureConnection(startInfo.entityId);
           const stopConn = ensureConnection(event.entityId);
 
-          const startHas = startConn.ties.some(t => t.partnerId === event.entityId);
-          const stopHas = stopConn.ties.some(t => t.partnerId === startInfo.entityId);
+          const startHas = startConn.ties.some(t => (
+            t.partnerId === event.entityId
+            && t.sourceId === startInfo.sourceId
+            && t.partnerSourceId === event.sourceId
+          ));
+          const stopHas = stopConn.ties.some(t => (
+            t.partnerId === startInfo.entityId
+            && t.sourceId === event.sourceId
+            && t.partnerSourceId === startInfo.sourceId
+          ));
 
           if (!startHas) {
-            startConn.ties.push({ partnerId: event.entityId, type: 'start' });
+            startConn.ties.push({
+              partnerId: event.entityId,
+              type: 'start',
+              sourceId: startInfo.sourceId,
+              partnerSourceId: event.sourceId,
+            });
           }
           if (!stopHas) {
-            stopConn.ties.push({ partnerId: startInfo.entityId, type: 'stop' });
+            stopConn.ties.push({
+              partnerId: startInfo.entityId,
+              type: 'stop',
+              sourceId: event.sourceId,
+              partnerSourceId: startInfo.sourceId,
+            });
           }
 
           tieStarts.delete(tieKey);
@@ -640,6 +660,7 @@ export class MusicXMLParser {
     type SlurEvent = {
       type: 'start' | 'stop';
       entityId: string;
+      sourceId: string;
       staff: number;
       number: number;
       globalTick: number;
@@ -693,12 +714,13 @@ export class MusicXMLParser {
 
           // 收集 slur 事件
           if (currentEntityId && !isRest) {
+            const sourceId = this.getStableElementId(noteNode);
             noteNode.querySelectorAll('notations > slur').forEach((slurNode) => {
               const type = slurNode.getAttribute('type') as 'start' | 'stop' | 'continue';
               const number = parseInt(slurNode.getAttribute('number') || '1', 10);
               if (type === 'start' || type === 'stop') {
                 const globalTick = entityStartTickMap.get(currentEntityId!) ?? 0;
-                slurEvents.push({ type, entityId: currentEntityId!, staff, number, globalTick });
+                slurEvents.push({ type, entityId: currentEntityId!, sourceId, staff, number, globalTick });
               }
             });
           }
@@ -709,12 +731,12 @@ export class MusicXMLParser {
     // 第二遍：按 globalTick 排序后配对
     slurEvents.sort((a, b) => a.globalTick - b.globalTick);
 
-    const slurStarts: Map<string, { entityId: string; number: number }> = new Map();
+    const slurStarts: Map<string, { entityId: string; sourceId: string; number: number }> = new Map();
     for (const event of slurEvents) {
       const slurKey = `${event.staff}-${event.number}`;
 
       if (event.type === 'start') {
-        slurStarts.set(slurKey, { entityId: event.entityId, number: event.number });
+        slurStarts.set(slurKey, { entityId: event.entityId, sourceId: event.sourceId, number: event.number });
       } else if (event.type === 'stop') {
         const startInfo = slurStarts.get(slurKey);
         if (startInfo && startInfo.entityId !== event.entityId) {
@@ -724,14 +746,36 @@ export class MusicXMLParser {
           const startConn = ensureConnection(startInfo.entityId);
           const stopConn = ensureConnection(event.entityId);
 
-          const startHas = startConn.slurs.some(s => s.partnerIds[0] === startInfo.entityId && s.partnerIds[1] === event.entityId);
-          const stopHas = stopConn.slurs.some(s => s.partnerIds[0] === startInfo.entityId && s.partnerIds[1] === event.entityId);
+          const startHas = startConn.slurs.some(s => (
+            s.partnerIds[0] === startInfo.entityId
+            && s.partnerIds[1] === event.entityId
+            && s.sourceId === startInfo.sourceId
+            && s.partnerSourceIds?.[1] === event.sourceId
+          ));
+          const stopHas = stopConn.slurs.some(s => (
+            s.partnerIds[0] === startInfo.entityId
+            && s.partnerIds[1] === event.entityId
+            && s.sourceId === event.sourceId
+            && s.partnerSourceIds?.[0] === startInfo.sourceId
+          ));
 
           if (!startHas) {
-            startConn.slurs.push({ slurId, type: 'start', partnerIds });
+            startConn.slurs.push({
+              slurId,
+              type: 'start',
+              partnerIds,
+              sourceId: startInfo.sourceId,
+              partnerSourceIds: [startInfo.sourceId, event.sourceId],
+            });
           }
           if (!stopHas) {
-            stopConn.slurs.push({ slurId, type: 'stop', partnerIds });
+            stopConn.slurs.push({
+              slurId,
+              type: 'stop',
+              partnerIds,
+              sourceId: event.sourceId,
+              partnerSourceIds: [startInfo.sourceId, event.sourceId],
+            });
           }
 
           slurStarts.delete(slurKey);

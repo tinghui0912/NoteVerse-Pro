@@ -7,8 +7,13 @@ import type { ScoreData, ScoreEntity, EntityLocation, EntityMeta } from '@/types
 import {
     removeTieElementsFromXML,
     removeSlurElementsFromXML,
+    removeTieConnectionFromXML,
+    removeSlurConnectionFromXML,
+    setTieConnectionDirectionInXML,
+    setSlurConnectionDirectionInXML,
     addTieElementsToXML,
     addSlurElementsToXML,
+    type ConnectionDirection,
 } from '@/lib/musicxml/connections';
 import { findEntityMetaById } from '@/lib/editor/score-lookup';
 
@@ -23,6 +28,7 @@ type OperationResult = {
 type SelectedNote = {
     entity: ScoreEntity;
     location: EntityLocation;
+    sourceId?: string;
 };
 
 // Hook 参数类型
@@ -124,8 +130,110 @@ export function useConnectionOperations({
         return { success: true, message: t('slurDeleted', { count }), count };
     };
 
+    const handleDeleteTieConnection = (
+        entity: ScoreEntity,
+        partnerId: string,
+        sourceId?: string,
+        partnerSourceId?: string
+    ): OperationResult => {
+        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
+            return { success: false, message: t('noConnectionData') };
+        }
+
+        const partnerMeta = findEntityMetaById(scoreData, partnerId);
+        if (!partnerMeta) {
+            return { success: false, message: t('noNoteData') };
+        }
+
+        updateMusicXML((xmlDoc) => {
+            removeTieConnectionFromXML(xmlDoc, entity.meta!, partnerMeta, {
+                startSourceId: sourceId,
+                endSourceId: partnerSourceId,
+            });
+        }, t('deleteTie'));
+
+        return { success: true, message: t('tieDeleted', { count: 2 }), count: 2 };
+    };
+
+    const handleDeleteSlurConnection = (
+        entity: ScoreEntity,
+        partnerId: string,
+        sourceId?: string,
+        partnerSourceId?: string
+    ): OperationResult => {
+        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
+            return { success: false, message: t('noConnectionData') };
+        }
+
+        const partnerMeta = findEntityMetaById(scoreData, partnerId);
+        if (!partnerMeta) {
+            return { success: false, message: t('noNoteData') };
+        }
+
+        updateMusicXML((xmlDoc) => {
+            removeSlurConnectionFromXML(xmlDoc, entity.meta!, partnerMeta, {
+                startSourceId: sourceId,
+                endSourceId: partnerSourceId,
+            });
+        }, t('deleteSlur'));
+
+        return { success: true, message: t('slurDeleted', { count: 2 }), count: 2 };
+    };
+
+    const handleUpdateTieConnectionDirection = (
+        entity: ScoreEntity,
+        partnerId: string,
+        direction: ConnectionDirection,
+        sourceId?: string,
+        partnerSourceId?: string
+    ): OperationResult => {
+        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
+            return { success: false, message: t('noConnectionData') };
+        }
+
+        const partnerMeta = findEntityMetaById(scoreData, partnerId);
+        if (!partnerMeta) {
+            return { success: false, message: t('noNoteData') };
+        }
+
+        updateMusicXML((xmlDoc) => {
+            setTieConnectionDirectionInXML(xmlDoc, entity.meta!, partnerMeta, direction, {
+                startSourceId: sourceId,
+                endSourceId: partnerSourceId,
+            });
+        }, t('actions.updateConnectionDirection'));
+
+        return { success: true, message: t('connectionDirectionUpdated') };
+    };
+
+    const handleUpdateSlurConnectionDirection = (
+        entity: ScoreEntity,
+        partnerId: string,
+        direction: ConnectionDirection,
+        sourceId?: string,
+        partnerSourceId?: string
+    ): OperationResult => {
+        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
+            return { success: false, message: t('noConnectionData') };
+        }
+
+        const partnerMeta = findEntityMetaById(scoreData, partnerId);
+        if (!partnerMeta) {
+            return { success: false, message: t('noNoteData') };
+        }
+
+        updateMusicXML((xmlDoc) => {
+            setSlurConnectionDirectionInXML(xmlDoc, entity.meta!, partnerMeta, direction, {
+                startSourceId: sourceId,
+                endSourceId: partnerSourceId,
+            });
+        }, t('actions.updateConnectionDirection'));
+
+        return { success: true, message: t('connectionDirectionUpdated') };
+    };
+
     // 添加连音线
-    const handleAddTieSelection = (location: EntityLocation, entity: ScoreEntity): OperationResult => {
+    const handleAddTieSelection = (location: EntityLocation, entity: ScoreEntity, sourceId?: string): OperationResult => {
         if (!currentXml || !entity.meta) {
             return { success: false, message: t('noNoteData') };
         }
@@ -134,12 +242,12 @@ export function useConnectionOperations({
             return { success: false, message: t('onlyNoteOrChord', { type: tCommon('tie') }) };
         }
 
-        if (selectedNotesForTie.some(n => n.entity.meta?.id === entity.meta?.id)) {
+        if (selectedNotesForTie.some(n => n.entity.meta?.id === entity.meta?.id && n.sourceId === sourceId)) {
             return { success: false, message: t('noteAlreadySelected') };
         }
 
         if (selectedNotesForTie.length === 0) {
-            setSelectedNotesForTie([{ entity, location }]);
+            setSelectedNotesForTie([{ entity, location, sourceId }]);
             return { success: true, message: t('firstNoteSelected') };
         }
 
@@ -150,14 +258,22 @@ export function useConnectionOperations({
             return { success: false, message: t('mustSameStave', { type: tCommon('tie') }) };
         }
 
-        const getEntityPitches = (e: ScoreEntity): string[] => {
+        const getEntityPitches = (e: ScoreEntity, selectedSourceId?: string): string[] => {
             if (e.type === 'note') return [e.pitch];
-            if (e.type === 'chord') return [...e.pitches].sort();
+            if (e.type === 'chord') {
+                const sourceIndex = selectedSourceId && e.meta?.sourceIds
+                    ? e.meta.sourceIds.indexOf(selectedSourceId)
+                    : -1;
+                if (sourceIndex >= 0 && e.pitches[sourceIndex]) {
+                    return [e.pitches[sourceIndex]];
+                }
+                return [...e.pitches].sort();
+            }
             return [];
         };
 
-        const firstPitches = getEntityPitches(firstNote.entity);
-        const secondPitches = getEntityPitches(entity);
+        const firstPitches = getEntityPitches(firstNote.entity, firstNote.sourceId);
+        const secondPitches = getEntityPitches(entity, sourceId);
 
         if (JSON.stringify(firstPitches) !== JSON.stringify(secondPitches)) {
             return { success: false, message: t('mustSamePitch') };
@@ -212,7 +328,10 @@ export function useConnectionOperations({
         // addTieElementsToXML 会根据 startTick 自动确定顺序，无需手动检查
 
         updateMusicXML((xmlDoc) => {
-            addTieElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!);
+            addTieElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!, {
+                startSourceId: firstNote.sourceId,
+                endSourceId: sourceId,
+            });
         }, t('addTie'));
 
         setSelectedNotesForTie([]);
@@ -220,7 +339,7 @@ export function useConnectionOperations({
     };
 
     // 添加连奏线
-    const handleAddSlurSelection = (location: EntityLocation, entity: ScoreEntity): OperationResult => {
+    const handleAddSlurSelection = (location: EntityLocation, entity: ScoreEntity, sourceId?: string): OperationResult => {
         if (!currentXml || !entity.meta) {
             return { success: false, message: t('noNoteData') };
         }
@@ -229,12 +348,12 @@ export function useConnectionOperations({
             return { success: false, message: t('onlyNoteOrChord', { type: tCommon('slur') }) };
         }
 
-        if (selectedNotesForSlur.some(n => n.entity.meta?.id === entity.meta?.id)) {
+        if (selectedNotesForSlur.some(n => n.entity.meta?.id === entity.meta?.id && n.sourceId === sourceId)) {
             return { success: false, message: t('noteAlreadySelected') };
         }
 
         if (selectedNotesForSlur.length === 0) {
-            setSelectedNotesForSlur([{ entity, location }]);
+            setSelectedNotesForSlur([{ entity, location, sourceId }]);
             return { success: true, message: t('firstNoteSelected') };
         }
 
@@ -246,7 +365,10 @@ export function useConnectionOperations({
         updateMusicXML((xmlDoc) => {
             // addSlurElementsToXML 会自动根据 XML 文档中的实际位置确定 start/stop 顺序
             // 无需在这里手动判断和交换
-            addSlurElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!);
+            addSlurElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!, {
+                startSourceId: firstNote.sourceId,
+                endSourceId: sourceId,
+            });
         }, t('addSlur'));
 
         setSelectedNotesForSlur([]);
@@ -263,6 +385,10 @@ export function useConnectionOperations({
         // 删除操作
         handleDeleteTie,
         handleDeleteSlur,
+        handleDeleteTieConnection,
+        handleDeleteSlurConnection,
+        handleUpdateTieConnectionDirection,
+        handleUpdateSlurConnectionDirection,
         // 添加操作
         handleAddTieSelection,
         handleAddSlurSelection,

@@ -10,12 +10,22 @@ export function orderConnectionEndpoints(start: EntityMeta, end: EntityMeta) {
     : [end, start] as const;
 }
 
+function getElementId(element: Element) {
+  return (
+    element.getAttribute('xml:id') ||
+    element.getAttributeNS('http://www.w3.org/XML/1998/namespace', 'id') ||
+    element.getAttribute('id') ||
+    ''
+  );
+}
+
 export function findConnectionNoteElements(
   xmlDoc: XMLDocument,
   measureIndex: number,
   staveIndex: number,
   xmlVoice: number,
-  entityIndex: number
+  entityIndex: number,
+  sourceId?: string
 ): Element[] {
   const measures = xmlDoc.querySelectorAll('part > measure');
   if (measureIndex >= measures.length) return [];
@@ -44,7 +54,9 @@ export function findConnectionNoteElements(
     const isChordPart = element.querySelector('chord') !== null;
     if (!isChordPart) currentEntityIndex += 1;
     if (currentEntityIndex !== entityIndex) continue;
-    result.push(element);
+    if (!sourceId || getElementId(element) === sourceId) {
+      result.push(element);
+    }
     if (isChordPart) continue;
 
     for (let chordIndex = index + 1; chordIndex < children.length; chordIndex += 1) {
@@ -55,7 +67,9 @@ export function findConnectionNoteElements(
       const chordStaff = parseInt(chordElement.querySelector('staff')?.textContent || '1', 10);
       const chordVoice = parseInt(chordElement.querySelector('voice')?.textContent || '1', 10);
       if (chordStaff !== staff || chordVoice !== xmlVoice || chordElement.querySelector('chord') === null) break;
-      result.push(chordElement);
+      if (!sourceId || getElementId(chordElement) === sourceId) {
+        result.push(chordElement);
+      }
     }
     return result;
   }

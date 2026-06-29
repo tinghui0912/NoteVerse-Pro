@@ -352,6 +352,11 @@ function getHiddenVerovioEventElement(element: Element): Element {
     ?? element;
 }
 
+function getConnectionSourceId(entity: ScoreEntity, elementId: string | null) {
+  if (!elementId) return undefined;
+  return entity.meta?.sourceIds?.includes(elementId) ? elementId : undefined;
+}
+
 function getRelatedIds(element: Element): string[] {
   return (element.getAttribute('data-related') ?? '')
     .split(/\s+/)
@@ -733,13 +738,13 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     }
 
     if (editorMode === 'addTie') {
-      const result = handleAddTieSelection(hit.location, hit.entity);
+      const result = handleAddTieSelection(hit.location, hit.entity, getConnectionSourceId(hit.entity, entityId));
       toast({ title: result.message, variant: result.success ? 'default' : 'destructive' });
       return;
     }
 
     if (editorMode === 'addSlur') {
-      const result = handleAddSlurSelection(hit.location, hit.entity);
+      const result = handleAddSlurSelection(hit.location, hit.entity, getConnectionSourceId(hit.entity, entityId));
       toast({ title: result.message, variant: result.success ? 'default' : 'destructive' });
       return;
     }

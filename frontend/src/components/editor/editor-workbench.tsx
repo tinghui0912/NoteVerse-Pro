@@ -11,12 +11,12 @@ import { EventInspector } from './event-inspector';
 
 interface EditorWorkbenchProps {
   currentXml: string | null;
-  onMergeParts: () => void;
+  onNormalizeVoices: () => void;
 }
 
 export function EditorWorkbench({
   currentXml,
-  onMergeParts,
+  onNormalizeVoices,
 }: EditorWorkbenchProps) {
   const { editorMode, selectTool } = useEditorState();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -50,7 +50,7 @@ export function EditorWorkbench({
                 <EditorSidebar
                   editorMode={editorMode}
                   onToolSelect={selectTool}
-                  onMergeParts={onMergeParts}
+                  onNormalizeVoices={onNormalizeVoices}
                 />
               </div>
               ) : null}

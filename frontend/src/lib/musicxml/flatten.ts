@@ -1,9 +1,9 @@
 /**
- * MusicXML 扁平化工具
+ * MusicXML 声部规整工具
  * 
- * 将多声部扁平化为单声部（去复调合并）：
+ * 将每个谱表内的多声部规整为单一 MusicXML voice：
  * - 高音谱表所有声部 → voice=1
- * - 低音谱表所有声部 → voice=5
+ * - 低音谱表所有声部 → voice=1
  */
 
 import { parseXml, serializeXml } from './core';
@@ -67,7 +67,7 @@ function isGrace(node: Element): boolean {
 }
 
 /**
- * 处理单个小节的扁平化
+ * 处理单个小节的声部规整
  */
 function flattenMeasureToSingleVoice(xmlDoc: XMLDocument, measureEl: Element): void {
 
@@ -109,8 +109,8 @@ function flattenMeasureToSingleVoice(xmlDoc: XMLDocument, measureEl: Element): v
                 voiceEl = xmlDoc.createElement('voice');
                 copy.appendChild(voiceEl);
             }
-            // 高音谱表 voice=1，低音谱表 voice=5
-            voiceEl.textContent = staff === 2 ? '5' : '1';
+            // 每个谱表内规整为 voice=1；staff 仍然保留上下谱表语义。
+            voiceEl.textContent = '1';
 
             ensureList(staff).push({
                 absoluteTime,
@@ -210,7 +210,7 @@ function flattenMeasureToSingleVoice(xmlDoc: XMLDocument, measureEl: Element): v
 
         // 写入音符
         let writeCursor = 0;
-        const targetVoice = staff === 2 ? 5 : 1;
+        const targetVoice = 1;
 
         for (const group of chordGroups) {
             const startTime = group.mainNote.absoluteTime;
@@ -299,7 +299,7 @@ function cleanupXMLStructure(xmlDoc: XMLDocument): void {
 }
 
 /**
- * 扁平化所有小节
+ * 规整所有小节内的 voice 编号
  * 
  * @param xmlString 原始 XML 字符串
  * @returns 处理后的 XML 字符串

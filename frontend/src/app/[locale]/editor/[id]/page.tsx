@@ -56,11 +56,11 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
           isAutoSaving={document.isAutoSaving}
           savePending={document.savePending}
           onSave={document.save}
-          onMergeParts={() => void document.mergeParts()}
+          onNormalizeVoices={() => void document.normalizeVoices()}
         />
         <EditorWorkbench
           currentXml={document.currentXml}
-          onMergeParts={() => void document.mergeParts()}
+          onNormalizeVoices={() => void document.normalizeVoices()}
         />
       </div>
 

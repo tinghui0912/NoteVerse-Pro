@@ -84,12 +84,16 @@ export type Measure = {
 export type TieConnection = {
   partnerId: string;        // 连接的另一个音符 ID
   type: 'start' | 'stop';   // 连音线起点或终点
+  sourceId?: string;        // 当前实体内的具体 XML note id（用于和弦成员级连接）
+  partnerSourceId?: string; // 对端实体内的具体 XML note id
 };
 
 export type SlurConnection = {
   slurId: string;           // 连奏线 ID
   type: 'start' | 'stop';   // 连奏线起点或终点
   partnerIds: string[];     // 连奏线上所有音符 ID
+  sourceId?: string;        // 当前实体内的具体 XML note id（用于和弦成员级连接）
+  partnerSourceIds?: string[]; // 连奏线上所有具体 XML note id
 };
 
 export type BeamConnection = {

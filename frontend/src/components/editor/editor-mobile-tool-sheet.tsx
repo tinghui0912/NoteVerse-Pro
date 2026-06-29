@@ -8,10 +8,10 @@ import { useEditorState } from '@/contexts/editor-provider';
 import { EditorSidebar } from './editor-sidebar';
 
 interface EditorMobileToolSheetProps {
-  onMergeParts: () => void;
+  onNormalizeVoices: () => void;
 }
 
-export function EditorMobileToolSheet({ onMergeParts }: EditorMobileToolSheetProps) {
+export function EditorMobileToolSheet({ onNormalizeVoices }: EditorMobileToolSheetProps) {
   const t = useTranslations('editor');
   const { editorMode, selectTool } = useEditorState();
 
@@ -30,7 +30,7 @@ export function EditorMobileToolSheet({ onMergeParts }: EditorMobileToolSheetPro
           <EditorSidebar
             editorMode={editorMode}
             onToolSelect={selectTool}
-            onMergeParts={onMergeParts}
+            onNormalizeVoices={onNormalizeVoices}
           />
         </div>
       </SheetContent>

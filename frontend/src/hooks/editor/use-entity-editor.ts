@@ -22,6 +22,36 @@ import { createDefaultEditableEvent, toScoreEntity } from '@/lib/editor/editable
 import { insertEntity } from './entity-editor/insert-entity';
 import { updateExistingEntity } from './entity-editor/update-existing-entity';
 
+type UpdateEntityOptions = {
+    keepInspectorOpen?: boolean;
+};
+
+function findEntityAtLocation(data: ReturnType<MusicXMLParser['parse']>, location: EntityLocation) {
+    const stave = data.measures[location.measureIndex]?.staves[location.staveIndex];
+    const voice = stave?.voices.find((candidate) => (
+        candidate.notes.some((entity) => entity.meta?.xmlVoice === location.xmlVoice)
+    ));
+    const entity = voice?.notes[location.entityIndex];
+    if (!entity?.meta) return null;
+    return { entity, location: entity.meta };
+}
+
+function findInsertedEntity(data: ReturnType<MusicXMLParser['parse']>, location: AddLocation) {
+    const stave = data.measures[location.measureIndex]?.staves[location.staveIndex];
+    const candidates = stave?.voices
+        .flatMap((voice) => voice.notes)
+        .filter((entity) => (
+            entity.meta?.xmlVoice === location.xmlVoice
+            && entity.meta.measureIndex === location.measureIndex
+            && entity.meta.staveIndex === location.staveIndex
+        )) ?? [];
+
+    const exact = candidates.find((entity) => entity.meta?.startTick === location.tick);
+    const entity = exact ?? candidates[0];
+    if (!entity?.meta) return null;
+    return { entity, location: entity.meta };
+}
+
 export function useEntityEditor() {
     const t = useTranslations('editor.actions');
     const {
@@ -107,8 +137,9 @@ export function useEntityEditor() {
     /**
      * Save either a pending insert or an existing event edit.
      */
-    const updateEntity = useCallback((updatedEntity: ScoreEntity) => {
+    const updateEntity = useCallback((updatedEntity: ScoreEntity, options: UpdateEntityOptions = {}) => {
         const currentPendingInsert = pendingInsertRef.current;
+        const shouldKeepInspectorOpen = options.keepInspectorOpen === true;
 
         if (currentPendingInsert) {
             const { location } = currentPendingInsert;
@@ -132,10 +163,22 @@ export function useEntityEditor() {
 
             setPendingInsert(null);
             pendingInsertRef.current = null;
-            setEditingEntity(null);
-            setEditingEntityLocation(null);
-            setInspectorOpen(false);
             selectTool('select');
+            if (shouldKeepInspectorOpen && result.success && result.newScoreData) {
+                const inserted = findInsertedEntity(result.newScoreData, location);
+                setEditingEntity(inserted?.entity ?? updatedEntity);
+                setEditingEntityLocation(inserted?.location ?? {
+                    measureIndex: location.measureIndex,
+                    staveIndex: location.staveIndex,
+                    xmlVoice: location.xmlVoice,
+                    entityIndex: 0,
+                });
+                setInspectorOpen(true);
+            } else {
+                setEditingEntity(null);
+                setEditingEntityLocation(null);
+                setInspectorOpen(false);
+            }
             return;
         }
 
@@ -156,9 +199,16 @@ export function useEntityEditor() {
             setScoreData(result.newScoreData);
         }
 
-        setEditingEntity(null);
-        setEditingEntityLocation(null);
-        setInspectorOpen(false);
+        if (shouldKeepInspectorOpen && result.success && result.newScoreData) {
+            const updated = findEntityAtLocation(result.newScoreData, editingEntityLocation);
+            setEditingEntity(updated?.entity ?? updatedEntity);
+            setEditingEntityLocation(updated?.location ?? editingEntityLocation);
+            setInspectorOpen(true);
+        } else {
+            setEditingEntity(null);
+            setEditingEntityLocation(null);
+            setInspectorOpen(false);
+        }
     }, [currentXml, scoreData, editingEntityLocation, pendingInsertRef, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, setPendingInsert, setEditingEntity, setEditingEntityLocation, setInspectorOpen, selectTool, t]);
 
     /**
