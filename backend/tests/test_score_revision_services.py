@@ -11,6 +11,7 @@ from app.core.exceptions import (
     ConflictException,
     ResourceNotFoundException,
     UnauthorizedException,
+    ValidationException,
 )
 from app.db.models import (
     ProcessingJob,
@@ -36,8 +37,9 @@ from app.db.models.score_access import (
     ShareTargetMode,
 )
 from app.db.models.user import UserRole
-from app.modules.revisions.schemas import RevisionCreateRequest
+from app.modules.revisions.schemas import FingeringRequest, RevisionCreateRequest
 from app.modules.revisions.service import RevisionService
+from app.modules.revisions.fingering_service import strip_existing_fingerings
 from app.modules.artifacts.service import ArtifactService
 from app.modules.scores.creation_service import SyncScoreCreationService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
@@ -87,6 +89,53 @@ class AsyncSessionAdapter:
 
     def add(self, instance) -> None:
         self.session.add(instance)
+
+
+class FakeFingeringService:
+    def __init__(self, xml_content: str = MUSICXML_2) -> None:
+        self.xml_content = xml_content
+        self.calls: list[dict[str, str]] = []
+
+    def generate(self, score_id: str, xml_content: str, hand_size: str = "M"):
+        self.calls.append({
+            "score_id": score_id,
+            "xml_content": xml_content,
+            "hand_size": hand_size,
+        })
+        return {"xml_content": self.xml_content, "hand_size": hand_size}
+
+
+def add_active_score_with_head_revision(
+    session: Session,
+    *,
+    score_id: int,
+    revision_id: int,
+    score_uuid: str,
+    revision_uuid: str,
+    title: str,
+) -> Score:
+    score = Score(
+        id=score_id,
+        score_uuid=score_uuid,
+        owner_user_id=1,
+        title=title,
+        state=ScoreState.ACTIVE,
+    )
+    revision = ScoreRevision(
+        id=revision_id,
+        revision_uuid=revision_uuid,
+        score_id=score_id,
+        revision_number=1,
+        content_hash="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+        origin=RevisionOrigin.IMPORT,
+    )
+    session.add(score)
+    session.add(revision)
+    session.commit()
+    score.head_revision_id = revision_id
+    session.add(score)
+    session.commit()
+    return score
 
 
 @pytest.fixture
@@ -241,6 +290,99 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
             ),
         )
     assert conflict.value.code == ErrorCode.REVISION_CONFLICT
+
+
+@pytest.mark.asyncio
+async def test_generate_fingering_returns_xml_without_creating_revision(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    add_active_score_with_head_revision(
+        session,
+        score_id=301,
+        revision_id=311,
+        score_uuid="fingering-score",
+        revision_uuid="fingering-revision",
+        title="Fingering Score",
+    )
+    fingering_service = FakeFingeringService()
+    service = RevisionService(storage=storage, fingering_service=fingering_service)
+    revision_count = session.query(ScoreRevision).count()
+    artifact_count = session.query(ScoreArtifact).count()
+
+    result = await service.generate_fingering(
+        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+        "fingering-score",
+        1,
+        FingeringRequest(content=MUSICXML_1.decode("utf-8"), hand_size="L"),
+    )
+
+    assert result.content == MUSICXML_2
+    assert fingering_service.calls == [{
+        "score_id": "fingering-score",
+        "xml_content": MUSICXML_1.decode("utf-8"),
+        "hand_size": "L",
+    }]
+    assert session.query(ScoreRevision).count() == revision_count
+    assert session.query(ScoreArtifact).count() == artifact_count
+
+
+@pytest.mark.asyncio
+async def test_generate_fingering_validates_input_and_generated_xml(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    add_active_score_with_head_revision(
+        session,
+        score_id=302,
+        revision_id=312,
+        score_uuid="invalid-fingering-score",
+        revision_uuid="invalid-fingering-revision",
+        title="Invalid Fingering Score",
+    )
+    service = RevisionService(storage=storage, fingering_service=FakeFingeringService(xml_content="<bad />"))
+    db = AsyncSessionAdapter(session)
+
+    with pytest.raises(ValidationException):
+        await service.generate_fingering(
+            db,  # type: ignore[arg-type]
+            "invalid-fingering-score",
+            1,
+            FingeringRequest(content="<bad />"),
+        )
+
+    with pytest.raises(ValidationException):
+        await service.generate_fingering(
+            db,  # type: ignore[arg-type]
+            "invalid-fingering-score",
+            1,
+            FingeringRequest(content=MUSICXML_1.decode("utf-8")),
+        )
+
+
+def test_strip_existing_fingerings_before_generation() -> None:
+    xml = """<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <note>
+      <pitch><step>C</step><octave>4</octave></pitch>
+      <duration>1</duration>
+      <notations><technical><fingering>5</fingering></technical></notations>
+    </note>
+    <note>
+      <pitch><step>D</step><octave>4</octave></pitch>
+      <duration>1</duration>
+      <notations><technical><fingering>3</fingering></technical><slur type="start" number="1"/></notations>
+    </note>
+  </measure></part>
+</score-partwise>"""
+
+    stripped = strip_existing_fingerings(xml)
+
+    assert "<fingering>" not in stripped
+    assert "<technical" not in stripped
+    assert "slur" in stripped
 
 
 @pytest.mark.asyncio

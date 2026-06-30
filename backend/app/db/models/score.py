@@ -36,7 +36,6 @@ class RevisionOrigin(str, enum.Enum):
     OMR = "OMR"
     EDIT = "EDIT"
     IMPORT = "IMPORT"
-    FINGERING = "FINGERING"
 
 
 class ArtifactKind(str, enum.Enum):

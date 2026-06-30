@@ -178,7 +178,7 @@ Immutable, linear document revision:
 id, revision_uuid, score_id, revision_number
 parent_revision_id nullable
 content_hash
-origin = OMR | EDIT | IMPORT | FINGERING
+origin = OMR | EDIT | IMPORT
 created_by_user_id nullable
 created_by_job_id nullable
 base_revision_id nullable

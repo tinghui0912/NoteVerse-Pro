@@ -8,14 +8,19 @@ import { useEditorState } from '@/contexts/editor-provider';
 import { cn } from '@/lib/utils';
 import { EditorWorkbenchCenter } from './editor-workbench-center';
 import { EventInspector } from './event-inspector';
+import type { FingeringHandSize } from '@/types/api';
 
 interface EditorWorkbenchProps {
   currentXml: string | null;
+  fingeringPending?: boolean;
+  onGenerateFingering?: (handSize: FingeringHandSize) => void;
   onNormalizeVoices: () => void;
 }
 
 export function EditorWorkbench({
   currentXml,
+  fingeringPending,
+  onGenerateFingering,
   onNormalizeVoices,
 }: EditorWorkbenchProps) {
   const { editorMode, selectTool } = useEditorState();
@@ -49,6 +54,8 @@ export function EditorWorkbench({
               <div className="h-full overflow-y-auto p-4 hide-scrollbar">
                 <EditorSidebar
                   editorMode={editorMode}
+                  fingeringPending={fingeringPending}
+                  onGenerateFingering={onGenerateFingering}
                   onToolSelect={selectTool}
                   onNormalizeVoices={onNormalizeVoices}
                 />

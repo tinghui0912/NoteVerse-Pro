@@ -94,7 +94,11 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     this.renderPages(
       this.adapter.relayout({ pageWidth: Math.max(900, Math.round(width * 2.25)) })
     );
-    if (snapshot.state !== 'STOPPED' || snapshot.currentTime > 0 || snapshot.currentStep > 0) {
+    if (
+      snapshot.totalSteps > 0
+      && snapshot.state !== 'IDLE'
+      && (snapshot.state !== 'STOPPED' || snapshot.currentTime > 0 || snapshot.currentStep > 0)
+    ) {
       this.applyCursor(this.playback.getCursorSnapshotForStep(snapshot.currentStep));
     }
   }

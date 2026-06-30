@@ -30,8 +30,10 @@ class RevisionContentRead(RevisionRead):
     mime_type: str
 
 
-class FingeringRevisionRequest(BaseModel):
-    base_revision_id: str
-    hand: Literal["left", "right", "both"] = "both"
-    depth: int = Field(default=6, ge=1, le=20)
-    idempotency_key: str | None = Field(default=None, min_length=8, max_length=128)
+class FingeringRequest(BaseModel):
+    content: str = Field(min_length=1)
+    hand_size: Literal["XXS", "XS", "S", "M", "L", "XL", "XXL"] = "M"
+
+
+class FingeringResultRead(BaseModel):
+    content: str

@@ -5,7 +5,8 @@ from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.revisions.schemas import (
-    FingeringRevisionRequest,
+    FingeringRequest,
+    FingeringResultRead,
     RevisionContentRead,
     RevisionCreateRequest,
     RevisionRead,
@@ -138,10 +139,10 @@ async def get_revision_content(
     return success_response(data=result)
 
 
-@router.post("/{score_id}/fingering", response_model=APIResponse[RevisionRead])
+@router.post("/{score_id}/fingering", response_model=APIResponse[FingeringResultRead])
 async def generate_score_fingering(
     score_id: str,
-    request: FingeringRevisionRequest,
+    request: FingeringRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: RevisionService = Depends(get_revision_service),

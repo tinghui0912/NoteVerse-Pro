@@ -15,6 +15,9 @@
   "deleteSlur": "删除连奏线",
   "correctionTools": "修正工具",
   "normalizeVoices": "简化声部",
+  "generateFingering": "生成指法",
+  "fingeringHandSizeLabel": "手型大小",
+  "fingeringHandSizeDescription": "选择演奏者的手型大小，系统会基于当前编辑中的乐谱生成指法。",
   "mainTitleLabel": "主标题",
   "subtitleLabel": "副标题",
   "composerLabel": "作曲",
@@ -89,6 +92,10 @@
   "draftRecoveredDesc": "已恢复上次编辑的内容",
   "draftDiscarded": "草稿已放弃",
   "draftDiscardedDesc": "正在使用服务器版本",
+  "fingeringGenerated": "指法已生成",
+  "fingeringGeneratedDesc": "请检查生成结果并保存更改。",
+  "fingeringFailed": "指法生成失败",
+  "fingeringFailedDesc": "无法生成指法，请检查乐谱内容后重试。",
   "originalScorePage": "原始乐谱第 {page} 页",
   "draft": {
     "title": "恢复未保存草稿",
@@ -129,6 +136,7 @@
     "addVoice": "添加声部",
     "clearVoice": "清空声部",
     "deleteVoice": "删除声部",
-    "updateSourceVoice": "更新源声部"
+    "updateSourceVoice": "更新源声部",
+    "generateFingering": "生成指法"
   }
 }

@@ -8,6 +8,7 @@ import { useAutoSave } from '@/hooks/editor/use-auto-save';
 import { useJobDetail } from '@/hooks/queries/use-job-queries';
 import {
   useCreateRevision,
+  useGenerateScoreFingering,
   useRevisionContent,
   useScoreDetail,
 } from '@/hooks/queries/use-score-queries';
@@ -18,6 +19,7 @@ import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-stor
 import { normalizeMeasureVoices } from '@/lib/musicxml/flatten';
 import { ensureStableMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import { validateDataIntegrity, type ValidationResult } from '@/lib/musicxml/validator';
+import type { FingeringHandSize } from '@/types/api';
 
 export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: string }) {
   const router = useRouter();
@@ -26,7 +28,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
   const auth = useTranslations('auth');
   const { toast } = useToast();
   const { scoreData, setScoreData, setRawXml, currentXml, currentXmlRef, setCurrentXml } = useScoreData();
-  const { initialize: initializeHistory } = useHistory();
+  const { initialize: initializeHistory, push: pushHistory } = useHistory();
   const scoreQuery = useScoreDetail(id);
   const score = scoreQuery.data?.data;
   const [baseRevisionId, setBaseRevisionId] = useState('');
@@ -36,6 +38,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     enabled: Boolean(score?.originating_job_id),
   });
   const createRevision = useCreateRevision();
+  const generateFingeringMutation = useGenerateScoreFingering();
   const [initialized, setInitialized] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<DraftEntry | null>(null);
@@ -209,6 +212,54 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     const { MusicXMLParser } = await import('@/lib/musicxml/parser');
     setScoreData(new MusicXMLParser(flattenedXml).parse());
   };
+  const generateFingering = (handSize: FingeringHandSize) => {
+    if (!currentXml) return;
+
+    generateFingeringMutation.mutate(
+      {
+        scoreId: id,
+        content: currentXml,
+        hand_size: handSize,
+      },
+      {
+        onSuccess: async (response) => {
+          const generatedXml = response.data?.content;
+          if (!response.success || !generatedXml) {
+            toast({
+              title: t('fingeringFailed'),
+              description: response.message || t('fingeringFailedDesc'),
+              variant: 'destructive',
+            });
+            return;
+          }
+
+          try {
+            const normalizedXml = ensureStableMusicXmlIdsString(generatedXml);
+            currentXmlRef.current = normalizedXml;
+            setCurrentXml(normalizedXml);
+            pushHistory(normalizedXml, t('actions.generateFingering'));
+            const { MusicXMLParser } = await import('@/lib/musicxml/parser');
+            setScoreData(new MusicXMLParser(normalizedXml).parse());
+            toast({ title: t('fingeringGenerated'), description: t('fingeringGeneratedDesc') });
+          } catch (error) {
+            console.error('Failed to apply generated fingering:', error);
+            toast({
+              title: t('fingeringFailed'),
+              description: t('fingeringFailedDesc'),
+              variant: 'destructive',
+            });
+          }
+        },
+        onError: (error) => {
+          toast({
+            title: t('fingeringFailed'),
+            description: error instanceof ApiError ? error.message : t('fingeringFailedDesc'),
+            variant: 'destructive',
+          });
+        },
+      }
+    );
+  };
 
   return {
     currentXml,
@@ -216,6 +267,8 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     discardDraft,
     draftDialogOpen,
     finalLoadError: scoreQuery.error || revisionQuery.error ? t('loadFailedHint') : loadError,
+    fingeringPending: generateFingeringMutation.isPending,
+    generateFingering,
     isAutoSaving,
     isLoading: scoreQuery.isLoading || revisionQuery.isLoading || (Boolean(xmlContent) && !initialized),
     normalizeVoices,

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { publicationsApi, scoreSharingApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
+import type { FingeringHandSize } from '@/types/api';
 
 export function useScoreDetail(scoreId: string, enabled = true) {
   return useQuery({
@@ -90,18 +91,12 @@ export function useCreateRevision() {
 }
 
 export function useGenerateScoreFingering() {
-  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ scoreId, ...input }: { scoreId: string; base_revision_id: string }) =>
-      scoresApi.generateFingering(scoreId, {
-        ...input,
-        idempotency_key: crypto.randomUUID(),
-      }),
-    onSuccess: (_response, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.artifacts(variables.scoreId) });
-    },
+    mutationFn: ({ scoreId, ...input }: {
+      scoreId: string;
+      content: string;
+      hand_size?: FingeringHandSize;
+    }) => scoresApi.generateFingering(scoreId, input),
   });
 }
 

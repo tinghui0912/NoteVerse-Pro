@@ -1,5 +1,6 @@
 export type ScoreState = 'IN_REVIEW' | 'ACTIVE';
-export type RevisionOrigin = 'OMR' | 'EDIT' | 'IMPORT' | 'FINGERING';
+export type RevisionOrigin = 'OMR' | 'EDIT' | 'IMPORT';
+export type FingeringHandSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 export type ArtifactKind =
   | 'MUSICXML'
   | 'RENDERED_PAGE'
@@ -78,6 +79,10 @@ export interface ScoreRevision {
 export interface ScoreRevisionContent extends ScoreRevision {
   content: string;
   mime_type: string;
+}
+
+export interface FingeringResult {
+  content: string;
 }
 
 export interface ScoreArtifact {

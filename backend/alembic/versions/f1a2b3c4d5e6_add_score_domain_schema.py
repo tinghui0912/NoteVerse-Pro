@@ -109,7 +109,7 @@ def upgrade() -> None:
         sa.Column("idempotency_key", sa.String(length=128), nullable=True),
         sa.Column(
             "origin",
-            sa.Enum("OMR", "EDIT", "IMPORT", "FINGERING", name="revisionorigin"),
+            sa.Enum("OMR", "EDIT", "IMPORT", name="revisionorigin"),
             nullable=False,
         ),
         sa.Column("created_by_user_id", sa.BigInteger(), nullable=True),

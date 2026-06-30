@@ -34,6 +34,24 @@ describe('Verovio listen surfaces', () => {
     expect(player).not.toContain('<CardTitle');
   });
 
+  it('keeps fingering generation as an editor action instead of a results action', () => {
+    const resultsActions = readSource('src/components/results/results-actions.tsx');
+    const editorSidebar = readSource('src/components/editor/editor-sidebar.tsx');
+    const editorDocument = readSource('src/hooks/editor/use-editor-document.ts');
+    const scoreApi = readSource('src/lib/api/scores.ts');
+
+    expect(resultsActions).not.toContain('useGenerateScoreFingering');
+    expect(resultsActions).not.toContain("t('generateFingering')");
+    expect(editorSidebar).toContain("t('generateFingering')");
+    expect(editorSidebar).toContain('fingeringHandSizes');
+    expect(editorSidebar).toContain('confirmGenerateFingering');
+    expect(editorDocument).toContain('content: currentXml');
+    expect(editorDocument).toContain('hand_size: handSize');
+    expect(editorDocument).toContain("t('actions.generateFingering')");
+    expect(scoreApi).toContain('hand_size?');
+    expect(scoreApi).toContain('ApiResponse<FingeringResult>');
+  });
+
   it('dynamically loads only the Verovio preview controller', () => {
     const source = readSource('src/hooks/score/use-score-preview-playback.ts');
     expect(source).toContain("'@/lib/score/verovio-score-preview-controller'");

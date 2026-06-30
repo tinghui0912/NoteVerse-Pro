@@ -7,9 +7,19 @@ import {
     Plus,
     Trash2,
     Combine,
+    Hand,
+    Loader2,
 } from 'lucide-react';
-import React, { useSyncExternalStore } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -21,6 +31,7 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { type EditorMode } from '@/contexts/editor-provider';
+import type { FingeringHandSize } from '@/types/api';
 import { SlurSymbol, TieSymbol } from './music-symbols';
 import { VoiceLayer } from './voice-layer';
 
@@ -36,6 +47,8 @@ const tieTools: ToolItem[] = [
     { icon: TieSymbol, label: 'addTie', mode: 'addTie' },
     { icon: SlurSymbol, label: 'addSlur', mode: 'addSlur' },
 ];
+
+const fingeringHandSizes: FingeringHandSize[] = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 const ToolButton = ({ tool, isActive, onToolSelect }: { tool: ToolItem, isActive: boolean, onToolSelect: (mode: EditorMode) => void }) => {
     const isMobile = useIsMobile();
@@ -86,8 +99,28 @@ const ToolButton = ({ tool, isActive, onToolSelect }: { tool: ToolItem, isActive
     );
 };
 
-export function EditorSidebar({ editorMode, onToolSelect, onNormalizeVoices }: { editorMode: EditorMode, onToolSelect: (mode: EditorMode) => void, onNormalizeVoices?: () => void }) {
+export function EditorSidebar({
+    editorMode,
+    fingeringPending = false,
+    onGenerateFingering,
+    onToolSelect,
+    onNormalizeVoices
+}: {
+    editorMode: EditorMode,
+    fingeringPending?: boolean,
+    onGenerateFingering?: (handSize: FingeringHandSize) => void,
+    onToolSelect: (mode: EditorMode) => void,
+    onNormalizeVoices?: () => void
+}) {
     const t = useTranslations('editor');
+    const common = useTranslations('common');
+    const [fingeringDialogOpen, setFingeringDialogOpen] = useState(false);
+    const [selectedHandSize, setSelectedHandSize] = useState<FingeringHandSize>('M');
+
+    const confirmGenerateFingering = () => {
+        onGenerateFingering?.(selectedHandSize);
+        setFingeringDialogOpen(false);
+    };
 
     return (
         <div className="space-y-4">
@@ -133,8 +166,52 @@ export function EditorSidebar({ editorMode, onToolSelect, onNormalizeVoices }: {
                         <div className="h-6 w-6 mb-1 flex items-center justify-center"><Combine /></div>
                         <span className="text-xs text-center">{t('normalizeVoices')}</span>
                     </Button>
+                    <Button
+                        variant="outline"
+                        className="flex flex-col w-full h-20 items-center justify-center hover:bg-accent"
+                        disabled={fingeringPending || !onGenerateFingering}
+                        onClick={() => setFingeringDialogOpen(true)}
+                    >
+                        <div className="h-6 w-6 mb-1 flex items-center justify-center">
+                            {fingeringPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Hand className="h-5 w-5" />}
+                        </div>
+                        <span className="text-xs text-center">{t('generateFingering')}</span>
+                    </Button>
                 </div>
             </div>
+            <Dialog open={fingeringDialogOpen} onOpenChange={setFingeringDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('generateFingering')}</DialogTitle>
+                        <DialogDescription>{t('fingeringHandSizeDescription')}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="text-sm font-medium text-muted-foreground">{t('fingeringHandSizeLabel')}</div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {fingeringHandSizes.map((size) => (
+                                <Button
+                                    key={size}
+                                    type="button"
+                                    variant={selectedHandSize === size ? 'default' : 'outline'}
+                                    className="h-11"
+                                    onClick={() => setSelectedHandSize(size)}
+                                >
+                                    {size}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setFingeringDialogOpen(false)}>
+                            {common('cancel')}
+                        </Button>
+                        <Button type="button" disabled={fingeringPending || !onGenerateFingering} onClick={confirmGenerateFingering}>
+                            {fingeringPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {common('confirm')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 };

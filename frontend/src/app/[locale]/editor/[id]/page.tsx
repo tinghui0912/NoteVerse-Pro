@@ -53,13 +53,17 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
       <div className="flex grow flex-col">
         <EditorPageHeader
           currentXml={document.currentXml}
+          fingeringPending={document.fingeringPending}
           isAutoSaving={document.isAutoSaving}
           savePending={document.savePending}
+          onGenerateFingering={document.generateFingering}
           onSave={document.save}
           onNormalizeVoices={() => void document.normalizeVoices()}
         />
         <EditorWorkbench
           currentXml={document.currentXml}
+          fingeringPending={document.fingeringPending}
+          onGenerateFingering={document.generateFingering}
           onNormalizeVoices={() => void document.normalizeVoices()}
         />
       </div>

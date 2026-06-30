@@ -1,8 +1,10 @@
 import { apiClient } from '@/lib/api-client';
 import type {
   ApiResponse,
+  FingeringHandSize,
   ScoreArtifact,
   ScoreDetail,
+  FingeringResult,
   ScoreMetadata,
   ScoreRevision,
   ScoreRevisionContent,
@@ -42,8 +44,8 @@ export const scoresApi = {
   ) => apiClient.post<ApiResponse<ScoreRevision>>(`/scores/${scoreId}/revisions`, input),
   generateFingering: (
     scoreId: string,
-    input: { base_revision_id: string; hand?: 'left' | 'right' | 'both'; depth?: number; idempotency_key?: string }
-  ) => apiClient.post<ApiResponse<ScoreRevision>>(`/scores/${scoreId}/fingering`, input),
+    input: { content: string; hand_size?: FingeringHandSize }
+  ) => apiClient.post<ApiResponse<FingeringResult>>(`/scores/${scoreId}/fingering`, input),
   artifacts: (
     scoreId: string,
     params?: { revision_id?: string; kind?: string },

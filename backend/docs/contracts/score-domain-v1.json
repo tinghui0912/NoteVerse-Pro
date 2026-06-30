@@ -5,7 +5,7 @@
   "enums": {
     "processing_job_state": ["PENDING", "PROGRESS", "PENDING_REVIEW", "SUCCESS", "FAILURE"],
     "score_state": ["IN_REVIEW", "ACTIVE", "ARCHIVED"],
-    "revision_origin": ["OMR", "EDIT", "IMPORT", "FINGERING"],
+    "revision_origin": ["OMR", "EDIT", "IMPORT"],
     "metadata_status": ["PENDING", "READY", "FAILED"],
     "artifact_kind": ["MUSICXML", "RENDERED_PAGE", "EXPORT_PDF", "AUDIO_PREVIEW", "DIAGNOSTIC_JSON"],
     "membership_role": ["EDITOR", "VIEWER"],

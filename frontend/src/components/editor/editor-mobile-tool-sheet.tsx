@@ -5,13 +5,16 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useEditorState } from '@/contexts/editor-provider';
+import type { FingeringHandSize } from '@/types/api';
 import { EditorSidebar } from './editor-sidebar';
 
 interface EditorMobileToolSheetProps {
+  fingeringPending?: boolean;
+  onGenerateFingering?: (handSize: FingeringHandSize) => void;
   onNormalizeVoices: () => void;
 }
 
-export function EditorMobileToolSheet({ onNormalizeVoices }: EditorMobileToolSheetProps) {
+export function EditorMobileToolSheet({ fingeringPending, onGenerateFingering, onNormalizeVoices }: EditorMobileToolSheetProps) {
   const t = useTranslations('editor');
   const { editorMode, selectTool } = useEditorState();
 
@@ -29,6 +32,8 @@ export function EditorMobileToolSheet({ onNormalizeVoices }: EditorMobileToolShe
         <div className="h-full overflow-y-auto pt-12 hide-scrollbar">
           <EditorSidebar
             editorMode={editorMode}
+            fingeringPending={fingeringPending}
+            onGenerateFingering={onGenerateFingering}
             onToolSelect={selectTool}
             onNormalizeVoices={onNormalizeVoices}
           />

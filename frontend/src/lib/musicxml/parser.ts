@@ -15,6 +15,21 @@ type NoteElementInfo = {
   xmlIndex: number;
 };
 
+const FINGERING_TEXT_MAP: Record<string, string> = {
+  '①': '1',
+  '②': '2',
+  '③': '3',
+  '④': '4',
+  '⑤': '5',
+};
+
+function normalizeFingeringText(value: string | null | undefined): string | undefined {
+  const normalized = value?.trim();
+  if (!normalized) return undefined;
+  const mapped = FINGERING_TEXT_MAP[normalized] ?? normalized;
+  return /^[1-5]$/.test(mapped) ? mapped : undefined;
+}
+
 /**
  * 解析器选项
  */
@@ -275,7 +290,7 @@ export class MusicXMLParser {
 
             // 解析当前音符的指法
             const fingeringEl = noteNode.querySelector('notations > technical > fingering');
-            const currentFingering = fingeringEl?.textContent?.trim();
+            const currentFingering = normalizeFingeringText(fingeringEl?.textContent);
 
             if (lastEntity && lastEntity.type === 'chord') {
               const pitch = extractPitch(noteNode);
@@ -342,7 +357,7 @@ export class MusicXMLParser {
 
               // 解析指法
               const fingeringEl = noteNode.querySelector('notations > technical > fingering');
-              const fingering = fingeringEl?.textContent?.trim();
+              const fingering = normalizeFingeringText(fingeringEl?.textContent);
 
               const note: Note = {
                 type: 'note',

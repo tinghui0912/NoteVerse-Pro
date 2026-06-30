@@ -97,4 +97,37 @@ describe('MusicXML package surface', () => {
     expect(chord.meta?.id).toBe('chord-main');
     expect(chord.meta?.sourceIds).toEqual(['chord-main', 'chord-member-2']);
   });
+
+  it('normalizes circled fingering glyphs to editable numeric values', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+      <score-partwise version="4.0" xmlns:xml="http://www.w3.org/XML/1998/namespace">
+        <part-list>
+          <score-part id="P1"><part-name>Piano</part-name></score-part>
+        </part-list>
+        <part id="P1">
+          <measure number="1">
+            <attributes>
+              <divisions>1</divisions>
+              <time><beats>4</beats><beat-type>4</beat-type></time>
+              <clef><sign>G</sign><line>2</line></clef>
+            </attributes>
+            <note xml:id="note-with-fingering">
+              <pitch><step>C</step><octave>4</octave></pitch>
+              <duration>1</duration>
+              <voice>1</voice>
+              <type>quarter</type>
+              <staff>1</staff>
+              <notations><technical><fingering>⑤</fingering></technical></notations>
+            </note>
+          </measure>
+        </part>
+      </score-partwise>`;
+
+    const score = new MusicXMLParser(xml).parse();
+    const note = score.measures[0].staves[0].voices[0].notes[0];
+
+    expect(note.type).toBe('note');
+    if (note.type !== 'note') return;
+    expect(note.fingering).toBe('5');
+  });
 });

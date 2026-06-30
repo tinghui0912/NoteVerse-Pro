@@ -16,7 +16,8 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreArtifact, ScoreRevision, ScoreRevisionMetadata
 from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
 from app.modules.revisions.schemas import (
-    FingeringRevisionRequest,
+    FingeringRequest,
+    FingeringResultRead,
     RevisionContentRead,
     RevisionCreateRequest,
     RevisionRead,
@@ -54,28 +55,19 @@ class RevisionService:
         db: AsyncSession,
         score_uuid: str,
         user_id: int,
-        request: FingeringRevisionRequest,
-    ) -> RevisionRead:
-        source = await self.content(
-            db, score_uuid, request.base_revision_id, user_id
+        request: FingeringRequest,
+    ) -> FingeringResultRead:
+        await self.access_policy.authorize(
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id
         )
+        self._validate_musicxml(request.content.encode("utf-8"))
         generated = self.fingering_service.generate(
             score_uuid,
-            source.content,
-            hand=request.hand,
-            depth=request.depth,
+            request.content,
+            hand_size=request.hand_size,
         )
-        return await self.create(
-            db,
-            score_uuid,
-            user_id,
-            RevisionCreateRequest(
-                content=generated["xml_content"],
-                base_revision_id=request.base_revision_id,
-                idempotency_key=request.idempotency_key,
-                origin=RevisionOrigin.FINGERING,
-            ),
-        )
+        self._validate_musicxml(generated["xml_content"].encode("utf-8"))
+        return FingeringResultRead(content=generated["xml_content"])
 
     async def create(
         self,

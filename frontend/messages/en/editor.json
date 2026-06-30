@@ -15,6 +15,9 @@
   "deleteSlur": "Delete Slur",
   "correctionTools": "Correction Tools",
   "normalizeVoices": "Simplify Voices",
+  "generateFingering": "Generate Fingering",
+  "fingeringHandSizeLabel": "Hand Size",
+  "fingeringHandSizeDescription": "Choose the player's hand size. Fingering will be generated from the score currently open in the editor.",
   "mainTitleLabel": "Main Title",
   "subtitleLabel": "Subtitle",
   "composerLabel": "Composer",
@@ -89,6 +92,10 @@
   "draftRecoveredDesc": "Restored previous edits",
   "draftDiscarded": "Draft Discarded",
   "draftDiscardedDesc": "Using server version",
+  "fingeringGenerated": "Fingering Generated",
+  "fingeringGeneratedDesc": "Review the generated fingering and save your changes.",
+  "fingeringFailed": "Fingering Generation Failed",
+  "fingeringFailedDesc": "Unable to generate fingering. Check the score content and try again.",
   "originalScorePage": "Original Score Page {page}",
   "draft": {
     "title": "Recover Unsaved Draft",
@@ -129,6 +136,7 @@
     "addVoice": "Add Voice",
     "clearVoice": "Clear Voice",
     "deleteVoice": "Delete Voice",
-    "updateSourceVoice": "Update Source Voice"
+    "updateSourceVoice": "Update Source Voice",
+    "generateFingering": "Generate Fingering"
   }
 }
