@@ -20,6 +20,7 @@ import {
   getVerovioStaffElementForIndex,
 } from '@/lib/editor/verovio-entity-map';
 import { getEntityDurationTicks, snapMeasureXToGridTick } from '@/lib/editor/measure-timeline';
+import { buildDirtyMeasureStatuses } from '@/lib/editor/measure-status';
 import { getEditorTrackId, parseVoiceNumber } from '@/lib/editor/tracks';
 import { EditorBottomPlayer } from './editor-bottom-player';
 import type { AddLocation, ScoreData, ScoreEntity } from '@/types/score-types';
@@ -50,6 +51,13 @@ type InsertTarget = {
 type InsertPlacement = {
   left: number;
   tick: number;
+};
+
+type VisualAnchor = {
+  tick: number;
+  endTick: number;
+  left: number;
+  right: number;
 };
 
 const VEROVIO_CONNECTION_SELECTOR = [
@@ -98,6 +106,31 @@ function getCaretStyle(event: MouseEvent<HTMLDivElement>, element: Element, left
     left: `${left - viewportRect.left + event.currentTarget.scrollLeft}px`,
     top: `${elementRect.top - viewportRect.top + event.currentTarget.scrollTop - 8}px`,
     height: `${Math.max(28, elementRect.height + 16)}px`,
+  };
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const normalized = hex.trim().replace(/^#/, '');
+  if (!/^[\da-f]{6}$/i.test(normalized)) return null;
+
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function getCaretColorStyle(color: string | undefined): CSSProperties {
+  const fallback = '#2563eb';
+  const resolvedColor = color || fallback;
+  const rgb = hexToRgb(resolvedColor);
+  const glow = rgb
+    ? `0 0 0 3px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`
+    : '0 0 0 3px rgba(37, 99, 235, 0.18)';
+
+  return {
+    backgroundColor: resolvedColor,
+    boxShadow: glow,
   };
 }
 
@@ -169,6 +202,38 @@ function getMeasureIndex(container: Element | null, measureElement: Element | nu
   return index >= 0 ? index : null;
 }
 
+function getStaffLineBounds(measureElement: Element): { left: number; right: number } | null {
+  const rects = getDirectStaffElements(measureElement).flatMap((staff) => (
+    Array.from(staff.children)
+      .filter((child) => child instanceof SVGPathElement)
+      .map((path) => path.getBoundingClientRect())
+      .filter((rect) => rect.width > 8)
+  ));
+
+  if (rects.length === 0) return null;
+
+  return {
+    left: Math.min(...rects.map((rect) => rect.left)),
+    right: Math.max(...rects.map((rect) => rect.right)),
+  };
+}
+
+function getMeasureWarningRect(measureElements: Element[], measureIndex: number, pageRect: DOMRect) {
+  const measureElement = measureElements[measureIndex];
+  if (!measureElement) return null;
+
+  const measureRect = measureElement.getBoundingClientRect();
+  const staffLineBounds = getStaffLineBounds(measureElement);
+  if (!staffLineBounds) return null;
+
+  return {
+    left: Math.max(0, staffLineBounds.left - pageRect.left),
+    top: Math.max(0, measureRect.top - pageRect.top),
+    width: Math.max(1, staffLineBounds.right - staffLineBounds.left),
+    height: Math.max(1, measureRect.height),
+  };
+}
+
 function getStaveIndexFromPointer(measureElement: Element | null, clientY: number): number | null {
   const staves = getDirectStaffElements(measureElement);
   if (staves.length === 0) return null;
@@ -230,7 +295,7 @@ function getStaffVoiceNumbersWithEvents(
     .filter((xmlVoice) => visibleTrackIdSet.has(getEditorTrackId(staveIndex, xmlVoice)));
 }
 
-function getEntityElementCenter(measureElement: Element, entity: ScoreEntity): number | null {
+function getEntityElementBounds(measureElement: Element, entity: ScoreEntity): { left: number; right: number } | null {
   const ids = new Set(entity.meta?.sourceIds?.length ? entity.meta.sourceIds : entity.meta?.id ? [entity.meta.id] : []);
   if (ids.size === 0) return null;
 
@@ -242,7 +307,10 @@ function getEntityElementCenter(measureElement: Element, entity: ScoreEntity): n
 
   const renderedElement = getHiddenVerovioEventElement(element);
   const rect = renderedElement.getBoundingClientRect();
-  return rect.left + rect.width / 2;
+  return {
+    left: rect.left,
+    right: rect.right,
+  };
 }
 
 function getVisualInsertPlacement(params: {
@@ -275,7 +343,7 @@ function getVisualInsertPlacement(params: {
   const voiceSet = new Set(borrowedVoices);
   if (voiceSet.size === 0) return null;
 
-  const anchors = new Map<number, { leftValues: number[]; endTick: number }>();
+  const anchors = new Map<number, { leftValues: number[]; rightValues: number[]; endTick: number }>();
   const stave = scoreData?.measures[measureIndex]?.staves[target.staveIndex];
   stave?.voices.forEach((voice) => {
     const xmlVoice = parseVoiceNumber(voice.name);
@@ -283,25 +351,27 @@ function getVisualInsertPlacement(params: {
 
     voice.notes.forEach((entity) => {
       if (!entity.meta) return;
-      const left = getEntityElementCenter(measureElement, entity);
-      if (left === null) return;
+      const bounds = getEntityElementBounds(measureElement, entity);
+      if (bounds === null) return;
 
       const startTick = entity.meta.startTick ?? 0;
       const endTick = startTick + getEntityDurationTicks(entity, divisions);
-      const anchor = anchors.get(startTick) ?? { leftValues: [], endTick };
-      anchor.leftValues.push(left);
+      const anchor = anchors.get(startTick) ?? { leftValues: [], rightValues: [], endTick };
+      anchor.leftValues.push(bounds.left);
+      anchor.rightValues.push(bounds.right);
       anchor.endTick = Math.max(anchor.endTick, endTick);
       anchors.set(startTick, anchor);
     });
   });
 
-  const visualAnchors = Array.from(anchors.entries())
+  const visualAnchors: VisualAnchor[] = Array.from(anchors.entries())
     .map(([tick, anchor]) => ({
       tick,
       endTick: anchor.endTick,
       left: anchor.leftValues.reduce((sum, value) => sum + value, 0) / anchor.leftValues.length,
+      right: anchor.rightValues.reduce((sum, value) => sum + value, 0) / anchor.rightValues.length,
     }))
-    .filter((anchor) => Number.isFinite(anchor.left))
+    .filter((anchor) => Number.isFinite(anchor.left) && Number.isFinite(anchor.right))
     .sort((left, right) => left.left - right.left);
 
   if (visualAnchors.length === 0) return null;
@@ -319,15 +389,15 @@ function getVisualInsertPlacement(params: {
   for (let index = 0; index < visualAnchors.length - 1; index++) {
     const current = visualAnchors[index];
     const next = visualAnchors[index + 1];
-    if (Math.abs(next.left - current.left) <= 2) continue;
+    if (Math.abs(next.left - current.right) <= 2) continue;
     placements.push({
-      left: (current.left + next.left) / 2,
+      left: (current.right + next.left) / 2,
       tick: next.tick,
     });
   }
 
   placements.push({
-    left: (last.left + measureRect.right) / 2,
+    left: (last.right + measureRect.right) / 2,
     tick: last.endTick,
   });
 
@@ -476,6 +546,10 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     if (!currentXml) return 1;
     return getDivisions(parseXml(currentXml));
   }, [currentXml]);
+  const dirtyMeasureStatuses = useMemo(
+    () => buildDirtyMeasureStatuses(scoreData, divisions),
+    [divisions, scoreData]
+  );
   const hiddenSourceIds = useMemo(() => {
     const ids = new Set<string>();
     if (!scoreData) return ids;
@@ -598,6 +672,75 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     scoreData?.mainTitle,
     scoreData?.subtitle,
     t,
+  ]);
+
+  useEffect(() => {
+    const container = playback.containerRef.current;
+    if (!container || playback.isLoading) return;
+
+    let frameId: number | null = null;
+
+    const renderWarnings = () => {
+      container.querySelectorAll('[data-score-measure-warning]').forEach((element) => element.remove());
+      container.querySelectorAll('[data-score-measure-warning-outline]').forEach((element) => element.remove());
+      if (dirtyMeasureStatuses.length === 0) return;
+
+      const measureElements = getDirectMeasureElements(container);
+
+      dirtyMeasureStatuses.forEach((status) => {
+        const measureElement = measureElements[status.measureIndex];
+        const page = measureElement?.closest<HTMLElement>('[data-score-page]');
+        if (!measureElement || !page) return;
+
+        const pageRect = page.getBoundingClientRect();
+        const warningRect = getMeasureWarningRect(measureElements, status.measureIndex, pageRect);
+        if (!warningRect) return;
+
+        const outline = document.createElement('div');
+        outline.dataset.scoreMeasureWarningOutline = 'true';
+        outline.className = 'score-measure-warning-outline';
+        outline.style.left = `${warningRect.left}px`;
+        outline.style.top = `${warningRect.top}px`;
+        outline.style.width = `${warningRect.width}px`;
+        outline.style.height = `${warningRect.height}px`;
+        page.append(outline);
+      });
+    };
+
+    const scheduleRender = () => {
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        frameId = requestAnimationFrame(renderWarnings);
+      });
+    };
+
+    scheduleRender();
+
+    const observer = new MutationObserver((mutations) => {
+      const hasScoreDomChange = mutations.some((mutation) => {
+        const changedNodes = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
+        return changedNodes.some((node) => (
+          node instanceof HTMLElement
+          && !node.matches('[data-score-measure-warning], [data-score-measure-warning-outline]')
+        ));
+      });
+
+      if (hasScoreDomChange) scheduleRender();
+    });
+
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      container.querySelectorAll('[data-score-measure-warning]').forEach((element) => element.remove());
+      container.querySelectorAll('[data-score-measure-warning-outline]').forEach((element) => element.remove());
+    };
+  }, [
+    currentXml,
+    dirtyMeasureStatuses,
+    playback.containerRef,
+    playback.isLoading,
   ]);
 
   useEffect(() => {
@@ -860,8 +1003,11 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
       {insertPreview ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute z-10 w-0.5 rounded-full bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.18)]"
-          style={insertPreview.style}
+          className="pointer-events-none absolute z-10 w-0.5 rounded-full"
+          style={{
+            ...insertPreview.style,
+            ...getCaretColorStyle(activeTrack?.color),
+          }}
         />
       ) : null}
       {isMobile && editorMode === 'add' && insertPreview?.location ? (

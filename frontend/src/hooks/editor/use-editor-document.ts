@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { jobsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
-import { flattenAllMeasures } from '@/lib/musicxml/flatten';
+import { normalizeMeasureVoices } from '@/lib/musicxml/flatten';
 import { ensureStableMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import { validateDataIntegrity, type ValidationResult } from '@/lib/musicxml/validator';
 
@@ -203,7 +203,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
   };
   const normalizeVoices = async () => {
     if (!currentXml) return;
-    const flattenedXml = ensureStableMusicXmlIdsString(flattenAllMeasures(currentXml));
+    const flattenedXml = ensureStableMusicXmlIdsString(normalizeMeasureVoices(currentXml));
     setCurrentXml(flattenedXml);
     initializeHistory(flattenedXml);
     const { MusicXMLParser } = await import('@/lib/musicxml/parser');

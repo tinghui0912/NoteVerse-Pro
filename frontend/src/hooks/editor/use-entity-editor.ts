@@ -68,11 +68,7 @@ export function useEntityEditor() {
         setEditingEntity,
         editingEntityLocation,
         setEditingEntityLocation,
-        pendingInsert,
-        setPendingInsert,
-        pendingInsertRef,
         setInspectorOpen,
-        selectTool,
     } = useEditorState();
 
     const history = useHistory();
@@ -87,100 +83,71 @@ export function useEntityEditor() {
     }, [setEditingEntity, setEditingEntityLocation, setInspectorOpen]);
 
     /**
-     * Add mode creates an empty-pitch event first.
-     * The Inspector then lets the user turn it into a note or chord by adding pitches.
+     * Add mode writes an empty-pitch rest immediately, then keeps it selected.
+     * The Inspector can then turn it into a note/chord by adding pitches.
      */
     const handleAddEntity = useCallback((location: AddLocation) => {
         const newEntity = toScoreEntity(createDefaultEditableEvent());
-        const insertData = { entity: newEntity, location };
 
-        setPendingInsert(insertData);
-        pendingInsertRef.current = insertData;
-        setEditingEntity(newEntity);
-        setEditingEntityLocation({
-            measureIndex: location.measureIndex,
-            staveIndex: location.staveIndex,
-            xmlVoice: location.xmlVoice,
-            entityIndex: 0,
+        if (!currentXml || !scoreData) return;
+
+        const result = insertEntity({
+            updatedEntity: newEntity,
+            location,
+            currentXml,
+            scoreData,
+            getExpectedVoices,
         });
-        setInspectorOpen(true);
+
+        if (result.success && result.newXml && result.newScoreData) {
+            history.push(result.newXml, t(result.historyLabel as never));
+            currentXmlRef.current = result.newXml;
+            setCurrentXml(result.newXml);
+            setScoreData(result.newScoreData);
+
+            const inserted = findInsertedEntity(result.newScoreData, location);
+            setEditingEntity(inserted?.entity ?? newEntity);
+            setEditingEntityLocation(inserted?.location ?? {
+                measureIndex: location.measureIndex,
+                staveIndex: location.staveIndex,
+                xmlVoice: location.xmlVoice,
+                entityIndex: 0,
+            });
+            setInspectorOpen(true);
+        }
+
     }, [
-        pendingInsertRef,
+        currentXml,
+        currentXmlRef,
+        getExpectedVoices,
+        history,
+        scoreData,
+        setCurrentXml,
         setEditingEntity,
         setEditingEntityLocation,
         setInspectorOpen,
-        setPendingInsert,
+        setScoreData,
+        t,
     ]);
 
     /**
-     * Close the Inspector and clear any pending insert state.
+     * Close the Inspector.
      */
     const handleCloseModal = useCallback(() => {
-        const wasPendingInsert = Boolean(pendingInsertRef.current);
         setEditingEntity(null);
         setEditingEntityLocation(null);
-        setPendingInsert(null);
-        pendingInsertRef.current = null;
         setInspectorOpen(false);
-        if (wasPendingInsert) {
-            selectTool('select');
-        }
     }, [
-        pendingInsertRef,
-        selectTool,
         setEditingEntity,
         setEditingEntityLocation,
         setInspectorOpen,
-        setPendingInsert,
     ]);
 
     /**
-     * Save either a pending insert or an existing event edit.
+     * Update an existing event.
      */
     const updateEntity = useCallback((updatedEntity: ScoreEntity, options: UpdateEntityOptions = {}) => {
-        const currentPendingInsert = pendingInsertRef.current;
         const shouldKeepInspectorOpen = options.keepInspectorOpen === true;
-
-        if (currentPendingInsert) {
-            const { location } = currentPendingInsert;
-
-            if (!currentXml || !scoreData) return;
-
-            const result = insertEntity({
-                updatedEntity,
-                location,
-                currentXml,
-                scoreData,
-                getExpectedVoices,
-            });
-
-            if (result.success && result.newXml && result.newScoreData) {
-                history.push(result.newXml, t(result.historyLabel as never));
-                currentXmlRef.current = result.newXml;
-                setCurrentXml(result.newXml);
-                setScoreData(result.newScoreData);
-            }
-
-            setPendingInsert(null);
-            pendingInsertRef.current = null;
-            selectTool('select');
-            if (shouldKeepInspectorOpen && result.success && result.newScoreData) {
-                const inserted = findInsertedEntity(result.newScoreData, location);
-                setEditingEntity(inserted?.entity ?? updatedEntity);
-                setEditingEntityLocation(inserted?.location ?? {
-                    measureIndex: location.measureIndex,
-                    staveIndex: location.staveIndex,
-                    xmlVoice: location.xmlVoice,
-                    entityIndex: 0,
-                });
-                setInspectorOpen(true);
-            } else {
-                setEditingEntity(null);
-                setEditingEntityLocation(null);
-                setInspectorOpen(false);
-            }
-            return;
-        }
 
         if (!editingEntityLocation || !currentXml || !scoreData) return;
 
@@ -209,7 +176,7 @@ export function useEntityEditor() {
             setEditingEntityLocation(null);
             setInspectorOpen(false);
         }
-    }, [currentXml, scoreData, editingEntityLocation, pendingInsertRef, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, setPendingInsert, setEditingEntity, setEditingEntityLocation, setInspectorOpen, selectTool, t]);
+    }, [currentXml, scoreData, editingEntityLocation, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, setEditingEntity, setEditingEntityLocation, setInspectorOpen, t]);
 
     /**
      * Delete an existing event from the MusicXML measure.
@@ -259,7 +226,6 @@ export function useEntityEditor() {
         // State
         editingEntity,
         editingEntityLocation,
-        pendingInsert,
 
         // Actions
         handleEditEntity,

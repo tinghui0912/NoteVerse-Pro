@@ -81,6 +81,15 @@ export function ScorePreviewViewport({
           border-color: rgb(37 99 235 / 70%);
           color: rgb(37 99 235);
         }
+        .verovio-preview-page .score-measure-warning-outline {
+          position: absolute;
+          z-index: 1;
+          border: 1px solid rgb(245 158 11 / 28%);
+          border-radius: 0.375rem;
+          background: rgb(245 158 11 / 4%);
+          box-shadow: inset 0 0 0 9999px rgb(255 251 235 / 2%);
+          pointer-events: none;
+        }
         .verovio-preview-page .score-metadata-placeholder-title {
           left: 50%;
           top: 1.25rem;

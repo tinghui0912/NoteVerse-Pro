@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import type { ScoreEntity, AddLocation, EntityLocation } from '@/types/score-types';
+import type { ScoreEntity, EntityLocation } from '@/types/score-types';
 
 /**
  * 编辑器模式
@@ -28,11 +28,6 @@ interface EditorStateContextType {
     setEditingEntity: React.Dispatch<React.SetStateAction<ScoreEntity | null>>;
     editingEntityLocation: EntityLocation | null;
     setEditingEntityLocation: React.Dispatch<React.SetStateAction<EntityLocation | null>>;
-
-    // 待插入实体
-    pendingInsert: { entity: ScoreEntity; location: AddLocation } | null;
-    setPendingInsert: React.Dispatch<React.SetStateAction<{ entity: ScoreEntity; location: AddLocation } | null>>;
-    pendingInsertRef: React.MutableRefObject<{ entity: ScoreEntity; location: AddLocation } | null>;
 
     // 图片查看器
     isImageViewerOpen: boolean;
@@ -75,15 +70,11 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
     const [editorMode, setEditorMode] = useState<EditorMode>('select');
     const [editingEntity, setEditingEntity] = useState<ScoreEntity | null>(null);
     const [editingEntityLocation, setEditingEntityLocation] = useState<EntityLocation | null>(null);
-    const [pendingInsert, setPendingInsert] = useState<{ entity: ScoreEntity; location: AddLocation } | null>(null);
     const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
     const [onToolChange, setOnToolChangeState] = useState<((mode: EditorMode) => void) | null>(null);
     const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
     const [visibleTrackIds, setVisibleTrackIds] = useState<string[]>([]);
     const [inspectorOpen, setInspectorOpen] = useState(false);
-
-    // Ref for pending insert
-    const pendingInsertRef = React.useRef<{ entity: ScoreEntity; location: AddLocation } | null>(null);
 
     const selectTool = useCallback((mode: EditorMode) => {
         // 如果点击当前已激活的模式，则切换回默认的 select 模式
@@ -108,9 +99,6 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
         setEditingEntity,
         editingEntityLocation,
         setEditingEntityLocation,
-        pendingInsert,
-        setPendingInsert,
-        pendingInsertRef,
         isImageViewerOpen,
         setIsImageViewerOpen,
         onToolChange,
@@ -123,7 +111,6 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
         setInspectorOpen,
     }), [
         editorMode, selectTool, editingEntity, editingEntityLocation,
-        pendingInsert,
         isImageViewerOpen, onToolChange, setOnToolChange,
         activeTrackId, visibleTrackIds, inspectorOpen
     ]);

@@ -221,7 +221,7 @@ describe('VerovioPlaybackPrototype', () => {
       expect(states).toEqual(['PLAYING', 'STOPPED']);
       expect(iterations).toContainEqual(['note-2']);
       expect(iterations.at(-1)).toEqual([]);
-      expect(controller.getPlaybackSnapshot().state).toBe('STOPPED');
+      expect(controller.getPlaybackSnapshot()).toMatchObject({ state: 'STOPPED', currentTime: 0 });
       await controller.dispose();
       expect(vi.getTimerCount()).toBe(0);
     } finally {

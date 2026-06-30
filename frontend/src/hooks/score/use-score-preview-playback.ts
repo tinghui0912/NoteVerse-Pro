@@ -346,6 +346,7 @@ export function useScorePreviewPlayback({
       scrollTarget: followViewport,
     };
     if (percentage === 0) {
+      void controller.seek(0);
       controller.resetCursor(cursorOptions);
       seekTargetStepRef.current = null;
     } else {

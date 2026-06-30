@@ -31,6 +31,7 @@ export interface ScorePlaybackController {
   pause(): Promise<void>;
   stop(): Promise<void>;
   playFromStep(step: number): Promise<void>;
+  seek(time: number): Promise<void>;
   setTempo(bpm: number): void;
   getPlaybackSnapshot(): ScorePlaybackSnapshot;
   onPlaybackIteration(listener: (notes: unknown[]) => void): void;

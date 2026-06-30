@@ -115,6 +115,10 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     return this.playback.playFromStep(step);
   }
 
+  seek(time: number) {
+    return this.playback.seek(time);
+  }
+
   setTempo(bpm: number) {
     this.playback.setTempo(bpm);
   }

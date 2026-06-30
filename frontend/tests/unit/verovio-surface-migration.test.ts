@@ -68,9 +68,12 @@ describe('Verovio listen surfaces', () => {
     const source = readSource('src/components/editor/editor-preview-panel.tsx');
     expect(source).toContain('insertPreview');
     expect(source).toContain('onScoreMouseMove={handleScoreMouseMove}');
-    expect(source).toContain('bg-blue-500');
+    expect(source).toContain('getCaretColorStyle(activeTrack?.color)');
+    expect(source).toContain('backgroundColor: resolvedColor');
     expect(source).toContain('getEntityDurationTicks');
     expect(source).toContain('snapMeasureXToGridTick');
+    expect(source).toContain('getEntityElementBounds');
+    expect(source).toContain('(current.right + next.left) / 2');
     expect(source).toContain('getTargetStaffHasEvents');
     expect(source).toContain('hasTimingAnchors');
     expect(source).toContain('getVerovioMeasureIndexFromTarget');
@@ -125,6 +128,21 @@ describe('Verovio listen surfaces', () => {
     expect(panel).toContain('[data-class="tie"]');
     expect(panel).toContain('[data-class="beam"]');
     expect(panel).toContain("element.classList.add('score-editor-hidden')");
+  });
+
+  it('marks temporarily invalid measures without blocking score editing', () => {
+    const viewport = readSource('src/components/score/score-preview-viewport.tsx');
+    const panel = readSource('src/components/editor/editor-preview-panel.tsx');
+    const measureStatus = readSource('src/lib/editor/measure-status.ts');
+
+    expect(viewport).toContain('score-measure-warning-outline');
+    expect(panel).toContain('buildDirtyMeasureStatuses');
+    expect(panel).toContain('[data-score-measure-warning]');
+    expect(panel).toContain('[data-score-measure-warning-outline]');
+    expect(panel).not.toContain("element.textContent = '⚠'");
+    expect(measureStatus).toContain('DirtyMeasureStatus');
+    expect(measureStatus).toContain('getMeasureDurationTicks');
+    expect(measureStatus).toContain("kind: deltaTicks > 0 ? 'overflow' : 'underfill'");
   });
 
   it('keeps connection deletion in the Inspector instead of the left toolbar', () => {

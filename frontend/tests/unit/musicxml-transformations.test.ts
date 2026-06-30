@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { recalculateBackups } from '@/lib/musicxml/backup';
 import { parseXml } from '@/lib/musicxml/core';
-import { flattenAllMeasures } from '@/lib/musicxml/flatten';
+import { normalizeMeasureVoices } from '@/lib/musicxml/flatten';
 
 const readFixture = (name: string) =>
   readFileSync(resolve('tests', 'fixtures', 'musicxml', name), 'utf8');
@@ -28,7 +28,7 @@ describe('MusicXML transformations', () => {
   });
 
   it('normalizes every staff to voice one while preserving chord and staff semantics', () => {
-    const flattened = flattenAllMeasures(readFixture('chords-voices.musicxml'));
+    const flattened = normalizeMeasureVoices(readFixture('chords-voices.musicxml'));
     const document = parseXml(flattened);
     const notes = Array.from(document.querySelectorAll('note'));
 

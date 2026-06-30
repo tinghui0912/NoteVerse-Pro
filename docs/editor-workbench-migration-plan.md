@@ -1,267 +1,175 @@
 # Editor Workbench Migration Plan
 
-## Goal
+## Current Goal
 
-Replace the current card-based editor with a focused workbench:
+The editor has moved from a card-based editing surface to a focused Verovio score workbench:
 
 ```text
 Toolbar
 + Left rail: Tools + Voice Layer
 + Center: Verovio Score Area
-+ Right: Event Inspector
++ Right: Score/Event Inspector
 + Bottom: Player
 ```
 
-The user should explicitly manage voices, but should not manage MusicXML implementation details such as `forward`, `backup`, or beam rebuilding. The UI edits musical events; MusicXML remains the persistence format.
+The user edits musical events directly from the rendered score. MusicXML remains the persistence format, but implementation details such as `forward`, `backup`, stable XML ids, and automatic beam rebuilding stay internal.
 
-Clarified final target:
+## Product Rules
 
-- The final editor center should be one primary Verovio score area, not a permanent split between a card/timeline editor and a preview tab.
-- Users should click notes/chords/rests in the Verovio SVG score and edit the selected event in the right `EventInspector`.
-- The current timeline/card-like editor is a migration bridge until SVG entity selection and insertion are reliable.
-- Keep the left toolbar `Add Tie` and `Add Slur` tools. Their interaction remains tool-first: activate the tool, then click the start and end events. The Inspector can show/delete connection state, but it should not replace that creation flow unless explicitly redesigned later.
+- The center work area is a single Verovio score surface.
+- Clicking score notes/chords/rests opens the right Event Inspector.
+- Clicking score title/composer/copyright text opens the score-level inspector.
+- The Inspector edits the selected event immediately; it does not require local Cancel/Save buttons.
+- Page-level Save still submits the whole edited MusicXML revision.
+- Voice selection lives in the left Voice Layer, not in the Inspector.
+- New events insert into the active Voice Layer track.
+- Confirming an insertion writes an empty-pitch rest immediately, then opens the Inspector.
+- Tie and slur creation stays tool-first: activate the left tool, then click start and end events.
+- Beam is automatic; users do not manually add/delete beam.
+- The "Simplify Voices" tool normalizes all voices within each staff to `voice=1` while preserving `staff`.
 
-## Non-Goals
+## Implemented State
 
-- Do not rewrite the MusicXML parser from scratch.
-- Do not change the backend contract in this migration.
-- Do not expose `forward` / `backup` as user-facing concepts.
-- Do not let the Inspector change an event's voice.
-- Do not keep manual beam add/delete tools. Beam is automatic.
+### Workbench Shell
 
-## Original State
+Status: done.
 
-- The editor page renders `CardBasedEditor`, `EditorSidebar`, `ScoreInfoCard`, and edit modals from `frontend/src/app/[locale]/editor/[id]/page.tsx`.
-- `CardBasedEditor` renders `Measure -> Staff -> Voice -> Entity Card`.
-- `EditorStateContext` still contains card/modal-oriented state such as `editingEntity`, `currentAddLocation`, `pendingInsert`, and `isAddEntityModalOpen`.
-- Insert currently uses `entityIndex + before/after` via `insertEntity`.
-- Existing `ScoreEntity.meta.startTick` already gives us the key primitive needed for a timeline-based insert model.
-- Automatic beam rebuilding exists in `frontend/src/lib/musicxml/automatic-beams.ts` and should stay part of every MusicXML mutation.
+- `EditorWorkbench` owns the desktop left rail, center work area, and right Inspector.
+- `EditorWorkbenchCenter` renders `EditorPreviewPanel` directly; there are no editor/preview tabs.
+- `EditorMobileToolSheet` provides the mobile left rail.
+- `EditorToolbar` owns page-level save/undo/redo/original-score controls.
+- `EditorBottomPlayer` is embedded in the score panel.
+- Old card editor surfaces, timeline presentation components, note/chord/add modals, manual beam tools, and card insertion affordances have been removed.
 
-## Target Model
+### Voice Layer
 
-### EditorTrack
+Status: implemented, needs focused QA.
 
-UI-level representation of a staff voice:
+- Voice Layer derives visible staff voices from parsed score data.
+- It owns active voice, visible voices, voice color, add voice, delete voice, and simplify voices.
+- Hidden voices are hidden in the editor UI without mutating MusicXML.
+- Delete Voice mutates MusicXML when deleting a real voice and removes only UI state for empty temporary voices.
+- Delete Voice is disabled for the last remaining voice in a staff.
 
-```ts
-{
-  id: "staff-1-voice-2",
-  staffIndex: 0,
-  xmlVoice: 2,
-  label: "Voice 2",
-  color: "#16a34a",
-  visible: true
-}
-```
+### Verovio Score Editing
 
-This is a view model only. Internally, MusicXML remains `Measure -> Staff -> Voice -> Event`.
+Status: implemented, needs focused QA around insertion edge cases.
 
-### EditableEvent
+- Stable MusicXML ids are normalized before parsing/rendering.
+- Verovio SVG ids map back to `ScoreEntity` and `EntityLocation`.
+- Clicking a rendered event opens `EventInspector`.
+- Chords preserve member XML ids in `EntityMeta.sourceIds`.
+- Selected events are reflected back onto SVG with `score-editor-selected`.
+- The Verovio click layer dispatches select, delete, add, add tie, add slur, delete tie, and delete slur tools.
+- Escape cancels active tool modes without interrupting text inputs.
 
-Unified event representation:
+### Insert Flow
 
-```ts
-{
-  duration: "durationQuarter",
-  dotted: false,
-  pitches: [],
-  stemDirection: "none",
-  fingerings: []
-}
-```
+Status: implemented, with one optional enhancement remaining.
 
-Rules:
+- Add Mode uses one blue insertion caret.
+- Desktop hover/click computes insertion from rendered event boundaries or beat-grid measure whitespace.
+- Mobile uses tap-to-position, then `Insert here` confirmation.
+- Confirmed insertion immediately writes a rest event; adding pitches in the Inspector turns it into a note/chord.
+- `AddLocation` is tick-based: `measureIndex`, `staveIndex`, `xmlVoice`, `tick`.
+- `insertEntity` writes by tick and handles empty voices with internal `backup` / `forward`.
+- Every insert/update/delete recalculates backups and rebuilds automatic beams.
 
-```text
-pitches.length === 0  => Rest
-pitches.length === 1  => Note
-pitches.length >= 2   => Chord
-```
+Remaining optional enhancement:
 
-The Inspector should only add/delete pitches. There should be no `Convert to Rest`, `Convert to Note`, or `Convert to Chord` actions.
+- Add finer-than-beat grid choices if real editing sessions show that beat-grid insertion is too coarse.
 
-### MeasureTimeline
+### Event Inspector
 
-The insertion layer uses measure-level anchors:
+Status: implemented.
 
-```ts
-{
-  measureIndex: 0,
-  staveIndex: 0,
-  anchors: [
-    { tick: 0 },
-    { tick: 4 },
-    { tick: 8 }
-  ]
-}
-```
+- The Inspector uses one `EditableEvent` model.
+- `pitches.length === 0` is rest.
+- `pitches.length === 1` is note.
+- `pitches.length >= 2` is chord.
+- Users add/delete pitches instead of converting between rest/note/chord types.
+- Pitch, duration, dotted, fingering, and stem direction update immediately.
+- Tie and slur details live in collapsible panels.
+- Tie/slur direction updates immediately.
+- Connection endpoints are clickable and switch the Inspector to the target event.
+- Chord-member-level tie/slur targeting is supported for XML writes and connection parsing.
+- Score-level metadata lives in the same right panel when no event is selected.
 
-Desktop add mode shows exactly one insertion line near the closest anchor. Mobile uses tap once to position, then a bottom action sheet to confirm.
+### Preview and Player
 
-## Migration Phases
+Status: implemented.
 
-### Phase 1: Foundation
+- The Verovio surface is both the preview and the editor target.
+- Playback controls use the current XML.
+- The cursor is hidden by default and appears during playback.
 
-- Add pure view-model utilities:
-  - `frontend/src/lib/editor/tracks.ts`
-  - `frontend/src/lib/editor/editable-event.ts`
-  - `frontend/src/lib/editor/measure-timeline.ts`
-- Keep the old card editor running.
-- Add tests for view-model behavior.
+Potential future UX decision:
 
-Status: done. `tracks`, `editable-event`, and `measure-timeline` now exist under `frontend/src/lib/editor`, with unit coverage. The temporary `insert-location` bridge was removed after tick handling moved into `insertEntity`.
+- Decide whether the player should become a global bottom dock that remains visible while scrolling.
 
-### Phase 2: Editor State
+### Simplify Voices
 
-Editor state should keep only state that is actively consumed by the current workbench:
+Status: implemented.
 
-- `activeTrackId`
-- `visibleTrackIds`
-- `inspectorOpen`
-
-Status: done for the current workbench boundary. Add modal state and unused migration placeholders (`editorView`, `workbenchTool`, `selectedEntityLocation`, `insertAnchor`) have been removed. Active track, visible tracks, selected editing entity, pending insert, and inspector state remain because they are consumed by the active workbench flow.
-
-### Phase 3: Workbench Shell
-
-Introduce new components:
-
-- `EditorWorkbench`
-- `EditorToolbar`
-- `EditorLeftRail`
-- `VoiceLayer`
-- `EditorPreviewPanel` as the primary score editing surface
-- `EventInspector`
-- `EditorBottomPlayer`
-
-The page should render the new shell behind a clear boundary while old card-based components are still available for rollback during migration.
-
-Status: done for the current migration boundary. `EditorWorkbench` now owns the desktop left rail, center `EditorWorkbenchCenter`, and right `EventInspector`, so the route page is no longer responsible for assembling the three-column editor surface. `VoiceLayer`, the Verovio score editing surface, and `EventInspector` are mounted in that shell. The mobile left rail lives in `EditorMobileToolSheet`, save/undo/redo/original-score actions live in `EditorToolbar`, and editor playback controls live behind `EditorBottomPlayer`.
-
-Manual beam tools, legacy note/chord/add modals, the old card editor surface, and the temporary timeline editor surface have been removed.
-
-### Phase 4: Voice Layer
-
-Voice Layer owns:
-
-- current voice
-- add voice
-- delete voice
-- voice visibility
-- voice color
-
-Inspector does not change voice. New events always insert into the active voice.
-
-Status: in progress. Voice Layer derives tracks, supports active/visible voices, and visible voices filter the current editor UI without changing XML. Add Voice now creates an empty UI track for the active staff, and Delete Voice removes either the empty UI track or the matching staff/voice content across the current XML. Deletion is disabled for the last remaining voice in a staff.
-
-### Phase 5: Timeline Insert
-
-Replace index-based insertion with tick-based insertion:
-
-```ts
-insertEntityAtTick({
-  measureIndex,
-  staveIndex,
-  xmlVoice,
-  tick,
-  event
-})
-```
-
-Rules:
-
-- Empty Voice 1 in an empty measure uses `tick = 0`.
-- Empty Voice 2 can use Voice 1 anchors for positioning, but writes to Voice 2.
-- Visibility never changes MusicXML.
-- Every mutation recalculates backups and automatic beams.
-
-Status: Verovio tool layer started. Add mode is exposed as `add` in editor state, while the XML layer performs insertion by `tick`. Insert locations carry `tick`; `insertEntity` computes the insertion index from `scoreData + tick`, and empty-voice insertion writes `backup` / `forward` so the new event lands at the requested tick. Saving or canceling a pending insert clears the pending ref and returns the tool to select mode. The old index-based `LegacyInsertLocation` compatibility path has been removed; `AddLocation` is now tick-only. The temporary timeline UI that previously hosted insertion anchors has been removed. The Verovio surface now has an Add Mode MVP: hover over a rendered event shows one blue insertion caret, and click inserts at that event's start/end tick depending on the pointer side. Hovering/clicking measure whitespace snaps to the nearest beat-grid tick derived from the time signature and divisions, so empty measures and sparse measures have measure-level insertion targets beyond only `tick = 0`. Insert target voice comes from the active Voice Layer track.
-
-Mobile Add Mode now uses a first-pass tap-to-position flow: the first tap sets the blue insertion caret and stores the target `AddLocation`; tapping the same target again or pressing the bottom `Insert here` confirmation opens the Inspector for an empty-pitch rest event. The bottom confirmation also provides an explicit cancel action.
-
-The insertion caret now uses the active Voice Layer track to choose its vertical staff anchor inside the rendered Verovio measure. In multi-staff systems, the x position still comes from the event boundary or snapped measure grid, while the caret height/top come from the active staff instead of the whole measure.
-
-Remaining: support finer-than-beat grid options when needed, and decide whether mobile should offer explicit `Rest / Note / Chord` shortcuts or stay aligned with the unified event model by inserting an empty-pitch rest and letting the Inspector add pitches.
-
-`insertEntity` has been split into element creation and insertion helpers. The temporary `insert-location` bridge has been removed.
-
-`AddLocation` is now `TimelineInsertLocation`: `measureIndex`, `staveIndex`, `xmlVoice`, `tick`.
-
-### Phase 6: Event Inspector
-
-Replace Note/Chord/Rest modals with one Event Inspector:
+- UI label: `Simplify Voices` / `简化声部`.
+- Code operation: `normalizeVoices`.
+- MusicXML transform: `normalizeMeasureVoices`.
+- Rule:
 
 ```text
-Pitches
-  C4  delete
-  E4  delete
-+ Add Pitch
-
-Duration
-Stem
-Fingering
-Tie
-Slur
+staff 1 voices -> voice 1
+staff 2 voices -> voice 1
 ```
 
-The XML writer infers rest/note/chord from pitch count.
+`staff` remains the source of treble/bass staff separation.
 
-Status: in progress. Existing event selection and new insert flow now open `EventInspector`. New inserts start as empty-pitch rest events and become notes/chords by adding pitches. New dotted rests now write `<dot>`, and events converted back to rests remove note-only XML such as stem/fingering notation. The Inspector now shows tie/slur connection counts and can delete existing tie/slur connections for the selected event. When no event is selected, the same right panel becomes a score-level inspector for main title, subtitle, composer, lyricist, copyright, time signature, key signature, and tempo. The legacy add, note, and chord editor modals have been removed.
+## Removed Legacy Code
 
-Remaining: tie/slur creation intentionally stays in the left toolbar selection tools. Keep the canvas-tool creation flow while the Inspector owns event details, score metadata, and existing connection deletion.
+- Card editor components.
+- Timeline presentation components.
+- Add entity modal.
+- Note editor modal.
+- Chord editor modal.
+- Manual beam add/delete handlers and messages.
+- Bottom sheet card editing interactions.
+- Card hover context.
+- Legacy timeline anchor view-model helpers.
+- Card-oriented `cardType*` translation keys.
 
-### Phase 7: Preview and Player
+## Remaining Work
 
-- Use one Verovio score surface in the center work area.
-- The same surface is both preview and editor target.
-- Bottom player uses the current XML and should not require opening a modal.
+### Required
 
-Status: in progress. `EditorWorkbenchCenter` now renders `EditorPreviewPanel` directly as the primary center surface; there are no `Editor | Preview` tabs and no separate preview action. `EditorPreviewPanel` composes the Verovio viewport with `EditorBottomPlayer` against the current XML. Playback controls are embedded at the bottom of the score panel; a global bottom dock can still be extracted later if playback must remain visible while editing.
+- Run the QA checklist below on representative MusicXML files.
+- Fix any insertion, voice visibility, connection, playback, undo/redo, autosave, or validation bugs found during QA.
 
-### Phase 7.5: Verovio Score Editing
+### Optional
 
-- Replace the migration timeline/card-like editor surface with a single Verovio score editing surface.
-- Preserve stable MusicXML note ids so Verovio SVG elements can map back to `ScoreEntity`.
-- Clicking a Verovio SVG note/chord/rest should select the matching event and open `EventInspector`.
-- Add mode should eventually project insertion anchors on top of the Verovio score rather than the timeline row.
-
-Status: foundation in progress. `MusicXMLParser` now preserves namespace-aware `xml:id` / `id` as `ScoreEntity.meta.id` before falling back to generated ids. `stable-ids` ensures editable `note` / `forward` elements have legal unique `xml:id` values, preserving source ids when possible and writing app-owned `nv-...` ids for missing, invalid, or duplicate anchors. Initial document load, draft recovery, merge/flatten, generic XML updates, inserts, and event updates now normalize ids before parsing/saving. `verovio-entity-map` provides pure helpers to extract a Verovio SVG element id from a DOM target and map that id back to a `ScoreEntity` + `EntityLocation`.
-
-Verovio SVG click handling is now wired in the editor preview panel: `ScorePreviewViewport` exposes an optional `onScoreClick`, `EditorPreviewPanel` maps the clicked Verovio `data-id` / `id` back to `ScoreEntity`, and opens `EventInspector`. Chord member note ids are preserved in `EntityMeta.sourceIds`, so clicking any rendered chord tone can select the parent chord event.
-
-The Verovio surface has been promoted from a preview tab into the primary editor area. The temporary timeline editor components, timeline event cards, insertion caret, score info card, center tab state, and live-preview toolbar action have been removed.
-
-The Verovio score click layer now dispatches editor tools: select opens `EventInspector`, delete removes the event, Add Mode opens a pending insert at the clicked event boundary, and add/delete tie/slur reuse the existing connection operations. Tie/slur creation tools therefore target the same Verovio click layer as selection. Verovio requires ordinary MusicXML `id` attributes to emit matching SVG `data-id` values, so `stable-ids` writes both `xml:id` and `id`, and the Verovio adapter normalizes ids before rendering.
-
-The selected event is reflected back onto the Verovio SVG through a `score-editor-selected` class. Chord selection highlights every rendered note whose XML id appears in the event's `sourceIds`. Escape cancels active Verovio tool modes (`add`, `delete`, tie/slur add/delete) without interrupting text inputs in the Inspector.
-
-Remaining: strengthen the Verovio insertion overlay with finer grid options.
-
-### Phase 8: Remove Card Editor
-
-After the workbench owns selection, insert, update, delete, undo/redo, autosave, validation, and playback:
-
-- Stop importing `CardBasedEditor`.
-- Remove note/chord/rest card editing components.
-- Remove add entity modal.
-- Remove note/chord edit modals.
-- Remove old card insertion affordances.
-- Remove manual beam handlers and messages.
-
-Status: code cleanup done. Add entity modal, note editor modal, chord editor modal, manual beam handlers, manual beam messages, card editor components, timeline presentation helpers, and unused articulation icon wrappers have been removed.
+- Add finer insertion grid controls.
+- Promote the embedded player to a global bottom dock.
+- Rename `frontend/src/lib/musicxml/flatten.ts` to a more accurate filename such as `normalize-voices.ts`.
+- Consider whether endpoint switching should eventually focus a specific chord member inside the Inspector instead of only opening the parent chord event.
 
 ## QA Checklist
 
-- Insert into empty Voice 1.
-- Insert into empty Voice 2 using Voice 1 anchors.
+- Insert into an empty Voice 1.
+- Insert into an empty Voice 2.
+- Insert into treble staff and bass staff in the same measure.
+- Insert in measure whitespace at the start, middle, and end of a measure.
 - Add pitch to rest -> note.
 - Add second pitch to note -> chord.
 - Delete last pitch -> rest.
+- Change pitch, duration, dotted, fingering, and stem direction and confirm immediate Verovio refresh.
 - Active voice controls insert target.
 - Hidden voice is hidden only in UI.
-- Delete voice modifies XML.
-- Tie/slur still work.
+- Hidden voice hides noteheads, stems, dots, ledger lines, ties, and slurs.
+- Delete voice modifies XML when expected.
+- Add/delete tie works.
+- Add/delete slur works.
+- Chord-member-level tie/slur works.
+- Tie/slur direction changes work.
 - Beam rebuilds automatically after insert/update/delete.
 - Undo/redo restores XML and parsed score.
 - Autosave still writes drafts.
-- Save validation still runs before navigation.
+- Page-level Save still runs validation before navigation.
+- Playback cursor starts hidden, appears during playback, and hides after stop.

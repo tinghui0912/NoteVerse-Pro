@@ -262,7 +262,7 @@ export class VerovioPlaybackPrototype implements ScorePlaybackController {
           return;
         }
         this.audioEngine.stopAll();
-        this.position = timeline.duration;
+        this.position = 0;
         this.state = 'STOPPED';
         for (const listener of this.iterationListeners) {
           listener([]);

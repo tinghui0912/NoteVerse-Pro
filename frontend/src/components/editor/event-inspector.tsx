@@ -373,9 +373,9 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
   ), [editingEntity.meta?.id, entityConnections?.slurs, scoreData, currentXmlDoc]);
 
   const eventTypeLabel = useMemo(() => {
-    if (event.pitches.length === 0) return t('cardTypeRest');
-    if (event.pitches.length === 1) return t('cardTypeNote');
-    return t('cardTypeChord');
+    if (event.pitches.length === 0) return t('eventTypeRest');
+    if (event.pitches.length === 1) return t('eventTypeNote');
+    return t('eventTypeChord');
   }, [event, t]);
 
   const commitEvent = (nextEvent: EditableEvent) => {

@@ -19,6 +19,7 @@ function createFakeController(loadError?: Error) {
     pause: vi.fn(async () => undefined),
     stop: vi.fn(async () => undefined),
     playFromStep: vi.fn(async () => undefined),
+    seek: vi.fn(async () => undefined),
     setTempo: vi.fn(),
     getPlaybackSnapshot: vi.fn(() => ({
       state: 'IDLE' as const,
@@ -247,6 +248,7 @@ describe('score preview playback ownership', () => {
       scrollIntoView: true,
       scrollTarget: 'container',
     });
+    expect(controller.seek).toHaveBeenCalledWith(0);
     expect(controller.syncCursorToStep).not.toHaveBeenCalled();
   });
 });

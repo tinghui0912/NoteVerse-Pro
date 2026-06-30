@@ -69,7 +69,7 @@ function isGrace(node: Element): boolean {
 /**
  * 处理单个小节的声部规整
  */
-function flattenMeasureToSingleVoice(xmlDoc: XMLDocument, measureEl: Element): void {
+function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): void {
 
     // 按 staff 分组存储音符
     const notesByStaff = new Map<number, NoteInfo[]>();
@@ -187,7 +187,7 @@ function flattenMeasureToSingleVoice(xmlDoc: XMLDocument, measureEl: Element): v
                     currentGroup.chordMembers.push(noteInfo);
                 } else {
                     // 孤立的和弦成员，转换为主音符
-                    console.warn(`[FLATTEN] staff ${staff}: 发现孤立的和弦成员，将其转换为主音符`);
+                    console.warn(`[NORMALIZE_VOICES] staff ${staff}: 发现孤立的和弦成员，将其转换为主音符`);
                     noteInfo.isChord = false;
                     const chordEl = noteInfo.note.querySelector('chord');
                     if (chordEl) chordEl.remove();
@@ -304,11 +304,11 @@ function cleanupXMLStructure(xmlDoc: XMLDocument): void {
  * @param xmlString 原始 XML 字符串
  * @returns 处理后的 XML 字符串
  */
-export function flattenAllMeasures(xmlString: string): string {
+export function normalizeMeasureVoices(xmlString: string): string {
     const xmlDoc = parseXml(xmlString);
 
     const measures = Array.from(xmlDoc.querySelectorAll('measure'));
-    measures.forEach(m => flattenMeasureToSingleVoice(xmlDoc, m));
+    measures.forEach(m => normalizeSingleMeasureVoices(xmlDoc, m));
 
     // 清理结构
     cleanupXMLStructure(xmlDoc);
