@@ -21,7 +21,7 @@ import {
 } from '@/lib/editor/verovio-entity-map';
 import { getEntityDurationTicks, snapMeasureXToGridTick } from '@/lib/editor/measure-timeline';
 import { buildDirtyMeasureStatuses } from '@/lib/editor/measure-status';
-import { getEditorTrackId, parseVoiceNumber } from '@/lib/editor/tracks';
+import { getEditorTrackId, getTrackColor, parseVoiceNumber } from '@/lib/editor/tracks';
 import { EditorBottomPlayer } from './editor-bottom-player';
 import type { AddLocation, ScoreData, ScoreEntity } from '@/types/score-types';
 
@@ -698,17 +698,29 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
 
     container
       .querySelectorAll('.score-editor-selected')
-      .forEach((element) => element.classList.remove('score-editor-selected'));
+      .forEach((element) => {
+        element.classList.remove('score-editor-selected');
+        if (element instanceof HTMLElement || element instanceof SVGElement) {
+          element.style.removeProperty('--score-editor-selection-color');
+        }
+      });
 
     const sourceIds = editingEntity?.meta
       ? new Set(editingEntity.meta.sourceIds || [editingEntity.meta.id])
       : null;
     if (!sourceIds) return;
 
+    const selectedColor = editingEntity?.meta
+      ? getTrackColor(editingEntity.meta.staveIndex, editingEntity.meta.xmlVoice)
+      : undefined;
+
     container.querySelectorAll('[data-id], [id]').forEach((element) => {
       const id = element.getAttribute('data-id') || element.getAttribute('id');
       if (id && sourceIds.has(id)) {
         element.classList.add('score-editor-selected');
+        if (selectedColor && (element instanceof HTMLElement || element instanceof SVGElement)) {
+          element.style.setProperty('--score-editor-selection-color', selectedColor);
+        }
       }
     });
   }, [currentXml, editingEntity, playback.containerRef, playback.isLoading]);

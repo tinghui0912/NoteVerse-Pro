@@ -121,9 +121,9 @@ export function ScorePreviewViewport({
         .score-preview-editable .score-editor-selected line,
         .score-preview-editable .score-editor-selected polyline,
         .score-preview-editable .score-editor-selected use {
-          color: #2563eb;
-          fill: #2563eb;
-          stroke: #2563eb;
+          color: var(--score-editor-selection-color, #2563eb);
+          fill: var(--score-editor-selection-color, #2563eb);
+          stroke: var(--score-editor-selection-color, #2563eb);
         }
         .score-preview-editable .score-editor-hidden {
           display: none;

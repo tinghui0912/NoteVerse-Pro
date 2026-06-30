@@ -193,7 +193,7 @@ export function useMetadataEditor() {
         }, t('updateTimeSignature'));
     }, [updateMusicXML, t]);
 
-    const updateTempo = useCallback((newTempo: string) => {
+    const updateTempo = useCallback((newTempo: string, options?: { beatUnit?: string; showMark?: boolean }) => {
         updateMusicXML(xmlDoc => {
             const m1 = xmlDoc.querySelector('measure[number="1"]') || xmlDoc.querySelector('measure');
             if (!m1) return;
@@ -210,6 +210,31 @@ export function useMetadataEditor() {
                 }
             }
             sound.setAttribute('tempo', newTempo);
+
+            m1.querySelectorAll('direction').forEach((direction) => {
+                if (direction.querySelector('metronome')) {
+                    direction.parentNode?.removeChild(direction);
+                }
+            });
+
+            if (options?.showMark) {
+                const direction = xmlDoc.createElement('direction');
+                direction.setAttribute('placement', 'above');
+
+                const directionType = xmlDoc.createElement('direction-type');
+                const metronome = xmlDoc.createElement('metronome');
+                const beatUnit = xmlDoc.createElement('beat-unit');
+                beatUnit.textContent = options.beatUnit || 'quarter';
+                const perMinute = xmlDoc.createElement('per-minute');
+                perMinute.textContent = newTempo;
+
+                metronome.appendChild(beatUnit);
+                metronome.appendChild(perMinute);
+                directionType.appendChild(metronome);
+                direction.appendChild(directionType);
+
+                m1.insertBefore(direction, sound);
+            }
         }, t('updateTempo'));
     }, [updateMusicXML, t]);
 
