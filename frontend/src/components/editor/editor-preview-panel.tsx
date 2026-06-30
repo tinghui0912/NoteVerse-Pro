@@ -60,6 +60,11 @@ type VisualAnchor = {
   right: number;
 };
 
+type ConnectionEndpointPair = {
+  startId: string;
+  endId: string;
+};
+
 const VEROVIO_CONNECTION_SELECTOR = [
   '[data-class="tie"]',
   '[data-class="slur"]',
@@ -417,9 +422,25 @@ function isSameAddLocation(left: AddLocation | null, right: AddLocation): boolea
 }
 
 function getHiddenVerovioEventElement(element: Element): Element {
-  return element.closest('[data-class="chord"]')
-    ?? element.closest(VEROVIO_EVENT_CONTAINER_SELECTOR)
+  return element.closest(VEROVIO_EVENT_CONTAINER_SELECTOR)
     ?? element;
+}
+
+function getVerovioChordElement(element: Element): Element | null {
+  return element.closest('[data-class="chord"]');
+}
+
+function getEventSourceId(element: Element): string | null {
+  return element.getAttribute('data-id') || element.getAttribute('id');
+}
+
+function shouldHideWholeChord(chordElement: Element, hiddenSourceIds: Set<string>): boolean {
+  const eventChildren = Array.from(chordElement.querySelectorAll(VEROVIO_EVENT_CONTAINER_SELECTOR));
+  const sourceIds = eventChildren
+    .map(getEventSourceId)
+    .filter((id): id is string => Boolean(id));
+
+  return sourceIds.length > 0 && sourceIds.every((id) => hiddenSourceIds.has(id));
 }
 
 function getConnectionSourceId(entity: ScoreEntity, elementId: string | null) {
@@ -500,6 +521,29 @@ function isConnectionNearHiddenEvent(connectionBounds: SvgBounds, hiddenEventBou
   return overlapsX && overlapsY;
 }
 
+function addBounds(boundsBySourceId: Map<string, SvgBounds[]>, sourceId: string, bounds: SvgBounds | null): void {
+  if (!bounds) return;
+  const existing = boundsBySourceId.get(sourceId) ?? [];
+  existing.push(bounds);
+  boundsBySourceId.set(sourceId, existing);
+}
+
+function isConnectionNearEndpointPair(
+  connectionBounds: SvgBounds,
+  startBounds: SvgBounds,
+  endBounds: SvgBounds
+): boolean {
+  return isConnectionNearHiddenEvent(connectionBounds, startBounds)
+    && isConnectionNearHiddenEvent(connectionBounds, endBounds);
+}
+
+function isConnectionNearAnyEndpoint(
+  connectionBounds: SvgBounds,
+  endpointBounds: SvgBounds[]
+): boolean {
+  return endpointBounds.some((bounds) => isConnectionNearHiddenEvent(connectionBounds, bounds));
+}
+
 export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }: EditorPreviewPanelProps) {
   const t = useTranslations('editor');
   const common = useTranslations('common');
@@ -571,19 +615,52 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
 
     return ids;
   }, [scoreData, visibleTrackIdSet]);
+  const hiddenConnectionPairs = useMemo(() => {
+    const pairs: ConnectionEndpointPair[] = [];
+    const noteConnections = scoreData?.connections?.noteConnections;
+    if (!noteConnections || hiddenSourceIds.size === 0) return pairs;
+
+    noteConnections.forEach((connections, entityId) => {
+      connections.ties.forEach((tie) => {
+        const startId = tie.sourceId ?? entityId;
+        const endId = tie.partnerSourceId ?? tie.partnerId;
+        if (hiddenSourceIds.has(startId) || hiddenSourceIds.has(endId)) {
+          pairs.push({ startId, endId });
+        }
+      });
+
+      connections.slurs.forEach((slur) => {
+        const startId = slur.sourceId ?? entityId;
+        const partnerSourceIds = slur.partnerSourceIds?.length ? slur.partnerSourceIds : slur.partnerIds;
+        partnerSourceIds.forEach((partnerId) => {
+          if (partnerId === startId) return;
+          if (hiddenSourceIds.has(startId) || hiddenSourceIds.has(partnerId)) {
+            pairs.push({ startId, endId: partnerId });
+          }
+        });
+      });
+    });
+
+    return pairs;
+  }, [hiddenSourceIds, scoreData?.connections?.noteConnections]);
   const hiddenStaffKeys = useMemo(() => {
     const keys = new Set<string>();
     if (!scoreData) return keys;
 
     scoreData.measures.forEach((measure, measureIndex) => {
       measure.staves.forEach((stave, staveIndex) => {
-        stave.voices.forEach((voice) => {
+        const voicesWithEntities = stave.voices.filter((voice) => voice.notes.length > 0);
+        if (voicesWithEntities.length === 0) return;
+
+        const allEntityVoicesHidden = voicesWithEntities.every((voice) => {
           const xmlVoice = Number.parseInt(voice.name.match(/\d+/)?.[0] ?? '1', 10);
           const trackId = getEditorTrackId(staveIndex, xmlVoice);
-          if (!visibleTrackIdSet.has(trackId) && voice.notes.length > 0) {
-            keys.add(`${measureIndex}:${staveIndex}`);
-          }
+          return !visibleTrackIdSet.has(trackId);
         });
+
+        if (allEntityVoicesHidden) {
+          keys.add(`${measureIndex}:${staveIndex}`);
+        }
       });
     });
 
@@ -754,20 +831,24 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     if (hiddenSourceIds.size === 0 && hiddenStaffKeys.size === 0) return;
 
     const hiddenEventElements = new Set<Element>();
-    const hiddenBoundsByMeasure = new Map<Element, SvgBounds[]>();
-
+    const hiddenChordCandidates = new Set<Element>();
+    const boundsBySourceId = new Map<string, SvgBounds[]>();
     container.querySelectorAll('[data-id], [id]').forEach((element) => {
       const id = element.getAttribute('data-id') || element.getAttribute('id');
+      if (id) {
+        addBounds(boundsBySourceId, id, getSvgBoundsFromGraphics(getHiddenVerovioEventElement(element)));
+      }
       if (id && hiddenSourceIds.has(id)) {
         const hiddenElement = getHiddenVerovioEventElement(element);
         hiddenEventElements.add(hiddenElement);
-        const bounds = getSvgBoundsFromGraphics(hiddenElement);
-        const measureElement = hiddenElement.closest('[data-class="measure"], .measure');
-        if (bounds && measureElement) {
-          const measureBounds = hiddenBoundsByMeasure.get(measureElement) ?? [];
-          measureBounds.push(bounds);
-          hiddenBoundsByMeasure.set(measureElement, measureBounds);
-        }
+        const chordElement = getVerovioChordElement(hiddenElement);
+        if (chordElement) hiddenChordCandidates.add(chordElement);
+      }
+    });
+
+    hiddenChordCandidates.forEach((chordElement) => {
+      if (shouldHideWholeChord(chordElement, hiddenSourceIds)) {
+        hiddenEventElements.add(chordElement);
       }
     });
 
@@ -779,17 +860,36 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
       }
     });
 
-    container.querySelectorAll('[data-class="measure"], .measure').forEach((measureElement, measureIndex) => {
-      const hiddenMeasureBounds = hiddenBoundsByMeasure.get(measureElement) ?? [];
-      if (hiddenMeasureBounds.length > 0) {
-        measureElement.querySelectorAll(VEROVIO_CONNECTION_SELECTOR).forEach((element) => {
-          const connectionBounds = getSvgBoundsFromGraphics(element);
-          if (connectionBounds && hiddenMeasureBounds.some((bounds) => isConnectionNearHiddenEvent(connectionBounds, bounds))) {
-            element.classList.add('score-editor-hidden');
-          }
-        });
-      }
+    if (hiddenConnectionPairs.length > 0) {
+      container.querySelectorAll(VEROVIO_CONNECTION_SELECTOR).forEach((element) => {
+        if (element.classList.contains('score-editor-hidden')) return;
 
+        const connectionBounds = getSvgBoundsFromGraphics(element);
+        if (!connectionBounds) return;
+
+        const shouldHideConnection = hiddenConnectionPairs.some((pair) => {
+          const startBounds = boundsBySourceId.get(pair.startId) ?? [];
+          const endBounds = boundsBySourceId.get(pair.endId) ?? [];
+          const bothEndpointsMatch = startBounds.some((start) => (
+            endBounds.some((end) => isConnectionNearEndpointPair(connectionBounds, start, end))
+          ));
+          if (bothEndpointsMatch) return true;
+
+          const hiddenEndpointBounds = [
+            ...(hiddenSourceIds.has(pair.startId) ? startBounds : []),
+            ...(hiddenSourceIds.has(pair.endId) ? endBounds : []),
+          ];
+
+          return isConnectionNearAnyEndpoint(connectionBounds, hiddenEndpointBounds);
+        });
+
+        if (shouldHideConnection) {
+          element.classList.add('score-editor-hidden');
+        }
+      });
+    }
+
+    container.querySelectorAll('[data-class="measure"], .measure').forEach((measureElement, measureIndex) => {
       scoreData?.measures[measureIndex]?.staves.forEach((_, staveIndex) => {
         if (!hiddenStaffKeys.has(`${measureIndex}:${staveIndex}`)) return;
 
@@ -809,7 +909,15 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
         connections.forEach((element) => element.classList.add('score-editor-hidden'));
       });
     });
-  }, [currentXml, hiddenSourceIds, hiddenStaffKeys, playback.containerRef, playback.isLoading, scoreData?.measures]);
+  }, [
+    currentXml,
+    hiddenConnectionPairs,
+    hiddenSourceIds,
+    hiddenStaffKeys,
+    playback.containerRef,
+    playback.isLoading,
+    scoreData?.measures,
+  ]);
 
   const handleScoreClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
     if (isScoreMetadataTarget(event.currentTarget, event.target, event.clientY)) {

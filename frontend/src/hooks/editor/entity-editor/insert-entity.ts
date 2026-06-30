@@ -52,11 +52,13 @@ function getMeasureEndCursor(measureEl: Element): number {
 
     Array.from(measureEl.children).forEach((element) => {
         const tagName = element.tagName.toLowerCase();
-        const duration = parseInt(element.querySelector('duration')?.textContent || '0', 10);
 
         if (tagName === 'note' || tagName === 'forward') {
+            if (tagName === 'note' && element.querySelector('chord')) return;
+            const duration = parseInt(element.querySelector('duration')?.textContent || '0', 10);
             cursor += duration;
         } else if (tagName === 'backup') {
+            const duration = parseInt(element.querySelector('duration')?.textContent || '0', 10);
             cursor = Math.max(0, cursor - duration);
         }
     });
@@ -256,14 +258,15 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
         if (!created) return { success: false };
 
         const entityGroups = getEntityGroupsFromMeasure(measureEl, staffNumber, voiceNum);
-        if (entityGroups.length === 0) {
+        const insertedIntoEmptyVoice = entityGroups.length === 0;
+        if (insertedIntoEmptyVoice) {
             appendIntoEmptyVoiceAtTick(xmlDoc, measureEl, created.elements, location.tick, voiceNum, staffNumber);
         } else {
             const insertIndex = getInsertIndexAtTick(scoreData, location);
             insertElementsAtEntityIndex(measureEl, created.elements, entityGroups, insertIndex);
+            recalculateBackups(measureEl);
         }
 
-        recalculateBackups(measureEl);
         rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
         ensureStableMusicXmlIds(xmlDoc);
 

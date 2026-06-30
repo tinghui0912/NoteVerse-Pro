@@ -119,16 +119,16 @@ describe('editor tracks view model', () => {
     ]);
   });
 
-  it('picks the next global voice number from current tracks', () => {
+  it('picks the smallest missing global voice number from current tracks', () => {
     const tracks = [
       { id: 'voice-1', staffIndex: 0, xmlVoice: 1, label: 'Voice 1', color: '#000', entityCount: 1, measureCount: 1 },
       { id: 'voice-3', staffIndex: 0, xmlVoice: 3, label: 'Voice 3', color: '#000', entityCount: 0, measureCount: 0 },
     ];
 
-    expect(getNextVoiceNumber(tracks, 0)).toBe(4);
+    expect(getNextVoiceNumber(tracks, 0)).toBe(2);
   });
 
-  it('picks the next voice number from every measure in the target staff', () => {
+  it('picks the smallest missing voice number from every measure in the target staff', () => {
     const scoreData: ScoreData = {
       measures: [
         {
@@ -163,7 +163,7 @@ describe('editor tracks view model', () => {
     expect(getNextVoiceNumberFromScore(scoreData, 0)).toBe(4);
   });
 
-  it('picks the next global voice number when no staff is specified', () => {
+  it('picks the smallest missing global voice number when no staff is specified', () => {
     const scoreData: ScoreData = {
       measures: [
         {
@@ -185,5 +185,24 @@ describe('editor tracks view model', () => {
     };
 
     expect(getNextVoiceNumberFromScore(scoreData)).toBe(3);
+  });
+
+  it('reuses voice one after it has been removed', () => {
+    const scoreData: ScoreData = {
+      measures: [
+        {
+          number: 1,
+          staves: [
+            {
+              clef: 'treble',
+              name: 'trebleClef',
+              voices: [{ name: 'voiceLabel 2', notes: [] }],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(getNextVoiceNumberFromScore(scoreData)).toBe(1);
   });
 });

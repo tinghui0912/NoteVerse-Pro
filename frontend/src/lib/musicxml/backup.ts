@@ -10,6 +10,15 @@
 // Internal Functions
 // ============================================================================
 
+function getTimelineDuration(element: Element): number {
+    const nodeName = element.nodeName.toLowerCase();
+    if (nodeName === 'note' && element.querySelector('chord')) return 0;
+    if (nodeName !== 'note' && nodeName !== 'forward') return 0;
+
+    const durationEl = element.querySelector('duration');
+    return durationEl ? parseInt(durationEl.textContent || '0', 10) : 0;
+}
+
 /**
  * 处理连续的 backup 序列：保留最后一个，删除其他，更新 duration
  */
@@ -55,8 +64,7 @@ function mergeConsecutiveBackups(measureEl: Element): void {
             }
             backupsInSequence = [];
 
-            const durEl = el.querySelector('duration');
-            cumulativeTime += durEl ? parseInt(durEl.textContent || '0', 10) : 0;
+            cumulativeTime += getTimelineDuration(el);
 
         } else if (nodeName === 'backup') {
             backupsInSequence.push({ element: el, timeAtStart: cumulativeTime });
@@ -99,8 +107,7 @@ export function recalculateBackups(measureEl: Element): void {
         const nodeName = el.nodeName.toLowerCase();
 
         if (nodeName === 'note' || nodeName === 'forward') {
-            const durEl = el.querySelector('duration');
-            cumulativeTime += durEl ? parseInt(durEl.textContent || '0', 10) : 0;
+            cumulativeTime += getTimelineDuration(el);
 
         } else if (nodeName === 'backup') {
             const durEl = el.querySelector('duration');

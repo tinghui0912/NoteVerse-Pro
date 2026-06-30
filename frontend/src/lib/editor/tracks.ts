@@ -36,10 +36,11 @@ export function getTrackColor(_staffIndex: number, xmlVoice: number): string {
 }
 
 export function getNextVoiceNumber(tracks: EditorTrack[], _staffIndex: number): number {
-  const voiceNumbers = tracks
-    .map((track) => track.xmlVoice);
+  const voiceNumbers = new Set(tracks.map((track) => track.xmlVoice));
 
-  return voiceNumbers.length > 0 ? Math.max(...voiceNumbers) + 1 : 1;
+  let candidate = 1;
+  while (voiceNumbers.has(candidate)) candidate += 1;
+  return candidate;
 }
 
 export function getNextVoiceNumberFromScore(scoreData: ScoreData | null, staffIndex?: number): number {
@@ -55,7 +56,9 @@ export function getNextVoiceNumberFromScore(scoreData: ScoreData | null, staffIn
     });
   });
 
-  return voiceNumbers.size > 0 ? Math.max(...voiceNumbers) + 1 : 1;
+  let candidate = 1;
+  while (voiceNumbers.has(candidate)) candidate += 1;
+  return candidate;
 }
 
 export function deriveEditorTracks(scoreData: ScoreData | null): EditorTrack[] {

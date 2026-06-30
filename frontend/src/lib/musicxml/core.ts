@@ -210,11 +210,13 @@ export function getEntityGroupsFromMeasure(
         const element = node as Element;
 
         if (element.tagName === 'forward') {
-            // forward 元素：检查 voice（forward 没有 staff，通过 voice 匹配）
+            // forward 可能带有 staff。没有 staff 时按调用方 staff 处理，兼容旧 XML。
+            const staffEl = element.querySelector('staff');
             const voiceEl = element.querySelector('voice');
+            const staff = staffEl ? parseInt(staffEl.textContent || '1', 10) : staffNumber;
             const voice = voiceEl ? parseInt(voiceEl.textContent || '1', 10) : 1;
 
-            if (voice === voiceNum) {
+            if (staff === staffNumber && voice === voiceNum) {
                 // 先保存之前的音符组
                 if (currentNoteGroup.length > 0) {
                     entityGroups.push({

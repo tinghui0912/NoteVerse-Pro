@@ -65,6 +65,15 @@ describe('Verovio listen surfaces', () => {
     expect(source).toContain('onScoreClick={handleScoreClick}');
   });
 
+  it('keeps voice visibility scoped to event leaves before hiding a whole chord group', () => {
+    const source = readSource('src/components/editor/editor-preview-panel.tsx');
+    expect(source).toContain('function shouldHideWholeChord');
+    expect(source).toContain('sourceIds.every((id) => hiddenSourceIds.has(id))');
+    expect(source).toContain('hiddenChordCandidates');
+    expect(source).toContain('getHiddenVerovioEventElement(element)');
+    expect(source).toContain('return element.closest(VEROVIO_EVENT_CONTAINER_SELECTOR)');
+  });
+
   it('dispatches Verovio score clicks through editor tools', () => {
     const source = readSource('src/components/editor/editor-preview-panel.tsx');
     expect(source).toContain("editorMode === 'add'");
@@ -138,7 +147,7 @@ describe('Verovio listen surfaces', () => {
     expect(panel).toContain('data-related');
     expect(panel).toContain('getRelatedIds');
     expect(panel).toContain('getHiddenVerovioEventElement');
-    expect(panel).toContain('hiddenBoundsByMeasure');
+    expect(panel).toContain('allEntityVoicesHidden');
     expect(panel).toContain('getSvgBoundsFromGraphics');
     expect(panel).toContain('isConnectionNearHiddenEvent');
     expect(panel).toContain('VEROVIO_EVENT_CONTAINER_SELECTOR');

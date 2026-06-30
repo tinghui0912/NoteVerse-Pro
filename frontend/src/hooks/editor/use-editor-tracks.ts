@@ -28,7 +28,9 @@ export function useEditorTracks() {
     setActiveTrackId((current) => (current && trackIds.includes(current) ? current : trackIds[0]));
     setVisibleTrackIds((current) => {
       const currentInScore = current.filter((id) => trackIds.includes(id));
-      return currentInScore.length > 0 ? currentInScore : trackIds;
+      const restoredOrNewTracks = trackIds.filter((id) => !current.includes(id));
+      const nextVisible = [...currentInScore, ...restoredOrNewTracks];
+      return nextVisible.length > 0 ? nextVisible : trackIds;
     });
   }, [setActiveTrackId, setVisibleTrackIds, trackIds]);
 

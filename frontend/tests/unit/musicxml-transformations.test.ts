@@ -24,7 +24,7 @@ describe('MusicXML transformations', () => {
     backup.textContent = '99';
     recalculateBackups(measure);
 
-    expect(measure.querySelector('backup duration')?.textContent).toBe('8');
+    expect(measure.querySelector('backup duration')?.textContent).toBe('4');
   });
 
   it('normalizes every staff to voice one while preserving chord and staff semantics', () => {
