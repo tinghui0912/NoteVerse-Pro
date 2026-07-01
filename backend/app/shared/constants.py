@@ -19,6 +19,7 @@ class ErrorCode:
     EMAIL_INVALID = "email_invalid"
     VERIFICATION_CODE_INVALID = "verification_code_invalid"
     VERIFICATION_CODE_WRONG = "verification_code_wrong"
+    VERIFICATION_ATTEMPTS_EXCEEDED = "verification_attempts_exceeded"
     VERIFICATION_TYPE_MISMATCH = "verification_type_mismatch"
     RESET_TOKEN_INVALID = "reset_token_invalid"
 

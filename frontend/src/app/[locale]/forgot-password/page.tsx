@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,8 +16,10 @@ import { ApiError } from '@/lib/api-client';
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
   const tProfile = useTranslations('profile');
+  const tErrors = useTranslations('errors');
+  const locale = useLocale();
   const router = useRouter();
-  const { sendEmailCode, verifyEmailCode, resetPassword } = useAuth();
+  const { sendEmailCode, verifyPasswordResetCode, resetPassword } = useAuth();
 
   const [step, setStep] = useState<'enter_email' | 'verify_code' | 'new_password'>('enter_email');
   const [email, setEmail] = useState('');
@@ -65,13 +67,13 @@ export default function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     try {
-      const challengeIdResult = await sendEmailCode(email, 'password_reset');
+      const challengeIdResult = await sendEmailCode(email, 'password_reset', locale === 'en' ? 'en' : 'zh');
       setChallengeId(challengeIdResult);
       setCountdown(60);
       setStep('verify_code');
     } catch (err) {
       if (err instanceof ApiError) {
-        setEmailError(err.message || t('sendCodeFailed'));
+        setEmailError(err.code ? tErrors(err.code as never) : err.message || t('sendCodeFailed'));
       } else {
         setEmailError(t('sendCodeFailedRetry'));
       }
@@ -92,12 +94,12 @@ export default function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     try {
-      const token = await verifyEmailCode(email, enteredCode, challengeId);
+      const token = await verifyPasswordResetCode(email, enteredCode, challengeId);
       setVerifiedToken(token);
       setStep('new_password');
     } catch (err) {
       if (err instanceof ApiError) {
-        setCodeError(err.message || t('verifyFailed'));
+        setCodeError(err.code ? tErrors(err.code as never) : err.message || t('verifyFailed'));
       } else {
         setCodeError(t('verifyFailedRetry'));
       }

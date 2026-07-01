@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 
 export default function RegisterPage() {
   const t = useTranslations('auth');
+  const tErrors = useTranslations('errors');
+  const locale = useLocale();
   const { register, sendEmailCode, verifyEmailCode } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,13 +80,13 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     try {
-      const challengeIdResult = await sendEmailCode(email, 'register');
+      const challengeIdResult = await sendEmailCode(email, 'register', locale === 'en' ? 'en' : 'zh');
       setChallengeId(challengeIdResult);
       setCountdown(60);
       setStep('verify_code');
     } catch (err) {
       if (err instanceof ApiError) {
-        setEmailError(err.message || t('sendCodeFailed'));
+        setEmailError(err.code ? tErrors(err.code as never) : err.message || t('sendCodeFailed'));
       } else {
         setEmailError(t('sendCodeFailedRetry'));
       }
@@ -98,14 +100,14 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     try {
-      const challengeIdResult = await sendEmailCode(email, 'register');
+      const challengeIdResult = await sendEmailCode(email, 'register', locale === 'en' ? 'en' : 'zh');
       setChallengeId(challengeIdResult);
       setCountdown(60);
       setInfoMessage(t('codeSent'));
       setTimeout(() => setInfoMessage(''), 5000);
     } catch (err) {
       if (err instanceof ApiError) {
-        setCodeError(err.message || t('resendFailed'));
+        setCodeError(err.code ? tErrors(err.code as never) : err.message || t('resendFailed'));
       }
     } finally {
       setIsSubmitting(false);
@@ -132,7 +134,7 @@ export default function RegisterPage() {
       router.push(getSafeReturnUrl(returnUrl));
     } catch (err) {
       if (err instanceof ApiError) {
-        setCodeError(err.message || t('verifyFailed'));
+        setCodeError(err.code ? tErrors(err.code as never) : err.message || t('verifyFailed'));
       } else {
         setCodeError(t('registerFailed'));
       }

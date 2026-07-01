@@ -37,11 +37,13 @@ export async function logout(): Promise<ApiResponse> {
  */
 export async function sendEmailCode(
     email: string,
-    purpose: 'register' | 'password_reset' = 'register'
+    purpose: 'register' | 'password_reset' = 'register',
+    locale: 'en' | 'zh' = 'zh'
 ): Promise<ApiResponse<SendCodeResponse>> {
     return apiClient.post<ApiResponse<SendCodeResponse>>('/auth/email/send-code', {
         email,
         purpose,
+        locale,
     });
 }
 

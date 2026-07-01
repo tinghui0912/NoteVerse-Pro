@@ -22,6 +22,7 @@ class SendCodeRequest(BaseModel):
         default="register",
         description="Verification code purpose",
     )
+    locale: Literal["en", "zh"] = "zh"
 
 
 class VerifyCodeRequest(BaseModel):

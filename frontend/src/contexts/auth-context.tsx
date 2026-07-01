@@ -29,10 +29,11 @@ interface AuthContextType {
   register: (email: string, password: string, displayName: string, verifiedToken: string) => Promise<void>;
 
   // 发送验证码
-  sendEmailCode: (email: string, purpose?: 'register' | 'password_reset') => Promise<string>;
+  sendEmailCode: (email: string, purpose?: 'register' | 'password_reset', locale?: 'en' | 'zh') => Promise<string>;
 
   // 验证验证码
   verifyEmailCode: (email: string, code: string, challengeId: string) => Promise<string>;
+  verifyPasswordResetCode: (email: string, code: string, challengeId: string) => Promise<string>;
 
   // 重置密码
   resetPassword: (email: string, newPassword: string, resetToken: string) => Promise<void>;
@@ -147,9 +148,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    */
   const sendEmailCode = async (
     email: string,
-    purpose: 'register' | 'password_reset' = 'register'
+    purpose: 'register' | 'password_reset' = 'register',
+    locale: 'en' | 'zh' = 'zh'
   ): Promise<string> => {
-    const response = await authApi.sendEmailCode(email, purpose);
+    const response = await authApi.sendEmailCode(email, purpose, locale);
     if (!response.data?.challenge_id) {
       throw new Error('SEND_CODE_FAILED');
     }
@@ -169,6 +171,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('VERIFY_FAILED');
     }
     return response.data.verified_token;
+  };
+
+  const verifyPasswordResetCode = async (
+    email: string,
+    code: string,
+    challengeId: string
+  ): Promise<string> => {
+    const response = await authApi.verifyPasswordResetCode(email, code, challengeId);
+    if (!response.data?.reset_token) {
+      throw new Error('VERIFY_FAILED');
+    }
+    return response.data.reset_token;
   };
 
   /**
@@ -193,6 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         register,
         sendEmailCode,
         verifyEmailCode,
+        verifyPasswordResetCode,
         resetPassword,
         refreshUser,
         setUser,

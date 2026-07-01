@@ -158,11 +158,12 @@ async def register_user(
 
 
 @router.post("/email/send-code")
-def send_email_code(
+async def send_email_code(
     request: SendCodeRequest,
+    db: AsyncSession = Depends(deps.get_db),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SuccessResponsePayload:
-    result = auth_service.send_email_code(request)
+    result = await auth_service.send_email_code(db, request)
     return success_response(
         data=result.model_dump(),
         message=SuccessCode.VERIFICATION_CODE_SENT,

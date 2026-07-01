@@ -29,6 +29,7 @@ from app.modules.auth.schemas import (
     SendCodeRequest,
     VerifyCodeRequest,
 )
+from app.modules.auth.email_templates import build_verification_email
 from app.shared.constants import ErrorCode
 from app.shared.mail_dispatcher import dispatch_email
 from app.utils.timezone import utc_now_naive
@@ -52,6 +53,39 @@ class AuthService:
 
     def _hash_token(self, token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    def _email_code_ttl(self, purpose: str) -> int:
+        if purpose == "password_reset":
+            return settings.EMAIL_PASSWORD_RESET_CODE_TTL_SECONDS
+        return settings.EMAIL_REGISTER_CODE_TTL_SECONDS
+
+    def _load_email_code_payload(self, request: VerifyCodeRequest) -> tuple[str, dict]:
+        key = f"{REDIS_KEY_VERIFY_PREFIX}{request.challenge_id}"
+        raw = self.redis_client.get(key)
+        if not raw:
+            raise ValidationException(
+                code=ErrorCode.VERIFICATION_CODE_INVALID,
+                field="code",
+            )
+        return key, json.loads(raw)
+
+    def _register_failed_code_attempt(self, key: str, data: dict) -> None:
+        attempts = int(data.get("attempts", 0)) + 1
+        if attempts >= settings.EMAIL_CODE_MAX_ATTEMPTS:
+            self.redis_client.delete(key)
+            raise ValidationException(
+                code=ErrorCode.VERIFICATION_ATTEMPTS_EXCEEDED,
+                field="code",
+            )
+
+        data["attempts"] = attempts
+        ttl = self.redis_client.ttl(key)
+        if ttl > 0:
+            self.redis_client.setex(key, ttl, json.dumps(data))
+        raise ValidationException(
+            code=ErrorCode.VERIFICATION_CODE_WRONG,
+            field="code",
+        )
 
     def _new_refresh_token(self) -> str:
         return secrets.token_urlsafe(48)
@@ -247,9 +281,22 @@ class AuthService:
         await db.refresh(user)
         return user
 
-    def send_email_code(self, request: SendCodeRequest) -> SendCodeResult:
-        email = request.email
+    async def send_email_code(self, db: AsyncSession, request: SendCodeRequest) -> SendCodeResult:
+        email = str(request.email).strip().lower()
         purpose = request.purpose
+
+        existing_user_result = await db.exec(select(User).where(User.email == email))
+        existing_user = existing_user_result.one_or_none()
+        if purpose == "register" and existing_user:
+            raise ResourceAlreadyExistsException(
+                resource_type="user",
+                details={"email": email},
+            )
+        if purpose == "password_reset" and not existing_user:
+            raise ValidationException(
+                code=ErrorCode.EMAIL_NOT_FOUND,
+                field="email",
+            )
 
         cooldown_key = f"{REDIS_KEY_COOLDOWN_PREFIX}{email}"
         ttl = self.redis_client.ttl(cooldown_key)
@@ -263,11 +310,12 @@ class AuthService:
         challenge_id = uuid.uuid4().hex
         code = f"{uuid.uuid4().int % 1000000:06d}"
         code_hash = self._hash_code(code, email)
+        ttl_seconds = self._email_code_ttl(purpose)
 
-        payload = {"email": email, "code_hash": code_hash, "purpose": purpose}
+        payload = {"email": email, "code_hash": code_hash, "purpose": purpose, "attempts": 0}
         self.redis_client.setex(
             f"{REDIS_KEY_VERIFY_PREFIX}{challenge_id}",
-            settings.EMAIL_CODE_TTL_SECONDS,
+            ttl_seconds,
             json.dumps(payload),
         )
         self.redis_client.setex(
@@ -276,20 +324,14 @@ class AuthService:
             "1",
         )
 
-        if purpose == "password_reset":
-            subject = f"{settings.PROJECT_NAME} Password Reset Code"
-            body = (
-                f"Your password reset code is: {code}\n"
-                f"This code will expire in {settings.EMAIL_CODE_TTL_SECONDS // 60} minutes.\n"
-                "If you did not request this, ignore this email."
-            )
-        elif purpose == "register":
-            subject = f"{settings.PROJECT_NAME} Registration Code"
-            body = (
-                f"Your registration code is: {code}\n"
-                f"This code will expire in {settings.EMAIL_CODE_TTL_SECONDS // 60} minutes."
-            )
-        dispatch_email(email, subject, body)
+        email_content = build_verification_email(
+            locale=request.locale,
+            project_name=settings.PROJECT_NAME,
+            code=code,
+            purpose=purpose,
+            ttl_seconds=ttl_seconds,
+        )
+        dispatch_email(email, email_content.subject, email_content.text_body, email_content.html_body)
 
         return SendCodeResult(
             challenge_id=challenge_id,
@@ -297,59 +339,45 @@ class AuthService:
         )
 
     def verify_email_code(self, request: VerifyCodeRequest) -> dict[str, str]:
-        key = f"{REDIS_KEY_VERIFY_PREFIX}{request.challenge_id}"
-        raw = self.redis_client.get(key)
-        if not raw:
+        key, data = self._load_email_code_payload(request)
+        if data.get("purpose") != "register":
             raise ValidationException(
-                code=ErrorCode.VERIFICATION_CODE_INVALID,
+                code=ErrorCode.VERIFICATION_TYPE_MISMATCH,
                 field="code",
             )
 
-        data = json.loads(raw)
-        if data["email"] != request.email or data["code_hash"] != self._hash_code(
+        email = str(request.email).strip().lower()
+        if data["email"] != email or data["code_hash"] != self._hash_code(
             request.code,
-            request.email,
+            email,
         ):
-            raise ValidationException(
-                code=ErrorCode.VERIFICATION_CODE_WRONG,
-                field="code",
-            )
+            self._register_failed_code_attempt(key, data)
 
         verified_token = security.create_email_verification_token(
-            subject=f"verify:{request.email}",
-            expires_delta=timedelta(minutes=15),
+            subject=f"verify:{email}",
+            expires_delta=timedelta(seconds=settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS),
         )
         self.redis_client.delete(key)
         return {"verified_token": verified_token}
 
     def verify_password_reset_code(self, request: VerifyCodeRequest) -> dict[str, str]:
-        key = f"{REDIS_KEY_VERIFY_PREFIX}{request.challenge_id}"
-        raw = self.redis_client.get(key)
-        if not raw:
-            raise ValidationException(
-                code=ErrorCode.VERIFICATION_CODE_INVALID,
-                field="code",
-            )
-
-        data = json.loads(raw)
+        key, data = self._load_email_code_payload(request)
         if data.get("purpose") != "password_reset":
             raise ValidationException(
                 code=ErrorCode.VERIFICATION_TYPE_MISMATCH,
                 field="code",
             )
 
-        if data["email"] != request.email or data["code_hash"] != self._hash_code(
+        email = str(request.email).strip().lower()
+        if data["email"] != email or data["code_hash"] != self._hash_code(
             request.code,
-            request.email,
+            email,
         ):
-            raise ValidationException(
-                code=ErrorCode.VERIFICATION_CODE_WRONG,
-                field="code",
-            )
+            self._register_failed_code_attempt(key, data)
 
         reset_token = security.create_password_reset_token(
-            subject=f"reset:{request.email}",
-            expires_delta=timedelta(minutes=15),
+            subject=f"reset:{email}",
+            expires_delta=timedelta(seconds=settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS),
         )
         self.redis_client.delete(key)
         return {"reset_token": reset_token}

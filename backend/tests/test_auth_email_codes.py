@@ -1,0 +1,154 @@
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from app.core.config import settings
+from app.core.exceptions import ValidationException
+from app.modules.auth.schemas import SendCodeRequest, VerifyCodeRequest
+from app.modules.auth.service import AuthService, REDIS_KEY_VERIFY_PREFIX
+from app.shared.constants import ErrorCode
+
+
+class FakeRedis:
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+        self.ttls: dict[str, int] = {}
+
+    def setex(self, key: str, seconds: int, value: str) -> None:
+        self.values[key] = value
+        self.ttls[key] = seconds
+
+    def ttl(self, key: str) -> int:
+        return self.ttls.get(key, -2)
+
+    def get(self, key: str) -> str | None:
+        return self.values.get(key)
+
+    def delete(self, key: str) -> None:
+        self.values.pop(key, None)
+        self.ttls.pop(key, None)
+
+
+def _verification_key(challenge_id: str) -> str:
+    return f"{REDIS_KEY_VERIFY_PREFIX}{challenge_id}"
+
+
+class FakeDb:
+    def __init__(self, user_exists: bool = False) -> None:
+        self.user_exists = user_exists
+
+    async def exec(self, statement):
+        return self
+
+    def one_or_none(self):
+        return object() if self.user_exists else None
+
+
+@pytest.mark.asyncio
+async def test_send_email_code_uses_localized_html_templates(monkeypatch: pytest.MonkeyPatch) -> None:
+    redis = FakeRedis()
+    sent: list[tuple[str, str, str, str | None]] = []
+    monkeypatch.setattr(
+        "app.modules.auth.service.dispatch_email",
+        lambda to_email, subject, body, html_body=None: sent.append(
+            (to_email, subject, body, html_body)
+        ),
+    )
+
+    service = AuthService(redis_client=redis)  # type: ignore[arg-type]
+    result = await service.send_email_code(
+        FakeDb(),
+        SendCodeRequest(email="User@Example.com", purpose="register", locale="zh")
+    )
+
+    key = _verification_key(result.challenge_id)
+    payload = json.loads(redis.values[key])
+    assert payload["email"] == "user@example.com"
+    assert payload["purpose"] == "register"
+    assert payload["attempts"] == 0
+    assert redis.ttl(key) == settings.EMAIL_REGISTER_CODE_TTL_SECONDS
+    assert sent[0][0] == "user@example.com"
+    assert "注册验证码" in sent[0][1]
+    assert "10 分钟" in sent[0][2]
+    assert sent[0][3] and "<html" in sent[0][3]
+
+
+@pytest.mark.asyncio
+async def test_password_reset_code_rejects_unknown_email(monkeypatch: pytest.MonkeyPatch) -> None:
+    redis = FakeRedis()
+    sent: list[tuple[str, str, str, str | None]] = []
+    monkeypatch.setattr(
+        "app.modules.auth.service.dispatch_email",
+        lambda to_email, subject, body, html_body=None: sent.append(
+            (to_email, subject, body, html_body)
+        ),
+    )
+
+    service = AuthService(redis_client=redis)  # type: ignore[arg-type]
+    with pytest.raises(ValidationException) as exc:
+        await service.send_email_code(
+            FakeDb(user_exists=False),
+            SendCodeRequest(email="missing@example.com", purpose="password_reset", locale="en"),
+        )
+
+    assert exc.value.code == ErrorCode.EMAIL_NOT_FOUND
+    assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_password_reset_code_uses_shorter_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
+    redis = FakeRedis()
+    monkeypatch.setattr(
+        "app.modules.auth.service.dispatch_email",
+        lambda to_email, subject, body, html_body=None: None,
+    )
+
+    service = AuthService(redis_client=redis)  # type: ignore[arg-type]
+    result = await service.send_email_code(
+        FakeDb(user_exists=True),
+        SendCodeRequest(email="user@example.com", purpose="password_reset", locale="en")
+    )
+
+    key = _verification_key(result.challenge_id)
+    assert redis.ttl(key) == settings.EMAIL_PASSWORD_RESET_CODE_TTL_SECONDS
+
+
+@pytest.mark.asyncio
+async def test_email_code_attempt_limit_deletes_challenge(monkeypatch: pytest.MonkeyPatch) -> None:
+    redis = FakeRedis()
+    monkeypatch.setattr(
+        "app.modules.auth.service.dispatch_email",
+        lambda to_email, subject, body, html_body=None: None,
+    )
+
+    service = AuthService(redis_client=redis)  # type: ignore[arg-type]
+    result = await service.send_email_code(
+        FakeDb(),
+        SendCodeRequest(email="user@example.com", purpose="register", locale="en")
+    )
+    key = _verification_key(result.challenge_id)
+
+    for _ in range(settings.EMAIL_CODE_MAX_ATTEMPTS - 1):
+        with pytest.raises(ValidationException) as wrong_code:
+            service.verify_email_code(
+                VerifyCodeRequest(
+                    email="user@example.com",
+                    code="000000",
+                    challenge_id=result.challenge_id,
+                )
+            )
+        assert wrong_code.value.code == ErrorCode.VERIFICATION_CODE_WRONG
+
+    with pytest.raises(ValidationException) as exceeded:
+        service.verify_email_code(
+            VerifyCodeRequest(
+                email="user@example.com",
+                code="000000",
+                challenge_id=result.challenge_id,
+            )
+        )
+
+    assert exceeded.value.code == ErrorCode.VERIFICATION_ATTEMPTS_EXCEEDED
+    assert redis.get(key) is None

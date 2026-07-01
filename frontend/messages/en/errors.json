@@ -8,6 +8,12 @@
   "invite_revoked": "This invite link has been revoked.",
   "invite_already_accepted": "This invite link has already been accepted.",
   "invite_email_mismatch": "The current account email does not match the invited email.",
+  "email_not_found": "This email is not registered.",
+  "resource_already_exists": "This email is already registered.",
+  "verification_code_wrong": "Incorrect verification code. Try again.",
+  "verification_code_invalid": "This verification code has expired. Request a new code.",
+  "verification_type_mismatch": "This code is for a different action. Request a new code.",
+  "verification_attempts_exceeded": "Too many incorrect attempts. Request a new verification code.",
   "membership_not_found": "The collaborator does not exist or has been removed.",
   "UNKNOWN_ERROR": "An unknown error occurred. Please try again."
 }
