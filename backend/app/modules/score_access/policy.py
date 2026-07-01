@@ -33,6 +33,7 @@ class ScoreAction(str, enum.Enum):
     EDIT = "EDIT"
     DELETE = "DELETE"
     MANAGE_SHARING = "MANAGE_SHARING"
+    MANAGE_MEMBERS = "MANAGE_MEMBERS"
     DOWNLOAD = "DOWNLOAD"
     PRACTICE = "PRACTICE"
     PUBLISH = "PUBLISH"
@@ -79,6 +80,7 @@ class ScoreAccessPolicy:
                     can_edit=True,
                     can_delete=True,
                     can_manage_sharing=True,
+                    can_manage_members=True,
                     can_download=True,
                     can_practice=True,
                     can_publish=True,
@@ -200,6 +202,7 @@ class ScoreAccessPolicy:
             ScoreAction.EDIT: access.capabilities.can_edit,
             ScoreAction.DELETE: access.capabilities.can_delete,
             ScoreAction.MANAGE_SHARING: access.capabilities.can_manage_sharing,
+            ScoreAction.MANAGE_MEMBERS: access.capabilities.can_manage_members,
             ScoreAction.DOWNLOAD: access.capabilities.can_download,
             ScoreAction.PRACTICE: access.capabilities.can_practice,
             ScoreAction.PUBLISH: access.capabilities.can_publish,

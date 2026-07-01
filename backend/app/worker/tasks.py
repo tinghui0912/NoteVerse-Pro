@@ -9,7 +9,7 @@ from app.modules.jobs.execution_service import job_execution_service
 from app.modules.jobs.maintenance_service import job_maintenance_service
 from app.modules.jobs.schemas import JobProcessingOptions, PipelineExecutionSuccessResult
 from app.pipeline.context import CeleryTaskLike
-from app.utils.email import send_email
+from app.utils.email import MailPermanentError, MailTransientError, send_email
 from app.worker.celery_config import celery_app
 
 logger = get_task_logger(__name__)
@@ -34,7 +34,7 @@ def process_images_job(
 @celery_app.task(
     bind=True,
     name="app.worker.tasks.send_email_task",
-    autoretry_for=(RuntimeError,),
+    autoretry_for=(MailTransientError,),
     retry_backoff=True,
     retry_jitter=True,
     retry_kwargs={"max_retries": 3},
@@ -44,10 +44,15 @@ def send_email_task(
     to_email: str,
     subject: str,
     body: str,
+    html_body: str | None = None,
 ) -> dict[str, str]:
-    """Send an email in the background via the configured SMTP provider."""
+    """Send an email in the background via the configured mail provider."""
 
-    send_email(to_email=to_email, subject=subject, body=body)
+    try:
+        send_email(to_email=to_email, subject=subject, body=body, html_body=html_body)
+    except MailPermanentError as exc:
+        logger.error("Email delivery failed permanently for %s: %s", to_email, exc)
+        return {"status": "failed", "to_email": to_email}
     logger.info(f"Email sent to {to_email}")
     return {"status": "sent", "to_email": to_email}
 

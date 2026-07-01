@@ -7,6 +7,7 @@ export const READONLY_SCORE_CAPABILITIES: ScoreShellCapabilities = {
   can_edit: false,
   can_delete: false,
   can_manage_sharing: false,
+  can_manage_members: false,
   can_download: false,
   can_practice: false,
   can_publish: false,
@@ -18,4 +19,3 @@ export function resolveScoreShellCapabilities(
 ): ScoreShellCapabilities {
   return capabilities ?? READONLY_SCORE_CAPABILITIES;
 }
-

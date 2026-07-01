@@ -46,6 +46,21 @@ describe('queryKeys', () => {
       'grant-access',
       { token: 'token-1' },
     ]);
+    expect(queryKeys.scores.invites('score-1')).toEqual([
+      'scores',
+      'invite',
+      { scoreId: 'score-1' },
+    ]);
+    expect(queryKeys.scores.inviteAccess('invite-token-1')).toEqual([
+      'scores',
+      'invite-access',
+      { token: 'invite-token-1' },
+    ]);
+    expect(queryKeys.scores.members('score-1')).toEqual([
+      'scores',
+      'member',
+      { scoreId: 'score-1' },
+    ]);
     expect(queryKeys.scores.publication('slug-1')).toEqual([
       'scores',
       'publication',

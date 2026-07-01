@@ -20,6 +20,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreLibraryEntry,
+    ScoreInvite,
     ScoreMembership,
     ScorePublication,
     ScoreShareGrant,
@@ -31,6 +32,7 @@ from app.db.models.processing_job import ProcessingJobState
 from app.db.models.score import ArtifactKind, RevisionOrigin, ScoreState
 from app.db.models.score import MetadataStatus
 from app.db.models.score_access import (
+    InviteStatus,
     MembershipRole,
     PublicationDiscoverability,
     PublicationStatus,
@@ -45,6 +47,8 @@ from app.modules.scores.creation_service import SyncScoreCreationService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_sharing.schemas import GrantCreateRequest
 from app.modules.score_sharing.service import ScoreSharingService
+from app.modules.score_invites.schemas import InviteCreateRequest
+from app.modules.score_invites.service import ScoreInviteService, hash_invite_token
 from app.modules.publications.schemas import PublicationUpsertRequest
 from app.modules.publications.service import PublicationService
 from app.shared.constants import ErrorCode
@@ -586,7 +590,8 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     stored_grant = session.query(ScoreShareGrant).filter_by(
         grant_uuid=created.grant_id
     ).one()
-    assert created.token.startswith(f"{created.grant_id}.")
+    assert "." not in created.token
+    assert created.grant_id not in created.token
     assert stored_grant.token_hash == hash_share_token(created.token)
     assert created.token not in stored_grant.token_hash
     listed_grants = await service.list_grants(db, "sharing-score", 1)  # type: ignore[arg-type]
@@ -650,6 +655,125 @@ async def test_create_grant_normalizes_aware_expiration_to_naive_utc(
     ).one()
     assert stored_grant.expires_at == datetime(2026, 6, 30, 13, 41, 35)
     assert stored_grant.expires_at.tzinfo is None
+
+
+@pytest.mark.asyncio
+async def test_invite_acceptance_creates_editable_membership(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    score = Score(
+        id=87,
+        score_uuid="invite-score",
+        owner_user_id=1,
+        title="Invite score",
+        state=ScoreState.ACTIVE,
+    )
+    revision = ScoreRevision(
+        id=88,
+        revision_uuid="invite-revision",
+        score_id=87,
+        revision_number=1,
+        content_hash="7" * 64,
+        origin=RevisionOrigin.IMPORT,
+    )
+    session.add_all([score, revision])
+    session.commit()
+    score.head_revision_id = 88
+    session.commit()
+
+    db = AsyncSessionAdapter(session)
+    sent_emails: list[tuple[str, str, str, str | None]] = []
+    service = ScoreInviteService(
+        mail_dispatcher=lambda to_email, subject, body, html_body=None: sent_emails.append(
+            (to_email, subject, body, html_body)
+        )
+    )
+    created = await service.create_invite(
+        db,  # type: ignore[arg-type]
+        "invite-score",
+        1,
+        InviteCreateRequest(email="other@example.com", role=MembershipRole.EDITOR),
+    )
+    stored_invite = session.query(ScoreInvite).filter_by(
+        invite_uuid=created.invite_id
+    ).one()
+    assert "." not in created.token
+    assert created.invite_id not in created.token
+    assert stored_invite.token_hash == hash_invite_token(created.token)
+    assert created.token not in stored_invite.token_hash
+    assert len(sent_emails) == 1
+    assert sent_emails[0][0] == "other@example.com"
+    assert "Invite score" in sent_emails[0][2]
+    assert f"/invite/{created.token}" in sent_emails[0][2]
+    assert sent_emails[0][3]
+    assert "<html" in sent_emails[0][3]
+    assert f"/invite/{created.token}" in sent_emails[0][3]
+
+    listed = await service.list_invites(db, "invite-score", 1)  # type: ignore[arg-type]
+    assert listed[0].invite_id == created.invite_id
+    assert not hasattr(listed[0], "token")
+
+    anonymous = await service.inspect_invite(db, created.token, None)  # type: ignore[arg-type]
+    assert anonymous.requires_login is True
+    assert anonymous.can_accept is False
+
+    accepted = await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+    assert accepted.score_id == "invite-score"
+    assert accepted.role == MembershipRole.EDITOR
+    assert accepted.membership_id is not None
+    stored_membership = session.query(ScoreMembership).filter_by(
+        score_id=87,
+        user_id=2,
+    ).one()
+    assert stored_membership.role == MembershipRole.EDITOR
+    assert stored_invite.status == InviteStatus.ACCEPTED
+
+    policy = ScoreAccessPolicy()
+    member_access = await policy.resolve(db, "invite-score", user_id=2)  # type: ignore[arg-type]
+    assert member_access.capabilities.can_edit is True
+    with pytest.raises(ValidationException) as accepted_again:
+        await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+    assert accepted_again.value.code == ErrorCode.INVITE_ALREADY_ACCEPTED
+
+
+@pytest.mark.asyncio
+async def test_invite_email_target_is_enforced(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    score = add_active_score_with_head_revision(
+        session,
+        score_id=89,
+        revision_id=90,
+        score_uuid="targeted-invite-score",
+        revision_uuid="targeted-invite-revision",
+        title="Targeted Invite",
+    )
+    assert score.score_uuid == "targeted-invite-score"
+    db = AsyncSessionAdapter(session)
+    sent_emails: list[tuple[str, str, str, str | None]] = []
+    service = ScoreInviteService(
+        mail_dispatcher=lambda to_email, subject, body, html_body=None: sent_emails.append(
+            (to_email, subject, body, html_body)
+        )
+    )
+
+    created = await service.create_invite(
+        db,  # type: ignore[arg-type]
+        "targeted-invite-score",
+        1,
+        InviteCreateRequest(email="someone-else@example.com", role=MembershipRole.EDITOR),
+    )
+
+    inspected = await service.inspect_invite(db, created.token, 2)  # type: ignore[arg-type]
+    assert inspected.requires_login is False
+    assert inspected.can_accept is False
+    assert len(sent_emails) == 1
+    with pytest.raises(ValidationException) as mismatch:
+        await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+    assert mismatch.value.code == ErrorCode.INVITE_EMAIL_MISMATCH
+    assert session.query(ScoreMembership).filter_by(score_id=89, user_id=2).one_or_none() is None
 
 
 @pytest.mark.asyncio

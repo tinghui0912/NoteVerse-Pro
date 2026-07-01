@@ -3,5 +3,11 @@
   "SHARE_NOT_FOUND": "This share link does not exist or has been deleted.",
   "SHARE_REVOKED": "The owner has revoked your access to this link.",
   "SHARE_EXPIRED": "This share link has expired.",
+  "invite_not_found": "This invite link does not exist or has been deleted.",
+  "invite_expired": "This invite link has expired.",
+  "invite_revoked": "This invite link has been revoked.",
+  "invite_already_accepted": "This invite link has already been accepted.",
+  "invite_email_mismatch": "The current account email does not match the invited email.",
+  "membership_not_found": "The collaborator does not exist or has been removed.",
   "UNKNOWN_ERROR": "An unknown error occurred. Please try again."
 }

@@ -7,16 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Footer } from '@/components/layout/footer';
 import { Music2, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { ApiError } from '@/lib/api-client';
+import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 
 export default function RegisterPage() {
   const t = useTranslations('auth');
   const { register, sendEmailCode, verifyEmailCode } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [step, setStep] = useState<'enter_details' | 'verify_code'>('enter_details');
   const [email, setEmail] = useState('');
@@ -29,6 +31,7 @@ export default function RegisterPage() {
   const [passwordError, setPasswordError] = useState('');
   const [codeError, setCodeError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const returnUrl = searchParams.get('returnUrl');
 
   // 存储 challenge_id 和 verified_token
   const [challengeId, setChallengeId] = useState('');
@@ -126,7 +129,7 @@ export default function RegisterPage() {
       // 第二步：注册（会自动登录）
       await register(email, password, displayName || email.split('@')[0], token);
 
-      router.push('/upload');
+      router.push(getSafeReturnUrl(returnUrl));
     } catch (err) {
       if (err instanceof ApiError) {
         setCodeError(err.message || t('verifyFailed'));
@@ -231,7 +234,7 @@ export default function RegisterPage() {
           </Button>
           <p className="text-sm text-muted-foreground">
             {t('haveAccount')}{' '}
-            <Link href="/login" className="font-semibold text-white hover:underline">
+            <Link href={withReturnUrl('/login', returnUrl)} className="font-semibold text-white hover:underline">
               {t('loginHere')}
             </Link>
           </p>

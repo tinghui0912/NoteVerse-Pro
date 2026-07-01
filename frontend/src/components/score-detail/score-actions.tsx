@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Download, Edit, FileImage, FileMusic, Gamepad2, Globe2, Loader2, Share2 } from 'lucide-react';
+import { ChevronDown, Download, Edit, FileImage, FileMusic, Gamepad2, Globe2, Loader2, Share2, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ScoreShareDialog } from '@/components/score-detail/score-share-dialog';
+import { ScoreCollaborationDialog } from '@/components/score-detail/score-collaboration-dialog';
 import { useDownload } from '@/hooks/use-download';
 import {
   usePublishScore,
@@ -43,6 +44,7 @@ export function ScoreActions({
   const unpublish = useUnpublishScore(scoreId);
   const { handleDownload } = useDownload({ mode: 'score', id: scoreId, imageCount, artifacts });
   const [shareOpen, setShareOpen] = useState(false);
+  const [collaborationOpen, setCollaborationOpen] = useState(false);
   const isPublished = publication.data?.data?.status === 'PUBLISHED';
   const { capabilities } = useScoreShell();
 
@@ -87,9 +89,15 @@ export function ScoreActions({
             </Button>
           ) : null}
           {capabilities.can_manage_sharing ? (
-            <Button variant="outline" className={`${buttonClass} col-span-2`} onClick={() => setShareOpen(true)}>
+            <Button variant="outline" className={buttonClass} onClick={() => setShareOpen(true)}>
               <Share2 className={iconClass} />
               <span className="truncate">{t('createShareAction')}</span>
+            </Button>
+          ) : null}
+          {capabilities.can_manage_members ? (
+            <Button variant="outline" className={buttonClass} onClick={() => setCollaborationOpen(true)}>
+              <Users className={iconClass} />
+              <span className="truncate">{t('collaborationAction')}</span>
             </Button>
           ) : null}
           {capabilities.can_publish ? (
@@ -109,6 +117,14 @@ export function ScoreActions({
         <ScoreShareDialog
           open={shareOpen}
           onOpenChange={setShareOpen}
+          scoreTitle={scoreTitle}
+          scoreId={scoreId}
+        />
+      ) : null}
+      {capabilities.can_manage_members ? (
+        <ScoreCollaborationDialog
+          open={collaborationOpen}
+          onOpenChange={setCollaborationOpen}
           scoreTitle={scoreTitle}
           scoreId={scoreId}
         />

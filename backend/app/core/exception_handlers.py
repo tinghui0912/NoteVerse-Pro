@@ -2,6 +2,7 @@
 
 import traceback
 from collections.abc import Sequence
+from copy import deepcopy
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -37,6 +38,18 @@ def _error_payload(
     }
 
 
+def _json_safe_errors(errors: list[dict[str, object]]) -> list[dict[str, object]]:
+    safe_errors = deepcopy(errors)
+    for item in safe_errors:
+        ctx = item.get("ctx")
+        if isinstance(ctx, dict):
+            item["ctx"] = {
+                key: value if isinstance(value, str | int | float | bool | type(None)) else str(value)
+                for key, value in ctx.items()
+            }
+    return safe_errors
+
+
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     logger.warning(f"Application error: {exc.code} | details={exc.details}")
     return JSONResponse(
@@ -59,7 +72,7 @@ async def validation_exception_handler(
         content=_error_payload(
             error="Request validation failed",
             code=ErrorCode.VALIDATION_ERROR,
-            details=exc.errors(),
+            details=_json_safe_errors(exc.errors()),
         ),
     )
 
@@ -74,7 +87,7 @@ async def pydantic_validation_exception_handler(
         content=_error_payload(
             error="Data validation failed",
             code=ErrorCode.VALIDATION_ERROR,
-            details=exc.errors(),
+            details=_json_safe_errors(exc.errors()),
         ),
     )
 

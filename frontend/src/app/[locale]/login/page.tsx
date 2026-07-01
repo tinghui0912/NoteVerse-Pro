@@ -8,28 +8,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Footer } from '@/components/layout/footer';
 import { Music2, Loader2 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
-
-function getSafeReturnUrl(value: string | null): string {
-    if (!value || !value.startsWith('/') || value.startsWith('//')) {
-        return '/upload';
-    }
-
-    return value;
-}
+import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 
 export default function LoginPage() {
     const t = useTranslations('auth');
     const { login } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const returnUrl = searchParams.get('returnUrl');
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,9 +34,7 @@ export default function LoginPage() {
         try {
             await login(email, password);
             // 从 URL 获取 returnUrl 参数，如果没有则跳转到 /upload
-            const searchParams = new URLSearchParams(window.location.search);
-            const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl'));
-            router.push(returnUrl);
+            router.push(getSafeReturnUrl(returnUrl));
         } catch (err) {
             // 使用前端翻译显示错误信息，而不是直接使用后端返回的中文
             if (err instanceof ApiError && err.status === 401) {
@@ -129,7 +122,7 @@ export default function LoginPage() {
                             <p className="text-sm text-muted-foreground">
                                 {t('noAccount')}{' '}
                                 <Link
-                                    href="/register"
+                                    href={withReturnUrl('/register', returnUrl)}
                                     className="font-semibold text-white hover:underline"
                                 >
                                     {t('registerHere')}

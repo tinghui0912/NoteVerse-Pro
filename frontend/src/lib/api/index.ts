@@ -29,6 +29,7 @@ export { profileApi } from './profile';
 export { practiceApi } from './practice';
 export { scoresApi } from './scores';
 export { scoreSharingApi } from './score-sharing';
+export { scoreInvitesApi } from './score-invites';
 export { publicationsApi } from './publications';
 export { libraryApi } from './library';
 export { myScoresApi } from './my-scores';

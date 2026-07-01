@@ -35,7 +35,7 @@ Current status:
 - `/share/:token` and `/public/:slug` are access-entry routes that reuse Score viewing/player UI.
 - `ScoreShell` owns shared visual framing and now provides score capabilities through context.
 - Feature folders such as `components/editor`, `components/review`, and `components/practice` remain as workspace implementation boundaries. They are not route-level product resources.
-- `/invite/:token` is still a future access-entry route.
+- `/invite/:token` is an implemented access-entry route.
 
 ## Target Architecture
 
@@ -60,7 +60,7 @@ Score
 ```text
 /share/:token               share-token access context, reuses score viewing/player UI
 /public/:slug               public publication access context, reuses score viewing/player UI
-/invite/:token              future invite acceptance entry, redirects to /score/:id after membership is created
+/invite/:token              invite acceptance entry, redirects to /score/:id after membership is created
 ```
 
 Share, public publication, and invite are access entries. They are not independent Score product surfaces.

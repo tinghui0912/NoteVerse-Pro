@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     AUTH_COOKIE_SECURE: bool = False
     AUTH_COOKIE_SAMESITE: str = "lax"
     DEBUG: bool = False
+    FRONTEND_BASE_URL: str = "http://localhost:9002"
     PRACTICE_MATCHMAKER_FRAME_RATE: int = 30
     PRACTICE_AUDIO_RMS_GATE: float = 0.015
     PRACTICE_AUDIO_PEAK_GATE: float = 0.06
@@ -186,13 +187,9 @@ class Settings(BaseSettings):
     VEROVIO_PREVIEW_HEADER_POSTPROCESSING: bool = True
 
     # Email
-    MAIL_SERVER: str
-    MAIL_PORT: int
-    MAIL_USE_SSL: bool
-    MAIL_USE_TLS: bool = False
-    MAIL_USERNAME: str
-    MAIL_PASSWORD: str
     MAIL_DEFAULT_SENDER: Optional[str] = None
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_API_URL: str = "https://api.resend.com/emails"
 
     # Email verification
     EMAIL_CODE_TTL_SECONDS: int = 180
@@ -207,8 +204,6 @@ class Settings(BaseSettings):
             object.__setattr__(self, "CELERY_BROKER_URL", self.REDIS_URL)
         if self.CELERY_RESULT_BACKEND is None:
             object.__setattr__(self, "CELERY_RESULT_BACKEND", self.REDIS_URL)
-        if self.MAIL_DEFAULT_SENDER is None:
-            object.__setattr__(self, "MAIL_DEFAULT_SENDER", self.MAIL_USERNAME)
         return self
 
     @model_validator(mode="after")

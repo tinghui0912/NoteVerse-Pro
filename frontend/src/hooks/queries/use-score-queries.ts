@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { publicationsApi, scoreSharingApi, scoresApi } from '@/lib/api';
+import { publicationsApi, scoreInvitesApi, scoreSharingApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { FingeringHandSize } from '@/types/api';
 
@@ -172,6 +172,98 @@ export function useGrantContent(token: string) {
     queryKey: [...queryKeys.scores.grantAccess(token), 'content'] as const,
     queryFn: ({ signal }) => scoreSharingApi.content(token, signal),
     enabled: Boolean(token),
+  });
+}
+
+export function useScoreInvites(scoreId: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.scores.invites(scoreId),
+    queryFn: ({ signal }) => scoreInvitesApi.listInvites(scoreId, signal),
+    enabled: enabled && Boolean(scoreId),
+  });
+}
+
+export function useCreateScoreInvite(scoreId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Parameters<typeof scoreInvitesApi.createInvite>[1]) =>
+      scoreInvitesApi.createInvite(scoreId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.invites(scoreId) });
+    },
+  });
+}
+
+export function useRevokeScoreInvite(scoreId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => scoreInvitesApi.revokeInvite(scoreId, inviteId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.invites(scoreId) });
+    },
+  });
+}
+
+export function useDeleteScoreInvite(scoreId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => scoreInvitesApi.deleteInvite(scoreId, inviteId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.invites(scoreId) });
+    },
+  });
+}
+
+export function useScoreMembers(scoreId: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.scores.members(scoreId),
+    queryFn: ({ signal }) => scoreInvitesApi.listMembers(scoreId, signal),
+    enabled: enabled && Boolean(scoreId),
+  });
+}
+
+export function useUpdateScoreMember(scoreId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ membershipId, role }: { membershipId: number; role: 'EDITOR' | 'VIEWER' }) =>
+      scoreInvitesApi.updateMember(scoreId, membershipId, { role }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.members(scoreId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(scoreId) });
+    },
+  });
+}
+
+export function useRemoveScoreMember(scoreId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (membershipId: number) => scoreInvitesApi.removeMember(scoreId, membershipId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.members(scoreId) });
+    },
+  });
+}
+
+export function useScoreInviteAccess(token: string) {
+  return useQuery({
+    queryKey: queryKeys.scores.inviteAccess(token),
+    queryFn: ({ signal }) => scoreInvitesApi.inspectInvite(token, signal),
+    enabled: Boolean(token),
+    staleTime: 0,
+  });
+}
+
+export function useAcceptScoreInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => scoreInvitesApi.acceptInvite(token),
+    onSuccess: (response) => {
+      if (response.data?.score_id) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.scores.detail(response.data.score_id),
+        });
+      }
+    },
   });
 }
 

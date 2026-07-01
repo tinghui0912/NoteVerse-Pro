@@ -10,6 +10,7 @@ const namespaces = [
   'editor',
   'score',
   'scoreShare',
+  'scoreCollaboration',
   'errors',
   'library',
   'myScores',

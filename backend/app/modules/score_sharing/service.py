@@ -45,6 +45,13 @@ from app.shared.constants import ErrorCode
 from app.utils.timezone import to_utc_naive, utc_now_naive
 
 
+SHARE_TOKEN_BYTES = 32
+
+
+def generate_share_token() -> str:
+    return secrets.token_urlsafe(SHARE_TOKEN_BYTES)
+
+
 class ScoreSharingService:
     def __init__(
         self,
@@ -88,7 +95,7 @@ class ScoreSharingService:
             )
             target_revision_uuid = target.revision.revision_uuid
         grant_uuid = str(uuid.uuid4())
-        token = f"{grant_uuid}.{secrets.token_urlsafe(32)}"
+        token = generate_share_token()
         now = utc_now_naive()
         expires_at = to_utc_naive(request.expires_at)
         grant = ScoreShareGrant(

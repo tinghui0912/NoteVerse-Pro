@@ -35,9 +35,11 @@ from .score import (
 )
 from .score_access import (
     AccessOrigin,
+    InviteStatus,
     MembershipRole,
     PublicationDiscoverability,
     PublicationStatus,
+    ScoreInvite,
     ScoreMembership,
     ScorePublication,
     ScoreShareGrant,
@@ -75,9 +77,11 @@ __all__ = [
     "TaxonomyCategory",
     "TaxonomyTag",
     "AccessOrigin",
+    "InviteStatus",
     "MembershipRole",
     "PublicationDiscoverability",
     "PublicationStatus",
+    "ScoreInvite",
     "ScoreMembership",
     "ScorePublication",
     "ScoreShareGrant",

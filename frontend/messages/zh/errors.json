@@ -3,5 +3,11 @@
   "SHARE_NOT_FOUND": "该分享链接不存在或已被删除。",
   "SHARE_REVOKED": "分享者已取消你对此链接的访问权限。",
   "SHARE_EXPIRED": "该分享链接已过期。",
+  "invite_not_found": "该邀请链接不存在或已被删除。",
+  "invite_expired": "该邀请链接已过期。",
+  "invite_revoked": "该邀请链接已被撤销。",
+  "invite_already_accepted": "该邀请链接已经被接受。",
+  "invite_email_mismatch": "当前账号邮箱与邀请邮箱不一致。",
+  "membership_not_found": "协作者不存在或已被移除。",
   "UNKNOWN_ERROR": "发生未知错误，请稍后重试。"
 }

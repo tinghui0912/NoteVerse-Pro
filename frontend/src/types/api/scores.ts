@@ -13,6 +13,7 @@ export interface ScoreCapabilities {
   can_edit: boolean;
   can_delete: boolean;
   can_manage_sharing: boolean;
+  can_manage_members: boolean;
   can_download: boolean;
   can_practice: boolean;
   can_publish: boolean;
@@ -146,6 +147,62 @@ export interface ScoreGrantBookmark {
   available: boolean;
   unavailable_reason: string | null;
   created_at: string;
+}
+
+export type MembershipRole = 'EDITOR' | 'VIEWER';
+export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+
+export interface InviteActor {
+  display_name: string | null;
+  email: string;
+  avatar_url: string | null;
+}
+
+export interface ScoreInvite {
+  invite_id: string;
+  email: string;
+  role: MembershipRole;
+  status: InviteStatus;
+  expires_at: string | null;
+  accepted_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  created_by: InviteActor | null;
+  accepted_by: InviteActor | null;
+}
+
+export interface CreatedScoreInvite extends ScoreInvite {
+  token: string;
+}
+
+export interface ScoreInviteAccess {
+  invite_id: string;
+  score_id: string;
+  score_title: string;
+  inviter: InviteActor | null;
+  email: string;
+  role: MembershipRole;
+  status: InviteStatus;
+  expires_at: string | null;
+  requires_login: boolean;
+  can_accept: boolean;
+}
+
+export interface ScoreInviteAcceptResult {
+  score_id: string;
+  role: MembershipRole;
+  membership_id: number | null;
+}
+
+export interface ScoreMember {
+  membership_id: number;
+  user_id: number;
+  display_name: string | null;
+  email: string;
+  avatar_url: string | null;
+  role: MembershipRole;
+  created_at: string;
+  revoked_at: string | null;
 }
 
 export interface Publication {
