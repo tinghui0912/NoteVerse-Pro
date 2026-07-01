@@ -6,6 +6,7 @@ import { useRouter, usePathname, Link } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
+  Bell,
   Check,
   Globe,
   Heart,
@@ -28,6 +29,8 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ClientOnly } from '../client-only';
+import { useMyPendingScoreInvites } from '@/hooks/queries/use-score-queries';
+import { PendingInvitesDialog } from '@/components/score-detail/pending-invites-dialog';
 
 const UserMenu = () => {
   const { user, logout } = useAuth();
@@ -80,6 +83,34 @@ const UserMenu = () => {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+};
+
+const NotificationBell = () => {
+  const t = useTranslations('scoreCollaboration');
+  const [isInvitesOpen, setIsInvitesOpen] = useState(false);
+  const pendingInvites = useMyPendingScoreInvites(true);
+  const pendingInviteCount = pendingInvites.data?.data?.length ?? 0;
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={t('myInvitesMenu')}
+        className="relative rounded-full text-white hover:bg-white/20 hover:text-white"
+        onClick={() => setIsInvitesOpen(true)}
+      >
+        <Bell className="h-5 w-5" />
+        {pendingInviteCount > 0 ? (
+          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[11px] font-semibold text-white">
+            {pendingInviteCount}
+          </span>
+        ) : null}
+      </Button>
+      <PendingInvitesDialog open={isInvitesOpen} onOpenChange={setIsInvitesOpen} />
+    </>
   );
 };
 
@@ -179,7 +210,10 @@ export default function PillNav() {
               {isLoading ? (
                 <div className="hidden md:block h-10 w-10 rounded-full bg-white/20" />
               ) : isAuthenticated ? (
-                <UserMenu />
+                <>
+                  <NotificationBell />
+                  <UserMenu />
+                </>
               ) : (
                 <Link
                   href="/login"

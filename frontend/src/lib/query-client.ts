@@ -60,6 +60,7 @@ export const queryKeys = {
             ['scores', 'artifact', { scoreId, revisionId: revisionId ?? null, kind: kind ?? null }] as const,
         grants: (scoreId: string) => ['scores', 'grant', { scoreId }] as const,
         grantAccess: (token: string) => ['scores', 'grant-access', { token }] as const,
+        myInvites: () => ['scores', 'my-invites'] as const,
         invites: (scoreId: string) => ['scores', 'invite', { scoreId }] as const,
         inviteAccess: (token: string) => ['scores', 'invite-access', { token }] as const,
         members: (scoreId: string) => ['scores', 'member', { scoreId }] as const,

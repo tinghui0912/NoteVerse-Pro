@@ -12,4 +12,8 @@ def dispatch_email(
     """Enqueue an email for background delivery."""
     from app.worker.tasks import send_email_task
 
-    return send_email_task.delay(to_email, subject, body, html_body)
+    return send_email_task.apply_async(
+        args=(to_email, subject, body, html_body),
+        ignore_result=True,
+        retry=False,
+    )

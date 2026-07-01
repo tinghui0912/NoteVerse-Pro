@@ -57,6 +57,7 @@ class ErrorCode:
     INVITE_NOT_FOUND = "invite_not_found"
     INVITE_EXPIRED = "invite_expired"
     INVITE_REVOKED = "invite_revoked"
+    INVITE_DECLINED = "invite_declined"
     INVITE_ALREADY_ACCEPTED = "invite_already_accepted"
     INVITE_EMAIL_MISMATCH = "invite_email_mismatch"
     MEMBERSHIP_NOT_FOUND = "membership_not_found"
@@ -121,6 +122,7 @@ class SuccessCode:
     INVITE_CREATED = "invite_created"
     INVITE_ACCEPTED = "invite_accepted"
     INVITE_REVOKED = "invite_revoked"
+    INVITE_DECLINED = "invite_declined"
     MEMBER_UPDATED = "member_updated"
     MEMBER_REMOVED = "member_removed"
 

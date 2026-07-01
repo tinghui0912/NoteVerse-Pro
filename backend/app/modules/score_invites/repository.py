@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import ScoreInvite, ScoreMembership, User
+from app.db.models.score_access import InviteStatus
 
 
 invite_created_col = ScoreInvite.__table__.c.created_at
@@ -31,6 +32,22 @@ class ScoreInviteRepository:
                 await db.execute(
                     select(ScoreInvite)
                     .where(ScoreInvite.score_id == score_id)
+                    .order_by(invite_created_col.desc())
+                )
+            ).scalars().all()
+        )
+
+    async def pending_invites_for_email(
+        self, db: AsyncSession, email: str
+    ) -> list[ScoreInvite]:
+        return list(
+            (
+                await db.execute(
+                    select(ScoreInvite)
+                    .where(
+                        ScoreInvite.email == email,
+                        ScoreInvite.status == InviteStatus.PENDING,
+                    )
                     .order_by(invite_created_col.desc())
                 )
             ).scalars().all()

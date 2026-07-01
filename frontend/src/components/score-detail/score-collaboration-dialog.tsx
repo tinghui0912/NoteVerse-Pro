@@ -115,11 +115,12 @@ export function ScoreCollaborationDialog({
         },
         onError: (error) => {
           const validationFailed = error instanceof ApiError && error.status === 422;
+          const serverFailed = error instanceof ApiError && error.status >= 500;
           toast({
             title: validationFailed ? t('emailInvalid') : t('inviteFailed'),
             description: validationFailed
               ? t('emailInvalidDescription')
-              : error instanceof ApiError
+              : error instanceof ApiError && !serverFailed
                 ? error.message
                 : t('inviteFailedDescription'),
             variant: 'destructive',

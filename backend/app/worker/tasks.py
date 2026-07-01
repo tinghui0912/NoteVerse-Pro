@@ -35,6 +35,7 @@ def process_images_job(
     bind=True,
     name="app.worker.tasks.send_email_task",
     autoretry_for=(MailTransientError,),
+    ignore_result=True,
     retry_backoff=True,
     retry_jitter=True,
     retry_kwargs={"max_retries": 3},

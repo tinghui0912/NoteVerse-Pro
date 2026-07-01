@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   CreatedScoreInvite,
   MembershipRole,
+  PendingScoreInvite,
   ScoreInvite,
   ScoreInviteAcceptResult,
   ScoreInviteAccess,
@@ -33,4 +34,10 @@ export const scoreInvitesApi = {
     }),
   acceptInvite: (token: string) =>
     apiClient.post<ApiResponse<ScoreInviteAcceptResult>>(`/invites/${token}/accept`),
+  listMyPendingInvites: (signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<PendingScoreInvite[]>>('/me/invites', undefined, { signal }),
+  acceptMyPendingInvite: (inviteId: string) =>
+    apiClient.post<ApiResponse<ScoreInviteAcceptResult>>(`/me/invites/${inviteId}/accept`),
+  declineMyPendingInvite: (inviteId: string) =>
+    apiClient.post<ApiResponse<PendingScoreInvite>>(`/me/invites/${inviteId}/decline`),
 };

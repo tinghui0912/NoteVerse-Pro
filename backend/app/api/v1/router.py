@@ -16,6 +16,7 @@ from app.modules.scores.router import router as scores
 from app.modules.score_sharing.router import grant_router as score_grants
 from app.modules.score_sharing.router import score_router as score_sharing
 from app.modules.score_invites.router import invite_router as score_invite_entries
+from app.modules.score_invites.router import me_router as score_invite_me
 from app.modules.score_invites.router import score_router as score_invites
 
 api_router = APIRouter()
@@ -31,6 +32,7 @@ api_router.include_router(score_sharing, prefix="/scores", tags=["Score Sharing"
 api_router.include_router(score_invites, prefix="/scores", tags=["Score Collaboration"])
 api_router.include_router(score_grants, prefix="/score-grants", tags=["Score Sharing"])
 api_router.include_router(score_invite_entries, prefix="/invites", tags=["Score Collaboration"])
+api_router.include_router(score_invite_me, prefix="/me", tags=["Score Collaboration"])
 api_router.include_router(score_publications, prefix="/scores", tags=["Publications"])
 api_router.include_router(publications, prefix="/publications", tags=["Publications"])
 api_router.include_router(score_artifact_router, prefix="/scores", tags=["Score Artifacts"])

@@ -40,9 +40,21 @@
   "openScore": "Open score",
   "accepted": "Invite accepted",
   "acceptedDescription": "You can now access this score.",
+  "acceptFailed": "Unable to accept invite",
   "alreadyAccepted": "This invite has already been accepted.",
   "cannotAccept": "This account cannot accept the invite.",
   "acceptFailedDescription": "Please try again later.",
+  "myInvitesMenu": "Invitations",
+  "myInvitesTitle": "Pending invitations",
+  "myInvitesDescription": "Invites sent to your account email appear here.",
+  "loadingInvites": "Loading invitations...",
+  "noPendingPersonalInvites": "No pending invitations.",
+  "personalInviteFrom": "{name} invited you to collaborate",
+  "declineInvite": "Decline",
+  "declined": "Invite declined",
+  "declinedDescription": "The invitation was removed from your pending list.",
+  "declineFailed": "Unable to decline invite",
+  "declineFailedDescription": "Please try again later.",
   "expiresAt": "Expires",
   "loadFailed": "Unable to load invite",
   "loadFailedDescription": "Check the invite link or ask the score owner to send a new one.",
@@ -57,6 +69,7 @@
     "pending": "Pending",
     "accepted": "Accepted",
     "revoked": "Revoked",
-    "expired": "Expired"
+    "expired": "Expired",
+    "declined": "Declined"
   }
 }

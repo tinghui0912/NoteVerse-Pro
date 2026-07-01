@@ -32,6 +32,18 @@ celery_app.conf.update(
     task_acks_on_failure_or_timeout=True,
     task_soft_time_limit=settings.CELERY_TASK_SOFT_TIME_LIMIT,
     task_time_limit=settings.CELERY_TASK_TIME_LIMIT,
+    broker_connection_timeout=2,
+    broker_transport_options={
+        "socket_connect_timeout": 2,
+        "socket_timeout": 2,
+        "retry_on_timeout": False,
+        "max_retries": 1,
+    },
+    result_backend_transport_options={
+        "socket_connect_timeout": 2,
+        "socket_timeout": 2,
+        "retry_on_timeout": False,
+    },
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=50,
     result_expires=3600,

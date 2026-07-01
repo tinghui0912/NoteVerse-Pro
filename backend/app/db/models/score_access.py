@@ -36,6 +36,7 @@ class InviteStatus(str, enum.Enum):
     ACCEPTED = "ACCEPTED"
     REVOKED = "REVOKED"
     EXPIRED = "EXPIRED"
+    DECLINED = "DECLINED"
 
 
 class ShareTargetMode(str, enum.Enum):
@@ -138,6 +139,7 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
     expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     accepted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    declined_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
 
 
 class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]

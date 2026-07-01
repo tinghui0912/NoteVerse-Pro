@@ -150,7 +150,7 @@ export interface ScoreGrantBookmark {
 }
 
 export type MembershipRole = 'EDITOR' | 'VIEWER';
-export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED' | 'DECLINED';
 
 export interface InviteActor {
   display_name: string | null;
@@ -166,6 +166,7 @@ export interface ScoreInvite {
   expires_at: string | null;
   accepted_at: string | null;
   revoked_at: string | null;
+  declined_at: string | null;
   created_at: string;
   created_by: InviteActor | null;
   accepted_by: InviteActor | null;
@@ -186,6 +187,18 @@ export interface ScoreInviteAccess {
   expires_at: string | null;
   requires_login: boolean;
   can_accept: boolean;
+}
+
+export interface PendingScoreInvite {
+  invite_id: string;
+  score_id: string;
+  score_title: string;
+  inviter: InviteActor | null;
+  email: string | null;
+  role: MembershipRole;
+  status: InviteStatus;
+  expires_at: string | null;
+  created_at: string;
 }
 
 export interface ScoreInviteAcceptResult {

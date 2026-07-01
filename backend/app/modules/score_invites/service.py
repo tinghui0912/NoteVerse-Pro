@@ -25,6 +25,7 @@ from app.modules.score_invites.schemas import (
     InviteRead,
     MemberRead,
     MemberUpdateRequest,
+    PendingInviteRead,
 )
 from app.shared.mail_dispatcher import dispatch_email
 from app.shared.constants import ErrorCode
@@ -146,6 +147,42 @@ class ScoreInviteService:
         self, db: AsyncSession, token: str, user_id: int
     ) -> InviteAcceptRead:
         invite = await self._invite_by_token(db, token)
+        return await self._accept_invite_record(db, invite, user_id)
+
+    async def list_my_pending_invites(
+        self, db: AsyncSession, user_id: int
+    ) -> list[PendingInviteRead]:
+        user = await db.get(User, user_id)
+        if user is None:
+            raise UnauthorizedException(ErrorCode.NO_ACCESS)
+        invites = await self.repository.pending_invites_for_email(db, user.email.lower())
+        active_invites: list[PendingInviteRead] = []
+        for invite in invites:
+            if self._display_status(invite) == InviteStatus.PENDING:
+                active_invites.append(await self._pending_invite_read(db, invite))
+        return active_invites
+
+    async def accept_pending_invite(
+        self, db: AsyncSession, invite_uuid: str, user_id: int
+    ) -> InviteAcceptRead:
+        invite = await self._invite_by_uuid(db, invite_uuid)
+        await self._ensure_invite_target_user(db, invite, user_id)
+        return await self._accept_invite_record(db, invite, user_id)
+
+    async def decline_pending_invite(
+        self, db: AsyncSession, invite_uuid: str, user_id: int
+    ) -> PendingInviteRead:
+        invite = await self._invite_by_uuid(db, invite_uuid)
+        await self._ensure_invite_target_user(db, invite, user_id)
+        invite.status = InviteStatus.DECLINED
+        invite.declined_at = utc_now_naive()
+        await db.commit()
+        await db.refresh(invite)
+        return await self._pending_invite_read(db, invite)
+
+    async def _accept_invite_record(
+        self, db: AsyncSession, invite: ScoreInvite, user_id: int
+    ) -> InviteAcceptRead:
         user = await db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
@@ -267,7 +304,36 @@ class ScoreInviteService:
             raise ValidationException(ErrorCode.INVITE_REVOKED, field="token")
         if status == InviteStatus.ACCEPTED:
             raise ValidationException(ErrorCode.INVITE_ALREADY_ACCEPTED, field="token")
+        if status == InviteStatus.DECLINED:
+            raise ValidationException(ErrorCode.INVITE_DECLINED, field="token")
         return invite
+
+    async def _invite_by_uuid(self, db: AsyncSession, invite_uuid: str) -> ScoreInvite:
+        invite = await self.repository.invite_by_uuid(db, invite_uuid)
+        if not invite:
+            raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
+        status = self._display_status(invite)
+        if status == InviteStatus.EXPIRED:
+            invite.status = InviteStatus.EXPIRED
+            await db.commit()
+            raise ValidationException(ErrorCode.INVITE_EXPIRED, field="invite_id")
+        if status == InviteStatus.REVOKED:
+            raise ValidationException(ErrorCode.INVITE_REVOKED, field="invite_id")
+        if status == InviteStatus.ACCEPTED:
+            raise ValidationException(ErrorCode.INVITE_ALREADY_ACCEPTED, field="invite_id")
+        if status == InviteStatus.DECLINED:
+            raise ValidationException(ErrorCode.INVITE_DECLINED, field="invite_id")
+        return invite
+
+    async def _ensure_invite_target_user(
+        self, db: AsyncSession, invite: ScoreInvite, user_id: int
+    ) -> User:
+        user = await db.get(User, user_id)
+        if user is None:
+            raise UnauthorizedException(ErrorCode.NO_ACCESS)
+        if not self._can_user_accept(invite, user):
+            raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
+        return user
 
     async def _membership_for_score(
         self, db: AsyncSession, score: Score, membership_id: int
@@ -302,9 +368,28 @@ class ScoreInviteService:
             expires_at=invite.expires_at,
             accepted_at=invite.accepted_at,
             revoked_at=invite.revoked_at,
+            declined_at=invite.declined_at,
             created_at=invite.created_at,
             created_by=await self._actor(db, invite.created_by_user_id),
             accepted_by=await self._actor(db, invite.accepted_by_user_id),
+        )
+
+    async def _pending_invite_read(
+        self, db: AsyncSession, invite: ScoreInvite
+    ) -> PendingInviteRead:
+        score = await db.get(Score, invite.score_id)
+        if not score:
+            raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
+        return PendingInviteRead(
+            invite_id=invite.invite_uuid,
+            score_id=score.score_uuid,
+            score_title=score.title,
+            inviter=await self._actor(db, invite.created_by_user_id),
+            email=invite.email,
+            role=invite.role,
+            status=self._display_status(invite),
+            expires_at=invite.expires_at,
+            created_at=invite.created_at,
         )
 
     async def _member_read(self, db: AsyncSession, membership: ScoreMembership) -> MemberRead:

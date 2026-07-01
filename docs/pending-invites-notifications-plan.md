@@ -301,16 +301,33 @@ Because pending invite lookup is email-based, once the user registers and logs i
 
 ## Implementation Order
 
-1. Backend enum/model/schema changes.
-2. Alembic migration.
-3. Repository method and service APIs.
-4. Router endpoints under `/me/invites`.
-5. Backend tests.
-6. Frontend types and API client.
-7. Query keys/hooks.
-8. Pending invites dialog in account/nav area.
-9. i18n strings.
-10. Frontend checks and E2E smoke if practical.
+1. Backend enum/model/schema changes. `Completed`
+2. Alembic migration. `Completed`
+3. Repository method and service APIs. `Completed`
+4. Router endpoints under `/me/invites`. `Completed`
+5. Backend tests. `Completed`
+6. Frontend types and API client. `Completed`
+7. Query keys/hooks. `Completed`
+8. Pending invites dialog in account/nav area. `Completed`
+9. i18n strings. `Completed`
+10. Frontend checks and E2E smoke if practical. `Partially completed`
+
+## Current Implementation Notes
+
+- Pending invites use `score_invites` as the source of truth.
+- `/api/v1/me/invites` returns only active pending invites addressed to the signed-in user's email.
+- `/api/v1/me/invites/{invite_id}/accept` reuses the same membership creation and role-upgrade logic as token-based invite acceptance.
+- `/api/v1/me/invites/{invite_id}/decline` marks the invite as `DECLINED` and stores `declined_at`.
+- The frontend account menu shows a count badge when pending invites exist.
+- The account menu opens `PendingInvitesDialog`, where users can accept or decline invites.
+- Accepting a pending invite redirects to `/score/:id`.
+
+## Remaining Follow-Ups
+
+- Run backend Docker migration and pytest once Docker Desktop is available.
+- Add an E2E flow for user B logging in, seeing the pending invite count, accepting, and landing on `/score/:id`.
+- Consider a dedicated `/invitations` page only if users commonly have long invite lists.
+- Introduce a generic `notifications` table only after there are multiple notification types beyond collaboration invites.
 
 ## Verification Commands
 
@@ -329,4 +346,3 @@ cd frontend
 npm run typecheck
 npm run lint
 ```
-

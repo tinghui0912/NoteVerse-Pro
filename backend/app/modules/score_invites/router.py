@@ -13,6 +13,7 @@ from app.modules.score_invites.schemas import (
     InviteRead,
     MemberRead,
     MemberUpdateRequest,
+    PendingInviteRead,
 )
 from app.modules.score_invites.service import ScoreInviteService
 from app.shared.constants import SuccessCode
@@ -20,6 +21,7 @@ from app.shared.responses import APIResponse, success_response
 
 score_router = APIRouter()
 invite_router = APIRouter()
+me_router = APIRouter()
 
 
 @score_router.get("/{score_id}/invites", response_model=APIResponse[list[InviteRead]])
@@ -134,3 +136,38 @@ async def accept_invite(
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.accept_invite(db, token, user_id)
     return success_response(data=result, message=SuccessCode.INVITE_ACCEPTED)
+
+
+@me_router.get("/invites", response_model=APIResponse[list[PendingInviteRead]])
+async def list_my_pending_invites(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreInviteService = Depends(get_score_invite_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.list_my_pending_invites(db, user_id)
+    return success_response(data=result)
+
+
+@me_router.post("/invites/{invite_id}/accept", response_model=APIResponse[InviteAcceptRead])
+async def accept_my_pending_invite(
+    invite_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreInviteService = Depends(get_score_invite_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.accept_pending_invite(db, invite_id, user_id)
+    return success_response(data=result, message=SuccessCode.INVITE_ACCEPTED)
+
+
+@me_router.post("/invites/{invite_id}/decline", response_model=APIResponse[PendingInviteRead])
+async def decline_my_pending_invite(
+    invite_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreInviteService = Depends(get_score_invite_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.decline_pending_invite(db, invite_id, user_id)
+    return success_response(data=result, message=SuccessCode.INVITE_DECLINED)

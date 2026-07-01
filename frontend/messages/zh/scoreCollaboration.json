@@ -40,9 +40,21 @@
   "openScore": "打开乐谱",
   "accepted": "邀请已接受",
   "acceptedDescription": "你现在可以访问这份乐谱。",
+  "acceptFailed": "无法接受邀请",
   "alreadyAccepted": "这个邀请已经被接受。",
   "cannotAccept": "当前账号不能接受这个邀请。",
   "acceptFailedDescription": "请稍后重试。",
+  "myInvitesMenu": "邀请",
+  "myInvitesTitle": "待处理邀请",
+  "myInvitesDescription": "发送到你账号邮箱的协作邀请会显示在这里。",
+  "loadingInvites": "正在加载邀请...",
+  "noPendingPersonalInvites": "暂无待处理邀请。",
+  "personalInviteFrom": "{name} 邀请你协作",
+  "declineInvite": "拒绝",
+  "declined": "邀请已拒绝",
+  "declinedDescription": "这个邀请已从待处理列表中移除。",
+  "declineFailed": "无法拒绝邀请",
+  "declineFailedDescription": "请稍后重试。",
   "expiresAt": "过期时间",
   "loadFailed": "无法加载邀请",
   "loadFailedDescription": "请确认邀请链接是否正确，或联系乐谱所有者重新发送。",
@@ -57,6 +69,7 @@
     "pending": "待接受",
     "accepted": "已接受",
     "revoked": "已撤销",
-    "expired": "已过期"
+    "expired": "已过期",
+    "declined": "已拒绝"
   }
 }

@@ -258,11 +258,46 @@ export function useAcceptScoreInvite() {
   return useMutation({
     mutationFn: (token: string) => scoreInvitesApi.acceptInvite(token),
     onSuccess: (response) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
       if (response.data?.score_id) {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.scores.detail(response.data.score_id),
         });
       }
+    },
+  });
+}
+
+export function useMyPendingScoreInvites(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.scores.myInvites(),
+    queryFn: ({ signal }) => scoreInvitesApi.listMyPendingInvites(signal),
+    enabled,
+  });
+}
+
+export function useAcceptMyPendingScoreInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => scoreInvitesApi.acceptMyPendingInvite(inviteId),
+    onSuccess: (response) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
+      if (response.data?.score_id) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.scores.detail(response.data.score_id),
+        });
+      }
+    },
+  });
+}
+
+export function useDeclineMyPendingScoreInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => scoreInvitesApi.declineMyPendingInvite(inviteId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
     },
   });
 }

@@ -777,6 +777,88 @@ async def test_invite_email_target_is_enforced(
 
 
 @pytest.mark.asyncio
+async def test_user_pending_invites_can_be_accepted_without_token(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    add_active_score_with_head_revision(
+        session,
+        score_id=91,
+        revision_id=92,
+        score_uuid="pending-invite-score",
+        revision_uuid="pending-invite-revision",
+        title="Pending Invite",
+    )
+    db = AsyncSessionAdapter(session)
+    service = ScoreInviteService(mail_dispatcher=lambda *_args, **_kwargs: None)
+
+    created = await service.create_invite(
+        db,  # type: ignore[arg-type]
+        "pending-invite-score",
+        1,
+        InviteCreateRequest(email="other@example.com", role=MembershipRole.EDITOR),
+    )
+    pending = await service.list_my_pending_invites(db, 2)  # type: ignore[arg-type]
+
+    assert [invite.invite_id for invite in pending] == [created.invite_id]
+    assert pending[0].score_id == "pending-invite-score"
+    assert pending[0].score_title == "Pending Invite"
+
+    accepted = await service.accept_pending_invite(
+        db,  # type: ignore[arg-type]
+        created.invite_id,
+        2,
+    )
+
+    assert accepted.score_id == "pending-invite-score"
+    assert accepted.role == MembershipRole.EDITOR
+    assert session.query(ScoreMembership).filter_by(score_id=91, user_id=2).one_or_none()
+    assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_user_pending_invites_can_be_declined(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    add_active_score_with_head_revision(
+        session,
+        score_id=93,
+        revision_id=94,
+        score_uuid="decline-invite-score",
+        revision_uuid="decline-invite-revision",
+        title="Decline Invite",
+    )
+    db = AsyncSessionAdapter(session)
+    service = ScoreInviteService(mail_dispatcher=lambda *_args, **_kwargs: None)
+
+    created = await service.create_invite(
+        db,  # type: ignore[arg-type]
+        "decline-invite-score",
+        1,
+        InviteCreateRequest(email="other@example.com", role=MembershipRole.VIEWER),
+    )
+    declined = await service.decline_pending_invite(
+        db,  # type: ignore[arg-type]
+        created.invite_id,
+        2,
+    )
+
+    stored_invite = session.query(ScoreInvite).filter_by(invite_uuid=created.invite_id).one()
+    assert declined.status == InviteStatus.DECLINED
+    assert stored_invite.status == InviteStatus.DECLINED
+    assert stored_invite.declined_at is not None
+    assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
+    with pytest.raises(ValidationException) as declined_again:
+        await service.accept_pending_invite(
+            db,  # type: ignore[arg-type]
+            created.invite_id,
+            2,
+        )
+    assert declined_again.value.code == ErrorCode.INVITE_DECLINED
+
+
+@pytest.mark.asyncio
 async def test_publication_pins_revision_until_explicit_republish(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:

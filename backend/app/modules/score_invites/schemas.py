@@ -37,6 +37,7 @@ class InviteRead(BaseModel):
     expires_at: datetime | None
     accepted_at: datetime | None
     revoked_at: datetime | None
+    declined_at: datetime | None
     created_at: datetime
     created_by: InviteActorRead | None
     accepted_by: InviteActorRead | None
@@ -44,6 +45,18 @@ class InviteRead(BaseModel):
 
 class InviteCreatedRead(InviteRead):
     token: str
+
+
+class PendingInviteRead(BaseModel):
+    invite_id: str
+    score_id: str
+    score_title: str
+    inviter: InviteActorRead | None
+    email: str | None
+    role: MembershipRole
+    status: InviteStatus
+    expires_at: datetime | None
+    created_at: datetime
 
 
 class InviteAccessRead(BaseModel):
