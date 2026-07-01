@@ -19,14 +19,19 @@ import { useDownload } from '@/hooks/use-download';
 import { useToast } from '@/hooks/use-toast';
 import { scoreSharingApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
+import { resolveScoreShellCapabilities } from '@/lib/score-shell/capabilities';
 import { formatApiDateTime, formatKeySignature } from '@/lib/score/metadata-display';
 import { SCORE_GENRE_TAGS, taxonomyTagKey } from '@/lib/score/taxonomy';
-import type { ScoreArtifact, ScoreGrantAccess, ScoreTaxonomyTag } from '@/types/api';
+import type {
+  ScoreArtifact,
+  ScoreCapabilities,
+  ScoreGrantAccess,
+  ScoreTaxonomyTag,
+} from '@/types/api';
 
 interface ShareInfoSidebarProps {
   artifacts: ScoreArtifact[];
-  canDownload: boolean;
-  canPractice: boolean;
+  capabilities?: ScoreCapabilities | null;
   imageCount: number;
   isAuthenticated: boolean;
   scoreId: string;
@@ -43,7 +48,7 @@ function fallbackInitial(name: string) {
 export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
   const t = useTranslations('share');
   const common = useTranslations('common');
-  const results = useTranslations('results');
+  const scoreText = useTranslations('score');
   const practice = useTranslations('practice');
   const scoreStyles = useTranslations('scoreStyles.genre');
   const locale = useLocale();
@@ -67,6 +72,7 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
   const genreTags = props.taxonomyTags
     .map((tag) => SCORE_GENRE_TAGS.find((item) => item.category === tag.category && item.code === tag.code))
     .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag));
+  const capabilities = resolveScoreShellCapabilities(props.capabilities);
   const actionButtonClass = 'h-16 w-full justify-start gap-3 bg-white px-4 text-left';
   const iconClass = 'h-5 w-5 shrink-0';
 
@@ -104,15 +110,15 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
 
       <Card className="rounded-2xl bg-white shadow-lg">
         <CardHeader>
-          <CardTitle>{results('scoreInfo')}</CardTitle>
+          <CardTitle>{scoreText('scoreInfo')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
           <div className="flex items-center justify-between gap-2">
-            <Label className="shrink-0 text-muted-foreground">{results('scoreName')}</Label>
+            <Label className="shrink-0 text-muted-foreground">{scoreText('scoreName')}</Label>
             <span className="flex-1 truncate text-right font-medium">{props.scoreTitle}</span>
           </div>
           <div className="flex items-start justify-between gap-4">
-            <Label className="shrink-0 pt-1 text-muted-foreground">{results('scoreStyles')}</Label>
+            <Label className="shrink-0 pt-1 text-muted-foreground">{scoreText('scoreStyles')}</Label>
             <div className="flex max-w-[70%] flex-wrap justify-end gap-2">
               {genreTags.length > 0 ? genreTags.map((tag) => (
                 <span
@@ -121,11 +127,11 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
                 >
                   {scoreStyles(tag.code)}
                 </span>
-              )) : <span className="text-sm text-muted-foreground">{results('noStyleTags')}</span>}
+              )) : <span className="text-sm text-muted-foreground">{scoreText('noStyleTags')}</span>}
             </div>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">{results('keySignature')}</span>
+            <span className="text-muted-foreground">{scoreText('keySignature')}</span>
             <span className="font-medium">
               {formatKeySignature(
                 props.shareData.metadata?.primary_key_fifths,
@@ -134,24 +140,24 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
             </span>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">{results('measureCount')}</span>
+            <span className="text-muted-foreground">{scoreText('measureCount')}</span>
             <span className="font-medium">{props.shareData.metadata?.measure_count ?? '-'}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">{results('totalPages')}</span>
-            <span className="font-medium">{results('pageCount', { count: props.imageCount })}</span>
+            <span className="text-muted-foreground">{scoreText('totalPages')}</span>
+            <span className="font-medium">{scoreText('pageCount', { count: props.imageCount })}</span>
           </div>
         </CardContent>
       </Card>
 
       <Card className="rounded-2xl bg-white shadow-lg">
         <CardHeader>
-          <CardTitle>{results('actionsTitle')}</CardTitle>
+          <CardTitle>{scoreText('actionsTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className={actionButtonClass} disabled={!props.canDownload}>
+              <Button variant="outline" className={actionButtonClass} disabled={!capabilities.can_download}>
                 <Download className={iconClass} />
                 <span className="flex min-w-0 flex-1 items-center gap-1">
                   <span className="truncate">{common('download')}</span>
@@ -162,18 +168,18 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
             <DropdownMenuContent align="start">
               <DropdownMenuItem onClick={() => handleDownload('image')}>
                 <FileImage className="mr-2 h-4 w-4" />
-                {results('downloadImage')}
+                {scoreText('downloadImage')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleDownload('xml')}>
                 <FileMusic className="mr-2 h-4 w-4" />
-                {results('downloadMusicXML')}
+                {scoreText('downloadMusicXML')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {props.canPractice ? (
+          {capabilities.can_practice ? (
             <Button asChild variant="outline" className={actionButtonClass}>
-              <Link href={`/practice/${props.scoreId}?shareToken=${props.shareId}`}>
+              <Link href={`/score/${props.scoreId}/practice?shareToken=${props.shareId}`}>
                 <Gamepad2 className={iconClass} />
                 <span className="truncate">{practice('mode')}</span>
               </Link>

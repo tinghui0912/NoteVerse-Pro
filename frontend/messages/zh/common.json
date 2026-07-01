@@ -67,5 +67,8 @@
   "pageNotFound": "页面未找到",
   "pageNotFoundDesc": "你正在查找的页面不存在或已被移除。",
   "saving": "保存中...",
-  "saved": "已保存"
+  "saved": "已保存",
+  "accessDenied": "无权访问",
+  "editAccessDeniedDesc": "你没有编辑这份乐谱的权限。",
+  "reviewAccessDeniedDesc": "你没有审核这份乐谱的权限。"
 }

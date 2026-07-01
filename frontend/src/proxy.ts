@@ -11,10 +11,7 @@ const PROTECTED_PATH_PREFIXES = [
   '/library',
   '/my-scores',
   '/profile',
-  '/review',
-  '/results',
-  '/editor',
-  '/practice',
+  '/score',
   '/share',
 ];
 
@@ -62,5 +59,11 @@ export default function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|trpc|_next|_vercel|.*\\..*).*)', '/'],
+  matcher: [
+    '/share/:path*',
+    '/zh/share/:path*',
+    '/en/share/:path*',
+    '/((?!api|trpc|_next|_vercel|.*\\..*).*)',
+    '/',
+  ],
 };

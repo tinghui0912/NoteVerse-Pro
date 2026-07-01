@@ -1,28 +1,58 @@
 'use client';
 
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Gamepad2, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Footer } from '@/components/layout/footer';
-import { ResultsScorePlayer } from '@/components/results/results-score-player';
+import { ScoreShell } from '@/components/score-shell/score-shell';
+import { ScorePlayer } from '@/components/score-detail/score-player';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { usePublicScore, usePublicScoreContent } from '@/hooks/queries/use-score-queries';
 import { filesApi, publicationsApi } from '@/lib/api';
+import { formatKeySignature } from '@/lib/score/metadata-display';
+import { resolveScoreShellCapabilities } from '@/lib/score-shell/capabilities';
 
 function PublicScoreContent({ slug }: { slug: string }) {
   const common = useTranslations('common');
-  const results = useTranslations('results');
+  const practice = useTranslations('practice');
+  const scoreText = useTranslations('score');
   const publication = usePublicScore(slug);
   const content = usePublicScoreContent(slug);
   const data = publication.data?.data;
   const rawXml = content.data?.data?.content ?? '';
+
   if (publication.isLoading || content.isLoading) {
-    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return (
+      <ScoreShell footer={false}>
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </ScoreShell>
+    );
   }
+
   if (!data || publication.error || content.error) {
-    return <div className="flex min-h-screen items-center justify-center">{common('loadFailed')}</div>;
+    return (
+      <ScoreShell>
+        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
+          {common('loadFailed')}
+        </div>
+      </ScoreShell>
+    );
   }
+
+  const capabilities = resolveScoreShellCapabilities(data.capabilities);
+  const pageCount = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE').length;
+  const scoreId = data.publication.score_id;
+  const hero = (
+    <div className="bg-gray-900">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center">
+        <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{data.title}</h1>
+      </div>
+    </div>
+  );
+
   const download = async (kind: 'MUSICXML' | 'RENDERED_PAGE') => {
     const artifacts = data.artifacts.filter((artifact) => artifact.kind === kind);
     for (const artifact of artifacts) {
@@ -30,16 +60,94 @@ function PublicScoreContent({ slug }: { slug: string }) {
       filesApi.triggerDownload(blob, artifact.filename);
     }
   };
+
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{data.title}</h1></div></div>
-      <main className="grow"><div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 lg:grid-cols-3"><div className="lg:col-span-2"><ResultsScorePlayer rawXml={rawXml} /></div><aside className="space-y-6"><Card><CardHeader><CardTitle>{results('scoreInfo')}</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><div className="flex justify-between"><span>{results('scoreName')}</span><strong>{data.title}</strong></div>{data.metadata?.status === 'READY' ? <div className="flex justify-between"><span>{results('totalPages')}</span><strong>{data.metadata.measure_count ?? '-'}</strong></div> : null}</CardContent></Card>{data.capabilities.can_download ? <Card><CardHeader><CardTitle>{common('download')}</CardTitle></CardHeader><CardContent className="space-y-3"><Button variant="outline" className="w-full" onClick={() => void download('MUSICXML')}><Download className="mr-2 h-4 w-4" />{results('downloadMusicXML')}</Button><Button variant="outline" className="w-full" onClick={() => void download('RENDERED_PAGE')}><Download className="mr-2 h-4 w-4" />{results('downloadImage')}</Button></CardContent></Card> : null}</aside></div></main>
-      <Footer />
-      <div aria-hidden="true" className="h-36 shrink-0 md:h-28" />
-    </div>
+    <ScoreShell hero={hero}>
+      <div className="mx-auto max-w-7xl px-4 py-16">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ScorePlayer rawXml={rawXml} />
+          </div>
+
+          <aside className="sticky top-8 space-y-6 lg:col-span-1">
+            <Card className="rounded-2xl bg-white shadow-lg">
+              <CardHeader>
+                <CardTitle>{scoreText('scoreInfo')}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="shrink-0 text-muted-foreground">{scoreText('scoreName')}</span>
+                  <span className="truncate text-right font-medium">{data.title}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">{scoreText('keySignature')}</span>
+                  <span className="font-medium">
+                    {formatKeySignature(
+                      data.metadata?.primary_key_fifths,
+                      data.metadata?.primary_mode
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">{scoreText('measureCount')}</span>
+                  <span className="font-medium">{data.metadata?.measure_count ?? '-'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">{scoreText('totalPages')}</span>
+                  <span className="font-medium">{scoreText('pageCount', { count: pageCount })}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl bg-white shadow-lg">
+              <CardHeader>
+                <CardTitle>{scoreText('actionsTitle')}</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 gap-3">
+                {capabilities.can_practice ? (
+                  <Button asChild variant="outline" className="h-16 justify-start gap-3 bg-white px-4">
+                    <Link href={`/score/${scoreId}/practice?publicSlug=${slug}`}>
+                      <Gamepad2 className="h-5 w-5 shrink-0" />
+                      <span className="truncate">{practice('mode')}</span>
+                    </Link>
+                  </Button>
+                ) : null}
+
+                {capabilities.can_download ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="h-16 justify-start gap-3 bg-white px-4"
+                      onClick={() => void download('MUSICXML')}
+                    >
+                      <Download className="h-5 w-5 shrink-0" />
+                      <span className="truncate">{scoreText('downloadMusicXML')}</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-16 justify-start gap-3 bg-white px-4"
+                      onClick={() => void download('RENDERED_PAGE')}
+                    >
+                      <Download className="h-5 w-5 shrink-0" />
+                      <span className="truncate">{scoreText('downloadImage')}</span>
+                    </Button>
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+          </aside>
+        </div>
+        <div aria-hidden="true" className="h-36 md:h-28" />
+      </div>
+    </ScoreShell>
   );
 }
 
 export function PublicScorePage({ slug }: { slug: string }) {
-  return <EditorProvider><PublicScoreContent slug={slug} /></EditorProvider>;
+  return (
+    <EditorProvider>
+      <PublicScoreContent slug={slug} />
+    </EditorProvider>
+  );
 }
+

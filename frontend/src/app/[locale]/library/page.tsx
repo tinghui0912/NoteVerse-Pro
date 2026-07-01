@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useMemo, useState } from 'react';
 import {
@@ -479,7 +479,7 @@ export default function LibraryPage({
                     practiceStateLabel={practiceStateLabel}
                     onOpen={() =>
                       router.push(
-                        `/results/${entry.score_id}?from=${
+                        `/score/${entry.score_id}?from=${
                           entry.source_type === 'BOOKMARK' ? 'shares' : 'my-scores'
                         }`
                       )

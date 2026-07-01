@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { CircleAlert, Loader2, Music, Upload } from 'lucide-react';
@@ -289,8 +289,8 @@ export default function MyScoresPage({
                   onOpen={() =>
                     router.push(
                       score.state === 'IN_REVIEW'
-                        ? `/review/${score.score_id}`
-                        : `/results/${score.score_id}?from=my-scores`
+                        ? `/score/${score.score_id}/review`
+                        : `/score/${score.score_id}?from=my-scores`
                     )
                   }
                   onToggleSelection={() => toggleScoreSelection(score.score_id)}

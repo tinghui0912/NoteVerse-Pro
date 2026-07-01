@@ -32,7 +32,7 @@ describe('score domain v1 contract', () => {
     expect(contract.identities).toEqual({
       submission_and_polling: 'job_id',
       review: 'job_id',
-      results_editor_history_sharing: 'score_id',
+      score_detail_editor_history_sharing: 'score_id',
       practice_and_publication_snapshot: 'revision_id',
     });
     expect(contract.examples.create_practice_session_request).toEqual({

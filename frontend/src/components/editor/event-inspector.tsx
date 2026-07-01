@@ -497,7 +497,7 @@ export function EventInspector({ scoreInspectorOpen, onCloseScoreInspector }: Ev
 
 function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
   const t = useTranslations('editor');
-  const results = useTranslations('results');
+  const scoreText = useTranslations('score');
   const { currentXml, scoreData } = useScoreData();
   const {
     updateKeySignature,
@@ -519,7 +519,7 @@ function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
       <div className="flex h-full flex-col overflow-hidden rounded-2xl border bg-white/90 shadow-lg backdrop-blur-sm">
         <div className="flex items-start justify-between gap-3 border-b p-4">
           <div>
-            <h2 className="text-base font-semibold text-foreground">{results('scoreInfo')}</h2>
+            <h2 className="text-base font-semibold text-foreground">{scoreText('scoreInfo')}</h2>
             <p className="text-xs text-muted-foreground">{t('noEventSelected')}</p>
           </div>
           <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>

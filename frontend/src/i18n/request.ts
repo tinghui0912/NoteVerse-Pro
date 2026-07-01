@@ -1,4 +1,4 @@
-﻿import { getRequestConfig } from 'next-intl/server';
+import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';
 
 const namespaces = [
@@ -8,8 +8,8 @@ const namespaces = [
   'upload',
   'review',
   'editor',
-  'results',
-  'resultsShare',
+  'score',
+  'scoreShare',
   'errors',
   'library',
   'myScores',

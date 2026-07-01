@@ -6,11 +6,27 @@ import { describe, expect, it } from 'vitest';
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('Verovio listen surfaces', () => {
-  it('share actions use the renderer-agnostic ListenModal API', () => {
-    const path = 'src/components/share/share-actions.tsx';
-    const source = readSource(path);
-    expect(source).toContain('<ListenModal');
-    expect(source).not.toContain('backend=');
+  it('renders share access through the score shell and shared player surface', () => {
+    const page = readSource('src/app/[locale]/share/[shareId]/page.tsx');
+    const player = readSource('src/components/share/share-score-player.tsx');
+    const sidebar = readSource('src/components/share/share-info-sidebar.tsx');
+
+    expect(page).toContain('<ScoreShell');
+    expect(page).toContain('<ShareScorePlayer');
+    expect(page).not.toContain('<Footer');
+    expect(player).toContain('<ScorePreviewViewport');
+    expect(player).toContain('<ScorePlaybackDock');
+    expect(sidebar).toContain('resolveScoreShellCapabilities');
+  });
+
+  it('renders public score access through the score shell and capability model', () => {
+    const page = readSource('src/components/public/public-score-page.tsx');
+
+    expect(page).toContain('<ScoreShell');
+    expect(page).toContain('<ScorePlayer');
+    expect(page).toContain('resolveScoreShellCapabilities');
+    expect(page).toContain('publicSlug');
+    expect(page).not.toContain('<Footer');
   });
 
   it('editor modals no longer own score playback preview', () => {
@@ -19,29 +35,29 @@ describe('Verovio listen surfaces', () => {
     expect(source).not.toContain('ScorePreview');
   });
 
-  it('renders results with a shared viewport and persistent playback dock', () => {
-    const page = readSource('src/app/[locale]/results/[id]/page.tsx');
-    const actions = readSource('src/components/results/results-actions.tsx');
-    const player = readSource('src/components/results/results-score-player.tsx');
-    expect(page).toContain('<ResultsScorePlayer');
-    expect(page).toContain('<ResultsBreadcrumbs');
-    expect(page).not.toContain('<ResultsScorePreview');
+  it('renders score detail with a shared viewport and persistent playback dock', () => {
+    const page = readSource('src/app/[locale]/score/[id]/page.tsx');
+    const actions = readSource('src/components/score-detail/score-actions.tsx');
+    const player = readSource('src/components/score-detail/score-player.tsx');
+    expect(page).toContain('<ScorePlayer');
+    expect(page).toContain('<ScoreBreadcrumbs');
+    expect(page).not.toContain('<ScorePreviewPanel');
     expect(actions).not.toContain('<ListenModal');
     expect(player).toContain('<ScorePreviewViewport');
-    expect(player).toContain('<ResultsPlaybackDock');
+    expect(player).toContain('<ScorePlaybackDock');
     expect(player).toContain("followViewport: 'window'");
     expect(player).not.toContain('<ScorePreviewPanel');
     expect(player).not.toContain('<CardTitle');
   });
 
-  it('keeps fingering generation as an editor action instead of a results action', () => {
-    const resultsActions = readSource('src/components/results/results-actions.tsx');
+  it('keeps fingering generation as an editor action instead of a score detail action', () => {
+    const scoreActions = readSource('src/components/score-detail/score-actions.tsx');
     const editorSidebar = readSource('src/components/editor/editor-sidebar.tsx');
     const editorDocument = readSource('src/hooks/editor/use-editor-document.ts');
     const scoreApi = readSource('src/lib/api/scores.ts');
 
-    expect(resultsActions).not.toContain('useGenerateScoreFingering');
-    expect(resultsActions).not.toContain("t('generateFingering')");
+    expect(scoreActions).not.toContain('useGenerateScoreFingering');
+    expect(scoreActions).not.toContain("t('generateFingering')");
     expect(editorSidebar).toContain("t('generateFingering')");
     expect(editorSidebar).toContain('fingeringHandSizes');
     expect(editorSidebar).toContain('confirmGenerateFingering');
@@ -186,7 +202,7 @@ describe('Verovio listen surfaces', () => {
 
   it('uses the Verovio score as the primary editor center surface', () => {
     const center = readSource('src/components/editor/editor-workbench-center.tsx');
-    const page = readSource('src/app/[locale]/editor/[id]/page.tsx');
+    const page = readSource('src/app/[locale]/score/[id]/edit/page.tsx');
     const toolbar = readSource('src/components/editor/editor-toolbar.tsx');
 
     expect(center).toContain('<EditorPreviewPanel');

@@ -43,5 +43,8 @@
   "pitchAnalysis": "Pitch Analysis",
   "rhythmAnalysis": "Rhythm Analysis",
   "overallSuggestion": "Overall Suggestion",
-  "scoreDisplayArea": "Practice mode score display area"
+  "scoreDisplayArea": "Practice mode score display area",
+  "accessDeniedTitle": "Practice unavailable",
+  "accessDeniedDesc": "You do not have permission to practice this score.",
+  "backToScore": "Back to score"
 }

@@ -107,7 +107,7 @@ export function useReviewPageData(scoreId: string) {
 
   const confirmRecognition = () => approve.mutate(scoreId, {
     onSuccess: (response) => {
-      if (response.success) router.push(`/results/${scoreId}`);
+      if (response.success) router.push(`/score/${scoreId}`);
     },
   });
 
@@ -118,6 +118,7 @@ export function useReviewPageData(scoreId: string) {
     loading: scoreQuery.isLoading || revisionQuery.isLoading || (Boolean(jobId) && jobQuery.isLoading),
     original,
     preview,
+    scoreCapabilities: score?.capabilities,
     validationWarnings,
   };
 }

@@ -67,5 +67,8 @@
   "pageNotFound": "Page Not Found",
   "pageNotFoundDesc": "The page you are looking for does not exist or has been moved.",
   "saving": "Saving...",
-  "saved": "Saved"
+  "saved": "Saved",
+  "accessDenied": "Access denied",
+  "editAccessDeniedDesc": "You do not have permission to edit this score.",
+  "reviewAccessDeniedDesc": "You do not have permission to review this score."
 }

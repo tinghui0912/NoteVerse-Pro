@@ -16,7 +16,7 @@ interface ImageViewerProps {
 
 export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProps) {
   const tReview = useTranslations('review');
-  const tResults = useTranslations('results');
+  const scoreText = useTranslations('score');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [scale, setScale] = useState(1);
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
@@ -243,7 +243,7 @@ export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProp
       ) : (
         <div className="flex flex-col items-center justify-center w-full h-full bg-gray-100 rounded-md">
           <FileImage className="h-12 w-12 text-gray-400 mb-2" />
-          <p className="text-gray-500 text-sm">{tResults('noImageAvailable')}</p>
+          <p className="text-gray-500 text-sm">{scoreText('noImageAvailable')}</p>
         </div>
       )}
     </FloatingWindow>

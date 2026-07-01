@@ -4,7 +4,7 @@ import { ScorePlaybackDock } from '@/components/score-detail/score-playback-dock
 import { ScorePreviewViewport } from '@/components/score/score-preview-viewport';
 import { useScorePreviewPlayback } from '@/hooks/score/use-score-preview-playback';
 
-export function ShareScorePlayer({ rawXml }: { rawXml: string }) {
+export function ScorePlayer({ rawXml }: { rawXml: string }) {
   const playback = useScorePreviewPlayback({
     isOpen: true,
     xmlString: rawXml,

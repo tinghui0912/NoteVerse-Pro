@@ -19,5 +19,5 @@ export interface RestorableTaskData {
 }
 
 export function getCompletedScoreRoute(scoreId: string, state: string) {
-  return state === 'PENDING_REVIEW' ? `/review/${scoreId}` : `/results/${scoreId}`;
+  return state === 'PENDING_REVIEW' ? `/score/${scoreId}/review` : `/score/${scoreId}`;
 }

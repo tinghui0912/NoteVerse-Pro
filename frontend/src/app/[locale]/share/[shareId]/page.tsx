@@ -5,7 +5,7 @@ import { Ban, CircleAlert, Clock3, Loader2, SearchX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Footer } from '@/components/layout/footer';
+import { ScoreShell } from '@/components/score-shell/score-shell';
 import { ShareInfoSidebar } from '@/components/share/share-info-sidebar';
 import { ShareScorePlayer } from '@/components/share/share-score-player';
 import { useSharePageData } from '@/hooks/share/use-share-page-data';
@@ -19,9 +19,11 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
 
   if (page.authLoading || page.loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ScoreShell footer={false}>
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </ScoreShell>
     );
   }
   if (page.error || !page.shareData) {
@@ -54,8 +56,8 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
             hint: t('hintNotFound'),
           };
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <div className="bg-gray-900">
+      <ScoreShell
+        hero={<div className="bg-gray-900">
           <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center">
             <div>
               <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">
@@ -64,8 +66,9 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
               <p className="text-lg text-gray-300">{config.title}</p>
             </div>
           </div>
-        </div>
-        <main className="flex grow items-center justify-center py-16">
+        </div>}
+      >
+        <div className="flex grow items-center justify-center py-16">
           <div className="mx-4 w-full max-w-md text-center">
             <config.icon className="mx-auto mb-6 h-14 w-14 text-destructive" />
             <h2 className="mb-3 text-2xl font-bold">{config.title}</h2>
@@ -73,49 +76,47 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
             <p className="mb-8 text-sm text-gray-500">{config.hint}</p>
             <Button onClick={() => router.push('/')}>{common('nav.home')}</Button>
           </div>
-        </main>
-        <Footer />
-      </div>
+        </div>
+      </ScoreShell>
     );
   }
 
   const data = page.shareData;
   const pageCount = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE').length;
-  return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <div className="bg-gray-900">
-        <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center">
-          <div>
-            <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">
-              {t('sharedScore')}
-            </h1>
-            <p className="text-lg text-gray-300">{t('sharedScoreSubtitle')}</p>
-          </div>
+  const hero = (
+    <div className="bg-gray-900">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center">
+        <div>
+          <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">
+            {t('sharedScore')}
+          </h1>
+          <p className="text-lg text-gray-300">{t('sharedScoreSubtitle')}</p>
         </div>
       </div>
-      <main className="grow">
-        <div className="mx-auto max-w-7xl px-4 py-16">
-          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
-              {page.rawXml ? <ShareScorePlayer rawXml={page.rawXml} /> : null}
-            </div>
-            <ShareInfoSidebar
-              artifacts={data.artifacts}
-              canDownload={data.capabilities.can_download}
-              canPractice={data.capabilities.can_practice}
-              imageCount={pageCount}
-              isAuthenticated={page.isAuthenticated}
-              scoreId={data.score_id}
-              scoreTitle={data.title}
-              shareData={data}
-              shareId={shareId}
-              taxonomyTags={data.taxonomy_tags}
-            />
-          </div>
-          <div aria-hidden="true" className="h-36 md:h-28" />
-        </div>
-      </main>
-      <Footer />
     </div>
+  );
+
+  return (
+    <ScoreShell hero={hero}>
+      <div className="mx-auto max-w-7xl px-4 py-16">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            {page.rawXml ? <ShareScorePlayer rawXml={page.rawXml} /> : null}
+          </div>
+          <ShareInfoSidebar
+            artifacts={data.artifacts}
+            capabilities={data.capabilities}
+            imageCount={pageCount}
+            isAuthenticated={page.isAuthenticated}
+            scoreId={data.score_id}
+            scoreTitle={data.title}
+            shareData={data}
+            shareId={shareId}
+            taxonomyTags={data.taxonomy_tags}
+          />
+        </div>
+        <div aria-hidden="true" className="h-36 md:h-28" />
+      </div>
+    </ScoreShell>
   );
 }

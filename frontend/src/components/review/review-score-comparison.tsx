@@ -9,7 +9,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 
 function ReviewCarousel({ title, altKey, urls, loading }: { title: string; altKey: 'originalScorePage' | 'recognizedScorePage'; urls: string[]; loading: boolean }) {
   const t = useTranslations('review');
-  const results = useTranslations('results');
+  const scoreText = useTranslations('score');
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   useEffect(() => {
@@ -28,7 +28,7 @@ function ReviewCarousel({ title, altKey, urls, loading }: { title: string; altKe
       <CardContent>
         {loading ? <div className="flex aspect-8.5/11 w-full items-center justify-center rounded-md bg-gray-100"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div> : urls.length ? (
           <Carousel className="w-full" setApi={setApi}><CarouselContent>{urls.map((url, index) => <CarouselItem key={url}><div className="relative flex aspect-8.5/11 w-full items-center justify-center overflow-hidden rounded-md bg-gray-100"><Image src={url} alt={t(altKey, { page: index + 1 })} fill unoptimized className="rounded-md object-contain" /></div></CarouselItem>)}</CarouselContent>{urls.length > 1 ? <><CarouselPrevious className="left-2" /><CarouselNext className="right-2" /></> : null}</Carousel>
-        ) : <div className="flex aspect-8.5/11 w-full flex-col items-center justify-center rounded-md bg-gray-100"><FileImage className="mb-2 h-12 w-12 text-gray-400" /><p className="text-sm text-gray-500">{results('noImageAvailable')}</p></div>}
+        ) : <div className="flex aspect-8.5/11 w-full flex-col items-center justify-center rounded-md bg-gray-100"><FileImage className="mb-2 h-12 w-12 text-gray-400" /><p className="text-sm text-gray-500">{scoreText('noImageAvailable')}</p></div>}
       </CardContent>
     </Card>
   );

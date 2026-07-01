@@ -159,7 +159,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
           await clearDraft();
           if (nextRevision) setBaseRevisionId(nextRevision);
           toast({ title: common('savingSuccess'), description: common('scoreSaved') });
-          router.push(returnUrl || `/results/${id}`);
+          router.push(returnUrl || `/score/${id}`);
         },
         onError: (error) => {
           const conflict = error instanceof ApiError && error.code === 'revision_conflict';
@@ -278,6 +278,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     save,
     saveIgnoringWarnings,
     savePending: createRevision.isPending,
+    scoreCapabilities: score?.capabilities,
     scoreData,
     setDraftDialogOpen,
     setValidationDialogOpen,

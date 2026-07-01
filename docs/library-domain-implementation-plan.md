@@ -55,11 +55,11 @@ My Scores:
 /my-scores?search=canon&sort=updated_desc&page=2
 ```
 
-Results return origins:
+Score return origins:
 
 ```text
-/results/<score_id>?from=my-scores
-/results/<score_id>?from=shares
+/score/<score_id>?from=my-scores
+/score/<score_id>?from=shares
 ```
 
 ## 4. Backend Model
