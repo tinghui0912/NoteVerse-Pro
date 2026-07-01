@@ -53,8 +53,27 @@ describe('score workspace routes', () => {
     const publicPage = readSource('src/components/public/public-score-page.tsx');
 
     expect(sharePage).toContain('<ScoreShell');
+    expect(sharePage).toContain('capabilities={data.capabilities}');
     expect(shareSidebar).toContain('/score/${props.scoreId}/practice?shareToken=${props.shareId}');
     expect(publicPage).toContain('<ScoreShell');
+    expect(publicPage).toContain('capabilities={capabilities}');
     expect(publicPage).toContain('/score/${scoreId}/practice?publicSlug=${slug}');
+  });
+
+  it('centralizes view/share capabilities in the score shell context', () => {
+    const shell = readSource('src/components/score-shell/score-shell.tsx');
+    const actions = readSource('src/components/score-detail/score-actions.tsx');
+    const metadata = readSource('src/components/score-detail/score-metadata-editor.tsx');
+    const styleTags = readSource('src/components/score-detail/score-style-tags-editor.tsx');
+    const shareSidebar = readSource('src/components/share/share-info-sidebar.tsx');
+
+    expect(shell).toContain('ScoreShellContext.Provider');
+    expect(shell).toContain('useScoreShell');
+    expect(actions).toContain('useScoreShell');
+    expect(metadata).toContain('useScoreShell');
+    expect(styleTags).toContain('useScoreShell');
+    expect(shareSidebar).toContain('useScoreShell');
+    expect(actions).not.toContain('capabilities?:');
+    expect(shareSidebar).not.toContain('capabilities?:');
   });
 });

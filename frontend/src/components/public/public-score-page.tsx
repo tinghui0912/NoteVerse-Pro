@@ -62,7 +62,7 @@ function PublicScoreContent({ slug }: { slug: string }) {
   };
 
   return (
-    <ScoreShell hero={hero}>
+    <ScoreShell capabilities={capabilities} hero={hero} scoreId={scoreId} workspace="public">
       <div className="mx-auto max-w-7xl px-4 py-16">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2">
@@ -150,4 +150,3 @@ export function PublicScorePage({ slug }: { slug: string }) {
     </EditorProvider>
   );
 }
-

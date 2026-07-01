@@ -19,22 +19,20 @@ import {
   useScorePublication,
   useUnpublishScore,
 } from '@/hooks/queries/use-score-queries';
-import { resolveScoreShellCapabilities } from '@/lib/score-shell/capabilities';
-import type { ScoreArtifact, ScoreCapabilities } from '@/types/api';
+import { useScoreShell } from '@/components/score-shell/score-shell';
+import type { ScoreArtifact } from '@/types/api';
 
 export function ScoreActions({
   imageCount,
   scoreTitle,
   scoreId,
   artifacts,
-  capabilities,
   revisionId,
 }: {
   imageCount: number;
   scoreTitle: string;
   scoreId: string;
   artifacts: ScoreArtifact[];
-  capabilities?: ScoreCapabilities | null;
   revisionId?: string | null;
 }) {
   const t = useTranslations('score');
@@ -46,7 +44,7 @@ export function ScoreActions({
   const { handleDownload } = useDownload({ mode: 'score', id: scoreId, imageCount, artifacts });
   const [shareOpen, setShareOpen] = useState(false);
   const isPublished = publication.data?.data?.status === 'PUBLISHED';
-  const resolvedCapabilities = resolveScoreShellCapabilities(capabilities);
+  const { capabilities } = useScoreShell();
 
   const buttonClass = 'h-16 w-full justify-start gap-3 bg-white px-4 text-left';
   const iconClass = 'h-5 w-5 shrink-0';
@@ -55,7 +53,7 @@ export function ScoreActions({
       <Card data-testid="score-actions" className="rounded-2xl bg-white shadow-lg">
         <CardHeader><CardTitle>{t('actionsTitle')}</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 gap-3">
-          {resolvedCapabilities.can_download ? (
+          {capabilities.can_download ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className={buttonClass}>
@@ -72,7 +70,7 @@ export function ScoreActions({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
-          {resolvedCapabilities.can_practice ? (
+          {capabilities.can_practice ? (
             <Button asChild variant="outline" className={buttonClass}>
               <Link href={`/score/${scoreId}/practice`}>
                 <Gamepad2 className={iconClass} />
@@ -80,7 +78,7 @@ export function ScoreActions({
               </Link>
             </Button>
           ) : null}
-          {resolvedCapabilities.can_edit ? (
+          {capabilities.can_edit ? (
             <Button asChild variant="outline" className={buttonClass}>
               <Link href={`/score/${scoreId}/edit`}>
                 <Edit className={iconClass} />
@@ -88,13 +86,13 @@ export function ScoreActions({
               </Link>
             </Button>
           ) : null}
-          {resolvedCapabilities.can_manage_sharing ? (
+          {capabilities.can_manage_sharing ? (
             <Button variant="outline" className={`${buttonClass} col-span-2`} onClick={() => setShareOpen(true)}>
               <Share2 className={iconClass} />
               <span className="truncate">{t('createShareAction')}</span>
             </Button>
           ) : null}
-          {resolvedCapabilities.can_publish ? (
+          {capabilities.can_publish ? (
             <Button
               variant="outline"
               className={`${buttonClass} col-span-2`}
@@ -107,7 +105,7 @@ export function ScoreActions({
           ) : null}
         </CardContent>
       </Card>
-      {resolvedCapabilities.can_manage_sharing ? (
+      {capabilities.can_manage_sharing ? (
         <ScoreShareDialog
           open={shareOpen}
           onOpenChange={setShareOpen}

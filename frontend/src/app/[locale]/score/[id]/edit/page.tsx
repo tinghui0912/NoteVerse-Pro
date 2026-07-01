@@ -21,7 +21,7 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
 
   if (document.isLoading) {
     return (
-      <ScoreShell hero={<div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1></div></div>}>
+      <ScoreShell hero={<div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1></div></div>} scoreId={id} workspace="edit">
         <div className="flex min-h-[50vh] items-center justify-center"><div className="text-center"><Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-orange-500" /><p className="text-gray-600">{common('loading')}</p></div></div>
       </ScoreShell>
     );
@@ -29,7 +29,7 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
 
   if (document.finalLoadError) {
     return (
-      <ScoreShell hero={<div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1></div></div>}>
+      <ScoreShell hero={<div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1></div></div>} scoreId={id} workspace="edit">
         <div className="flex min-h-[50vh] items-center justify-center py-16">
           <div className="mx-4 w-full max-w-md text-center"><CircleAlert className="mx-auto mb-6 h-14 w-14 text-destructive" /><h2 className="mb-3 text-2xl font-bold text-gray-900">{common('loadFailed')}</h2><p className="mb-2 text-gray-600">{document.finalLoadError}</p><p className="mb-8 text-sm text-gray-500">{t('loadFailedHint')}</p><Button onClick={() => router.back()} className="px-8">{common('back')}</Button></div>
         </div>
@@ -39,7 +39,7 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
 
   if (document.scoreCapabilities && !document.scoreCapabilities.can_edit) {
     return (
-      <ScoreShell hero={<div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1></div></div>}>
+      <ScoreShell capabilities={document.scoreCapabilities} hero={<div className="bg-gray-900"><div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center"><h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1></div></div>} scoreId={id} workspace="edit">
         <WorkspaceAccessDenied
           title={common('accessDenied')}
           description={common('editAccessDeniedDesc')}
@@ -52,6 +52,7 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
 
   return (
     <ScoreShell
+      capabilities={document.scoreCapabilities}
       footer
       hero={<div className="bg-gray-900">
         <div className="mx-auto max-w-7xl px-4 pb-16 pt-32">
@@ -60,6 +61,8 @@ function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }
           </div>
         </div>
       </div>}
+      scoreId={id}
+      workspace="edit"
     >
 
       <div className="flex grow flex-col">

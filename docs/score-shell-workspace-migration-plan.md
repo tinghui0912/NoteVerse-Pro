@@ -20,18 +20,22 @@ Current frontend route shape:
 
 ```text
 /score/:id
-/editor/:id
-/practice/:id
-/practice/:id/performance
+/score/:id/review
+/score/:id/edit
+/score/:id/practice
+/score/:id/practice/performance
 /share/:token
+/public/:slug
 ```
 
-Current issues:
+Current status:
 
-- `editor` and `practice` are product-level route peers of `score`, even though they operate on the same Score resource.
-- Links from Score detail still point to `/editor/:id` and `/practice/:id`.
-- `proxy.ts` protects `/editor` and `/practice` as separate path families.
-- Tests still assert editor/practice as standalone route groups.
+- `Score` is the product route family.
+- `Review`, `Editor`, and `Practice` are Score workspaces under `/score/:id/...`.
+- `/share/:token` and `/public/:slug` are access-entry routes that reuse Score viewing/player UI.
+- `ScoreShell` owns shared visual framing and now provides score capabilities through context.
+- Feature folders such as `components/editor`, `components/review`, and `components/practice` remain as workspace implementation boundaries. They are not route-level product resources.
+- `/invite/:token` is still a future access-entry route.
 
 ## Target Architecture
 
@@ -103,12 +107,13 @@ frontend/src/components/practice/
 
 ### Step 1: Introduce Score Shell
 
-Create a lightweight `ScoreShell` component that owns shared visual framing only:
+Create a lightweight `ScoreShell` component that owns shared visual framing and score access context:
 
 - page background
 - optional hero/title area
 - optional footer
 - workspace container
+- `ScoreCapabilities` context
 
 It should not own:
 
@@ -117,6 +122,8 @@ It should not own:
 - editor selected entity
 - practice websocket state
 - practice recording state
+
+Workspace-local providers stay local. Shared score capabilities are passed once to `ScoreShell` and read by child components through `useScoreShell()`.
 
 ### Step 2: Keep `/score/:id` as View Workspace
 
@@ -444,6 +451,22 @@ npm run typecheck
 npm run lint
 npm run test:unit -- score-workspace-routes
 npm run test:unit -- upload-workflow
+```
+
+Completed in the semantic cleanup and shell context pass:
+
+- Removed unused legacy `frontend/src/contexts/share-context.tsx`.
+- Removed obsolete `tasks`, `xml`, and legacy `shares` query key factories from `frontend/src/lib/query-client.ts`.
+- Updated query key tests to cover current Score-domain cache identity.
+- Added `ScoreShell` context and `useScoreShell()`.
+- Moved Score detail action permissions, score metadata editability, score style tag editability, and share sidebar permissions to the shared Score Shell capability context.
+- Updated the current-state section of this migration plan so it describes the post-migration route model instead of the pre-migration route model.
+
+Validation completed:
+
+```bash
+cd frontend
+npm run typecheck
 ```
 
 ## Non-Goals

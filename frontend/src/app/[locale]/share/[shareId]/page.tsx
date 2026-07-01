@@ -97,7 +97,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   );
 
   return (
-    <ScoreShell hero={hero}>
+    <ScoreShell capabilities={data.capabilities} hero={hero} scoreId={data.score_id} workspace="share">
       <div className="mx-auto max-w-7xl px-4 py-16">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
@@ -105,7 +105,6 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
           </div>
           <ShareInfoSidebar
             artifacts={data.artifacts}
-            capabilities={data.capabilities}
             imageCount={pageCount}
             isAuthenticated={page.isAuthenticated}
             scoreId={data.score_id}

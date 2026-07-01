@@ -15,7 +15,6 @@ import { EditorProvider } from '@/contexts/editor-provider';
 import { useScoreDetailResources } from '@/hooks/score-detail/use-score-detail-resources';
 import { ApiError } from '@/lib/api-client';
 import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
-import { resolveScoreShellCapabilities } from '@/lib/score-shell/capabilities';
 
 function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-scores' | null }) {
   const t = useTranslations('score');
@@ -30,7 +29,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   const scoreTitle = resources.score?.title || resources.parsedTitle || t('scoreFallbackTitle', {
     id: id.slice(0, 8),
   });
-  const capabilities = resolveScoreShellCapabilities(resources.score?.capabilities);
+  const capabilities = resources.score?.capabilities ?? null;
 
   if (resources.scoreLoading) {
     return (
@@ -76,7 +75,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   );
 
   return (
-    <ScoreShell hero={hero}>
+    <ScoreShell capabilities={capabilities} hero={hero} scoreId={id} workspace="view">
       <div className="mx-auto max-w-7xl px-4 py-16">
         <ScoreBreadcrumbs scoreTitle={scoreTitle} source={source} />
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
@@ -85,7 +84,6 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
           </div>
           <div className="sticky top-8 space-y-6 lg:col-span-1">
             <ScoreMetadataEditor
-              canEdit={capabilities.can_edit}
               imageCount={resources.imageCount}
               scoreId={id}
               score={resources.score}
@@ -94,13 +92,11 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             <ScoreActions
               artifacts={resources.artifacts}
               imageCount={resources.imageCount}
-              capabilities={capabilities}
               revisionId={resources.score?.head_revision_id}
               scoreTitle={scoreTitle}
               scoreId={id}
             />
             <ScoreStyleTagsEditor
-              canEdit={capabilities.can_edit}
               taxonomyTags={resources.score?.taxonomy_tags ?? []}
               scoreId={id}
               version={resources.score?.version ?? 1}

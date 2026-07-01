@@ -4,83 +4,83 @@ import { describe, expect, it } from 'vitest';
 import { queryKeys } from '@/lib/query-client';
 
 describe('queryKeys', () => {
-  it('builds hierarchical task keys', () => {
-    const filters = {
-      page: 2,
-      pageSize: 20,
-      state: 'SUCCESS',
-      sortBy: 'created_at',
-      sortOrder: 'desc',
-      search: 'bach',
-    };
-
-    expect(queryKeys.tasks.all).toEqual(['tasks']);
-    expect(queryKeys.tasks.lists()).toEqual(['tasks', 'list']);
-    expect(queryKeys.tasks.list(filters)).toEqual(['tasks', 'list', filters]);
-    expect(queryKeys.tasks.details()).toEqual(['tasks', 'detail']);
-    expect(queryKeys.tasks.task('task-1')).toEqual([
-      'tasks',
+  it('builds hierarchical score keys', () => {
+    expect(queryKeys.scores.all).toEqual(['scores']);
+    expect(queryKeys.scores.lists()).toEqual(['scores', 'list']);
+    expect(queryKeys.scores.list(2, 20, 'bach')).toEqual([
+      'scores',
+      'list',
+      { page: 2, pageSize: 20, search: 'bach' },
+    ]);
+    expect(queryKeys.scores.details()).toEqual(['scores', 'detail']);
+    expect(queryKeys.scores.detail('score-1')).toEqual([
+      'scores',
       'detail',
-      { id: 'task-1' },
-    ]);
-    expect(queryKeys.tasks.detail('task-1', 'share-1')).toEqual([
-      'tasks',
-      'detail',
-      { id: 'task-1', shareToken: 'share-1' },
+      { scoreId: 'score-1' },
     ]);
   });
 
-  it('keeps share and XML identities in their keys', () => {
-    expect(queryKeys.shares.list('task-1')).toEqual(['shares', 'list', 'task-1']);
-    expect(queryKeys.shares.access('share-1')).toEqual(['shares', 'access', 'share-1']);
-    expect(queryKeys.xml.content('task-1', 'final', 'token-1')).toEqual([
-      'xml',
-      'content',
-      { taskId: 'task-1', source: 'final', shareToken: 'token-1' },
+  it('keeps revision, artifact, grant, and publication identities in score keys', () => {
+    expect(queryKeys.scores.revisions('score-1')).toEqual([
+      'scores',
+      'revision',
+      { scoreId: 'score-1' },
     ]);
-    expect(queryKeys.xml.task('task-1')).toEqual([
-      'xml',
-      'content',
-      { taskId: 'task-1' },
+    expect(queryKeys.scores.revision('score-1', 'revision-1')).toEqual([
+      'scores',
+      'revision',
+      { scoreId: 'score-1', revisionId: 'revision-1' },
     ]);
-    expect(queryKeys.xml.share('share-1')).toEqual([
-      'xml',
-      'share',
-      { shareId: 'share-1' },
+    expect(queryKeys.scores.artifacts('score-1', 'revision-1', 'MUSICXML')).toEqual([
+      'scores',
+      'artifact',
+      { scoreId: 'score-1', revisionId: 'revision-1', kind: 'MUSICXML' },
+    ]);
+    expect(queryKeys.scores.grants('score-1')).toEqual([
+      'scores',
+      'grant',
+      { scoreId: 'score-1' },
+    ]);
+    expect(queryKeys.scores.grantAccess('token-1')).toEqual([
+      'scores',
+      'grant-access',
+      { token: 'token-1' },
+    ]);
+    expect(queryKeys.scores.publication('slug-1')).toEqual([
+      'scores',
+      'publication',
+      { slug: 'slug-1' },
     ]);
   });
 
-  it('invalidates every XML variant for one task through the task prefix', async () => {
+  it('invalidates every revision variant for one score through the revision prefix', async () => {
     const client = new QueryClient();
-    const finalKey = queryKeys.xml.content('task-1', 'final');
-    const sharedKey = queryKeys.xml.content('task-1', 'current', 'share-1');
-    const otherTaskKey = queryKeys.xml.content('task-2', 'final');
+    const firstKey = queryKeys.scores.revision('score-1', 'revision-1');
+    const secondKey = queryKeys.scores.revision('score-1', 'revision-2');
+    const otherScoreKey = queryKeys.scores.revision('score-2', 'revision-1');
 
-    client.setQueryData(finalKey, '<score />');
-    client.setQueryData(sharedKey, '<score />');
-    client.setQueryData(otherTaskKey, '<score />');
+    client.setQueryData(firstKey, '<score />');
+    client.setQueryData(secondKey, '<score />');
+    client.setQueryData(otherScoreKey, '<score />');
 
-    await client.invalidateQueries({ queryKey: queryKeys.xml.task('task-1') });
+    await client.invalidateQueries({ queryKey: queryKeys.scores.revisions('score-1') });
 
-    expect(client.getQueryState(finalKey)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(sharedKey)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(otherTaskKey)?.isInvalidated).toBe(false);
+    expect(client.getQueryState(firstKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(secondKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(otherScoreKey)?.isInvalidated).toBe(false);
   });
 
-  it('keeps owner and shared task details distinct under one task prefix', async () => {
+  it('keeps score details distinct under one score detail prefix', async () => {
     const client = new QueryClient();
-    const ownerKey = queryKeys.tasks.detail('task-1');
-    const sharedKey = queryKeys.tasks.detail('task-1', 'share-1');
-    const otherTaskKey = queryKeys.tasks.detail('task-2');
+    const firstScoreKey = queryKeys.scores.detail('score-1');
+    const secondScoreKey = queryKeys.scores.detail('score-2');
 
-    client.setQueryData(ownerKey, { owner: true });
-    client.setQueryData(sharedKey, { owner: false });
-    client.setQueryData(otherTaskKey, { owner: true });
+    client.setQueryData(firstScoreKey, { title: 'A' });
+    client.setQueryData(secondScoreKey, { title: 'B' });
 
-    await client.invalidateQueries({ queryKey: queryKeys.tasks.task('task-1') });
+    await client.invalidateQueries({ queryKey: queryKeys.scores.detail('score-1') });
 
-    expect(client.getQueryState(ownerKey)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(sharedKey)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(otherTaskKey)?.isInvalidated).toBe(false);
+    expect(client.getQueryState(firstScoreKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(secondScoreKey)?.isInvalidated).toBe(false);
   });
 });

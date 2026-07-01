@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useScoreShell } from '@/components/score-shell/score-shell';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
 import { formatApiDateTime, formatKeySignature } from '@/lib/score/metadata-display';
@@ -15,7 +16,6 @@ import type { ScoreDetail } from '@/types/api';
 interface ScoreMetadataEditorProps {
   imageCount: number;
   parsedTitle: string;
-  canEdit?: boolean;
   score?: ScoreDetail;
   scoreId: string;
 }
@@ -23,7 +23,6 @@ interface ScoreMetadataEditorProps {
 export function ScoreMetadataEditor({
   imageCount,
   parsedTitle,
-  canEdit = true,
   score,
   scoreId,
 }: ScoreMetadataEditorProps) {
@@ -32,7 +31,9 @@ export function ScoreMetadataEditor({
   const locale = useLocale();
   const { toast } = useToast();
   const mutation = useUpdateScore();
+  const { capabilities } = useScoreShell();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const canEdit = capabilities.can_edit;
   const currentTitle = score?.title || parsedTitle || '';
   const [title, setTitle] = useState(currentTitle);
   const [editing, setEditing] = useState(false);
