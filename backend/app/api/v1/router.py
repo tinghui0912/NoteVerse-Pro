@@ -13,6 +13,7 @@ from app.modules.practice.router import router as practice
 from app.modules.publications.router import public_router as publications
 from app.modules.publications.router import score_router as score_publications
 from app.modules.profile.router import router as profile
+from app.modules.review.router import router as review
 from app.modules.scores.router import router as scores
 from app.modules.score_sharing.router import grant_router as score_grants
 from app.modules.score_sharing.router import score_router as score_sharing
@@ -41,3 +42,4 @@ api_router.include_router(score_artifact_router, prefix="/scores", tags=["Score 
 api_router.include_router(metadata, prefix="/scores", tags=["Score Metadata"])
 api_router.include_router(profile, prefix="/profile", tags=["User Profile"])
 api_router.include_router(practice, prefix="/practice", tags=["Practice"])
+api_router.include_router(review, prefix="/review", tags=["Review"])

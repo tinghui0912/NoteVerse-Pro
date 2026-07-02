@@ -1,5 +1,10 @@
 # Score Shell Workspace Migration Plan
 
+> Superseded note (2026-07-02): Review is no longer a Score workspace. The active model is
+> `Upload -> ProcessingJob -> /review/:jobId -> confirm -> /score/:scoreId`.
+> Keep this document as historical context for the Score shell/view/edit/practice workspaces
+> only. Do not use its `/score/:id/review` references as current architecture.
+
 ## Goal
 
 Converge score-related product surfaces into a single Score resource model with workspace routes:

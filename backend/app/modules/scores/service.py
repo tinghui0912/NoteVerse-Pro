@@ -10,15 +10,11 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    LibraryEntrySourceType,
-    ProcessingJob,
     Score,
     ScoreArtifact,
     ScoreRevision,
     ScoreRevisionMetadata,
 )
-from app.db.models.processing_job import ProcessingJobState
-from app.db.models.score import ScoreState
 from app.modules.scores.repository import ScoreRepository
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.schemas import (
@@ -31,7 +27,6 @@ from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.artifacts.render_service import RevisionRenderService
-from app.modules.library.service import LibraryService
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
@@ -44,7 +39,6 @@ class ScoreService:
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         render_service: RevisionRenderService | None = None,
-        library_service: LibraryService | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.storage = storage or file_storage
@@ -53,7 +47,6 @@ class ScoreService:
             access_policy=self.access_policy,
             storage=self.storage,
         )
-        self.library_service = library_service or LibraryService()
 
     async def get(self, db: AsyncSession, score_uuid: str, user_id: int) -> ScoreRead:
         access = await self.access_policy.authorize(
@@ -131,41 +124,6 @@ class ScoreService:
         score.updated_at = utc_now_naive()
         await db.commit()
         await db.refresh(score)
-        return await self._read(db, score, access.capabilities)
-
-    async def approve(self, db: AsyncSession, score_uuid: str, user_id: int) -> ScoreRead:
-        access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.APPROVE, user_id=user_id
-        )
-        score = await self.repository.get(db, access.score.score_uuid, lock=True)
-        assert score is not None
-        if score.head_revision_id is None:
-            raise ConflictException(ErrorCode.REVISION_NOT_FOUND, {"score_id": score_uuid})
-        score.approved_revision_id = score.head_revision_id
-        score.state = ScoreState.ACTIVE
-        score.version += 1
-        score.updated_at = utc_now_naive()
-        if score.originating_job_id is not None:
-            job = await db.get(ProcessingJob, score.originating_job_id)
-            if job:
-                job.state = ProcessingJobState.SUCCESS
-                job.updated_at = utc_now_naive()
-        await self.library_service.ensure_entry(
-            db,
-            user_id=user_id,
-            score_id=require_persisted_id(score.id, entity="score"),
-            source_type=LibraryEntrySourceType.SELF_ADDED,
-        )
-        await db.commit()
-        await db.refresh(score)
-        head = await db.get(ScoreRevision, score.head_revision_id)
-        if head:
-            try:
-                await self.render_service.render(
-                    db, score.score_uuid, head.revision_uuid, user_id
-                )
-            except Exception:
-                await db.rollback()
         return await self._read(db, score, access.capabilities)
 
     async def delete(self, db: AsyncSession, score_uuid: str, user_id: int) -> None:

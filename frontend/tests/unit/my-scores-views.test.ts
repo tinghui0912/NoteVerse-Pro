@@ -24,12 +24,12 @@ function job(jobId: string, state: ProcessingJob['state']): ProcessingJob {
 
 describe('my scores view helpers', () => {
   it('keeps score-backed views separate from aggregate processing views', () => {
-    expect(MY_SCORE_VIEWS).toEqual(['all', 'drafts', 'private', 'published']);
+    expect(MY_SCORE_VIEWS).toEqual(['all', 'private', 'published']);
     expect(MY_SCORE_PAGE_VIEWS).toEqual([
       'all',
       'processing',
+      'review',
       'failed',
-      'drafts',
       'private',
       'published',
     ]);
@@ -68,12 +68,13 @@ describe('my scores view helpers', () => {
       'progress',
     ]);
     expect(visibleMyScoreJobs(jobs, 'failed').map((item) => item.job_id)).toEqual(['failed']);
+    expect(visibleMyScoreJobs(jobs, 'review').map((item) => item.job_id)).toEqual(['review']);
     expect(visibleMyScoreJobs(jobs, 'all').map((item) => item.job_id)).toEqual([
       'pending',
       'progress',
       'failed',
+      'review',
     ]);
-    expect(visibleMyScoreJobs(jobs, 'drafts')).toEqual([]);
     expect(visibleMyScoreJobs(jobs, 'private')).toEqual([]);
     expect(visibleMyScoreJobs(jobs, 'published')).toEqual([]);
   });

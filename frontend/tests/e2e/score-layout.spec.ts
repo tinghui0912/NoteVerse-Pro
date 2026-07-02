@@ -8,7 +8,7 @@ test('score detail uses score/revision resources and keeps playback controls ava
   await context.addCookies([{ name: 'noteverse_session', value: 'session', domain: 'localhost', path: '/' }]);
   const score = { score_id: scoreId, title: 'Layout Score', taxonomy_tags: [{ category: 'genre', code: 'classical', source: 'USER', confidence: null }], state: 'ACTIVE', version: 1,
     head_revision_id: revisionId, approved_revision_id: revisionId, originating_job_id: 'job-1', metadata: null,
-    capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_sharing: true, can_download: true, can_practice: true, can_publish: true, can_approve: true },
+    capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_sharing: true, can_download: true, can_practice: true, can_publish: true },
     created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-21T00:00:00Z' };
   await page.route(`**/api/v1/scores/${scoreId}`, async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: score }) }));
   await page.route(`**/api/v1/scores/${scoreId}/revisions/${revisionId}/content`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { revision_id: revisionId, revision_number: 1, parent_revision_id: null, base_revision_id: null, content_hash: 'hash', origin: 'OMR', created_at: score.created_at, content: musicXml, mime_type: 'application/xml' } }) }));

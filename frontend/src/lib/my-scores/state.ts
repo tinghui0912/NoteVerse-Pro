@@ -2,7 +2,6 @@ import type { MyScoresPageView, MyScoresSort, MyScoresView, ProcessingJob } from
 
 export const MY_SCORE_VIEWS: MyScoresView[] = [
   'all',
-  'drafts',
   'private',
   'published',
 ];
@@ -10,8 +9,8 @@ export const MY_SCORE_VIEWS: MyScoresView[] = [
 export const MY_SCORE_PAGE_VIEWS: MyScoresPageView[] = [
   'all',
   'processing',
+  'review',
   'failed',
-  'drafts',
   'private',
   'published',
 ];
@@ -46,8 +45,9 @@ export function isProcessingJob(job: ProcessingJob) {
 export function visibleMyScoreJobs(jobs: ProcessingJob[], view: MyScoresPageView) {
   return jobs.filter((job) => {
     if (view === 'processing') return isProcessingJob(job);
+    if (view === 'review') return job.state === 'PENDING_REVIEW';
     if (view === 'failed') return job.state === 'FAILURE';
-    if (view === 'all') return isProcessingJob(job) || job.state === 'FAILURE';
+    if (view === 'all') return isProcessingJob(job) || job.state === 'PENDING_REVIEW' || job.state === 'FAILURE';
     return false;
   });
 }

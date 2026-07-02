@@ -15,6 +15,7 @@ from app.core.exceptions import (
 )
 from app.db.models import (
     ProcessingJob,
+    ProcessingArtifact,
     NotificationEvent,
     Score,
     ScoreArtifact,
@@ -44,7 +45,9 @@ from app.modules.revisions.schemas import FingeringRequest, RevisionCreateReques
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.fingering_service import strip_existing_fingerings
 from app.modules.artifacts.service import ArtifactService
-from app.modules.scores.creation_service import SyncScoreCreationService
+from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
+from app.modules.review.service import ReviewService
+from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.jobs.worker_service import SyncJobService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_sharing.schemas import GrantCreateRequest
@@ -56,6 +59,7 @@ from app.modules.notifications.service import NotificationService, NotificationT
 from app.modules.publications.schemas import PublicationUpsertRequest
 from app.modules.publications.service import PublicationService
 from app.shared.constants import ErrorCode
+from app.shared.file_kinds import FileKind
 from app.storage import LocalFileStorage
 from app.utils.timezone import utc_now_naive
 
@@ -179,7 +183,7 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
     engine.dispose()
 
 
-def test_completed_job_creates_one_score_and_initial_revision(
+def test_confirmed_job_creates_one_active_score_and_initial_revision(
     score_service_session: tuple[Session, LocalFileStorage], tmp_path
 ) -> None:
     session, storage = score_service_session
@@ -196,12 +200,12 @@ def test_completed_job_creates_one_score_and_initial_revision(
     session.commit()
     source = tmp_path / "score.musicxml"
     source.write_bytes(MUSICXML_1)
-    service = SyncScoreCreationService(storage)
+    service = SyncConfirmedScoreCreationService(storage)
 
-    first_id = service.create_from_job(
+    first_id = service.create_confirmed_from_job(
         session, "job-1", str(source), title="Recognized score"
     )
-    second_id = service.create_from_job(
+    second_id = service.create_confirmed_from_job(
         session, "job-1", str(source), title="Recognized score"
     )
 
@@ -212,8 +216,8 @@ def test_completed_job_creates_one_score_and_initial_revision(
     artifact = session.query(ScoreArtifact).one()
     metadata = session.get(ScoreRevisionMetadata, revision.id)
     assert score.head_revision_id == revision.id
-    assert score.approved_revision_id is None
-    assert score.state == ScoreState.IN_REVIEW
+    assert score.approved_revision_id == revision.id
+    assert score.state == ScoreState.ACTIVE
     assert artifact.kind == ArtifactKind.MUSICXML
     assert storage.exists(artifact.storage_key)
     assert metadata is not None
@@ -223,27 +227,19 @@ def test_completed_job_creates_one_score_and_initial_revision(
 
 
 def test_completed_job_notifies_owner_when_ready_for_review(
-    score_service_session: tuple[Session, LocalFileStorage], tmp_path
+    score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
-    session, storage = score_service_session
+    session, _storage = score_service_session
     session.add(
         ProcessingJob(
             id=11,
             job_uuid="job-complete-notification",
             user_id=1,
             state=ProcessingJobState.PROGRESS,
+            requested_options={"title": "Ready Score"},
         )
     )
     session.commit()
-    source = tmp_path / "score.musicxml"
-    source.write_bytes(MUSICXML_1)
-    creation_service = SyncScoreCreationService(storage)
-    creation_service.create_from_job(
-        session,
-        "job-complete-notification",
-        str(source),
-        title="Ready Score",
-    )
     job_service = SyncJobService()
 
     job_service.finalize_success(session, "job-complete-notification")
@@ -253,11 +249,12 @@ def test_completed_job_notifies_owner_when_ready_for_review(
         recipient_user_id=1,
         type=NotificationTypes.PROCESSING_COMPLETED,
     ).one()
-    score = session.query(Score).filter_by(title="Ready Score").one()
-    assert notification.score_id == score.score_uuid
-    assert notification.resource_id == score.score_uuid
+    assert notification.resource_type == "job"
+    assert notification.resource_id == "job-complete-notification"
+    assert notification.score_id is None
     assert notification.data["job_id"] == "job-complete-notification"
-    assert notification.data["score_title"] == "Ready Score"
+    assert notification.data["job_title"] == "Ready Score"
+    assert session.query(Score).filter_by(title="Ready Score").one_or_none() is None
 
 
 def test_failed_job_notifies_owner_once(
@@ -299,6 +296,200 @@ def test_failed_job_notifies_owner_once(
     assert notification.score_id is None
     assert notification.data["job_id"] == "job-failure-notification"
     assert notification.data["code"] == ErrorCode.UNKNOWN_ERROR
+
+
+@pytest.mark.asyncio
+async def test_review_detail_reads_pending_job_artifacts(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    stored_xml = storage.put_bytes(
+        key="jobs/job-review/review_musicxml/001-score.musicxml",
+        content=MUSICXML_1,
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    session.add(
+        ProcessingJob(
+            id=13,
+            job_uuid="job-review",
+            user_id=1,
+            state=ProcessingJobState.PENDING_REVIEW,
+            requested_options={
+                "title": "Review Score",
+                "taxonomy_tags": [{"category": "level", "code": "beginner"}],
+            },
+        )
+    )
+    session.commit()
+    session.add(
+        ProcessingArtifact(
+            job_id=13,
+            artifact_uuid="review-musicxml-artifact",
+            kind=FileKind.REVIEW_MUSICXML.value,
+            storage_backend="local",
+            storage_key=stored_xml.storage_key,
+            filename=stored_xml.filename,
+            mime_type="application/vnd.recordare.musicxml+xml",
+            size_bytes=stored_xml.size_bytes,
+            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            page_number=1,
+        )
+    )
+    session.add(
+        ProcessingArtifact(
+            job_id=13,
+            artifact_uuid="preview-artifact",
+            kind=FileKind.PREVIEW_IMAGE.value,
+            storage_backend="local",
+            storage_key="jobs/job-review/preview_image/001-preview.svg",
+            filename="001-preview.svg",
+            mime_type="image/svg+xml",
+            page_number=1,
+        )
+    )
+    session.commit()
+    service = ReviewService(storage=storage)
+
+    detail = await service.detail(
+        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+        "job-review",
+        1,
+    )
+
+    assert detail.job_id == "job-review"
+    assert detail.title == "Review Score"
+    assert detail.taxonomy_tags == [{"category": "level", "code": "beginner"}]
+    assert detail.musicxml.artifact_id == "review-musicxml-artifact"
+    assert detail.musicxml.content == MUSICXML_1.decode("utf-8")
+    assert [artifact.artifact_id for artifact in detail.preview_images] == ["preview-artifact"]
+
+
+@pytest.mark.asyncio
+async def test_review_update_replaces_pending_review_musicxml(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    stored_xml = storage.put_bytes(
+        key="jobs/job-review-update/review_musicxml/001-score.musicxml",
+        content=MUSICXML_1,
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    session.add(
+        ProcessingJob(
+            id=15,
+            job_uuid="job-review-update",
+            user_id=1,
+            state=ProcessingJobState.PENDING_REVIEW,
+        )
+    )
+    session.commit()
+    session.add(
+        ProcessingArtifact(
+            job_id=15,
+            artifact_uuid="review-update-artifact",
+            kind=FileKind.REVIEW_MUSICXML.value,
+            storage_backend="local",
+            storage_key=stored_xml.storage_key,
+            filename=stored_xml.filename,
+            mime_type="application/vnd.recordare.musicxml+xml",
+            size_bytes=stored_xml.size_bytes,
+            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+        )
+    )
+    session.commit()
+    service = ReviewService(storage=storage)
+
+    detail = await service.update(
+        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+        "job-review-update",
+        1,
+        ReviewUpdateRequest(content=MUSICXML_2),
+    )
+
+    assert detail.musicxml is not None
+    assert detail.musicxml.content == MUSICXML_2
+    artifact = session.query(ProcessingArtifact).filter_by(artifact_uuid="review-update-artifact").one()
+    assert artifact.storage_key != stored_xml.storage_key
+    assert storage.read_bytes(artifact.storage_key).decode("utf-8") == MUSICXML_2
+    assert session.query(Score).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_review_confirm_creates_active_score_once(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    session.add(
+        ProcessingJob(
+            id=14,
+            job_uuid="job-confirm-review",
+            user_id=1,
+            state=ProcessingJobState.PENDING_REVIEW,
+            requested_options={"title": "Confirmed Score"},
+        )
+    )
+    session.add(
+        NotificationEvent(
+            notification_uuid="notification-review-ready",
+            recipient_user_id=1,
+            actor_user_id=None,
+            type=NotificationTypes.PROCESSING_COMPLETED,
+            resource_type="job",
+            resource_id="job-confirm-review",
+            score_id=None,
+            title="Processing complete",
+            data={"job_id": "job-confirm-review", "job_title": "Confirmed Score"},
+        )
+    )
+    session.commit()
+    service = ReviewService(storage=storage)
+    db = AsyncSessionAdapter(session)
+
+    first = await service.confirm(
+        db,  # type: ignore[arg-type]
+        "job-confirm-review",
+        1,
+        ReviewConfirmRequest(content=MUSICXML_1.decode("utf-8")),
+    )
+    second = await service.confirm(
+        db,  # type: ignore[arg-type]
+        "job-confirm-review",
+        1,
+        ReviewConfirmRequest(content=MUSICXML_1.decode("utf-8")),
+    )
+
+    assert first.score_id == second.score_id
+    assert session.query(Score).count() == 1
+    score = session.query(Score).one()
+    revision = session.query(ScoreRevision).one()
+    job = session.query(ProcessingJob).filter_by(job_uuid="job-confirm-review").one()
+    library_entry = session.query(ScoreLibraryEntry).one()
+    assert score.score_uuid == first.score_id
+    assert score.title == "Confirmed Score"
+    assert score.state == ScoreState.ACTIVE
+    assert score.head_revision_id == revision.id
+    assert score.approved_revision_id == revision.id
+    assert job.state == ProcessingJobState.SUCCESS
+    assert job.score_id == score.id
+    assert library_entry.score_id == score.id
+    notification = session.query(NotificationEvent).filter_by(
+        notification_uuid="notification-review-ready"
+    ).one()
+    assert notification.score_id == score.score_uuid
+    assert notification.data["score_id"] == score.score_uuid
+    assert notification.data["score_title"] == "Confirmed Score"
+    detail_after_confirm = await service.detail(
+        db,  # type: ignore[arg-type]
+        "job-confirm-review",
+        1,
+    )
+    assert detail_after_confirm.state == ProcessingJobState.SUCCESS
+    assert detail_after_confirm.score_id == score.score_uuid
+    assert detail_after_confirm.musicxml is None
+    assert session.query(ScoreArtifact).filter_by(
+        revision_id=revision.id,
+        kind=ArtifactKind.MUSICXML,
+    ).one()
 
 
 @pytest.mark.asyncio
@@ -549,7 +740,7 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
         ]
     )
     session.commit()
-    score_uuid = SyncScoreCreationService(storage).create_from_job(
+    score_uuid = SyncConfirmedScoreCreationService(storage).create_confirmed_from_job(
         session, "job-artifact", str(source), title="Artifact score"
     )
     score = session.query(Score).filter_by(score_uuid=score_uuid).one()

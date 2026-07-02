@@ -4,8 +4,8 @@
   "views": {
     "all": "All works",
     "processing": "Processing",
+    "review": "Pending review",
     "failed": "Failed",
-    "drafts": "Drafts",
     "private": "Private",
     "published": "Published"
   },
@@ -41,12 +41,11 @@
   "empty": {
     "all": "You have not uploaded any scores yet",
     "processing": "No scores are being processed",
+    "review": "No scores are waiting for review",
     "failed": "No failed uploads",
-    "drafts": "No draft scores",
     "private": "No private scores",
     "published": "No published scores"
   },
-  "draftStatus": "Draft",
   "privateStatus": "Private",
   "publishedStatus": "Published",
   "jobStatus": {

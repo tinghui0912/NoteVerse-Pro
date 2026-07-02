@@ -3,14 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useJobDetail } from '@/hooks/queries/use-job-queries';
-import { useApproveScore, useRevisionContent, useScoreDetail } from '@/hooks/queries/use-score-queries';
+import { useConfirmJobReview, useJobReview } from '@/hooks/queries/use-review-queries';
 import { jobsApi } from '@/lib/api';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
-import type { ProcessingArtifact } from '@/types/api';
+import type { ReviewArtifact } from '@/types/api';
 
-function useReviewArtifacts(jobId: string | null, artifacts: ProcessingArtifact[]) {
+function useReviewArtifacts(jobId: string | null, artifacts: ReviewArtifact[]) {
   const [urls, setUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const ownedUrls = useRef(new Set<string>());
@@ -54,25 +53,26 @@ function useReviewArtifacts(jobId: string | null, artifacts: ProcessingArtifact[
   return { loading, urls: jobId && artifacts.length ? urls : [] };
 }
 
-export function useReviewPageData(scoreId: string) {
+export function useReviewPageData(jobId: string) {
   const t = useTranslations('review');
   const editor = useTranslations('editor');
   const common = useTranslations('common');
   const auth = useTranslations('auth');
   const router = useRouter();
-  const scoreQuery = useScoreDetail(scoreId);
-  const score = scoreQuery.data?.data;
-  const revisionId = score?.head_revision_id ?? '';
-  const revisionQuery = useRevisionContent(scoreId, revisionId);
-  const xmlContent = revisionQuery.data?.data?.content ?? null;
-  const jobId = score?.originating_job_id ?? null;
-  const jobQuery = useJobDetail(jobId ?? '', { enabled: Boolean(jobId) });
-  const job = jobQuery.data?.data;
-  const originalFiles = useMemo(() => job?.artifacts?.original_image ?? [], [job?.artifacts?.original_image]);
-  const previewFiles = useMemo(() => job?.artifacts?.preview_image ?? [], [job?.artifacts?.preview_image]);
+  const reviewQuery = useJobReview(jobId);
+  const review = reviewQuery.data?.data;
+  const xmlContent = review?.musicxml?.content ?? null;
+  const originalFiles = useMemo(() => review?.original_images ?? [], [review?.original_images]);
+  const previewFiles = useMemo(() => review?.preview_images ?? [], [review?.preview_images]);
   const original = useReviewArtifacts(jobId, originalFiles);
   const preview = useReviewArtifacts(jobId, previewFiles);
-  const approve = useApproveScore();
+  const confirm = useConfirmJobReview();
+
+  useEffect(() => {
+    if (review?.state === 'SUCCESS' && review.score_id) {
+      router.replace(`/score/${review.score_id}`);
+    }
+  }, [review?.score_id, review?.state, router]);
 
   const translateValidationKey = useCallback((key: string) => {
     if (!key.includes('.')) return editor(key as never);
@@ -96,29 +96,33 @@ export function useReviewPageData(scoreId: string) {
   }, [translateValidationKey, xmlContent]);
 
   const error = useMemo(() => {
-    const queryError = scoreQuery.error ?? jobQuery.error ?? revisionQuery.error;
+    const queryError = reviewQuery.error;
     if (queryError) return queryError instanceof Error ? queryError.message : t('loadFailed');
-    if (score && score.state !== 'ACTIVE' && score.state !== 'IN_REVIEW') {
-      return t('invalidTaskState', { state: score.state });
-    }
-    if (score && !jobId) return t('loadFailed');
     return null;
-  }, [jobId, jobQuery.error, revisionQuery.error, score, scoreQuery.error, t]);
+  }, [reviewQuery.error, t]);
 
-  const confirmRecognition = () => approve.mutate(scoreId, {
+  const confirmRecognition = () => {
+    if (!xmlContent) return;
+    confirm.mutate({
+      jobId,
+      content: xmlContent,
+      title: review?.title ?? undefined,
+    }, {
     onSuccess: (response) => {
-      if (response.success) router.push(`/score/${scoreId}`);
+      if (response.success && response.data?.score_id) {
+        router.push(`/score/${response.data.score_id}`);
+      }
     },
-  });
+    });
+  };
 
   return {
     confirmRecognition,
-    confirming: approve.isPending,
+    confirming: confirm.isPending,
     error,
-    loading: scoreQuery.isLoading || revisionQuery.isLoading || (Boolean(jobId) && jobQuery.isLoading),
+    loading: reviewQuery.isLoading,
     original,
     preview,
-    scoreCapabilities: score?.capabilities,
     validationWarnings,
   };
 }

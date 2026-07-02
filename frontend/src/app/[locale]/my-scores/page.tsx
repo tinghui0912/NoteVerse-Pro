@@ -63,7 +63,7 @@ export default function MyScoresPage({
     pageSize,
     enabled: showScores,
   });
-  const showJobs = view === 'all' || view === 'processing' || view === 'failed';
+  const showJobs = view === 'all' || view === 'processing' || view === 'review' || view === 'failed';
   const jobsQuery = useJobList(1, 20, showJobs);
   const deleteJob = useDeleteJob();
   const deleteScores = useDeleteMyScores();
@@ -78,14 +78,14 @@ export default function MyScoresPage({
   const selectedJobCount = selectedJobIds.size;
   const scoreIds = React.useMemo(() => scores.map((score) => score.score_id), [scores]);
   const visibleJobs = visibleMyScoreJobs(jobs, view);
-  const visibleFailedJobIds = visibleJobs
-    .filter((job) => job.state === 'FAILURE')
+  const visibleSelectableJobIds = visibleJobs
+    .filter((job) => job.state === 'FAILURE' || job.state === 'PENDING_REVIEW')
     .map((job) => job.job_id);
-  const visibleSelectableCount = scoreIds.length + visibleFailedJobIds.length;
+  const visibleSelectableCount = scoreIds.length + visibleSelectableJobIds.length;
   const allVisibleSelected =
     visibleSelectableCount > 0 &&
     scoreIds.every((scoreId) => selectedScoreIds.has(scoreId)) &&
-    visibleFailedJobIds.every((jobId) => selectedJobIds.has(jobId));
+    visibleSelectableJobIds.every((jobId) => selectedJobIds.has(jobId));
   const total = myScoresTotal({
     showScores,
     scoreTotal: scoresQuery.data?.pagination.total ?? 0,
@@ -126,7 +126,7 @@ export default function MyScoresPage({
   };
   const toggleVisibleSelection = (checked: boolean) => {
     setSelectedScoreIds(checked ? new Set(scoreIds) : new Set());
-    setSelectedJobIds(checked ? new Set(visibleFailedJobIds) : new Set());
+    setSelectedJobIds(checked ? new Set(visibleSelectableJobIds) : new Set());
   };
   const clearSelection = () => {
     setSelectedScoreIds(new Set());
@@ -201,7 +201,7 @@ export default function MyScoresPage({
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
-              {scores.length || visibleFailedJobIds.length ? (
+              {scores.length || visibleSelectableJobIds.length ? (
                 <Button variant={batchMode ? 'secondary' : 'outline'} onClick={() => {
                   setBatchMode((current) => !current);
                   clearSelection();
@@ -235,7 +235,7 @@ export default function MyScoresPage({
               }}
               t={t}
             />
-          ) : (scores.length || visibleFailedJobIds.length) ? (
+          ) : (scores.length || visibleSelectableJobIds.length) ? (
             <MyScoresBulkActions
               selectedCount={selectedCount}
               selectedJobCount={selectedJobCount}
@@ -273,7 +273,11 @@ export default function MyScoresPage({
                   deletePending={deleteJob.isPending}
                   batchMode={batchMode}
                   selected={selectedJobIds.has(job.job_id)}
-                  onOpenScore={() => router.push(`/upload?job_id=${encodeURIComponent(job.job_id)}`)}
+                  onOpenScore={() => router.push(
+                    job.state === 'PENDING_REVIEW'
+                      ? `/review/${encodeURIComponent(job.job_id)}`
+                      : `/upload?job_id=${encodeURIComponent(job.job_id)}`
+                  )}
                   onToggleSelection={() => toggleJobSelection(job.job_id)}
                   onDismiss={() => deleteJob.mutate(job.job_id)}
                   t={t}
@@ -287,11 +291,7 @@ export default function MyScoresPage({
                   batchMode={batchMode}
                   selected={selectedScoreIds.has(score.score_id)}
                   onOpen={() =>
-                    router.push(
-                      score.state === 'IN_REVIEW'
-                        ? `/score/${score.score_id}/review`
-                        : `/score/${score.score_id}?from=my-scores`
-                    )
+                    router.push(`/score/${score.score_id}?from=my-scores`)
                   }
                   onToggleSelection={() => toggleScoreSelection(score.score_id)}
                   onDelete={() => deleteSingleScore(score.score_id)}

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 const xml = '<?xml version="1.0"?><score-partwise version="4.0"><part-list/></score-partwise>';
 const capabilities = (download: boolean, edit: boolean) => ({
   can_view: true, can_edit: edit, can_delete: false, can_manage_sharing: false,
-  can_download: download, can_practice: true, can_publish: false, can_approve: false,
+  can_download: download, can_practice: true, can_publish: false,
 });
 
 test('anonymous grant UI follows backend capabilities', async ({ page }) => {

@@ -1,17 +1,22 @@
 # 生成指法迁移到 Editor 任务计划
 
+Status: Historical / Completed
+
+本文档记录的是“生成指法从结果页迁入编辑器”的迁移过程。后续路由迁移已将独立 `/editor/:id`
+收敛为 `/score/:id/edit`，因此本文中旧的 `/editor` 说法均应理解为当前 Score edit workspace。
+
 ## 背景
 
 迁移前 `/results` 页面提供“生成指法”按钮，入口位于 `frontend/src/components/results/results-actions.tsx`。点击后调用 `useGenerateScoreFingering()`，进一步调用 `scoresApi.generateFingering(scoreId, { base_revision_id })`，后端 `POST /scores/{score_id}/fingering` 会基于当前 head/base revision 生成带指法的 MusicXML，并立即创建一个新的 `origin=FINGERING` revision。
 
-经过产品职责收敛后，结论是：生成指法会修改 MusicXML 内容，属于编辑行为，应迁移到 `/editor` 页面。`/results` 保留查看、播放、下载、分享、练习、进入编辑等结果消费能力，不再承载会修改乐谱内容的操作。
+经过产品职责收敛后，结论是：生成指法会修改 MusicXML 内容，属于编辑行为，应迁移到当前的 `/score/:id/edit` 编辑工作区。`/score/:id` 保留查看、播放、下载、分享、练习、进入编辑等结果消费能力，不再承载会修改乐谱内容的操作。
 
 ## 实施状态
 
 已完成：
 
-- `/results` 页面已删除“生成指法”入口和相关文案。
-- `/editor` 左侧修正工具已新增“生成指法”入口。
+- `/score/:id` 页面已删除“生成指法”入口和相关文案。
+- `/score/:id/edit` 左侧修正工具已新增“生成指法”入口。
 - 点击“生成指法”会先弹出手型大小选择，确认后再生成。
 - 前端生成指法时传入当前编辑中的 MusicXML，而不是服务器 revision。
 - 后端 `POST /scores/{score_id}/fingering` 已重定义为：输入 `content + hand_size`，输出生成后的 XML content。
@@ -89,20 +94,20 @@ Editor 当前理念：
 
 ## 目标体验
 
-### Results 页面
+### Score detail 页面
 
 - 删除“生成指法”按钮。
 - 保留“编辑”按钮。
 - `results.subtitle` 去掉“生成指法”描述，避免用户误以为结果页可以修改乐谱。
 - 删除不再使用的 results fingering 文案，除非其他页面仍引用。
 
-### Editor 页面
+### Score edit workspace
 
 - 增加“生成指法”入口。
 - 推荐位置：左侧 `修正工具` 区域，和“简化声部”同级。
 - 点击后生成指法并更新当前编辑中的 MusicXML。
 - 生成结果进入 undo/redo 历史。
-- 生成后保持在 `/editor`，不跳转。
+- 生成后保持在 `/score/:id/edit`，不跳转。
 - 不自动保存到服务器，用户仍需点击“保存更改”。
 - 生成期间按钮显示 loading，并禁用重复点击。
 - 若当前 XML 有未保存修改，应基于当前 XML 生成，而不是基于服务器旧 revision 生成。
@@ -373,13 +378,13 @@ MVP 可以沿用后端当前行为。后续需要明确：
 2. 重定义后端 `/fingering` 接口。
 3. 新增前端 API/hook。
 4. 接入 `useEditorDocument`。
-5. 在 Editor 左侧修正工具加入按钮。
+5. 在 Score edit workspace 左侧修正工具加入按钮。
 6. 补测试。
 
 ## 完成标准
 
-- `/results` 页面不再出现“生成指法”。
-- `/editor` 页面可以生成指法。
+- `/score/:id` 页面不再出现“生成指法”。
+- `/score/:id/edit` 页面可以生成指法。
 - 生成后谱面立即重新渲染。
 - 生成后可以撤销/重做。
 - 生成后不会自动跳转，不会自动保存。

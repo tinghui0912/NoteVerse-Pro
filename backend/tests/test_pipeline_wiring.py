@@ -109,6 +109,39 @@ def test_preview_generation_step_renders_and_records_preview_images() -> None:
         assert os.path.exists(args[2][0])
 
 
+def test_job_context_complete_records_review_musicxml_without_creating_score() -> None:
+    from app.pipeline.context import JobContext
+    from app.shared.file_kinds import FileKind
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        main_xml = os.path.join(temp_dir, "score.musicxml")
+        with open(main_xml, "w", encoding="utf-8") as file_handle:
+            file_handle.write("<score-partwise />")
+
+        ctx = JobContext(
+            job_id="job-review-boundary",
+            db=SimpleNamespace(),
+            celery_task=SimpleNamespace(
+                request=SimpleNamespace(id="job-review-boundary"),
+                update_state=lambda *_args, **_kwargs: None,
+            ),
+            image_paths=[],
+        )
+        ctx.main_xml = main_xml
+        ctx._tracker = None
+
+        with patch("app.pipeline.context.replace_files") as replace_files_mock:
+            with patch("app.pipeline.context.job_service.finalize_success") as finalize_success_mock:
+                ctx.complete()
+
+        replace_files_mock.assert_called_once_with(
+            "job-review-boundary",
+            FileKind.REVIEW_MUSICXML,
+            [main_xml],
+        )
+        finalize_success_mock.assert_called_once()
+
+
 def test_pipeline_builder_uses_ordered_image_omr_step_for_all_uploads() -> None:
     single = PipelineBuilder.build_single_image()
     multi = PipelineBuilder.build_multi_image()

@@ -12,7 +12,6 @@ class ScoreCapabilities(BaseModel):
     can_download: bool = False
     can_practice: bool = False
     can_publish: bool = False
-    can_approve: bool = False
 
 
 class ScoreAccessRead(BaseModel):

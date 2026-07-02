@@ -13,11 +13,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatApiDateTime } from '@/lib/score/metadata-display';
 import { cn } from '@/lib/utils';
-import type { MyScoresView, ScoreDetail, ScoreState } from '@/types/api';
+import type { MyScoresView, ScoreDetail } from '@/types/api';
 
-function stateLabelKey(state: ScoreState, view: MyScoresView) {
+function stateLabelKey(view: MyScoresView) {
   if (view === 'published') return 'publishedStatus';
-  if (state === 'IN_REVIEW') return 'draftStatus';
   return 'privateStatus';
 }
 
@@ -45,7 +44,7 @@ export function MyScoreCard({
   const labelKey =
     score.publication?.status === 'PUBLISHED'
       ? 'publishedStatus'
-      : stateLabelKey(score.state, view);
+      : stateLabelKey(view);
   return (
     <Card
       className={cn(
@@ -88,9 +87,7 @@ export function MyScoreCard({
           <span
             className={cn(
               'rounded-full px-2 py-1 text-xs',
-              score.state === 'IN_REVIEW'
-                ? 'bg-amber-100 text-amber-700'
-                : score.publication?.status === 'PUBLISHED'
+              score.publication?.status === 'PUBLISHED'
                   ? 'bg-green-100 text-green-700'
                 : 'bg-primary/10 text-primary'
             )}

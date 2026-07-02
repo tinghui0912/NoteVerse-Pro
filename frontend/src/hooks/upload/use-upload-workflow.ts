@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { UploadableFile } from '@/components/upload/upload-types';
-import { getCompletedScoreRoute } from '@/components/upload/upload-types';
+import { getCompletedJobRoute } from '@/components/upload/upload-types';
 import { useJobDetail, useSubmitJob } from '@/hooks/queries/use-job-queries';
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, jobsApi } from '@/lib/api';
@@ -101,7 +101,7 @@ export function useUploadWorkflow() {
     const state = String(job.state).toUpperCase();
     if (state === 'PENDING_REVIEW' || state === 'SUCCESS') {
       const completedScoreId = job.score_id;
-      if (!completedScoreId) {
+      if (state === 'SUCCESS' && !completedScoreId) {
         setTaskError(t('taskProcessingFailed'));
         setIsSubmitting(false);
         setCurrentJobId(null);
@@ -113,7 +113,7 @@ export function useUploadWorkflow() {
       setPollInterval(false);
       setTaskProgress(0);
       clearFiles();
-      router.push(getCompletedScoreRoute(completedScoreId, state));
+      router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
     } else if (state === 'FAILURE') {
       setTaskError(job.error || t('taskProcessingFailed'));
       setIsSubmitting(false);

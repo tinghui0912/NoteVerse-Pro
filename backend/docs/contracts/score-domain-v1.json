@@ -4,7 +4,7 @@
   "external_consumers_confirmed": false,
   "enums": {
     "processing_job_state": ["PENDING", "PROGRESS", "PENDING_REVIEW", "SUCCESS", "FAILURE"],
-    "score_state": ["IN_REVIEW", "ACTIVE", "ARCHIVED"],
+    "score_state": ["ACTIVE"],
     "revision_origin": ["OMR", "EDIT", "IMPORT"],
     "metadata_status": ["PENDING", "READY", "FAILED"],
     "artifact_kind": ["MUSICXML", "RENDERED_PAGE", "EXPORT_PDF", "AUDIO_PREVIEW", "DIAGNOSTIC_JSON"],
@@ -15,19 +15,17 @@
     "access_origin": ["OWNER", "MEMBERSHIP", "SHARE", "PUBLICATION"]
   },
   "score_transitions": {
-    "IN_REVIEW": ["ACTIVE", "ARCHIVED"],
-    "ACTIVE": ["ARCHIVED"],
-    "ARCHIVED": []
+    "ACTIVE": []
   },
   "capabilities": [
     "can_view",
     "can_edit",
+    "can_delete",
     "can_download",
     "can_practice",
-    "can_share",
+    "can_manage_sharing",
     "can_manage_members",
-    "can_publish",
-    "can_manage"
+    "can_publish"
   ],
   "policy_actions": [
     "VIEW_SCORE",
@@ -62,8 +60,16 @@
   "identities": {
     "submission_and_polling": "job_id",
     "review": "job_id",
+    "review_editor": "job_id",
     "score_detail_editor_history_sharing": "score_id",
     "practice_and_publication_snapshot": "revision_id"
+  },
+  "review_contract": {
+    "detail": "GET /api/v1/review/{job_id}",
+    "update_review_musicxml": "PATCH /api/v1/review/{job_id}",
+    "confirm": "POST /api/v1/review/{job_id}/confirm",
+    "creates_score_on_confirm_only": true,
+    "review_update_creates_score_revision": false
   },
   "invariants": {
     "revision_is_immutable": true,
@@ -77,18 +83,29 @@
     "bookmark_grants_access": false,
     "raw_share_token_is_persisted": false,
     "practice_pins_revision": true,
-    "public_access_is_read_only": true
+    "public_access_is_read_only": true,
+    "score_exists_only_after_review_confirm": true,
+    "review_editor_updates_job_artifact_only": true,
+    "review_artifacts_are_not_shareable": true
   },
   "examples": {
     "score_capabilities": {
       "can_view": true,
       "can_edit": false,
+      "can_delete": false,
       "can_download": true,
       "can_practice": true,
-      "can_share": false,
+      "can_manage_sharing": false,
       "can_manage_members": false,
-      "can_publish": false,
-      "can_manage": false
+      "can_publish": false
+    },
+    "review_update_request": {
+      "content": "<score-partwise />"
+    },
+    "review_confirm_request": {
+      "content": "<score-partwise />",
+      "title": "optional title",
+      "taxonomy_tags": []
     },
     "create_revision_request": {
       "base_revision_id": "revision-uuid",

@@ -37,7 +37,6 @@ class ScoreAction(str, enum.Enum):
     DOWNLOAD = "DOWNLOAD"
     PRACTICE = "PRACTICE"
     PUBLISH = "PUBLISH"
-    APPROVE = "APPROVE"
 
 
 @dataclass(frozen=True)
@@ -84,7 +83,6 @@ class ScoreAccessPolicy:
                     can_download=True,
                     can_practice=True,
                     can_publish=True,
-                    can_approve=True,
                 ),
             )
 
@@ -206,7 +204,6 @@ class ScoreAccessPolicy:
             ScoreAction.DOWNLOAD: access.capabilities.can_download,
             ScoreAction.PRACTICE: access.capabilities.can_practice,
             ScoreAction.PUBLISH: access.capabilities.can_publish,
-            ScoreAction.APPROVE: access.capabilities.can_approve,
         }[action]
         if not allowed:
             raise UnauthorizedException(

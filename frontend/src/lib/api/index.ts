@@ -34,3 +34,4 @@ export { notificationsApi } from './notifications';
 export { publicationsApi } from './publications';
 export { libraryApi } from './library';
 export { myScoresApi } from './my-scores';
+export { reviewApi } from './review';

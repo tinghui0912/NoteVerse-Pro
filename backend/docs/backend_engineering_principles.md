@@ -41,6 +41,7 @@ app/modules/
 |-- profile
 |-- publications
 |-- revisions
+|-- review
 |-- score_access
 |-- score_sharing
 `-- scores
@@ -68,7 +69,7 @@ Upload
 ProcessingJob ---- ProcessingJobStep
   |        \
   |         `---- ProcessingArtifact
-  | produces
+  | review confirms
   v
 Score ---- ScoreMembership
   |  \----- ScoreLibraryEntry
@@ -87,6 +88,8 @@ Core rules:
 
 - `ProcessingJob` owns upload processing, progress, retries, heartbeat, stale recovery,
   and worker execution.
+- Review is a pipeline stage owned by `ProcessingJob` and job artifacts until the user
+  confirms it.
 - `Score` is the stable user-owned product resource.
 - `ScoreRevision` is immutable and linear.
 - `ScoreArtifact` stores revision-owned payloads such as canonical MusicXML and renders.
@@ -100,10 +103,12 @@ Core rules:
 Job identity and score identity are deliberately separate:
 
 - upload and review polling use job IDs;
-- results, editor, history, share, public, and practice score surfaces use score IDs and
+- review correction uses job IDs and updates temporary review artifacts;
+- score detail, editor, history, share, public, and practice score surfaces use score IDs and
   revision IDs;
 - a failed job must remain diagnosable without creating a fake score;
-- once a job produces a score, score-facing navigation should use the returned score ID.
+- once review confirmation creates a score, score-facing navigation should use the returned
+  score ID.
 
 ## 4. Module Ownership
 
@@ -122,6 +127,20 @@ Owns processing lifecycle:
 
 Do not put durable score editing, publication, or sharing rules here.
 
+### `modules/review`
+
+Owns the pre-Score human review boundary:
+
+- reading `PENDING_REVIEW` job artifacts;
+- returning original images, preview images, and review MusicXML by `job_id`;
+- updating the temporary review MusicXML artifact through `PATCH /review/{job_id}`;
+- confirming review and creating the first active Score;
+- attaching the created `score_id` back to the processing job and processing notification.
+
+Do not expose review as a Score route. Do not create Score revisions when editing review
+artifacts. Do not allow sharing, invites, publication, or practice to target unconfirmed
+review output.
+
 ### `modules/scores` and `modules/revisions`
 
 Own stable score resources and immutable revision creation:
@@ -129,7 +148,7 @@ Own stable score resources and immutable revision creation:
 - score list/detail/update/delete/archive;
 - score title, taxonomy tags, state, and version;
 - head and approved revision pointers;
-- first score creation after a job yields canonical MusicXML;
+- first score creation after review confirmation yields canonical MusicXML;
 - revision append, content-hash deduplication, base-revision conflict checks, and
   idempotent saves.
 

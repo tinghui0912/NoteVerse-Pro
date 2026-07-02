@@ -34,3 +34,36 @@ export interface ProcessingArtifact {
   mime_type?: string;
   sha256?: string;
 }
+
+export interface ReviewArtifact {
+  artifact_id: string;
+  filename: string;
+  mime_type?: string | null;
+  size?: number | null;
+  sha256?: string | null;
+  page_number?: number | null;
+}
+
+export interface JobReview {
+  job_id: string;
+  state: 'PENDING_REVIEW' | 'SUCCESS';
+  score_id?: string | null;
+  title?: string | null;
+  taxonomy_tags: Array<{ category: string; code: string }>;
+  musicxml: {
+    artifact_id: string;
+    content: string;
+    mime_type?: string | null;
+    sha256?: string | null;
+  } | null;
+  original_images: ReviewArtifact[];
+  preview_images: ReviewArtifact[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewConfirmResult {
+  score_id: string;
+}
+
+export type ReviewUpdateResult = JobReview;

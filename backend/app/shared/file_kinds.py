@@ -9,6 +9,7 @@ class FileKind(str, enum.Enum):
     OMR = "omr"
     ENHANCED_XML = "enhanced_xml"
     NORMALIZED_MUSICXML = "normalized_musicxml"
+    REVIEW_MUSICXML = "review_musicxml"
     PREVIEW_IMAGE = "preview_image"
     FINAL_IMAGE = "final_image"
 
@@ -18,4 +19,4 @@ class FileKind(str, enum.Enum):
 
     @classmethod
     def xml_kinds(cls):
-        return {cls.ENHANCED_XML, cls.NORMALIZED_MUSICXML}
+        return {cls.ENHANCED_XML, cls.NORMALIZED_MUSICXML, cls.REVIEW_MUSICXML}

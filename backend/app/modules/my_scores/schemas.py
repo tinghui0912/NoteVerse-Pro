@@ -5,7 +5,6 @@ from enum import Enum
 
 class MyScoresView(str, Enum):
     ALL = "all"
-    DRAFTS = "drafts"
     PRIVATE = "private"
     PUBLISHED = "published"
 

@@ -1,5 +1,12 @@
 # /results to /score Migration Plan
 
+Status: Historical / Completed
+
+This document records the route migration from `/results/:id` to `/score/:id`.
+It predates the later Review Pipeline migration. Do not use any review-route
+examples in this file as current architecture; current OCR review lives under
+`/review/:jobId` and only confirmed Scores live under `/score/:scoreId`.
+
 ## Goal
 
 Rename the product-facing score detail experience from `/results/:id` to `/score/:id`.

@@ -18,7 +18,7 @@ test('protected routes preserve return URL while share grants stay anonymous', a
       shared_at: '2026-06-23T00:00:00Z',
       metadata: null, artifacts: [], capabilities: {
         can_view: true, can_edit: false, can_delete: false, can_manage_sharing: false,
-        can_download: false, can_practice: true, can_publish: false, can_approve: false,
+        can_download: false, can_practice: true, can_publish: false,
       },
     } }),
   }));

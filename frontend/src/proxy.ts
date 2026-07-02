@@ -11,6 +11,7 @@ const PROTECTED_PATH_PREFIXES = [
   '/library',
   '/my-scores',
   '/profile',
+  '/review',
   '/score',
   '/share',
 ];

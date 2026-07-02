@@ -29,13 +29,13 @@ from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER, ordered_unique_pair
 from app.utils.timezone import utc_now_naive
 
 
-class SyncScoreCreationService:
-    """Create the stable score aggregate exactly once for a completed OMR job."""
+class SyncConfirmedScoreCreationService:
+    """Create the stable score aggregate exactly once after review is confirmed."""
 
     def __init__(self, storage: FileStorage | None = None) -> None:
         self.storage = storage or file_storage
 
-    def create_from_job(
+    def create_confirmed_from_job(
         self,
         db: Session,
         job_uuid: str,
@@ -79,7 +79,7 @@ class SyncScoreCreationService:
                 score_uuid=score_uuid,
                 owner_user_id=job.user_id,
                 title=(title or "Untitled score").strip(),
-                state=ScoreState.IN_REVIEW,
+                state=ScoreState.ACTIVE,
                 originating_job_id=require_persisted_id(job.id, entity="processing job"),
                 created_at=now,
                 updated_at=now,
@@ -154,6 +154,7 @@ class SyncScoreCreationService:
                 )
             )
             score.head_revision_id = revision_id
+            score.approved_revision_id = revision_id
             job.score_id = score_id
             job.updated_at = now
             db.commit()
@@ -172,4 +173,4 @@ class SyncScoreCreationService:
             raise
 
 
-sync_score_creation_service = SyncScoreCreationService()
+sync_confirmed_score_creation_service = SyncConfirmedScoreCreationService()

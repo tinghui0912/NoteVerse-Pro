@@ -647,7 +647,7 @@ Because pending invite lookup is email-based, once the user registers and logs i
 - Saving a new score revision creates best-effort `score.version.created` notifications for the score owner and active members, excluding the actor.
 - Processing completion creates a best-effort `processing.completed` notification for the job owner.
 - Processing failure creates a best-effort `processing.failed` notification for the job owner.
-- Clicking a `processing.completed` notification routes to `/score/{score_id}/review`.
+- Clicking a `processing.completed` notification routes to `/review/{job_id}`.
 - Clicking a `processing.failed` notification routes to `/upload?job_id={job_id}`, matching the failed-job behavior on `/my-scores`.
 - Accepting a pending invite redirects to `/score/:id`.
 

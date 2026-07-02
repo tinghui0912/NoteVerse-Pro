@@ -72,13 +72,25 @@ const completedProcessingNotification = {
   type: 'processing.completed',
   title: 'Processing complete',
   body: 'Your score is ready for review.',
-  resource_type: 'score',
-  resource_id: 'ready-score-1',
-  score_id: 'ready-score-1',
+  resource_type: 'job',
+  resource_id: 'ready-job-1',
+  score_id: null,
   actor: null,
-  data: { job_id: 'ready-job-1', score_id: 'ready-score-1', score_title: 'Ready Score' },
+  data: { job_id: 'ready-job-1', job_title: 'Ready Score' },
   read_at: null,
   created_at: '2026-07-01T09:30:00Z',
+};
+
+const confirmedProcessingNotification = {
+  ...completedProcessingNotification,
+  notification_id: 'notification-processing-confirmed',
+  score_id: 'ready-score-1',
+  data: {
+    job_id: 'ready-job-1',
+    job_title: 'Ready Score',
+    score_id: 'ready-score-1',
+    score_title: 'Ready Score',
+  },
 };
 
 test('notification center combines pending invites and update notifications', async ({ page }) => {
@@ -265,7 +277,7 @@ test('failed processing notification opens the matching upload job', async ({ pa
   await expect(page).toHaveURL(/\/upload\?job_id=failed-job-1$/);
 });
 
-test('completed processing notification opens score review', async ({ page }) => {
+test('completed processing notification opens job review', async ({ page }) => {
   await page.context().addCookies([
     {
       name: 'noteverse_session',
@@ -327,5 +339,77 @@ test('completed processing notification opens score review', async ({ page }) =>
   await page.getByRole('button', { name: 'Notifications' }).click();
   await page.getByText('Score processing completed').click();
 
-  await expect(page).toHaveURL(/\/score\/ready-score-1\/review$/);
+  await expect(page).toHaveURL(/\/review\/ready-job-1$/);
+});
+
+test('confirmed processing notification opens created score', async ({ page }) => {
+  await page.context().addCookies([
+    {
+      name: 'noteverse_session',
+      value: 'test-session',
+      domain: 'localhost',
+      path: '/',
+    },
+  ]);
+  await page.route('**/api/v1/auth/refresh', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: null }),
+    })
+  );
+  await page.route('**/api/v1/profile**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: userProfile }),
+    })
+  );
+  await page.route('**/api/v1/me/invites', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: [] }),
+    })
+  );
+  await page.route('**/api/v1/me/notifications/unread-count', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { count: 1 } }),
+    })
+  );
+  await page.route('**/api/v1/me/notifications', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: [confirmedProcessingNotification] }),
+      });
+    }
+    return route.fallback();
+  });
+  await page.route('**/api/v1/me/notifications/notification-processing-confirmed/read', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: { ...confirmedProcessingNotification, read_at: '2026-07-01T09:40:00Z' },
+      }),
+    })
+  );
+  await page.route('**/api/v1/scores/ready-score-1**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: null }),
+    })
+  );
+
+  await page.goto('/en');
+  await page.getByRole('button', { name: 'Notifications' }).click();
+  await page.getByText('Score processing completed').click();
+
+  await expect(page).toHaveURL(/\/score\/ready-score-1$/);
 });

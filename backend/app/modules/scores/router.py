@@ -89,18 +89,6 @@ async def delete_score(
     return success_response(message=SuccessCode.DELETE_SUCCESS)
 
 
-@router.post("/{score_id}/approve", response_model=APIResponse[ScoreRead])
-async def approve_score(
-    score_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: ScoreService = Depends(get_score_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.approve(db, score_id, user_id)
-    return success_response(data=result, message=SuccessCode.RECOGNITION_CONFIRMED)
-
-
 @router.get("/{score_id}/revisions", response_model=APIResponse[list[RevisionRead]])
 async def list_revisions(
     score_id: str,

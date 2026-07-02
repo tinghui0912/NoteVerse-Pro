@@ -22,13 +22,10 @@ from app.processing.engines.matchmaker_live import (
     MatchmakerLiveEngine,
 )
 from app.db.models.practice import PracticeReportStatus, PracticeSessionState
-from app.db.models import LibraryEntrySourceType
-from app.db.models.score import ScoreState
 from app.db.models.score_access import AccessOrigin
 from app.modules.files.service import FilesService
 from app.modules.practice.service import PracticeService
 from app.modules.profile.service import AvatarService
-from app.modules.scores.service import ScoreService
 from app.modules.jobs.execution_service import JobExecutionService
 from app.modules.jobs.maintenance_service import JobMaintenanceService
 from app.modules.jobs.worker_service import sync_job_service
@@ -77,51 +74,6 @@ class FakeS3Client:
 
 class FakeS3NotFound(Exception):
     response = {"Error": {"Code": "NoSuchKey"}}
-
-
-@pytest.mark.asyncio
-async def test_score_approve_adds_owned_score_to_library() -> None:
-    score = SimpleNamespace(
-        id=10,
-        score_uuid="score-1",
-        state=ScoreState.IN_REVIEW,
-        head_revision_id=20,
-        approved_revision_id=None,
-        originating_job_id=None,
-        version=1,
-        updated_at=None,
-    )
-    repository = Mock()
-    repository.get = AsyncMock(return_value=score)
-    access_policy = Mock()
-    access_policy.authorize = AsyncMock(
-        return_value=SimpleNamespace(
-            score=SimpleNamespace(score_uuid="score-1"),
-            capabilities=SimpleNamespace(),
-        )
-    )
-    library_service = Mock()
-    library_service.ensure_entry = AsyncMock()
-    service = ScoreService(
-        repository=repository,
-        access_policy=access_policy,
-        library_service=library_service,
-    )
-    service._read = AsyncMock(return_value=SimpleNamespace(score_id="score-1"))  # type: ignore[method-assign]
-    db = AsyncMock()
-    db.get = AsyncMock(return_value=None)
-
-    await service.approve(db, "score-1", user_id=7)
-
-    assert score.state == ScoreState.ACTIVE
-    assert score.approved_revision_id == 20
-    library_service.ensure_entry.assert_awaited_once_with(
-        db,
-        user_id=7,
-        score_id=10,
-        source_type=LibraryEntrySourceType.SELF_ADDED,
-    )
-    db.commit.assert_awaited_once()
 
 
 def test_allowed_file_accepts_supported_extensions() -> None:

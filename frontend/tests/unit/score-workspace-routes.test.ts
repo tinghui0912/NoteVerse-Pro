@@ -9,13 +9,13 @@ const readSource = (path: string) => readFileSync(projectPath(path), 'utf8');
 describe('score workspace routes', () => {
   it('keeps score as the product route family', () => {
     expect(existsSync(projectPath('src/app/[locale]/score/[id]/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/score/[id]/review/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/score/[id]/edit/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/score/[id]/practice/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/score/[id]/practice/performance/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/review/[jobId]/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/review/[jobId]/edit/page.tsx'))).toBe(true);
 
     expect(existsSync(projectPath('src/app/[locale]/results'))).toBe(false);
-    expect(existsSync(projectPath('src/app/[locale]/review'))).toBe(false);
     expect(existsSync(projectPath('src/app/[locale]/editor'))).toBe(false);
     expect(existsSync(projectPath('src/app/[locale]/practice'))).toBe(false);
   });
@@ -25,24 +25,25 @@ describe('score workspace routes', () => {
 
     expect(proxy).toContain("'/score'");
     expect(proxy).toContain("'/share'");
+    expect(proxy).toContain("'/review'");
     expect(proxy).not.toContain("'/results'");
-    expect(proxy).not.toContain("'/review'");
     expect(proxy).not.toContain("'/editor'");
     expect(proxy).not.toContain("'/practice'");
   });
 
   it('routes score detail actions into score workspaces', () => {
     const actions = readSource('src/components/score-detail/score-actions.tsx');
-    const review = readSource('src/app/[locale]/score/[id]/review/page.tsx');
     const upload = readSource('src/components/upload/upload-types.ts');
+    const reviewPage = readSource('src/app/[locale]/review/[jobId]/page.tsx');
+    const scoreEditor = readSource('src/app/[locale]/score/[id]/edit/page.tsx');
+    const reviewEditor = readSource('src/app/[locale]/review/[jobId]/edit/page.tsx');
 
     expect(actions).toContain('/score/${scoreId}/edit');
     expect(actions).toContain('/score/${scoreId}/practice');
-    expect(review).toContain('/score/${scoreId}/edit?returnUrl=');
-    expect(review).toContain('/score/${scoreId}/review');
-    expect(review).toContain('<ScoreShell');
-    expect(review).toContain('can_approve');
-    expect(upload).toContain('/score/${scoreId}/review');
+    expect(upload).toContain('/review/${jobId}');
+    expect(reviewPage).toContain('/review/${jobId}/edit');
+    expect(scoreEditor).toContain('<EditorWorkspacePage');
+    expect(reviewEditor).toContain('<EditorWorkspacePage');
     expect(actions).not.toContain('/editor/${scoreId}');
     expect(actions).not.toContain('/practice/${scoreId}');
   });

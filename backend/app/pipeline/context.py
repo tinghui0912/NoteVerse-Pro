@@ -12,8 +12,9 @@ from app.core.config import settings
 from app.modules.jobs.schemas import PipelineExecutionFailureResult, JobProcessingOptions
 from app.processing.engines.omr import OmrSuccessResult
 from app.modules.jobs.worker_service import sync_job_service as job_service
-from app.modules.scores.creation_service import sync_score_creation_service
+from app.pipeline.files_recorder import replace_files
 from app.pipeline.step_tracker import StepTracker
+from app.shared.file_kinds import FileKind
 
 if TYPE_CHECKING:
     from app.pipeline.base import Pipeline
@@ -167,16 +168,7 @@ class JobContext:
 
         if not self.main_xml or not os.path.exists(self.main_xml):
             raise FileNotFoundError("Canonical MusicXML was not produced")
-        sync_score_creation_service.create_from_job(
-            self.db,
-            self.job_id,
-            self.main_xml,
-            title=self.options.get("title"),
-            taxonomy_tags=[
-                (tag["category"], tag["code"])
-                for tag in self.options.get("taxonomy_tags", [])
-            ],
-        )
+        replace_files(self.job_id, FileKind.REVIEW_MUSICXML, [self.main_xml])
         total_time = int(time.time() - self._start_ts)
         job_service.finalize_success(
             self.db, self.job_id, total_time_seconds=total_time

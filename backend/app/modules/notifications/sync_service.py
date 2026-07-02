@@ -78,24 +78,23 @@ class SyncNotificationService:
         *,
         job_uuid: str,
         recipient_user_id: int,
-        score_id: str | None,
-        score_title: str | None,
+        title: str | None,
     ) -> None:
+        display_title = title or "Your score"
         self.create_event_best_effort(
             db,
             recipient_user_id=recipient_user_id,
             actor_user_id=None,
             type=NotificationTypes.PROCESSING_COMPLETED,
-            resource_type="score" if score_id else "job",
-            resource_id=score_id or job_uuid,
-            score_id=score_id,
+            resource_type="job",
+            resource_id=job_uuid,
+            score_id=None,
             title="Processing complete",
-            body=f"{score_title or 'Your score'} is ready for review.",
+            body=f"{display_title} is ready for review.",
             dedupe_key=f"{NotificationTypes.PROCESSING_COMPLETED}:{job_uuid}:{recipient_user_id}",
             data={
                 "job_id": job_uuid,
-                "score_id": score_id,
-                "score_title": score_title,
+                "job_title": title,
             },
         )
 

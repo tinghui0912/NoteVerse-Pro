@@ -74,7 +74,6 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
         ("get", "/api/v1/scores/test-score", None),
         ("patch", "/api/v1/scores/test-score", {"title": "Updated", "expected_version": 1}),
         ("delete", "/api/v1/scores/test-score", None),
-        ("post", "/api/v1/scores/test-score/approve", None),
         ("get", "/api/v1/scores/test-score/revisions", None),
         (
             "post",

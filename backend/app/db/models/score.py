@@ -28,7 +28,6 @@ from app.utils.timezone import utc_now_naive
 
 
 class ScoreState(str, enum.Enum):
-    IN_REVIEW = "IN_REVIEW"
     ACTIVE = "ACTIVE"
 
 

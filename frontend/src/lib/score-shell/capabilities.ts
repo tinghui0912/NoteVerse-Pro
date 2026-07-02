@@ -11,7 +11,6 @@ export const READONLY_SCORE_CAPABILITIES: ScoreShellCapabilities = {
   can_download: false,
   can_practice: false,
   can_publish: false,
-  can_approve: false,
 };
 
 export function resolveScoreShellCapabilities(

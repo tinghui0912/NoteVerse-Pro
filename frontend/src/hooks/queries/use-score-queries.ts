@@ -100,16 +100,6 @@ export function useGenerateScoreFingering() {
   });
 }
 
-export function useApproveScore() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (scoreId: string) => scoresApi.approve(scoreId),
-    onSuccess: (response, scoreId) => {
-      queryClient.setQueryData(queryKeys.scores.detail(scoreId), response);
-    },
-  });
-}
-
 export function useScoreGrants(scoreId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.scores.grants(scoreId),

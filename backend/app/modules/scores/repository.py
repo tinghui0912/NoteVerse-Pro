@@ -15,7 +15,7 @@ from app.db.models import (
 )
 from app.db.models.score_access import PublicationStatus
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
-from app.db.models.score import ArtifactKind, ScoreState
+from app.db.models.score import ArtifactKind
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
 score_title_col = Score.__table__.c.title
@@ -38,9 +38,7 @@ class ScoreRepository:
         filters = [Score.owner_user_id == user_id]
         if search:
             filters.append(score_title_col.ilike(f"%{search}%"))
-        if view == MyScoresView.DRAFTS:
-            filters.append(Score.state == ScoreState.IN_REVIEW)
-        elif view == MyScoresView.PUBLISHED:
+        if view == MyScoresView.PUBLISHED:
             filters.append(
                 select(ScorePublication.id)
                 .where(
@@ -50,7 +48,6 @@ class ScoreRepository:
                 .exists()
             )
         elif view == MyScoresView.PRIVATE:
-            filters.append(Score.state != ScoreState.IN_REVIEW)
             filters.append(
                 ~select(ScorePublication.id)
                 .where(

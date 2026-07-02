@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
-from app.db.models import ProcessingArtifact, ProcessingJobStep, Score
+from app.db.models import ProcessingArtifact, ProcessingJobStep
 from app.db.models.processing_job import ProcessingJobState, ProcessingJobStepStatus
 from app.modules.jobs.repository import SyncJobRepository
 from app.modules.jobs.schemas import JobArtifactItem, JobDetail
@@ -110,17 +110,13 @@ class SyncJobService:
         )
 
     def _notify_success(self, db: Session, job) -> None:
-        score_uuid = self.repository.get_score_uuid(db, job.score_id)
-        score_title = None
-        if job.score_id is not None:
-            score = db.get(Score, job.score_id)
-            score_title = score.title if score else None
+        requested_options = job.requested_options if isinstance(job.requested_options, dict) else {}
+        requested_title = requested_options.get("title")
         self.notification_service.notify_processing_completed_best_effort(
             db,
             job_uuid=job.job_uuid,
             recipient_user_id=job.user_id,
-            score_id=score_uuid,
-            score_title=score_title,
+            title=requested_title if isinstance(requested_title, str) else None,
         )
 
     def upsert_step(

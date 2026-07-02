@@ -1,4 +1,4 @@
-export type ScoreState = 'IN_REVIEW' | 'ACTIVE';
+export type ScoreState = 'ACTIVE';
 export type RevisionOrigin = 'OMR' | 'EDIT' | 'IMPORT';
 export type FingeringHandSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 export type ArtifactKind =
@@ -17,7 +17,6 @@ export interface ScoreCapabilities {
   can_download: boolean;
   can_practice: boolean;
   can_publish: boolean;
-  can_approve: boolean;
 }
 
 export interface ScoreMetadata {

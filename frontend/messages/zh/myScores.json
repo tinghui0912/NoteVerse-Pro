@@ -4,8 +4,8 @@
   "views": {
     "all": "全部作品",
     "processing": "处理中",
+    "review": "待审核",
     "failed": "处理失败",
-    "drafts": "草稿",
     "private": "私有",
     "published": "已发布"
   },
@@ -41,12 +41,11 @@
   "empty": {
     "all": "你还没有上传作品",
     "processing": "当前没有正在处理的乐谱",
+    "review": "暂无待审核乐谱",
     "failed": "没有处理失败的上传",
-    "drafts": "暂无草稿作品",
     "private": "暂无私有作品",
     "published": "暂无已发布作品"
   },
-  "draftStatus": "草稿",
   "privateStatus": "私有",
   "publishedStatus": "已发布",
   "jobStatus": {

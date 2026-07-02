@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleAlert, Loader2, MoreVertical, Trash2 } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Loader2, MoreVertical, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -43,7 +43,8 @@ export function ProcessingJobCard({
   t,
 }: ProcessingJobCardProps) {
   const processing = isProcessingJob(job);
-  const selectable = job.state === 'FAILURE';
+  const selectable = job.state === 'FAILURE' || job.state === 'PENDING_REVIEW';
+  const openable = selectable || job.state === 'PENDING_REVIEW';
   const [thumbnail, setThumbnail] = useState<{ artifactId: string; url: string } | null>(null);
   const thumbnailArtifactId = job.thumbnail_artifact_id ?? null;
   const thumbnailUrl =
@@ -75,7 +76,7 @@ export function ProcessingJobCard({
     <Card
       className={cn(
         'group rounded-2xl',
-        !batchMode && selectable && 'cursor-pointer',
+        !batchMode && openable && 'cursor-pointer',
         batchMode && selectable && 'cursor-pointer',
         selected && 'ring-2 ring-primary'
       )}
@@ -84,7 +85,7 @@ export function ProcessingJobCard({
           onToggleSelection();
           return;
         }
-        if (!batchMode && selectable) onOpenScore();
+        if (!batchMode && openable) onOpenScore();
       }}
     >
       <CardContent className="relative p-5">
@@ -110,6 +111,8 @@ export function ProcessingJobCard({
             />
           ) : processing ? (
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          ) : job.state === 'PENDING_REVIEW' ? (
+            <CheckCircle2 className="h-10 w-10 text-orange-500" />
           ) : (
             <CircleAlert className="h-10 w-10 text-destructive" />
           )}
@@ -153,7 +156,7 @@ export function ProcessingJobCard({
             </p>
           </div>
         ) : null}
-        {!batchMode ? (
+        {!batchMode && selectable ? (
         <div
           className="absolute bottom-4 right-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
           onClick={(event) => event.stopPropagation()}
@@ -170,12 +173,10 @@ export function ProcessingJobCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {job.state === 'FAILURE' ? (
-                <DropdownMenuItem disabled={deletePending} onClick={onDismiss}>
-                  <Trash2 className="h-4 w-4" />
-                  {t('delete')}
-                </DropdownMenuItem>
-              ) : null}
+              <DropdownMenuItem disabled={deletePending} onClick={onDismiss}>
+                <Trash2 className="h-4 w-4" />
+                {t('delete')}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

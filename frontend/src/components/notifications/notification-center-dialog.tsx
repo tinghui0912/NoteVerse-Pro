@@ -45,8 +45,11 @@ function notificationHref(notification: NotificationEvent): string | null {
     const jobId = stringData(notification.data.job_id) ?? notification.resource_id;
     return jobId ? `/upload?job_id=${encodeURIComponent(jobId)}` : null;
   }
-  if (notification.type === 'processing.completed' && notification.score_id) {
-    return `/score/${notification.score_id}/review`;
+  if (notification.type === 'processing.completed') {
+    const scoreId = stringData(notification.data.score_id) ?? notification.score_id;
+    if (scoreId) return `/score/${encodeURIComponent(scoreId)}`;
+    const jobId = stringData(notification.data.job_id) ?? notification.resource_id;
+    return jobId ? `/review/${encodeURIComponent(jobId)}` : null;
   }
   if (notification.score_id) {
     return `/score/${notification.score_id}`;
@@ -154,8 +157,9 @@ export function NotificationCenterDialog({
   };
 
   const renderNotificationSubtitle = (notification: NotificationEvent) => {
-    const scoreTitle = stringData(notification.data.score_title);
-    return scoreTitle ?? notification.body ?? t('scoreTitleFallback');
+    const resourceTitle =
+      stringData(notification.data.score_title) ?? stringData(notification.data.job_title);
+    return resourceTitle ?? notification.body ?? t('scoreTitleFallback');
   };
 
   return (
