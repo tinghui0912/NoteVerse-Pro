@@ -66,6 +66,11 @@ describe('queryKeys', () => {
       'publication',
       { slug: 'slug-1' },
     ]);
+    expect(queryKeys.notifications.list()).toEqual(['notifications', 'list']);
+    expect(queryKeys.notifications.unreadCount()).toEqual([
+      'notifications',
+      'unread-count',
+    ]);
   });
 
   it('invalidates every revision variant for one score through the revision prefix', async () => {

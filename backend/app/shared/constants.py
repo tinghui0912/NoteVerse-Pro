@@ -61,6 +61,7 @@ class ErrorCode:
     INVITE_ALREADY_ACCEPTED = "invite_already_accepted"
     INVITE_EMAIL_MISMATCH = "invite_email_mismatch"
     MEMBERSHIP_NOT_FOUND = "membership_not_found"
+    NOTIFICATION_NOT_FOUND = "notification_not_found"
 
     PRACTICE_SESSION_NOT_FOUND = "practice_session_not_found"
     PRACTICE_SESSION_INVALID_STATE = "practice_session_invalid_state"

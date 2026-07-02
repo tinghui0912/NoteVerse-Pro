@@ -8,6 +8,7 @@ from app.modules.jobs.router import router as jobs
 from app.modules.library.router import router as library
 from app.modules.metadata.router import router as metadata
 from app.modules.my_scores.router import router as my_scores
+from app.modules.notifications.router import router as notifications
 from app.modules.practice.router import router as practice
 from app.modules.publications.router import public_router as publications
 from app.modules.publications.router import score_router as score_publications
@@ -33,6 +34,7 @@ api_router.include_router(score_invites, prefix="/scores", tags=["Score Collabor
 api_router.include_router(score_grants, prefix="/score-grants", tags=["Score Sharing"])
 api_router.include_router(score_invite_entries, prefix="/invites", tags=["Score Collaboration"])
 api_router.include_router(score_invite_me, prefix="/me", tags=["Score Collaboration"])
+api_router.include_router(notifications, prefix="/me", tags=["Notifications"])
 api_router.include_router(score_publications, prefix="/scores", tags=["Publications"])
 api_router.include_router(publications, prefix="/publications", tags=["Publications"])
 api_router.include_router(score_artifact_router, prefix="/scores", tags=["Score Artifacts"])

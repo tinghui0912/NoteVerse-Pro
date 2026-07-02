@@ -6,16 +6,22 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
-from app.db.models import ProcessingArtifact, ProcessingJobStep
+from app.db.models import ProcessingArtifact, ProcessingJobStep, Score
 from app.db.models.processing_job import ProcessingJobState, ProcessingJobStepStatus
 from app.modules.jobs.repository import SyncJobRepository
 from app.modules.jobs.schemas import JobArtifactItem, JobDetail
+from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
 from app.utils.timezone import utc_now_naive
 
 
 class SyncJobService:
-    def __init__(self, repository: SyncJobRepository | None = None) -> None:
+    def __init__(
+        self,
+        repository: SyncJobRepository | None = None,
+        notification_service: SyncNotificationService | None = None,
+    ) -> None:
         self.repository = repository or SyncJobRepository()
+        self.notification_service = notification_service or sync_notification_service
 
     @staticmethod
     def _reset_session(db: Session) -> None:
@@ -71,6 +77,7 @@ class SyncJobService:
         job.finished_at = now
         job.updated_at = now
         db.commit()
+        self._notify_success(db, job)
 
     def finalize_failure(
         self,
@@ -94,6 +101,27 @@ class SyncJobService:
         job.finished_at = now
         job.updated_at = now
         db.commit()
+        self.notification_service.notify_processing_failed_best_effort(
+            db,
+            job_uuid=job.job_uuid,
+            recipient_user_id=job.user_id,
+            code=job.code,
+            error_type=job.error_type,
+        )
+
+    def _notify_success(self, db: Session, job) -> None:
+        score_uuid = self.repository.get_score_uuid(db, job.score_id)
+        score_title = None
+        if job.score_id is not None:
+            score = db.get(Score, job.score_id)
+            score_title = score.title if score else None
+        self.notification_service.notify_processing_completed_best_effort(
+            db,
+            job_uuid=job.job_uuid,
+            recipient_user_id=job.user_id,
+            score_id=score_uuid,
+            score_title=score_title,
+        )
 
     def upsert_step(
         self,

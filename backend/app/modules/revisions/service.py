@@ -13,8 +13,8 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import ScoreArtifact, ScoreRevision, ScoreRevisionMetadata
-from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
+from app.db.models import ScoreArtifact, ScoreRevision, ScoreRevisionMetadata, User
+from app.db.models.score import ArtifactKind, MetadataStatus
 from app.modules.revisions.schemas import (
     FingeringRequest,
     FingeringResultRead,
@@ -24,6 +24,7 @@ from app.modules.revisions.schemas import (
 )
 from app.modules.revisions.fingering_service import XMLFingeringService
 from app.modules.metadata.service import MetadataProjectionService
+from app.modules.notifications.service import NotificationService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.artifacts.render_service import RevisionRenderService
 from app.modules.scores.repository import ScoreRepository
@@ -40,6 +41,7 @@ class RevisionService:
         access_policy: ScoreAccessPolicy | None = None,
         render_service: RevisionRenderService | None = None,
         fingering_service: XMLFingeringService | None = None,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.storage = storage or file_storage
@@ -49,6 +51,7 @@ class RevisionService:
             storage=self.storage,
         )
         self.fingering_service = fingering_service or XMLFingeringService()
+        self.notification_service = notification_service or NotificationService()
 
     async def generate_fingering(
         self,
@@ -176,6 +179,14 @@ class RevisionService:
             score.updated_at = utc_now_naive()
             await db.commit()
             await db.refresh(revision)
+            actor = await db.get(User, user_id)
+            if actor is not None:
+                await self.notification_service.notify_score_version_created_best_effort(
+                    db,
+                    score=score,
+                    revision=revision,
+                    actor=actor,
+                )
             try:
                 await MetadataProjectionService(storage=self.storage).rebuild(
                     db, score_uuid, revision_uuid, user_id

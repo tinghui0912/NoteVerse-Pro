@@ -30,7 +30,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ClientOnly } from '../client-only';
 import { useMyPendingScoreInvites } from '@/hooks/queries/use-score-queries';
-import { PendingInvitesDialog } from '@/components/score-detail/pending-invites-dialog';
+import { useNotificationUnreadCount } from '@/hooks/queries/use-notification-queries';
+import { NotificationCenterDialog } from '@/components/notifications/notification-center-dialog';
 
 const UserMenu = () => {
   const { user, logout } = useAuth();
@@ -87,10 +88,13 @@ const UserMenu = () => {
 };
 
 const NotificationBell = () => {
-  const t = useTranslations('scoreCollaboration');
-  const [isInvitesOpen, setIsInvitesOpen] = useState(false);
+  const t = useTranslations('notifications');
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const pendingInvites = useMyPendingScoreInvites(true);
+  const unreadNotifications = useNotificationUnreadCount(true);
   const pendingInviteCount = pendingInvites.data?.data?.length ?? 0;
+  const unreadNotificationCount = unreadNotifications.data?.data?.count ?? 0;
+  const badgeCount = pendingInviteCount + unreadNotificationCount;
 
   return (
     <>
@@ -98,18 +102,21 @@ const NotificationBell = () => {
         type="button"
         variant="ghost"
         size="icon"
-        aria-label={t('myInvitesMenu')}
+        aria-label={t('bellLabel')}
         className="relative rounded-full text-white hover:bg-white/20 hover:text-white"
-        onClick={() => setIsInvitesOpen(true)}
+        onClick={() => setIsNotificationsOpen(true)}
       >
         <Bell className="h-5 w-5" />
-        {pendingInviteCount > 0 ? (
+        {badgeCount > 0 ? (
           <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[11px] font-semibold text-white">
-            {pendingInviteCount}
+            {badgeCount > 99 ? '99+' : badgeCount}
           </span>
         ) : null}
       </Button>
-      <PendingInvitesDialog open={isInvitesOpen} onOpenChange={setIsInvitesOpen} />
+      <NotificationCenterDialog
+        open={isNotificationsOpen}
+        onOpenChange={setIsNotificationsOpen}
+      />
     </>
   );
 };

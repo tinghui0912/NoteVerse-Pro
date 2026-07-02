@@ -1,6 +1,7 @@
 from .user import User, UserRole
 from .auth import RefreshToken
 from .file import Upload
+from .notification import NotificationEvent
 from .practice import (
     PracticeReportStatus,
     PracticeSession,
@@ -52,6 +53,7 @@ __all__ = [
     "UserRole",
     "RefreshToken",
     "Upload",
+    "NotificationEvent",
     "PracticeSession",
     "PracticeSessionState",
     "PracticeReportStatus",

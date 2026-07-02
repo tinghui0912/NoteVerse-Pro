@@ -11,6 +11,7 @@ const namespaces = [
   'score',
   'scoreShare',
   'scoreCollaboration',
+  'notifications',
   'errors',
   'library',
   'myScores',

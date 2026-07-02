@@ -218,6 +218,30 @@ export interface ScoreMember {
   revoked_at: string | null;
 }
 
+export interface NotificationActor {
+  display_name: string | null;
+  email: string;
+  avatar_url: string | null;
+}
+
+export interface NotificationEvent {
+  notification_id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  resource_type: string;
+  resource_id: string | null;
+  score_id: string | null;
+  actor: NotificationActor | null;
+  data: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationUnreadCount {
+  count: number;
+}
+
 export interface Publication {
   public_slug: string;
   score_id: string;

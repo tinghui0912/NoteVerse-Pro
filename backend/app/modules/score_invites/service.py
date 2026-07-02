@@ -27,6 +27,7 @@ from app.modules.score_invites.schemas import (
     MemberUpdateRequest,
     PendingInviteRead,
 )
+from app.modules.notifications.service import NotificationService, NotificationTypes
 from app.shared.mail_dispatcher import dispatch_email
 from app.shared.constants import ErrorCode
 from app.utils.timezone import to_utc_naive, utc_now_naive
@@ -56,10 +57,12 @@ class ScoreInviteService:
         repository: ScoreInviteRepository | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         mail_dispatcher: MailDispatcher | None = None,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self.repository = repository or ScoreInviteRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.mail_dispatcher = mail_dispatcher or dispatch_email
+        self.notification_service = notification_service or NotificationService()
 
     async def create_invite(
         self,
@@ -173,11 +176,22 @@ class ScoreInviteService:
         self, db: AsyncSession, invite_uuid: str, user_id: int
     ) -> PendingInviteRead:
         invite = await self._invite_by_uuid(db, invite_uuid)
-        await self._ensure_invite_target_user(db, invite, user_id)
+        user = await self._ensure_invite_target_user(db, invite, user_id)
         invite.status = InviteStatus.DECLINED
         invite.declined_at = utc_now_naive()
         await db.commit()
         await db.refresh(invite)
+        score = await db.get(Score, invite.score_id)
+        if score:
+            await self._notify_invite_response(
+                db,
+                invite=invite,
+                score=score,
+                actor=user,
+                notification_type=NotificationTypes.SCORE_INVITE_DECLINED,
+                title="Invite declined",
+                action="declined",
+            )
         return await self._pending_invite_read(db, invite)
 
     async def _accept_invite_record(
@@ -196,6 +210,16 @@ class ScoreInviteService:
             invite.accepted_by_user_id = user_id
             invite.accepted_at = utc_now_naive()
             await db.commit()
+            await db.refresh(invite)
+            await self._notify_invite_response(
+                db,
+                invite=invite,
+                score=score,
+                actor=user,
+                notification_type=NotificationTypes.SCORE_INVITE_ACCEPTED,
+                title="Invite accepted",
+                action="accepted",
+            )
             return InviteAcceptRead(
                 score_id=score.score_uuid,
                 role=MembershipRole.EDITOR,
@@ -225,6 +249,16 @@ class ScoreInviteService:
         invite.accepted_at = now
         await db.commit()
         await db.refresh(membership)
+        await db.refresh(invite)
+        await self._notify_invite_response(
+            db,
+            invite=invite,
+            score=score,
+            actor=user,
+            notification_type=NotificationTypes.SCORE_INVITE_ACCEPTED,
+            title="Invite accepted",
+            action="accepted",
+        )
         return InviteAcceptRead(
             score_id=score.score_uuid,
             role=membership.role,
@@ -358,6 +392,36 @@ class ScoreInviteService:
         if self._display_status(invite) != InviteStatus.PENDING:
             return False
         return invite.email == user.email.lower()
+
+    async def _notify_invite_response(
+        self,
+        db: AsyncSession,
+        *,
+        invite: ScoreInvite,
+        score: Score,
+        actor: User,
+        notification_type: str,
+        title: str,
+        action: str,
+    ) -> None:
+        actor_name = actor.display_name or actor.email
+        await self.notification_service.create_event_best_effort(
+            db,
+            recipient_user_id=invite.created_by_user_id,
+            actor_user_id=require_persisted_id(actor.id, entity="user"),
+            type=notification_type,
+            resource_type="score",
+            resource_id=score.score_uuid,
+            score_id=score.score_uuid,
+            title=title,
+            body=f"{actor_name} {action} your invite to {score.title}.",
+            dedupe_key=f"{notification_type}:{invite.invite_uuid}:{invite.created_by_user_id}",
+            data={
+                "invite_id": invite.invite_uuid,
+                "score_title": score.title,
+                "role": invite.role.value,
+            },
+        )
 
     async def _invite_read(self, db: AsyncSession, invite: ScoreInvite) -> InviteRead:
         return InviteRead(

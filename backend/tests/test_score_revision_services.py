@@ -15,6 +15,7 @@ from app.core.exceptions import (
 )
 from app.db.models import (
     ProcessingJob,
+    NotificationEvent,
     Score,
     ScoreArtifact,
     ScoreRevision,
@@ -44,11 +45,14 @@ from app.modules.revisions.service import RevisionService
 from app.modules.revisions.fingering_service import strip_existing_fingerings
 from app.modules.artifacts.service import ArtifactService
 from app.modules.scores.creation_service import SyncScoreCreationService
+from app.modules.jobs.worker_service import SyncJobService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_sharing.schemas import GrantCreateRequest
 from app.modules.score_sharing.service import ScoreSharingService
 from app.modules.score_invites.schemas import InviteCreateRequest
 from app.modules.score_invites.service import ScoreInviteService, hash_invite_token
+from app.modules.notifications.maintenance_service import NotificationMaintenanceService
+from app.modules.notifications.service import NotificationService, NotificationTypes
 from app.modules.publications.schemas import PublicationUpsertRequest
 from app.modules.publications.service import PublicationService
 from app.shared.constants import ErrorCode
@@ -218,6 +222,85 @@ def test_completed_job_creates_one_score_and_initial_revision(
     assert metadata.playback_duration_ms == 2000
 
 
+def test_completed_job_notifies_owner_when_ready_for_review(
+    score_service_session: tuple[Session, LocalFileStorage], tmp_path
+) -> None:
+    session, storage = score_service_session
+    session.add(
+        ProcessingJob(
+            id=11,
+            job_uuid="job-complete-notification",
+            user_id=1,
+            state=ProcessingJobState.PROGRESS,
+        )
+    )
+    session.commit()
+    source = tmp_path / "score.musicxml"
+    source.write_bytes(MUSICXML_1)
+    creation_service = SyncScoreCreationService(storage)
+    creation_service.create_from_job(
+        session,
+        "job-complete-notification",
+        str(source),
+        title="Ready Score",
+    )
+    job_service = SyncJobService()
+
+    job_service.finalize_success(session, "job-complete-notification")
+    job_service.finalize_success(session, "job-complete-notification")
+
+    notification = session.query(NotificationEvent).filter_by(
+        recipient_user_id=1,
+        type=NotificationTypes.PROCESSING_COMPLETED,
+    ).one()
+    score = session.query(Score).filter_by(title="Ready Score").one()
+    assert notification.score_id == score.score_uuid
+    assert notification.resource_id == score.score_uuid
+    assert notification.data["job_id"] == "job-complete-notification"
+    assert notification.data["score_title"] == "Ready Score"
+
+
+def test_failed_job_notifies_owner_once(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    session.add(
+        ProcessingJob(
+            id=12,
+            job_uuid="job-failure-notification",
+            user_id=1,
+            state=ProcessingJobState.PROGRESS,
+        )
+    )
+    session.commit()
+    job_service = SyncJobService()
+
+    job_service.finalize_failure(
+        session,
+        "job-failure-notification",
+        error="OCR failed",
+        error_type="PipelineError",
+        code=ErrorCode.UNKNOWN_ERROR,
+    )
+    job_service.finalize_failure(
+        session,
+        "job-failure-notification",
+        error="OCR failed again",
+        error_type="PipelineError",
+        code=ErrorCode.UNKNOWN_ERROR,
+    )
+
+    notification = session.query(NotificationEvent).filter_by(
+        recipient_user_id=1,
+        type=NotificationTypes.PROCESSING_FAILED,
+    ).one()
+    assert notification.resource_type == "job"
+    assert notification.resource_id == "job-failure-notification"
+    assert notification.score_id is None
+    assert notification.data["job_id"] == "job-failure-notification"
+    assert notification.data["code"] == ErrorCode.UNKNOWN_ERROR
+
+
 @pytest.mark.asyncio
 async def test_revision_save_deduplicates_and_rejects_stale_base(
     score_service_session: tuple[Session, LocalFileStorage],
@@ -294,6 +377,65 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
             ),
         )
     assert conflict.value.code == ErrorCode.REVISION_CONFLICT
+
+
+@pytest.mark.asyncio
+async def test_collaborator_revision_save_notifies_score_owner(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    score = add_active_score_with_head_revision(
+        session,
+        score_id=45,
+        revision_id=46,
+        score_uuid="collab-revision-score",
+        revision_uuid="collab-base-revision",
+        title="Collaborative Score",
+    )
+    session.add(
+        ScoreMembership(
+            score_id=45,
+            user_id=2,
+            role=MembershipRole.EDITOR,
+            created_by_user_id=1,
+        )
+    )
+    session.commit()
+    db = AsyncSessionAdapter(session)
+    service = RevisionService(storage=storage)
+
+    created = await service.create(
+        db,  # type: ignore[arg-type]
+        score.score_uuid,
+        2,
+        RevisionCreateRequest(content=MUSICXML_2, base_revision_id="collab-base-revision"),
+    )
+
+    notification = session.query(NotificationEvent).filter_by(
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SCORE_VERSION_CREATED,
+    ).one()
+    assert notification.score_id == "collab-revision-score"
+    assert notification.resource_id == "collab-revision-score"
+    assert notification.data["revision_id"] == created.revision_id
+    assert notification.data["revision_number"] == created.revision_number
+    assert session.query(NotificationEvent).filter_by(recipient_user_id=2).count() == 0
+
+    revision = session.query(ScoreRevision).filter_by(revision_uuid=created.revision_id).one()
+    actor = session.get(User, 2)
+    assert actor is not None
+    await service.notification_service.notify_score_version_created_best_effort(
+        db,  # type: ignore[arg-type]
+        score=score,
+        revision=revision,
+        actor=actor,
+    )
+    assert session.query(NotificationEvent).filter_by(
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SCORE_VERSION_CREATED,
+    ).count() == 1
 
 
 @pytest.mark.asyncio
@@ -728,6 +870,14 @@ async def test_invite_acceptance_creates_editable_membership(
     ).one()
     assert stored_membership.role == MembershipRole.EDITOR
     assert stored_invite.status == InviteStatus.ACCEPTED
+    notification = session.query(NotificationEvent).filter_by(
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SCORE_INVITE_ACCEPTED,
+    ).one()
+    assert notification.score_id == "invite-score"
+    assert notification.resource_id == "invite-score"
+    assert notification.read_at is None
 
     policy = ScoreAccessPolicy()
     member_access = await policy.resolve(db, "invite-score", user_id=2)  # type: ignore[arg-type]
@@ -848,6 +998,13 @@ async def test_user_pending_invites_can_be_declined(
     assert declined.status == InviteStatus.DECLINED
     assert stored_invite.status == InviteStatus.DECLINED
     assert stored_invite.declined_at is not None
+    notification = session.query(NotificationEvent).filter_by(
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SCORE_INVITE_DECLINED,
+    ).one()
+    assert notification.score_id == "decline-invite-score"
+    assert notification.data["invite_id"] == created.invite_id
     assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
     with pytest.raises(ValidationException) as declined_again:
         await service.accept_pending_invite(
@@ -856,6 +1013,163 @@ async def test_user_pending_invites_can_be_declined(
             2,
         )
     assert declined_again.value.code == ErrorCode.INVITE_DECLINED
+
+
+@pytest.mark.asyncio
+async def test_notifications_are_scoped_and_can_be_marked_read(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    db = AsyncSessionAdapter(session)
+    service = NotificationService()
+
+    created = await service.create_event(
+        db,  # type: ignore[arg-type]
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SYSTEM,
+        resource_type="score",
+        resource_id="score-1",
+        score_id="score-1",
+        title="System update",
+        body="A score update is ready.",
+        data={"kind": "test"},
+    )
+    assert created is not None
+
+    owner_notifications = await service.list_for_user(db, 1)  # type: ignore[arg-type]
+    other_notifications = await service.list_for_user(db, 2)  # type: ignore[arg-type]
+    assert [item.notification_id for item in owner_notifications] == [created.notification_id]
+    assert other_notifications == []
+    assert (await service.unread_count(db, 1)).count == 1  # type: ignore[arg-type]
+    assert (await service.unread_count(db, 2)).count == 0  # type: ignore[arg-type]
+
+    with pytest.raises(ResourceNotFoundException):
+        await service.mark_read(db, created.notification_id, 2)  # type: ignore[arg-type]
+
+    marked = await service.mark_read(db, created.notification_id, 1)  # type: ignore[arg-type]
+    assert marked.read_at is not None
+    assert (await service.unread_count(db, 1)).count == 0  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_notification_dedupe_key_returns_existing_event(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    db = AsyncSessionAdapter(session)
+    service = NotificationService()
+
+    first = await service.create_event(
+        db,  # type: ignore[arg-type]
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SYSTEM,
+        resource_type="score",
+        resource_id="score-1",
+        score_id="score-1",
+        title="First",
+        body="First notification.",
+        dedupe_key="system:test:score-1:owner",
+    )
+    second = await service.create_event(
+        db,  # type: ignore[arg-type]
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SYSTEM,
+        resource_type="score",
+        resource_id="score-1",
+        score_id="score-1",
+        title="Second",
+        body="Second notification.",
+        dedupe_key="system:test:score-1:owner",
+    )
+
+    assert first is not None
+    assert second is not None
+    assert second.notification_id == first.notification_id
+    assert session.query(NotificationEvent).filter_by(
+        dedupe_key="system:test:score-1:owner"
+    ).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_notification_cleanup_removes_events_older_than_retention(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    db = AsyncSessionAdapter(session)
+    service = NotificationService()
+    now = utc_now_naive()
+
+    old_event = NotificationEvent(
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SYSTEM,
+        resource_type="score",
+        resource_id="old-score",
+        title="Old notification",
+        created_at=now - timedelta(days=91),
+    )
+    fresh_event = NotificationEvent(
+        recipient_user_id=1,
+        actor_user_id=2,
+        type=NotificationTypes.SYSTEM,
+        resource_type="score",
+        resource_id="fresh-score",
+        title="Fresh notification",
+        created_at=now - timedelta(days=2),
+    )
+    session.add(old_event)
+    session.add(fresh_event)
+    session.commit()
+
+    deleted = await service.cleanup_expired_events(
+        db,  # type: ignore[arg-type]
+        retention_days=90,
+    )
+
+    assert deleted == 1
+    remaining = session.query(NotificationEvent).all()
+    assert [event.resource_id for event in remaining] == ["fresh-score"]
+
+
+def test_notification_maintenance_removes_events_older_than_retention(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    service = NotificationMaintenanceService()
+    now = utc_now_naive()
+
+    session.add(
+        NotificationEvent(
+            recipient_user_id=1,
+            actor_user_id=2,
+            type=NotificationTypes.SYSTEM,
+            resource_type="score",
+            resource_id="old-score",
+            title="Old notification",
+            created_at=now - timedelta(days=91),
+        )
+    )
+    session.add(
+        NotificationEvent(
+            recipient_user_id=1,
+            actor_user_id=2,
+            type=NotificationTypes.SYSTEM,
+            resource_type="score",
+            resource_id="fresh-score",
+            title="Fresh notification",
+            created_at=now - timedelta(days=2),
+        )
+    )
+    session.commit()
+
+    result = service.run(session)
+
+    assert result.expired_notifications_deleted == 1
+    remaining = session.query(NotificationEvent).all()
+    assert [event.resource_id for event in remaining] == ["fresh-score"]
 
 
 @pytest.mark.asyncio

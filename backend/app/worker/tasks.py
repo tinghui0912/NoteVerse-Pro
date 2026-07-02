@@ -8,6 +8,7 @@ from app.db.worker_session import get_worker_db
 from app.modules.jobs.execution_service import job_execution_service
 from app.modules.jobs.maintenance_service import job_maintenance_service
 from app.modules.jobs.schemas import JobProcessingOptions, PipelineExecutionSuccessResult
+from app.modules.notifications.maintenance_service import notification_maintenance_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
 from app.worker.celery_config import celery_app
@@ -69,4 +70,16 @@ def run_job_maintenance() -> dict[str, int]:
         "stale_pending_failed": result.stale_pending_failed,
         "stale_progress_failed": result.stale_progress_failed,
         "orphan_uploads_deleted": result.orphan_uploads_deleted,
+    }
+
+
+@celery_app.task(name="app.worker.tasks.run_notification_maintenance")
+def run_notification_maintenance() -> dict[str, int]:
+    """Run periodic user-notification cleanup."""
+
+    with get_worker_db() as db:
+        result = notification_maintenance_service.run(db)
+
+    return {
+        "expired_notifications_deleted": result.expired_notifications_deleted,
     }

@@ -11,3 +11,10 @@ def test_task_time_limits_form_ordered_shutdown_envelope() -> None:
 def test_celery_uses_explicit_task_time_limits() -> None:
     assert celery_app.conf.task_soft_time_limit == settings.CELERY_TASK_SOFT_TIME_LIMIT
     assert celery_app.conf.task_time_limit == settings.CELERY_TASK_TIME_LIMIT
+
+
+def test_notification_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["notification-maintenance"]
+
+    assert schedule["task"] == "app.worker.tasks.run_notification_maintenance"
+    assert schedule["schedule"] == float(settings.NOTIFICATION_CLEANUP_INTERVAL_SECONDS)

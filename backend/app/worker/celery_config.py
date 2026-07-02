@@ -53,6 +53,10 @@ celery_app.conf.update(
             "task": "app.worker.tasks.run_job_maintenance",
             "schedule": 300.0,
         },
+        "notification-maintenance": {
+            "task": "app.worker.tasks.run_notification_maintenance",
+            "schedule": float(settings.NOTIFICATION_CLEANUP_INTERVAL_SECONDS),
+        },
     },
 )
 

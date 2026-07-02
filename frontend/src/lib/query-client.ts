@@ -78,5 +78,10 @@ export const queryKeys = {
         lists: () => ['my-scores', 'list'] as const,
         list: (filters: MyScoresQueryFilters) => ['my-scores', 'list', filters] as const,
     },
+    notifications: {
+        all: ['notifications'] as const,
+        list: () => ['notifications', 'list'] as const,
+        unreadCount: () => ['notifications', 'unread-count'] as const,
+    },
 } as const;
 
