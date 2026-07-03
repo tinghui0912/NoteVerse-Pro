@@ -72,7 +72,7 @@ class SyncNotificationService:
     def by_dedupe_key(db: Session, dedupe_key: str) -> NotificationEvent | None:
         return db.query(NotificationEvent).filter_by(dedupe_key=dedupe_key).one_or_none()
 
-    def notify_processing_completed_best_effort(
+    def notify_import_completed_best_effort(
         self,
         db: Session,
         *,
@@ -85,20 +85,20 @@ class SyncNotificationService:
             db,
             recipient_user_id=recipient_user_id,
             actor_user_id=None,
-            type=NotificationTypes.PROCESSING_COMPLETED,
+            type=NotificationTypes.IMPORT_COMPLETED,
             resource_type="job",
             resource_id=job_uuid,
             score_id=None,
             title="Processing complete",
             body=f"{display_title} is ready for review.",
-            dedupe_key=f"{NotificationTypes.PROCESSING_COMPLETED}:{job_uuid}:{recipient_user_id}",
+            dedupe_key=f"{NotificationTypes.IMPORT_COMPLETED}:{job_uuid}:{recipient_user_id}",
             data={
                 "job_id": job_uuid,
                 "job_title": title,
             },
         )
 
-    def notify_processing_failed_best_effort(
+    def notify_import_failed_best_effort(
         self,
         db: Session,
         *,
@@ -111,12 +111,12 @@ class SyncNotificationService:
             db,
             recipient_user_id=recipient_user_id,
             actor_user_id=None,
-            type=NotificationTypes.PROCESSING_FAILED,
+            type=NotificationTypes.IMPORT_FAILED,
             resource_type="job",
             resource_id=job_uuid,
             title="Processing failed",
             body="We could not finish processing your score.",
-            dedupe_key=f"{NotificationTypes.PROCESSING_FAILED}:{job_uuid}:{recipient_user_id}",
+            dedupe_key=f"{NotificationTypes.IMPORT_FAILED}:{job_uuid}:{recipient_user_id}",
             data={
                 "job_id": job_uuid,
                 "code": code,

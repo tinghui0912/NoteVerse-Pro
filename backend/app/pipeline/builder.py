@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 
-from app.modules.jobs.schemas import JobProcessingOptions
+from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from .base import Pipeline
 
 
@@ -12,7 +12,7 @@ class PipelineBuilder:
     @staticmethod
     def build(
         image_paths: List[str],
-        options: Optional[JobProcessingOptions] = None,
+        options: Optional[ImportJobProcessingOptions] = None,
     ) -> Pipeline:
         """Build a single-image or multi-image pipeline."""
         if len(image_paths) == 1:
@@ -21,7 +21,7 @@ class PipelineBuilder:
 
     @staticmethod
     def build_single_image(
-        options: Optional[JobProcessingOptions] = None,
+        options: Optional[ImportJobProcessingOptions] = None,
     ) -> Pipeline:
         """Build the single-image processing pipeline."""
         from .steps import (
@@ -48,7 +48,7 @@ class PipelineBuilder:
 
     @staticmethod
     def build_multi_image(
-        options: Optional[JobProcessingOptions] = None,
+        options: Optional[ImportJobProcessingOptions] = None,
     ) -> Pipeline:
         """Build the multi-image processing pipeline."""
         from .steps import (

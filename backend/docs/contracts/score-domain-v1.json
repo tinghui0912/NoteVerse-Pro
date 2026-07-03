@@ -3,7 +3,7 @@
   "api_namespace": "/api/v1",
   "external_consumers_confirmed": false,
   "enums": {
-    "processing_job_state": ["PENDING", "PROGRESS", "PENDING_REVIEW", "SUCCESS", "FAILURE"],
+    "import_job_state": ["PENDING", "RUNNING", "PENDING_REVIEW", "CONFIRMED", "FAILURE"],
     "revision_origin": ["OMR", "EDIT", "IMPORT"],
     "metadata_status": ["PENDING", "READY", "FAILED"],
     "artifact_kind": ["MUSICXML", "RENDERED_PAGE"],

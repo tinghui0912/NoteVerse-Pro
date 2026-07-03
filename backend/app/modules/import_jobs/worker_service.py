@@ -6,23 +6,23 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
-from app.db.models import ProcessingArtifact, ProcessingJobStep
-from app.db.models.processing_job import ProcessingJobState, ProcessingJobStepStatus
-from app.modules.jobs.repository import SyncJobRepository
-from app.modules.jobs.schemas import JobArtifactItem, JobDetail
+from app.db.models import ImportArtifact, ImportJobStep
+from app.db.models.import_job import ImportJobState, ImportJobStepStatus
+from app.modules.import_jobs.repository import SyncImportJobRepository
+from app.modules.import_jobs.schemas import ImportJobArtifactItem, ImportJobDetail
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
 from app.shared.file_kinds import FileKind
 from app.shared.render_dispatcher import enqueue_review_thumbnail_render
 from app.utils.timezone import utc_now_naive
 
 
-class SyncJobService:
+class SyncImportJobService:
     def __init__(
         self,
-        repository: SyncJobRepository | None = None,
+        repository: SyncImportJobRepository | None = None,
         notification_service: SyncNotificationService | None = None,
     ) -> None:
-        self.repository = repository or SyncJobRepository()
+        self.repository = repository or SyncImportJobRepository()
         self.notification_service = notification_service or sync_notification_service
 
     @staticmethod
@@ -37,7 +37,7 @@ class SyncJobService:
         self,
         db: Session,
         job_uuid: str,
-        state: ProcessingJobState | str,
+        state: ImportJobState | str,
         progress: int,
         current_step: Optional[str] = None,
         code: Optional[str] = None,
@@ -49,7 +49,7 @@ class SyncJobService:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             return
-        job.state = state if isinstance(state, ProcessingJobState) else ProcessingJobState(state)
+        job.state = state if isinstance(state, ImportJobState) else ImportJobState(state)
         job.progress = progress
         job.current_step = current_step or job.current_step
         job.code = code if code is not None else job.code
@@ -73,7 +73,7 @@ class SyncJobService:
         if not job:
             return
         now = utc_now_naive()
-        job.state = ProcessingJobState.PENDING_REVIEW
+        job.state = ImportJobState.PENDING_REVIEW
         job.progress = 100
         job.last_heartbeat_at = now
         job.finished_at = now
@@ -95,7 +95,7 @@ class SyncJobService:
         if not job:
             return
         now = utc_now_naive()
-        job.state = ProcessingJobState.FAILURE
+        job.state = ImportJobState.FAILURE
         job.progress = 0
         job.error = error
         job.error_type = error_type
@@ -104,7 +104,7 @@ class SyncJobService:
         job.finished_at = now
         job.updated_at = now
         db.commit()
-        self.notification_service.notify_processing_failed_best_effort(
+        self.notification_service.notify_import_failed_best_effort(
             db,
             job_uuid=job.job_uuid,
             recipient_user_id=job.user_id,
@@ -115,7 +115,7 @@ class SyncJobService:
     def _notify_success(self, db: Session, job) -> None:
         requested_options = job.requested_options if isinstance(job.requested_options, dict) else {}
         requested_title = requested_options.get("title")
-        self.notification_service.notify_processing_completed_best_effort(
+        self.notification_service.notify_import_completed_best_effort(
             db,
             job_uuid=job.job_uuid,
             recipient_user_id=job.user_id,
@@ -127,25 +127,25 @@ class SyncJobService:
         db: Session,
         job_uuid: str,
         name: str,
-        status: ProcessingJobStepStatus | str,
+        status: ImportJobStepStatus | str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         step_order: Optional[int] = None,
-    ) -> ProcessingJobStep:
+    ) -> ImportJobStep:
         self._reset_session(db)
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             raise ValueError(f"Job {job_uuid} not found")
-        job_id = require_persisted_id(job.id, entity="processing job")
+        job_id = require_persisted_id(job.id, entity="import job")
         step = self.repository.get_step(db, job_id, name)
-        normalized = status if isinstance(status, ProcessingJobStepStatus) else ProcessingJobStepStatus(status.upper())
+        normalized = status if isinstance(status, ImportJobStepStatus) else ImportJobStepStatus(status.upper())
         if step:
             step.status = normalized
             step.start_time = start_time or step.start_time
             step.end_time = end_time or step.end_time
             step.step_order = step_order if step_order is not None else step.step_order
         else:
-            step = ProcessingJobStep(
+            step = ImportJobStep(
                 job_id=job_id,
                 name=name,
                 status=normalized,
@@ -162,15 +162,15 @@ class SyncJobService:
         db: Session,
         job_uuid: str,
         kind: str,
-        items: list[JobArtifactItem],
+        items: list[ImportJobArtifactItem],
     ) -> None:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             raise ValueError(f"Job {job_uuid} not found")
-        job_id = require_persisted_id(job.id, entity="processing job")
+        job_id = require_persisted_id(job.id, entity="import job")
         self.repository.delete_artifacts_by_kind(db, job_id, kind)
         for item in items:
-            db.add(ProcessingArtifact(
+            db.add(ImportArtifact(
                 job_id=job_id,
                 kind=kind,
                 storage_backend=item["storage_backend"],
@@ -183,15 +183,15 @@ class SyncJobService:
             ))
         db.commit()
 
-    def get_detail(self, db: Session, job_uuid: str) -> JobDetail:
+    def get_detail(self, db: Session, job_uuid: str) -> ImportJobDetail:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             return {"error": "Job not found"}
-        job_id = require_persisted_id(job.id, entity="processing job")
+        job_id = require_persisted_id(job.id, entity="import job")
         requested_options = job.requested_options or {}
         requested_title = requested_options.get("title")
         requested_taxonomy_tags = requested_options.get("taxonomy_tags")
-        artifacts: dict[str, list[JobArtifactItem]] = {}
+        artifacts: dict[str, list[ImportJobArtifactItem]] = {}
         for row in self.repository.list_artifacts(db, job_id):
             artifacts.setdefault(row.kind, []).append({
                 "artifact_id": row.artifact_uuid,
@@ -240,4 +240,4 @@ class SyncJobService:
         }
 
 
-sync_job_service = SyncJobService()
+sync_import_job_service = SyncImportJobService()

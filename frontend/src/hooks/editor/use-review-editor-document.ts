@@ -8,7 +8,7 @@ import { useEditorSaveErrorToast } from '@/hooks/editor/use-editor-save-error-to
 import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completion';
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
-import { useJobReview, useUpdateJobReview } from '@/hooks/queries/use-review-queries';
+import { useImportJobReview, useUpdateImportJobReview } from '@/hooks/queries/use-review-queries';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
 export function useReviewEditorDocument({
@@ -23,9 +23,9 @@ export function useReviewEditorDocument({
   const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
   const completeSave = useEditorSaveCompletion({ applyXml });
   const showSaveError = useEditorSaveErrorToast({ titleNamespace: 'review' });
-  const reviewQuery = useJobReview(jobId);
+  const reviewQuery = useImportJobReview(jobId);
   const review = reviewQuery.data?.data;
-  const updateReview = useUpdateJobReview();
+  const updateReview = useUpdateImportJobReview();
   const [initialized, setInitialized] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const xmlContent = review?.musicxml?.content;
@@ -40,7 +40,7 @@ export function useReviewEditorDocument({
   });
 
   useEffect(() => {
-    if (review?.state === 'SUCCESS' && review.score_id) {
+    if (review?.state === 'CONFIRMED' && review.score_id) {
       router.replace(`/score/${review.score_id}`);
     }
   }, [review?.score_id, review?.state, router]);

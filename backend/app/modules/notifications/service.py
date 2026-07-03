@@ -28,8 +28,8 @@ class NotificationTypes:
     SCORE_INVITE_DECLINED = "score_invite.declined"
     SCORE_INVITE_REVOKED = "score_invite.revoked"
     SCORE_VERSION_CREATED = "score.version.created"
-    PROCESSING_COMPLETED = "processing.completed"
-    PROCESSING_FAILED = "processing.failed"
+    IMPORT_COMPLETED = "import.completed"
+    IMPORT_FAILED = "import.failed"
     SYSTEM = "system"
 
 

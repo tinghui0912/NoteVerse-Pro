@@ -8,7 +8,7 @@ import { useEditorSaveErrorToast } from '@/hooks/editor/use-editor-save-error-to
 import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completion';
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
-import { useJobDetail } from '@/hooks/queries/use-job-queries';
+import { useImportJobDetail } from '@/hooks/queries/use-import-job-queries';
 import {
   useCreateRevision,
   useGenerateScoreFingering,
@@ -32,7 +32,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const [baseRevisionId, setBaseRevisionId] = useState('');
   const revisionId = baseRevisionId || score?.head_revision_id || '';
   const revisionQuery = useRevisionContent(scoreId, revisionId);
-  const jobQuery = useJobDetail(score?.originating_job_id ?? '', {
+  const jobQuery = useImportJobDetail(score?.originating_job_id ?? '', {
     enabled: Boolean(score?.originating_job_id),
   });
   const createRevision = useCreateRevision();

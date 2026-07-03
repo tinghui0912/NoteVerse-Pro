@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.db.models.processing_job import ProcessingJobState
+from app.db.models.import_job import ImportJobState
 from app.modules.scores.schemas import ScoreTaxonomyTagInput
 
 
@@ -24,9 +24,9 @@ class ReviewMusicXmlRead(BaseModel):
     sha256: str | None = None
 
 
-class JobReviewRead(BaseModel):
+class ImportJobReviewRead(BaseModel):
     job_id: str
-    state: ProcessingJobState
+    state: ImportJobState
     score_id: str | None = None
     title: str | None = None
     taxonomy_tags: list[dict[str, str]]

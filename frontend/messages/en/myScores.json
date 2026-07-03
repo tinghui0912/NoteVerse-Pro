@@ -3,7 +3,7 @@
   "subtitle": "Manage the scores you upload, edit, publish, and share.",
   "views": {
     "all": "All works",
-    "processing": "Processing",
+    "importing": "Processing",
     "review": "Pending review",
     "failed": "Failed",
     "private": "Private",
@@ -40,7 +40,7 @@
   "emptySearch": "No matching scores found",
   "empty": {
     "all": "You have not uploaded any scores yet",
-    "processing": "No scores are being processed",
+    "importing": "No scores are being processed",
     "review": "No scores are waiting for review",
     "failed": "No failed uploads",
     "private": "No private scores",
@@ -50,9 +50,9 @@
   "publishedStatus": "Published",
   "jobStatus": {
     "PENDING": "Queued",
-    "PROGRESS": "Processing",
+    "RUNNING": "Processing",
     "PENDING_REVIEW": "Ready",
-    "SUCCESS": "Done",
+    "CONFIRMED": "Done",
     "FAILURE": "Failed"
   },
   "jobProgress": "{progress}% · {step}",

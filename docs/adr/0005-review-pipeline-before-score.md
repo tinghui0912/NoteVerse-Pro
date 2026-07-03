@@ -19,12 +19,12 @@ compatibility routes or fallback support for the older review-as-score model.
 
 1. Review is a processing pipeline stage, not a Score workspace.
 2. No `Score` exists until the user confirms review.
-3. OCR/import output ready for review is stored as `ProcessingArtifact(kind=review_musicxml)`
+3. OCR/import output ready for review is stored as `ImportArtifact(kind=review_musicxml)`
    and related job artifacts.
-4. `ProcessingJob.PENDING_REVIEW` means the job has review artifacts and is waiting for human
+4. `ImportJob.PENDING_REVIEW` means the job has review artifacts and is waiting for human
    confirmation.
-5. `ProcessingJob.SUCCESS` means review confirmation created the canonical Score and recorded
-   `ProcessingJob.score_id`.
+5. `ImportJob.CONFIRMED` means review confirmation created the canonical Score and recorded
+   `ImportJob.score_id`.
 6. `/review/:jobId` is the review route.
 7. `/review/:jobId/edit` is a job-scoped editor for the temporary review MusicXML artifact.
 8. Saving in `/review/:jobId/edit` updates the review artifact through `PATCH /review/:jobId`.
@@ -40,7 +40,7 @@ compatibility routes or fallback support for the older review-as-score model.
 
 ```text
 Upload
-  -> ProcessingJob
+  -> ImportJob
   -> /review/:jobId
   -> optional /review/:jobId/edit
   -> confirm
@@ -69,8 +69,8 @@ POST  /api/v1/review/{job_id}/confirm
 - My Scores may show pending reviews, but they must render as job cards, not Score cards.
 - Score no longer needs a lifecycle state column for the current product model.
 - Score access capabilities no longer need review approval fields such as `can_approve`.
-- Processing-completed notifications route to `/review/:jobId` until confirm. After confirm,
-  existing processing notifications may include the created `score_id` for direct score navigation.
+- Import-completed notifications route to `/review/:jobId` until confirm. After confirm,
+  existing import notifications may include the created `score_id` for direct score navigation.
 
 ## Rejected Alternatives
 

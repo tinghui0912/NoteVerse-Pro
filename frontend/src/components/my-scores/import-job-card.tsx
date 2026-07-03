@@ -11,18 +11,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { jobsApi } from '@/lib/api';
+import { importJobsApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/score/metadata-display';
 import { cn } from '@/lib/utils';
-import { isProcessingJob } from '@/lib/my-scores/state';
-import type { ProcessingJob } from '@/types/api';
+import { isImportJob } from '@/lib/my-scores/state';
+import type { ImportJob } from '@/types/api';
 
-function jobTitle(job: ProcessingJob) {
+function jobTitle(job: ImportJob) {
   return job.title || job.upload_ids?.[0]?.original_filename || job.job_id;
 }
 
-interface ProcessingJobCardProps {
-  job: ProcessingJob;
+interface ImportJobCardProps {
+  job: ImportJob;
   deletePending: boolean;
   batchMode: boolean;
   selected: boolean;
@@ -32,7 +32,7 @@ interface ProcessingJobCardProps {
   t: (key: string, values?: Record<string, string | number>) => string;
 }
 
-export function ProcessingJobCard({
+export function ImportJobCard({
   job,
   deletePending,
   batchMode,
@@ -41,8 +41,8 @@ export function ProcessingJobCard({
   onToggleSelection,
   onDismiss,
   t,
-}: ProcessingJobCardProps) {
-  const processing = isProcessingJob(job);
+}: ImportJobCardProps) {
+  const importing = isImportJob(job);
   const selectable = job.state === 'FAILURE' || job.state === 'PENDING_REVIEW';
   const openable = selectable || job.state === 'PENDING_REVIEW';
   const [thumbnail, setThumbnail] = useState<{ artifactId: string; url: string } | null>(null);
@@ -56,8 +56,8 @@ export function ProcessingJobCard({
     if (!thumbnailArtifactId) return;
     let active = true;
     let objectUrl: string | null = null;
-    void jobsApi
-      .downloadJobArtifact(job.job_id, thumbnailArtifactId)
+    void importJobsApi
+      .downloadImportJobArtifact(job.job_id, thumbnailArtifactId)
       .then((blob) => {
         if (!active) return;
         objectUrl = URL.createObjectURL(blob);
@@ -109,14 +109,14 @@ export function ProcessingJobCard({
               alt={jobTitle(job)}
               className="h-full w-full object-contain p-2"
             />
-          ) : processing ? (
+          ) : importing ? (
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
           ) : job.state === 'PENDING_REVIEW' ? (
             <CheckCircle2 className="h-10 w-10 text-orange-500" />
           ) : (
             <CircleAlert className="h-10 w-10 text-destructive" />
           )}
-          {processing && thumbnailUrl ? (
+          {importing && thumbnailUrl ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/60">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
@@ -140,7 +140,7 @@ export function ProcessingJobCard({
             {t(`jobStatus.${job.state}`)}
           </span>
         </div>
-        {processing ? (
+        {importing ? (
           <div className="mt-4">
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div

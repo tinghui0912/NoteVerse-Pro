@@ -301,8 +301,8 @@ MVP can start with only:
 score_invite.accepted
 score_invite.declined
 score.version.created
-processing.completed
-processing.failed
+import.completed
+import.failed
 system
 ```
 
@@ -645,10 +645,10 @@ Because pending invite lookup is email-based, once the user registers and logs i
 - Notification retention uses `NOTIFICATION_RETENTION_DAYS`, currently defaulting to 90 days.
 - Accepting or declining a pending invite creates a best-effort notification for the inviter.
 - Saving a new score revision creates best-effort `score.version.created` notifications for the score owner and active members, excluding the actor.
-- Processing completion creates a best-effort `processing.completed` notification for the job owner.
-- Processing failure creates a best-effort `processing.failed` notification for the job owner.
-- Clicking a `processing.completed` notification routes to `/review/{job_id}`.
-- Clicking a `processing.failed` notification routes to `/upload?job_id={job_id}`, matching the failed-job behavior on `/my-scores`.
+- Import completion creates a best-effort `import.completed` notification for the job owner.
+- Import failure creates a best-effort `import.failed` notification for the job owner.
+- Clicking an `import.completed` notification routes to `/review/{job_id}`.
+- Clicking an `import.failed` notification routes to `/upload?job_id={job_id}`, matching the failed-job behavior on `/my-scores`.
 - Accepting a pending invite redirects to `/score/:id`.
 
 ## Remaining Follow-Ups

@@ -40,11 +40,11 @@ export interface MyScoresQueryFilters {
  * used for broad invalidation; leaf factories own complete cache identity.
  */
 export const queryKeys = {
-    jobs: {
-        all: ['jobs'] as const,
-        lists: () => ['jobs', 'list'] as const,
-        list: (page: number, pageSize: number) => ['jobs', 'list', { page, pageSize }] as const,
-        detail: (id: string) => ['jobs', 'detail', { id }] as const,
+    importJobs: {
+        all: ['import-jobs'] as const,
+        lists: () => ['import-jobs', 'list'] as const,
+        list: (page: number, pageSize: number) => ['import-jobs', 'list', { page, pageSize }] as const,
+        detail: (id: string) => ['import-jobs', 'detail', { id }] as const,
     },
     scores: {
         all: ['scores'] as const,

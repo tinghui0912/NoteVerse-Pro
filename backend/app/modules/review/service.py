@@ -17,21 +17,21 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     LibraryEntrySourceType,
-    ProcessingArtifact,
-    ProcessingJob,
+    ImportArtifact,
+    ImportJob,
     NotificationEvent,
     Score,
     ScoreArtifact,
     ScoreRevision,
     ScoreRevisionMetadata,
 )
-from app.db.models.processing_job import ProcessingJobState
+from app.db.models.import_job import ImportJobState
 from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
 from app.modules.library.service import LibraryService
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationTypes
 from app.modules.review.schemas import (
-    JobReviewRead,
+    ImportJobReviewRead,
     ReviewArtifactRead,
     ReviewConfirmRead,
     ReviewConfirmRequest,
@@ -68,20 +68,20 @@ class ReviewService:
         db: AsyncSession,
         job_uuid: str,
         user_id: int,
-    ) -> JobReviewRead:
+    ) -> ImportJobReviewRead:
         job = (
             await db.execute(
-                select(ProcessingJob).where(ProcessingJob.job_uuid == job_uuid)
+                select(ImportJob).where(ImportJob.job_uuid == job_uuid)
             )
         ).scalar_one_or_none()
         if not job:
             raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
             raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
-        if job.state == ProcessingJobState.SUCCESS and job.score_id is not None:
+        if job.state == ImportJobState.CONFIRMED and job.score_id is not None:
             score = await db.get(Score, job.score_id)
             if score:
-                return JobReviewRead(
+                return ImportJobReviewRead(
                     job_id=job.job_uuid,
                     state=job.state,
                     score_id=score.score_uuid,
@@ -92,18 +92,18 @@ class ReviewService:
                     created_at=job.created_at,
                     updated_at=job.updated_at,
                 )
-        if job.state != ProcessingJobState.PENDING_REVIEW:
+        if job.state != ImportJobState.PENDING_REVIEW:
             raise ValidationException(
                 code=ErrorCode.VALIDATION_ERROR,
                 field="state",
                 details={"state": job.state.value},
             )
 
-        job_id = require_persisted_id(job.id, entity="processing job")
+        job_id = require_persisted_id(job.id, entity="import job")
         artifacts = list(
             (
                 await db.execute(
-                    select(ProcessingArtifact).where(ProcessingArtifact.job_id == job_id)
+                    select(ImportArtifact).where(ImportArtifact.job_id == job_id)
                 )
             ).scalars().all()
         )
@@ -116,7 +116,7 @@ class ReviewService:
             None,
         )
         if musicxml_artifact is None:
-            raise ResourceNotFoundException("processing_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
+            raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
         if not self.storage.exists(musicxml_artifact.storage_key):
             raise FileException(ErrorCode.FILE_NOT_FOUND, musicxml_artifact.storage_key)
 
@@ -124,7 +124,7 @@ class ReviewService:
         options = job.requested_options if isinstance(job.requested_options, dict) else {}
         title = options.get("title")
         taxonomy_tags = options.get("taxonomy_tags")
-        return JobReviewRead(
+        return ImportJobReviewRead(
             job_id=job.job_uuid,
             state=job.state,
             title=title if isinstance(title, str) else None,
@@ -149,8 +149,8 @@ class ReviewService:
     ) -> ReviewConfirmRead:
         job = (
             await db.execute(
-                select(ProcessingJob)
-                .where(ProcessingJob.job_uuid == job_uuid)
+                select(ImportJob)
+                .where(ImportJob.job_uuid == job_uuid)
                 .with_for_update()
             )
         ).scalar_one_or_none()
@@ -162,7 +162,7 @@ class ReviewService:
             score = await db.get(Score, job.score_id)
             if score:
                 return ReviewConfirmRead(score_id=score.score_uuid)
-        if job.state != ProcessingJobState.PENDING_REVIEW:
+        if job.state != ImportJobState.PENDING_REVIEW:
             raise ConflictException(
                 ErrorCode.VALIDATION_ERROR,
                 {"job_id": job_uuid, "state": job.state.value},
@@ -188,7 +188,7 @@ class ReviewService:
                 score_uuid=score_uuid,
                 owner_user_id=user_id,
                 title=title,
-                originating_job_id=require_persisted_id(job.id, entity="processing job"),
+                originating_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
                 updated_at=now,
             )
@@ -203,7 +203,7 @@ class ReviewService:
                 idempotency_key=f"job-confirm:{job_uuid}",
                 origin=RevisionOrigin.OMR,
                 created_by_user_id=user_id,
-                created_by_job_id=require_persisted_id(job.id, entity="processing job"),
+                created_by_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
             )
             db.add(revision)
@@ -241,9 +241,9 @@ class ReviewService:
                 source_type=LibraryEntrySourceType.SELF_ADDED,
             )
             job.score_id = score_id
-            job.state = ProcessingJobState.SUCCESS
+            job.state = ImportJobState.CONFIRMED
             job.updated_at = now
-            await self._attach_score_to_processing_notification(
+            await self._attach_score_to_import_notification(
                 db,
                 job_uuid=job_uuid,
                 user_id=user_id,
@@ -272,11 +272,11 @@ class ReviewService:
         job_uuid: str,
         user_id: int,
         request: ReviewUpdateRequest,
-    ) -> JobReviewRead:
+    ) -> ImportJobReviewRead:
         job = (
             await db.execute(
-                select(ProcessingJob)
-                .where(ProcessingJob.job_uuid == job_uuid)
+                select(ImportJob)
+                .where(ImportJob.job_uuid == job_uuid)
                 .with_for_update()
             )
         ).scalar_one_or_none()
@@ -284,7 +284,7 @@ class ReviewService:
             raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
             raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
-        if job.state != ProcessingJobState.PENDING_REVIEW:
+        if job.state != ImportJobState.PENDING_REVIEW:
             raise ConflictException(
                 ErrorCode.VALIDATION_ERROR,
                 {"job_id": job_uuid, "state": job.state.value},
@@ -293,19 +293,19 @@ class ReviewService:
         content = request.content.encode("utf-8")
         self._validate_musicxml(content)
         content_hash = hashlib.sha256(content).hexdigest()
-        job_id = require_persisted_id(job.id, entity="processing job")
+        job_id = require_persisted_id(job.id, entity="import job")
         artifact = (
             await db.execute(
-                select(ProcessingArtifact)
+                select(ImportArtifact)
                 .where(
-                    ProcessingArtifact.job_id == job_id,
-                    ProcessingArtifact.kind == FileKind.REVIEW_MUSICXML.value,
+                    ImportArtifact.job_id == job_id,
+                    ImportArtifact.kind == FileKind.REVIEW_MUSICXML.value,
                 )
                 .with_for_update()
             )
         ).scalar_one_or_none()
         if artifact is None:
-            raise ResourceNotFoundException("processing_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
+            raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
 
         old_storage_key = artifact.storage_key
         stored = self.storage.put_bytes(
@@ -339,7 +339,7 @@ class ReviewService:
         return await self.detail(db, job_uuid, user_id)
 
     @staticmethod
-    async def _attach_score_to_processing_notification(
+    async def _attach_score_to_import_notification(
         db: AsyncSession,
         *,
         job_uuid: str,
@@ -351,7 +351,7 @@ class ReviewService:
             await db.execute(
                 select(NotificationEvent).where(
                     NotificationEvent.recipient_user_id == user_id,
-                    NotificationEvent.type == NotificationTypes.PROCESSING_COMPLETED,
+                    NotificationEvent.type == NotificationTypes.IMPORT_COMPLETED,
                     NotificationEvent.resource_type == "job",
                     NotificationEvent.resource_id == job_uuid,
                 )
@@ -367,7 +367,7 @@ class ReviewService:
 
     @staticmethod
     def _artifact_reads(
-        artifacts: list[ProcessingArtifact],
+        artifacts: list[ImportArtifact],
         kind: str,
     ) -> list[ReviewArtifactRead]:
         return [
@@ -394,7 +394,7 @@ class ReviewService:
 
     @staticmethod
     def _confirmed_title(
-        job: ProcessingJob,
+        job: ImportJob,
         request: ReviewConfirmRequest,
     ) -> str:
         if request.title is not None:
@@ -405,7 +405,7 @@ class ReviewService:
 
     @staticmethod
     def _confirmed_taxonomy_pairs(
-        job: ProcessingJob,
+        job: ImportJob,
         request: ReviewConfirmRequest,
     ) -> list[tuple[str, str]]:
         if request.taxonomy_tags is not None:

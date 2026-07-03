@@ -1,14 +1,14 @@
-export type ProcessingJobState =
+export type ImportJobState =
   | 'PENDING'
-  | 'PROGRESS'
+  | 'RUNNING'
   | 'PENDING_REVIEW'
-  | 'SUCCESS'
+  | 'CONFIRMED'
   | 'FAILURE';
 
-export interface ProcessingJob {
+export interface ImportJob {
   job_id: string;
   score_id?: string | null;
-  state: ProcessingJobState;
+  state: ImportJobState;
   progress: number;
   current_step?: string;
   title?: string;
@@ -20,11 +20,11 @@ export interface ProcessingJob {
   finished_at?: string;
   error?: string;
   code?: string;
-  artifacts?: Record<string, ProcessingArtifact[]>;
+  artifacts?: Record<string, ImportArtifact[]>;
   upload_ids?: Array<{ upload_id?: number; sha256: string; original_filename?: string }>;
 }
 
-export interface ProcessingArtifact {
+export interface ImportArtifact {
   artifact_id: string;
   storage_backend: string;
   storage_key: string;
@@ -44,9 +44,9 @@ export interface ReviewArtifact {
   page_number?: number | null;
 }
 
-export interface JobReview {
+export interface ImportJobReview {
   job_id: string;
-  state: 'PENDING_REVIEW' | 'SUCCESS';
+  state: 'PENDING_REVIEW' | 'CONFIRMED';
   score_id?: string | null;
   title?: string | null;
   taxonomy_tags: Array<{ category: string; code: string }>;
@@ -65,4 +65,4 @@ export interface ReviewConfirmResult {
   score_id: string;
 }
 
-export type ReviewUpdateResult = JobReview;
+export type ReviewUpdateResult = ImportJobReview;

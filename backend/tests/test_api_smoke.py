@@ -46,7 +46,7 @@ def test_legacy_task_as_score_routes_are_absent(client: TestClient) -> None:
 
 def test_protected_endpoints_require_authentication(client: TestClient) -> None:
     protected_paths = [
-        "/api/v1/jobs/test-job",
+        "/api/v1/import-jobs/test-job",
         "/api/v1/scores/test-score",
         "/api/v1/profile",
     ]
@@ -58,10 +58,10 @@ def test_protected_endpoints_require_authentication(client: TestClient) -> None:
 
 def test_jobs_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
-        ("post", "/api/v1/jobs", {"file_ids": ["file-1"]}),
-        ("get", "/api/v1/jobs/test-job", None),
-        ("post", "/api/v1/jobs/status/batch", {"job_ids": ["job-1"]}),
-        ("delete", "/api/v1/jobs/test-job", None),
+        ("post", "/api/v1/import-jobs", {"file_ids": ["file-1"]}),
+        ("get", "/api/v1/import-jobs/test-job", None),
+        ("post", "/api/v1/import-jobs/status/batch", {"job_ids": ["job-1"]}),
+        ("delete", "/api/v1/import-jobs/test-job", None),
     ]
 
     for method, path, payload in protected_requests:

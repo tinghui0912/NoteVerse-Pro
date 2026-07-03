@@ -6,26 +6,26 @@ import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.exceptions import TimeoutException
-from app.modules.jobs.execution_service import JobExecutionService
+from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.shared.constants import ErrorCode
 
 
 def test_soft_time_limit_maps_to_task_timeout() -> None:
     assert (
-        JobExecutionService.get_error_code(SoftTimeLimitExceeded())
+        ImportJobExecutionService.get_error_code(SoftTimeLimitExceeded())
         == ErrorCode.TASK_TIMEOUT
     )
 
 
 def test_pipeline_timeout_maps_to_task_timeout() -> None:
     assert (
-        JobExecutionService.get_error_code(TimeoutException())
+        ImportJobExecutionService.get_error_code(TimeoutException())
         == ErrorCode.TASK_TIMEOUT
     )
 
 
 def test_pipeline_failure_is_persisted_and_reraised() -> None:
-    service = JobExecutionService(storage=Mock())
+    service = ImportJobExecutionService(storage=Mock())
     service.storage.resolve_score_uploads.return_value = ["/work/score.png"]
     task = SimpleNamespace(
         request=SimpleNamespace(id="job-123"),
@@ -44,19 +44,19 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
 
     with (
         patch(
-            "app.modules.jobs.execution_service.get_worker_db",
+            "app.modules.import_jobs.execution_service.get_worker_db",
             side_effect=database_scope,
         ),
         patch(
-            "app.modules.jobs.execution_service.JobContext",
+            "app.modules.import_jobs.execution_service.JobContext",
             return_value=context,
         ),
         patch(
-            "app.modules.jobs.execution_service.PipelineBuilder.build",
+            "app.modules.import_jobs.execution_service.PipelineBuilder.build",
             return_value=pipeline,
         ),
         patch(
-            "app.modules.jobs.execution_service.sync_job_service.finalize_failure"
+            "app.modules.import_jobs.execution_service.sync_import_job_service.finalize_failure"
         ) as finalize_failure,
         pytest.raises(TimeoutException),
     ):

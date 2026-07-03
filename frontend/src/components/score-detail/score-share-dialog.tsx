@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import {
   Copy,
+  Download,
+  Dumbbell,
   Link2Off,
   Loader2,
   LockKeyhole,
@@ -28,6 +30,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
   useCreateScoreGrant,
   useDeleteScoreGrant,
@@ -63,6 +66,8 @@ export function ScoreShareDialog({
   const { toast } = useToast();
   const [expiration, setExpiration] = useState('permanent');
   const [customDate, setCustomDate] = useState('');
+  const [allowDownload, setAllowDownload] = useState(true);
+  const [allowPractice, setAllowPractice] = useState(true);
   const [created, setCreated] = useState<{ grantId: string; token: string } | null>(null);
   const [createdTokens, setCreatedTokens] = useState<Record<string, string>>({});
   const [now] = useState(() => Date.now());
@@ -101,8 +106,8 @@ export function ScoreShareDialog({
     }
     createGrant.mutate(
       {
-        allow_download: true,
-        allow_practice: true,
+        allow_download: allowDownload,
+        allow_practice: allowPractice,
         expires_at: days === null ? null : new Date(Date.now() + days * 86_400_000).toISOString(),
       },
       {
@@ -215,6 +220,39 @@ export function ScoreShareDialog({
             <p className="text-muted-foreground">{t('viewDescription')}</p>
           </div>
           <div className="space-y-3">
+            <Label>{t('permissions')}</Label>
+            <div className="divide-y rounded-lg border">
+              <div className="flex items-center justify-between gap-4 p-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Download className="h-4 w-4" />
+                    {t('allowDownload')}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('allowDownloadDescription')}</p>
+                </div>
+                <Switch
+                  checked={allowDownload}
+                  onCheckedChange={setAllowDownload}
+                  aria-label={t('allowDownload')}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4 p-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Dumbbell className="h-4 w-4" />
+                    {t('allowPractice')}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('allowPracticeDescription')}</p>
+                </div>
+                <Switch
+                  checked={allowPractice}
+                  onCheckedChange={setAllowPractice}
+                  aria-label={t('allowPractice')}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-3">
             <Label>{t('expiration')}</Label>
             <RadioGroup
               value={expiration}
@@ -315,6 +353,12 @@ export function ScoreShareDialog({
                         </div>
                         <div className="min-w-0 text-sm">
                           <p className="font-medium">{formatExpirationSummary(grant)}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {[
+                              grant.allow_download ? t('downloadAllowed') : t('downloadBlocked'),
+                              grant.allow_practice ? t('practiceAllowed') : t('practiceBlocked'),
+                            ].join(' · ')}
+                          </p>
                           {expirationDetail ? (
                             <p className="truncate text-xs text-muted-foreground">{expirationDetail}</p>
                           ) : null}

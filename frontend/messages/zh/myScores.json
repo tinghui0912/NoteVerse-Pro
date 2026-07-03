@@ -3,7 +3,7 @@
   "subtitle": "管理你上传、编辑、发布和分享的乐谱作品。",
   "views": {
     "all": "全部作品",
-    "processing": "处理中",
+    "importing": "处理中",
     "review": "待审核",
     "failed": "处理失败",
     "private": "私有",
@@ -40,7 +40,7 @@
   "emptySearch": "没有找到匹配的作品",
   "empty": {
     "all": "你还没有上传作品",
-    "processing": "当前没有正在处理的乐谱",
+    "importing": "当前没有正在处理的乐谱",
     "review": "暂无待审核乐谱",
     "failed": "没有处理失败的上传",
     "private": "暂无私有作品",
@@ -50,9 +50,9 @@
   "publishedStatus": "已发布",
   "jobStatus": {
     "PENDING": "排队中",
-    "PROGRESS": "处理中",
+    "RUNNING": "处理中",
     "PENDING_REVIEW": "可查看",
-    "SUCCESS": "已完成",
+    "CONFIRMED": "已完成",
     "FAILURE": "失败"
   },
   "jobProgress": "{progress}% · {step}",

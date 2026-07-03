@@ -9,12 +9,12 @@ import { MyScoresBulkActions } from '@/components/my-scores/my-scores-bulk-actio
 import { MyScoresFilterBar } from '@/components/my-scores/my-scores-filter-bar';
 import { MyScoresPagination } from '@/components/my-scores/my-scores-pagination';
 import { MyScoreCard } from '@/components/my-scores/my-score-card';
-import { ProcessingJobCard } from '@/components/my-scores/processing-job-card';
+import { ImportJobCard } from '@/components/my-scores/import-job-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Footer } from '@/components/layout/footer';
-import { useDeleteJob, useJobList } from '@/hooks/queries/use-job-queries';
+import { useDeleteImportJob, useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import {
   useDeleteMyScores,
   useMyScores,
@@ -63,9 +63,9 @@ export default function MyScoresPage({
     pageSize,
     enabled: showScores,
   });
-  const showJobs = view === 'all' || view === 'processing' || view === 'review' || view === 'failed';
-  const jobsQuery = useJobList(1, 20, showJobs);
-  const deleteJob = useDeleteJob();
+  const showJobs = view === 'all' || view === 'importing' || view === 'review' || view === 'failed';
+  const jobsQuery = useImportJobList(1, 20, showJobs);
+  const deleteJob = useDeleteImportJob();
   const deleteScores = useDeleteMyScores();
   const publishScores = usePublishMyScores();
   const unpublishScores = useUnpublishMyScores();
@@ -267,7 +267,7 @@ export default function MyScoresPage({
           ) : visibleJobs.length || scores.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visibleJobs.map((job) => (
-                <ProcessingJobCard
+                <ImportJobCard
                   key={job.job_id}
                   job={job}
                   deletePending={deleteJob.isPending}

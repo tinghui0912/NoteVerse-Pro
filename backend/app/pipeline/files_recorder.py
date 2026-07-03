@@ -1,5 +1,5 @@
 """
-Files recorder service for processing-job outputs.
+Files recorder service for import-job outputs.
 
 This module records job-related file paths into the database after worker-side
 pipeline steps complete.
@@ -11,7 +11,7 @@ import os
 from enum import Enum
 from typing import List
 
-from app.modules.jobs.schemas import JobArtifactItem
+from app.modules.import_jobs.schemas import ImportJobArtifactItem
 from app.storage import file_storage
 
 
@@ -55,7 +55,7 @@ def replace_files(
 
     Args:
         job_id: Job UUID.
-        kind: Processing artifact kind, for example `original_image`.
+        kind: Import artifact kind, for example `original_image`.
         abs_paths: Absolute file paths to record.
 
     Storage format:
@@ -63,16 +63,16 @@ def replace_files(
         object keys under `jobs/{job_id}/{kind}/`.
     """
     from app.db.worker_session import get_worker_db
-    from app.modules.jobs.worker_service import sync_job_service
+    from app.modules.import_jobs.worker_service import sync_import_job_service
 
     normalized_kind = _kind_value(kind)
-    items: List[JobArtifactItem] = [
+    items: List[ImportJobArtifactItem] = [
         _build_file_item(job_id, normalized_kind, p, i + 1)
         for i, p in enumerate(abs_paths)
     ]
 
     with get_worker_db() as db:
-        sync_job_service.replace_artifacts(db, job_id, normalized_kind, items)
+        sync_import_job_service.replace_artifacts(db, job_id, normalized_kind, items)
 
 
 def _build_file_item(
@@ -80,7 +80,7 @@ def _build_file_item(
     kind: object,
     abs_path: str,
     page: int,
-) -> JobArtifactItem:
+) -> ImportJobArtifactItem:
     normalized_kind = _kind_value(kind)
     mime_type = _guess_mime_type(abs_path)
     size = os.path.getsize(abs_path) if os.path.exists(abs_path) else None

@@ -27,31 +27,31 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 metadata_json_type = JSON().with_variant(JSONB, "postgresql")
 
 
-class ProcessingJobState(str, enum.Enum):
+class ImportJobState(str, enum.Enum):
     PENDING = "PENDING"
-    PROGRESS = "PROGRESS"
+    RUNNING = "RUNNING"
     PENDING_REVIEW = "PENDING_REVIEW"
-    SUCCESS = "SUCCESS"
+    CONFIRMED = "CONFIRMED"
     FAILURE = "FAILURE"
 
 
-class ProcessingJobStepStatus(str, enum.Enum):
+class ImportJobStepStatus(str, enum.Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
 
-class ProcessingJob(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "processing_jobs"
+class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "import_jobs"
     __table_args__ = (
         UniqueConstraint(
             "user_id",
             "idempotency_key",
-            name="uq_processing_jobs_user_idempotency_key",
+            name="uq_import_jobs_user_idempotency_key",
         ),
-        Index("idx_processing_jobs_user_created", "user_id", "created_at"),
-        Index("idx_processing_jobs_state", "state"),
+        Index("idx_import_jobs_user_created", "user_id", "created_at"),
+        Index("idx_import_jobs_state", "state"),
     )
 
     id: Optional[int] = Field(
@@ -60,9 +60,9 @@ class ProcessingJob(SQLModel, table=True):  # type: ignore[call-arg]
     )
     job_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
-    state: ProcessingJobState = Field(
+    state: ImportJobState = Field(
         sa_column=Column(
-            SAEnum(ProcessingJobState, name="processingjobstate"),
+            SAEnum(ImportJobState, name="importjobstate"),
             nullable=False,
         )
     )
@@ -86,7 +86,7 @@ class ProcessingJob(SQLModel, table=True):  # type: ignore[call-arg]
             BigInteger,
             ForeignKey(
                 "scores.id",
-                name="fk_processing_jobs_score_id",
+                name="fk_import_jobs_score_id",
                 use_alter=True,
                 ondelete="SET NULL",
             ),
@@ -107,11 +107,11 @@ class ProcessingJob(SQLModel, table=True):  # type: ignore[call-arg]
     )
 
 
-class ProcessingJobStep(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "processing_job_steps"
+class ImportJobStep(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "import_job_steps"
     __table_args__ = (
-        UniqueConstraint("job_id", "name", name="uq_processing_job_steps_job_name"),
-        Index("idx_processing_job_steps_job_order", "job_id", "step_order"),
+        UniqueConstraint("job_id", "name", name="uq_import_job_steps_job_name"),
+        Index("idx_import_job_steps_job_order", "job_id", "step_order"),
     )
 
     id: Optional[int] = Field(
@@ -121,14 +121,14 @@ class ProcessingJobStep(SQLModel, table=True):  # type: ignore[call-arg]
     job_id: int = Field(
         sa_column=Column(
             BigInteger,
-            ForeignKey("processing_jobs.id", ondelete="CASCADE"),
+            ForeignKey("import_jobs.id", ondelete="CASCADE"),
             nullable=False,
         )
     )
     name: str = Field(sa_column=Column(String(64), nullable=False))
-    status: ProcessingJobStepStatus = Field(
+    status: ImportJobStepStatus = Field(
         sa_column=Column(
-            SAEnum(ProcessingJobStepStatus, name="processingjobstepstatus"),
+            SAEnum(ImportJobStepStatus, name="importjobstepstatus"),
             nullable=False,
         )
     )
@@ -137,11 +137,11 @@ class ProcessingJobStep(SQLModel, table=True):  # type: ignore[call-arg]
     step_order: int = Field(sa_column=Column(Integer, nullable=False))
 
 
-class ProcessingJobUpload(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "processing_job_uploads"
+class ImportJobUpload(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "import_job_uploads"
     __table_args__ = (
-        UniqueConstraint("job_id", "upload_id", name="uq_processing_job_uploads_job_upload"),
-        Index("idx_processing_job_uploads_job", "job_id"),
+        UniqueConstraint("job_id", "upload_id", name="uq_import_job_uploads_job_upload"),
+        Index("idx_import_job_uploads_job", "job_id"),
     )
 
     id: Optional[int] = Field(
@@ -151,7 +151,7 @@ class ProcessingJobUpload(SQLModel, table=True):  # type: ignore[call-arg]
     job_id: int = Field(
         sa_column=Column(
             BigInteger,
-            ForeignKey("processing_jobs.id", ondelete="CASCADE"),
+            ForeignKey("import_jobs.id", ondelete="CASCADE"),
             nullable=False,
         )
     )
@@ -160,11 +160,11 @@ class ProcessingJobUpload(SQLModel, table=True):  # type: ignore[call-arg]
     )
 
 
-class ProcessingArtifact(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "processing_artifacts"
+class ImportArtifact(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "import_artifacts"
     __table_args__ = (
-        UniqueConstraint("storage_key", name="uq_processing_artifacts_storage_key"),
-        Index("idx_processing_artifacts_job_kind", "job_id", "kind"),
+        UniqueConstraint("storage_key", name="uq_import_artifacts_storage_key"),
+        Index("idx_import_artifacts_job_kind", "job_id", "kind"),
     )
 
     id: Optional[int] = Field(
@@ -178,7 +178,7 @@ class ProcessingArtifact(SQLModel, table=True):  # type: ignore[call-arg]
     job_id: int = Field(
         sa_column=Column(
             BigInteger,
-            ForeignKey("processing_jobs.id", ondelete="CASCADE"),
+            ForeignKey("import_jobs.id", ondelete="CASCADE"),
             nullable=False,
         )
     )

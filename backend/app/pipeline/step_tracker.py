@@ -3,11 +3,11 @@ Unified database-backed step tracking for worker jobs.
 
 Usage pattern inside a task:
     from app.db.worker_session import get_worker_db
-    from app.modules.jobs.worker_service import sync_job_service
+    from app.modules.import_jobs.worker_service import sync_import_job_service
 
     def _upsert(name, **kw):
         with get_worker_db() as db:
-            sync_job_service.upsert_step(db, job_id, name=name, **kw)
+            sync_import_job_service.upsert_step(db, job_id, name=name, **kw)
 
     # order_map is generated dynamically by Pipeline.build_order_map().
     tracker = StepTracker(job_id, _upsert, order_map)

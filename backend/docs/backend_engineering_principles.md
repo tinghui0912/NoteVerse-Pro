@@ -66,9 +66,9 @@ The durable product model is score-based, not task-based.
 Upload
   |
   v
-ProcessingJob ---- ProcessingJobStep
+ImportJob ---- ImportJobStep
   |        \
-  |         `---- ProcessingArtifact
+  |         `---- ImportArtifact
   | review confirms
   v
 Score ---- ScoreMembership
@@ -86,14 +86,14 @@ PracticeSession ---- pinned ScoreRevision
 
 Core rules:
 
-- `ProcessingJob` owns upload processing, progress, retries, heartbeat, stale recovery,
+- `ImportJob` owns upload processing, progress, retries, heartbeat, stale recovery,
   and worker execution.
-- Review is a pipeline stage owned by `ProcessingJob` and job artifacts until the user
+- Review is a pipeline stage owned by `ImportJob` and job artifacts until the user
   confirms it.
 - `Score` is the stable user-owned product resource.
 - `ScoreRevision` is immutable and linear.
 - `ScoreArtifact` stores revision-owned payloads such as canonical MusicXML and renders.
-- `ProcessingArtifact` stores job internals such as OMR output, enhanced XML, diagnostics,
+- `ImportArtifact` stores job internals such as OMR output, enhanced XML, diagnostics,
   and other non-product pipeline artifacts.
 - `ScoreRevisionMetadata` is a rebuildable typed projection from canonical MusicXML.
 - `ScoreShareGrant`, `ScoreMembership`, `ScoreLibraryEntry`, `ShareGrantRedemption`, and
@@ -112,9 +112,9 @@ Job identity and score identity are deliberately separate:
 
 ## 4. Module Ownership
 
-### `modules/jobs`
+### `modules/import_jobs`
 
-Owns processing lifecycle:
+Owns import lifecycle:
 
 - job submission;
 - polling and batch status;
@@ -122,7 +122,7 @@ Owns processing lifecycle:
 - job steps;
 - heartbeat and stale recovery;
 - worker execution services;
-- processing artifact registration;
+- import artifact registration;
 - upload linkage and orphan-upload protection.
 
 Do not put durable score editing, publication, or sharing rules here.
@@ -135,7 +135,7 @@ Owns the pre-Score human review boundary:
 - returning original images, preview images, and review MusicXML by `job_id`;
 - updating the temporary review MusicXML artifact through `PATCH /review/{job_id}`;
 - confirming review and creating the first active Score;
-- attaching the created `score_id` back to the processing job and processing notification.
+- attaching the created `score_id` back to the import job and import notification.
 
 Do not expose review as a Score route. Do not create Score revisions when editing review
 artifacts. Do not allow sharing, invites, publication, or practice to target unconfirmed

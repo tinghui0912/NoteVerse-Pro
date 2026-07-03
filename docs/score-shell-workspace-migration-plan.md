@@ -6,7 +6,7 @@ execution log below are obsolete.
 Current model:
 
 ```text
-Upload -> ProcessingJob -> /review/:jobId -> confirm -> /score/:scoreId
+Upload -> ImportJob -> /review/:jobId -> confirm -> /score/:scoreId
 ```
 
 Review is a pre-Score pipeline route, not a Score workspace.
@@ -84,7 +84,7 @@ Share, public publication, and invite are access entries. They are not independe
 
 1. `Score` is the single product resource identity.
 2. `Editor` and `Practice` are Score workspaces, not separate product resources.
-3. Review is a ProcessingJob pipeline capability until confirmation creates a Score.
+3. Review is a ImportJob pipeline capability until confirmation creates a Score.
 4. Workspace routes may have independent URLs and local providers.
 5. Do not lift heavy editor state into the global Score shell.
 6. Capabilities remain the permission truth. UI mode is derived from capabilities.

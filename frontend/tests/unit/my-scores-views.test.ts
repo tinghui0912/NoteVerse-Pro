@@ -12,29 +12,29 @@ import {
   scoreBackedView,
   visibleMyScoreJobs,
 } from '@/lib/my-scores/state';
-import type { ProcessingJob } from '@/types/api';
+import type { ImportJob } from '@/types/api';
 
-function job(jobId: string, state: ProcessingJob['state']): ProcessingJob {
+function job(jobId: string, state: ImportJob['state']): ImportJob {
   return {
     job_id: jobId,
     state,
-    progress: state === 'SUCCESS' ? 100 : 0,
+    progress: state === 'CONFIRMED' ? 100 : 0,
   };
 }
 
 describe('my scores view helpers', () => {
-  it('keeps score-backed views separate from aggregate processing views', () => {
+  it('keeps score-backed views separate from aggregate import views', () => {
     expect(MY_SCORE_VIEWS).toEqual(['all', 'private', 'published']);
     expect(MY_SCORE_PAGE_VIEWS).toEqual([
       'all',
-      'processing',
+      'importing',
       'review',
       'failed',
       'private',
       'published',
     ]);
     expect(isMyScoreView('all')).toBe(true);
-    expect(isMyScoreView('processing')).toBe(false);
+    expect(isMyScoreView('importing')).toBe(false);
     expect(isMyScoreView('failed')).toBe(false);
   });
 
@@ -50,28 +50,28 @@ describe('my scores view helpers', () => {
     expect(normalizePage('3')).toBe(3);
     expect(normalizePage('-4')).toBe(1);
     expect(normalizePage('not-a-number')).toBe(1);
-    expect(scoreBackedView('processing')).toBe('all');
+    expect(scoreBackedView('importing')).toBe('all');
     expect(scoreBackedView('published')).toBe('published');
   });
 
-  it('filters aggregate processing jobs by page view', () => {
+  it('filters aggregate import jobs by page view', () => {
     const jobs = [
       job('pending', 'PENDING'),
-      job('progress', 'PROGRESS'),
+      job('running', 'RUNNING'),
       job('failed', 'FAILURE'),
-      job('success', 'SUCCESS'),
+      job('confirmed', 'CONFIRMED'),
       job('review', 'PENDING_REVIEW'),
     ];
 
-    expect(visibleMyScoreJobs(jobs, 'processing').map((item) => item.job_id)).toEqual([
+    expect(visibleMyScoreJobs(jobs, 'importing').map((item) => item.job_id)).toEqual([
       'pending',
-      'progress',
+      'running',
     ]);
     expect(visibleMyScoreJobs(jobs, 'failed').map((item) => item.job_id)).toEqual(['failed']);
     expect(visibleMyScoreJobs(jobs, 'review').map((item) => item.job_id)).toEqual(['review']);
     expect(visibleMyScoreJobs(jobs, 'all').map((item) => item.job_id)).toEqual([
       'pending',
-      'progress',
+      'running',
       'failed',
       'review',
     ]);

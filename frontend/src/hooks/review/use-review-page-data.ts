@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useConfirmJobReview, useJobReview } from '@/hooks/queries/use-review-queries';
-import { jobsApi } from '@/lib/api';
+import { useConfirmImportJobReview, useImportJobReview } from '@/hooks/queries/use-review-queries';
+import { importJobsApi } from '@/lib/api';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
 import type { ReviewArtifact } from '@/types/api';
@@ -23,7 +23,7 @@ function useReviewArtifacts(jobId: string | null, artifacts: ReviewArtifact[]) {
     void Promise.resolve().then(async () => {
       setLoading(true);
       return Promise.all(
-        artifacts.map((artifact) => jobsApi.downloadJobArtifact(jobId, artifact.artifact_id))
+        artifacts.map((artifact) => importJobsApi.downloadImportJobArtifact(jobId, artifact.artifact_id))
       );
     }).then((blobs) => {
       if (controller.signal.aborted) return;
@@ -59,15 +59,15 @@ export function useReviewPageData(jobId: string) {
   const common = useTranslations('common');
   const auth = useTranslations('auth');
   const router = useRouter();
-  const reviewQuery = useJobReview(jobId);
+  const reviewQuery = useImportJobReview(jobId);
   const review = reviewQuery.data?.data;
   const xmlContent = review?.musicxml?.content ?? null;
   const originalFiles = useMemo(() => review?.original_images ?? [], [review?.original_images]);
   const original = useReviewArtifacts(jobId, originalFiles);
-  const confirm = useConfirmJobReview();
+  const confirm = useConfirmImportJobReview();
 
   useEffect(() => {
-    if (review?.state === 'SUCCESS' && review.score_id) {
+    if (review?.state === 'CONFIRMED' && review.score_id) {
       router.replace(`/score/${review.score_id}`);
     }
   }, [review?.score_id, review?.state, router]);

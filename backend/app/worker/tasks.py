@@ -1,4 +1,4 @@
-"""Celery task entrypoints for image-processing jobs."""
+"""Celery task entrypoints for score import jobs."""
 
 import asyncio
 from typing import List, Optional
@@ -8,9 +8,9 @@ from celery.utils.log import get_task_logger
 from app.db.session import AsyncSessionLocal
 from app.db.worker_session import get_worker_db
 from app.modules.artifacts.render_service import RevisionRenderService
-from app.modules.jobs.execution_service import job_execution_service
-from app.modules.jobs.maintenance_service import job_maintenance_service
-from app.modules.jobs.schemas import JobProcessingOptions, PipelineExecutionSuccessResult
+from app.modules.import_jobs.execution_service import job_execution_service
+from app.modules.import_jobs.maintenance_service import job_maintenance_service
+from app.modules.import_jobs.schemas import ImportJobProcessingOptions, PipelineExecutionSuccessResult
 from app.modules.notifications.maintenance_service import notification_maintenance_service
 from app.modules.review.thumbnail_service import review_thumbnail_service
 from app.pipeline.context import CeleryTaskLike
@@ -29,9 +29,9 @@ logger = get_task_logger(__name__)
 def process_images_job(
     self: CeleryTaskLike,
     upload_ids: List[str],
-    options: Optional[JobProcessingOptions] = None,
+    options: Optional[ImportJobProcessingOptions] = None,
 ) -> PipelineExecutionSuccessResult:
-    """Run the image-processing pipeline for one or more input images."""
+    """Run the score import pipeline for one or more input images."""
 
     return job_execution_service.run_pipeline(self, upload_ids, options)
 
@@ -102,14 +102,14 @@ def render_review_thumbnail_task(job_id: str) -> dict[str, str | None]:
 
 @celery_app.task(name="app.worker.tasks.run_job_maintenance")
 def run_job_maintenance() -> dict[str, int]:
-    """Run periodic processing-job/upload maintenance."""
+    """Run periodic import-job/upload maintenance."""
 
     with get_worker_db() as db:
         result = job_maintenance_service.run(db)
 
     return {
         "stale_pending_failed": result.stale_pending_failed,
-        "stale_progress_failed": result.stale_progress_failed,
+        "stale_running_failed": result.stale_running_failed,
         "orphan_uploads_deleted": result.orphan_uploads_deleted,
     }
 

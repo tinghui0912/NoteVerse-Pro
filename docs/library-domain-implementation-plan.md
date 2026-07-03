@@ -1,4 +1,4 @@
-﻿# NoteVerse Library Domain Baseline
+# NoteVerse Library Domain Baseline
 
 > Status: completed v1 baseline
 > Baseline date: 2026-06-24
@@ -383,25 +383,25 @@ The v1 baseline proves the domain split, but the product is not yet competitive 
 content platforms. The following phases turn the baseline into a production-grade management
 surface.
 
-### P9 - Processing Queue In My Scores `[completed]`
+### P9 - Import Queue In My Scores `[completed]`
 
 Purpose: users must not need to remain on `/upload` to know whether a score succeeded.
 
 Tasks:
 
-- surface active and failed `ProcessingJob` rows in `/my-scores`; `[completed: initial UI]`
-- add My Scores views for processing and failed uploads; `[completed: initial UI]`
+- surface active and failed `ImportJob` rows in `/my-scores`; `[completed: initial UI]`
+- add My Scores views for running import jobs and failed uploads; `[completed: initial UI]`
 - show processing progress, current step, failure reason, and produced score link when ready; `[completed]`
 - allow failed jobs to be dismissed or retried through explicit job actions; `[completed]`
 - keep failed jobs out of `/library`, because they are not playable learning entries yet.
 
 Initial implementation notes:
 
-- `/my-scores` now combines owned scores with active/failed processing jobs from `/jobs`;
-- processing and failed views are frontend aggregate views, not score API views;
+- `/my-scores` now combines owned scores with active/failed import jobs from `/import-jobs`;
+- import-running and failed views are frontend aggregate views, not score API views;
 - job submission stores `requested_options`, so retries preserve score title and taxonomy tags;
-- failed jobs can be dismissed or retried through `POST /jobs/{job_id}/retry`;
-- retry creates a new processing job from the original uploaded files and saved request options;
+- failed jobs can be dismissed or retried through `POST /import-jobs/{job_id}/retry`;
+- retry creates a new import job from the original uploaded files and saved request options;
 - if the original upload file has been removed, retry fails explicitly instead of silently
   asking the user to re-upload.
 
@@ -474,11 +474,11 @@ Tasks:
   `hooks/my-scores` where useful; `[completed: initial components]`
 - add backend Library/My Scores domain tests beyond route-auth smoke; `[completed: service regressions]`
 - add frontend tests for Library folder tree and My Scores view helpers; `[completed]`
-- add frontend tests for URL state, search/sort, batch actions, and processing/failed states; `[completed]`
+- add frontend tests for URL state, search/sort, batch actions, and import-running/failed states; `[completed]`
 
 Initial implementation notes:
 
-- `/my-scores` now delegates filter controls, bulk actions, score cards, processing-job cards,
+- `/my-scores` now delegates filter controls, bulk actions, score cards, import-job cards,
   and pagination to `components/my-scores`;
 - `/library` now delegates sidebar navigation, entry cards, folder dialogs, filter controls,
   pagination, and bulk actions to `components/library`;
@@ -491,7 +491,7 @@ Initial implementation notes:
 - Library folder tree helpers live in `lib/library/folder-tree.ts` with unit coverage for
   view normalization, folder depth, subtree height, descendants, and sorting;
 - My Scores view helpers live in `lib/my-scores/views.ts` with unit coverage for
-  score-backed views versus processing/failed aggregate views;
+  score-backed views versus import-running/failed aggregate views;
 - Library and My Scores URL builders live in `lib/library/state.ts` and
   `lib/my-scores/state.ts`, with unit coverage for search, sort, folder/view, and page state;
 - My Scores batch action visibility is covered for private and published views;

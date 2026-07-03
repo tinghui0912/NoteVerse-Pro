@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { UploadableFile } from '@/components/upload/upload-types';
 import { getCompletedJobRoute } from '@/components/upload/upload-types';
-import { useJobDetail, useSubmitJob } from '@/hooks/queries/use-job-queries';
+import { useImportJobDetail, useSubmitImportJob } from '@/hooks/queries/use-import-job-queries';
 import { useToast } from '@/hooks/use-toast';
-import { filesApi, jobsApi } from '@/lib/api';
+import { filesApi, importJobsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import type { ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
 
@@ -29,7 +29,7 @@ export function useUploadWorkflow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const submitJobMutation = useSubmitJob();
+  const submitJobMutation = useSubmitImportJob();
   const [files, setFiles] = useState<UploadableFile[]>([]);
   const filesRef = useRef<UploadableFile[]>([]);
   const submissionKeyRef = useRef<string | null>(null);
@@ -78,7 +78,7 @@ export function useUploadWorkflow() {
     });
   }, [setTrackedFiles]);
 
-  const { data: statusResponse } = useJobDetail(currentJobId ?? '', {
+  const { data: statusResponse } = useImportJobDetail(currentJobId ?? '', {
     enabled: Boolean(currentJobId) && pollInterval !== false,
     refetchInterval: pollInterval,
   });
@@ -99,9 +99,9 @@ export function useUploadWorkflow() {
 
     setTaskProgress(job.progress || 0);
     const state = String(job.state).toUpperCase();
-    if (state === 'PENDING_REVIEW' || state === 'SUCCESS') {
+    if (state === 'PENDING_REVIEW' || state === 'CONFIRMED') {
       const completedScoreId = job.score_id;
-      if (state === 'SUCCESS' && !completedScoreId) {
+      if (state === 'CONFIRMED' && !completedScoreId) {
         setTaskError(t('taskProcessingFailed'));
         setIsSubmitting(false);
         setCurrentJobId(null);
@@ -129,7 +129,7 @@ export function useUploadWorkflow() {
 
     void Promise.resolve().then(async () => {
       try {
-        const response = await jobsApi.getJob(urlJobId, controller.signal);
+        const response = await importJobsApi.getImportJob(urlJobId, controller.signal);
         const data = response.data;
         if (!data || controller.signal.aborted) return;
 
@@ -142,7 +142,7 @@ export function useUploadWorkflow() {
         const uploadIds = data.upload_ids ?? [];
         const restoredFiles: UploadableFile[] = [];
         for (let index = 0; index < originalImages.length; index += 1) {
-          const blob = await jobsApi.downloadJobArtifact(
+          const blob = await importJobsApi.downloadImportJobArtifact(
             urlJobId,
             originalImages[index].artifact_id
           );
@@ -165,7 +165,7 @@ export function useUploadWorkflow() {
         if (restoredFiles.length > 0) setTrackedFiles(restoredFiles);
 
         const state = String(data.state).toUpperCase();
-        if (state === 'PENDING' || state === 'PROGRESS') {
+        if (state === 'PENDING' || state === 'RUNNING') {
           setCurrentJobId(urlJobId);
           setIsSubmitting(true);
           setTaskProgress(data.progress || 0);

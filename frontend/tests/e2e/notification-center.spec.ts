@@ -55,7 +55,7 @@ const notifications = [
 
 const failedProcessingNotification = {
   notification_id: 'notification-processing-failed',
-  type: 'processing.failed',
+  type: 'import.failed',
   title: 'Processing failed',
   body: 'We could not finish processing your score.',
   resource_type: 'job',
@@ -69,7 +69,7 @@ const failedProcessingNotification = {
 
 const completedProcessingNotification = {
   notification_id: 'notification-processing-completed',
-  type: 'processing.completed',
+  type: 'import.completed',
   title: 'Processing complete',
   body: 'Your score is ready for review.',
   resource_type: 'job',
@@ -241,7 +241,7 @@ test('failed processing notification opens the matching upload job', async ({ pa
       }),
     })
   );
-  await page.route('**/api/v1/jobs/failed-job-1', (route) =>
+  await page.route('**/api/v1/import-jobs/failed-job-1', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',

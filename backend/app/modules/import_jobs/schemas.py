@@ -5,22 +5,22 @@ from typing import List, NotRequired, Optional, Protocol, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.db.models.processing_job import ProcessingJobState
+from app.db.models.import_job import ImportJobState
 from app.modules.scores.schemas import ScoreTaxonomyTagInput
 
 
-class JobProcessingOptions(TypedDict, total=False):
+class ImportJobProcessingOptions(TypedDict, total=False):
     title: str
     taxonomy_tags: list[dict[str, str]]
 
 
-class JobSubmitRequestLike(Protocol):
+class ImportJobSubmitRequestLike(Protocol):
     file_ids: List[str]
-    options: Optional[JobProcessingOptions]
+    options: Optional[ImportJobProcessingOptions]
     idempotency_key: Optional[str]
 
 
-class JobArtifactItem(TypedDict):
+class ImportJobArtifactItem(TypedDict):
     artifact_id: NotRequired[str]
     storage_backend: str
     storage_key: str
@@ -31,35 +31,35 @@ class JobArtifactItem(TypedDict):
     sha256: Optional[str]
 
 
-class JobSubmitResult(TypedDict):
+class ImportJobSubmitResult(TypedDict):
     job_id: str
     count: int
 
 
-class JobStatusEntry(TypedDict):
-    state: ProcessingJobState | str
+class ImportJobStatusEntry(TypedDict):
+    state: ImportJobState | str
     progress: int
     error: Optional[str]
     score_id: Optional[str]
 
 
-class JobStepItem(TypedDict):
+class ImportJobStepItem(TypedDict):
     name: str
     status: str
     start_time: Optional[str]
     end_time: Optional[str]
 
 
-class JobUploadItem(TypedDict):
+class ImportJobUploadItem(TypedDict):
     upload_id: Optional[int]
     sha256: str
     original_filename: Optional[str]
 
 
-class JobDetail(TypedDict, total=False):
+class ImportJobDetail(TypedDict, total=False):
     job_id: str
     score_id: Optional[str]
-    state: ProcessingJobState | str
+    state: ImportJobState | str
     progress: int
     current_step: Optional[str]
     title: Optional[str]
@@ -71,9 +71,9 @@ class JobDetail(TypedDict, total=False):
     finished_at: Optional[str]
     error: Optional[str]
     code: Optional[str]
-    steps: List[JobStepItem]
-    artifacts: dict[str, List[JobArtifactItem]]
-    upload_ids: List[JobUploadItem]
+    steps: List[ImportJobStepItem]
+    artifacts: dict[str, List[ImportJobArtifactItem]]
+    upload_ids: List[ImportJobUploadItem]
 
 
 class PipelineExecutionSuccessResult(TypedDict):
@@ -86,18 +86,18 @@ class PipelineExecutionFailureResult(TypedDict):
     error: str
 
 
-class JobSubmitRequest(BaseModel):
+class ImportJobSubmitRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     file_ids: List[str] = Field(..., min_length=1)
     idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=128)
-    options: Optional[JobProcessingOptions] = None
+    options: Optional[ImportJobProcessingOptions] = None
 
     @field_validator("options")
     @classmethod
     def validate_options(
-        cls, value: Optional[JobProcessingOptions]
-    ) -> Optional[JobProcessingOptions]:
+        cls, value: Optional[ImportJobProcessingOptions]
+    ) -> Optional[ImportJobProcessingOptions]:
         if value is None:
             return None
         taxonomy_tags = value.get("taxonomy_tags")
@@ -120,11 +120,11 @@ class JobSubmitRequest(BaseModel):
         return value.strip() or None
 
 
-class BatchJobStatusRequest(BaseModel):
+class BatchImportJobStatusRequest(BaseModel):
     job_ids: List[str] = Field(..., min_length=1)
 
 
-class JobStatusUpdate(TypedDict, total=False):
+class ImportJobStatusUpdate(TypedDict, total=False):
     current_step: Optional[str]
     error: Optional[str]
     error_type: Optional[str]

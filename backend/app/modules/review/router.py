@@ -6,7 +6,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.review.dependencies import get_review_service
 from app.modules.review.schemas import (
-    JobReviewRead,
+    ImportJobReviewRead,
     ReviewConfirmRead,
     ReviewConfirmRequest,
     ReviewUpdateRequest,
@@ -17,8 +17,8 @@ from app.shared.responses import APIResponse, success_response
 router = APIRouter()
 
 
-@router.get("/{job_id}", response_model=APIResponse[JobReviewRead])
-async def get_job_review(
+@router.get("/{job_id}", response_model=APIResponse[ImportJobReviewRead])
+async def get_import_job_review(
     job_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -29,8 +29,8 @@ async def get_job_review(
     return success_response(data=result)
 
 
-@router.patch("/{job_id}", response_model=APIResponse[JobReviewRead])
-async def update_job_review(
+@router.patch("/{job_id}", response_model=APIResponse[ImportJobReviewRead])
+async def update_import_job_review(
     job_id: str,
     request: ReviewUpdateRequest,
     current_user: User = Depends(get_current_user),
@@ -43,7 +43,7 @@ async def update_job_review(
 
 
 @router.post("/{job_id}/confirm", response_model=APIResponse[ReviewConfirmRead])
-async def confirm_job_review(
+async def confirm_import_job_review(
     job_id: str,
     request: ReviewConfirmRequest,
     current_user: User = Depends(get_current_user),

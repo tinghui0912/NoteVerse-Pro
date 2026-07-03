@@ -1,9 +1,9 @@
-﻿# NoteVerse Score Domain Architecture Migration Plan
+# NoteVerse Score Domain Architecture Migration Plan
 
 > Status: Historical / completed baseline migration. Current review and score-state semantics
 > are governed by ADR 0005 and `docs/review-pipeline-migration-plan.md`.
 > Baseline date: 2026-06-22  
-> Scope: processing jobs, scores, revisions, artifacts, metadata, sharing,
+> Scope: import jobs, scores, revisions, artifacts, metadata, sharing,
 > publication, practice references, frontend contracts, and results playback layout.
 
 ## 1. Purpose
@@ -14,7 +14,7 @@ event sourcing, a revision graph, a generic EAV model, or speculative read model
 
 The target outcome is:
 
-- processing failures and retries remain job concerns;
+- import failures and retries remain job concerns;
 - a score remains a stable user-owned product resource;
 - MusicXML edits create immutable, linear score revisions;
 - structured metadata remains queryable and rebuildable;
@@ -63,10 +63,10 @@ score lifecycle fields. It remains historical context for the initial score-doma
 
 | Current model | Mixed responsibility | Migration consequence |
 | --- | --- | --- |
-| `Task` | processing state, legacy score metadata, durable score identity | split into `ProcessingJob` and `Score` |
-| `TaskStep` | job execution steps | move unchanged to `ProcessingJobStep` |
+| `Task` | import/recognition state, legacy score metadata, durable score identity | split into `ImportJob` and `Score` |
+| `TaskStep` | job execution steps | move unchanged to `ImportJobStep` |
 | `File` | inputs, pipeline intermediates, canonical XML, rendered outputs | split job artifacts from revision-aware score artifacts |
-| `TaskUpload` | uploaded source linkage | rename to processing-job input linkage |
+| `TaskUpload` | uploaded source linkage | rename to import-job input linkage |
 | `Share` | bearer link plus view/edit/download policy | replace with `ScoreShareGrant` |
 | `SavedShare` | collection entry and implicit access path | split bookmark from grant redemption |
 | `PracticeSession` | session plus mutable `task_id`/source string | pin `score_id` and `revision_id` |
@@ -117,9 +117,9 @@ replace a role such as `current_xml` or `final_xml`; it cannot represent immutab
 Upload
   |
   v
-ProcessingJob ---- ProcessingJobStep
+ImportJob ---- ImportJobStep
   |        \
-  |         `---- ProcessingArtifact (internal/intermediate)
+  |         `---- ImportArtifact (internal/intermediate)
   | produces
   v
 Score ---- ScoreMembership
@@ -135,7 +135,7 @@ ScoreRevision ---- ScoreRevisionMetadata
 PracticeSession ---- pinned ScoreRevision
 ```
 
-### 4.1 ProcessingJob
+### 4.1 ImportJob
 
 Owns only processing lifecycle and reliability:
 
@@ -166,7 +166,7 @@ version, created_at, updated_at
 
 - `head_revision_id` is the latest editable document.
 - `approved_revision_id` records review approval, not public publication.
-- title belongs to the score, not the processing job.
+- title belongs to the score, not the import job.
 - style/genre classification uses the taxonomy tag model rather than a fixed score column.
 - `version` supports optimistic concurrency for score-level metadata changes.
 - public visibility is deliberately absent; publication is a separate entity.
@@ -222,7 +222,7 @@ Rules:
 - original uploads and internal OMR/enhanced XML remain job inputs/artifacts unless they
   become an explicit score revision.
 
-### 4.5 ProcessingArtifact
+### 4.5 ImportArtifact
 
 Optional replacement for job-owned `File` kinds that are not score revisions:
 
@@ -412,10 +412,10 @@ cutover, freeze `/v1` and move this contract to `/v2` instead.
 ### 6.1 Processing jobs
 
 ```text
-POST   /jobs
-GET    /jobs/{jobId}
-POST   /jobs/status/batch
-DELETE /jobs/{jobId}
+POST   /import-jobs
+GET    /import-jobs/{jobId}
+POST   /import-jobs/status/batch
+DELETE /import-jobs/{jobId}
 ```
 
 Submission returns `job_id`; status returns `score_id` as soon as a score exists. Job list
@@ -485,7 +485,7 @@ but anonymous read behavior does not depend on backend session availability.
 GET /library
 ```
 
-The library response is a typed union of processing entries and score entries, ordered with
+The library response is a typed union of import entries and score entries, ordered with
 a stable `(created_at, kind, id)` cursor. It is assembled by repository queries and service
 composition; do not create a persisted library/materialized-view table initially. Bookmarks
 are returned as score entries with current access availability, not as a third resource type.
@@ -527,7 +527,7 @@ is deleted after cutover.
 Add focused contracts:
 
 ```text
-types/api/jobs.ts
+types/api/import-jobs.ts
 types/api/scores.ts
 types/api/revisions.ts
 types/api/artifacts.ts
@@ -542,7 +542,7 @@ Keep `@/types/api` as the public barrel. Remove task-owned score fields once con
 Target facades:
 
 ```text
-lib/api/jobs.ts
+lib/api/import-jobs.ts
 lib/api/scores.ts
 lib/api/revisions.ts
 lib/api/artifacts.ts
@@ -572,7 +572,7 @@ publication caches explicitly. Do not invalidate job caches for ordinary score e
 - results reads one score detail read model, head revision content, metadata, capabilities,
   artifacts, grants, and publication state;
 - editor saves a new revision using `base_revision_id` and handles conflicts explicitly;
-- history lists durable scores; active or failed jobs are represented as processing entries,
+- history lists durable scores; active or failed jobs are represented as import entries,
   not fake score records;
 - share consumes grant capabilities without reconstructing owner/public/member rules;
 - public gets a separate read-only page and route exception;
@@ -656,9 +656,9 @@ can be reset deliberately.
 
 For every current task:
 
-1. Create a `ProcessingJob` preserving UUID, owner, state, progress, reliability timestamps,
+1. Create a `ImportJob` preserving UUID, owner, state, progress, reliability timestamps,
    idempotency key, error data, and steps.
-2. Preserve uploads through processing-job input links.
+2. Preserve uploads through import-job input links.
 3. If no current/final XML exists, keep only the job.
 4. If score XML exists, create one Score. Reuse the task UUID as the backfilled score UUID to
    preserve local route references; new data uses independent job and score UUIDs.
@@ -802,7 +802,7 @@ Acceptance:
 
 Delivered:
 
-- added separate SQLModel ownership for processing jobs/artifacts, scores/revisions/artifacts/
+- added separate SQLModel ownership for import jobs/artifacts, scores/revisions/artifacts/
   metadata, and score access/publication records under `app/db/models`;
 - added an expand-only Alembic migration after `e7f8a9b0c123`; legacy task, file, share, and
   practice columns remain available while nullable score-domain practice references coexist;
@@ -824,7 +824,7 @@ Delivered:
 
 Tasks:
 
-1. Create `modules/jobs` with router/service/repository/schemas/dependencies.
+1. Create `modules/import-jobs` with router/service/repository/schemas/dependencies.
 2. Move submission, status, maintenance, heartbeat, step tracking, worker service, and
    idempotency behavior from task ownership to job ownership.
 3. Rename pipeline context identifiers and storage namespaces for new writes.
@@ -840,14 +840,14 @@ Acceptance:
 
 Delivered:
 
-- added the canonical `modules/jobs` router, schemas, service, submission, repositories,
+- added the canonical `modules/import-jobs` router, schemas, service, submission, repositories,
   synchronous worker service, execution service, dependencies, and maintenance ownership;
-- `POST /jobs`, `GET /jobs/{jobId}`, batch status, and delete now use `ProcessingJob`; the
+- `POST /import-jobs`, `GET /import-jobs/{jobId}`, batch status, and delete now use `ImportJob`; the
   retired task submit/status endpoints and frontend clients were removed;
 - upload submission and polling exchange `job_id`; completed jobs now return real `score_id`
   values from the score-domain creation path, with no legacy projection fallback;
 - pipeline ownership now uses `JobContext`, `job_id`, and `job_temp`; new durable outputs use
-  `jobs/{job_uuid}/{kind}/...` and are registered as `ProcessingArtifact` rows with hashes;
+  `jobs/{job_uuid}/{kind}/...` and are registered as `ImportArtifact` rows with hashes;
 - worker payloads contain upload hashes only and always materialize them through storage;
 - Job uploads are explicitly linked so orphan cleanup cannot delete queued or running inputs;
 - Celery keeps late acknowledgement, worker-lost rejection, failure acknowledgement, soft/hard
@@ -1069,7 +1069,7 @@ Tasks:
 3. Make editor autosave append deduplicated revisions against a base revision.
 4. Change draft storage identity to score ID plus base revision.
 5. Replace current/final source routing and query keys.
-6. Make history list scores and processing entries with separate identities.
+6. Make history list scores and import entries with separate identities.
 7. Update downloads, archives, thumbnails, breadcrumbs, and batch actions.
 
 Acceptance:
@@ -1081,7 +1081,7 @@ Acceptance:
 **Result:** results, editor, and history compose Score/Revisions/Artifacts/Metadata/Grants/
 Publication capabilities. Title and taxonomy tags mutate Score state, editor autosave appends
 deduplicated revisions against a base revision, draft identity includes score/revision, and
-history keeps processing entries and score assets as separate identities.
+history keeps import entries and score assets as separate identities.
 
 ### P3-4 Share, public, and practice cutover
 
@@ -1232,7 +1232,7 @@ Execute in this order unless a documented dependency changes:
 1. P0-1 architecture decisions and fixtures.
 2. P0-2 results playback dock in an independent frontend change.
 3. P1-1 schema/model layer.
-4. P1-2 processing job extraction.
+4. P1-2 import job extraction.
 5. P1-3 score/revision service.
 6. P1-4 artifact boundary.
 7. P1-5 metadata projection.
@@ -1252,7 +1252,7 @@ frontend route cutover in one change. Each should remain independently reviewabl
 
 The migration is complete only when:
 
-- processing jobs and scores have distinct identities and APIs;
+- import jobs and scores have distinct identities and APIs;
 - title, taxonomy tags, library, sharing, publication, and practice are score-owned;
 - canonical MusicXML saves create immutable linear revisions;
 - head, approved, and published revision semantics are explicit;

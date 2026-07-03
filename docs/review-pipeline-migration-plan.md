@@ -12,7 +12,7 @@ Target product model:
 
 ```text
 Upload
-  -> ProcessingJob
+  -> ImportJob
   -> Review by job_id
   -> Confirm
   -> Create Score
@@ -40,16 +40,16 @@ Non-goals:
 
 ### Backend
 
-- `ProcessingJob` currently owns progress and processing artifacts, but it also has `score_id`.
+- `ImportJob` currently owns progress and processing artifacts, but it also has `score_id`.
 - `JobContext.complete()` calls `sync_score_creation_service.create_from_job(...)` before finalizing the job.
 - `SyncScoreCreationService.create_from_job(...)` creates:
   - `Score(state=IN_REVIEW)`
   - initial `ScoreRevision(origin=OMR)`
   - canonical `ScoreArtifact(kind=MUSICXML)`
   - `ScoreRevisionMetadata(PENDING)`
-  - `ProcessingJob.score_id`
-- `SyncJobService.finalize_success(...)` sets `ProcessingJob.state = PENDING_REVIEW` and sends a `processing.completed` notification with `score_id`.
-- `ScoreService.approve(...)` changes the early-created Score from `IN_REVIEW` to `ACTIVE`, sets `approved_revision_id`, marks the job `SUCCESS`, creates a library entry, and renders pages.
+  - `ImportJob.score_id`
+- `SyncImportJobService.finalize_success(...)` sets `ImportJob.state = PENDING_REVIEW` and sends a job-scoped `import.completed` notification.
+- `ScoreService.approve(...)` changed the early-created Score from `IN_REVIEW` to `ACTIVE`, set `approved_revision_id`, marked the job confirmed, created a library entry, and rendered pages.
 - `ScoreAccessPolicy` grants owners `can_approve`, so review approval is currently a Score capability.
 - ADR 0002 originally mixed parts of review lifecycle into the Score domain. ADR 0005 now records the accepted review pipeline boundary.
 
@@ -63,27 +63,27 @@ Non-goals:
   - job artifacts for original/preview images
   - score approval mutation `POST /scores/:id/approve`
 - Upload completion requires `job.score_id`; `PENDING_REVIEW` routes to `/score/:scoreId/review`.
-- Notification click behavior routes `processing.completed` to `/score/:scoreId/review`.
+- Notification click behavior routed processing completion to `/score/:scoreId/review` before the review pipeline cutover.
 - My Scores shows `Score.state === IN_REVIEW` as a review target.
 - ScoreShell currently includes a `review` workspace type.
 
 ## Target Backend Contract
 
-### ProcessingJob
+### ImportJob
 
-Keep `ProcessingJob` as the source of truth for OCR/import pipeline state.
+Keep `ImportJob` as the source of truth for OCR/import pipeline state.
 
 States:
 
 ```text
-PENDING -> PROGRESS -> PENDING_REVIEW -> SUCCESS
+PENDING -> RUNNING -> PENDING_REVIEW -> CONFIRMED
                   \-> FAILURE
 ```
 
 Meaning:
 
 - `PENDING_REVIEW`: OCR/import output exists and is ready for human review.
-- `SUCCESS`: user confirmed review and a canonical Score was created.
+- `CONFIRMED`: user confirmed review and a canonical Score was created.
 - `FAILURE`: processing failed; no Score exists.
 
 Required job fields:
@@ -176,8 +176,8 @@ Request shape:
 - Reads the review MusicXML artifact.
 - Creates the Score, initial revision, canonical MusicXML artifact, metadata projection, and library entry in one transaction boundary where possible.
 - Enqueues rendered-page/thumbnail generation asynchronously as a best-effort side effect.
-- Sets `ProcessingJob.score_id`.
-- Sets `ProcessingJob.state = SUCCESS`.
+- Sets `ImportJob.score_id`.
+- Sets `ImportJob.state = CONFIRMED`.
 - Returns the created `score_id`.
 
 Request shape:
@@ -202,16 +202,16 @@ Reason: review may allow the user to edit XML through the editor before confirma
 
 2. Stop creating Score during pipeline completion
    - Remove `sync_score_creation_service.create_from_job(...)` from `JobContext.complete()`.
-   - Store produced MusicXML as a `ProcessingArtifact(kind="musicxml")`.
+   - Store produced MusicXML as a `ImportArtifact(kind="musicxml")`.
    - Keep `finalize_success()` setting job state to `PENDING_REVIEW`.
-   - Send `processing.completed` notification with `job_id`, not `score_id`.
+   - Send `import.completed` notification with `job_id`, not `score_id`.
 
 3. Move Score creation to review confirm
    - Rename `SyncScoreCreationService.create_from_job(...)` to a cleaner command such as `create_confirmed_score_from_job(...)`.
    - Make it callable from async review service through a sync session helper or port it to async.
    - Set `head_revision_id` to the initial revision.
-   - Set `ProcessingJob.score_id` after Score creation.
-   - Ensure idempotency: if the job already has a `score_id` and state `SUCCESS`, return the existing Score.
+   - Set `ImportJob.score_id` after Score creation.
+   - Ensure idempotency: if the job already has a `score_id` and state `CONFIRMED`, return the existing Score.
 
 4. Remove Score review approval
    - Delete `POST /scores/{score_id}/approve`.
@@ -229,7 +229,7 @@ Reason: review may allow the user to edit XML through the editor before confirma
      - Since no compatibility is required, prefer a clean dev migration with explicit destructive notes.
 
 6. Update notifications
-   - `processing.completed` data should contain `job_id`, `job_title`, and no `score_id`.
+   - `import.completed` data should contain `job_id`, `job_title`, and no `score_id`.
    - On click, frontend routes to `/review/:jobId`.
    - After confirm, optional future event can notify "Score created", but do not overload processing completion.
 
@@ -265,10 +265,10 @@ Replace `useReviewPageData(scoreId)` with `useReviewPageData(jobId)`.
 
 New data source:
 
-- `useJobReview(jobId)`
-- `useConfirmJobReview(jobId)`
-- `jobsApi.review(jobId)`
-- `jobsApi.confirmReview(jobId, payload)`
+- `useImportJobReview(jobId)`
+- `useConfirmImportJobReview(jobId)`
+- `importJobsApi.review(jobId)`
+- `importJobsApi.confirmReview(jobId, payload)`
 
 Remove from review hook:
 
@@ -291,7 +291,7 @@ Target:
 
 ```text
 PENDING_REVIEW -> /review/:jobId
-SUCCESS with score_id -> /score/:scoreId
+CONFIRMED with score_id -> /score/:scoreId
 FAILURE -> stay /upload?job_id=:jobId
 ```
 
@@ -305,8 +305,8 @@ Update:
 Update `notificationHref(...)`:
 
 ```text
-processing.failed    -> /upload?job_id=:jobId
-processing.completed -> /review/:jobId
+import.failed    -> /upload?job_id=:jobId
+import.completed -> /review/:jobId
 score events         -> /score/:scoreId
 ```
 
@@ -317,14 +317,14 @@ My Scores should list confirmed Scores as Score cards.
 Pending review jobs should move to one of:
 
 - Upload recovery area, or
-- a small "Pending reviews" section backed by `/jobs?state=PENDING_REVIEW`.
+- a small "Pending reviews" section backed by `/import-jobs?state=PENDING_REVIEW`.
 
 Implemented MVP:
 
 - Add a dedicated `review` tab backed by `PENDING_REVIEW` jobs.
 - Include `PENDING_REVIEW` jobs in the `all` tab as job cards, not Score cards.
 - Route `PENDING_REVIEW` jobs to `/review/:jobId`.
-- Keep failed processing jobs clickable through `/upload?job_id=:jobId`.
+- Keep failed import jobs clickable through `/upload?job_id=:jobId`.
 - Allow `PENDING_REVIEW` jobs to be selected and deleted like failed jobs.
 
 ### Editor Return Flow
@@ -396,7 +396,7 @@ POST /scores/{score_id}/approve
 useApproveScore
 approveScore
 originating_job_id used by review
-processing.completed -> score review
+import.completed -> score review
 ```
 
 Expected remaining references:
@@ -411,7 +411,7 @@ Expected remaining references:
 - [x] Add review API schemas and service.
 - [x] Store review MusicXML as a processing artifact.
 - [x] Stop early Score creation in `JobContext.complete()`.
-- [x] Change processing-completed notifications to job-scoped.
+- [x] Change import-completed notifications to job-scoped.
 - [x] Add backend tests for job review detail and pipeline boundary.
 - [x] Add backend tests for review confirm in Phase 2.
 

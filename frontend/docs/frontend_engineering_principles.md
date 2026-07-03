@@ -130,7 +130,7 @@ frontend/
 | `components/profile` | 个人资料与头像编辑组件 |
 | `components/editor` | 编辑实体、草稿恢复和编辑器专属组件 |
 | `components/media` | 可跨页面复用的图片和媒体查看器 |
-| `components/my-scores` | 用户拥有的 Score 与待审核 ProcessingJob 列表 |
+| `components/my-scores` | 用户拥有的 Score 与待审核 ImportJob 列表 |
 | `components/notifications` | 通知中心和系统事件投影 |
 | `components/score` | 共享 score renderer、播放 shell 和状态 UI |
 | `components/score-detail` | 长期 Score 详情页的元数据、播放、分享和协作操作 |

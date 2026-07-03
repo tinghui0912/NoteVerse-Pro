@@ -4,7 +4,7 @@ from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
-    ProcessingJob,
+    ImportJob,
     Score,
     ScoreArtifact,
     ScorePublication,
@@ -125,10 +125,10 @@ class ScoreRepository:
 
     async def originating_job(
         self, db: AsyncSession, job_id: int | None
-    ) -> ProcessingJob | None:
+    ) -> ImportJob | None:
         if job_id is None:
             return None
-        return await db.get(ProcessingJob, job_id)
+        return await db.get(ImportJob, job_id)
 
     async def publication(
         self, db: AsyncSession, score_id: int

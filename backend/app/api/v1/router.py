@@ -4,7 +4,7 @@ from app.modules.auth.router import router as auth
 from app.modules.artifacts.router import router as artifacts
 from app.modules.artifacts.router import score_artifact_router
 from app.modules.files.router import router as files
-from app.modules.jobs.router import router as jobs
+from app.modules.import_jobs.router import router as jobs
 from app.modules.library.router import router as library
 from app.modules.metadata.router import router as metadata
 from app.modules.my_scores.router import router as my_scores
@@ -26,7 +26,7 @@ api_router = APIRouter()
 api_router.include_router(auth, prefix="/auth", tags=["Authentication"])
 api_router.include_router(artifacts, prefix="/artifacts", tags=["Score Artifacts"])
 api_router.include_router(files, prefix="/files", tags=["File Operations"])
-api_router.include_router(jobs, prefix="/jobs", tags=["Processing Jobs"])
+api_router.include_router(jobs, prefix="/import-jobs", tags=["Import Jobs"])
 api_router.include_router(library, prefix="/library", tags=["Library"])
 api_router.include_router(my_scores, prefix="/my-scores", tags=["My Scores"])
 api_router.include_router(scores, prefix="/scores", tags=["Scores"])

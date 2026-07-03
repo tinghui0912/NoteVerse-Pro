@@ -75,7 +75,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(
             BigInteger,
-            ForeignKey("processing_jobs.id", ondelete="SET NULL"),
+            ForeignKey("import_jobs.id", ondelete="SET NULL"),
             unique=True,
         ),
     )
@@ -246,7 +246,7 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(
             BigInteger,
-            ForeignKey("processing_jobs.id", ondelete="SET NULL"),
+            ForeignKey("import_jobs.id", ondelete="SET NULL"),
         ),
     )
     created_at: datetime = Field(

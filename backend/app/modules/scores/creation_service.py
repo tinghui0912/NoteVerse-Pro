@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    ProcessingJob,
+    ImportJob,
     Score,
     ScoreArtifact,
     ScoreRevision,
@@ -44,12 +44,12 @@ class SyncConfirmedScoreCreationService:
         taxonomy_tags: list[tuple[str, str]] | None = None,
     ) -> str:
         job = db.execute(
-            select(ProcessingJob)
-            .where(ProcessingJob.job_uuid == job_uuid)
+            select(ImportJob)
+            .where(ImportJob.job_uuid == job_uuid)
             .with_for_update()
         ).scalar_one_or_none()
         if not job:
-            raise ValueError(f"Processing job {job_uuid} not found")
+            raise ValueError(f"Import job {job_uuid} not found")
         if job.score_id is not None:
             existing = db.get(Score, job.score_id)
             if existing:
@@ -78,7 +78,7 @@ class SyncConfirmedScoreCreationService:
                 score_uuid=score_uuid,
                 owner_user_id=job.user_id,
                 title=(title or "Untitled score").strip(),
-                originating_job_id=require_persisted_id(job.id, entity="processing job"),
+                originating_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
                 updated_at=now,
             )
@@ -122,7 +122,7 @@ class SyncConfirmedScoreCreationService:
                 idempotency_key=f"job:{job_uuid}",
                 origin=RevisionOrigin.OMR,
                 created_by_user_id=job.user_id,
-                created_by_job_id=require_persisted_id(job.id, entity="processing job"),
+                created_by_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
             )
             db.add(revision)

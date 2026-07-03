@@ -59,14 +59,14 @@ class Pipeline:
         for step in self.steps:
             try:
                 self._ensure_before_deadline(ctx, step.name)
-                ctx.status("PROGRESS", step.name, step.progress_start, current_step=step.name)
+                ctx.status("RUNNING", step.name, step.progress_start, current_step=step.name)
                 logger.info(f"[{ctx.job_id}] Step started: {step.name}")
 
                 step.run(ctx)
                 executed_steps.append(step)
                 self._ensure_before_deadline(ctx, step.name)
 
-                ctx.status("PROGRESS", step.name, step.progress_end, current_step=step.name)
+                ctx.status("RUNNING", step.name, step.progress_end, current_step=step.name)
                 logger.info(f"[{ctx.job_id}] Step completed: {step.name}")
             except Exception as exc:
                 logger.error(f"[{ctx.job_id}] Step failed: {step.name} | Error: {exc}")

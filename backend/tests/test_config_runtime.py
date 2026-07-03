@@ -94,7 +94,7 @@ def test_task_reliability_defaults_are_positive() -> None:
     settings = Settings()
 
     assert settings.JOB_PENDING_STALE_SECONDS > 0
-    assert settings.JOB_PROGRESS_STALE_SECONDS > 0
+    assert settings.IMPORT_JOB_RUNNING_STALE_SECONDS > 0
     assert settings.ORPHAN_UPLOAD_TTL_SECONDS > 0
 
 

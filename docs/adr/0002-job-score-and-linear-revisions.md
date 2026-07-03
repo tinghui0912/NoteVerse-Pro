@@ -1,4 +1,4 @@
-# ADR 0002: Separate Processing Jobs From Scores And Use Linear Revisions
+# ADR 0002: Separate Import Jobs From Scores And Use Linear Revisions
 
 - Status: Accepted; review lifecycle details superseded by ADR 0005 and the later
   score-state cleanup
@@ -13,13 +13,13 @@ by results, editor, history, sharing, downloads, and practice. XML saves replace
 reliability concerns leak into product-resource APIs.
 
 The product is pre-release. Repository searches found no external API consumer beyond the
-bundled frontend and tests, so the new `/api/v1/jobs` and `/api/v1/scores` resources may
+bundled frontend and tests, so the new `/api/v1/import-jobs` and `/api/v1/scores` resources may
 replace task-as-score endpoints during the controlled cutover. If an external consumer is
 introduced before that cutover, the replacement contract moves to `/api/v2`.
 
 ## Decision
 
-1. `ProcessingJob` owns submission, progress, steps, retries, heartbeat, stale recovery,
+1. `ImportJob` owns submission, progress, steps, retries, heartbeat, stale recovery,
    idempotency, and processing errors.
 2. `Score` is the stable user-owned resource and owns title, taxonomy tags, and its current
    head revision pointer.
@@ -39,14 +39,14 @@ introduced before that cutover, the replacement contract moves to `/api/v2`.
 ## Lifecycle contract
 
 ```text
-ProcessingJob: PENDING -> PROGRESS -> PENDING_REVIEW -> SUCCESS
+ImportJob: PENDING -> RUNNING -> PENDING_REVIEW -> CONFIRMED
                          \-> FAILURE
 
 Score: no lifecycle state column in the current model
 ```
 
-`ProcessingJob.PENDING_REVIEW` means review artifacts exist and are ready for human
-confirmation. `ProcessingJob.SUCCESS` means confirmation created a canonical score and
+`ImportJob.PENDING_REVIEW` means review artifacts exist and are ready for human
+confirmation. `ImportJob.CONFIRMED` means confirmation created a canonical score and
 recorded `score_id`.
 
 ## API identity contract

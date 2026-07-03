@@ -13,7 +13,7 @@ export {
 export { authApi } from './auth';
 
 // 任务 API
-export { jobsApi } from './jobs';
+export { importJobsApi } from './import-jobs';
 
 // 文件 API
 export { filesApi } from './files';

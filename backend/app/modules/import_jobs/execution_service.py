@@ -5,11 +5,11 @@ from celery.exceptions import SoftTimeLimitExceeded
 from app.core.exceptions import PipelineException
 from app.core.logger import logger
 from app.db.worker_session import get_worker_db
-from app.modules.jobs.schemas import (
-    JobProcessingOptions,
+from app.modules.import_jobs.schemas import (
+    ImportJobProcessingOptions,
     PipelineExecutionSuccessResult,
 )
-from app.modules.jobs.worker_service import sync_job_service
+from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.pipeline import JobContext, PipelineBuilder
 from app.pipeline.context import CeleryTaskLike
 from app.shared.constants import ErrorCode
@@ -17,7 +17,7 @@ from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
 
-class JobExecutionService:
+class ImportJobExecutionService:
     def __init__(self, storage: FileStorage | None = None) -> None:
         self.storage = storage or file_storage
 
@@ -36,7 +36,7 @@ class JobExecutionService:
         self,
         celery_task: CeleryTaskLike,
         upload_ids: list[str],
-        options: JobProcessingOptions | None = None,
+        options: ImportJobProcessingOptions | None = None,
     ) -> PipelineExecutionSuccessResult:
         job_id = celery_task.request.id
         try:
@@ -50,7 +50,7 @@ class JobExecutionService:
                     options=options or {},
                 )
                 context.status(
-                    "PROGRESS",
+                    "RUNNING",
                     "initialization",
                     0,
                     current_step="initialization",
@@ -60,14 +60,14 @@ class JobExecutionService:
                 pipeline = PipelineBuilder.build(image_paths, options)
                 logger.info(f"[{job_id}] Running pipeline: {pipeline}")
                 pipeline.run(context)
-                context.status("PROGRESS", "completed", 100, current_step="ocr_completed")
+                context.status("RUNNING", "completed", 100, current_step="ocr_completed")
                 context.complete()
                 return {"success": True, "job_id": job_id}
         except Exception as exc:
             logger.error(f"[{job_id}] Job failed: {exc}", exc_info=True)
             try:
                 with get_worker_db() as db:
-                    sync_job_service.finalize_failure(
+                    sync_import_job_service.finalize_failure(
                         db,
                         job_id,
                         error=str(exc),
@@ -79,4 +79,4 @@ class JobExecutionService:
             raise
 
 
-job_execution_service = JobExecutionService()
+job_execution_service = ImportJobExecutionService()

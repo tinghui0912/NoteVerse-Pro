@@ -7,20 +7,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.db.models import (
-    ProcessingArtifact,
-    ProcessingJob,
-    ProcessingJobStep,
-    ProcessingJobUpload,
+    ImportArtifact,
+    ImportJob,
+    ImportJobStep,
+    ImportJobUpload,
     Score,
     Upload,
 )
-from app.db.models.processing_job import ProcessingJobState
+from app.db.models.import_job import ImportJobState
 
-job_uuid_col = ProcessingJob.__table__.c.job_uuid
-job_created_col = ProcessingJob.__table__.c.created_at
+job_uuid_col = ImportJob.__table__.c.job_uuid
+job_created_col = ImportJob.__table__.c.created_at
 
 
-class JobRepository:
+class ImportJobRepository:
     async def list_for_user(
         self,
         db: AsyncSession,
@@ -28,27 +28,27 @@ class JobRepository:
         *,
         page: int,
         page_size: int,
-    ) -> tuple[list[ProcessingJob], int]:
+    ) -> tuple[list[ImportJob], int]:
         total = int(
             (
                 await db.execute(
-                    select(func.count(ProcessingJob.id)).where(
-                        ProcessingJob.user_id == user_id
+                    select(func.count(ImportJob.id)).where(
+                        ImportJob.user_id == user_id
                     )
                 )
             ).scalar_one()
         )
         rows = await db.execute(
-            select(ProcessingJob)
-            .where(ProcessingJob.user_id == user_id)
+            select(ImportJob)
+            .where(ImportJob.user_id == user_id)
             .order_by(job_created_col.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
         return list(rows.scalars().all()), total
-    async def get_by_uuid(self, db: AsyncSession, job_uuid: str) -> ProcessingJob | None:
+    async def get_by_uuid(self, db: AsyncSession, job_uuid: str) -> ImportJob | None:
         result = await db.execute(
-            select(ProcessingJob).where(ProcessingJob.job_uuid == job_uuid)
+            select(ImportJob).where(ImportJob.job_uuid == job_uuid)
         )
         return result.scalars().first()
 
@@ -57,10 +57,10 @@ class JobRepository:
         db: AsyncSession,
         job_uuids: list[str],
         user_id: int,
-    ) -> list[ProcessingJob]:
+    ) -> list[ImportJob]:
         result = await db.execute(
-            select(ProcessingJob).where(
-                ProcessingJob.user_id == user_id,
+            select(ImportJob).where(
+                ImportJob.user_id == user_id,
                 job_uuid_col.in_(job_uuids),
             )
         )
@@ -68,53 +68,53 @@ class JobRepository:
 
     async def artifact_by_uuid(
         self, db: AsyncSession, artifact_uuid: str
-    ) -> ProcessingArtifact | None:
+    ) -> ImportArtifact | None:
         return (
             await db.execute(
-                select(ProcessingArtifact).where(
-                    ProcessingArtifact.artifact_uuid == artifact_uuid
+                select(ImportArtifact).where(
+                    ImportArtifact.artifact_uuid == artifact_uuid
                 )
             )
         ).scalar_one_or_none()
 
 
-class SyncJobRepository:
+class SyncImportJobRepository:
     @staticmethod
-    def get_by_uuid(db: Session, job_uuid: str) -> ProcessingJob | None:
-        return db.query(ProcessingJob).filter_by(job_uuid=job_uuid).first()
+    def get_by_uuid(db: Session, job_uuid: str) -> ImportJob | None:
+        return db.query(ImportJob).filter_by(job_uuid=job_uuid).first()
 
     @staticmethod
     def get_by_idempotency_key(
         db: Session,
         user_id: int,
         idempotency_key: str,
-    ) -> ProcessingJob | None:
+    ) -> ImportJob | None:
         return (
-            db.query(ProcessingJob)
+            db.query(ImportJob)
             .filter_by(user_id=user_id, idempotency_key=idempotency_key)
             .first()
         )
 
     @staticmethod
-    def get_step(db: Session, job_id: int, name: str) -> ProcessingJobStep | None:
-        return db.query(ProcessingJobStep).filter_by(job_id=job_id, name=name).first()
+    def get_step(db: Session, job_id: int, name: str) -> ImportJobStep | None:
+        return db.query(ImportJobStep).filter_by(job_id=job_id, name=name).first()
 
     @staticmethod
-    def list_steps(db: Session, job_id: int) -> list[ProcessingJobStep]:
+    def list_steps(db: Session, job_id: int) -> list[ImportJobStep]:
         return (
-            db.query(ProcessingJobStep)
+            db.query(ImportJobStep)
             .filter_by(job_id=job_id)
-            .order_by(ProcessingJobStep.step_order)
+            .order_by(ImportJobStep.step_order)
             .all()
         )
 
     @staticmethod
-    def list_artifacts(db: Session, job_id: int) -> list[ProcessingArtifact]:
-        return db.query(ProcessingArtifact).filter_by(job_id=job_id).all()
+    def list_artifacts(db: Session, job_id: int) -> list[ImportArtifact]:
+        return db.query(ImportArtifact).filter_by(job_id=job_id).all()
 
     @staticmethod
     def delete_artifacts_by_kind(db: Session, job_id: int, kind: str) -> None:
-        db.query(ProcessingArtifact).filter_by(job_id=job_id, kind=kind).delete()
+        db.query(ImportArtifact).filter_by(job_id=job_id, kind=kind).delete()
 
     @staticmethod
     def get_upload_by_sha256(db: Session, sha256: str) -> Upload | None:
@@ -125,9 +125,9 @@ class SyncJobRepository:
         db: Session,
         job_id: int,
         upload_id: int,
-    ) -> ProcessingJobUpload | None:
+    ) -> ImportJobUpload | None:
         return (
-            db.query(ProcessingJobUpload)
+            db.query(ImportJobUpload)
             .filter_by(job_id=job_id, upload_id=upload_id)
             .first()
         )
@@ -136,11 +136,11 @@ class SyncJobRepository:
     def list_upload_rows(
         db: Session,
         job_id: int,
-    ) -> list[tuple[ProcessingJobUpload, Upload]]:
+    ) -> list[tuple[ImportJobUpload, Upload]]:
         return (
-            db.query(ProcessingJobUpload, Upload)
-            .join(Upload, ProcessingJobUpload.upload_id == Upload.id)
-            .filter(ProcessingJobUpload.job_id == job_id)
+            db.query(ImportJobUpload, Upload)
+            .join(Upload, ImportJobUpload.upload_id == Upload.id)
+            .filter(ImportJobUpload.job_id == job_id)
             .all()
         )
 
@@ -152,31 +152,30 @@ class SyncJobRepository:
         return score.score_uuid if score else None
 
     @staticmethod
-    @staticmethod
-    def list_stale_pending(db: Session, cutoff: datetime) -> list[ProcessingJob]:
+    def list_stale_pending(db: Session, cutoff: datetime) -> list[ImportJob]:
         return (
-            db.query(ProcessingJob)
-            .filter(ProcessingJob.state == ProcessingJobState.PENDING)
-            .filter(ProcessingJob.created_at < cutoff)
+            db.query(ImportJob)
+            .filter(ImportJob.state == ImportJobState.PENDING)
+            .filter(ImportJob.created_at < cutoff)
             .all()
         )
 
     @staticmethod
-    def list_stale_progress(db: Session, cutoff: datetime) -> list[ProcessingJob]:
-        heartbeat = ProcessingJob.__table__.c.last_heartbeat_at
+    def list_stale_running(db: Session, cutoff: datetime) -> list[ImportJob]:
+        heartbeat = ImportJob.__table__.c.last_heartbeat_at
         return (
-            db.query(ProcessingJob)
-            .filter(ProcessingJob.state == ProcessingJobState.PROGRESS)
+            db.query(ImportJob)
+            .filter(ImportJob.state == ImportJobState.RUNNING)
             .filter(or_(heartbeat.is_(None), heartbeat < cutoff))
             .all()
         )
 
     @staticmethod
     def list_orphan_uploads(db: Session, cutoff: datetime) -> list[Upload]:
-        job_link_id = ProcessingJobUpload.__table__.c.id
+        job_link_id = ImportJobUpload.__table__.c.id
         return (
             db.query(Upload)
-            .outerjoin(ProcessingJobUpload, Upload.id == ProcessingJobUpload.upload_id)
+            .outerjoin(ImportJobUpload, Upload.id == ImportJobUpload.upload_id)
             .filter(job_link_id.is_(None))
             .filter(Upload.created_at < cutoff)
             .all()

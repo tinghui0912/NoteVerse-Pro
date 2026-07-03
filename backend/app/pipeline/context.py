@@ -1,4 +1,4 @@
-"""Pipeline processing-job context and shared runtime state."""
+"""Pipeline import-job context and shared runtime state."""
 
 import os
 import time
@@ -9,9 +9,9 @@ from celery.utils.log import get_task_logger
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.modules.jobs.schemas import PipelineExecutionFailureResult, JobProcessingOptions
+from app.modules.import_jobs.schemas import PipelineExecutionFailureResult, ImportJobProcessingOptions
 from app.processing.engines.omr import OmrSuccessResult
-from app.modules.jobs.worker_service import sync_job_service as job_service
+from app.modules.import_jobs.worker_service import sync_import_job_service as job_service
 from app.pipeline.files_recorder import replace_files
 from app.pipeline.step_tracker import StepTracker
 from app.shared.file_kinds import FileKind
@@ -44,20 +44,20 @@ class CeleryTaskLike(Protocol):
     def update_state(self, state: str, meta: CeleryStateMeta) -> None: ...
 
 
-def _default_job_options() -> JobProcessingOptions:
+def _default_job_options() -> ImportJobProcessingOptions:
     """Return an empty typed options payload for new job contexts."""
     return {}
 
 
 @dataclass
 class JobContext:
-    """Mutable processing-job state shared across pipeline steps."""
+    """Mutable import-job state shared across pipeline steps."""
 
     job_id: str
     db: Session
     celery_task: CeleryTaskLike
     image_paths: List[str]
-    options: JobProcessingOptions = field(default_factory=_default_job_options)
+    options: ImportJobProcessingOptions = field(default_factory=_default_job_options)
 
     raw_paths: List[str] = field(default_factory=list)
     omr_result: Optional[OmrSuccessResult] = None
@@ -178,7 +178,7 @@ class JobContext:
     def update_celery_state(self, status: str, progress: int, current_step: str) -> None:
         """Update the Celery task state payload."""
         self.celery_task.update_state(
-            state="PROGRESS",
+            state="RUNNING",
             meta={
                 "status": status,
                 "progress": progress,

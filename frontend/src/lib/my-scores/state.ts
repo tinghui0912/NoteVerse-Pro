@@ -1,4 +1,4 @@
-import type { MyScoresPageView, MyScoresSort, MyScoresView, ProcessingJob } from '@/types/api';
+import type { MyScoresPageView, MyScoresSort, MyScoresView, ImportJob } from '@/types/api';
 
 export const MY_SCORE_VIEWS: MyScoresView[] = [
   'all',
@@ -8,7 +8,7 @@ export const MY_SCORE_VIEWS: MyScoresView[] = [
 
 export const MY_SCORE_PAGE_VIEWS: MyScoresPageView[] = [
   'all',
-  'processing',
+  'importing',
   'review',
   'failed',
   'private',
@@ -38,16 +38,16 @@ export function scoreBackedView(view: MyScoresPageView): MyScoresView {
   return isMyScoreView(view) ? view : 'all';
 }
 
-export function isProcessingJob(job: ProcessingJob) {
-  return job.state === 'PENDING' || job.state === 'PROGRESS';
+export function isImportJob(job: ImportJob) {
+  return job.state === 'PENDING' || job.state === 'RUNNING';
 }
 
-export function visibleMyScoreJobs(jobs: ProcessingJob[], view: MyScoresPageView) {
+export function visibleMyScoreJobs(jobs: ImportJob[], view: MyScoresPageView) {
   return jobs.filter((job) => {
-    if (view === 'processing') return isProcessingJob(job);
+    if (view === 'importing') return isImportJob(job);
     if (view === 'review') return job.state === 'PENDING_REVIEW';
     if (view === 'failed') return job.state === 'FAILURE';
-    if (view === 'all') return isProcessingJob(job) || job.state === 'PENDING_REVIEW' || job.state === 'FAILURE';
+    if (view === 'all') return isImportJob(job) || job.state === 'PENDING_REVIEW' || job.state === 'FAILURE';
     return false;
   });
 }

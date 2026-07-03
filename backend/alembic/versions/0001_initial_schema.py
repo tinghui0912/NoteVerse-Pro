@@ -40,8 +40,8 @@ ENUM_TYPES = (
     "metadatastatus",
     "practicereportstatus",
     "practicesessionstate",
-    "processingjobstate",
-    "processingjobstepstatus",
+    "importjobstate",
+    "importjobstepstatus",
     "publicationstatus",
     "revisionorigin",
     "userrole",
@@ -161,11 +161,11 @@ def upgrade() -> None:
     op.create_index('idx_notification_events_recipient_created', 'notification_events', ['recipient_user_id', 'created_at'], unique=False)
     op.create_index('idx_notification_events_recipient_read', 'notification_events', ['recipient_user_id', 'read_at'], unique=False)
     op.create_index('idx_notification_events_resource', 'notification_events', ['resource_type', 'resource_id'], unique=False)
-    op.create_table('processing_jobs',
+    op.create_table('import_jobs',
     sa.Column('id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), autoincrement=True, nullable=False),
     sa.Column('job_uuid', sa.String(length=36), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=False),
-    sa.Column('state', sa.Enum('PENDING', 'PROGRESS', 'PENDING_REVIEW', 'SUCCESS', 'FAILURE', name='processingjobstate'), nullable=False),
+    sa.Column('state', sa.Enum('PENDING', 'RUNNING', 'PENDING_REVIEW', 'CONFIRMED', 'FAILURE', name='importjobstate'), nullable=False),
     sa.Column('progress', sa.Integer(), nullable=False),
     sa.Column('current_step', sa.String(length=64), nullable=True),
     sa.Column('idempotency_key', sa.String(length=128), nullable=True),
@@ -180,14 +180,14 @@ def upgrade() -> None:
     sa.Column('score_id', sa.BigInteger(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['score_id'], ['scores.id'], name='fk_processing_jobs_score_id', ondelete='SET NULL', use_alter=True),
+    sa.ForeignKeyConstraint(['score_id'], ['scores.id'], name='fk_import_jobs_score_id', ondelete='SET NULL', use_alter=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('job_uuid'),
-    sa.UniqueConstraint('user_id', 'idempotency_key', name='uq_processing_jobs_user_idempotency_key')
+    sa.UniqueConstraint('user_id', 'idempotency_key', name='uq_import_jobs_user_idempotency_key')
     )
-    op.create_index('idx_processing_jobs_state', 'processing_jobs', ['state'], unique=False)
-    op.create_index('idx_processing_jobs_user_created', 'processing_jobs', ['user_id', 'created_at'], unique=False)
+    op.create_index('idx_import_jobs_state', 'import_jobs', ['state'], unique=False)
+    op.create_index('idx_import_jobs_user_created', 'import_jobs', ['user_id', 'created_at'], unique=False)
     op.create_table('refresh_tokens',
     sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=False),
@@ -258,7 +258,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('sha256'),
     sa.UniqueConstraint('storage_key')
     )
-    op.create_table('processing_artifacts',
+    op.create_table('import_artifacts',
     sa.Column('id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), autoincrement=True, nullable=False),
     sa.Column('artifact_uuid', sa.String(length=36), nullable=False),
     sa.Column('job_id', sa.BigInteger(), nullable=False),
@@ -271,35 +271,35 @@ def upgrade() -> None:
     sa.Column('sha256', sa.String(length=64), nullable=True),
     sa.Column('page_number', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['job_id'], ['processing_jobs.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['job_id'], ['import_jobs.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('artifact_uuid'),
-    sa.UniqueConstraint('storage_key', name='uq_processing_artifacts_storage_key')
+    sa.UniqueConstraint('storage_key', name='uq_import_artifacts_storage_key')
     )
-    op.create_index('idx_processing_artifacts_job_kind', 'processing_artifacts', ['job_id', 'kind'], unique=False)
-    op.create_table('processing_job_steps',
+    op.create_index('idx_import_artifacts_job_kind', 'import_artifacts', ['job_id', 'kind'], unique=False)
+    op.create_table('import_job_steps',
     sa.Column('id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), autoincrement=True, nullable=False),
     sa.Column('job_id', sa.BigInteger(), nullable=False),
     sa.Column('name', sa.String(length=64), nullable=False),
-    sa.Column('status', sa.Enum('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', name='processingjobstepstatus'), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', name='importjobstepstatus'), nullable=False),
     sa.Column('start_time', sa.DateTime(), nullable=True),
     sa.Column('end_time', sa.DateTime(), nullable=True),
     sa.Column('step_order', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['job_id'], ['processing_jobs.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['job_id'], ['import_jobs.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('job_id', 'name', name='uq_processing_job_steps_job_name')
+    sa.UniqueConstraint('job_id', 'name', name='uq_import_job_steps_job_name')
     )
-    op.create_index('idx_processing_job_steps_job_order', 'processing_job_steps', ['job_id', 'step_order'], unique=False)
-    op.create_table('processing_job_uploads',
+    op.create_index('idx_import_job_steps_job_order', 'import_job_steps', ['job_id', 'step_order'], unique=False)
+    op.create_table('import_job_uploads',
     sa.Column('id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), autoincrement=True, nullable=False),
     sa.Column('job_id', sa.BigInteger(), nullable=False),
     sa.Column('upload_id', sa.BigInteger(), nullable=False),
-    sa.ForeignKeyConstraint(['job_id'], ['processing_jobs.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['job_id'], ['import_jobs.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['upload_id'], ['uploads.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('job_id', 'upload_id', name='uq_processing_job_uploads_job_upload')
+    sa.UniqueConstraint('job_id', 'upload_id', name='uq_import_job_uploads_job_upload')
     )
-    op.create_index('idx_processing_job_uploads_job', 'processing_job_uploads', ['job_id'], unique=False)
+    op.create_index('idx_import_job_uploads_job', 'import_job_uploads', ['job_id'], unique=False)
     op.create_table('scores',
     sa.Column('id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), autoincrement=True, nullable=False),
     sa.Column('score_uuid', sa.String(length=36), nullable=False),
@@ -312,7 +312,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.CheckConstraint('version >= 1', name='ck_scores_version_positive'),
     sa.ForeignKeyConstraint(['id', 'head_revision_id'], ['score_revisions.score_id', 'score_revisions.id'], name='fk_scores_head_revision', use_alter=True),
-    sa.ForeignKeyConstraint(['originating_job_id'], ['processing_jobs.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['originating_job_id'], ['import_jobs.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['owner_user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('originating_job_id'),
@@ -397,7 +397,7 @@ def upgrade() -> None:
     sa.Column('created_by_job_id', sa.BigInteger(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.CheckConstraint('revision_number >= 1', name='ck_score_revisions_number_positive'),
-    sa.ForeignKeyConstraint(['created_by_job_id'], ['processing_jobs.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['created_by_job_id'], ['import_jobs.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['created_by_user_id'], ['users.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['score_id', 'base_revision_id'], ['score_revisions.score_id', 'score_revisions.id'], name='fk_score_revisions_base'),
     sa.ForeignKeyConstraint(['score_id', 'parent_revision_id'], ['score_revisions.score_id', 'score_revisions.id'], name='fk_score_revisions_parent'),
@@ -411,8 +411,8 @@ def upgrade() -> None:
     )
     op.create_index('idx_score_revisions_score_created', 'score_revisions', ['score_id', 'created_at'], unique=False)
     op.create_foreign_key(
-        'fk_processing_jobs_score_id',
-        'processing_jobs',
+        'fk_import_jobs_score_id',
+        'import_jobs',
         'scores',
         ['score_id'],
         ['id'],
@@ -568,7 +568,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Drop the current pre-release schema baseline.
     op.drop_constraint('fk_scores_head_revision', 'scores', type_='foreignkey')
-    op.drop_constraint('fk_processing_jobs_score_id', 'processing_jobs', type_='foreignkey')
+    op.drop_constraint('fk_import_jobs_score_id', 'import_jobs', type_='foreignkey')
     op.drop_index('idx_share_grant_redemptions_user_created', table_name='share_grant_redemptions')
     op.drop_table('share_grant_redemptions')
     op.drop_index('idx_practice_sessions_user_created', table_name='practice_sessions')
@@ -606,12 +606,12 @@ def downgrade() -> None:
     op.drop_table('score_invites')
     op.drop_index('idx_scores_owner_updated', table_name='scores')
     op.drop_table('scores')
-    op.drop_index('idx_processing_job_uploads_job', table_name='processing_job_uploads')
-    op.drop_table('processing_job_uploads')
-    op.drop_index('idx_processing_job_steps_job_order', table_name='processing_job_steps')
-    op.drop_table('processing_job_steps')
-    op.drop_index('idx_processing_artifacts_job_kind', table_name='processing_artifacts')
-    op.drop_table('processing_artifacts')
+    op.drop_index('idx_import_job_uploads_job', table_name='import_job_uploads')
+    op.drop_table('import_job_uploads')
+    op.drop_index('idx_import_job_steps_job_order', table_name='import_job_steps')
+    op.drop_table('import_job_steps')
+    op.drop_index('idx_import_artifacts_job_kind', table_name='import_artifacts')
+    op.drop_table('import_artifacts')
     op.drop_table('uploads')
     op.drop_index('idx_taxonomy_tags_category_active_sort', table_name='taxonomy_tags')
     op.drop_table('taxonomy_tags')
@@ -622,9 +622,9 @@ def downgrade() -> None:
     op.drop_index('idx_refresh_tokens_revoked', table_name='refresh_tokens')
     op.drop_index('idx_refresh_tokens_expires', table_name='refresh_tokens')
     op.drop_table('refresh_tokens')
-    op.drop_index('idx_processing_jobs_user_created', table_name='processing_jobs')
-    op.drop_index('idx_processing_jobs_state', table_name='processing_jobs')
-    op.drop_table('processing_jobs')
+    op.drop_index('idx_import_jobs_user_created', table_name='import_jobs')
+    op.drop_index('idx_import_jobs_state', table_name='import_jobs')
+    op.drop_table('import_jobs')
     op.drop_index('idx_notification_events_resource', table_name='notification_events')
     op.drop_index('idx_notification_events_recipient_read', table_name='notification_events')
     op.drop_index('idx_notification_events_recipient_created', table_name='notification_events')

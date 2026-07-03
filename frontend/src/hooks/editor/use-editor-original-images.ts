@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { jobsApi } from '@/lib/api';
+import { importJobsApi } from '@/lib/api';
 
 interface EditorOriginalImageArtifact {
   artifact_id: string;
@@ -35,7 +35,7 @@ export function useEditorOriginalImages({
       return;
     }
     void Promise.all(
-      artifacts.map((artifact) => jobsApi.downloadJobArtifact(jobId, artifact.artifact_id))
+      artifacts.map((artifact) => importJobsApi.downloadImportJobArtifact(jobId, artifact.artifact_id))
     ).then((blobs) => {
       if (controller.signal.aborted) return;
       loaded = blobs.map(URL.createObjectURL);

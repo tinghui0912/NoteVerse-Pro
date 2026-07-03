@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.model_utils import require_persisted_id
-from app.db.models import ProcessingArtifact
-from app.modules.jobs.repository import SyncJobRepository
+from app.db.models import ImportArtifact
+from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.processing.engines.render import create_score_render_engine
 from app.shared.file_kinds import FileKind
 from app.storage import FileStorage, file_storage
@@ -19,19 +19,19 @@ from app.storage import FileStorage, file_storage
 class ReviewThumbnailService:
     def __init__(
         self,
-        repository: SyncJobRepository | None = None,
+        repository: SyncImportJobRepository | None = None,
         storage: FileStorage | None = None,
     ) -> None:
-        self.repository = repository or SyncJobRepository()
+        self.repository = repository or SyncImportJobRepository()
         self.storage = storage or file_storage
 
     def render(self, db: Session, job_uuid: str) -> str | None:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             return None
-        job_id = require_persisted_id(job.id, entity="processing job")
+        job_id = require_persisted_id(job.id, entity="import job")
         review_xml = (
-            db.query(ProcessingArtifact)
+            db.query(ImportArtifact)
             .filter_by(job_id=job_id, kind=FileKind.REVIEW_MUSICXML.value)
             .one_or_none()
         )
@@ -39,7 +39,7 @@ class ReviewThumbnailService:
             return None
 
         previous = (
-            db.query(ProcessingArtifact)
+            db.query(ImportArtifact)
             .filter_by(job_id=job_id, kind=FileKind.RESULT_THUMBNAIL.value)
             .all()
         )
@@ -70,7 +70,7 @@ class ReviewThumbnailService:
                 content_type=output["mime_type"],
             )
             uploaded_key = stored.storage_key
-            thumbnail = ProcessingArtifact(
+            thumbnail = ImportArtifact(
                 artifact_uuid=artifact_uuid,
                 job_id=job_id,
                 kind=FileKind.RESULT_THUMBNAIL.value,

@@ -6,13 +6,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
-from app.db.models import ProcessingJob, ProcessingJobUpload, Upload, User
-from app.db.models.processing_job import ProcessingJobState
+from app.db.models import ImportJob, ImportJobUpload, Upload, User
+from app.db.models.import_job import ImportJobState
 from app.db.model_utils import require_persisted_id
-from app.modules.jobs.repository import JobRepository
-from app.modules.jobs.schemas import JobDetail, JobProcessingOptions, JobStatusEntry, JobSubmitRequestLike, JobSubmitResult
-from app.modules.jobs.submission_service import JobSubmissionService
-from app.modules.jobs.worker_service import sync_job_service
+from app.modules.import_jobs.repository import ImportJobRepository
+from app.modules.import_jobs.schemas import ImportJobDetail, ImportJobProcessingOptions, ImportJobStatusEntry, ImportJobSubmitRequestLike, ImportJobSubmitResult
+from app.modules.import_jobs.submission_service import ImportJobSubmissionService
+from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.modules.artifacts.service import ArtifactDelivery
 from app.storage import FileStorage, file_storage
 from app.shared.constants import ErrorCode
@@ -21,22 +21,22 @@ from app.shared.constants import ErrorCode
 @dataclass(frozen=True)
 class RetryJobRequest:
     file_ids: list[str]
-    options: JobProcessingOptions | None
+    options: ImportJobProcessingOptions | None
     idempotency_key: str | None = None
 
 
-class JobService:
+class ImportJobService:
     def __init__(
         self,
-        repository: JobRepository | None = None,
-        submission_service: JobSubmissionService | None = None,
+        repository: ImportJobRepository | None = None,
+        submission_service: ImportJobSubmissionService | None = None,
         storage: FileStorage | None = None,
     ) -> None:
-        self.repository = repository or JobRepository()
-        self.submission_service = submission_service or JobSubmissionService()
+        self.repository = repository or ImportJobRepository()
+        self.submission_service = submission_service or ImportJobSubmissionService()
         self.storage = storage or file_storage
 
-    async def submit(self, current_user: User, request: JobSubmitRequestLike) -> JobSubmitResult:
+    async def submit(self, current_user: User, request: ImportJobSubmitRequestLike) -> ImportJobSubmitResult:
         return await self.submission_service.submit(current_user, request)
 
     async def retry(
@@ -45,15 +45,15 @@ class JobService:
         job_uuid: str,
         current_user: User,
         user_id: int,
-    ) -> JobSubmitResult:
+    ) -> ImportJobSubmitResult:
         job = await self.get_owned_job(db, job_uuid, user_id)
-        if job.state != ProcessingJobState.FAILURE:
+        if job.state != ImportJobState.FAILURE:
             raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="state")
-        job_id = require_persisted_id(job.id, entity="processing job")
+        job_id = require_persisted_id(job.id, entity="import job")
         rows = await db.execute(
             select(Upload.sha256)
-            .join(ProcessingJobUpload, ProcessingJobUpload.upload_id == Upload.id)
-            .where(ProcessingJobUpload.job_id == job_id)
+            .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
+            .where(ImportJobUpload.job_id == job_id)
         )
         file_ids = list(rows.scalars().all())
         if not file_ids:
@@ -78,7 +78,7 @@ class JobService:
         *,
         page: int,
         page_size: int,
-    ) -> tuple[list[JobDetail], int]:
+    ) -> tuple[list[ImportJobDetail], int]:
         rows, total = await self.repository.list_for_user(
             db, user_id, page=page, page_size=page_size
         )
@@ -86,7 +86,7 @@ class JobService:
 
         sync_db = get_db_session()
         try:
-            return [sync_job_service.get_detail(sync_db, row.job_uuid) for row in rows], total
+            return [sync_import_job_service.get_detail(sync_db, row.job_uuid) for row in rows], total
         finally:
             sync_db.close()
 
@@ -95,7 +95,7 @@ class JobService:
         db: AsyncSession,
         job_uuid: str,
         user_id: int,
-    ) -> ProcessingJob:
+    ) -> ImportJob:
         job = await self.repository.get_by_uuid(db, job_uuid)
         if not job:
             raise ResourceNotFoundException(
@@ -105,13 +105,13 @@ class JobService:
             raise UnauthorizedException(code=ErrorCode.NO_ACCESS, details={"job_id": job_uuid})
         return job
 
-    async def detail(self, db: AsyncSession, job_uuid: str, user_id: int) -> JobDetail:
+    async def detail(self, db: AsyncSession, job_uuid: str, user_id: int) -> ImportJobDetail:
         await self.get_owned_job(db, job_uuid, user_id)
         from app.db.worker_session import get_db_session
 
         sync_db = get_db_session()
         try:
-            return sync_job_service.get_detail(sync_db, job_uuid)
+            return sync_import_job_service.get_detail(sync_db, job_uuid)
         finally:
             sync_db.close()
 
@@ -120,7 +120,7 @@ class JobService:
         db: AsyncSession,
         job_uuids: list[str],
         user_id: int,
-    ) -> dict[str, JobStatusEntry]:
+    ) -> dict[str, ImportJobStatusEntry]:
         jobs = await self.repository.batch_status(db, job_uuids, user_id)
         return {
             job.job_uuid: {
@@ -134,9 +134,9 @@ class JobService:
 
     async def delete(self, db: AsyncSession, job_uuid: str, user_id: int) -> None:
         job = await self.get_owned_job(db, job_uuid, user_id)
-        if job.state == ProcessingJobState.PROGRESS:
+        if job.state == ImportJobState.RUNNING:
             raise ValidationException(code=ErrorCode.JOB_RUNNING, field="state")
-        require_persisted_id(job.id, entity="processing job")
+        require_persisted_id(job.id, entity="import job")
         await db.delete(job)
         await db.commit()
 
@@ -151,7 +151,7 @@ class JobService:
         artifact = await self.repository.artifact_by_uuid(db, artifact_uuid)
         if not artifact or artifact.job_id != job.id:
             raise ResourceNotFoundException(
-                "processing_artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND
+                "import_artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND
             )
         if not self.storage.exists(artifact.storage_key):
             raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.storage_key)
@@ -178,4 +178,4 @@ class JobService:
         )
 
 
-job_service = JobService()
+job_service = ImportJobService()

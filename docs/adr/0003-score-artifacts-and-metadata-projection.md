@@ -20,7 +20,7 @@ weaken relational constraints.
 4. Rendered artifacts additionally identify page number, renderer-independent render profile,
    generator, and generator version.
 5. Original uploads, OMR output, enhanced XML, and other internal pipeline products remain
-   job inputs or `ProcessingArtifact` records until they explicitly become a score revision.
+   job inputs or `ImportArtifact` records until they explicitly become a score revision.
 6. `ScoreRevisionMetadata` is a typed, one-to-one relational projection keyed by revision.
 7. Metadata is rebuildable from canonical MusicXML and records extraction status, version,
    and classified failure.

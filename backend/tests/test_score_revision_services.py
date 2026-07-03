@@ -14,8 +14,8 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.models import (
-    ProcessingJob,
-    ProcessingArtifact,
+    ImportJob,
+    ImportArtifact,
     NotificationEvent,
     Score,
     ScoreArtifact,
@@ -30,7 +30,7 @@ from app.db.models import (
     User,
 )
 from app.db.models.library import LibraryEntrySourceType
-from app.db.models.processing_job import ProcessingJobState
+from app.db.models.import_job import ImportJobState
 from app.db.models.score import ArtifactKind, RevisionOrigin
 from app.db.models.score import MetadataStatus
 from app.db.models.score_access import (
@@ -46,7 +46,7 @@ from app.modules.artifacts.service import ArtifactService
 from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
-from app.modules.jobs.worker_service import SyncJobService
+from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_sharing.schemas import GrantCreateRequest
 from app.modules.score_sharing.service import ScoreSharingService
@@ -186,11 +186,11 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
     session, storage = score_service_session
     session.add_all(
         [
-            ProcessingJob(
+            ImportJob(
                 id=10,
                 job_uuid="job-1",
                 user_id=1,
-                state=ProcessingJobState.PROGRESS,
+                state=ImportJobState.RUNNING,
             ),
         ]
     )
@@ -226,23 +226,23 @@ def test_completed_job_notifies_owner_when_ready_for_review(
 ) -> None:
     session, _storage = score_service_session
     session.add(
-        ProcessingJob(
+        ImportJob(
             id=11,
             job_uuid="job-complete-notification",
             user_id=1,
-            state=ProcessingJobState.PROGRESS,
+            state=ImportJobState.RUNNING,
             requested_options={"title": "Ready Score"},
         )
     )
     session.commit()
-    job_service = SyncJobService()
+    job_service = SyncImportJobService()
 
     job_service.finalize_success(session, "job-complete-notification")
     job_service.finalize_success(session, "job-complete-notification")
 
     notification = session.query(NotificationEvent).filter_by(
         recipient_user_id=1,
-        type=NotificationTypes.PROCESSING_COMPLETED,
+        type=NotificationTypes.IMPORT_COMPLETED,
     ).one()
     assert notification.resource_type == "job"
     assert notification.resource_id == "job-complete-notification"
@@ -257,15 +257,15 @@ def test_failed_job_notifies_owner_once(
 ) -> None:
     session, _storage = score_service_session
     session.add(
-        ProcessingJob(
+        ImportJob(
             id=12,
             job_uuid="job-failure-notification",
             user_id=1,
-            state=ProcessingJobState.PROGRESS,
+            state=ImportJobState.RUNNING,
         )
     )
     session.commit()
-    job_service = SyncJobService()
+    job_service = SyncImportJobService()
 
     job_service.finalize_failure(
         session,
@@ -284,7 +284,7 @@ def test_failed_job_notifies_owner_once(
 
     notification = session.query(NotificationEvent).filter_by(
         recipient_user_id=1,
-        type=NotificationTypes.PROCESSING_FAILED,
+        type=NotificationTypes.IMPORT_FAILED,
     ).one()
     assert notification.resource_type == "job"
     assert notification.resource_id == "job-failure-notification"
@@ -304,11 +304,11 @@ async def test_review_detail_reads_pending_job_artifacts(
         content_type="application/vnd.recordare.musicxml+xml",
     )
     session.add(
-        ProcessingJob(
+        ImportJob(
             id=13,
             job_uuid="job-review",
             user_id=1,
-            state=ProcessingJobState.PENDING_REVIEW,
+            state=ImportJobState.PENDING_REVIEW,
             requested_options={
                 "title": "Review Score",
                 "taxonomy_tags": [{"category": "level", "code": "beginner"}],
@@ -317,7 +317,7 @@ async def test_review_detail_reads_pending_job_artifacts(
     )
     session.commit()
     session.add(
-        ProcessingArtifact(
+        ImportArtifact(
             job_id=13,
             artifact_uuid="review-musicxml-artifact",
             kind=FileKind.REVIEW_MUSICXML.value,
@@ -351,16 +351,16 @@ def test_job_detail_prefers_result_thumbnail_over_initial_preview(
 ) -> None:
     session, _ = score_service_session
     session.add(
-        ProcessingJob(
+        ImportJob(
             id=16,
             job_uuid="job-thumbnail",
             user_id=1,
-            state=ProcessingJobState.PENDING_REVIEW,
+            state=ImportJobState.PENDING_REVIEW,
         )
     )
     session.commit()
     session.add_all([
-        ProcessingArtifact(
+        ImportArtifact(
             job_id=16,
             artifact_uuid="initial-preview-artifact",
             kind=FileKind.PREVIEW_IMAGE.value,
@@ -370,7 +370,7 @@ def test_job_detail_prefers_result_thumbnail_over_initial_preview(
             mime_type="image/svg+xml",
             page_number=1,
         ),
-        ProcessingArtifact(
+        ImportArtifact(
             job_id=16,
             artifact_uuid="result-thumbnail-artifact",
             kind=FileKind.RESULT_THUMBNAIL.value,
@@ -383,7 +383,7 @@ def test_job_detail_prefers_result_thumbnail_over_initial_preview(
     ])
     session.commit()
 
-    detail = SyncJobService().get_detail(session, "job-thumbnail")
+    detail = SyncImportJobService().get_detail(session, "job-thumbnail")
 
     assert detail["thumbnail_artifact_id"] == "result-thumbnail-artifact"
 
@@ -399,16 +399,16 @@ async def test_review_update_replaces_pending_review_musicxml(
         content_type="application/vnd.recordare.musicxml+xml",
     )
     session.add(
-        ProcessingJob(
+        ImportJob(
             id=15,
             job_uuid="job-review-update",
             user_id=1,
-            state=ProcessingJobState.PENDING_REVIEW,
+            state=ImportJobState.PENDING_REVIEW,
         )
     )
     session.commit()
     session.add(
-        ProcessingArtifact(
+        ImportArtifact(
             job_id=15,
             artifact_uuid="review-update-artifact",
             kind=FileKind.REVIEW_MUSICXML.value,
@@ -432,7 +432,7 @@ async def test_review_update_replaces_pending_review_musicxml(
 
     assert detail.musicxml is not None
     assert detail.musicxml.content == MUSICXML_2
-    artifact = session.query(ProcessingArtifact).filter_by(artifact_uuid="review-update-artifact").one()
+    artifact = session.query(ImportArtifact).filter_by(artifact_uuid="review-update-artifact").one()
     assert artifact.storage_key != stored_xml.storage_key
     assert storage.read_bytes(artifact.storage_key).decode("utf-8") == MUSICXML_2
     assert session.query(Score).count() == 0
@@ -444,11 +444,11 @@ async def test_review_confirm_creates_active_score_once(
 ) -> None:
     session, storage = score_service_session
     session.add(
-        ProcessingJob(
+        ImportJob(
             id=14,
             job_uuid="job-confirm-review",
             user_id=1,
-            state=ProcessingJobState.PENDING_REVIEW,
+            state=ImportJobState.PENDING_REVIEW,
             requested_options={"title": "Confirmed Score"},
         )
     )
@@ -457,7 +457,7 @@ async def test_review_confirm_creates_active_score_once(
             notification_uuid="notification-review-ready",
             recipient_user_id=1,
             actor_user_id=None,
-            type=NotificationTypes.PROCESSING_COMPLETED,
+            type=NotificationTypes.IMPORT_COMPLETED,
             resource_type="job",
             resource_id="job-confirm-review",
             score_id=None,
@@ -486,12 +486,12 @@ async def test_review_confirm_creates_active_score_once(
     assert session.query(Score).count() == 1
     score = session.query(Score).one()
     revision = session.query(ScoreRevision).one()
-    job = session.query(ProcessingJob).filter_by(job_uuid="job-confirm-review").one()
+    job = session.query(ImportJob).filter_by(job_uuid="job-confirm-review").one()
     library_entry = session.query(ScoreLibraryEntry).one()
     assert score.score_uuid == first.score_id
     assert score.title == "Confirmed Score"
     assert score.head_revision_id == revision.id
-    assert job.state == ProcessingJobState.SUCCESS
+    assert job.state == ImportJobState.CONFIRMED
     assert job.score_id == score.id
     assert library_entry.score_id == score.id
     notification = session.query(NotificationEvent).filter_by(
@@ -505,7 +505,7 @@ async def test_review_confirm_creates_active_score_once(
         "job-confirm-review",
         1,
     )
-    assert detail_after_confirm.state == ProcessingJobState.SUCCESS
+    assert detail_after_confirm.state == ImportJobState.CONFIRMED
     assert detail_after_confirm.score_id == score.score_uuid
     assert detail_after_confirm.musicxml is None
     assert session.query(ScoreArtifact).filter_by(
@@ -752,11 +752,11 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
     source.write_bytes(MUSICXML_1)
     session.add_all(
         [
-            ProcessingJob(
+            ImportJob(
                 id=60,
                 job_uuid="job-artifact",
                 user_id=1,
-                state=ProcessingJobState.PROGRESS,
+                state=ImportJobState.RUNNING,
             ),
         ]
     )
