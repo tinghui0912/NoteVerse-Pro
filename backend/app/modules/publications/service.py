@@ -76,7 +76,6 @@ class PublicationService:
                 revision.id, entity="score revision"
             )
             publication.status = PublicationStatus.PUBLISHED
-            publication.discoverability = request.discoverability
             publication.allow_download = request.allow_download
             publication.allow_practice = request.allow_practice
             publication.updated_at = now
@@ -88,7 +87,6 @@ class PublicationService:
                     revision.id, entity="score revision"
                 ),
                 status=PublicationStatus.PUBLISHED,
-                discoverability=request.discoverability,
                 allow_download=request.allow_download,
                 allow_practice=request.allow_practice,
                 published_by_user_id=user_id,
@@ -264,7 +262,6 @@ class PublicationService:
             score_id=score.score_uuid,
             revision_id=revision_uuid,
             status=publication.status,
-            discoverability=publication.discoverability,
             allow_download=publication.allow_download,
             allow_practice=publication.allow_practice,
             published_at=publication.published_at,

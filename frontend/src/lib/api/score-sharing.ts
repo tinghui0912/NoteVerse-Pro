@@ -14,8 +14,6 @@ export const scoreSharingApi = {
   createGrant: (
     scoreId: string,
     input: {
-      target_mode?: 'LATEST' | 'PINNED';
-      target_revision_id?: string;
       allow_download: boolean;
       allow_practice: boolean;
       expires_at?: string | null;

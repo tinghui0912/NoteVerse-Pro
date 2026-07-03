@@ -14,8 +14,8 @@ weaken relational constraints.
 ## Decision
 
 1. `ScoreArtifact` represents immutable stored payloads associated with one revision.
-2. The initial closed artifact kinds are `MUSICXML`, `RENDERED_PAGE`, `EXPORT_PDF`,
-   `AUDIO_PREVIEW`, and `DIAGNOSTIC_JSON`.
+2. The current closed artifact kinds are `MUSICXML` and `RENDERED_PAGE`. Add export,
+   audio, or diagnostics artifact kinds only when a product workflow creates and consumes them.
 3. Exactly one canonical `MUSICXML` artifact exists per revision.
 4. Rendered artifacts additionally identify page number, renderer-independent render profile,
    generator, and generator version.
@@ -76,4 +76,3 @@ copy, hash-verify, switch records, and delete old objects through the storage ab
   not durable score revisions.
 - Store renderer page count on `Score`: rejected because responsive layout changes it.
 - Introduce PDF/audio artifact rows before features generate them: rejected as speculative.
-

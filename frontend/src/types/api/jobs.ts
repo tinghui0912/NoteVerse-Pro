@@ -57,7 +57,6 @@ export interface JobReview {
     sha256?: string | null;
   } | null;
   original_images: ReviewArtifact[];
-  preview_images: ReviewArtifact[];
   created_at: string;
   updated_at: string;
 }

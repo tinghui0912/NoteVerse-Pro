@@ -5,19 +5,16 @@ export interface DraftEntry {
   scoreId: string;
   baseRevisionId: string;
   xml: string;
-  returnUrl?: string;
   savedAt: number;
 }
 
 class DraftDatabase extends Dexie {
-  draftsV2!: Table<DraftEntry, string>;
+  drafts!: Table<DraftEntry, string>;
 
   constructor() {
-    super('NoteVerseDrafts');
-    this.version(1).stores({ drafts: 'taskId, savedAt' });
-    this.version(2).stores({
-      drafts: 'taskId, savedAt',
-      draftsV2: 'draftId, scoreId, baseRevisionId, savedAt',
+    super('NoteVerseEditorDrafts');
+    this.version(1).stores({
+      drafts: 'draftId, scoreId, baseRevisionId, savedAt',
     });
   }
 }
@@ -35,14 +32,13 @@ function draftId(scoreId: string, baseRevisionId: string) {
 }
 
 function draftTable() {
-  return getDB().draftsV2;
+  return getDB().drafts;
 }
 
 export async function saveDraft(
   scoreId: string,
   baseRevisionId: string,
-  xml: string,
-  options?: { returnUrl?: string }
+  xml: string
 ): Promise<void> {
   try {
     await draftTable().put({
@@ -50,7 +46,6 @@ export async function saveDraft(
       scoreId,
       baseRevisionId,
       xml,
-      returnUrl: options?.returnUrl,
       savedAt: Date.now(),
     });
   } catch (error) {

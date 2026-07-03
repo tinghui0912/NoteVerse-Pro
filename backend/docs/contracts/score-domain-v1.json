@@ -4,18 +4,12 @@
   "external_consumers_confirmed": false,
   "enums": {
     "processing_job_state": ["PENDING", "PROGRESS", "PENDING_REVIEW", "SUCCESS", "FAILURE"],
-    "score_state": ["ACTIVE"],
     "revision_origin": ["OMR", "EDIT", "IMPORT"],
     "metadata_status": ["PENDING", "READY", "FAILED"],
-    "artifact_kind": ["MUSICXML", "RENDERED_PAGE", "EXPORT_PDF", "AUDIO_PREVIEW", "DIAGNOSTIC_JSON"],
+    "artifact_kind": ["MUSICXML", "RENDERED_PAGE"],
     "membership_role": ["EDITOR", "VIEWER"],
-    "share_target_mode": ["LATEST", "PINNED"],
     "publication_status": ["PUBLISHED", "UNPUBLISHED"],
-    "publication_discoverability": ["LISTED", "UNLISTED"],
     "access_origin": ["OWNER", "MEMBERSHIP", "SHARE", "PUBLICATION"]
-  },
-  "score_transitions": {
-    "ACTIVE": []
   },
   "capabilities": [
     "can_view",
@@ -41,7 +35,6 @@
   "error_codes": [
     "job_not_found",
     "score_not_found",
-    "score_archived",
     "revision_not_found",
     "revision_conflict",
     "revision_content_invalid",

@@ -57,7 +57,6 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
   const { handleDownload } = useDownload({
     mode: 'grant',
     id: props.shareId,
-    imageCount: props.imageCount,
     artifacts: props.artifacts,
   });
   const query = searchParams.toString();

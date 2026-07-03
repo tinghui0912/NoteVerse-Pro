@@ -32,7 +32,6 @@ export function useEditorOriginalImages({
     const owned = ownedObjectUrlsRef.current;
     let loaded: string[] = [];
     if (!jobId || !artifacts.length) {
-      setOriginalImages([]);
       return;
     }
     void Promise.all(
@@ -65,5 +64,5 @@ export function useEditorOriginalImages({
     };
   }, []);
 
-  return originalImages;
+  return jobId && artifacts.length ? originalImages : [];
 }

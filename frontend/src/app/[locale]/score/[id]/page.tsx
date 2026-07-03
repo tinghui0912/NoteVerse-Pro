@@ -91,7 +91,6 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             />
             <ScoreActions
               artifacts={resources.artifacts}
-              imageCount={resources.imageCount}
               revisionId={resources.score?.head_revision_id}
               scoreTitle={scoreTitle}
               scoreId={id}

@@ -1,6 +1,6 @@
 # Review Pipeline Migration Plan
 
-Status: In Progress
+Status: Completed
 Date: 2026-07-02
 Owner: Codex / NoteVerse Pro
 
@@ -104,17 +104,14 @@ Processing artifacts required for review:
 
 ### Score
 
-Score becomes a stable resource only after review confirmation.
+Score becomes a stable resource only after review confirmation. The current Score model does
+not carry a lifecycle state column; existence of a Score means it is a confirmed canonical
+resource.
 
-Score lifecycle:
+Removed:
 
-```text
-ACTIVE -> ARCHIVED
-```
-
-Remove:
-
-- `ScoreState.IN_REVIEW`
+- `scores.state` / `ScoreState`
+- `scores.approved_revision_id`
 - review-specific approval capability from Score access policy
 - review approval endpoint under `/scores/{score_id}/approve`
 
@@ -149,7 +146,6 @@ POST /api/v1/review/{job_id}/confirm
     "content": "<score-partwise>...</score-partwise>"
   },
   "original_images": [],
-  "preview_images": [],
   "validation": {
     "warnings": []
   }
@@ -178,7 +174,8 @@ Request shape:
 - Requires job owner.
 - Requires job state `PENDING_REVIEW`.
 - Reads the review MusicXML artifact.
-- Creates the Score, initial revision, canonical MusicXML artifact, metadata projection, rendered pages, and library entry in one transaction boundary where possible.
+- Creates the Score, initial revision, canonical MusicXML artifact, metadata projection, and library entry in one transaction boundary where possible.
+- Enqueues rendered-page/thumbnail generation asynchronously as a best-effort side effect.
 - Sets `ProcessingJob.score_id`.
 - Sets `ProcessingJob.state = SUCCESS`.
 - Returns the created `score_id`.
@@ -212,8 +209,7 @@ Reason: review may allow the user to edit XML through the editor before confirma
 3. Move Score creation to review confirm
    - Rename `SyncScoreCreationService.create_from_job(...)` to a cleaner command such as `create_confirmed_score_from_job(...)`.
    - Make it callable from async review service through a sync session helper or port it to async.
-   - Set `Score.state = ACTIVE` immediately.
-   - Set `head_revision_id` and `approved_revision_id` to the initial revision.
+   - Set `head_revision_id` to the initial revision.
    - Set `ProcessingJob.score_id` after Score creation.
    - Ensure idempotency: if the job already has a `score_id` and state `SUCCESS`, return the existing Score.
 
@@ -224,11 +220,12 @@ Reason: review may allow the user to edit XML through the editor before confirma
    - If `can_approve` exists only for review, remove it from `ScoreCapabilities` and DTOs.
 
 5. Clean state model
-   - Remove `ScoreState.IN_REVIEW` from enum and migrations.
-   - Update repository filters that treat `IN_REVIEW` as drafts.
+   - Remove `scores.state` / `ScoreState`.
+   - Remove `scores.approved_revision_id`.
+   - Update repository filters that treat score state as product lifecycle.
    - Update contracts in `backend/docs/contracts/score-domain-v1.json`.
    - Add an Alembic migration:
-     - For current development data, either delete unconfirmed `IN_REVIEW` Scores or convert them to job review artifacts before dropping the enum value.
+     - For current development data, drop the unused fields directly after the review pipeline cutover.
      - Since no compatibility is required, prefer a clean dev migration with explicit destructive notes.
 
 6. Update notifications
@@ -416,7 +413,7 @@ Expected remaining references:
 - [x] Stop early Score creation in `JobContext.complete()`.
 - [x] Change processing-completed notifications to job-scoped.
 - [x] Add backend tests for job review detail and pipeline boundary.
-- [ ] Add backend tests for review confirm in Phase 2.
+- [x] Add backend tests for review confirm in Phase 2.
 
 Acceptance:
 
@@ -427,7 +424,8 @@ Acceptance:
 
 - [x] Move Score creation to review confirm.
 - [x] Remove score approval endpoint/service logic.
-- [x] Remove `IN_REVIEW` from Score state.
+- [x] Remove Score state from the current model.
+- [x] Remove `approved_revision_id` from the current model.
 - [x] Update library entry creation to happen during confirm.
 - [x] Update metadata/render side effects.
 - [x] Add idempotency tests.

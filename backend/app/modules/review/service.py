@@ -26,7 +26,7 @@ from app.db.models import (
     ScoreRevisionMetadata,
 )
 from app.db.models.processing_job import ProcessingJobState
-from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin, ScoreState
+from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
 from app.modules.library.service import LibraryService
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationTypes
@@ -89,7 +89,6 @@ class ReviewService:
                     taxonomy_tags=[],
                     musicxml=None,
                     original_images=[],
-                    preview_images=[],
                     created_at=job.created_at,
                     updated_at=job.updated_at,
                 )
@@ -137,7 +136,6 @@ class ReviewService:
                 sha256=musicxml_artifact.sha256,
             ),
             original_images=self._artifact_reads(artifacts, FileKind.ORIGINAL_IMAGE.value),
-            preview_images=self._artifact_reads(artifacts, FileKind.PREVIEW_IMAGE.value),
             created_at=job.created_at,
             updated_at=job.updated_at,
         )
@@ -190,7 +188,6 @@ class ReviewService:
                 score_uuid=score_uuid,
                 owner_user_id=user_id,
                 title=title,
-                state=ScoreState.ACTIVE,
                 originating_job_id=require_persisted_id(job.id, entity="processing job"),
                 created_at=now,
                 updated_at=now,
@@ -236,7 +233,6 @@ class ReviewService:
                 )
             )
             score.head_revision_id = revision_id
-            score.approved_revision_id = revision_id
             await self.score_repository.replace_taxonomy_tags(db, score_id, taxonomy_pairs)
             await self.library_service.ensure_entry(
                 db,

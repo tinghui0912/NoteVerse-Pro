@@ -18,14 +18,37 @@ The current development phase favors clear, explicit code over compatibility shi
 
 | Priority | Item | Status |
 | --- | --- | --- |
+| P0 | Squash Alembic history into the current pre-release baseline | Done |
 | P0 | Remove legacy `/history` surface | Done |
 | P1 | Make LibraryEntry the single bookmark source | Done |
 | P1 | Upgrade share-link token model to id + one-time secret | Done |
 | P2 | Remove dormant Library fields/source enums | Done |
 | P2 | Add explicit API response models | Done for score-domain routers |
+| P2 | Trim dormant score access contract fields | Done |
 | P3 | Add Library source filtering only when needed | Deferred |
 
 ## 3. Completed Work
+
+### P0 - Squash Alembic History into the Current Pre-Release Baseline
+
+Completed:
+
+- Removed the iterative development migration chain from `backend/alembic/versions`.
+- Added one frozen baseline migration: `backend/alembic/versions/0001_initial_schema.py`.
+- Folded current schema, active indexes, foreign keys, PostgreSQL enum types, and the baseline genre taxonomy seed into the initial migration.
+- Removed historical database states from the active migration path, including old score state columns, approval pointers, archive/restore state, legacy task/share/file tables, and bookmark cleanup migrations.
+
+Acceptance:
+
+- A fresh PostgreSQL database can run `alembic upgrade head` from zero.
+- `alembic check` reports no schema drift after upgrading the baseline.
+- `alembic downgrade base` and a second `alembic upgrade head` work against the same empty test database.
+- Runtime source no longer depends on the deleted migration revision ids.
+
+Development note:
+
+- This is a clean pre-release cut, not a production-compatible migration.
+- Existing local databases with the old Alembic revision chain should be recreated, or manually stamped only after confirming their schema matches the new baseline.
 
 ### P0 - Remove Legacy History Surface
 
@@ -49,7 +72,7 @@ Completed:
 - Removed frontend bookmark query/client helpers that targeted the legacy API.
 - Updated share bookmark flow to create or update `ScoreLibraryEntry` with `source_type=BOOKMARK` and `is_favorite=True`.
 - Kept `ShareGrantRedemption` because it records accepted share access separately from Library organization.
-- Added an Alembic migration that drops the legacy bookmark table. Development data may be cleared, so no backfill is required.
+- Folded the legacy bookmark table removal into the pre-release baseline schema. Development data may be cleared, so no backfill is required.
 
 Acceptance:
 
@@ -81,12 +104,27 @@ Completed:
 - Removed `ScoreLibraryEntry.last_opened_at` and `LibrarySort.OPENED_DESC`.
 - Kept `last_practiced_at` because practice behavior is active.
 - Reduced `LibraryEntrySourceType` to active values: `SELF_ADDED`, `BOOKMARK`.
-- Added an Alembic migration that drops the unused columns and rebuilds the PostgreSQL enum.
+- Folded the unused-column removal and PostgreSQL enum shape into the pre-release baseline schema.
 
 Acceptance:
 
 - No unused Library fields or source enums remain in active schemas.
 - Library views still support all visible UI filters.
+
+### P2 - Trim Dormant Score Access Contract Fields
+
+Completed:
+
+- Removed unused share target modes and pinned-revision share fields. Share grants now always resolve to the current Score head revision.
+- Removed publication discoverability from the active model because no public directory or listed/unlisted behavior exists yet.
+- Removed dormant artifact kinds that had no producer or consumer: PDF export, audio preview, and diagnostics JSON.
+- Folded the contracted schema into the pre-release baseline migration, frontend API types, backend response schemas, and score-domain contract document.
+
+Acceptance:
+
+- Runtime code has no `ShareTargetMode`, `target_revision_id`, `PublicationDiscoverability`, or dormant artifact-kind references.
+- Sharing still creates view-only links with download/practice capabilities and expiration.
+- Publication still pins a revision and can be published/unpublished without exposing unused discovery semantics.
 ## 4. Remaining Work
 
 ### P2 - Add Explicit API Response Models

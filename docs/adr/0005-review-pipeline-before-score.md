@@ -29,8 +29,9 @@ compatibility routes or fallback support for the older review-as-score model.
 7. `/review/:jobId/edit` is a job-scoped editor for the temporary review MusicXML artifact.
 8. Saving in `/review/:jobId/edit` updates the review artifact through `PATCH /review/:jobId`.
    It does not create a Score revision.
-9. Confirming review creates the first active Score, its first revision, the canonical MusicXML
-   Score artifact, metadata projection, rendered pages, and a library entry.
+9. Confirming review creates the first Score, its first revision, the canonical MusicXML
+   Score artifact, metadata projection, and a library entry. Rendered pages/thumbnails are
+   generated asynchronously as rebuildable artifacts.
 10. Score routes and capabilities start after confirm:
     `/score/:scoreId`, `/score/:scoreId/edit`, `/score/:scoreId/practice`, sharing, invites,
     publication, and collaboration all require a confirmed Score.
@@ -66,7 +67,7 @@ POST  /api/v1/review/{job_id}/confirm
 - Sharing, invites, practice, publication, and collaboration cannot target unconfirmed OCR output.
 - Review correction can still happen before Score creation through a job-scoped editor.
 - My Scores may show pending reviews, but they must render as job cards, not Score cards.
-- `Score.state` no longer needs `IN_REVIEW`; current active Scores use `ACTIVE`.
+- Score no longer needs a lifecycle state column for the current product model.
 - Score access capabilities no longer need review approval fields such as `can_approve`.
 - Processing-completed notifications route to `/review/:jobId` until confirm. After confirm,
   existing processing notifications may include the created `score_id` for direct score navigation.

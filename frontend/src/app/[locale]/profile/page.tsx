@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -26,16 +26,12 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-
-  // 琛ㄥ崟鐘舵€?
   const [usernameDraft, setUsernameDraft] = useState<string | null>(null);
   const username = usernameDraft ?? user?.name ?? '';
   const email = user?.email ?? '';
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
-  // 鍔犺浇鐘舵€?
   const avatarMutation = useUploadAvatar();
   const profileMutation = useUpdateProfile();
   const passwordMutation = useChangePassword();
@@ -58,10 +54,7 @@ export default function ProfilePage() {
       fileInputRef.current.value = '';
     }
   };
-
-  // 涓婁紶瑁佸壀鍚庣殑澶村儚
   const handleCroppedImage = async (imageDataUrl: string) => {
-    // 灏?data URL 杞崲涓?File
     const response = await fetch(imageDataUrl);
     const blob = await response.blob();
     const file = new File([blob], 'avatar.png', { type: 'image/png' });
@@ -88,8 +81,6 @@ export default function ProfilePage() {
       },
     });
   };
-
-  // 鏇存柊涓汉璧勬枡
   const handleUpdateProfile = () => {
     profileMutation.mutate({ display_name: username !== user?.name ? username : undefined }, {
       onSuccess: async () => {
@@ -109,8 +100,6 @@ export default function ProfilePage() {
       },
     });
   };
-
-  // 淇敼瀵嗙爜
   const handleUpdatePassword = async () => {
     if (newPassword !== confirmPassword) {
       toast({

@@ -30,7 +30,6 @@ from .score import (
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreTaxonomyTag,
-    ScoreState,
     TaxonomyCategory,
     TaxonomyTag,
 )
@@ -38,14 +37,12 @@ from .score_access import (
     AccessOrigin,
     InviteStatus,
     MembershipRole,
-    PublicationDiscoverability,
     PublicationStatus,
     ScoreInvite,
     ScoreMembership,
     ScorePublication,
     ScoreShareGrant,
     ShareGrantRedemption,
-    ShareTargetMode,
 )
 
 __all__ = [
@@ -75,18 +72,15 @@ __all__ = [
     "ScoreRevision",
     "ScoreRevisionMetadata",
     "ScoreTaxonomyTag",
-    "ScoreState",
     "TaxonomyCategory",
     "TaxonomyTag",
     "AccessOrigin",
     "InviteStatus",
     "MembershipRole",
-    "PublicationDiscoverability",
     "PublicationStatus",
     "ScoreInvite",
     "ScoreMembership",
     "ScorePublication",
     "ScoreShareGrant",
     "ShareGrantRedemption",
-    "ShareTargetMode",
 ]

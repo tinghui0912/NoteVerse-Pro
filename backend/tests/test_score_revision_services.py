@@ -31,14 +31,12 @@ from app.db.models import (
 )
 from app.db.models.library import LibraryEntrySourceType
 from app.db.models.processing_job import ProcessingJobState
-from app.db.models.score import ArtifactKind, RevisionOrigin, ScoreState
+from app.db.models.score import ArtifactKind, RevisionOrigin
 from app.db.models.score import MetadataStatus
 from app.db.models.score_access import (
     InviteStatus,
     MembershipRole,
-    PublicationDiscoverability,
     PublicationStatus,
-    ShareTargetMode,
 )
 from app.db.models.user import UserRole
 from app.modules.revisions.schemas import FingeringRequest, RevisionCreateRequest
@@ -131,7 +129,6 @@ def add_active_score_with_head_revision(
         score_uuid=score_uuid,
         owner_user_id=1,
         title=title,
-        state=ScoreState.ACTIVE,
     )
     revision = ScoreRevision(
         id=revision_id,
@@ -216,8 +213,6 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
     artifact = session.query(ScoreArtifact).one()
     metadata = session.get(ScoreRevisionMetadata, revision.id)
     assert score.head_revision_id == revision.id
-    assert score.approved_revision_id == revision.id
-    assert score.state == ScoreState.ACTIVE
     assert artifact.kind == ArtifactKind.MUSICXML
     assert storage.exists(artifact.storage_key)
     assert metadata is not None
@@ -335,18 +330,6 @@ async def test_review_detail_reads_pending_job_artifacts(
             page_number=1,
         )
     )
-    session.add(
-        ProcessingArtifact(
-            job_id=13,
-            artifact_uuid="preview-artifact",
-            kind=FileKind.PREVIEW_IMAGE.value,
-            storage_backend="local",
-            storage_key="jobs/job-review/preview_image/001-preview.svg",
-            filename="001-preview.svg",
-            mime_type="image/svg+xml",
-            page_number=1,
-        )
-    )
     session.commit()
     service = ReviewService(storage=storage)
 
@@ -361,7 +344,6 @@ async def test_review_detail_reads_pending_job_artifacts(
     assert detail.taxonomy_tags == [{"category": "level", "code": "beginner"}]
     assert detail.musicxml.artifact_id == "review-musicxml-artifact"
     assert detail.musicxml.content == MUSICXML_1.decode("utf-8")
-    assert [artifact.artifact_id for artifact in detail.preview_images] == ["preview-artifact"]
 
 
 def test_job_detail_prefers_result_thumbnail_over_initial_preview(
@@ -508,9 +490,7 @@ async def test_review_confirm_creates_active_score_once(
     library_entry = session.query(ScoreLibraryEntry).one()
     assert score.score_uuid == first.score_id
     assert score.title == "Confirmed Score"
-    assert score.state == ScoreState.ACTIVE
     assert score.head_revision_id == revision.id
-    assert score.approved_revision_id == revision.id
     assert job.state == ProcessingJobState.SUCCESS
     assert job.score_id == score.id
     assert library_entry.score_id == score.id
@@ -549,7 +529,6 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
         score_uuid="score-1",
         owner_user_id=1,
         title="Score",
-        state=ScoreState.ACTIVE,
     )
     session.add(score)
     session.commit()
@@ -821,7 +800,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
         score_uuid="policy-score",
         owner_user_id=1,
         title="Policy score",
-        state=ScoreState.ACTIVE,
     )
     session.add(score)
     session.commit()
@@ -857,8 +835,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
             ScoreShareGrant(
                 score_id=70,
                 token_hash=hash_share_token("view-token"),
-                target_mode=ShareTargetMode.PINNED,
-                target_revision_id=71,
                 allow_download=True,
                 allow_practice=False,
                 created_by_user_id=1,
@@ -866,7 +842,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
             ScoreShareGrant(
                 score_id=70,
                 token_hash=hash_share_token("expired-token"),
-                target_mode=ShareTargetMode.LATEST,
                 expires_at=utc_now_naive() - timedelta(minutes=1),
                 created_by_user_id=1,
             ),
@@ -875,7 +850,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
                 public_slug="public-policy-score",
                 published_revision_id=71,
                 status=PublicationStatus.PUBLISHED,
-                discoverability=PublicationDiscoverability.LISTED,
                 allow_download=False,
                 allow_practice=True,
                 published_by_user_id=1,
@@ -901,7 +875,7 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
     shared = await policy.resolve(
         db, "policy-score", share_token="view-token"  # type: ignore[arg-type]
     )
-    assert shared.revision.revision_uuid == "policy-revision-1"
+    assert shared.revision.revision_uuid == "policy-revision-2"
     assert shared.capabilities.can_download is True
     assert shared.capabilities.can_edit is False
 
@@ -937,7 +911,6 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
         score_uuid="sharing-score",
         owner_user_id=1,
         title="Sharing score",
-        state=ScoreState.ACTIVE,
     )
     session.add(score)
     session.commit()
@@ -999,7 +972,6 @@ async def test_create_grant_normalizes_aware_expiration_to_naive_utc(
         score_uuid="sharing-expiration-score",
         owner_user_id=1,
         title="Sharing expiration score",
-        state=ScoreState.ACTIVE,
     )
     revision = ScoreRevision(
         id=86,
@@ -1042,7 +1014,6 @@ async def test_invite_acceptance_creates_editable_membership(
         score_uuid="invite-score",
         owner_user_id=1,
         title="Invite score",
-        state=ScoreState.ACTIVE,
     )
     revision = ScoreRevision(
         id=88,
@@ -1415,7 +1386,6 @@ async def test_publication_pins_revision_until_explicit_republish(
         score_uuid="publication-score",
         owner_user_id=1,
         title="Public Score",
-        state=ScoreState.ACTIVE,
     )
     session.add(score)
     session.commit()

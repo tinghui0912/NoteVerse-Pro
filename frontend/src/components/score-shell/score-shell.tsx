@@ -14,7 +14,7 @@ interface ScoreShellProps {
   hero?: ReactNode;
   footer?: boolean;
   scoreId?: string;
-  workspace?: 'view' | 'review' | 'edit' | 'practice' | 'performance' | 'share' | 'public';
+  workspace?: 'view' | 'edit' | 'practice' | 'performance' | 'share' | 'public';
 }
 
 interface ScoreShellContextValue {

@@ -21,7 +21,6 @@ from app.db.models.score_access import (
     AccessOrigin,
     MembershipRole,
     PublicationStatus,
-    ShareTargetMode,
 )
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.shared.constants import ErrorCode
@@ -282,12 +281,7 @@ class ScoreAccessPolicy:
     async def _grant_revision(
         self, db: AsyncSession, score: Score, grant: ScoreShareGrant
     ) -> ScoreRevision:
-        revision_id = (
-            score.head_revision_id
-            if grant.target_mode == ShareTargetMode.LATEST
-            else grant.target_revision_id
-        )
-        revision = await db.get(ScoreRevision, revision_id)
+        revision = await db.get(ScoreRevision, score.head_revision_id)
         if not revision or revision.score_id != score.id:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
         return revision

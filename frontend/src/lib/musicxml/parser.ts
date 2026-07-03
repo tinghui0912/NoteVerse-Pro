@@ -476,7 +476,7 @@ export class MusicXMLParser {
 
           voice.notes.forEach((entity, entityIndex) => {
             if (entity.meta?.id) {
-              // 使用 entity.meta 中存储的原始索引\n              // xmlVoice 是 1-based，key 格式保持兼容（使用 xmlVoice - 1）
+              // xmlVoice uses MusicXML 1-based numbering; entityIdMap keys use zero-based voice indexes.
               const key = `${measureIndex}-${entity.meta.staveIndex}-${entity.meta.xmlVoice - 1}-${entityIndex}`;
               entityIdMap.set(key, entity.meta.id);
 

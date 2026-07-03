@@ -7,17 +7,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 
 interface UseDownloadOptions {
-    /** 涓嬭浇妯″紡锛?share' 浣跨敤鍒嗕韩 API锛?task' 浣跨敤浠诲姟 API */
     mode: 'score' | 'grant';
-    /** 鏍囪瘑绗︼細share 妯″紡涓?shareToken锛宼ask 妯″紡涓?taskId */
     id: string;
-    /** 鍥剧墖椤垫暟锛岀敤浜庡垽鏂槸鍚﹂渶瑕佹墦鍖呬笅杞?*/
-    imageCount?: number;
     artifacts?: ScoreArtifact[];
 }
 
 interface UseDownloadReturn {
-    /** 涓嬭浇鏂囦欢 */
     handleDownload: (type: 'image' | 'xml') => Promise<void>;
 }
 
@@ -31,10 +26,6 @@ function extensionFromBlob(blob: Blob): string {
     return mimeExtensions[blob.type] ?? 'bin';
 }
 
-/**
- * 閫氱敤涓嬭浇 Hook
- * 鏀寔鍒嗕韩椤甸潰鍜岀粨鏋滈〉闈㈢殑鏂囦欢涓嬭浇
- */
 export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): UseDownloadReturn {
     const { toast } = useToast();
     const t = useTranslations('download');
@@ -57,7 +48,6 @@ export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): U
                     filesApi.triggerDownload(blob, `score_${id}.musicxml`);
                     return;
                 }
-                // XML 鍙湁涓€涓枃浠讹紝鐩存帴涓嬭浇
             } else {
                 if (mode === 'grant') {
                     const pages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
@@ -80,7 +70,6 @@ export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): U
                     );
                     return;
                 }
-                // 鍥剧墖锛氭牴鎹〉鏁版櫤鑳戒笅杞?
             }
         } catch (error: unknown) {
             const errorCode = typeof error === 'object' && error !== null && 'code' in error

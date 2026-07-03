@@ -15,16 +15,13 @@ from app.db.models.score import (
     ScoreArtifact,
     ScoreRevision,
     ScoreRevisionMetadata,
-    ScoreState,
 )
 from app.db.models.score_access import (
     MembershipRole,
-    PublicationDiscoverability,
     PublicationStatus,
     ScoreMembership,
     ScorePublication,
     ScoreShareGrant,
-    ShareTargetMode,
 )
 from app.db.models.library import LibraryEntrySourceType, ScoreLibraryEntry
 from app.db.models.user import User, UserRole
@@ -68,14 +65,12 @@ def score_session() -> Iterator[Session]:
                     score_uuid="score-10",
                     owner_user_id=1,
                     title="First score",
-                    state=ScoreState.ACTIVE,
                 ),
                 Score(
                     id=11,
                     score_uuid="score-11",
                     owner_user_id=1,
                     title="Second score",
-                    state=ScoreState.ACTIVE,
                 ),
             ]
         )
@@ -209,36 +204,12 @@ def test_metadata_status_requires_a_classified_failure(score_session: Session) -
     )
 
 
-def test_share_target_and_token_hash_are_constrained(score_session: Session) -> None:
-    assert_commit_rejected(
-        score_session,
+def test_share_token_hash_is_unique(score_session: Session) -> None:
+    score_session.add(
         ScoreShareGrant(
             id=300,
             score_id=10,
-            token_hash="1" * 64,
-            target_mode=ShareTargetMode.PINNED,
-            target_revision_id=None,
-            created_by_user_id=1,
-        ),
-    )
-    assert_commit_rejected(
-        score_session,
-        ScoreShareGrant(
-            id=301,
-            score_id=10,
-            token_hash="2" * 64,
-            target_mode=ShareTargetMode.PINNED,
-            target_revision_id=101,
-            created_by_user_id=1,
-        ),
-    )
-
-    score_session.add(
-        ScoreShareGrant(
-            id=302,
-            score_id=10,
             token_hash="3" * 64,
-            target_mode=ShareTargetMode.LATEST,
             created_by_user_id=1,
         )
     )
@@ -246,10 +217,9 @@ def test_share_target_and_token_hash_are_constrained(score_session: Session) -> 
     assert_commit_rejected(
         score_session,
         ScoreShareGrant(
-            id=303,
+            id=301,
             score_id=10,
             token_hash="3" * 64,
-            target_mode=ShareTargetMode.LATEST,
             created_by_user_id=1,
         ),
     )
@@ -295,7 +265,6 @@ def test_publication_must_pin_a_revision_from_its_score(score_session: Session) 
             public_slug="cross-score-revision",
             published_revision_id=101,
             status=PublicationStatus.PUBLISHED,
-            discoverability=PublicationDiscoverability.LISTED,
             published_by_user_id=1,
         ),
     )

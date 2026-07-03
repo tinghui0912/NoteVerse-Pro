@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
     ScoreMembership,
-    ScoreRevision,
     ScoreShareGrant,
     ShareGrantRedemption,
 )
@@ -71,11 +70,3 @@ class ScoreSharingRepository:
             )
         ).scalar_one_or_none()
 
-
-    async def revision_uuid(
-        self, db: AsyncSession, revision_id: int | None
-    ) -> str | None:
-        if revision_id is None:
-            return None
-        revision = await db.get(ScoreRevision, revision_id)
-        return revision.revision_uuid if revision else None

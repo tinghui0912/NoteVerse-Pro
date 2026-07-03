@@ -18,9 +18,9 @@
 当前维护方向是：
 
 - practice 页继续作为 Verovio 渲染和实时跟随的先行实现
-- results、share、editor 共用 Verovio `ListenModal`、独立播放控制器和本地 soundfont 引擎
+- score detail、share、editor 共用 Verovio `ListenModal`、独立播放控制器和本地 soundfont 引擎
 - 不再新增第二套浏览器端乐谱 renderer 或 renderer-specific 页面逻辑
-- review/results/share 中用于展示原图或后端渲染结果的图片产物不属于浏览器 renderer 范围
+- review/share 中用于展示原图或后端渲染结果的图片产物不属于浏览器 renderer 范围
 
 这意味着后续新增乐谱渲染能力时，应设计在 Verovio adapter / score rendering abstraction 上。
 
@@ -63,10 +63,11 @@ frontend/
 |   |-- contexts/
 |   |-- hooks/
 |   |   |-- editor/
-|   |   |-- history/
+|   |   |-- my-scores/
+|   |   |-- notifications/
 |   |   |-- practice/
-|   |   |-- results/
 |   |   |-- review/
+|   |   |-- score-detail/
 |   |   |-- share/
 |   |   |-- upload/
 |   |   `-- queries/
@@ -86,7 +87,7 @@ frontend/
 
 当前结构整体方向是合理的，但仍有几个需要渐进收口的区域：
 
-- 核心业务页面已完成领域拆分；practice 和 history 仍是最大的编排页面，后续只在职责继续增长时拆分
+- 核心业务页面已完成领域拆分；practice 仍是最大的编排页面，后续只在职责继续增长时拆分
 - `src/lib/musicxml/parser.ts` 的纯值解析和 connection target 已拆出；后续继续按实际职责而非行数治理
 - `components/score/listen-modal.tsx` 只负责弹窗组合，播放生命周期由 `hooks/score/use-score-preview-playback.ts` 管理
 - `hooks/queries` 已经存在，后续 server state 应继续向 query hooks 收口，而不是散在页面里
@@ -129,7 +130,12 @@ frontend/
 | `components/profile` | 个人资料与头像编辑组件 |
 | `components/editor` | 编辑实体、草稿恢复和编辑器专属组件 |
 | `components/media` | 可跨页面复用的图片和媒体查看器 |
+| `components/my-scores` | 用户拥有的 Score 与待审核 ProcessingJob 列表 |
+| `components/notifications` | 通知中心和系统事件投影 |
 | `components/score` | 共享 score renderer、播放 shell 和状态 UI |
+| `components/score-detail` | 长期 Score 详情页的元数据、播放、分享和协作操作 |
+| `components/review` | pre-Score OCR review pipeline UI |
+| `components/share` | share token 入口和只读/受限访问 UI |
 | `components/practice` | 练习页专属 viewer、controls 和 overlay |
 
 组件根目录只保留真正跨领域的轻量入口。共享试听 UI 位于 `components/score/listen-modal.tsx`，只依赖 `lib/score` contracts；不要从 UI 读取 renderer 或音频播放器内部字段。
@@ -170,7 +176,7 @@ frontend/
 
 - autosave
 - metadata editor
-- history/editor state
+- editor state
 - download behavior
 - mobile detection
 - toast bridge
@@ -184,7 +190,7 @@ hooks 不应变成巨型业务对象。复杂 hook 要拆出纯函数、子 hook
 
 服务端状态查询和 mutation 的归属地。
 
-当前项目已经引入 `@tanstack/react-query`，并且存在 `use-task-queries.ts`、`use-xml-queries.ts`、`use-share-queries.ts` 和 `use-profile-mutations.ts`。
+当前项目已经引入 `@tanstack/react-query`，并且按领域维护 query hooks，例如 score、review、share、notifications、practice 和 profile。
 
 规则：
 
@@ -360,7 +366,7 @@ React state 适合：
 
 ### 2. Verovio 迁移应覆盖浏览器端 MusicXML 渲染链路
 
-practice 页是第一阶段先行方案；results、share、editor 的 `ListenModal` 交互式播放链路也已完成 Verovio 迁移。
+practice 页是第一阶段先行方案；score detail、share、editor 的 `ListenModal` 交互式播放链路也已完成 Verovio 迁移。
 
 第一阶段选择 practice 先行的原因：
 
@@ -370,10 +376,10 @@ practice 页是第一阶段先行方案；results、share、editor 的 `ListenMo
 
 当前长期方向：
 
-- results、share、editor 复用 Verovio ListenModal 和独立播放控制器
+- score detail、share、editor 复用 Verovio ListenModal 和独立播放控制器
 - 共享 score renderer abstraction，避免每个页面各自操作 Verovio
 - 页面只消费 renderer 输出和交互接口，不直接依赖 Verovio toolkit
-- review 的原图/识别预览，以及 results/share 的 durable backend preview image，不属于浏览器 renderer 路径；除非产品需求改变，否则继续作为后端产物展示
+- review 的原图，以及 score detail/share 的 durable backend preview image，不属于浏览器 renderer 路径；除非产品需求改变，否则继续作为后端产物展示
 
 原则：最终统一的是浏览器端 MusicXML renderer 和交互式播放能力，不是为了“全量 Verovio”而替换合理的后端图片产物。迁移必须通过 adapter、共享组件、真实样本和功能对等验证渐进完成。
 
@@ -518,7 +524,7 @@ npm run test
 按变更类型选择验证：
 
 - API helper：测试 request payload、auth behavior、error handling、blob/download path
-- share/results/profile：验证 UI 控制真的影响请求或后端状态
+- share/score detail/profile：验证 UI 控制真的影响请求或后端状态
 - i18n/copy：检查 `messages/en` 和 `messages/zh` 都有对应 key
 - route protection：验证 logged-out direct visit 和 `returnUrl`
 - editor：验证 autosave、entity update、hover 性能和大文件交互
@@ -533,12 +539,13 @@ npm run test
 当前文档应保持分工：
 
 - `improvement-roadmap.md`：早期审查任务和历史完成状态
-- `frontend_architecture_optimization_plan.md`：当前权威执行计划、优先级、依赖关系和验收标准
+- `frontend_architecture_optimization_plan.md`：已完成的前端架构迁移记录
+- `../../docs/codebase-simplification-and-security-plan.md`：当前代码库清理、安全和去兼容包袱的权威执行计划
 - 本文：后续开发长期准则
 
 更新规则：
 
-- 新任务状态优先更新 `frontend_architecture_optimization_plan.md`，避免在旧 roadmap 重复维护两套状态
+- 新任务状态优先更新当前权威执行计划，避免在历史 roadmap 或已完成计划里重复维护两套状态
 - 如果 renderer/following 架构变化，同步更新本文和当前执行计划
 - 如果 UI 行为从 mock 变真实或从真实变 beta，必须同步文案和 docs
 - 不要让 docs 保留 starter/scaffold 语义
@@ -598,21 +605,21 @@ npm run test
 
 Share/review ownership update (2026-06-20): share authentication/access, canonical share XML, permission-gated actions, and cancellable images are composed outside the page; review task validation, confirmation, comparison images, and carousel presentation have explicit hook/component owners. Share links are view-only; `can_download` and practice capability must directly control the relevant UI actions.
 
-Anonymous share boundary update (2026-06-21): only `/share/[shareId]` is public. Share data, XML, and allowed downloads may load without a session after auth initialization; bookmark, editor, practice, history, profile, upload, review, and results remain account-protected and preserve the full localized share-origin `returnUrl` when entering login.
+Anonymous share boundary update (2026-06-21): only `/share/[shareId]` is public. Share data, XML, and allowed downloads may load without a session after auth initialization. This note is historical; the current protected product surfaces include score detail, editor, practice, profile, upload, review, and my-scores.
 
 Editor ownership update (2026-06-20): document queries, draft recovery, validation, source-aware save targets, autosave state, and original-image cleanup are composed by `use-editor-document`; page header/actions and all editor dialogs live under `components/editor`. Editor routes require explicit `current` or `final` sources, and the product XML API does not expose internal `enhanced_xml` artifacts. This note is historical; the current Score editor route is `/score/:id/edit`.
 
 Results ownership update (2026-06-21): `use-results-resources` loads task metadata and final XML without fetching redundant rendered-image previews. The results page composes an inline Verovio player, explicit history-origin breadcrumbs, grouped actions, a standalone taxonomy style-tag editor, and a share dialog under `components/results`. The create-share contract creates view-only links with permanent or dated expiration; editable collaboration is not granted through public or share links and must use an authenticated invite/membership workflow. This note is historical; the current durable Score detail route is `/score/:id`.
 
-Results playback layout update (2026-06-22): score viewport presentation is reusable independently from playback controls, but `use-score-preview-playback` remains the only playback-state owner. Results uses complete document-flow pages plus a viewport-fixed dock; only the hook decides whether cursor synchronization may scroll the window. Manual page navigation suspends automatic following without pausing audio, and the dock exposes the explicit return-to-playback action. Modal preview surfaces continue to use inline controls.
+Score detail playback layout update (2026-06-22): score viewport presentation is reusable independently from playback controls, but `use-score-preview-playback` remains the only playback-state owner. The score detail page uses complete document-flow pages plus a viewport-fixed dock; only the hook decides whether cursor synchronization may scroll the window. Manual page navigation suspends automatic following without pausing audio, and the dock exposes the explicit return-to-playback action. Modal preview surfaces continue to use inline controls.
 
-Processing-job client update (2026-06-22): upload submission and polling use the dedicated `jobs` API/types/query keys and consume `job_id`. Task clients no longer expose processing submission or batch-status methods. Task identity remains only on the pre-Score library, review, results, editor, sharing, and practice compatibility surfaces until their scheduled cutover.
+Processing-job client update (2026-06-22): upload submission and polling use the dedicated `jobs` API/types/query keys and consume `job_id`. Task clients no longer expose processing submission or batch-status methods. This note is historical; current review remains job-scoped, while confirmed score, edit, practice, share, and collaboration surfaces use Score identity.
 
 Review pipeline ownership update (2026-07-02): OCR review is a job-scoped pipeline surface, not a Score workspace. `/review/:jobId` loads review data through `use-review-page-data`; `/review/:jobId/edit` reuses the shared editor workspace UI but saves through the job review API and updates only the temporary review MusicXML artifact. It must not create Score revisions, use `ScoreShell`, or expose sharing, invites, publication, practice, or collaboration capabilities. Only after confirmation may the UI navigate to `/score/:scoreId`.
 
 Score workspace ownership update (2026-07-02): stable Score workspaces live under `/score/:id`, `/score/:id/edit`, and `/score/:id/practice`. `EditorWorkspacePage` is the shared editor shell; source-specific hooks such as `useEditorDocument` and `useReviewEditorDocument` must return the shared `EditorWorkspaceDocument` contract. Score editing saves revisions; review editing saves temporary job artifacts. Future editor sources should add a document hook behind the same workspace contract rather than duplicating page shells.
 
-History ownership update (2026-06-20): upload/share filters and pagination are independent tab state, selection is reset at tab boundaries, batch actions compose domain mutation hooks, and thumbnail access requests are cancellable with owned object URLs revoked on cleanup. History cards, toolbar, status, and pagination live under `components/history`.
+History ownership update (2026-06-20): this note is historical. The old history surface has been removed; current owned score lists live under my-scores, library, and review job entry points.
 
 Practice resource ownership update (2026-06-20): session references and REST controls live in `use-practice-session`; WebSocket/heartbeat, AudioWorklet/MediaStream, and MediaRecorder/object URLs each have a dedicated hook with paired cleanup. The practice route composes those hooks and UI components while committed alignment and SVG work remain in the viewer/controller boundary.
 
@@ -620,7 +627,7 @@ Verovio ownership update (2026-06-20): `lib/score/verovio` owns the shared WASM 
 
 Playback spike update (2026-06-20): Verovio base64 MIDI and XML-ID timemap data feed a NoteVerse-owned playback timeline/controller; `@tonejs/midi` is parser-only and `soundfont-player` is isolated behind `VerovioAudioEngine`. Playback code has a separate entry from renderer code. The shipped asset set currently guarantees acoustic piano only, so unsupported programs fall back to piano and the product must not claim full instrumentation fidelity.
 
-Interactive listen migration update (2026-06-21): results, share, and editor use the single shared Verovio preview path. `ListenModal` contains no toolkit internals; its score playback hook dynamically loads the controller, while the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The previous renderer backend, compatibility patch, and dependencies have been removed.
+Interactive listen migration update (2026-06-21): score detail, share, and editor use the single shared Verovio preview path. `ListenModal` contains no toolkit internals; its score playback hook dynamically loads the controller, while the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The previous renderer backend, compatibility patch, and dependencies have been removed.
 
 Post-migration ownership update (2026-06-21): editor-only hooks live under `hooks/editor`, editor undo history is explicitly named, draft/score lookup utilities live under `lib/editor`, API contracts are domain modules behind `types/api/index.ts`, and score-preview playback state lives in a dedicated score hook. The frontend package is `noteverse-pro-frontend`; frontend CI runs lint, typecheck, 48 unit/component tests, build, and 7 deterministic Playwright tests.
 

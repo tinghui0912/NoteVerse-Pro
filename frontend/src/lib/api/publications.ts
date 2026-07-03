@@ -9,7 +9,6 @@ export const publicationsApi = {
     input: {
       revision_id?: string;
       public_slug?: string;
-      discoverability?: 'LISTED' | 'UNLISTED';
       allow_download: boolean;
       allow_practice: boolean;
     }

@@ -19,7 +19,6 @@ from app.db.models import (
     ShareGrantRedemption,
     User,
 )
-from app.db.models.score_access import ShareTargetMode
 from app.modules.score_access.policy import (
     ScoreAccessPolicy,
     ScoreAction,
@@ -81,19 +80,6 @@ class ScoreSharingService:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_SHARING, user_id=user_id
         )
-        target_revision_id = None
-        target_revision_uuid = None
-        if request.target_mode == ShareTargetMode.PINNED:
-            target = await self.access_policy.resolve(
-                db,
-                score_uuid,
-                user_id=user_id,
-                revision_uuid=request.target_revision_id,
-            )
-            target_revision_id = require_persisted_id(
-                target.revision.id, entity="score revision"
-            )
-            target_revision_uuid = target.revision.revision_uuid
         grant_uuid = str(uuid.uuid4())
         token = generate_share_token()
         now = utc_now_naive()
@@ -102,8 +88,6 @@ class ScoreSharingService:
             grant_uuid=grant_uuid,
             score_id=require_persisted_id(access.score.id, entity="score"),
             token_hash=hash_share_token(token),
-            target_mode=request.target_mode,
-            target_revision_id=target_revision_id,
             allow_download=request.allow_download,
             allow_practice=request.allow_practice,
             expires_at=expires_at,
@@ -115,8 +99,6 @@ class ScoreSharingService:
         return GrantCreatedRead(
             grant_id=grant.grant_uuid,
             token=token,
-            target_mode=grant.target_mode,
-            target_revision_id=target_revision_uuid,
             allow_download=grant.allow_download,
             allow_practice=grant.allow_practice,
             expires_at=grant.expires_at,
@@ -136,10 +118,6 @@ class ScoreSharingService:
                 GrantRead(
                     grant_id=grant.grant_uuid,
                     token=None,
-                    target_mode=grant.target_mode,
-                    target_revision_id=await self.repository.revision_uuid(
-                        db, grant.target_revision_id
-                    ),
                     allow_download=grant.allow_download,
                     allow_practice=grant.allow_practice,
                     expires_at=grant.expires_at,
@@ -181,10 +159,6 @@ class ScoreSharingService:
         return GrantRead(
             grant_id=grant.grant_uuid,
             token=None,
-            target_mode=grant.target_mode,
-            target_revision_id=await self.repository.revision_uuid(
-                db, grant.target_revision_id
-            ),
             allow_download=grant.allow_download,
             allow_practice=grant.allow_practice,
             expires_at=grant.expires_at,

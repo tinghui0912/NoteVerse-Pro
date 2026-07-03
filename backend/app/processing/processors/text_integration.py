@@ -119,8 +119,8 @@ class TextIntegrationEngine:
         lyricist_text = (structured_info.get("lyricist", "") or "").strip()
 
         self._update_work_title(root, title_text)
-        self._clean_old_creator_elements(root)
-        self._clean_old_credits(root)
+        self._clean_existing_creator_elements(root)
+        self._clean_existing_credits(root)
 
         part_list = root.find("part-list")
         if part_list is not None:
@@ -152,7 +152,7 @@ class TextIntegrationEngine:
                 work_title_element.text = title_text
                 logger.info("Updated work-title")
 
-    def _clean_old_creator_elements(self, root: ET.Element) -> None:
+    def _clean_existing_creator_elements(self, root: ET.Element) -> None:
         """Remove all existing `<creator>` elements before rebuilding them."""
         identification = root.find("identification")
         if identification is not None:
@@ -162,8 +162,8 @@ class TextIntegrationEngine:
             if creators:
                 logger.info(f"Removed {len(creators)} creator elements")
 
-    def _clean_old_credits(self, root: ET.Element) -> None:
-        """Remove legacy `<credit>` elements before writing the canonical set."""
+    def _clean_existing_credits(self, root: ET.Element) -> None:
+        """Remove existing `<credit>` elements before writing the canonical set."""
         credits = root.findall("credit")
         for credit in credits:
             root.remove(credit)

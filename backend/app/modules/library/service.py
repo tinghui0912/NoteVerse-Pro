@@ -381,7 +381,6 @@ class LibraryService:
             source_type=entry.source_type,
             folder_id=await self._folder_uuid(db, entry.folder_id),
             title=score.title,
-            score_state=score.state,
             thumbnail_artifact_id=thumbnail.artifact_uuid if thumbnail else None,
             taxonomy_tags=[
                 ScoreTaxonomyTagRead(

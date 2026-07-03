@@ -9,7 +9,6 @@ import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completi
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
 import { useJobReview, useUpdateJobReview } from '@/hooks/queries/use-review-queries';
-import { useToast } from '@/hooks/use-toast';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
 export function useReviewEditorDocument({
@@ -20,9 +19,7 @@ export function useReviewEditorDocument({
   returnUrl?: string;
 }): EditorWorkspaceDocument {
   const router = useRouter();
-  const t = useTranslations('editor');
   const reviewT = useTranslations('review');
-  const { toast } = useToast();
   const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
   const completeSave = useEditorSaveCompletion({ applyXml });
   const showSaveError = useEditorSaveErrorToast({ titleNamespace: 'review' });

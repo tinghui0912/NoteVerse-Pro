@@ -24,13 +24,11 @@ import { useScoreShell } from '@/components/score-shell/score-shell';
 import type { ScoreArtifact } from '@/types/api';
 
 export function ScoreActions({
-  imageCount,
   scoreTitle,
   scoreId,
   artifacts,
   revisionId,
 }: {
-  imageCount: number;
   scoreTitle: string;
   scoreId: string;
   artifacts: ScoreArtifact[];
@@ -42,7 +40,7 @@ export function ScoreActions({
   const publication = useScorePublication(scoreId);
   const publish = usePublishScore(scoreId);
   const unpublish = useUnpublishScore(scoreId);
-  const { handleDownload } = useDownload({ mode: 'score', id: scoreId, imageCount, artifacts });
+  const { handleDownload } = useDownload({ mode: 'score', id: scoreId, artifacts });
   const [shareOpen, setShareOpen] = useState(false);
   const [collaborationOpen, setCollaborationOpen] = useState(false);
   const isPublished = publication.data?.data?.status === 'PUBLISHED';

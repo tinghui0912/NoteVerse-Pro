@@ -27,10 +27,6 @@ from sqlmodel import Field, SQLModel
 from app.utils.timezone import utc_now_naive
 
 
-class ScoreState(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-
-
 class RevisionOrigin(str, enum.Enum):
     OMR = "OMR"
     EDIT = "EDIT"
@@ -40,9 +36,6 @@ class RevisionOrigin(str, enum.Enum):
 class ArtifactKind(str, enum.Enum):
     MUSICXML = "MUSICXML"
     RENDERED_PAGE = "RENDERED_PAGE"
-    EXPORT_PDF = "EXPORT_PDF"
-    AUDIO_PREVIEW = "AUDIO_PREVIEW"
-    DIAGNOSTIC_JSON = "DIAGNOSTIC_JSON"
 
 
 class MetadataStatus(str, enum.Enum):
@@ -65,14 +58,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
             name="fk_scores_head_revision",
             use_alter=True,
         ),
-        ForeignKeyConstraint(
-            ["id", "approved_revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_scores_approved_revision",
-            use_alter=True,
-        ),
         Index("idx_scores_owner_updated", "owner_user_id", "updated_at"),
-        Index("idx_scores_state", "state"),
     )
 
     id: Optional[int] = Field(
@@ -84,11 +70,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
     )
     title: str = Field(sa_column=Column(String(255), nullable=False))
-    state: ScoreState = Field(
-        sa_column=Column(SAEnum(ScoreState, name="scorestate"), nullable=False)
-    )
     head_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    approved_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     originating_job_id: Optional[int] = Field(
         default=None,
         sa_column=Column(

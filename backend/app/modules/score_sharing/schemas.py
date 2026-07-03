@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 
-from app.db.models.score_access import ShareTargetMode
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.artifacts.schemas import ArtifactRead
 from app.modules.metadata.schemas import MetadataRead
@@ -12,26 +11,14 @@ from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
 class GrantCreateRequest(BaseModel):
-    target_mode: ShareTargetMode = ShareTargetMode.LATEST
-    target_revision_id: str | None = None
     allow_download: bool = True
     allow_practice: bool = True
     expires_at: datetime | None = None
-
-    @model_validator(mode="after")
-    def validate_target(self):
-        if self.target_mode == ShareTargetMode.PINNED and not self.target_revision_id:
-            raise ValueError("target_revision_id is required for PINNED grants")
-        if self.target_mode == ShareTargetMode.LATEST and self.target_revision_id:
-            raise ValueError("LATEST grants cannot specify target_revision_id")
-        return self
 
 
 class GrantCreatedRead(BaseModel):
     grant_id: str
     token: str
-    target_mode: ShareTargetMode
-    target_revision_id: str | None
     allow_download: bool
     allow_practice: bool
     expires_at: datetime | None
@@ -41,8 +28,6 @@ class GrantCreatedRead(BaseModel):
 class GrantRead(BaseModel):
     grant_id: str
     token: str | None = None
-    target_mode: ShareTargetMode
-    target_revision_id: str | None
     allow_download: bool
     allow_practice: bool
     expires_at: datetime | None

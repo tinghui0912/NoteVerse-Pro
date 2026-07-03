@@ -8,7 +8,6 @@ from typing import Optional
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    CheckConstraint,
     Column,
     DateTime,
     Enum as SAEnum,
@@ -39,19 +38,9 @@ class InviteStatus(str, enum.Enum):
     DECLINED = "DECLINED"
 
 
-class ShareTargetMode(str, enum.Enum):
-    LATEST = "LATEST"
-    PINNED = "PINNED"
-
-
 class PublicationStatus(str, enum.Enum):
     PUBLISHED = "PUBLISHED"
     UNPUBLISHED = "UNPUBLISHED"
-
-
-class PublicationDiscoverability(str, enum.Enum):
-    LISTED = "LISTED"
-    UNLISTED = "UNLISTED"
 
 
 class AccessOrigin(str, enum.Enum):
@@ -145,16 +134,6 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
 class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_share_grants"
     __table_args__ = (
-        CheckConstraint(
-            "(target_mode = 'LATEST' AND target_revision_id IS NULL) OR "
-            "(target_mode = 'PINNED' AND target_revision_id IS NOT NULL)",
-            name="ck_score_share_grants_target",
-        ),
-        ForeignKeyConstraint(
-            ["score_id", "target_revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_score_share_grants_target_revision",
-        ),
         Index("idx_score_share_grants_score_created", "score_id", "created_at"),
         Index("idx_score_share_grants_token_hash", "token_hash", unique=True),
     )
@@ -175,10 +154,6 @@ class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
         )
     )
     token_hash: str = Field(sa_column=Column(String(64), nullable=False))
-    target_mode: ShareTargetMode = Field(
-        sa_column=Column(SAEnum(ShareTargetMode, name="sharetargetmode"), nullable=False)
-    )
-    target_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     allow_download: bool = Field(
         default=False,
         sa_column=Column(Boolean, default=False, nullable=False),
@@ -232,7 +207,7 @@ class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
             ["score_revisions.score_id", "score_revisions.id"],
             name="fk_score_publications_revision",
         ),
-        Index("idx_score_publications_status_discoverability", "status", "discoverability"),
+        Index("idx_score_publications_status", "status"),
     )
 
     id: Optional[int] = Field(
@@ -251,12 +226,6 @@ class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
     published_revision_id: int = Field(sa_column=Column(BigInteger, nullable=False))
     status: PublicationStatus = Field(
         sa_column=Column(SAEnum(PublicationStatus, name="publicationstatus"), nullable=False)
-    )
-    discoverability: PublicationDiscoverability = Field(
-        sa_column=Column(
-            SAEnum(PublicationDiscoverability, name="publicationdiscoverability"),
-            nullable=False,
-        )
     )
     allow_download: bool = Field(
         default=False,

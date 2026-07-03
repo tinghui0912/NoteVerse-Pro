@@ -22,7 +22,8 @@ def test_score_domain_contract_freezes_identity_and_revision_invariants() -> Non
     assert identities == {
         "submission_and_polling": "job_id",
         "review": "job_id",
-        "results_editor_history_sharing": "score_id",
+        "review_editor": "job_id",
+        "score_detail_editor_history_sharing": "score_id",
         "practice_and_publication_snapshot": "revision_id",
     }
     assert invariants["revision_is_immutable"] is True

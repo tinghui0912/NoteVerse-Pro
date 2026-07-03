@@ -1,12 +1,8 @@
-export type ScoreState = 'ACTIVE';
 export type RevisionOrigin = 'OMR' | 'EDIT' | 'IMPORT';
 export type FingeringHandSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 export type ArtifactKind =
   | 'MUSICXML'
-  | 'RENDERED_PAGE'
-  | 'EXPORT_PDF'
-  | 'AUDIO_PREVIEW'
-  | 'DIAGNOSTIC_JSON';
+  | 'RENDERED_PAGE';
 
 export interface ScoreCapabilities {
   can_view: boolean;
@@ -46,17 +42,14 @@ export interface ScorePublicationSummary {
   public_slug: string;
   revision_id: string;
   status: 'PUBLISHED' | 'UNPUBLISHED';
-  discoverability: 'LISTED' | 'UNLISTED';
 }
 
 export interface ScoreDetail {
   score_id: string;
   title: string;
   taxonomy_tags: ScoreTaxonomyTag[];
-  state: ScoreState;
   version: number;
   head_revision_id: string | null;
-  approved_revision_id: string | null;
   thumbnail_artifact_id: string | null;
   publication: ScorePublicationSummary | null;
   originating_job_id: string | null;
@@ -104,8 +97,6 @@ export interface ScoreArtifact {
 export interface ScoreGrant {
   grant_id: string;
   token: string | null;
-  target_mode: 'LATEST' | 'PINNED';
-  target_revision_id: string | null;
   allow_download: boolean;
   allow_practice: boolean;
   expires_at: string | null;
@@ -246,7 +237,6 @@ export interface Publication {
   score_id: string;
   revision_id: string;
   status: 'PUBLISHED' | 'UNPUBLISHED';
-  discoverability: 'LISTED' | 'UNLISTED';
   allow_download: boolean;
   allow_practice: boolean;
   published_at: string;

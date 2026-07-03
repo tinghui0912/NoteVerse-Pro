@@ -1,4 +1,4 @@
-﻿import type { ScoreMetadata, ScoreState, ScoreTaxonomyTag } from './scores';
+﻿import type { ScoreMetadata, ScoreTaxonomyTag } from './scores';
 
 export type LibraryEntrySourceType = 'SELF_ADDED' | 'BOOKMARK';
 export type LibraryPracticeState = 'TO_PRACTICE' | 'IN_PROGRESS' | 'MASTERED';
@@ -49,7 +49,6 @@ export interface LibraryEntry {
   source_type: LibraryEntrySourceType;
   folder_id: string | null;
   title: string;
-  score_state: ScoreState;
   thumbnail_artifact_id: string | null;
   taxonomy_tags: ScoreTaxonomyTag[];
   metadata: ScoreMetadata | null;

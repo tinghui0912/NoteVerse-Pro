@@ -49,7 +49,6 @@ export function usePublishMyScores() {
       await Promise.all(
         scoreIds.map((scoreId) =>
           publicationsApi.publish(scoreId, {
-            discoverability: 'LISTED',
             allow_download: false,
             allow_practice: true,
           })

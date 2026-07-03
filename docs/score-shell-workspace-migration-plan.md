@@ -1,23 +1,30 @@
 # Score Shell Workspace Migration Plan
 
-> Superseded note (2026-07-02): Review is no longer a Score workspace. The active model is
-> `Upload -> ProcessingJob -> /review/:jobId -> confirm -> /score/:scoreId`.
-> Keep this document as historical context for the Score shell/view/edit/practice workspaces
-> only. Do not use its `/score/:id/review` references as current architecture.
+Status: Completed for Score shell/view/edit/practice. Review route references in the historical
+execution log below are obsolete.
+
+Current model:
+
+```text
+Upload -> ProcessingJob -> /review/:jobId -> confirm -> /score/:scoreId
+```
+
+Review is a pre-Score pipeline route, not a Score workspace.
 
 ## Goal
 
-Converge score-related product surfaces into a single Score resource model with workspace routes:
+Converge stable Score product surfaces into a single Score resource model with workspace routes:
 
 ```text
 /score/:id
-/score/:id/review
 /score/:id/edit
 /score/:id/practice
 /score/:id/practice/performance
 ```
 
-The goal is not to put every feature into one giant React component. The goal is to make Score the only product resource identity, with editor and practice treated as workspaces under the Score route.
+The goal is not to put every feature into one giant React component. The goal is to make Score
+the stable product resource identity after review confirmation, with editor and practice treated
+as workspaces under the Score route.
 
 ## Current State
 
@@ -25,10 +32,11 @@ Current frontend route shape:
 
 ```text
 /score/:id
-/score/:id/review
 /score/:id/edit
 /score/:id/practice
 /score/:id/practice/performance
+/review/:jobId
+/review/:jobId/edit
 /share/:token
 /public/:slug
 ```
@@ -36,7 +44,8 @@ Current frontend route shape:
 Current status:
 
 - `Score` is the product route family.
-- `Review`, `Editor`, and `Practice` are Score workspaces under `/score/:id/...`.
+- `Editor` and `Practice` are Score workspaces under `/score/:id/...`.
+- `Review` is a job-scoped pipeline route under `/review/:jobId`.
 - `/share/:token` and `/public/:slug` are access-entry routes that reuse Score viewing/player UI.
 - `ScoreShell` owns shared visual framing and now provides score capabilities through context.
 - Feature folders such as `components/editor`, `components/review`, and `components/practice` remain as workspace implementation boundaries. They are not route-level product resources.
@@ -54,10 +63,11 @@ Score
 
 ```text
 /score/:id                  view workspace
-/score/:id/review           review workspace
 /score/:id/edit             edit workspace
 /score/:id/practice         practice workspace
 /score/:id/practice/performance
+/review/:jobId              pre-Score review pipeline route
+/review/:jobId/edit         pre-Score review editor route
 ```
 
 ### Access Entry Routes
@@ -73,19 +83,18 @@ Share, public publication, and invite are access entries. They are not independe
 ## Design Principles
 
 1. `Score` is the single product resource identity.
-2. `Review`, `Editor`, and `Practice` are workspaces, not separate product resources.
-3. Workspace routes may have independent URLs and local providers.
-4. Do not lift heavy editor state into the global Score shell.
-5. Capabilities remain the permission truth. UI mode is derived from capabilities.
-6. Since the project is in development, do not keep long-term compatibility redirects for old `/editor/:id` or `/practice/:id` routes.
+2. `Editor` and `Practice` are Score workspaces, not separate product resources.
+3. Review is a ProcessingJob pipeline capability until confirmation creates a Score.
+4. Workspace routes may have independent URLs and local providers.
+5. Do not lift heavy editor state into the global Score shell.
+6. Capabilities remain the permission truth. UI mode is derived from capabilities.
+7. Since the project is in development, do not keep long-term compatibility redirects for old `/editor/:id` or `/practice/:id` routes.
 
 ## Target File Structure
 
 ```text
 frontend/src/app/[locale]/score/[id]/
   page.tsx
-  review/
-    page.tsx
   edit/
     page.tsx
     loading.tsx
@@ -94,6 +103,11 @@ frontend/src/app/[locale]/score/[id]/
     page.tsx
     performance/
       page.tsx
+
+frontend/src/app/[locale]/review/[jobId]/
+  page.tsx
+  edit/
+    page.tsx
 
 frontend/src/components/score-shell/
   score-shell.tsx

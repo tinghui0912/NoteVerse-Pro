@@ -6,13 +6,13 @@ import { EditorWorkspacePage } from '@/components/editor/editor-workspace-page';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { useEditorDocument } from '@/hooks/editor/use-editor-document';
 
-function EditorPageContent({ id, returnUrl }: { id: string; returnUrl?: string }) {
-  const document = useEditorDocument({ id, returnUrl });
+function EditorPageContent({ scoreId, returnUrl }: { scoreId: string; returnUrl?: string }) {
+  const document = useEditorDocument({ scoreId, returnUrl });
 
   return (
     <EditorWorkspacePage
       document={document}
-      scoreShell={{ scoreId: id, capabilities: document.scoreCapabilities }}
+      scoreShell={{ scoreId, capabilities: document.scoreCapabilities }}
     />
   );
 }
@@ -29,7 +29,7 @@ export default function EditorPage() {
 
   return (
     <Suspense fallback={null}>
-      <EditorProvider><EditorPageContent id={id} returnUrl={returnUrl} /></EditorProvider>
+      <EditorProvider><EditorPageContent scoreId={id} returnUrl={returnUrl} /></EditorProvider>
     </Suspense>
   );
 }

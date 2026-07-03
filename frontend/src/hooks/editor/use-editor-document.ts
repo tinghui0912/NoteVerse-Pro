@@ -21,17 +21,17 @@ import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-stor
 import type { FingeringHandSize } from '@/types/api';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
-export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: string }): EditorWorkspaceDocument {
+export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; returnUrl?: string }): EditorWorkspaceDocument {
   const t = useTranslations('editor');
   const { toast } = useToast();
   const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
   const completeSave = useEditorSaveCompletion({ applyXml });
   const showSaveError = useEditorSaveErrorToast();
-  const scoreQuery = useScoreDetail(id);
+  const scoreQuery = useScoreDetail(scoreId);
   const score = scoreQuery.data?.data;
   const [baseRevisionId, setBaseRevisionId] = useState('');
   const revisionId = baseRevisionId || score?.head_revision_id || '';
-  const revisionQuery = useRevisionContent(id, revisionId);
+  const revisionQuery = useRevisionContent(scoreId, revisionId);
   const jobQuery = useJobDetail(score?.originating_job_id ?? '', {
     enabled: Boolean(score?.originating_job_id),
   });
@@ -41,9 +41,8 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<DraftEntry | null>(null);
   const [draftDialogOpen, setDraftDialogOpen] = useState(false);
-  const { clearDraft, isSaving: isAutoSaving } = useAutoSave(id, currentXml, {
+  const { clearDraft, isSaving: isAutoSaving } = useAutoSave(scoreId, currentXml, {
     baseRevisionId: revisionId,
-    returnUrl,
     debounceMs: 3000,
     enabled: Boolean(currentXml && revisionId),
   });
@@ -68,13 +67,13 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     let cancelled = false;
     void (async () => {
       try {
-        const draft = await loadDraft(id, revisionId);
+        const draft = await loadDraft(scoreId, revisionId);
         if (cancelled) return;
         if (draft && draft.xml !== xmlContent) {
           setPendingDraft(draft);
           setDraftDialogOpen(true);
         } else if (draft) {
-          await deleteDraft(id, revisionId);
+          await deleteDraft(scoreId, revisionId);
         }
         if (cancelled) return;
         await applyXml(xmlContent, { resetHistory: true, updateRawXml: true });
@@ -91,13 +90,13 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     return () => {
       cancelled = true;
     };
-  }, [applyXml, clearXml, id, initialized, revisionId, t, xmlContent]);
+  }, [applyXml, clearXml, initialized, revisionId, scoreId, t, xmlContent]);
 
   const performSave = () => {
     if (!currentXml || !revisionId) return;
     createRevision.mutate(
       {
-        scoreId: id,
+        scoreId,
         content: currentXml,
         base_revision_id: revisionId,
         idempotency_key: crypto.randomUUID(),
@@ -106,7 +105,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
         onSuccess: async (response) => {
           const nextRevision = response.data?.revision_id;
           await completeSave({
-            returnUrl: returnUrl || `/score/${id}`,
+            returnUrl: returnUrl || `/score/${scoreId}`,
             beforeNavigate: async () => {
               await clearDraft();
               if (nextRevision) setBaseRevisionId(nextRevision);
@@ -127,7 +126,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
     setPendingDraft(null);
   };
   const discardDraft = async () => {
-    if (revisionId) await deleteDraft(id, revisionId);
+    if (revisionId) await deleteDraft(scoreId, revisionId);
     setPendingDraft(null);
     toast({ title: t('draftDiscarded'), description: t('draftDiscardedDesc') });
   };
@@ -136,7 +135,7 @@ export function useEditorDocument({ id, returnUrl }: { id: string; returnUrl?: s
 
     generateFingeringMutation.mutate(
       {
-        scoreId: id,
+        scoreId,
         content: currentXml,
         hand_size: handSize,
       },

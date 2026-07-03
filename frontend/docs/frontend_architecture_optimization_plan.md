@@ -2,8 +2,8 @@
 
 > Baseline date: 2026-06-18  
 > Scope: frontend structure, tests, React Query conventions, MusicXML modularization, oversized pages, shared score rendering, Verovio migration, and final OSMD removal.
-> This plan is complete. Active cross-stack score-domain work is tracked in
-> `../../docs/score-domain-architecture-migration-plan.md`.
+> This plan is complete. Active cross-stack cleanup work is tracked in
+> `../../docs/codebase-simplification-and-security-plan.md`.
 
 ## 1. Purpose
 
@@ -20,7 +20,11 @@ The intended outcome is:
 
 This is an incremental plan. Each phase must leave the application usable and pass the quality gates.
 
-## 2. Current Baseline
+## 2. Historical Baseline
+
+This section records the frontend state at the start of this completed migration. It is not the
+current route inventory. Current active structure is documented in
+`frontend_engineering_principles.md` and the cross-stack cleanup plan.
 
 ### 2.1 Quality and tooling
 
@@ -34,7 +38,7 @@ This is an incremental plan. Each phase must leave the application usable and pa
 - Backend FastAPI tests continue to use pytest; the frontend stack does not replace pytest.
 - The current local runtime is Node.js 22.14.0 with npm 10.9.2, which is the baseline to verify when pinning the selected test-tool versions.
 
-### 2.2 Largest route pages
+### 2.2 Largest route pages at baseline
 
 | Route | Lines | Main responsibilities currently mixed together |
 | --- | ---: | --- |
@@ -52,8 +56,8 @@ This is an incremental plan. Each phase must leave the application usable and pa
 - Editor contexts, editor hooks, results, and the practice Verovio adapter consume the MusicXML package or focused submodules.
 - `components/score/listen-modal.tsx` composes the dialog; `hooks/score/use-score-preview-playback.ts` consumes score contracts and dynamically loads the Verovio preview controller.
 - `lib/score/verovio-score-preview-controller.ts` owns interactive SVG rendering, playback, cursor synchronization, relayout, and cleanup.
-- Editor, results, and share reuse the same `ListenModal` and have no renderer-specific page logic.
-- Review compares authenticated original/preview image artifacts. Results and share also display backend-rendered image artifacts; those remain valid product assets outside the browser renderer.
+- Editor, score detail, and share reuse the same `ListenModal` and have no renderer-specific page logic.
+- Review uses authenticated original artifacts plus current MusicXML rendering. Score detail and share may also display backend-rendered image artifacts; those remain valid product assets outside the browser renderer.
 - The stale placeholder `score-viewer.tsx` was deleted after its zero-reference audit.
 
 ### 2.4 React Query
@@ -66,7 +70,7 @@ This is an incremental plan. Each phase must leave the application usable and pa
 
 ### 2.5 Renderer direction
 
-- Practice, results, share, and editor use shared Verovio rendering boundaries.
+- Practice, score detail, share, and editor use shared Verovio rendering boundaries.
 - Interactive playback uses Verovio MIDI/timemap data and an owned Web Audio soundfont engine.
 - UI code remains renderer-agnostic and consumes score contracts.
 - Backend-rendered image artifacts remain supported independently of interactive rendering.
@@ -141,7 +145,7 @@ unless a production incident changes the priority.
 3. Link this plan from `improvement-roadmap.md` and avoid duplicating task status across both documents.
 4. Record that `upload/page.tsx` is temporarily excluded while its current user changes are in progress.
 
-**Acceptance:** no current document describes OSMD as a long-term path; one document is the authoritative task board.
+**Acceptance:** no current document describes OSMD as a long-term path; at the time of this migration, this document was the frontend task board. Current active cleanup work now lives in `../../docs/codebase-simplification-and-security-plan.md`.
 
 ### P0-2 Add the layered frontend test baseline
 

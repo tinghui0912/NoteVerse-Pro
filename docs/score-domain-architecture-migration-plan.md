@@ -1,6 +1,7 @@
 ﻿# NoteVerse Score Domain Architecture Migration Plan
 
-> Status: completed, implementation and current development database cutover verified
+> Status: Historical / completed baseline migration. Current review and score-state semantics
+> are governed by ADR 0005 and `docs/review-pipeline-migration-plan.md`.
 > Baseline date: 2026-06-22  
 > Scope: processing jobs, scores, revisions, artifacts, metadata, sharing,
 > publication, practice references, frontend contracts, and results playback layout.
@@ -23,8 +24,8 @@ The target outcome is:
 - backend-computed capabilities are authoritative for every frontend surface;
 - results can show the complete score while playback controls remain continuously available.
 
-This document is the authoritative execution board for this migration. The completed
-frontend architecture plan remains historical context, not the task board for this work.
+This document is no longer the authoritative execution board for current review routing or
+score lifecycle fields. It remains historical context for the initial score-domain cutover.
 
 ## 2. Guardrails And Explicit Non-Goals
 
@@ -201,7 +202,7 @@ Registry for immutable stored payloads associated with one revision:
 
 ```text
 id, artifact_uuid, revision_id
-kind = MUSICXML | RENDERED_PAGE | EXPORT_PDF | AUDIO_PREVIEW | DIAGNOSTIC_JSON
+kind = MUSICXML | RENDERED_PAGE
 storage_backend, storage_key, filename, mime_type, size_bytes, sha256
 page_number nullable
 render_profile nullable
@@ -286,8 +287,7 @@ Bearer entrance grant for view-only share links:
 
 ```text
 id, score_id, token_hash
-target_mode = LATEST | PINNED
-target_revision_id nullable
+share grants target the current score head revision.
 allow_download, allow_practice
 expires_at nullable, revoked_at nullable
 created_by, created_at
@@ -297,7 +297,7 @@ created_by, created_at
 - a valid grant may authorize anonymous read access while valid;
 - share links never authorize editing;
 - grant expiry/revocation is evaluated on every protected read or redemption;
-- target invariants require a revision only for `PINNED` mode.
+- target invariants were removed; the current share model always resolves to the latest score head.
 
 ### 4.9 ScoreLibraryEntry And ShareGrantRedemption
 
@@ -322,7 +322,7 @@ score_id unique
 public_slug unique
 published_revision_id
 status = PUBLISHED | UNPUBLISHED
-discoverability = LISTED | UNLISTED
+publication discoverability is not part of the current active model.
 allow_download, allow_practice
 published_by, published_at, updated_at
 ```

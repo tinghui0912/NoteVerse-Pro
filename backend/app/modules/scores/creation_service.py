@@ -21,7 +21,6 @@ from app.db.models.score import (
     ArtifactKind,
     MetadataStatus,
     RevisionOrigin,
-    ScoreState,
 )
 from app.storage import FileStorage, file_storage
 from app.modules.metadata.service import rebuild_metadata_sync
@@ -79,7 +78,6 @@ class SyncConfirmedScoreCreationService:
                 score_uuid=score_uuid,
                 owner_user_id=job.user_id,
                 title=(title or "Untitled score").strip(),
-                state=ScoreState.ACTIVE,
                 originating_job_id=require_persisted_id(job.id, entity="processing job"),
                 created_at=now,
                 updated_at=now,
@@ -154,7 +152,6 @@ class SyncConfirmedScoreCreationService:
                 )
             )
             score.head_revision_id = revision_id
-            score.approved_revision_id = revision_id
             job.score_id = score_id
             job.updated_at = now
             db.commit()

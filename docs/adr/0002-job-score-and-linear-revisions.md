@@ -1,6 +1,7 @@
 # ADR 0002: Separate Processing Jobs From Scores And Use Linear Revisions
 
-- Status: Accepted; review lifecycle details superseded by ADR 0005
+- Status: Accepted; review lifecycle details superseded by ADR 0005 and the later
+  score-state cleanup
 - Date: 2026-06-22
 - Scope: P0-1 score-domain contract
 
@@ -20,8 +21,8 @@ introduced before that cutover, the replacement contract moves to `/api/v2`.
 
 1. `ProcessingJob` owns submission, progress, steps, retries, heartbeat, stale recovery,
    idempotency, and processing errors.
-2. `Score` is the stable user-owned resource and owns title, taxonomy tags, lifecycle, and
-   revision pointers.
+2. `Score` is the stable user-owned resource and owns title, taxonomy tags, and its current
+   head revision pointer.
 3. A job may fail without producing a score. Once normalized review MusicXML exists, the
    job enters `PENDING_REVIEW` and stores that output as a job artifact. It does not create
    a score yet.
@@ -29,13 +30,10 @@ introduced before that cutover, the replacement contract moves to `/api/v2`.
    and an optional parent for provenance.
 5. Revisions are linear. Branching and merging are not part of this model.
 6. `Score.head_revision_id` identifies the current editable document.
-7. `Score.approved_revision_id` identifies the initially accepted revision after review
-   confirmation and future explicitly approved revisions. It is not a public publication
-   pointer.
-8. Saving requires `base_revision_id`. A stale base returns `revision_conflict` instead of
+7. Saving requires `base_revision_id`. A stale base returns `revision_conflict` instead of
    silently overwriting the head.
-9. Identical content hashes and repeated idempotency keys are no-op successes.
-10. The product-facing `current|final` source vocabulary is retired after cutover. Review
+8. Identical content hashes and repeated idempotency keys are no-op successes.
+9. The product-facing `current|final` source vocabulary is retired after cutover. Review
     confirmation creates the first stable score/revision; there is no score approval route.
 
 ## Lifecycle contract
@@ -44,7 +42,7 @@ introduced before that cutover, the replacement contract moves to `/api/v2`.
 ProcessingJob: PENDING -> PROGRESS -> PENDING_REVIEW -> SUCCESS
                          \-> FAILURE
 
-Score: ACTIVE
+Score: no lifecycle state column in the current model
 ```
 
 `ProcessingJob.PENDING_REVIEW` means review artifacts exist and are ready for human

@@ -210,7 +210,7 @@ export function getEntityGroupsFromMeasure(
         const element = node as Element;
 
         if (element.tagName === 'forward') {
-            // forward 可能带有 staff。没有 staff 时按调用方 staff 处理，兼容旧 XML。
+            // MusicXML forward elements may omit staff; use the caller staff in that case.
             const staffEl = element.querySelector('staff');
             const voiceEl = element.querySelector('voice');
             const staff = staffEl ? parseInt(staffEl.textContent || '1', 10) : staffNumber;

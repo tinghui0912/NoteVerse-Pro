@@ -6,8 +6,8 @@ const musicXml = '<?xml version="1.0"?><score-partwise version="4.0"><part-list>
 
 test('score detail uses score/revision resources and keeps playback controls available', async ({ context, page }) => {
   await context.addCookies([{ name: 'noteverse_session', value: 'session', domain: 'localhost', path: '/' }]);
-  const score = { score_id: scoreId, title: 'Layout Score', taxonomy_tags: [{ category: 'genre', code: 'classical', source: 'USER', confidence: null }], state: 'ACTIVE', version: 1,
-    head_revision_id: revisionId, approved_revision_id: revisionId, originating_job_id: 'job-1', metadata: null,
+  const score = { score_id: scoreId, title: 'Layout Score', taxonomy_tags: [{ category: 'genre', code: 'classical', source: 'USER', confidence: null }], version: 1,
+    head_revision_id: revisionId, originating_job_id: 'job-1', metadata: null,
     capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_sharing: true, can_download: true, can_practice: true, can_publish: true },
     created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-21T00:00:00Z' };
   await page.route(`**/api/v1/scores/${scoreId}`, async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: score }) }));

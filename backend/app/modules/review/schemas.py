@@ -32,7 +32,6 @@ class JobReviewRead(BaseModel):
     taxonomy_tags: list[dict[str, str]]
     musicxml: ReviewMusicXmlRead | None = None
     original_images: list[ReviewArtifactRead]
-    preview_images: list[ReviewArtifactRead]
     created_at: datetime
     updated_at: datetime
 

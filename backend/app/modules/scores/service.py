@@ -143,7 +143,6 @@ class ScoreService:
             ).scalars().all()
         )
         score.head_revision_id = None
-        score.approved_revision_id = None
         await db.flush()
         await db.delete(score)
         await db.commit()
@@ -161,7 +160,6 @@ class ScoreService:
         capabilities: ScoreCapabilities,
     ) -> ScoreRead:
         head = await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
-        approved = await db.get(ScoreRevision, score.approved_revision_id) if score.approved_revision_id else None
         job = await self.repository.originating_job(db, score.originating_job_id)
         projection = (
             await db.get(ScoreRevisionMetadata, score.head_revision_id)
@@ -192,17 +190,14 @@ class ScoreService:
                 )
                 for category, code, source, confidence in await self.repository.taxonomy_tags(db, score_id)
             ],
-            state=score.state,
             version=score.version,
             head_revision_id=head.revision_uuid if head else None,
-            approved_revision_id=approved.revision_uuid if approved else None,
             thumbnail_artifact_id=thumbnail.artifact_uuid if thumbnail else None,
             publication=(
                 ScorePublicationSummaryRead(
                     public_slug=publication.public_slug,
                     revision_id=published_revision.revision_uuid,
                     status=publication.status,
-                    discoverability=publication.discoverability,
                 )
                 if publication and published_revision
                 else None
