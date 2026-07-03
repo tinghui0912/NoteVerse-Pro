@@ -364,6 +364,48 @@ async def test_review_detail_reads_pending_job_artifacts(
     assert [artifact.artifact_id for artifact in detail.preview_images] == ["preview-artifact"]
 
 
+def test_job_detail_prefers_result_thumbnail_over_initial_preview(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _ = score_service_session
+    session.add(
+        ProcessingJob(
+            id=16,
+            job_uuid="job-thumbnail",
+            user_id=1,
+            state=ProcessingJobState.PENDING_REVIEW,
+        )
+    )
+    session.commit()
+    session.add_all([
+        ProcessingArtifact(
+            job_id=16,
+            artifact_uuid="initial-preview-artifact",
+            kind=FileKind.PREVIEW_IMAGE.value,
+            storage_backend="local",
+            storage_key="jobs/job-thumbnail/preview_image/001-preview.svg",
+            filename="001-preview.svg",
+            mime_type="image/svg+xml",
+            page_number=1,
+        ),
+        ProcessingArtifact(
+            job_id=16,
+            artifact_uuid="result-thumbnail-artifact",
+            kind=FileKind.RESULT_THUMBNAIL.value,
+            storage_backend="local",
+            storage_key="jobs/job-thumbnail/result_thumbnail/001-result.svg",
+            filename="001-result.svg",
+            mime_type="image/svg+xml",
+            page_number=1,
+        ),
+    ])
+    session.commit()
+
+    detail = SyncJobService().get_detail(session, "job-thumbnail")
+
+    assert detail["thumbnail_artifact_id"] == "result-thumbnail-artifact"
+
+
 @pytest.mark.asyncio
 async def test_review_update_replaces_pending_review_musicxml(
     score_service_session: tuple[Session, LocalFileStorage],

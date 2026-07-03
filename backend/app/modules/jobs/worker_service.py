@@ -11,6 +11,8 @@ from app.db.models.processing_job import ProcessingJobState, ProcessingJobStepSt
 from app.modules.jobs.repository import SyncJobRepository
 from app.modules.jobs.schemas import JobArtifactItem, JobDetail
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
+from app.shared.file_kinds import FileKind
+from app.shared.render_dispatcher import enqueue_review_thumbnail_render
 from app.utils.timezone import utc_now_naive
 
 
@@ -77,6 +79,7 @@ class SyncJobService:
         job.finished_at = now
         job.updated_at = now
         db.commit()
+        enqueue_review_thumbnail_render(job.job_uuid)
         self._notify_success(db, job)
 
     def finalize_failure(
@@ -201,8 +204,9 @@ class SyncJobService:
                 "sha256": row.sha256,
             })
         thumbnail = (
-            (artifacts.get("preview_image") or [None])[0]
-            or (artifacts.get("original_image") or [None])[0]
+            (artifacts.get(FileKind.RESULT_THUMBNAIL.value) or [None])[0]
+            or (artifacts.get(FileKind.PREVIEW_IMAGE.value) or [None])[0]
+            or (artifacts.get(FileKind.ORIGINAL_IMAGE.value) or [None])[0]
         )
         return {
             "job_id": job.job_uuid,

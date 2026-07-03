@@ -27,7 +27,6 @@ from app.db.models import (
 )
 from app.db.models.processing_job import ProcessingJobState
 from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin, ScoreState
-from app.modules.artifacts.render_service import RevisionRenderService
 from app.modules.library.service import LibraryService
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationTypes
@@ -43,6 +42,10 @@ from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.taxonomy import ordered_unique_pairs
 from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
+from app.shared.render_dispatcher import (
+    enqueue_review_thumbnail_render,
+    enqueue_score_revision_render,
+)
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
@@ -54,13 +57,11 @@ class ReviewService:
         score_repository: ScoreRepository | None = None,
         library_service: LibraryService | None = None,
         metadata_service: MetadataProjectionService | None = None,
-        render_service: RevisionRenderService | None = None,
     ) -> None:
         self.storage = storage or file_storage
         self.score_repository = score_repository or ScoreRepository()
         self.library_service = library_service or LibraryService()
         self.metadata_service = metadata_service or MetadataProjectionService(storage=self.storage)
-        self.render_service = render_service or RevisionRenderService(storage=self.storage)
 
     async def detail(
         self,
@@ -266,10 +267,7 @@ class ReviewService:
             await self.metadata_service.rebuild(db, score_uuid, revision_uuid, user_id)
         except Exception:
             await db.rollback()
-        try:
-            await self.render_service.render(db, score_uuid, revision_uuid, user_id)
-        except Exception:
-            await db.rollback()
+        enqueue_score_revision_render(score_uuid, revision_uuid, user_id)
         return ReviewConfirmRead(score_id=score_uuid)
 
     async def update(
@@ -341,6 +339,7 @@ class ReviewService:
                 self.storage.delete(old_storage_key)
             except Exception:
                 pass
+        enqueue_review_thumbnail_render(job_uuid)
         return await self.detail(db, job_uuid, user_id)
 
     @staticmethod

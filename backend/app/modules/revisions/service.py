@@ -26,9 +26,9 @@ from app.modules.revisions.fingering_service import XMLFingeringService
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.modules.artifacts.render_service import RevisionRenderService
 from app.modules.scores.repository import ScoreRepository
 from app.shared.constants import ErrorCode
+from app.shared.render_dispatcher import enqueue_score_revision_render
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
@@ -39,17 +39,12 @@ class RevisionService:
         repository: ScoreRepository | None = None,
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        render_service: RevisionRenderService | None = None,
         fingering_service: XMLFingeringService | None = None,
         notification_service: NotificationService | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.render_service = render_service or RevisionRenderService(
-            access_policy=self.access_policy,
-            storage=self.storage,
-        )
         self.fingering_service = fingering_service or XMLFingeringService()
         self.notification_service = notification_service or NotificationService()
 
@@ -194,13 +189,7 @@ class RevisionService:
             except Exception:
                 # Metadata is a rebuildable projection and cannot fail the save.
                 await db.rollback()
-            try:
-                await self.render_service.render(
-                    db, score_uuid, revision_uuid, user_id
-                )
-            except Exception:
-                # Rendered pages are derived artifacts and can be rebuilt later.
-                await db.rollback()
+            enqueue_score_revision_render(score_uuid, revision_uuid, user_id)
             return await self._read(db, revision)
         except Exception:
             await db.rollback()

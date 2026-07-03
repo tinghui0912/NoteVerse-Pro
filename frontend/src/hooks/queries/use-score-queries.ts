@@ -86,6 +86,8 @@ export function useCreateRevision() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.artifacts(variables.scoreId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
     },
   });
 }

@@ -63,9 +63,7 @@ export function useReviewPageData(jobId: string) {
   const review = reviewQuery.data?.data;
   const xmlContent = review?.musicxml?.content ?? null;
   const originalFiles = useMemo(() => review?.original_images ?? [], [review?.original_images]);
-  const previewFiles = useMemo(() => review?.preview_images ?? [], [review?.preview_images]);
   const original = useReviewArtifacts(jobId, originalFiles);
-  const preview = useReviewArtifacts(jobId, previewFiles);
   const confirm = useConfirmJobReview();
 
   useEffect(() => {
@@ -122,7 +120,7 @@ export function useReviewPageData(jobId: string) {
     error,
     loading: reviewQuery.isLoading,
     original,
-    preview,
+    recognizedXml: xmlContent,
     validationWarnings,
   };
 }

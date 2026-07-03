@@ -1,14 +1,18 @@
 """Celery task entrypoints for image-processing jobs."""
 
+import asyncio
 from typing import List, Optional
 
 from celery.utils.log import get_task_logger
 
+from app.db.session import AsyncSessionLocal
 from app.db.worker_session import get_worker_db
+from app.modules.artifacts.render_service import RevisionRenderService
 from app.modules.jobs.execution_service import job_execution_service
 from app.modules.jobs.maintenance_service import job_maintenance_service
 from app.modules.jobs.schemas import JobProcessingOptions, PipelineExecutionSuccessResult
 from app.modules.notifications.maintenance_service import notification_maintenance_service
+from app.modules.review.thumbnail_service import review_thumbnail_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
 from app.worker.celery_config import celery_app
@@ -57,6 +61,43 @@ def send_email_task(
         return {"status": "failed", "to_email": to_email}
     logger.info(f"Email sent to {to_email}")
     return {"status": "sent", "to_email": to_email}
+
+
+@celery_app.task(
+    name="app.worker.tasks.render_score_revision_task",
+    autoretry_for=(Exception,),
+    ignore_result=True,
+    retry_backoff=True,
+    retry_jitter=True,
+    retry_kwargs={"max_retries": 2},
+)
+def render_score_revision_task(score_id: str, revision_id: str, user_id: int) -> dict[str, str]:
+    """Render derived score pages for a saved revision."""
+
+    async def _run() -> None:
+        async with AsyncSessionLocal() as db:
+            await RevisionRenderService().render(db, score_id, revision_id, user_id)
+
+    asyncio.run(_run())
+    logger.info("Rendered score revision %s/%s", score_id, revision_id)
+    return {"status": "rendered", "score_id": score_id, "revision_id": revision_id}
+
+
+@celery_app.task(
+    name="app.worker.tasks.render_review_thumbnail_task",
+    autoretry_for=(Exception,),
+    ignore_result=True,
+    retry_backoff=True,
+    retry_jitter=True,
+    retry_kwargs={"max_retries": 2},
+)
+def render_review_thumbnail_task(job_id: str) -> dict[str, str | None]:
+    """Render the current review MusicXML into a job list thumbnail."""
+
+    with get_worker_db() as db:
+        artifact_id = review_thumbnail_service.render(db, job_id)
+    logger.info("Rendered review thumbnail for %s: %s", job_id, artifact_id)
+    return {"status": "rendered", "job_id": job_id, "artifact_id": artifact_id}
 
 
 @celery_app.task(name="app.worker.tasks.run_job_maintenance")
