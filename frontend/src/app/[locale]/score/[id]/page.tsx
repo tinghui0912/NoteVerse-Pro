@@ -14,6 +14,7 @@ import { ScoreStyleTagsEditor } from '@/components/score-detail/score-style-tags
 import { EditorProvider } from '@/contexts/editor-provider';
 import { useScoreDetailResources } from '@/hooks/score-detail/use-score-detail-resources';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
 
 function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-scores' | null }) {
@@ -22,7 +23,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   const errors = useTranslations('errors');
   const resources = useScoreDetailResources(id);
   const error = resources.scoreError instanceof ApiError && resources.scoreError.code
-    ? errors(resources.scoreError.code as never)
+    ? translateErrorCode(errors, resources.scoreError.code)
     : resources.scoreError instanceof Error
       ? resources.scoreError.message
       : null;

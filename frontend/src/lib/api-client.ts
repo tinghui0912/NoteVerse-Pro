@@ -284,7 +284,10 @@ async function download(url: string, options?: RequestOptions): Promise<Blob> {
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, 'DOWNLOAD_FAILED', 'DOWNLOAD_FAILED');
+    const data = response.headers.get('content-type')?.includes('application/json')
+      ? await readJsonSafely(response)
+      : {};
+    throw createApiError(response, data, 'file_read_failed', 'file_read_failed');
   }
 
   return response.blob();

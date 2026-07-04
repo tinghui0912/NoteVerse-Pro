@@ -40,11 +40,11 @@ export function usePracticeSession({ scoreId, revisionId, shareToken, publicSlug
       frame_format: PCM_FRAME_FORMAT,
     }, { grantToken: shareToken, publicSlug });
     if (!response.data?.session_id || !response.data.ws_url) {
-      throw new Error(response.message || 'Practice session creation failed.');
+      throw new Error('Practice session creation failed.');
     }
     const detailResponse = await practiceApi.getPracticeSession(response.data.session_id);
     if (!detailResponse.data) {
-      throw new Error(detailResponse.message || 'Practice session details are unavailable.');
+      throw new Error('Practice session details are unavailable.');
     }
     return { detail: sync(detailResponse.data), wsUrl: response.data.ws_url };
   }, [publicSlug, revisionId, scoreId, shareToken, sync]);

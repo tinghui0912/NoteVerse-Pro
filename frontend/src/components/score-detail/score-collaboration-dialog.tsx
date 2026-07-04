@@ -30,6 +30,7 @@ import {
 } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/score/metadata-display';
 import type { MembershipRole } from '@/types/api';
 
@@ -54,6 +55,7 @@ export function ScoreCollaborationDialog({
   scoreId: string;
 }) {
   const t = useTranslations('scoreCollaboration');
+  const errors = useTranslations('errors');
   const locale = useLocale();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
@@ -115,13 +117,12 @@ export function ScoreCollaborationDialog({
         },
         onError: (error) => {
           const validationFailed = error instanceof ApiError && error.status === 422;
-          const serverFailed = error instanceof ApiError && error.status >= 500;
           toast({
             title: validationFailed ? t('emailInvalid') : t('inviteFailed'),
             description: validationFailed
               ? t('emailInvalidDescription')
-              : error instanceof ApiError && !serverFailed
-                ? error.message
+              : error instanceof ApiError
+                ? translateErrorCode(errors, error.code, t('inviteFailedDescription'))
                 : t('inviteFailedDescription'),
             variant: 'destructive',
           });

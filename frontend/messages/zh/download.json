@@ -1,3 +1,4 @@
 {
-  "downloadFailed": "下载失败"
+  "downloadFailed": "下载失败",
+  "downloadFailedDesc": "文件下载失败，链接可能失效或文件不存在。"
 }

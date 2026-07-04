@@ -9,6 +9,7 @@ import { useImportJobDetail, useSubmitImportJob } from '@/hooks/queries/use-impo
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, importJobsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
@@ -26,6 +27,7 @@ function revokePreview(preview: string) {
 export function useUploadWorkflow() {
   const t = useTranslations('upload');
   const tCommon = useTranslations('common');
+  const errors = useTranslations('errors');
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -229,7 +231,9 @@ export function useUploadWorkflow() {
             itemIndex === index ? { ...item, status: 'uploaded', fileId } : item
           ));
         } catch (error) {
-          const message = error instanceof ApiError ? error.message : tCommon('operationFailed');
+          const message = error instanceof ApiError
+            ? translateErrorCode(errors, error.code, tCommon('operationFailed'))
+            : tCommon('operationFailed');
           setTrackedFiles((current) => current.map((item, itemIndex) =>
             itemIndex === index ? { ...item, status: 'error', error: message } : item
           ));
@@ -255,7 +259,7 @@ export function useUploadWorkflow() {
       toast({ title: t('taskStarted'), description: t('taskStartedDesc') });
     } catch (error) {
       const message = error instanceof ApiError
-        ? error.message
+        ? translateErrorCode(errors, error.code, t('processingFailed'))
         : error instanceof Error && error.message
           ? error.message
           : t('processingFailed');
@@ -263,7 +267,7 @@ export function useUploadWorkflow() {
       setIsUploading(false);
       setIsSubmitting(false);
     }
-  }, [scoreName, setTrackedFiles, submitJobMutation, t, taxonomyTags, tCommon, toast]);
+  }, [errors, scoreName, setTrackedFiles, submitJobMutation, t, taxonomyTags, tCommon, toast]);
 
   return {
     appendFiles,

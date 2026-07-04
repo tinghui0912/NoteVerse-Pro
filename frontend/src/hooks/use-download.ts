@@ -5,6 +5,7 @@ import { filesApi, scoresApi, scoreSharingApi } from '@/lib/api';
 import type { ScoreArtifact } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 
 interface UseDownloadOptions {
     mode: 'score' | 'grant';
@@ -77,7 +78,7 @@ export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): U
                 : null;
             toast({
                 title: t('downloadFailed'),
-                description: errorCode ? tErrors(errorCode as never) : tErrors('UNKNOWN_ERROR'),
+                description: translateErrorCode(tErrors, errorCode, t('downloadFailedDesc')),
                 variant: 'destructive',
             });
         }

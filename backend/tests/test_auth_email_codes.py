@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 
 import pytest
+import redis
 
 from app.core.config import settings
-from app.core.exceptions import ValidationException
+from app.core.exceptions import ExternalServiceException, ValidationException
 from app.modules.auth.schemas import SendCodeRequest, VerifyCodeRequest
 from app.modules.auth.service import AuthService, REDIS_KEY_VERIFY_PREFIX
 from app.shared.constants import ErrorCode
@@ -29,6 +30,20 @@ class FakeRedis:
     def delete(self, key: str) -> None:
         self.values.pop(key, None)
         self.ttls.pop(key, None)
+
+
+class UnavailableRedis:
+    def ttl(self, key: str) -> int:
+        raise redis.RedisError("redis unavailable")
+
+    def get(self, key: str) -> str | None:
+        raise redis.RedisError("redis unavailable")
+
+    def setex(self, key: str, seconds: int, value: str) -> None:
+        raise redis.RedisError("redis unavailable")
+
+    def delete(self, key: str) -> None:
+        raise redis.RedisError("redis unavailable")
 
 
 def _verification_key(challenge_id: str) -> str:
@@ -73,6 +88,30 @@ async def test_send_email_code_uses_localized_html_templates(monkeypatch: pytest
     assert "注册验证码" in sent[0][1]
     assert "10 分钟" in sent[0][2]
     assert sent[0][3] and "<html" in sent[0][3]
+
+
+@pytest.mark.asyncio
+async def test_send_email_code_reports_verification_store_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[tuple[str, str, str, str | None]] = []
+    monkeypatch.setattr(
+        "app.modules.auth.service.dispatch_email",
+        lambda to_email, subject, body, html_body=None: sent.append(
+            (to_email, subject, body, html_body)
+        ),
+    )
+
+    service = AuthService(redis_client=UnavailableRedis())  # type: ignore[arg-type]
+    with pytest.raises(ExternalServiceException) as exc:
+        await service.send_email_code(
+            FakeDb(),
+            SendCodeRequest(email="user@example.com", purpose="register", locale="zh"),
+        )
+
+    assert exc.value.code == ErrorCode.EMAIL_SERVICE_UNAVAILABLE
+    assert exc.value.status_code == 503
+    assert sent == []
 
 
 @pytest.mark.asyncio

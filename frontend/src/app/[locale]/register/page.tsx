@@ -13,6 +13,7 @@ import { Music2, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { ApiError } from '@/lib/api-client';
 import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 
 export default function RegisterPage() {
   const t = useTranslations('auth');
@@ -86,7 +87,7 @@ export default function RegisterPage() {
       setStep('verify_code');
     } catch (err) {
       if (err instanceof ApiError) {
-        setEmailError(err.code ? tErrors(err.code as never) : err.message || t('sendCodeFailed'));
+        setEmailError(translateErrorCode(tErrors, err.code, err.message || t('sendCodeFailed')));
       } else {
         setEmailError(t('sendCodeFailedRetry'));
       }
@@ -107,7 +108,7 @@ export default function RegisterPage() {
       setTimeout(() => setInfoMessage(''), 5000);
     } catch (err) {
       if (err instanceof ApiError) {
-        setCodeError(err.code ? tErrors(err.code as never) : err.message || t('resendFailed'));
+        setCodeError(translateErrorCode(tErrors, err.code, err.message || t('resendFailed')));
       }
     } finally {
       setIsSubmitting(false);
@@ -134,7 +135,7 @@ export default function RegisterPage() {
       router.push(getSafeReturnUrl(returnUrl));
     } catch (err) {
       if (err instanceof ApiError) {
-        setCodeError(err.code ? tErrors(err.code as never) : err.message || t('verifyFailed'));
+        setCodeError(translateErrorCode(tErrors, err.code, err.message || t('verifyFailed')));
       } else {
         setCodeError(t('registerFailed'));
       }

@@ -16,7 +16,7 @@ export function useSharePageData(shareId: string) {
   const error = useMemo(() => {
     const queryError = accessQuery.error ?? contentQuery.error;
     if (!queryError) return null;
-    if (!(queryError instanceof ApiError)) return { type: 'unknown' as const, message: '' };
+    if (!(queryError instanceof ApiError)) return { type: 'unknown' as const };
     const type: ShareAccessErrorType = queryError.code === 'share_not_found'
       ? 'not_found'
       : queryError.code === 'share_revoked'
@@ -24,7 +24,7 @@ export function useSharePageData(shareId: string) {
         : queryError.code === 'share_expired'
           ? 'expired'
           : 'unknown';
-    return { type, message: queryError.message };
+    return { type };
   }, [accessQuery.error, contentQuery.error]);
 
   return {

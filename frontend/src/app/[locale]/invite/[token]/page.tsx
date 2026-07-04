@@ -10,9 +10,14 @@ import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
 import { useAcceptScoreInvite, useScoreInviteAccess } from '@/hooks/queries/use-score-queries';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/score/metadata-display';
 
-function getInviteErrorConfig(error: unknown, t: ReturnType<typeof useTranslations>) {
+function getInviteErrorConfig(
+  error: unknown,
+  t: ReturnType<typeof useTranslations>,
+  errors: ReturnType<typeof useTranslations>
+) {
   if (!(error instanceof ApiError)) {
     return {
       icon: CircleAlert,
@@ -48,7 +53,7 @@ function getInviteErrorConfig(error: unknown, t: ReturnType<typeof useTranslatio
   return {
     icon: CircleAlert,
     title: t('loadFailed'),
-    description: error.message || t('loadFailedDescription'),
+    description: translateErrorCode(errors, error.code, t('loadFailedDescription')),
   };
 }
 
@@ -56,6 +61,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const { token } = React.use(params);
   const t = useTranslations('scoreCollaboration');
   const common = useTranslations('common');
+  const errors = useTranslations('errors');
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -116,7 +122,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   }
 
   if (inviteQuery.error || !invite) {
-    const config = getInviteErrorConfig(inviteQuery.error, t);
+    const config = getInviteErrorConfig(inviteQuery.error, t, errors);
     return (
       <ScoreShell footer={false}>
         <div className="flex min-h-screen items-center justify-center px-4 py-16">
@@ -190,7 +196,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
           {acceptInvite.error ? (
             <div className="mt-6 rounded-xl border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
               {acceptInvite.error instanceof ApiError
-                ? acceptInvite.error.message
+                ? translateErrorCode(errors, acceptInvite.error.code, t('acceptFailedDescription'))
                 : t('acceptFailedDescription')}
             </div>
           ) : null}

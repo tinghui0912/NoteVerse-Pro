@@ -20,6 +20,7 @@ import { useDownload } from '@/hooks/use-download';
 import { useToast } from '@/hooks/use-toast';
 import { scoreSharingApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { formatApiDateTime, formatKeySignature } from '@/lib/score/metadata-display';
 import { SCORE_GENRE_TAGS, taxonomyTagKey } from '@/lib/score/taxonomy';
 import type {
@@ -46,6 +47,7 @@ function fallbackInitial(name: string) {
 export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
   const t = useTranslations('share');
   const common = useTranslations('common');
+  const errors = useTranslations('errors');
   const scoreText = useTranslations('score');
   const practice = useTranslations('practice');
   const scoreStyles = useTranslations('scoreStyles.genre');
@@ -80,7 +82,9 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
     }),
     onError: (error) => toast({
       title: t('saveFailed'),
-      description: error instanceof ApiError ? error.message : t('saveFailedDesc'),
+      description: error instanceof ApiError
+        ? translateErrorCode(errors, error.code, t('saveFailedDesc'))
+        : t('saveFailedDesc'),
       variant: 'destructive',
     }),
   });

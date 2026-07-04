@@ -20,7 +20,6 @@ const namespaces = [
   'practice',
   'pricing',
   'help',
-  'backend',
   'metadata',
   'scoreStyles',
 ] as const;

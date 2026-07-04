@@ -17,6 +17,7 @@ class ErrorCode:
     INVALID_CREDENTIALS = "invalid_credentials"
     EMAIL_MISMATCH = "email_mismatch"
     EMAIL_INVALID = "email_invalid"
+    EMAIL_SERVICE_UNAVAILABLE = "email_service_unavailable"
     VERIFICATION_CODE_INVALID = "verification_code_invalid"
     VERIFICATION_CODE_WRONG = "verification_code_wrong"
     VERIFICATION_ATTEMPTS_EXCEEDED = "verification_attempts_exceeded"

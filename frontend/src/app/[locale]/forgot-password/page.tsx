@@ -12,6 +12,7 @@ import { Music2, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
@@ -73,7 +74,7 @@ export default function ForgotPasswordPage() {
       setStep('verify_code');
     } catch (err) {
       if (err instanceof ApiError) {
-        setEmailError(err.code ? tErrors(err.code as never) : err.message || t('sendCodeFailed'));
+        setEmailError(translateErrorCode(tErrors, err.code, err.message || t('sendCodeFailed')));
       } else {
         setEmailError(t('sendCodeFailedRetry'));
       }
@@ -99,7 +100,7 @@ export default function ForgotPasswordPage() {
       setStep('new_password');
     } catch (err) {
       if (err instanceof ApiError) {
-        setCodeError(err.code ? tErrors(err.code as never) : err.message || t('verifyFailed'));
+        setCodeError(translateErrorCode(tErrors, err.code, err.message || t('verifyFailed')));
       } else {
         setCodeError(t('verifyFailedRetry'));
       }
@@ -128,7 +129,7 @@ export default function ForgotPasswordPage() {
       router.push('/login?reset=success');
     } catch (err) {
       if (err instanceof ApiError) {
-        setPasswordError(err.message || t('resetFailed'));
+        setPasswordError(translateErrorCode(tErrors, err.code, err.message || t('resetFailed')));
       } else {
         setPasswordError(t('resetFailedRetry'));
       }

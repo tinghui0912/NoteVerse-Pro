@@ -52,7 +52,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
           : {
             icon: CircleAlert,
             title: t('loadFailed'),
-            description: page.error?.message || t('loadFailed'),
+            description: t('loadFailed'),
             hint: t('hintNotFound'),
           };
     return (

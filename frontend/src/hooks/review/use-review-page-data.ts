@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useConfirmImportJobReview, useImportJobReview } from '@/hooks/queries/use-review-queries';
 import { importJobsApi } from '@/lib/api';
+import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
 import type { ReviewArtifact } from '@/types/api';
@@ -58,6 +60,7 @@ export function useReviewPageData(jobId: string) {
   const editor = useTranslations('editor');
   const common = useTranslations('common');
   const auth = useTranslations('auth');
+  const errors = useTranslations('errors');
   const router = useRouter();
   const reviewQuery = useImportJobReview(jobId);
   const review = reviewQuery.data?.data;
@@ -95,9 +98,13 @@ export function useReviewPageData(jobId: string) {
 
   const error = useMemo(() => {
     const queryError = reviewQuery.error;
-    if (queryError) return queryError instanceof Error ? queryError.message : t('loadFailed');
+    if (queryError) {
+      return queryError instanceof ApiError
+        ? translateErrorCode(errors, queryError.code, t('loadFailed'))
+        : t('loadFailed');
+    }
     return null;
-  }, [reviewQuery.error, t]);
+  }, [errors, reviewQuery.error, t]);
 
   const confirmRecognition = () => {
     if (!xmlContent) return;

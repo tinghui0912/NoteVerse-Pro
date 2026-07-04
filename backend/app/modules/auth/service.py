@@ -7,6 +7,7 @@ import json
 import secrets
 import uuid
 from datetime import timedelta
+from typing import Callable, TypeVar
 
 import redis
 from sqlmodel import select
@@ -16,9 +17,11 @@ from app.core import security
 from app.core.config import settings
 from app.core.exceptions import (
     AuthenticationException,
+    ExternalServiceException,
     ResourceAlreadyExistsException,
     ValidationException,
 )
+from app.core.logger import logger
 from app.db.models.user import User
 from app.db.models.auth import RefreshToken
 from app.db.model_utils import require_persisted_id
@@ -36,6 +39,7 @@ from app.utils.timezone import utc_now_naive
 
 REDIS_KEY_VERIFY_PREFIX = "email_verify:"
 REDIS_KEY_COOLDOWN_PREFIX = "email_cooldown:"
+T = TypeVar("T")
 
 
 class AuthService:
@@ -59,9 +63,19 @@ class AuthService:
             return settings.EMAIL_PASSWORD_RESET_CODE_TTL_SECONDS
         return settings.EMAIL_REGISTER_CODE_TTL_SECONDS
 
+    def _redis_call(self, operation: Callable[[], T]) -> T:
+        try:
+            return operation()
+        except redis.RedisError as exc:
+            logger.warning(f"Email verification store unavailable: {exc}")
+            raise ExternalServiceException(
+                service="redis",
+                code=ErrorCode.EMAIL_SERVICE_UNAVAILABLE,
+            ) from exc
+
     def _load_email_code_payload(self, request: VerifyCodeRequest) -> tuple[str, dict]:
         key = f"{REDIS_KEY_VERIFY_PREFIX}{request.challenge_id}"
-        raw = self.redis_client.get(key)
+        raw = self._redis_call(lambda: self.redis_client.get(key))
         if not raw:
             raise ValidationException(
                 code=ErrorCode.VERIFICATION_CODE_INVALID,
@@ -72,16 +86,16 @@ class AuthService:
     def _register_failed_code_attempt(self, key: str, data: dict) -> None:
         attempts = int(data.get("attempts", 0)) + 1
         if attempts >= settings.EMAIL_CODE_MAX_ATTEMPTS:
-            self.redis_client.delete(key)
+            self._redis_call(lambda: self.redis_client.delete(key))
             raise ValidationException(
                 code=ErrorCode.VERIFICATION_ATTEMPTS_EXCEEDED,
                 field="code",
             )
 
         data["attempts"] = attempts
-        ttl = self.redis_client.ttl(key)
+        ttl = self._redis_call(lambda: self.redis_client.ttl(key))
         if ttl > 0:
-            self.redis_client.setex(key, ttl, json.dumps(data))
+            self._redis_call(lambda: self.redis_client.setex(key, ttl, json.dumps(data)))
         raise ValidationException(
             code=ErrorCode.VERIFICATION_CODE_WRONG,
             field="code",
@@ -299,7 +313,7 @@ class AuthService:
             )
 
         cooldown_key = f"{REDIS_KEY_COOLDOWN_PREFIX}{email}"
-        ttl = self.redis_client.ttl(cooldown_key)
+        ttl = self._redis_call(lambda: self.redis_client.ttl(cooldown_key))
         if ttl > 0:
             raise ValidationException(
                 code=ErrorCode.REQUEST_TOO_FREQUENT,
@@ -313,15 +327,19 @@ class AuthService:
         ttl_seconds = self._email_code_ttl(purpose)
 
         payload = {"email": email, "code_hash": code_hash, "purpose": purpose, "attempts": 0}
-        self.redis_client.setex(
-            f"{REDIS_KEY_VERIFY_PREFIX}{challenge_id}",
-            ttl_seconds,
-            json.dumps(payload),
+        self._redis_call(
+            lambda: self.redis_client.setex(
+                f"{REDIS_KEY_VERIFY_PREFIX}{challenge_id}",
+                ttl_seconds,
+                json.dumps(payload),
+            )
         )
-        self.redis_client.setex(
-            cooldown_key,
-            settings.EMAIL_CODE_COOLDOWN_SECONDS,
-            "1",
+        self._redis_call(
+            lambda: self.redis_client.setex(
+                cooldown_key,
+                settings.EMAIL_CODE_COOLDOWN_SECONDS,
+                "1",
+            )
         )
 
         email_content = build_verification_email(
@@ -357,7 +375,7 @@ class AuthService:
             subject=f"verify:{email}",
             expires_delta=timedelta(seconds=settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS),
         )
-        self.redis_client.delete(key)
+        self._redis_call(lambda: self.redis_client.delete(key))
         return {"verified_token": verified_token}
 
     def verify_password_reset_code(self, request: VerifyCodeRequest) -> dict[str, str]:
@@ -379,7 +397,7 @@ class AuthService:
             subject=f"reset:{email}",
             expires_delta=timedelta(seconds=settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS),
         )
-        self.redis_client.delete(key)
+        self._redis_call(lambda: self.redis_client.delete(key))
         return {"reset_token": reset_token}
 
     async def reset_password(self, db: AsyncSession, request: ResetPasswordRequest) -> None:

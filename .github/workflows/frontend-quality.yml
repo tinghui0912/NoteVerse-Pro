@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - "frontend/**"
+      - "backend/app/shared/constants.py"
       - ".github/workflows/frontend-quality.yml"
   pull_request:
     paths:
       - "frontend/**"
+      - "backend/app/shared/constants.py"
       - ".github/workflows/frontend-quality.yml"
 
 concurrency:
@@ -39,6 +41,9 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Check API error translations
+        run: npm run check:i18n-errors
 
       - name: Run TypeScript checks
         run: npm run typecheck

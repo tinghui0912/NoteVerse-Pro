@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useBackendMessage } from '@/hooks/use-backend-message';
 import { Button } from '@/components/ui/button';
 import { practiceApi } from '@/lib/api';
 import {
@@ -29,6 +28,7 @@ import { PracticeStatusPanel } from '@/components/practice/practice-status-panel
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { ScoreShell } from '@/components/score-shell/score-shell';
 import { WorkspaceAccessDenied } from '@/components/score-shell/workspace-access-denied';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type {
   PracticeConnectionStatus,
@@ -49,7 +49,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
   const t = useTranslations('practice');
-  const tb = useBackendMessage();
+  const errors = useTranslations('errors');
   const router = useRouter();
   const searchParams = useSearchParams();
   const shareToken = searchParams.get('shareToken') || undefined;
@@ -287,7 +287,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       toast({
         variant: 'destructive',
         title: t('analysisFailedTitle'),
-        description: tb(message.payload.code) || message.payload.message,
+        description: translateErrorCode(errors, message.payload.code, message.payload.message),
       });
     }
   }
@@ -499,7 +499,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       const response = await practiceApi.requestPracticeReport(reportSessionId);
       const report = response.data ?? (await practiceApi.getPracticeReport(reportSessionId)).data;
       if (!report?.report_payload) {
-        throw new Error(response.message || 'Analysis failed');
+        throw new Error('Analysis failed');
       }
       router.push(`/score/${id}/practice/performance?sessionId=${encodeURIComponent(reportSessionId)}`);
     } catch (error) {

@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 
 export function useEditorSaveErrorToast({
   titleNamespace = 'editor',
@@ -12,13 +13,16 @@ export function useEditorSaveErrorToast({
 } = {}) {
   const editor = useTranslations('editor');
   const review = useTranslations('review');
+  const errors = useTranslations('errors');
   const { toast } = useToast();
 
   return useCallback((error: unknown) => {
     toast({
       title: titleNamespace === 'review' ? review('saveFailed') : editor('saveFailed'),
-      description: error instanceof ApiError ? error.message : editor('saveFailedDesc'),
+      description: error instanceof ApiError
+        ? translateErrorCode(errors, error.code, editor('saveFailedDesc'))
+        : editor('saveFailedDesc'),
       variant: 'destructive',
     });
-  }, [editor, review, titleNamespace, toast]);
+  }, [editor, errors, review, titleNamespace, toast]);
 }

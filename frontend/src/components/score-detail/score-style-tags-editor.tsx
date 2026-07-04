@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/select';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
+import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import {
   SCORE_GENRE_TAGS,
   taxonomyTagKey,
@@ -49,6 +51,7 @@ export function ScoreStyleTagsEditor({
 }) {
   const t = useTranslations('score');
   const scoreStyles = useTranslations('scoreStyles.genre');
+  const errors = useTranslations('errors');
   const mutation = useUpdateScore();
   const { toast } = useToast();
   const { capabilities } = useScoreShell();
@@ -82,7 +85,9 @@ export function ScoreStyleTagsEditor({
           toast({
             variant: 'destructive',
             title: t('saveFailed'),
-            description: error instanceof Error ? error.message : t('saveFailedDesc'),
+            description: error instanceof ApiError
+              ? translateErrorCode(errors, error.code, t('saveFailedDesc'))
+              : t('saveFailedDesc'),
           });
         },
       }

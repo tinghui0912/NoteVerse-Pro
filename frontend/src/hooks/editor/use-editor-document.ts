@@ -18,11 +18,13 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { FingeringHandSize } from '@/types/api';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
 export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; returnUrl?: string }): EditorWorkspaceDocument {
   const t = useTranslations('editor');
+  const errors = useTranslations('errors');
   const { toast } = useToast();
   const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
   const completeSave = useEditorSaveCompletion({ applyXml });
@@ -145,7 +147,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
           if (!response.success || !generatedXml) {
             toast({
               title: t('fingeringFailed'),
-              description: response.message || t('fingeringFailedDesc'),
+              description: t('fingeringFailedDesc'),
               variant: 'destructive',
             });
             return;
@@ -169,7 +171,9 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
         onError: (error) => {
           toast({
             title: t('fingeringFailed'),
-            description: error instanceof ApiError ? error.message : t('fingeringFailedDesc'),
+            description: error instanceof ApiError
+              ? translateErrorCode(errors, error.code, t('fingeringFailedDesc'))
+              : t('fingeringFailedDesc'),
             variant: 'destructive',
           });
         },

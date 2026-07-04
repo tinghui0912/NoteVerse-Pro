@@ -40,6 +40,7 @@ import {
 } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { getShareExpirationDays } from '@/lib/score-detail/share';
 import { formatApiDateTime, parseApiDate } from '@/lib/score/metadata-display';
 import type { ScoreGrant } from '@/types/api';
@@ -62,6 +63,7 @@ export function ScoreShareDialog({
 }) {
   const t = useTranslations('scoreShare');
   const common = useTranslations('common');
+  const errors = useTranslations('errors');
   const locale = useLocale();
   const { toast } = useToast();
   const [expiration, setExpiration] = useState('permanent');
@@ -125,7 +127,9 @@ export function ScoreShareDialog({
         onError: (error) =>
           toast({
             title: t('createFailed'),
-            description: error instanceof ApiError ? error.message : t('createFailedDescription'),
+            description: error instanceof ApiError
+              ? translateErrorCode(errors, error.code, t('createFailedDescription'))
+              : t('createFailedDescription'),
             variant: 'destructive',
           }),
       }
@@ -159,7 +163,9 @@ export function ScoreShareDialog({
       onError: (error) =>
         toast({
           title: t('disableFailed'),
-          description: error instanceof ApiError ? error.message : t('disableFailedDescription'),
+          description: error instanceof ApiError
+            ? translateErrorCode(errors, error.code, t('disableFailedDescription'))
+            : t('disableFailedDescription'),
           variant: 'destructive',
         }),
     });
@@ -171,7 +177,9 @@ export function ScoreShareDialog({
       onError: (error) =>
         toast({
           title: t('enableFailed'),
-          description: error instanceof ApiError ? error.message : t('enableFailedDescription'),
+          description: error instanceof ApiError
+            ? translateErrorCode(errors, error.code, t('enableFailedDescription'))
+            : t('enableFailedDescription'),
           variant: 'destructive',
         }),
     });
@@ -191,7 +199,9 @@ export function ScoreShareDialog({
       onError: (error) =>
         toast({
           title: t('deleteFailed'),
-          description: error instanceof ApiError ? error.message : t('deleteFailedDescription'),
+          description: error instanceof ApiError
+            ? translateErrorCode(errors, error.code, t('deleteFailedDescription'))
+            : t('deleteFailedDescription'),
           variant: 'destructive',
         }),
     });

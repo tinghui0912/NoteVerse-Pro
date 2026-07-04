@@ -60,7 +60,7 @@ export default function PracticePerformancePage() {
         const nextReport =
           response.data ?? (await practiceApi.getPracticeReport(sessionId)).data;
         if (!nextReport?.report_payload) {
-          throw new Error(response.message || 'Practice report is not ready.');
+          throw new Error(t('analysisFailedDesc'));
         }
         if (!cancelled) {
           setReport(nextReport.report_payload);

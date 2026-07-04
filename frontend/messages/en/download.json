@@ -1,3 +1,4 @@
 {
-  "downloadFailed": "Download Failed"
+  "downloadFailed": "Download Failed",
+  "downloadFailedDesc": "File download failed. The link might be invalid or the file no longer exists."
 }

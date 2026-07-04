@@ -127,6 +127,28 @@ Owns import lifecycle:
 
 Do not put durable score editing, publication, or sharing rules here.
 
+### `app.pipeline` and `app.processing`
+
+`app.pipeline` owns the import workflow composition:
+
+- step ordering;
+- per-step progress updates;
+- worker-local scratch paths;
+- recording import artifacts through `modules/import_jobs`.
+
+`app.processing` is an engine and algorithm library:
+
+- OMR engines;
+- render engines;
+- MusicXML extraction and normalization helpers;
+- text recognition and text integration processors;
+- real-time practice matching and reports.
+
+`app.processing` should remain product-agnostic. It must not import `ImportJob`,
+`ImportArtifact`, Score memberships, sharing, notifications, or API schemas. Product
+lifecycle belongs in `modules/import_jobs`, `modules/review`, `modules/scores`, and
+`app.pipeline` orchestration.
+
 ### `modules/review`
 
 Owns the pre-Score human review boundary:

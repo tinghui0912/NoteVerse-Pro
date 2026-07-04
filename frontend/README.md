@@ -47,6 +47,7 @@ Run inside the frontend container:
 
 ```powershell
 docker compose -f docker-compose.frontend-dev.yml run --rm frontend npm run lint
+docker compose -f docker-compose.frontend-dev.yml run --rm frontend npm run check:i18n-errors
 docker compose -f docker-compose.frontend-dev.yml run --rm frontend npm run typecheck
 ```
 

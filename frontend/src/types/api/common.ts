@@ -1,5 +1,9 @@
 export interface ApiResponse<T = unknown> {
   success: boolean;
+  /**
+   * Backend business code. Do not render this directly as UI copy.
+   * Use feature-local text or a dedicated translation dictionary instead.
+   */
   message?: string;
   data?: T;
   code?: string;

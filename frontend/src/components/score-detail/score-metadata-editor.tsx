@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { useScoreShell } from '@/components/score-shell/score-shell';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
+import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { formatApiDateTime, formatKeySignature } from '@/lib/score/metadata-display';
 import type { ScoreDetail } from '@/types/api';
 
@@ -28,6 +30,7 @@ export function ScoreMetadataEditor({
 }: ScoreMetadataEditorProps) {
   const t = useTranslations('score');
   const common = useTranslations('common');
+  const errors = useTranslations('errors');
   const locale = useLocale();
   const { toast } = useToast();
   const mutation = useUpdateScore();
@@ -68,7 +71,9 @@ export function ScoreMetadataEditor({
         onError: (error) => toast({
           variant: 'destructive',
           title: t('saveFailed'),
-          description: error instanceof Error ? error.message : t('saveFailedDesc'),
+          description: error instanceof ApiError
+            ? translateErrorCode(errors, error.code, t('saveFailedDesc'))
+            : t('saveFailedDesc'),
         }),
       }
     );

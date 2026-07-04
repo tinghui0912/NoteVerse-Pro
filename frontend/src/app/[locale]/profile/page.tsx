@@ -14,6 +14,7 @@ import React, { useRef, useState } from 'react';
 import { AvatarCropperModal } from '@/components/profile/avatar-cropper-modal';
 import { useUploadAvatar, useUpdateProfile, useChangePassword } from '@/hooks/queries/use-profile-mutations';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
@@ -75,7 +76,9 @@ export default function ProfilePage() {
       onError: (error) => {
         toast({
           title: t('uploadFailed'),
-          description: error instanceof ApiError && error.code ? tErrors(error.code as never) : t('uploadFailedDesc'),
+          description: error instanceof ApiError
+            ? translateErrorCode(tErrors, error.code, t('uploadFailedDesc'))
+            : t('uploadFailedDesc'),
           variant: 'destructive',
         });
       },
@@ -94,7 +97,9 @@ export default function ProfilePage() {
       onError: (error) => {
         toast({
           title: t('updateFailed'),
-          description: error instanceof ApiError && error.code ? tErrors(error.code as never) : t('updateFailedDesc'),
+          description: error instanceof ApiError
+            ? translateErrorCode(tErrors, error.code, t('updateFailedDesc'))
+            : t('updateFailedDesc'),
           variant: 'destructive',
         });
       },
@@ -132,7 +137,9 @@ export default function ProfilePage() {
       onError: (error) => {
         toast({
           title: t('passwordFailed'),
-          description: error instanceof ApiError && error.code ? tErrors(error.code as never) : t('passwordFailedDesc'),
+          description: error instanceof ApiError
+            ? translateErrorCode(tErrors, error.code, t('passwordFailedDesc'))
+            : t('passwordFailedDesc'),
           variant: 'destructive',
         });
       },
