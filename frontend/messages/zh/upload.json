@@ -22,7 +22,6 @@
   "processingTimeoutDesc": "任务已超过预期处理时间。你可以重试，或稍后到我的乐谱库查看是否已在后台完成。",
   "uploadFailedFile": "文件 {name} 上传失败",
   "taskProcessingFailed": "任务处理过程中发生错误",
-  "legato_inference_failed": "乐谱识别失败，请稍后重试或上传更清晰的图片。",
   "processingFailedStatus": "处理失败",
   "uploadedStatus": "已上传",
   "removeImage": "移除 {name}",

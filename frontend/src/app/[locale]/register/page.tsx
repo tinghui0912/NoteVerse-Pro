@@ -87,7 +87,7 @@ export default function RegisterPage() {
       setStep('verify_code');
     } catch (err) {
       if (err instanceof ApiError) {
-        setEmailError(translateErrorCode(tErrors, err.code, err.message || t('sendCodeFailed')));
+        setEmailError(translateErrorCode(tErrors, err.code, t('sendCodeFailed')));
       } else {
         setEmailError(t('sendCodeFailedRetry'));
       }
@@ -108,7 +108,7 @@ export default function RegisterPage() {
       setTimeout(() => setInfoMessage(''), 5000);
     } catch (err) {
       if (err instanceof ApiError) {
-        setCodeError(translateErrorCode(tErrors, err.code, err.message || t('resendFailed')));
+        setCodeError(translateErrorCode(tErrors, err.code, t('resendFailed')));
       }
     } finally {
       setIsSubmitting(false);
@@ -135,7 +135,7 @@ export default function RegisterPage() {
       router.push(getSafeReturnUrl(returnUrl));
     } catch (err) {
       if (err instanceof ApiError) {
-        setCodeError(translateErrorCode(tErrors, err.code, err.message || t('verifyFailed')));
+        setCodeError(translateErrorCode(tErrors, err.code, t('verifyFailed')));
       } else {
         setCodeError(t('registerFailed'));
       }

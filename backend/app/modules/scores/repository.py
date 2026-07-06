@@ -20,9 +20,6 @@ from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
 score_title_col = Score.__table__.c.title
 score_updated_col = Score.__table__.c.updated_at
-revision_number_col = ScoreRevision.__table__.c.revision_number
-
-
 class ScoreRepository:
     async def list_owned(
         self,
@@ -87,14 +84,6 @@ class ScoreRepository:
                 select(ScoreRevision).where(ScoreRevision.revision_uuid == revision_uuid)
             )
         ).scalar_one_or_none()
-
-    async def revisions(self, db: AsyncSession, score_id: int) -> list[ScoreRevision]:
-        rows = await db.execute(
-            select(ScoreRevision)
-            .where(ScoreRevision.score_id == score_id)
-            .order_by(revision_number_col.desc())
-        )
-        return list(rows.scalars().all())
 
     async def canonical_artifact(
         self, db: AsyncSession, revision_id: int

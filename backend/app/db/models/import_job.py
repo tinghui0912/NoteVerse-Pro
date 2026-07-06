@@ -7,6 +7,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     Column,
     DateTime,
     Enum as SAEnum,
@@ -42,9 +43,21 @@ class ImportJobStepStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 
+class ImportDispatchStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    DISPATCHED = "DISPATCHED"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
 class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "import_jobs"
     __table_args__ = (
+        CheckConstraint(
+            "dispatch_attempt_count >= 0",
+            name="ck_import_jobs_dispatch_attempt_count",
+        ),
         UniqueConstraint(
             "user_id",
             "idempotency_key",
@@ -52,6 +65,7 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         ),
         Index("idx_import_jobs_user_created", "user_id", "created_at"),
         Index("idx_import_jobs_state", "state"),
+        Index("idx_import_jobs_dispatch_due", "dispatch_status", "next_dispatch_at"),
     )
 
     id: Optional[int] = Field(
@@ -73,6 +87,26 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(metadata_json_type),
     )
+    dispatch_status: ImportDispatchStatus = Field(
+        default=ImportDispatchStatus.PENDING,
+        sa_column=Column(
+            SAEnum(ImportDispatchStatus, name="importdispatchstatus"),
+            default=ImportDispatchStatus.PENDING,
+            nullable=False,
+        ),
+    )
+    dispatch_attempt_count: int = Field(
+        default=0,
+        sa_column=Column(Integer, default=0, nullable=False),
+    )
+    next_dispatch_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    dispatched_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    dispatch_started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    dispatch_completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    dispatch_error: Optional[str] = Field(default=None, sa_column=Column(Text))
     code: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     error: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_type: Optional[str] = Field(default=None, sa_column=Column(String(64)))

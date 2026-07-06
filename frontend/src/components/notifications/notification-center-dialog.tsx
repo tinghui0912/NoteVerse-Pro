@@ -29,6 +29,8 @@ import {
   useMyNotifications,
 } from '@/hooks/queries/use-notification-queries';
 import { formatApiDateTime } from '@/lib/score/metadata-display';
+import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { NotificationEvent, PendingScoreInvite } from '@/types/api';
 
 interface NotificationCenterDialogProps {
@@ -63,6 +65,7 @@ export function NotificationCenterDialog({
 }: NotificationCenterDialogProps) {
   const t = useTranslations('notifications');
   const collaborationT = useTranslations('scoreCollaboration');
+  const errors = useTranslations('errors');
   const locale = useLocale();
   const router = useRouter();
   const { toast } = useToast();
@@ -91,10 +94,12 @@ export function NotificationCenterDialog({
         onOpenChange(false);
         router.push(`/score/${response.data?.score_id ?? invite.score_id}`);
       },
-      onError: () => {
+      onError: (error) => {
         toast({
           title: t('acceptFailed'),
-          description: t('acceptFailedDescription'),
+          description: error instanceof ApiError
+            ? translateErrorCode(errors, error.code, t('acceptFailedDescription'))
+            : t('acceptFailedDescription'),
           variant: 'destructive',
         });
       },
@@ -106,10 +111,12 @@ export function NotificationCenterDialog({
       onSuccess: () => {
         toast({ title: t('declined'), description: t('declinedDescription') });
       },
-      onError: () => {
+      onError: (error) => {
         toast({
           title: t('declineFailed'),
-          description: t('declineFailedDescription'),
+          description: error instanceof ApiError
+            ? translateErrorCode(errors, error.code, t('declineFailedDescription'))
+            : t('declineFailedDescription'),
           variant: 'destructive',
         });
       },

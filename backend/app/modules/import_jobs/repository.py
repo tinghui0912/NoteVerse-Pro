@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -14,8 +14,6 @@ from app.db.models import (
     Score,
     Upload,
 )
-from app.db.models.import_job import ImportJobState
-
 job_uuid_col = ImportJob.__table__.c.job_uuid
 job_created_col = ImportJob.__table__.c.created_at
 
@@ -150,25 +148,6 @@ class SyncImportJobRepository:
             return None
         score = db.query(Score).filter_by(id=score_id).first()
         return score.score_uuid if score else None
-
-    @staticmethod
-    def list_stale_pending(db: Session, cutoff: datetime) -> list[ImportJob]:
-        return (
-            db.query(ImportJob)
-            .filter(ImportJob.state == ImportJobState.PENDING)
-            .filter(ImportJob.created_at < cutoff)
-            .all()
-        )
-
-    @staticmethod
-    def list_stale_running(db: Session, cutoff: datetime) -> list[ImportJob]:
-        heartbeat = ImportJob.__table__.c.last_heartbeat_at
-        return (
-            db.query(ImportJob)
-            .filter(ImportJob.state == ImportJobState.RUNNING)
-            .filter(or_(heartbeat.is_(None), heartbeat < cutoff))
-            .all()
-        )
 
     @staticmethod
     def list_orphan_uploads(db: Session, cutoff: datetime) -> list[Upload]:

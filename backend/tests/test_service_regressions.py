@@ -298,42 +298,6 @@ def test_s3_storage_avatar_public_url_uses_stable_object_url() -> None:
     )
 
 
-def test_import_job_maintenance_fails_stale_jobs() -> None:
-    stale_pending = SimpleNamespace(
-        job_uuid="job-pending",
-        state=None,
-        progress=30,
-        error=None,
-        error_type=None,
-        code=None,
-        finished_at=None,
-        updated_at=None,
-    )
-    stale_running = SimpleNamespace(
-        job_uuid="job-running",
-        state=None,
-        progress=60,
-        error=None,
-        error_type=None,
-        code=None,
-        finished_at=None,
-        updated_at=None,
-    )
-    repository = Mock()
-    repository.list_stale_pending.return_value = [stale_pending]
-    repository.list_stale_running.return_value = [stale_running]
-    service = ImportJobMaintenanceService(repository=repository)
-    db = Mock()
-
-    with patch("app.modules.import_jobs.maintenance_service.sync_import_job_service.finalize_failure") as fail:
-        assert service.fail_stale_pending(db) == 1
-        assert service.fail_stale_running(db) == 1
-
-    assert fail.call_count == 2
-    assert fail.call_args_list[0].args[1] == "job-pending"
-    assert fail.call_args_list[1].args[1] == "job-running"
-
-
 def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
     repository = Mock()
     storage = Mock()
@@ -360,28 +324,24 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
 
 
 @pytest.mark.asyncio
-async def test_import_job_submission_marks_dispatch_failure() -> None:
+async def test_import_job_submission_remains_queued_when_dispatch_fails() -> None:
     service = ImportJobSubmissionService()
     request = SimpleNamespace(file_ids=["abc"], options={}, idempotency_key=None)
     current_user = SimpleNamespace(id=5)
 
     with patch.object(service, "_ensure_uploads_exist") as ensure_mock:
         with patch.object(service, "_create_pending_job") as create_mock:
-            with patch.object(
-                service,
-                "_dispatch",
-                side_effect=RuntimeError("broker publish failed"),
+            with patch(
+                "app.modules.import_jobs.submission_service.dispatch_import_job",
+                return_value=False,
             ) as dispatch_mock:
-                with patch.object(service, "_mark_dispatch_failure") as mark_mock:
-                    with pytest.raises(Exception) as context:
-                        await service.submit(current_user, request)
+                result = await service.submit(current_user, request)
 
     ensure_mock.assert_called_once_with(5, ["abc"])
     create_mock.assert_called_once()
-    assert dispatch_mock.call_args.args[1] == ["abc"]
-    assert dispatch_mock.call_args.args[2] == request.options
-    mark_mock.assert_called_once()
-    assert context.value.code == ErrorCode.EXTERNAL_SERVICE_ERROR
+    dispatch_mock.assert_called_once()
+    assert result["count"] == 1
+    assert result["job_id"] == dispatch_mock.call_args.args[0]
 
 
 @pytest.mark.asyncio
@@ -399,12 +359,15 @@ async def test_import_job_submission_reuses_existing_idempotency_key() -> None:
         "_existing_job_uuid",
         return_value="existing-job",
     ) as existing_mock:
-        with patch.object(service, "_ensure_uploads_exist") as ensure_mock:
+        with patch.object(service, "_ensure_uploads_exist") as ensure_mock, patch(
+            "app.modules.import_jobs.submission_service.dispatch_import_job"
+        ) as dispatch_mock:
             result = await service.submit(current_user, request)
 
     assert result == {"job_id": "existing-job", "count": 1}
     existing_mock.assert_called_once_with(5, "submission-key-1")
     ensure_mock.assert_not_called()
+    dispatch_mock.assert_called_once_with("existing-job")
 
 
 def test_import_job_execution_resolves_file_ids_inside_worker() -> None:

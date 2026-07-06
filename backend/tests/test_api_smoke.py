@@ -73,8 +73,6 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
     protected_requests = [
         ("get", "/api/v1/scores/test-score", None),
         ("patch", "/api/v1/scores/test-score", {"title": "Updated", "expected_version": 1}),
-        ("delete", "/api/v1/scores/test-score", None),
-        ("get", "/api/v1/scores/test-score/revisions", None),
         (
             "post",
             "/api/v1/scores/test-score/revisions",
@@ -85,9 +83,6 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
         ),
         ("get", "/api/v1/scores/test-score/revisions/revision-1/content", None),
         ("get", "/api/v1/scores/test-score/artifacts", None),
-        ("post", "/api/v1/scores/test-score/revisions/revision-1/render", None),
-        ("get", "/api/v1/scores/test-score/revisions/revision-1/metadata", None),
-        ("post", "/api/v1/scores/test-score/revisions/revision-1/metadata/rebuild", None),
         ("get", "/api/v1/artifacts/artifact-1/download", None),
         ("get", "/api/v1/artifacts/artifact-1/access-url", None),
         ("post", "/api/v1/scores/test-score/grants", {}),

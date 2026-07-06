@@ -20,10 +20,6 @@ export const publicationsApi = {
       signal,
       suppressAuthRedirect: true,
     }),
-  viewArtifact: (slug: string, artifactId: string) =>
-    apiClient.download(`/publications/${slug}/artifacts/${artifactId}/view`, {
-      suppressAuthRedirect: true,
-    }),
   content: (slug: string, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<PublicScoreContent>>(`/publications/${slug}/content`, undefined, {
       signal,

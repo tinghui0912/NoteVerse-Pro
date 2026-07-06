@@ -23,6 +23,7 @@ from app.modules.revisions.schemas import (
     RevisionRead,
 )
 from app.modules.revisions.fingering_service import XMLFingeringService
+from app.modules.artifacts.render_outbox_service import create_render_outbox
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
@@ -169,6 +170,12 @@ class RevisionService:
                     extractor_version="pending",
                 )
             )
+            render_outbox = await create_render_outbox(
+                db,
+                score_id=score_id,
+                revision_id=revision_id,
+                requested_by_user_id=user_id,
+            )
             score.head_revision_id = revision_id
             score.version += 1
             score.updated_at = utc_now_naive()
@@ -189,7 +196,7 @@ class RevisionService:
             except Exception:
                 # Metadata is a rebuildable projection and cannot fail the save.
                 await db.rollback()
-            enqueue_score_revision_render(score_uuid, revision_uuid, user_id)
+            enqueue_score_revision_render(render_outbox.outbox_uuid)
             return await self._read(db, revision)
         except Exception:
             await db.rollback()
@@ -198,14 +205,6 @@ class RevisionService:
             except Exception:
                 pass
             raise
-
-    async def list(self, db: AsyncSession, score_uuid: str, user_id: int) -> list[RevisionRead]:
-        access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.VIEW, user_id=user_id
-        )
-        score = access.score
-        score_id = require_persisted_id(score.id, entity="score")
-        return [await self._read(db, item) for item in await self.repository.revisions(db, score_id)]
 
     async def content(
         self, db: AsyncSession, score_uuid: str, revision_uuid: str, user_id: int

@@ -39,10 +39,6 @@ export const scoreSharingApi = {
     apiClient.download(`/score-grants/${token}/artifacts/${artifactId}/download`, {
       suppressAuthRedirect: true,
     }),
-  viewArtifact: (token: string, artifactId: string) =>
-    apiClient.download(`/score-grants/${token}/artifacts/${artifactId}/view`, {
-      suppressAuthRedirect: true,
-    }),
   bookmark: (token: string) =>
     apiClient.post<ApiResponse<ScoreGrantBookmark>>(`/score-grants/${token}/bookmark`),
 };

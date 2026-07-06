@@ -54,9 +54,5 @@
   "enableFailedDescription": "Please try again later.",
   "deletedDescription": "The share link has been removed.",
   "deleteFailed": "Unable to delete link",
-  "deleteFailedDescription": "Please try again later.",
-  "wechatCopied": "Link copied",
-  "wechatCopiedDescription": "Paste the copied link into WeChat to share it.",
-  "shareFailed": "Unable to share",
-  "shareFailedDescription": "Please try again or copy the link manually."
+  "deleteFailedDescription": "Please try again later."
 }

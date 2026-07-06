@@ -35,10 +35,10 @@ class ImportJobExecutionService:
     def run_pipeline(
         self,
         celery_task: CeleryTaskLike,
+        job_id: str,
         upload_ids: list[str],
         options: ImportJobProcessingOptions | None = None,
     ) -> PipelineExecutionSuccessResult:
-        job_id = celery_task.request.id
         try:
             image_paths = self._resolve_input_paths(upload_ids)
             with get_worker_db() as db:

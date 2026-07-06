@@ -13,29 +13,6 @@ export function useScoreDetail(scoreId: string, enabled = true) {
   });
 }
 
-export function useScoreList(page: number, pageSize: number, search?: string) {
-  return useQuery({
-    queryKey: queryKeys.scores.list(page, pageSize, search),
-    queryFn: ({ signal }) => scoresApi.list({ page, page_size: pageSize, search }, signal),
-  });
-}
-
-export function useDeleteScores() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (scoreIds: string[]) => scoresApi.batchDelete(scoreIds),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.scores.lists() }),
-  });
-}
-
-export function useScoreRevisions(scoreId: string, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.scores.revisions(scoreId),
-    queryFn: ({ signal }) => scoresApi.revisions(scoreId, signal),
-    enabled: enabled && Boolean(scoreId),
-  });
-}
-
 export function useRevisionContent(scoreId: string, revisionId?: string | null) {
   return useQuery({
     queryKey: queryKeys.scores.revision(scoreId, revisionId ?? ''),

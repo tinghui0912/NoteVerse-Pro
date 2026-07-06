@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libraryApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { FolderDeleteMode, LibrarySort, LibraryView, UserSettableLibraryPracticeState } from '@/types/api';
+import type { FolderDeleteMode, LibrarySort, LibraryView } from '@/types/api';
 
 export function useLibraryFolders() {
   return useQuery({
@@ -75,14 +75,6 @@ export function useMoveLibraryEntries() {
   });
 }
 
-export function useFavoriteLibraryEntries() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: libraryApi.batchFavorite,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
-  });
-}
-
 export function useTrashLibraryEntries() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -95,21 +87,6 @@ export function useSetLibraryEntriesPracticeState() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: libraryApi.batchPracticeState,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
-  });
-}
-
-export function useUpdateLibraryEntry() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      entryId,
-      ...input
-    }: {
-      entryId: string;
-      practice_state?: UserSettableLibraryPracticeState;
-      is_favorite?: boolean;
-    }) => libraryApi.updateEntry(entryId, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }

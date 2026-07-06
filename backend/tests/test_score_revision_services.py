@@ -15,6 +15,8 @@ from app.core.exceptions import (
 )
 from app.db.models import (
     ImportJob,
+    ImportJobUpload,
+    ImportDispatchStatus,
     ImportArtifact,
     NotificationEvent,
     Score,
@@ -25,9 +27,12 @@ from app.db.models import (
     ScoreInvite,
     ScoreMembership,
     ScorePublication,
+    RevisionRenderOutbox,
+    RenderOutboxStatus,
     ScoreShareGrant,
     ShareGrantRedemption,
     User,
+    Upload,
 )
 from app.db.models.library import LibraryEntrySourceType
 from app.db.models.import_job import ImportJobState
@@ -43,10 +48,12 @@ from app.modules.revisions.schemas import FingeringRequest, RevisionCreateReques
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.fingering_service import strip_existing_fingerings
 from app.modules.artifacts.service import ArtifactService
+from app.modules.artifacts.render_outbox_service import RenderOutboxService
 from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.dispatch_service import ImportDispatchService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_sharing.schemas import GrantCreateRequest
 from app.modules.score_sharing.service import ScoreSharingService
@@ -512,6 +519,9 @@ async def test_review_confirm_creates_active_score_once(
         revision_id=revision.id,
         kind=ArtifactKind.MUSICXML,
     ).one()
+    render_outbox = session.query(RevisionRenderOutbox).one()
+    assert render_outbox.revision_id == revision.id
+    assert render_outbox.status == RenderOutboxStatus.PENDING
 
 
 @pytest.mark.asyncio
@@ -577,6 +587,7 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
 
     assert duplicate.revision_id == created.revision_id
     assert session.query(ScoreRevision).count() == 2
+    assert session.query(RevisionRenderOutbox).count() == 1
 
     with pytest.raises(ConflictException) as conflict:
         await service.create(
@@ -589,6 +600,162 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
             ),
         )
     assert conflict.value.code == ErrorCode.REVISION_CONFLICT
+
+
+def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    score = add_active_score_with_head_revision(
+        session,
+        score_id=401,
+        revision_id=411,
+        score_uuid="render-outbox-score",
+        revision_uuid="render-outbox-revision",
+        title="Render Outbox",
+    )
+    now = utc_now_naive()
+    stale = RevisionRenderOutbox(
+        outbox_uuid="render-outbox-stale",
+        score_id=score.id,
+        revision_id=score.head_revision_id,
+        requested_by_user_id=1,
+        render_profile="default",
+        status=RenderOutboxStatus.DISPATCHED,
+        dispatched_at=now - timedelta(hours=1),
+        next_attempt_at=now - timedelta(minutes=1),
+    )
+    due_failure = RevisionRenderOutbox(
+        outbox_uuid="render-outbox-failed",
+        score_id=score.id,
+        revision_id=score.head_revision_id,
+        requested_by_user_id=1,
+        render_profile="compact",
+        status=RenderOutboxStatus.FAILED,
+        attempt_count=1,
+        next_attempt_at=now - timedelta(minutes=1),
+    )
+    session.add_all([stale, due_failure])
+    session.commit()
+
+    due = RenderOutboxService().recover_and_list_due(session)
+
+    assert due == ["render-outbox-stale", "render-outbox-failed"]
+    session.refresh(stale)
+    assert stale.status == RenderOutboxStatus.FAILED
+    assert stale.last_error == "Render delivery lease expired"
+
+
+def test_render_outbox_claim_failure_and_completion_are_persistent(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    score = add_active_score_with_head_revision(
+        session,
+        score_id=402,
+        revision_id=412,
+        score_uuid="render-claim-score",
+        revision_uuid="render-claim-revision",
+        title="Render Claim",
+    )
+    outbox = RevisionRenderOutbox(
+        outbox_uuid="render-outbox-claim",
+        score_id=score.id,
+        revision_id=score.head_revision_id,
+        requested_by_user_id=1,
+    )
+    session.add(outbox)
+    session.commit()
+    service = RenderOutboxService()
+
+    payload = service.claim(session, outbox.outbox_uuid)
+    session.commit()
+    assert payload is not None
+    assert payload.score_uuid == score.score_uuid
+    assert payload.revision_uuid == "render-claim-revision"
+    assert outbox.status == RenderOutboxStatus.PROCESSING
+    assert outbox.attempt_count == 1
+
+    service.fail(session, outbox.outbox_uuid, "temporary failure")
+    session.commit()
+    assert outbox.status == RenderOutboxStatus.FAILED
+    assert outbox.last_error == "temporary failure"
+
+    outbox.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
+    session.commit()
+    payload = service.claim(session, outbox.outbox_uuid)
+    session.commit()
+    assert payload is not None
+    service.complete(session, outbox.outbox_uuid)
+    session.commit()
+    assert outbox.status == RenderOutboxStatus.COMPLETED
+    assert outbox.completed_at is not None
+    assert outbox.last_error is None
+
+
+def test_import_dispatch_claim_reconstructs_persisted_request(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    job = ImportJob(
+        id=501,
+        job_uuid="import-dispatch-job",
+        user_id=1,
+        state=ImportJobState.PENDING,
+        requested_options={"title": "Queued score"},
+    )
+    upload = Upload(
+        id=502,
+        sha256="queued-upload",
+        storage_backend="local",
+        storage_key="uploads/queued.png",
+        filename="queued.png",
+        uploader_user_id=1,
+    )
+    session.add_all([job, upload])
+    session.flush()
+    session.add(ImportJobUpload(job_id=501, upload_id=502))
+    session.commit()
+
+    payload = ImportDispatchService().claim(session, job.job_uuid)
+    session.commit()
+
+    assert payload is not None
+    assert payload.job_uuid == job.job_uuid
+    assert payload.file_ids == ["queued-upload"]
+    assert payload.options == {"title": "Queued score"}
+    assert job.dispatch_status == ImportDispatchStatus.PROCESSING
+    assert job.dispatch_attempt_count == 1
+
+
+def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    now = utc_now_naive()
+    job = ImportJob(
+        id=503,
+        job_uuid="stale-import-dispatch",
+        user_id=1,
+        state=ImportJobState.RUNNING,
+        progress=65,
+        current_step="ocr",
+        dispatch_status=ImportDispatchStatus.PROCESSING,
+        dispatch_attempt_count=1,
+        dispatch_started_at=now - timedelta(hours=1),
+        next_dispatch_at=now - timedelta(minutes=1),
+    )
+    session.add(job)
+    session.commit()
+
+    due = ImportDispatchService().recover_and_list_due(session)
+
+    assert due == [job.job_uuid]
+    assert job.state == ImportJobState.PENDING
+    assert job.dispatch_status == ImportDispatchStatus.PENDING
+    assert job.progress == 0
+    assert job.current_step is None
+    assert job.error is None
 
 
 @pytest.mark.asyncio

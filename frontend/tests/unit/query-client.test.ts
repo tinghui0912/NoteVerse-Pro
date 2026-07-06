@@ -4,19 +4,35 @@ import { describe, expect, it } from 'vitest';
 import { queryKeys } from '@/lib/query-client';
 
 describe('queryKeys', () => {
-  it('builds hierarchical score keys', () => {
+  it('builds hierarchical score detail keys', () => {
     expect(queryKeys.scores.all).toEqual(['scores']);
-    expect(queryKeys.scores.lists()).toEqual(['scores', 'list']);
-    expect(queryKeys.scores.list(2, 20, 'bach')).toEqual([
-      'scores',
-      'list',
-      { page: 2, pageSize: 20, search: 'bach' },
-    ]);
     expect(queryKeys.scores.details()).toEqual(['scores', 'detail']);
     expect(queryKeys.scores.detail('score-1')).toEqual([
       'scores',
       'detail',
       { scoreId: 'score-1' },
+    ]);
+  });
+
+  it('builds My Scores list keys with complete filters', () => {
+    expect(queryKeys.myScores.all).toEqual(['my-scores']);
+    expect(queryKeys.myScores.lists()).toEqual(['my-scores', 'list']);
+    expect(queryKeys.myScores.list({
+      view: 'private',
+      search: 'bach',
+      sort: 'updated_desc',
+      page: 2,
+      pageSize: 20,
+    })).toEqual([
+      'my-scores',
+      'list',
+      {
+        view: 'private',
+        search: 'bach',
+        sort: 'updated_desc',
+        page: 2,
+        pageSize: 20,
+      },
     ]);
   });
 

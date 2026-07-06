@@ -93,8 +93,11 @@ def test_verovio_footer_mode_is_normalized_and_validated() -> None:
 def test_task_reliability_defaults_are_positive() -> None:
     settings = Settings()
 
-    assert settings.JOB_PENDING_STALE_SECONDS > 0
-    assert settings.IMPORT_JOB_RUNNING_STALE_SECONDS > 0
+    assert settings.IMPORT_DISPATCH_INTERVAL_SECONDS > 0
+    assert settings.IMPORT_DISPATCH_TIMEOUT_SECONDS > 0
+    assert settings.IMPORT_PROCESSING_TIMEOUT_SECONDS > 0
+    assert settings.IMPORT_DISPATCH_MAX_ATTEMPTS > 0
+    assert settings.IMPORT_DISPATCH_BATCH_SIZE > 0
     assert settings.ORPHAN_UPLOAD_TTL_SECONDS > 0
 
 

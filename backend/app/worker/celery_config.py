@@ -53,9 +53,17 @@ celery_app.conf.update(
             "task": "app.worker.tasks.run_job_maintenance",
             "schedule": 300.0,
         },
+        "import-dispatch-maintenance": {
+            "task": "app.worker.tasks.run_import_dispatch_maintenance",
+            "schedule": float(settings.IMPORT_DISPATCH_INTERVAL_SECONDS),
+        },
         "notification-maintenance": {
             "task": "app.worker.tasks.run_notification_maintenance",
             "schedule": float(settings.NOTIFICATION_CLEANUP_INTERVAL_SECONDS),
+        },
+        "render-outbox-maintenance": {
+            "task": "app.worker.tasks.run_render_outbox_maintenance",
+            "schedule": float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS),
         },
     },
 )

@@ -54,9 +54,5 @@
   "enableFailedDescription": "请稍后重试。",
   "deletedDescription": "该分享链接已删除。",
   "deleteFailed": "无法删除链接",
-  "deleteFailedDescription": "请稍后重试。",
-  "wechatCopied": "链接已复制",
-  "wechatCopiedDescription": "请将复制的链接粘贴到微信中分享。",
-  "shareFailed": "无法分享",
-  "shareFailedDescription": "请重试或手动复制链接。"
+  "deleteFailedDescription": "请稍后重试。"
 }

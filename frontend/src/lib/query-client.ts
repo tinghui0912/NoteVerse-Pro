@@ -48,9 +48,6 @@ export const queryKeys = {
     },
     scores: {
         all: ['scores'] as const,
-        lists: () => ['scores', 'list'] as const,
-        list: (page: number, pageSize: number, search?: string) =>
-            ['scores', 'list', { page, pageSize, search: search ?? null }] as const,
         details: () => ['scores', 'detail'] as const,
         detail: (scoreId: string) => ['scores', 'detail', { scoreId }] as const,
         revisions: (scoreId: string) => ['scores', 'revision', { scoreId }] as const,

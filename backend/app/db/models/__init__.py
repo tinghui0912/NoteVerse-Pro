@@ -16,6 +16,7 @@ from .library import (
 from .import_job import (
     ImportArtifact,
     ImportJob,
+    ImportDispatchStatus,
     ImportJobState,
     ImportJobStep,
     ImportJobStepStatus,
@@ -44,6 +45,7 @@ from .score_access import (
     ScoreShareGrant,
     ShareGrantRedemption,
 )
+from .render_outbox import RenderOutboxStatus, RevisionRenderOutbox
 
 __all__ = [
     "User",
@@ -60,6 +62,7 @@ __all__ = [
     "ScoreLibraryFolder",
     "ImportArtifact",
     "ImportJob",
+    "ImportDispatchStatus",
     "ImportJobState",
     "ImportJobStep",
     "ImportJobStepStatus",
@@ -83,4 +86,6 @@ __all__ = [
     "ScorePublication",
     "ScoreShareGrant",
     "ShareGrantRedemption",
+    "RenderOutboxStatus",
+    "RevisionRenderOutbox",
 ]

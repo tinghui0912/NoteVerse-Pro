@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import uuid
 
-from app.core.exceptions import ExternalServiceException, ResourceNotFoundException
+from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportJob, ImportJobUpload, User
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions, ImportJobSubmitRequestLike, ImportJobSubmitResult
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.shared.constants import ErrorCode
+from app.shared.import_dispatcher import dispatch_import_job
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
@@ -23,20 +24,13 @@ class ImportJobSubmissionService:
         if idempotency_key:
             existing = self._existing_job_uuid(user_id, idempotency_key)
             if existing:
+                dispatch_import_job(existing)
                 return {"job_id": existing, "count": len(request.file_ids)}
 
         self._ensure_uploads_exist(user_id, request.file_ids)
         job_uuid = str(uuid.uuid4())
         self._create_pending_job(job_uuid, user_id, request, idempotency_key)
-        try:
-            self._dispatch(job_uuid, request.file_ids, request.options)
-        except Exception as exc:
-            self._mark_dispatch_failure(job_uuid, exc)
-            raise ExternalServiceException(
-                service="Celery",
-                code=ErrorCode.EXTERNAL_SERVICE_ERROR,
-                details={"job_id": job_uuid, "error": str(exc)},
-            ) from exc
+        dispatch_import_job(job_uuid)
         return {"job_id": job_uuid, "count": len(request.file_ids)}
 
     @staticmethod
@@ -123,32 +117,5 @@ class ImportJobSubmissionService:
             raise
         finally:
             db.close()
-
-    @staticmethod
-    def _dispatch(
-        job_uuid: str,
-        file_ids: list[str],
-        options: ImportJobProcessingOptions | None,
-    ) -> None:
-        from app.worker.tasks import process_images_job
-
-        process_images_job.apply_async(args=[file_ids, options], task_id=job_uuid)
-
-    @staticmethod
-    def _mark_dispatch_failure(job_uuid: str, exc: Exception) -> None:
-        from app.db.worker_session import get_db_session
-
-        db = get_db_session()
-        try:
-            sync_import_job_service.finalize_failure(
-                db,
-                job_uuid,
-                error=f"Failed to dispatch job to Celery: {exc}",
-                error_type=type(exc).__name__,
-                code=ErrorCode.EXTERNAL_SERVICE_ERROR,
-            )
-        finally:
-            db.close()
-
 
 job_submission_service = ImportJobSubmissionService()

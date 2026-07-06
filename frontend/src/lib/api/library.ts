@@ -35,17 +35,8 @@ export const libraryApi = {
     },
     signal?: AbortSignal
   ) => apiClient.get<PaginatedResponse<LibraryEntry>>('/library/entries', params, { signal }),
-  updateEntry: (
-    entryId: string,
-    input: {
-      practice_state?: UserSettableLibraryPracticeState;
-      is_favorite?: boolean;
-    }
-  ) => apiClient.patch<ApiResponse<LibraryEntry>>(`/library/entries/${entryId}`, input),
   batchMove: (input: { entry_ids: string[]; target_folder_id?: string | null }) =>
     apiClient.post<ApiResponse<{ moved: number }>>('/library/entries/batch-move', input),
-  batchFavorite: (input: { entry_ids: string[] }) =>
-    apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-favorite', input),
   batchTrash: (input: { entry_ids: string[] }) =>
     apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-trash', input),
   batchPracticeState: (input: { entry_ids: string[]; practice_state: UserSettableLibraryPracticeState }) =>

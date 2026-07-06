@@ -6,7 +6,6 @@ from app.modules.artifacts.router import score_artifact_router
 from app.modules.files.router import router as files
 from app.modules.import_jobs.router import router as jobs
 from app.modules.library.router import router as library
-from app.modules.metadata.router import router as metadata
 from app.modules.my_scores.router import router as my_scores
 from app.modules.notifications.router import router as notifications
 from app.modules.practice.router import router as practice
@@ -39,7 +38,6 @@ api_router.include_router(notifications, prefix="/me", tags=["Notifications"])
 api_router.include_router(score_publications, prefix="/scores", tags=["Publications"])
 api_router.include_router(publications, prefix="/publications", tags=["Publications"])
 api_router.include_router(score_artifact_router, prefix="/scores", tags=["Score Artifacts"])
-api_router.include_router(metadata, prefix="/scores", tags=["Score Metadata"])
 api_router.include_router(profile, prefix="/profile", tags=["User Profile"])
 api_router.include_router(practice, prefix="/practice", tags=["Practice"])
 api_router.include_router(review, prefix="/review", tags=["Review"])

@@ -60,11 +60,11 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
         ) as finalize_failure,
         pytest.raises(TimeoutException),
     ):
-        service.run_pipeline(task, ["upload-id"])
+        service.run_pipeline(task, "job-id", ["upload-id"])
 
     finalize_failure.assert_called_once_with(
         failure_db,
-        "job-123",
+        "job-id",
         error=ErrorCode.TASK_TIMEOUT,
         error_type="TimeoutException",
         code=ErrorCode.TASK_TIMEOUT,

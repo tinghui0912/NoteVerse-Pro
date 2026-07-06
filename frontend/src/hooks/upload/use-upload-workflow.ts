@@ -45,6 +45,12 @@ export function useUploadWorkflow() {
   const [pollInterval, setPollInterval] = useState<number | false>(false);
   const [pollStartTime, setPollStartTime] = useState(0);
   const urlJobId = searchParams.get('job_id');
+  const translateTaskError = useCallback((codeOrMessage: string | null | undefined, fallback: string) => {
+    if (!codeOrMessage) return fallback;
+    if (errors.has(codeOrMessage as never)) return errors(codeOrMessage as never);
+    if (t.has(codeOrMessage as never)) return t(codeOrMessage as never);
+    return codeOrMessage;
+  }, [errors, t]);
 
   const setTrackedFiles = useCallback((next: UploadableFile[] | ((current: UploadableFile[]) => UploadableFile[])) => {
     setFiles((current) => {
@@ -117,12 +123,12 @@ export function useUploadWorkflow() {
       clearFiles();
       router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
     } else if (state === 'FAILURE') {
-      setTaskError(job.error || t('taskProcessingFailed'));
+      setTaskError(translateTaskError(job.error, t('taskProcessingFailed')));
       setIsSubmitting(false);
       setCurrentJobId(null);
       setPollInterval(false);
     }
-  }, [clearFiles, currentJobId, pollStartTime, router, statusResponse?.data, t, toast]);
+  }, [clearFiles, currentJobId, pollStartTime, router, statusResponse?.data, t, toast, translateTaskError]);
 
   useEffect(() => {
     if (!urlJobId) return;
@@ -174,7 +180,7 @@ export function useUploadWorkflow() {
           setPollStartTime(Date.now());
           setPollInterval(TASK_POLL_INTERVAL_MS);
         } else if (state === 'FAILURE') {
-          setTaskError(data.error || t('processingFailed'));
+          setTaskError(translateTaskError(data.error, t('processingFailed')));
           setTaskProgress(0);
         }
       } catch (error) {
@@ -186,7 +192,7 @@ export function useUploadWorkflow() {
       controller.abort();
       restoredBlobUrls.forEach(revokePreview);
     };
-  }, [setTrackedFiles, t, urlJobId]);
+  }, [setTrackedFiles, t, translateTaskError, urlJobId]);
 
   useEffect(() => () => {
     filesRef.current.forEach(({ preview }) => revokePreview(preview));
@@ -282,7 +288,7 @@ export function useUploadWorkflow() {
     setTaxonomyTags,
     startRecognition,
     taskError,
-    taskErrorMessage: taskError && t.has(taskError as never) ? t(taskError as never) : taskError ?? '',
+    taskErrorMessage: taskError ?? '',
     taskProgress,
     taxonomyTags,
   };

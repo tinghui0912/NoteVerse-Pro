@@ -28,6 +28,7 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
 from app.modules.library.service import LibraryService
+from app.modules.artifacts.render_outbox_service import create_render_outbox
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationTypes
 from app.modules.review.schemas import (
@@ -232,6 +233,12 @@ class ReviewService:
                     extractor_version="pending",
                 )
             )
+            render_outbox = await create_render_outbox(
+                db,
+                score_id=score_id,
+                revision_id=revision_id,
+                requested_by_user_id=user_id,
+            )
             score.head_revision_id = revision_id
             await self.score_repository.replace_taxonomy_tags(db, score_id, taxonomy_pairs)
             await self.library_service.ensure_entry(
@@ -263,7 +270,7 @@ class ReviewService:
             await self.metadata_service.rebuild(db, score_uuid, revision_uuid, user_id)
         except Exception:
             await db.rollback()
-        enqueue_score_revision_render(score_uuid, revision_uuid, user_id)
+        enqueue_score_revision_render(render_outbox.outbox_uuid)
         return ReviewConfirmRead(score_id=score_uuid)
 
     async def update(
