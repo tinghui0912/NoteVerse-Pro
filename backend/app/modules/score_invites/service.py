@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 import secrets
 import uuid
-from collections.abc import Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import ResourceNotFoundException, UnauthorizedException, ValidationException
+from app.core.exceptions import (
+    ResourceNotFoundException,
+    UnauthorizedException,
+    ValidationException,
+)
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
 from app.db.models.score_access import InviteStatus, MembershipRole
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_invites.email_templates import build_invite_email
+from app.modules.mail.outbox_service import queue_mail
 from app.modules.score_invites.repository import ScoreInviteRepository
 from app.modules.score_invites.schemas import (
     InviteAcceptRead,
@@ -28,19 +31,16 @@ from app.modules.score_invites.schemas import (
     PendingInviteRead,
 )
 from app.modules.notifications.service import NotificationService, NotificationTypes
-from app.shared.mail_dispatcher import dispatch_email
 from app.shared.constants import ErrorCode
 from app.utils.timezone import to_utc_naive, utc_now_naive
 
 
-logger = logging.getLogger(__name__)
 ROLE_RANK: dict[MembershipRole, int] = {
     MembershipRole.VIEWER: 1,
     MembershipRole.EDITOR: 2,
 }
 
 INVITE_TOKEN_BYTES = 32
-MailDispatcher = Callable[[str, str, str, str | None], object]
 
 
 def hash_invite_token(token: str) -> str:
@@ -56,12 +56,10 @@ class ScoreInviteService:
         self,
         repository: ScoreInviteRepository | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        mail_dispatcher: MailDispatcher | None = None,
         notification_service: NotificationService | None = None,
     ) -> None:
         self.repository = repository or ScoreInviteRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.mail_dispatcher = mail_dispatcher or dispatch_email
         self.notification_service = notification_service or NotificationService()
 
     async def create_invite(
@@ -88,10 +86,11 @@ class ScoreInviteService:
             expires_at=to_utc_naive(request.expires_at),
         )
         db.add(invite)
+        await db.flush()
+        await self._queue_invite_email(db, invite, access.score.title, token, request.locale)
         await db.commit()
         await db.refresh(invite)
         read = await self._invite_read(db, invite)
-        await self._dispatch_invite_email(db, invite, access.score.title, token, request.locale)
         return InviteCreatedRead(**read.model_dump(), token=token)
 
     async def list_invites(
@@ -146,9 +145,7 @@ class ScoreInviteService:
             can_accept=can_accept,
         )
 
-    async def accept_invite(
-        self, db: AsyncSession, token: str, user_id: int
-    ) -> InviteAcceptRead:
+    async def accept_invite(self, db: AsyncSession, token: str, user_id: int) -> InviteAcceptRead:
         invite = await self._invite_by_token(db, token)
         return await self._accept_invite_record(db, invite, user_id)
 
@@ -382,7 +379,11 @@ class ScoreInviteService:
         return membership
 
     def _display_status(self, invite: ScoreInvite) -> InviteStatus:
-        if invite.status == InviteStatus.PENDING and invite.expires_at and invite.expires_at <= utc_now_naive():
+        if (
+            invite.status == InviteStatus.PENDING
+            and invite.expires_at
+            and invite.expires_at <= utc_now_naive()
+        ):
             return InviteStatus.EXPIRED
         return invite.status
 
@@ -459,7 +460,9 @@ class ScoreInviteService:
     async def _member_read(self, db: AsyncSession, membership: ScoreMembership) -> MemberRead:
         user = await db.get(User, membership.user_id)
         if not user:
-            raise ResourceNotFoundException("user", str(membership.user_id), ErrorCode.USER_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "user", str(membership.user_id), ErrorCode.USER_NOT_FOUND
+            )
         return MemberRead(
             membership_id=require_persisted_id(membership.id, entity="score membership"),
             user_id=require_persisted_id(user.id, entity="user"),
@@ -483,7 +486,7 @@ class ScoreInviteService:
             avatar_url=user.avatar_url,
         )
 
-    async def _dispatch_invite_email(
+    async def _queue_invite_email(
         self,
         db: AsyncSession,
         invite: ScoreInvite,
@@ -498,7 +501,9 @@ class ScoreInviteService:
         inviter_name = (
             inviter.display_name
             if inviter and inviter.display_name
-            else inviter.email if inviter else settings.PROJECT_NAME
+            else inviter.email
+            if inviter
+            else settings.PROJECT_NAME
         )
         invite_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/invite/{token}"
         email = build_invite_email(
@@ -510,10 +515,13 @@ class ScoreInviteService:
             invite_url=invite_url,
         )
 
-        try:
-            self.mail_dispatcher(invite.email, email.subject, email.text_body, email.html_body)
-        except Exception:
-            logger.exception(
-                "Failed to dispatch score invite email",
-                extra={"invite_id": invite.invite_uuid},
-            )
+        await queue_mail(
+            db,
+            category="score.invite",
+            dedupe_key=f"score-invite:{invite.invite_uuid}",
+            recipient=invite.email,
+            subject=email.subject,
+            text_body=email.text_body,
+            html_body=email.html_body,
+            expires_at=invite.expires_at,
+        )

@@ -23,13 +23,12 @@ from app.modules.revisions.schemas import (
     RevisionRead,
 )
 from app.modules.revisions.fingering_service import XMLFingeringService
-from app.modules.artifacts.render_outbox_service import create_render_outbox
+from app.modules.artifacts.render_outbox_service import create_revision_render_outbox
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.scores.repository import ScoreRepository
 from app.shared.constants import ErrorCode
-from app.shared.render_dispatcher import enqueue_score_revision_render
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
@@ -170,11 +169,12 @@ class RevisionService:
                     extractor_version="pending",
                 )
             )
-            render_outbox = await create_render_outbox(
+            await create_revision_render_outbox(
                 db,
                 score_id=score_id,
                 revision_id=revision_id,
                 requested_by_user_id=user_id,
+                source_fingerprint=content_hash,
             )
             score.head_revision_id = revision_id
             score.version += 1
@@ -196,7 +196,6 @@ class RevisionService:
             except Exception:
                 # Metadata is a rebuildable projection and cannot fail the save.
                 await db.rollback()
-            enqueue_score_revision_render(render_outbox.outbox_uuid)
             return await self._read(db, revision)
         except Exception:
             await db.rollback()

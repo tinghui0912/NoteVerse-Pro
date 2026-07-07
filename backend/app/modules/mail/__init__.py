@@ -1,0 +1,1 @@
+"""Durable transactional-mail delivery."""

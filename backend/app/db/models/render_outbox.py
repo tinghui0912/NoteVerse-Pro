@@ -33,14 +33,30 @@ class RenderOutboxStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 
-class RevisionRenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "revision_render_outbox"
+class RenderTargetType(str, enum.Enum):
+    SCORE_REVISION = "SCORE_REVISION"
+    REVIEW_THUMBNAIL = "REVIEW_THUMBNAIL"
+
+
+class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "render_outbox"
     __table_args__ = (
         CheckConstraint("attempt_count >= 0", name="ck_render_outbox_attempt_count"),
+        CheckConstraint(
+            "(target_type = 'SCORE_REVISION' AND score_id IS NOT NULL AND revision_id IS NOT NULL AND import_job_id IS NULL) OR "
+            "(target_type = 'REVIEW_THUMBNAIL' AND score_id IS NULL AND revision_id IS NULL AND import_job_id IS NOT NULL)",
+            name="ck_render_outbox_target",
+        ),
         UniqueConstraint(
             "revision_id",
             "render_profile",
             name="uq_render_outbox_revision_profile",
+        ),
+        UniqueConstraint(
+            "import_job_id",
+            "render_profile",
+            "source_fingerprint",
+            name="uq_render_outbox_review_source",
         ),
         Index("idx_render_outbox_status_available", "status", "next_attempt_at"),
         Index("idx_render_outbox_dispatched", "status", "dispatched_at"),
@@ -51,20 +67,37 @@ class RevisionRenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
     )
     outbox_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
-    score_id: int = Field(
+    target_type: RenderTargetType = Field(
+        sa_column=Column(
+            SAEnum(RenderTargetType, name="rendertargettype"),
+            nullable=False,
+        )
+    )
+    score_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
             BigInteger,
             ForeignKey("scores.id", ondelete="CASCADE"),
-            nullable=False,
+            nullable=True,
         )
     )
-    revision_id: int = Field(
+    revision_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
             BigInteger,
             ForeignKey("score_revisions.id", ondelete="CASCADE"),
-            nullable=False,
+            nullable=True,
         )
     )
+    import_job_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("import_jobs.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+    )
+    source_fingerprint: str = Field(sa_column=Column(String(64), nullable=False))
     requested_by_user_id: Optional[int] = Field(
         default=None,
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL")),

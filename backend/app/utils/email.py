@@ -19,10 +19,10 @@ def send_email(
     subject: str,
     body: str,
     html_body: str | None = None,
-) -> None:
+) -> str | None:
     """Send an email using Resend's transactional email API."""
 
-    _send_resend(to_email=to_email, subject=subject, body=body, html_body=html_body)
+    return _send_resend(to_email=to_email, subject=subject, body=body, html_body=html_body)
 
 
 def _send_resend(
@@ -31,7 +31,7 @@ def _send_resend(
     subject: str,
     body: str,
     html_body: str | None,
-) -> None:
+) -> str | None:
     sender = settings.MAIL_DEFAULT_SENDER
     if not settings.RESEND_API_KEY or not sender:
         raise MailPermanentError("Resend mail provider is not configured")
@@ -59,9 +59,15 @@ def _send_resend(
 
     try:
         with request.urlopen(api_request, timeout=15) as response:
+            response_body = response.read().decode("utf-8", errors="replace")
             if response.status >= 300:
-                response_body = response.read().decode("utf-8", errors="replace")
                 _raise_resend_error(response.status, response_body)
+            try:
+                payload = json.loads(response_body)
+            except json.JSONDecodeError:
+                return None
+            message_id = payload.get("id") if isinstance(payload, dict) else None
+            return message_id if isinstance(message_id, str) else None
     except error.HTTPError as exc:
         response_body = exc.read().decode("utf-8", errors="replace")
         try:
@@ -74,6 +80,7 @@ def _send_resend(
         if isinstance(exc, MailPermanentError | MailTransientError):
             raise
         raise MailTransientError(f"Failed to send email with Resend: {exc}") from exc
+    return None
 
 
 def _raise_resend_error(status_code: int, response_body: str) -> None:

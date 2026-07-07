@@ -204,11 +204,12 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
         required = {
             "app.worker.tasks.process_images_job",
             "app.worker.tasks.run_import_dispatch_maintenance",
-            "app.worker.tasks.render_review_thumbnail_task",
-            "app.worker.tasks.render_score_revision_task",
+            "app.worker.tasks.render_outbox_task",
             "app.worker.tasks.run_render_outbox_maintenance",
             "app.worker.tasks.run_job_maintenance",
-            "app.worker.tasks.send_email_task",
+            "app.worker.tasks.send_mail_outbox_task",
+            "app.worker.tasks.run_mail_outbox_maintenance",
+            "app.worker.tasks.run_mail_outbox_cleanup",
         }
         missing = sorted(required.difference(celery_app.tasks))
     except Exception as exc:

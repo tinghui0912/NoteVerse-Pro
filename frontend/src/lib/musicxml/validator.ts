@@ -21,8 +21,44 @@ export interface ValidationResult {
 
 export type TranslateFunction = (key: string) => string;
 
+function formatIssueLocation(
+    t: TranslateFunction,
+    measureNumber: number,
+    staffLabel: string,
+    voice: number
+): string {
+    return `${t('common.measure')}${measureNumber} ${staffLabel} ${t('common.voice')}${voice}`;
+}
+
 function errorIssue(code: string, message: string, details?: Record<string, string | number>): ScoreValidationIssue {
     return { code, severity: 'error', message, details };
+}
+
+function formatXmlPitch(note: Element): string | null {
+    const step = note.querySelector(':scope > pitch > step')?.textContent?.trim();
+    const octave = note.querySelector(':scope > pitch > octave')?.textContent?.trim();
+    if (!step || !octave) return null;
+    const alter = Number.parseInt(note.querySelector(':scope > pitch > alter')?.textContent ?? '0', 10);
+    const accidental = alter > 0 ? '#'.repeat(alter) : alter < 0 ? 'b'.repeat(-alter) : '';
+    return `${step}${accidental}${octave}`;
+}
+
+function formatBeamEventPitches(note: Element): string | null {
+    let root = note;
+    while (root.querySelector(':scope > chord')) {
+        const previous = root.previousElementSibling;
+        if (!previous || previous.tagName !== 'note') break;
+        root = previous;
+    }
+
+    const notes = [root];
+    let sibling = root.nextElementSibling;
+    while (sibling?.tagName === 'note' && sibling.querySelector(':scope > chord')) {
+        notes.push(sibling);
+        sibling = sibling.nextElementSibling;
+    }
+    const pitches = notes.map(formatXmlPitch).filter((pitch): pitch is string => Boolean(pitch));
+    return pitches.length > 0 ? pitches.join('+') : null;
 }
 
 function validateXMLFormat(currentXml: string | null, t: TranslateFunction): ScoreValidationIssue[] {
@@ -112,7 +148,7 @@ function validateMeasureDurations(
                 warnings.push({
                     code: `measure.duration_${voiceStatus.kind}`,
                     severity: 'warning',
-                    message: `${t('common.measure')}${voiceStatus.measureNumber} ${staffLabel} ${t('common.voice')}${voiceStatus.xmlVoice}: ${status} (${voiceStatus.actualTicks}/${voiceStatus.expectedTicks})`,
+                    message: `${t('common.measure')}${voiceStatus.measureNumber} ${staffLabel} ${t('common.voice')}${voiceStatus.xmlVoice}: ${status}`,
                     measureIndex: voiceStatus.measureIndex,
                     staffIndex: voiceStatus.staveIndex,
                     voice: voiceStatus.xmlVoice,
@@ -151,22 +187,19 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
                     const entityInfo = entityInfoMap.get(entityId);
                     const articulation = 'articulation' in entity ? (entity.articulation || []) : [];
                     const getStaveLabel = (label: string) => t(`editor.${label}` as never);
-                    if (articulation.includes('beam')) {
-                        const pairedBeams = entityConns?.beams?.length ?? 0;
-                        if (pairedBeams === 0 && entityInfo) {
-                            warnings.push({ code: 'connection.unpaired_beam', severity: 'warning', message: `${t('validation.unpairedBeam')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`, measureIndex, staffIndex: staveIndex, voice: entityInfo.voiceNumber, entityIds: [entityId] });
-                        }
-                    }
+                    const location = entityInfo
+                        ? formatIssueLocation(t, entityInfo.measureNumber, getStaveLabel(entityInfo.staveLabel), entityInfo.voiceNumber)
+                        : null;
                     if (articulation.includes('tie')) {
                         const pairedTies = entityConns?.ties?.length ?? 0;
                         if (pairedTies === 0 && entityInfo) {
-                            warnings.push({ code: 'connection.unpaired_tie', severity: 'warning', message: `${t('validation.unpairedTie')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`, measureIndex, staffIndex: staveIndex, voice: entityInfo.voiceNumber, entityIds: [entityId] });
+                            warnings.push({ code: 'connection.unpaired_tie', severity: 'warning', message: `${location}: ${t('validation.unpairedTie')} (${entityInfo.pitch})`, measureIndex, staffIndex: staveIndex, voice: entityInfo.voiceNumber, entityIds: [entityId] });
                         }
                     }
                     if (articulation.includes('slur')) {
                         const pairedSlurs = entityConns?.slurs?.length ?? 0;
                         if (pairedSlurs === 0 && entityInfo) {
-                            warnings.push({ code: 'connection.unpaired_slur', severity: 'warning', message: `${t('validation.unpairedSlur')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`, measureIndex, staffIndex: staveIndex, voice: entityInfo.voiceNumber, entityIds: [entityId] });
+                            warnings.push({ code: 'connection.unpaired_slur', severity: 'warning', message: `${location}: ${t('validation.unpairedSlur')} (${entityInfo.pitch})`, measureIndex, staffIndex: staveIndex, voice: entityInfo.voiceNumber, entityIds: [entityId] });
                         }
                     }
                 });
@@ -174,6 +207,62 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
         });
     });
 
+    return warnings;
+}
+
+function validateBeamStructure(currentXml: string | null, t: TranslateFunction): ScoreValidationIssue[] {
+    if (!currentXml) return [];
+    const warnings: ScoreValidationIssue[] = [];
+    const xmlDoc = parseXml(currentXml);
+
+    xmlDoc.querySelectorAll('part > measure').forEach((measure, measureIndex) => {
+        const open = new Map<string, { entityId: string; staff: number; voice: number; pitchLabel: string | null }>();
+        measure.querySelectorAll(':scope > note').forEach((note, noteIndex) => {
+            const staff = Number.parseInt(note.querySelector(':scope > staff')?.textContent ?? '1', 10) || 1;
+            const voice = Number.parseInt(note.querySelector(':scope > voice')?.textContent ?? '1', 10) || 1;
+            const staffLabel = staff === 1 ? t('editor.trebleClef') : t('editor.bassClef');
+            const location = formatIssueLocation(t, measureIndex + 1, staffLabel, voice);
+            const entityId = note.getAttribute('xml:id') || note.getAttribute('id') || `measure-${measureIndex}-note-${noteIndex}`;
+            const pitchLabel = formatBeamEventPitches(note);
+            const beamMessage = `${location}: ${t('validation.unpairedBeam')}${pitchLabel ? ` (${pitchLabel})` : ''}`;
+            const beamElements = Array.from(note.querySelectorAll(':scope > beam'));
+            const levels = new Set<number>();
+
+            beamElements.forEach((beam) => {
+                const level = Number.parseInt(beam.getAttribute('number') ?? '1', 10);
+                if (!Number.isInteger(level) || level < 1 || level > 8) {
+                    warnings.push({ code: 'beam.invalid_level', severity: 'warning', message: `${location}: ${t('validation.invalidBeamLevel')} (${beam.getAttribute('number') ?? ''})`, measureIndex, staffIndex: staff - 1, voice, entityIds: [entityId], details: { level: beam.getAttribute('number') ?? '' } });
+                    return;
+                }
+                levels.add(level);
+                const key = `${staff}:${voice}:${level}`;
+                const value = beam.textContent?.trim();
+                if (value === 'begin') {
+                    if (open.has(key)) warnings.push({ code: 'beam.unpaired_begin', severity: 'warning', message: beamMessage, measureIndex, staffIndex: staff - 1, voice, entityIds: [entityId], details: { level } });
+                    open.set(key, { entityId, staff, voice, pitchLabel });
+                } else if (value === 'continue') {
+                    if (!open.has(key)) warnings.push({ code: 'beam.unpaired_continue', severity: 'warning', message: beamMessage, measureIndex, staffIndex: staff - 1, voice, entityIds: [entityId], details: { level } });
+                } else if (value === 'end') {
+                    if (!open.delete(key)) warnings.push({ code: 'beam.unpaired_end', severity: 'warning', message: beamMessage, measureIndex, staffIndex: staff - 1, voice, entityIds: [entityId], details: { level } });
+                }
+            });
+
+            levels.forEach((level) => {
+                for (let lower = 1; lower < level; lower += 1) {
+                    if (levels.has(lower)) continue;
+                    warnings.push({ code: 'beam.level_gap', severity: 'warning', message: `${location}: ${t('validation.beamLevelGap')} (${lower})`, measureIndex, staffIndex: staff - 1, voice, entityIds: [entityId], details: { level, missingLevel: lower } });
+                    break;
+                }
+            });
+        });
+
+        open.forEach(({ entityId, staff, voice, pitchLabel }, key) => {
+            const level = Number.parseInt(key.split(':').at(-1) ?? '1', 10);
+            const staffLabel = staff === 1 ? t('editor.trebleClef') : t('editor.bassClef');
+            const location = formatIssueLocation(t, measureIndex + 1, staffLabel, voice);
+            warnings.push({ code: 'beam.unpaired_begin', severity: 'warning', message: `${location}: ${t('validation.unpairedBeam')}${pitchLabel ? ` (${pitchLabel})` : ''}`, measureIndex, staffIndex: staff - 1, voice, entityIds: [entityId], details: { level } });
+        });
+    });
     return warnings;
 }
 
@@ -188,6 +277,7 @@ export function validateDataIntegrity(
     issues.push(...validateBasicStructure(currentXml, t));
     if (issues.length === 0) {
         warnings.push(...validateMeasureDurations(scoreData, currentXml, t));
+        warnings.push(...validateBeamStructure(currentXml, t));
         warnings.push(...validateUnpairedConnections(scoreData, t));
     }
 

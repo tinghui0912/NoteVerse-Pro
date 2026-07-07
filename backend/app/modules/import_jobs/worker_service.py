@@ -12,7 +12,7 @@ from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobArtifactItem, ImportJobDetail
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
 from app.shared.file_kinds import FileKind
-from app.shared.render_dispatcher import enqueue_review_thumbnail_render
+from app.modules.artifacts.render_outbox_service import create_review_thumbnail_render_outbox_sync
 from app.utils.timezone import utc_now_naive
 
 
@@ -78,8 +78,21 @@ class SyncImportJobService:
         job.last_heartbeat_at = now
         job.finished_at = now
         job.updated_at = now
+        review_xml = (
+            db.query(ImportArtifact)
+            .filter_by(
+                job_id=job.id,
+                kind=FileKind.REVIEW_MUSICXML.value,
+            )
+            .one_or_none()
+        )
+        if review_xml is not None and review_xml.sha256:
+            create_review_thumbnail_render_outbox_sync(
+                db,
+                import_job_id=require_persisted_id(job.id, entity="import job"),
+                source_fingerprint=review_xml.sha256,
+            )
         db.commit()
-        enqueue_review_thumbnail_render(job.job_uuid)
         self._notify_success(db, job)
 
     def finalize_failure(

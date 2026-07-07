@@ -28,7 +28,10 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
 from app.modules.library.service import LibraryService
-from app.modules.artifacts.render_outbox_service import create_render_outbox
+from app.modules.artifacts.render_outbox_service import (
+    create_review_thumbnail_render_outbox,
+    create_revision_render_outbox,
+)
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationTypes
 from app.modules.review.schemas import (
@@ -43,10 +46,6 @@ from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.taxonomy import ordered_unique_pairs
 from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
-from app.shared.render_dispatcher import (
-    enqueue_review_thumbnail_render,
-    enqueue_score_revision_render,
-)
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
@@ -233,11 +232,12 @@ class ReviewService:
                     extractor_version="pending",
                 )
             )
-            render_outbox = await create_render_outbox(
+            await create_revision_render_outbox(
                 db,
                 score_id=score_id,
                 revision_id=revision_id,
                 requested_by_user_id=user_id,
+                source_fingerprint=content_hash,
             )
             score.head_revision_id = revision_id
             await self.score_repository.replace_taxonomy_tags(db, score_id, taxonomy_pairs)
@@ -270,7 +270,6 @@ class ReviewService:
             await self.metadata_service.rebuild(db, score_uuid, revision_uuid, user_id)
         except Exception:
             await db.rollback()
-        enqueue_score_revision_render(render_outbox.outbox_uuid)
         return ReviewConfirmRead(score_id=score_uuid)
 
     async def update(
@@ -328,6 +327,11 @@ class ReviewService:
             artifact.size_bytes = stored.size_bytes
             artifact.sha256 = content_hash
             job.updated_at = utc_now_naive()
+            await create_review_thumbnail_render_outbox(
+                db,
+                import_job_id=job_id,
+                source_fingerprint=content_hash,
+            )
             await db.commit()
         except Exception:
             await db.rollback()
@@ -342,7 +346,6 @@ class ReviewService:
                 self.storage.delete(old_storage_key)
             except Exception:
                 pass
-        enqueue_review_thumbnail_render(job_uuid)
         return await self.detail(db, job_uuid, user_id)
 
     @staticmethod

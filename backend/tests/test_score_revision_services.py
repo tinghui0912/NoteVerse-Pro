@@ -18,6 +18,8 @@ from app.db.models import (
     ImportJobUpload,
     ImportDispatchStatus,
     ImportArtifact,
+    MailOutbox,
+    MailOutboxStatus,
     NotificationEvent,
     Score,
     ScoreArtifact,
@@ -27,8 +29,9 @@ from app.db.models import (
     ScoreInvite,
     ScoreMembership,
     ScorePublication,
-    RevisionRenderOutbox,
+    RenderOutbox,
     RenderOutboxStatus,
+    RenderTargetType,
     ScoreShareGrant,
     ShareGrantRedemption,
     User,
@@ -49,6 +52,7 @@ from app.modules.revisions.service import RevisionService
 from app.modules.revisions.fingering_service import strip_existing_fingerings
 from app.modules.artifacts.service import ArtifactService
 from app.modules.artifacts.render_outbox_service import RenderOutboxService
+from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
@@ -114,11 +118,13 @@ class FakeFingeringService:
         self.calls: list[dict[str, str]] = []
 
     def generate(self, score_id: str, xml_content: str, hand_size: str = "M"):
-        self.calls.append({
-            "score_id": score_id,
-            "xml_content": xml_content,
-            "hand_size": hand_size,
-        })
+        self.calls.append(
+            {
+                "score_id": score_id,
+                "xml_content": xml_content,
+                "hand_size": hand_size,
+            }
+        )
         return {"xml_content": self.xml_content, "hand_size": hand_size}
 
 
@@ -168,19 +174,22 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
     storage = LocalFileStorage(storage_root=str(tmp_path / "storage"))
     with Session(engine) as session:
         session.add_all(
-            [User(
-                id=1,
-                email="owner@example.com",
-                display_name="owner",
-                password_hash="hash",
-                role=UserRole.user,
-            ), User(
-                id=2,
-                email="other@example.com",
-                display_name="other",
-                password_hash="hash",
-                role=UserRole.user,
-            )]
+            [
+                User(
+                    id=1,
+                    email="owner@example.com",
+                    display_name="owner",
+                    password_hash="hash",
+                    role=UserRole.user,
+                ),
+                User(
+                    id=2,
+                    email="other@example.com",
+                    display_name="other",
+                    password_hash="hash",
+                    role=UserRole.user,
+                ),
+            ]
         )
         session.commit()
         yield session, storage
@@ -231,7 +240,7 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
 def test_completed_job_notifies_owner_when_ready_for_review(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
-    session, _storage = score_service_session
+    session, storage = score_service_session
     session.add(
         ImportJob(
             id=11,
@@ -242,21 +251,48 @@ def test_completed_job_notifies_owner_when_ready_for_review(
         )
     )
     session.commit()
+    stored_xml = storage.put_bytes(
+        key="jobs/job-complete-notification/review_musicxml/001-score.musicxml",
+        content=MUSICXML_1,
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    session.add(
+        ImportArtifact(
+            job_id=11,
+            artifact_uuid="completed-review-xml",
+            kind=FileKind.REVIEW_MUSICXML.value,
+            storage_backend="local",
+            storage_key=stored_xml.storage_key,
+            filename=stored_xml.filename,
+            mime_type="application/vnd.recordare.musicxml+xml",
+            size_bytes=stored_xml.size_bytes,
+            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+        )
+    )
+    session.commit()
     job_service = SyncImportJobService()
 
     job_service.finalize_success(session, "job-complete-notification")
     job_service.finalize_success(session, "job-complete-notification")
 
-    notification = session.query(NotificationEvent).filter_by(
-        recipient_user_id=1,
-        type=NotificationTypes.IMPORT_COMPLETED,
-    ).one()
+    notification = (
+        session.query(NotificationEvent)
+        .filter_by(
+            recipient_user_id=1,
+            type=NotificationTypes.IMPORT_COMPLETED,
+        )
+        .one()
+    )
     assert notification.resource_type == "job"
     assert notification.resource_id == "job-complete-notification"
     assert notification.score_id is None
     assert notification.data["job_id"] == "job-complete-notification"
     assert notification.data["job_title"] == "Ready Score"
     assert session.query(Score).filter_by(title="Ready Score").one_or_none() is None
+    render_outbox = session.query(RenderOutbox).one()
+    assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
+    assert render_outbox.import_job_id == 11
+    assert render_outbox.status == RenderOutboxStatus.PENDING
 
 
 def test_failed_job_notifies_owner_once(
@@ -289,10 +325,14 @@ def test_failed_job_notifies_owner_once(
         code=ErrorCode.UNKNOWN_ERROR,
     )
 
-    notification = session.query(NotificationEvent).filter_by(
-        recipient_user_id=1,
-        type=NotificationTypes.IMPORT_FAILED,
-    ).one()
+    notification = (
+        session.query(NotificationEvent)
+        .filter_by(
+            recipient_user_id=1,
+            type=NotificationTypes.IMPORT_FAILED,
+        )
+        .one()
+    )
     assert notification.resource_type == "job"
     assert notification.resource_id == "job-failure-notification"
     assert notification.score_id is None
@@ -366,28 +406,30 @@ def test_job_detail_prefers_result_thumbnail_over_initial_preview(
         )
     )
     session.commit()
-    session.add_all([
-        ImportArtifact(
-            job_id=16,
-            artifact_uuid="initial-preview-artifact",
-            kind=FileKind.PREVIEW_IMAGE.value,
-            storage_backend="local",
-            storage_key="jobs/job-thumbnail/preview_image/001-preview.svg",
-            filename="001-preview.svg",
-            mime_type="image/svg+xml",
-            page_number=1,
-        ),
-        ImportArtifact(
-            job_id=16,
-            artifact_uuid="result-thumbnail-artifact",
-            kind=FileKind.RESULT_THUMBNAIL.value,
-            storage_backend="local",
-            storage_key="jobs/job-thumbnail/result_thumbnail/001-result.svg",
-            filename="001-result.svg",
-            mime_type="image/svg+xml",
-            page_number=1,
-        ),
-    ])
+    session.add_all(
+        [
+            ImportArtifact(
+                job_id=16,
+                artifact_uuid="initial-preview-artifact",
+                kind=FileKind.PREVIEW_IMAGE.value,
+                storage_backend="local",
+                storage_key="jobs/job-thumbnail/preview_image/001-preview.svg",
+                filename="001-preview.svg",
+                mime_type="image/svg+xml",
+                page_number=1,
+            ),
+            ImportArtifact(
+                job_id=16,
+                artifact_uuid="result-thumbnail-artifact",
+                kind=FileKind.RESULT_THUMBNAIL.value,
+                storage_backend="local",
+                storage_key="jobs/job-thumbnail/result_thumbnail/001-result.svg",
+                filename="001-result.svg",
+                mime_type="image/svg+xml",
+                page_number=1,
+            ),
+        ]
+    )
     session.commit()
 
     detail = SyncImportJobService().get_detail(session, "job-thumbnail")
@@ -443,6 +485,11 @@ async def test_review_update_replaces_pending_review_musicxml(
     assert artifact.storage_key != stored_xml.storage_key
     assert storage.read_bytes(artifact.storage_key).decode("utf-8") == MUSICXML_2
     assert session.query(Score).count() == 0
+    render_outbox = session.query(RenderOutbox).one()
+    assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
+    assert render_outbox.import_job_id == 15
+    assert render_outbox.source_fingerprint == artifact.sha256
+    assert render_outbox.status == RenderOutboxStatus.PENDING
 
 
 @pytest.mark.asyncio
@@ -501,9 +548,11 @@ async def test_review_confirm_creates_active_score_once(
     assert job.state == ImportJobState.CONFIRMED
     assert job.score_id == score.id
     assert library_entry.score_id == score.id
-    notification = session.query(NotificationEvent).filter_by(
-        notification_uuid="notification-review-ready"
-    ).one()
+    notification = (
+        session.query(NotificationEvent)
+        .filter_by(notification_uuid="notification-review-ready")
+        .one()
+    )
     assert notification.score_id == score.score_uuid
     assert notification.data["score_id"] == score.score_uuid
     assert notification.data["score_title"] == "Confirmed Score"
@@ -515,11 +564,15 @@ async def test_review_confirm_creates_active_score_once(
     assert detail_after_confirm.state == ImportJobState.CONFIRMED
     assert detail_after_confirm.score_id == score.score_uuid
     assert detail_after_confirm.musicxml is None
-    assert session.query(ScoreArtifact).filter_by(
-        revision_id=revision.id,
-        kind=ArtifactKind.MUSICXML,
-    ).one()
-    render_outbox = session.query(RevisionRenderOutbox).one()
+    assert (
+        session.query(ScoreArtifact)
+        .filter_by(
+            revision_id=revision.id,
+            kind=ArtifactKind.MUSICXML,
+        )
+        .one()
+    )
+    render_outbox = session.query(RenderOutbox).one()
     assert render_outbox.revision_id == revision.id
     assert render_outbox.status == RenderOutboxStatus.PENDING
 
@@ -587,7 +640,7 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
 
     assert duplicate.revision_id == created.revision_id
     assert session.query(ScoreRevision).count() == 2
-    assert session.query(RevisionRenderOutbox).count() == 1
+    assert session.query(RenderOutbox).count() == 1
 
     with pytest.raises(ConflictException) as conflict:
         await service.create(
@@ -615,20 +668,24 @@ def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
         title="Render Outbox",
     )
     now = utc_now_naive()
-    stale = RevisionRenderOutbox(
+    stale = RenderOutbox(
         outbox_uuid="render-outbox-stale",
+        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
+        source_fingerprint="stale-source",
         requested_by_user_id=1,
         render_profile="default",
         status=RenderOutboxStatus.DISPATCHED,
         dispatched_at=now - timedelta(hours=1),
         next_attempt_at=now - timedelta(minutes=1),
     )
-    due_failure = RevisionRenderOutbox(
+    due_failure = RenderOutbox(
         outbox_uuid="render-outbox-failed",
+        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
+        source_fingerprint="failed-source",
         requested_by_user_id=1,
         render_profile="compact",
         status=RenderOutboxStatus.FAILED,
@@ -658,10 +715,12 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
         revision_uuid="render-claim-revision",
         title="Render Claim",
     )
-    outbox = RevisionRenderOutbox(
+    outbox = RenderOutbox(
         outbox_uuid="render-outbox-claim",
+        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
+        source_fingerprint="claim-source",
         requested_by_user_id=1,
     )
     session.add(outbox)
@@ -691,6 +750,125 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     assert outbox.status == RenderOutboxStatus.COMPLETED
     assert outbox.completed_at is not None
     assert outbox.last_error is None
+
+
+def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    job = ImportJob(
+        id=413,
+        job_uuid="review-thumbnail-job",
+        user_id=1,
+        state=ImportJobState.PENDING_REVIEW,
+    )
+    session.add(job)
+    session.commit()
+    session.add(
+        ImportArtifact(
+            job_id=413,
+            artifact_uuid="review-thumbnail-source",
+            kind=FileKind.REVIEW_MUSICXML.value,
+            storage_backend="local",
+            storage_key="jobs/review-thumbnail-job/review_musicxml/score.musicxml",
+            filename="score.musicxml",
+            mime_type="application/vnd.recordare.musicxml+xml",
+            sha256="current-source",
+        )
+    )
+    current = RenderOutbox(
+        outbox_uuid="review-thumbnail-current",
+        target_type=RenderTargetType.REVIEW_THUMBNAIL,
+        import_job_id=413,
+        source_fingerprint="current-source",
+        render_profile="review-thumbnail",
+    )
+    stale = RenderOutbox(
+        outbox_uuid="review-thumbnail-stale",
+        target_type=RenderTargetType.REVIEW_THUMBNAIL,
+        import_job_id=413,
+        source_fingerprint="stale-source",
+        render_profile="review-thumbnail",
+    )
+    session.add_all([current, stale])
+    session.commit()
+    service = RenderOutboxService()
+
+    payload = service.claim(session, current.outbox_uuid)
+    stale_payload = service.claim(session, stale.outbox_uuid)
+    session.commit()
+
+    assert payload is not None
+    assert payload.target_type == RenderTargetType.REVIEW_THUMBNAIL
+    assert payload.job_uuid == job.job_uuid
+    assert stale_payload is None
+    assert stale.status == RenderOutboxStatus.COMPLETED
+
+
+def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    outbox = MailOutbox(
+        outbox_uuid="mail-outbox-test",
+        category="verification.register",
+        dedupe_key="verification:test",
+        recipient="user@example.com",
+        subject="Verification code",
+        text_body="123456",
+        html_body="<strong>123456</strong>",
+        expires_at=utc_now_naive() + timedelta(minutes=10),
+    )
+    session.add(outbox)
+    session.commit()
+    service = MailOutboxService()
+
+    payload = service.claim(session, outbox.outbox_uuid)
+    session.commit()
+    assert payload is not None
+    assert payload.text_body == "123456"
+    assert outbox.status == MailOutboxStatus.PROCESSING
+
+    service.transient_failure(session, outbox.outbox_uuid, "provider unavailable")
+    session.commit()
+    assert outbox.status == MailOutboxStatus.FAILED
+    assert outbox.text_body == "123456"
+
+    outbox.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
+    session.commit()
+    assert service.claim(session, outbox.outbox_uuid) is not None
+    service.sent(session, outbox.outbox_uuid, "resend-message-id")
+    session.commit()
+
+    assert outbox.status == MailOutboxStatus.SENT
+    assert outbox.provider_message_id == "resend-message-id"
+    assert outbox.text_body is None
+    assert outbox.html_body is None
+
+
+def test_expired_verification_mail_is_never_dispatched(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    outbox = MailOutbox(
+        outbox_uuid="expired-mail-outbox",
+        category="verification.password_reset",
+        dedupe_key="verification:expired",
+        recipient="user@example.com",
+        subject="Expired code",
+        text_body="654321",
+        html_body="<strong>654321</strong>",
+        expires_at=utc_now_naive() - timedelta(seconds=1),
+    )
+    session.add(outbox)
+    session.commit()
+
+    due = MailOutboxService().recover_and_list_due(session)
+
+    assert due == []
+    assert outbox.status == MailOutboxStatus.EXPIRED
+    assert outbox.text_body is None
+    assert outbox.html_body is None
 
 
 def test_import_dispatch_claim_reconstructs_persisted_request(
@@ -817,11 +995,15 @@ async def test_collaborator_revision_save_notifies_score_owner(
         RevisionCreateRequest(content=MUSICXML_2, base_revision_id="collab-base-revision"),
     )
 
-    notification = session.query(NotificationEvent).filter_by(
-        recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SCORE_VERSION_CREATED,
-    ).one()
+    notification = (
+        session.query(NotificationEvent)
+        .filter_by(
+            recipient_user_id=1,
+            actor_user_id=2,
+            type=NotificationTypes.SCORE_VERSION_CREATED,
+        )
+        .one()
+    )
     assert notification.score_id == "collab-revision-score"
     assert notification.resource_id == "collab-revision-score"
     assert notification.data["revision_id"] == created.revision_id
@@ -837,11 +1019,16 @@ async def test_collaborator_revision_save_notifies_score_owner(
         revision=revision,
         actor=actor,
     )
-    assert session.query(NotificationEvent).filter_by(
-        recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SCORE_VERSION_CREATED,
-    ).count() == 1
+    assert (
+        session.query(NotificationEvent)
+        .filter_by(
+            recipient_user_id=1,
+            actor_user_id=2,
+            type=NotificationTypes.SCORE_VERSION_CREATED,
+        )
+        .count()
+        == 1
+    )
 
 
 @pytest.mark.asyncio
@@ -870,11 +1057,13 @@ async def test_generate_fingering_returns_xml_without_creating_revision(
     )
 
     assert result.content == MUSICXML_2
-    assert fingering_service.calls == [{
-        "score_id": "fingering-score",
-        "xml_content": MUSICXML_1.decode("utf-8"),
-        "hand_size": "L",
-    }]
+    assert fingering_service.calls == [
+        {
+            "score_id": "fingering-score",
+            "xml_content": MUSICXML_1.decode("utf-8"),
+            "hand_size": "L",
+        }
+    ]
     assert session.query(ScoreRevision).count() == revision_count
     assert session.query(ScoreArtifact).count() == artifact_count
 
@@ -892,7 +1081,9 @@ async def test_generate_fingering_validates_input_and_generated_xml(
         revision_uuid="invalid-fingering-revision",
         title="Invalid Fingering Score",
     )
-    service = RevisionService(storage=storage, fingering_service=FakeFingeringService(xml_content="<bad />"))
+    service = RevisionService(
+        storage=storage, fingering_service=FakeFingeringService(xml_content="<bad />")
+    )
     db = AsyncSessionAdapter(session)
 
     with pytest.raises(ValidationException):
@@ -965,13 +1156,17 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
     async_db = AsyncSessionAdapter(session)
 
     delivery = await service.delivery(
-        async_db, artifact.artifact_uuid, 1  # type: ignore[arg-type]
+        async_db,
+        artifact.artifact_uuid,
+        1,  # type: ignore[arg-type]
     )
     assert delivery.path is not None
 
     with pytest.raises(UnauthorizedException):
         await service.delivery(
-            async_db, artifact.artifact_uuid, 2  # type: ignore[arg-type]
+            async_db,
+            artifact.artifact_uuid,
+            2,  # type: ignore[arg-type]
         )
 
     storage.delete(artifact.storage_key)
@@ -1063,18 +1258,25 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
     assert member.capabilities.can_edit is False
     with pytest.raises(UnauthorizedException):
         await policy.authorize(
-            db, "policy-score", ScoreAction.EDIT, user_id=2  # type: ignore[arg-type]
+            db,
+            "policy-score",
+            ScoreAction.EDIT,
+            user_id=2,  # type: ignore[arg-type]
         )
 
     shared = await policy.resolve(
-        db, "policy-score", share_token="view-token"  # type: ignore[arg-type]
+        db,
+        "policy-score",
+        share_token="view-token",  # type: ignore[arg-type]
     )
     assert shared.revision.revision_uuid == "policy-revision-2"
     assert shared.capabilities.can_download is True
     assert shared.capabilities.can_edit is False
 
     published = await policy.resolve(
-        db, "policy-score", public_slug="public-policy-score"  # type: ignore[arg-type]
+        db,
+        "policy-score",
+        public_slug="public-policy-score",  # type: ignore[arg-type]
     )
     assert published.revision.revision_uuid == "policy-revision-1"
     assert published.capabilities.can_practice is True
@@ -1084,7 +1286,9 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
         await policy.resolve(db, "policy-score")  # type: ignore[arg-type]
     with pytest.raises(UnauthorizedException):
         await policy.resolve(
-            db, "policy-score", share_token="expired-token"  # type: ignore[arg-type]
+            db,
+            "policy-score",
+            share_token="expired-token",  # type: ignore[arg-type]
         )
     with pytest.raises(UnauthorizedException):
         await policy.resolve(
@@ -1129,9 +1333,7 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
         1,
         GrantCreateRequest(),
     )
-    stored_grant = session.query(ScoreShareGrant).filter_by(
-        grant_uuid=created.grant_id
-    ).one()
+    stored_grant = session.query(ScoreShareGrant).filter_by(grant_uuid=created.grant_id).one()
     assert "." not in created.token
     assert created.grant_id not in created.token
     assert stored_grant.token_hash == hash_share_token(created.token)
@@ -1140,7 +1342,9 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     assert listed_grants[0].token is None
 
     bookmarked = await service.bookmark_grant(
-        db, created.token, 2  # type: ignore[arg-type]
+        db,
+        created.token,
+        2,  # type: ignore[arg-type]
     )
     assert bookmarked.available is True
     access = await service.access_grant(db, created.token, None)  # type: ignore[arg-type]
@@ -1191,9 +1395,7 @@ async def test_create_grant_normalizes_aware_expiration_to_naive_utc(
         GrantCreateRequest(expires_at=expires_at),
     )
 
-    stored_grant = session.query(ScoreShareGrant).filter_by(
-        grant_uuid=created.grant_id
-    ).one()
+    stored_grant = session.query(ScoreShareGrant).filter_by(grant_uuid=created.grant_id).one()
     assert stored_grant.expires_at == datetime(2026, 6, 30, 13, 41, 35)
     assert stored_grant.expires_at.tzinfo is None
 
@@ -1223,32 +1425,24 @@ async def test_invite_acceptance_creates_editable_membership(
     session.commit()
 
     db = AsyncSessionAdapter(session)
-    sent_emails: list[tuple[str, str, str, str | None]] = []
-    service = ScoreInviteService(
-        mail_dispatcher=lambda to_email, subject, body, html_body=None: sent_emails.append(
-            (to_email, subject, body, html_body)
-        )
-    )
+    service = ScoreInviteService()
     created = await service.create_invite(
         db,  # type: ignore[arg-type]
         "invite-score",
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole.EDITOR),
     )
-    stored_invite = session.query(ScoreInvite).filter_by(
-        invite_uuid=created.invite_id
-    ).one()
+    stored_invite = session.query(ScoreInvite).filter_by(invite_uuid=created.invite_id).one()
     assert "." not in created.token
     assert created.invite_id not in created.token
     assert stored_invite.token_hash == hash_invite_token(created.token)
     assert created.token not in stored_invite.token_hash
-    assert len(sent_emails) == 1
-    assert sent_emails[0][0] == "other@example.com"
-    assert "Invite score" in sent_emails[0][2]
-    assert f"/invite/{created.token}" in sent_emails[0][2]
-    assert sent_emails[0][3]
-    assert "<html" in sent_emails[0][3]
-    assert f"/invite/{created.token}" in sent_emails[0][3]
+    queued_mail = session.query(MailOutbox).one()
+    assert queued_mail.recipient == "other@example.com"
+    assert "Invite score" in (queued_mail.text_body or "")
+    assert f"/invite/{created.token}" in (queued_mail.text_body or "")
+    assert "<html" in (queued_mail.html_body or "")
+    assert f"/invite/{created.token}" in (queued_mail.html_body or "")
 
     listed = await service.list_invites(db, "invite-score", 1)  # type: ignore[arg-type]
     assert listed[0].invite_id == created.invite_id
@@ -1262,17 +1456,25 @@ async def test_invite_acceptance_creates_editable_membership(
     assert accepted.score_id == "invite-score"
     assert accepted.role == MembershipRole.EDITOR
     assert accepted.membership_id is not None
-    stored_membership = session.query(ScoreMembership).filter_by(
-        score_id=87,
-        user_id=2,
-    ).one()
+    stored_membership = (
+        session.query(ScoreMembership)
+        .filter_by(
+            score_id=87,
+            user_id=2,
+        )
+        .one()
+    )
     assert stored_membership.role == MembershipRole.EDITOR
     assert stored_invite.status == InviteStatus.ACCEPTED
-    notification = session.query(NotificationEvent).filter_by(
-        recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SCORE_INVITE_ACCEPTED,
-    ).one()
+    notification = (
+        session.query(NotificationEvent)
+        .filter_by(
+            recipient_user_id=1,
+            actor_user_id=2,
+            type=NotificationTypes.SCORE_INVITE_ACCEPTED,
+        )
+        .one()
+    )
     assert notification.score_id == "invite-score"
     assert notification.resource_id == "invite-score"
     assert notification.read_at is None
@@ -1300,12 +1502,7 @@ async def test_invite_email_target_is_enforced(
     )
     assert score.score_uuid == "targeted-invite-score"
     db = AsyncSessionAdapter(session)
-    sent_emails: list[tuple[str, str, str, str | None]] = []
-    service = ScoreInviteService(
-        mail_dispatcher=lambda to_email, subject, body, html_body=None: sent_emails.append(
-            (to_email, subject, body, html_body)
-        )
-    )
+    service = ScoreInviteService()
 
     created = await service.create_invite(
         db,  # type: ignore[arg-type]
@@ -1317,7 +1514,7 @@ async def test_invite_email_target_is_enforced(
     inspected = await service.inspect_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert inspected.requires_login is False
     assert inspected.can_accept is False
-    assert len(sent_emails) == 1
+    assert session.query(MailOutbox).count() == 1
     with pytest.raises(ValidationException) as mismatch:
         await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert mismatch.value.code == ErrorCode.INVITE_EMAIL_MISMATCH
@@ -1338,7 +1535,7 @@ async def test_user_pending_invites_can_be_accepted_without_token(
         title="Pending Invite",
     )
     db = AsyncSessionAdapter(session)
-    service = ScoreInviteService(mail_dispatcher=lambda *_args, **_kwargs: None)
+    service = ScoreInviteService()
 
     created = await service.create_invite(
         db,  # type: ignore[arg-type]
@@ -1378,7 +1575,7 @@ async def test_user_pending_invites_can_be_declined(
         title="Decline Invite",
     )
     db = AsyncSessionAdapter(session)
-    service = ScoreInviteService(mail_dispatcher=lambda *_args, **_kwargs: None)
+    service = ScoreInviteService()
 
     created = await service.create_invite(
         db,  # type: ignore[arg-type]
@@ -1396,11 +1593,15 @@ async def test_user_pending_invites_can_be_declined(
     assert declined.status == InviteStatus.DECLINED
     assert stored_invite.status == InviteStatus.DECLINED
     assert stored_invite.declined_at is not None
-    notification = session.query(NotificationEvent).filter_by(
-        recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SCORE_INVITE_DECLINED,
-    ).one()
+    notification = (
+        session.query(NotificationEvent)
+        .filter_by(
+            recipient_user_id=1,
+            actor_user_id=2,
+            type=NotificationTypes.SCORE_INVITE_DECLINED,
+        )
+        .one()
+    )
     assert notification.score_id == "decline-invite-score"
     assert notification.data["invite_id"] == created.invite_id
     assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
@@ -1486,9 +1687,10 @@ async def test_notification_dedupe_key_returns_existing_event(
     assert first is not None
     assert second is not None
     assert second.notification_id == first.notification_id
-    assert session.query(NotificationEvent).filter_by(
-        dedupe_key="system:test:score-1:owner"
-    ).count() == 1
+    assert (
+        session.query(NotificationEvent).filter_by(dedupe_key="system:test:score-1:owner").count()
+        == 1
+    )
 
 
 @pytest.mark.asyncio
@@ -1608,9 +1810,7 @@ async def test_publication_pins_revision_until_explicit_republish(
     db = AsyncSessionAdapter(session)
     policy = ScoreAccessPolicy()
     artifact_service = ArtifactService(storage=storage, access_policy=policy)
-    service = PublicationService(
-        access_policy=policy, artifact_service=artifact_service
-    )
+    service = PublicationService(access_policy=policy, artifact_service=artifact_service)
 
     published = await service.publish(
         db,  # type: ignore[arg-type]
@@ -1619,7 +1819,8 @@ async def test_publication_pins_revision_until_explicit_republish(
         PublicationUpsertRequest(revision_id="publication-revision-1"),
     )
     public_detail = await service.public_detail(
-        db, published.public_slug  # type: ignore[arg-type]
+        db,
+        published.public_slug,  # type: ignore[arg-type]
     )
     assert public_detail.publication.revision_id == "publication-revision-1"
 

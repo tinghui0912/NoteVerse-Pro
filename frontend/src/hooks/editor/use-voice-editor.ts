@@ -14,7 +14,6 @@ import {
 } from '@/lib/musicxml/core';
 import { useTranslations } from 'next-intl';
 import { recalculateBackups } from '@/lib/musicxml/backup';
-import { rebuildAutomaticBeamsForMeasure } from '@/lib/musicxml/automatic-beams';
 
 export function useVoiceEditor() {
     const t = useTranslations('editor.actions');
@@ -72,7 +71,6 @@ export function useVoiceEditor() {
             });
 
             recalculateBackups(measureEl);
-            rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
             return serializeXml(xmlDoc);
         } catch (error) {
             console.error('Failed to remove voice elements:', error);
@@ -208,7 +206,6 @@ export function useVoiceEditor() {
                 });
 
                 recalculateBackups(measureEl);
-                rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
             });
 
             const newXml = serializeXml(xmlDoc);

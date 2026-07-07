@@ -25,10 +25,16 @@ class ReviewThumbnailService:
         self.repository = repository or SyncImportJobRepository()
         self.storage = storage or file_storage
 
-    def render(self, db: Session, job_uuid: str) -> str | None:
+    def render(
+        self,
+        db: Session,
+        job_uuid: str,
+        *,
+        expected_source_fingerprint: str | None = None,
+    ) -> str | None:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
-            return None
+            raise RuntimeError(f"Import job {job_uuid} no longer exists")
         job_id = require_persisted_id(job.id, entity="import job")
         review_xml = (
             db.query(ImportArtifact)
@@ -36,6 +42,11 @@ class ReviewThumbnailService:
             .one_or_none()
         )
         if review_xml is None:
+            raise RuntimeError(f"Review MusicXML for {job_uuid} is unavailable")
+        if (
+            expected_source_fingerprint is not None
+            and review_xml.sha256 != expected_source_fingerprint
+        ):
             return None
 
         previous = (
@@ -52,7 +63,7 @@ class ReviewThumbnailService:
             engine = create_score_render_engine(output_folder=work_dir)
             result = engine.render_score(xml_path=xml_path, output_name="thumbnail")
             if not result["success"] or not result.get("files"):
-                return None
+                raise RuntimeError(f"Review thumbnail renderer produced no output for {job_uuid}")
 
             output = result["files"][0]
             path = output["path"]

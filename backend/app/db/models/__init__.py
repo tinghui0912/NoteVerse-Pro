@@ -45,7 +45,8 @@ from .score_access import (
     ScoreShareGrant,
     ShareGrantRedemption,
 )
-from .render_outbox import RenderOutboxStatus, RevisionRenderOutbox
+from .render_outbox import RenderOutbox, RenderOutboxStatus, RenderTargetType
+from .mail_outbox import MailOutbox, MailOutboxStatus
 
 __all__ = [
     "User",
@@ -87,5 +88,8 @@ __all__ = [
     "ScoreShareGrant",
     "ShareGrantRedemption",
     "RenderOutboxStatus",
-    "RevisionRenderOutbox",
+    "RenderTargetType",
+    "RenderOutbox",
+    "MailOutbox",
+    "MailOutboxStatus",
 ]

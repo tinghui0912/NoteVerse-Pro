@@ -33,8 +33,8 @@ from app.modules.auth.schemas import (
     VerifyCodeRequest,
 )
 from app.modules.auth.email_templates import build_verification_email
+from app.modules.mail.outbox_service import queue_mail
 from app.shared.constants import ErrorCode
-from app.shared.mail_dispatcher import dispatch_email
 from app.utils.timezone import utc_now_naive
 
 REDIS_KEY_VERIFY_PREFIX = "email_verify:"
@@ -221,7 +221,9 @@ class AuthService:
             ip_address=ip_address or current_token.ip_address,
             device_id=device_id or current_token.device_id,
         )
-        current_token.replaced_by_token_id = require_persisted_id(next_record.id, entity="refresh_token")
+        current_token.replaced_by_token_id = require_persisted_id(
+            next_record.id, entity="refresh_token"
+        )
         await db.commit()
         return access_token, next_refresh_token
 
@@ -349,7 +351,27 @@ class AuthService:
             purpose=purpose,
             ttl_seconds=ttl_seconds,
         )
-        dispatch_email(email, email_content.subject, email_content.text_body, email_content.html_body)
+        try:
+            await queue_mail(
+                db,
+                category=f"verification.{purpose}",
+                dedupe_key=f"verification:{challenge_id}",
+                recipient=email,
+                subject=email_content.subject,
+                text_body=email_content.text_body,
+                html_body=email_content.html_body,
+                expires_at=utc_now_naive() + timedelta(seconds=ttl_seconds),
+            )
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            self._redis_call(
+                lambda: self.redis_client.delete(
+                    f"{REDIS_KEY_VERIFY_PREFIX}{challenge_id}",
+                    cooldown_key,
+                )
+            )
+            raise
 
         return SendCodeResult(
             challenge_id=challenge_id,

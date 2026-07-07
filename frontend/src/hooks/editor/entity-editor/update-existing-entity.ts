@@ -19,7 +19,7 @@ import {
     createNoteElementFromPitch,
 } from '@/lib/musicxml/elements';
 import { recalculateBackups } from '@/lib/musicxml/backup';
-import { rebuildAutomaticBeamsForMeasure } from '@/lib/musicxml/automatic-beams';
+import { rebuildAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
 import { ensureStableMusicXmlIds } from '@/lib/musicxml/stable-ids';
 
 export interface UpdateExistingEntityParams {
@@ -34,6 +34,20 @@ export interface UpdateExistingEntityResult {
     success: boolean;
     newXml?: string;
     newScoreData?: ScoreData;
+}
+
+function getRhythmSignature(elements: Element[]): string {
+    const notes = elements.filter((element) => element.isConnected);
+    const main = notes[0] ?? elements[0];
+    if (!main) return 'missing';
+    return JSON.stringify({
+        kind: main.querySelector(':scope > rest') ? 'rest' : notes.length > 1 ? 'chord' : 'note',
+        duration: main.querySelector(':scope > duration')?.textContent?.trim() ?? '',
+        type: main.querySelector(':scope > type')?.textContent?.trim() ?? '',
+        dots: main.querySelectorAll(':scope > dot').length,
+        timeModification: main.querySelector(':scope > time-modification')?.textContent?.trim() ?? '',
+        members: notes.length,
+    });
 }
 
 /**
@@ -62,6 +76,7 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
         if (!targetGroup || targetGroup.elements.length === 0) return { success: false };
 
         const targetElements = targetGroup.elements;
+        const originalRhythmSignature = getRhythmSignature(targetElements);
 
         if (updatedEntity.type === 'chord' && 'pitches' in updatedEntity) {
             const pitches = updatedEntity.pitches;
@@ -146,8 +161,12 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
             }
         }
 
-        recalculateBackups(measureEl);
-        rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
+        const updatedGroups = getEntityGroupsFromMeasure(measureEl, staffNumber, voiceNum);
+        const updatedRhythmSignature = getRhythmSignature(updatedGroups[entityIndex]?.elements ?? targetElements);
+        if (originalRhythmSignature !== updatedRhythmSignature) {
+            recalculateBackups(measureEl);
+            rebuildAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
+        }
         ensureStableMusicXmlIds(xmlDoc);
 
         const newXml = serializeXml(xmlDoc);

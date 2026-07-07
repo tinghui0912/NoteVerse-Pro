@@ -65,6 +65,14 @@ celery_app.conf.update(
             "task": "app.worker.tasks.run_render_outbox_maintenance",
             "schedule": float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS),
         },
+        "mail-outbox-maintenance": {
+            "task": "app.worker.tasks.run_mail_outbox_maintenance",
+            "schedule": float(settings.MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS),
+        },
+        "mail-outbox-cleanup-daily": {
+            "task": "app.worker.tasks.run_mail_outbox_cleanup",
+            "schedule": 86400.0,
+        },
     },
 )
 

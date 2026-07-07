@@ -1,6 +1,5 @@
 from app.shared.constants import ErrorCode, SuccessCode
 from app.shared.file_kinds import FileKind
-from app.shared.mail_dispatcher import dispatch_email
 from app.shared.responses import (
     APIResponse,
     EmptyResponse,
@@ -20,5 +19,4 @@ __all__ = [
     "FileKind",
     "ErrorCode",
     "SuccessCode",
-    "dispatch_email",
 ]

@@ -60,22 +60,35 @@ class FakeDb:
     def one_or_none(self):
         return object() if self.user_exists else None
 
+    async def commit(self) -> None:
+        return None
+
+    async def rollback(self) -> None:
+        return None
+
+
+async def noop_queue_mail(*_args, **_kwargs) -> None:
+    return None
+
 
 @pytest.mark.asyncio
-async def test_send_email_code_uses_localized_html_templates(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_send_email_code_uses_localized_html_templates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     redis = FakeRedis()
-    sent: list[tuple[str, str, str, str | None]] = []
+    queued: list[dict[str, object]] = []
+
+    async def capture_mail(_db, **kwargs) -> None:
+        queued.append(kwargs)
+
     monkeypatch.setattr(
-        "app.modules.auth.service.dispatch_email",
-        lambda to_email, subject, body, html_body=None: sent.append(
-            (to_email, subject, body, html_body)
-        ),
+        "app.modules.auth.service.queue_mail",
+        capture_mail,
     )
 
     service = AuthService(redis_client=redis)  # type: ignore[arg-type]
     result = await service.send_email_code(
-        FakeDb(),
-        SendCodeRequest(email="User@Example.com", purpose="register", locale="zh")
+        FakeDb(), SendCodeRequest(email="User@Example.com", purpose="register", locale="zh")
     )
 
     key = _verification_key(result.challenge_id)
@@ -84,22 +97,25 @@ async def test_send_email_code_uses_localized_html_templates(monkeypatch: pytest
     assert payload["purpose"] == "register"
     assert payload["attempts"] == 0
     assert redis.ttl(key) == settings.EMAIL_REGISTER_CODE_TTL_SECONDS
-    assert sent[0][0] == "user@example.com"
-    assert "注册验证码" in sent[0][1]
-    assert "10 分钟" in sent[0][2]
-    assert sent[0][3] and "<html" in sent[0][3]
+    assert queued[0]["recipient"] == "user@example.com"
+    assert "注册验证码" in str(queued[0]["subject"])
+    assert "10 分钟" in str(queued[0]["text_body"])
+    assert "<html" in str(queued[0]["html_body"])
+    assert queued[0]["dedupe_key"] == f"verification:{result.challenge_id}"
 
 
 @pytest.mark.asyncio
 async def test_send_email_code_reports_verification_store_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    sent: list[tuple[str, str, str, str | None]] = []
+    queued: list[dict[str, object]] = []
+
+    async def capture_mail(_db, **kwargs) -> None:
+        queued.append(kwargs)
+
     monkeypatch.setattr(
-        "app.modules.auth.service.dispatch_email",
-        lambda to_email, subject, body, html_body=None: sent.append(
-            (to_email, subject, body, html_body)
-        ),
+        "app.modules.auth.service.queue_mail",
+        capture_mail,
     )
 
     service = AuthService(redis_client=UnavailableRedis())  # type: ignore[arg-type]
@@ -111,18 +127,20 @@ async def test_send_email_code_reports_verification_store_unavailable(
 
     assert exc.value.code == ErrorCode.EMAIL_SERVICE_UNAVAILABLE
     assert exc.value.status_code == 503
-    assert sent == []
+    assert queued == []
 
 
 @pytest.mark.asyncio
 async def test_password_reset_code_rejects_unknown_email(monkeypatch: pytest.MonkeyPatch) -> None:
     redis = FakeRedis()
-    sent: list[tuple[str, str, str, str | None]] = []
+    queued: list[dict[str, object]] = []
+
+    async def capture_mail(_db, **kwargs) -> None:
+        queued.append(kwargs)
+
     monkeypatch.setattr(
-        "app.modules.auth.service.dispatch_email",
-        lambda to_email, subject, body, html_body=None: sent.append(
-            (to_email, subject, body, html_body)
-        ),
+        "app.modules.auth.service.queue_mail",
+        capture_mail,
     )
 
     service = AuthService(redis_client=redis)  # type: ignore[arg-type]
@@ -133,21 +151,21 @@ async def test_password_reset_code_rejects_unknown_email(monkeypatch: pytest.Mon
         )
 
     assert exc.value.code == ErrorCode.EMAIL_NOT_FOUND
-    assert sent == []
+    assert queued == []
 
 
 @pytest.mark.asyncio
 async def test_password_reset_code_uses_shorter_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
     redis = FakeRedis()
     monkeypatch.setattr(
-        "app.modules.auth.service.dispatch_email",
-        lambda to_email, subject, body, html_body=None: None,
+        "app.modules.auth.service.queue_mail",
+        noop_queue_mail,
     )
 
     service = AuthService(redis_client=redis)  # type: ignore[arg-type]
     result = await service.send_email_code(
         FakeDb(user_exists=True),
-        SendCodeRequest(email="user@example.com", purpose="password_reset", locale="en")
+        SendCodeRequest(email="user@example.com", purpose="password_reset", locale="en"),
     )
 
     key = _verification_key(result.challenge_id)
@@ -158,14 +176,13 @@ async def test_password_reset_code_uses_shorter_ttl(monkeypatch: pytest.MonkeyPa
 async def test_email_code_attempt_limit_deletes_challenge(monkeypatch: pytest.MonkeyPatch) -> None:
     redis = FakeRedis()
     monkeypatch.setattr(
-        "app.modules.auth.service.dispatch_email",
-        lambda to_email, subject, body, html_body=None: None,
+        "app.modules.auth.service.queue_mail",
+        noop_queue_mail,
     )
 
     service = AuthService(redis_client=redis)  # type: ignore[arg-type]
     result = await service.send_email_code(
-        FakeDb(),
-        SendCodeRequest(email="user@example.com", purpose="register", locale="en")
+        FakeDb(), SendCodeRequest(email="user@example.com", purpose="register", locale="en")
     )
     key = _verification_key(result.challenge_id)
 

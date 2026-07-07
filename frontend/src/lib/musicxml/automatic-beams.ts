@@ -1,194 +1,251 @@
-/**
- * Automatic MusicXML beam rebuilding.
- *
- * Beams are layout-derived for this editor: every structural edit clears stale
- * beams in the affected measure and regenerates them from meter, voice, staff,
- * note duration, rests, and measure boundaries.
- */
+/** Deterministic, notation-aware MusicXML beam rebuilding. */
 
 import { getDivisions, getEntityGroupsFromMeasure } from './core';
+import { parseNotatedDuration } from './notated-duration';
 
-type BeamType = 'begin' | 'continue' | 'end';
-
-type VoiceKey = {
-    staff: number;
-    voice: number;
-};
-
+type BeamType = 'begin' | 'continue' | 'end' | 'forward hook' | 'backward hook';
+type VoiceKey = { staff: number; voice: number };
 type BeamCandidate = {
-    elements: Element[];
-    startTick: number;
-    duration: number;
+  elements: Element[];
+  startTick: number;
+  duration: number;
+  beamLevel: number;
 };
 
-function matchesName(element: Element, name: string): boolean {
-    return element.localName === name || element.tagName === name || element.tagName.endsWith(`.${name}`);
+function directText(element: Element, selector: string): string | null {
+  return element.querySelector(selector)?.textContent?.trim() || null;
 }
 
-function findDescendant(element: Element, name: string): Element | null {
-    const descendants = Array.from(element.getElementsByTagName('*'));
-    return descendants.find(child => matchesName(child, name)) ?? null;
+function directInt(element: Element, selector: string, fallback: number): number {
+  const parsed = Number.parseInt(directText(element, selector) ?? '', 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function getDescendantText(element: Element, name: string): string | null {
-    return findDescendant(element, name)?.textContent?.trim() ?? null;
+function removeBeamElements(note: Element): void {
+  note.querySelectorAll(':scope > beam').forEach((beam) => beam.remove());
 }
 
-function getIntDescendant(element: Element, name: string, fallback: number): number {
-    const text = getDescendantText(element, name);
-    if (!text) return fallback;
-    const parsed = parseInt(text, 10);
-    return Number.isFinite(parsed) ? parsed : fallback;
+function addBeamElement(
+  xmlDoc: XMLDocument,
+  note: Element,
+  level: number,
+  type: BeamType
+): void {
+  const beam = xmlDoc.createElement('beam');
+  beam.setAttribute('number', String(level));
+  beam.textContent = type;
+  const existingBeams = Array.from(note.querySelectorAll(':scope > beam'));
+  const lastBeam = existingBeams.at(-1);
+  const staff = note.querySelector(':scope > staff');
+  if (lastBeam) lastBeam.after(beam);
+  else if (staff) staff.after(beam);
+  else note.appendChild(beam);
 }
 
-function removeBeamElements(noteElement: Element): void {
-    Array.from(noteElement.getElementsByTagName('*'))
-        .filter(child => matchesName(child, 'beam'))
-        .forEach(beam => beam.parentNode?.removeChild(beam));
+function parseAdditiveBeats(text: string): number[] {
+  const groups = text.split('+').map((part) => Number.parseInt(part.trim(), 10));
+  return groups.length > 0 && groups.every((value) => Number.isFinite(value) && value > 0)
+    ? groups
+    : [];
 }
 
-function addBeamElement(xmlDoc: XMLDocument, noteElement: Element, type: BeamType): void {
-    const beam = xmlDoc.createElement('beam');
-    beam.setAttribute('number', '1');
-    beam.textContent = type;
+function defaultNumeratorGroups(beats: number, beatType: number): number[] {
+  if (beatType === 8) {
+    if (beats === 3) return [3];
+    if (beats > 3 && beats % 3 === 0) return Array.from({ length: beats / 3 }, () => 3);
+    if (beats === 5) return [2, 3];
+    if (beats === 7) return [2, 2, 3];
+    if (beats === 8) return [3, 3, 2];
+  }
+  return Array.from({ length: beats }, () => 1);
+}
 
-    const staffEl = findDescendant(noteElement, 'staff');
-    if (staffEl?.nextSibling) {
-        noteElement.insertBefore(beam, staffEl.nextSibling);
-    } else if (staffEl) {
-        staffEl.after(beam);
-    } else {
-        noteElement.appendChild(beam);
+function getBeatGroupTicks(xmlDoc: XMLDocument, measure: Element, divisions: number): number[] {
+  let beatsText = '4';
+  let beatType = 4;
+  for (const candidate of Array.from(xmlDoc.querySelectorAll('part > measure'))) {
+    const time = candidate.querySelector('attributes > time');
+    const nextBeats = time?.querySelector(':scope > beats')?.textContent?.trim();
+    const nextBeatType = Number.parseInt(time?.querySelector(':scope > beat-type')?.textContent ?? '', 10);
+    if (nextBeats) beatsText = nextBeats;
+    if (Number.isFinite(nextBeatType) && nextBeatType > 0) beatType = nextBeatType;
+    if (candidate === measure) break;
+  }
+
+  const explicitGroups = parseAdditiveBeats(beatsText);
+  const beats = explicitGroups.reduce((sum, value) => sum + value, 0) || 4;
+  const numeratorGroups = beatsText.includes('+')
+    ? explicitGroups
+    : defaultNumeratorGroups(beats, beatType);
+  const unitTicks = divisions * (4 / beatType);
+  return numeratorGroups.map((group) => Math.max(1, Math.round(group * unitTicks)));
+}
+
+function getGroupIndex(startTick: number, endTick: number, groupTicks: number[]): number | null {
+  let boundary = 0;
+  for (let index = 0; index < groupTicks.length; index += 1) {
+    const nextBoundary = boundary + groupTicks[index];
+    if (startTick >= boundary && startTick < nextBoundary) {
+      return endTick <= nextBoundary ? index : null;
     }
+    boundary = nextBoundary;
+  }
+  return null;
 }
 
-function getMeasureTimeSignature(xmlDoc: XMLDocument, measureEl: Element): { beats: number; beatType: number } {
-    let beats = 4;
-    let beatType = 4;
-    const measures = Array.from(xmlDoc.querySelectorAll('part > measure'));
+function discoverMeasureVoices(measure: Element): VoiceKey[] {
+  const keys = new Map<string, VoiceKey>();
+  measure.querySelectorAll(':scope > note, :scope > forward').forEach((element) => {
+    const staff = directInt(element, ':scope > staff', 1);
+    const voice = directInt(element, ':scope > voice', 1);
+    keys.set(`${staff}-${voice}`, { staff, voice });
+  });
+  return [...keys.values()].sort((a, b) => a.staff - b.staff || a.voice - b.voice);
+}
 
-    for (const measure of measures) {
-        const beatsText = measure.querySelector('attributes time beats')?.textContent?.trim();
-        const beatTypeText = measure.querySelector('attributes time beat-type')?.textContent?.trim();
+function isProtectedVoice(
+  groups: ReturnType<typeof getEntityGroupsFromMeasure>,
+  divisions: number
+): boolean {
+  return groups.some((group) => group.elements.some((note) => (
+    Boolean(note.querySelector(':scope > grace, :scope > cue'))
+    || Boolean(note.querySelector(':scope > beam[fan]'))
+    || note.querySelectorAll(':scope > notations > tuplet').length > 1
+    || (
+      Boolean(note.querySelector(':scope > time-modification'))
+      && parseNotatedDuration(note, divisions).tupletRatio === null
+    )
+    || (
+      !note.querySelector(':scope > type')
+      && parseNotatedDuration(note, divisions).beamLevel === 0
+      && Boolean(note.querySelector(':scope > beam'))
+    )
+  )));
+}
 
-        if (beatsText && beatTypeText) {
-            const parsedBeats = parseInt(beatsText, 10);
-            const parsedBeatType = parseInt(beatTypeText, 10);
-            if (Number.isFinite(parsedBeats) && parsedBeats > 0) beats = parsedBeats;
-            if (Number.isFinite(parsedBeatType) && parsedBeatType > 0) beatType = parsedBeatType;
-        }
+function hasCrossStaffBeam(measure: Element, voice: number): boolean {
+  const notes = Array.from(measure.querySelectorAll(':scope > note')).filter((note) => (
+    directInt(note, ':scope > voice', 1) === voice
+  ));
+  const staves = new Set(notes.map((note) => directInt(note, ':scope > staff', 1)));
+  return staves.size > 1 && notes.some((note) => Boolean(note.querySelector(':scope > beam')));
+}
 
-        if (measure === measureEl) break;
+function getPickupOffset(measure: Element, groups: ReturnType<typeof getEntityGroupsFromMeasure>, groupTicks: number[]): number {
+  if (measure.getAttribute('implicit') !== 'yes') return 0;
+  const expected = groupTicks.reduce((sum, ticks) => sum + ticks, 0);
+  const actual = groups.reduce((sum, group) => {
+    const first = group.elements[0];
+    return sum + directInt(first, ':scope > duration', 0);
+  }, 0);
+  return actual > 0 && actual < expected ? expected - actual : 0;
+}
+
+function writeBeamLevel(
+  xmlDoc: XMLDocument,
+  group: BeamCandidate[],
+  level: number
+): void {
+  let index = 0;
+  while (index < group.length) {
+    if (group[index].beamLevel < level) {
+      index += 1;
+      continue;
     }
-
-    return { beats, beatType };
-}
-
-function getBeamGroupTicks(xmlDoc: XMLDocument, measureEl: Element, divisions: number): number {
-    const { beats, beatType } = getMeasureTimeSignature(xmlDoc, measureEl);
-
-    if (beatType === 8 && beats % 3 === 0) {
-        return Math.max(1, divisions * 3 * (4 / beatType));
+    const start = index;
+    while (index < group.length && group[index].beamLevel >= level) index += 1;
+    const run = group.slice(start, index);
+    if (run.length === 1) {
+      const hook: BeamType = start === 0 ? 'forward hook' : 'backward hook';
+      run[0].elements.forEach((note) => addBeamElement(xmlDoc, note, level, hook));
+      continue;
     }
-
-    return Math.max(1, divisions * (4 / beatType));
-}
-
-function getDurationTicks(groupElements: Element[]): number {
-    const durationText = getDescendantText(groupElements[0], 'duration');
-    if (!durationText) return 0;
-    const duration = parseInt(durationText, 10);
-    return Number.isFinite(duration) ? duration : 0;
-}
-
-function isBeamableGroup(group: { type: string; elements: Element[] }, divisions: number): boolean {
-    if (group.type === 'rest' || group.type === 'forward') return false;
-    const firstNote = group.elements[0];
-    if (!firstNote || findDescendant(firstNote, 'rest')) return false;
-
-    const duration = getDurationTicks(group.elements);
-    return duration > 0 && duration < divisions;
-}
-
-function discoverMeasureVoices(measureEl: Element): VoiceKey[] {
-    const keys = new Map<string, VoiceKey>();
-
-    Array.from(measureEl.childNodes).forEach(node => {
-        if (node.nodeType !== 1) return;
-        const element = node as Element;
-        if (!matchesName(element, 'note') && !matchesName(element, 'forward')) return;
-
-        const staff = getIntDescendant(element, 'staff', 1);
-        const voice = getIntDescendant(element, 'voice', 1);
-        keys.set(`${staff}-${voice}`, { staff, voice });
+    run.forEach((candidate, runIndex) => {
+      const type: BeamType = runIndex === 0
+        ? 'begin'
+        : runIndex === run.length - 1 ? 'end' : 'continue';
+      candidate.elements.forEach((note) => addBeamElement(xmlDoc, note, level, type));
     });
-
-    return Array.from(keys.values()).sort((a, b) => a.staff - b.staff || a.voice - b.voice);
+  }
 }
 
 function writeBeamGroup(xmlDoc: XMLDocument, group: BeamCandidate[]): void {
-    if (group.length < 2) return;
-
-    group.forEach((candidate, index) => {
-        const beamType = index === 0 ? 'begin' : index === group.length - 1 ? 'end' : 'continue';
-        candidate.elements.forEach(noteElement => addBeamElement(xmlDoc, noteElement, beamType));
-    });
+  if (group.length < 2) return;
+  const maxLevel = Math.max(...group.map((candidate) => candidate.beamLevel));
+  for (let level = 1; level <= maxLevel; level += 1) writeBeamLevel(xmlDoc, group, level);
 }
 
-function rebuildVoiceBeams(xmlDoc: XMLDocument, measureEl: Element, voice: VoiceKey, divisions: number, groupTicks: number): void {
-    const entityGroups = getEntityGroupsFromMeasure(measureEl, voice.staff, voice.voice);
-    entityGroups.forEach(group => group.elements.forEach(removeBeamElements));
+function rebuildVoiceBeams(
+  xmlDoc: XMLDocument,
+  measure: Element,
+  voice: VoiceKey,
+  divisions: number,
+  groupTicks: number[]
+): void {
+  const entityGroups = getEntityGroupsFromMeasure(measure, voice.staff, voice.voice);
+  if (isProtectedVoice(entityGroups, divisions) || hasCrossStaffBeam(measure, voice.voice)) return;
+  entityGroups.forEach((group) => group.elements.forEach(removeBeamElements));
 
-    let cursor = 0;
-    let currentGroup: BeamCandidate[] = [];
-    let currentBucket: number | null = null;
+  let cursor = getPickupOffset(measure, entityGroups, groupTicks);
+  let bucket: number | null = null;
+  let current: BeamCandidate[] = [];
+  const flush = () => {
+    writeBeamGroup(xmlDoc, current);
+    current = [];
+    bucket = null;
+  };
 
-    const flush = () => {
-        writeBeamGroup(xmlDoc, currentGroup);
-        currentGroup = [];
-        currentBucket = null;
-    };
+  entityGroups.forEach((group) => {
+    const first = group.elements[0];
+    const notation = first ? parseNotatedDuration(first, divisions) : null;
+    const duration = notation?.soundingTicks ?? directInt(first, ':scope > duration', 0);
+    const startTick = cursor;
+    const endTick = startTick + duration;
+    const groupIndex = getGroupIndex(startTick, endTick, groupTicks);
+    const beamable = group.type !== 'rest'
+      && group.type !== 'forward'
+      && !first?.querySelector(':scope > rest')
+      && Boolean(notation && notation.beamLevel > 0);
 
-    entityGroups.forEach(group => {
-        const duration = getDurationTicks(group.elements);
-        const startTick = cursor;
-        const endTick = startTick + duration;
-        const startBucket = Math.floor(startTick / groupTicks);
-        const endBucket = Math.floor(Math.max(startTick, endTick - 1) / groupTicks);
-        const crossesGroupBoundary = duration > 0 && startBucket !== endBucket;
-
-        if (!isBeamableGroup(group, divisions) || crossesGroupBoundary) {
-            flush();
-            cursor = endTick;
-            return;
-        }
-
-        if (currentBucket !== null && currentBucket !== startBucket) {
-            flush();
-        }
-
-        currentBucket = startBucket;
-        currentGroup.push({ elements: group.elements, startTick, duration });
-        cursor = endTick;
-
-        if (cursor > 0 && cursor % groupTicks === 0) {
-            flush();
-        }
-    });
-
-    flush();
+    if (!beamable || groupIndex === null) {
+      flush();
+      cursor = endTick;
+      return;
+    }
+    if (bucket !== null && bucket !== groupIndex) flush();
+    bucket = groupIndex;
+    current.push({ elements: group.elements, startTick, duration, beamLevel: notation!.beamLevel });
+    cursor = endTick;
+  });
+  flush();
 }
 
-export function rebuildAutomaticBeamsForMeasure(xmlDoc: XMLDocument, measureEl: Element): void {
-    const divisions = getDivisions(xmlDoc);
-    const groupTicks = getBeamGroupTicks(xmlDoc, measureEl, divisions);
-    const voices = discoverMeasureVoices(measureEl);
+export function rebuildAutomaticBeamsForMeasure(xmlDoc: XMLDocument, measure: Element): void {
+  const divisions = getDivisions(xmlDoc);
+  const groupTicks = getBeatGroupTicks(xmlDoc, measure, divisions);
+  discoverMeasureVoices(measure).forEach((voice) => (
+    rebuildVoiceBeams(xmlDoc, measure, voice, divisions, groupTicks)
+  ));
+}
 
-    voices.forEach(voice => rebuildVoiceBeams(xmlDoc, measureEl, voice, divisions, groupTicks));
+export function rebuildAutomaticBeamsForVoice(
+  xmlDoc: XMLDocument,
+  measure: Element,
+  staff: number,
+  voice: number
+): void {
+  const divisions = getDivisions(xmlDoc);
+  rebuildVoiceBeams(
+    xmlDoc,
+    measure,
+    { staff, voice },
+    divisions,
+    getBeatGroupTicks(xmlDoc, measure, divisions)
+  );
 }
 
 export function rebuildAutomaticBeams(xmlDoc: XMLDocument): void {
-    Array.from(xmlDoc.querySelectorAll('part > measure')).forEach(measureEl => {
-        rebuildAutomaticBeamsForMeasure(xmlDoc, measureEl);
-    });
+  xmlDoc.querySelectorAll('part > measure').forEach((measure) => (
+    rebuildAutomaticBeamsForMeasure(xmlDoc, measure)
+  ));
 }
