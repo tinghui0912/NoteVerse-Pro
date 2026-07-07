@@ -6,6 +6,7 @@ import { ScorePreviewViewport } from '@/components/score/score-preview-viewport'
 import { Button } from '@/components/ui/button';
 import { useEditorState, useScoreData, useXmlUpdater } from '@/contexts/editor-provider';
 import { useScorePreviewPlayback } from '@/hooks/score/use-score-preview-playback';
+import { useMeasureWarningOverlay } from '@/hooks/score/use-measure-warning-overlay';
 import { useEntityEditor } from '@/hooks/editor/use-entity-editor';
 import { useConnectionOperations } from '@/hooks/editor/use-connection-operations';
 import { useEditorTracks } from '@/hooks/editor/use-editor-tracks';
@@ -20,7 +21,7 @@ import {
   getVerovioStaffElementForIndex,
 } from '@/lib/editor/verovio-entity-map';
 import { getEntityDurationTicks, snapMeasureXToGridTick } from '@/lib/editor/measure-timeline';
-import { buildDirtyMeasureStatuses } from '@/lib/editor/measure-status';
+import { validateDataIntegrity } from '@/lib/musicxml/validator';
 import { getEditorTrackId, getTrackColor, parseVoiceNumber } from '@/lib/editor/tracks';
 import { EditorBottomPlayer } from './editor-bottom-player';
 import type { AddLocation, ScoreData, ScoreEntity } from '@/types/score-types';
@@ -205,38 +206,6 @@ function getMeasureIndex(container: Element | null, measureElement: Element | nu
   const measures = getDirectMeasureElements(container);
   const index = measures.indexOf(measureElement);
   return index >= 0 ? index : null;
-}
-
-function getStaffLineBounds(measureElement: Element): { left: number; right: number } | null {
-  const rects = getDirectStaffElements(measureElement).flatMap((staff) => (
-    Array.from(staff.children)
-      .filter((child) => child instanceof SVGPathElement)
-      .map((path) => path.getBoundingClientRect())
-      .filter((rect) => rect.width > 8)
-  ));
-
-  if (rects.length === 0) return null;
-
-  return {
-    left: Math.min(...rects.map((rect) => rect.left)),
-    right: Math.max(...rects.map((rect) => rect.right)),
-  };
-}
-
-function getMeasureWarningRect(measureElements: Element[], measureIndex: number, pageRect: DOMRect) {
-  const measureElement = measureElements[measureIndex];
-  if (!measureElement) return null;
-
-  const measureRect = measureElement.getBoundingClientRect();
-  const staffLineBounds = getStaffLineBounds(measureElement);
-  if (!staffLineBounds) return null;
-
-  return {
-    left: Math.max(0, staffLineBounds.left - pageRect.left),
-    top: Math.max(0, measureRect.top - pageRect.top),
-    width: Math.max(1, staffLineBounds.right - staffLineBounds.left),
-    height: Math.max(1, measureRect.height),
-  };
 }
 
 function getStaveIndexFromPointer(measureElement: Element | null, clientY: number): number | null {
@@ -547,6 +516,7 @@ function isConnectionNearAnyEndpoint(
 export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }: EditorPreviewPanelProps) {
   const t = useTranslations('editor');
   const common = useTranslations('common');
+  const auth = useTranslations('auth');
   const { scoreData } = useScoreData();
   const { editingEntity, editorMode, selectTool, setOnToolChange } = useEditorState();
   const { tracks, activeTrackId, visibleTrackIdSet } = useEditorTracks();
@@ -590,10 +560,24 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     if (!currentXml) return 1;
     return getDivisions(parseXml(currentXml));
   }, [currentXml]);
-  const dirtyMeasureStatuses = useMemo(
-    () => buildDirtyMeasureStatuses(scoreData, divisions),
-    [divisions, scoreData]
+  const translateValidationKey = useCallback((key: string) => {
+    if (!key.includes('.')) return t(key as never);
+    const [namespace, ...rest] = key.split('.');
+    const nestedKey = rest.join('.');
+    if (namespace === 'editor') return t(nestedKey as never);
+    if (namespace === 'common') return common(nestedKey as never);
+    if (namespace === 'validation' || namespace === 'auth') return auth(`validation.${nestedKey}` as never);
+    return key;
+  }, [auth, common, t]);
+  const validationIssues = useMemo(
+    () => validateDataIntegrity(scoreData, currentXml, translateValidationKey).warnings,
+    [currentXml, scoreData, translateValidationKey]
   );
+  useMeasureWarningOverlay({
+    containerRef: playback.containerRef,
+    isLoading: playback.isLoading,
+    issues: validationIssues,
+  });
   const hiddenSourceIds = useMemo(() => {
     const ids = new Set<string>();
     if (!scoreData) return ids;
@@ -761,75 +745,6 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     scoreData?.mainTitle,
     scoreData?.subtitle,
     t,
-  ]);
-
-  useEffect(() => {
-    const container = playback.containerRef.current;
-    if (!container || playback.isLoading) return;
-
-    let frameId: number | null = null;
-
-    const renderWarnings = () => {
-      container.querySelectorAll('[data-score-measure-warning]').forEach((element) => element.remove());
-      container.querySelectorAll('[data-score-measure-warning-outline]').forEach((element) => element.remove());
-      if (dirtyMeasureStatuses.length === 0) return;
-
-      const measureElements = getDirectMeasureElements(container);
-
-      dirtyMeasureStatuses.forEach((status) => {
-        const measureElement = measureElements[status.measureIndex];
-        const page = measureElement?.closest<HTMLElement>('[data-score-page]');
-        if (!measureElement || !page) return;
-
-        const pageRect = page.getBoundingClientRect();
-        const warningRect = getMeasureWarningRect(measureElements, status.measureIndex, pageRect);
-        if (!warningRect) return;
-
-        const outline = document.createElement('div');
-        outline.dataset.scoreMeasureWarningOutline = 'true';
-        outline.className = 'score-measure-warning-outline';
-        outline.style.left = `${warningRect.left}px`;
-        outline.style.top = `${warningRect.top}px`;
-        outline.style.width = `${warningRect.width}px`;
-        outline.style.height = `${warningRect.height}px`;
-        page.append(outline);
-      });
-    };
-
-    const scheduleRender = () => {
-      if (frameId !== null) cancelAnimationFrame(frameId);
-      frameId = requestAnimationFrame(() => {
-        frameId = requestAnimationFrame(renderWarnings);
-      });
-    };
-
-    scheduleRender();
-
-    const observer = new MutationObserver((mutations) => {
-      const hasScoreDomChange = mutations.some((mutation) => {
-        const changedNodes = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
-        return changedNodes.some((node) => (
-          node instanceof HTMLElement
-          && !node.matches('[data-score-measure-warning], [data-score-measure-warning-outline]')
-        ));
-      });
-
-      if (hasScoreDomChange) scheduleRender();
-    });
-
-    observer.observe(container, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      if (frameId !== null) cancelAnimationFrame(frameId);
-      container.querySelectorAll('[data-score-measure-warning]').forEach((element) => element.remove());
-      container.querySelectorAll('[data-score-measure-warning-outline]').forEach((element) => element.remove());
-    };
-  }, [
-    currentXml,
-    dirtyMeasureStatuses,
-    playback.containerRef,
-    playback.isLoading,
   ]);
 
   useEffect(() => {

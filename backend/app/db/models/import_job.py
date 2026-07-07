@@ -58,6 +58,10 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
             "dispatch_attempt_count >= 0",
             name="ck_import_jobs_dispatch_attempt_count",
         ),
+        CheckConstraint(
+            "publish_attempt_count >= 0",
+            name="ck_import_jobs_publish_attempt_count",
+        ),
         UniqueConstraint(
             "user_id",
             "idempotency_key",
@@ -96,6 +100,10 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     dispatch_attempt_count: int = Field(
+        default=0,
+        sa_column=Column(Integer, default=0, nullable=False),
+    )
+    publish_attempt_count: int = Field(
         default=0,
         sa_column=Column(Integer, default=0, nullable=False),
     )

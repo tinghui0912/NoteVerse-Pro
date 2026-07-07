@@ -1,36 +1,53 @@
 import type { ScoreData, Measure, Stave, Voice, ScoreEntity } from '@/types/score-types';
+import { buildDirtyMeasureStatuses } from '@/lib/editor/measure-status';
 import { parseXml } from './core';
+
+export interface ScoreValidationIssue {
+    code: string;
+    severity: 'error' | 'warning';
+    message: string;
+    measureIndex?: number;
+    staffIndex?: number;
+    voice?: number;
+    entityIds?: string[];
+    details?: Record<string, string | number>;
+}
 
 export interface ValidationResult {
     success: boolean;
-    issues: string[];
-    warnings: string[];
+    issues: ScoreValidationIssue[];
+    warnings: ScoreValidationIssue[];
 }
 
 export type TranslateFunction = (key: string) => string;
 
-function validateXMLFormat(currentXml: string | null, t: TranslateFunction): string[] {
-    const issues: string[] = [];
+function errorIssue(code: string, message: string, details?: Record<string, string | number>): ScoreValidationIssue {
+    return { code, severity: 'error', message, details };
+}
+
+function validateXMLFormat(currentXml: string | null, t: TranslateFunction): ScoreValidationIssue[] {
+    const issues: ScoreValidationIssue[] = [];
 
     if (!currentXml) {
-        issues.push(t('validation.xmlEmpty'));
+        issues.push(errorIssue('xml.empty', t('validation.xmlEmpty')));
         return issues;
     }
 
     try {
         const xmlDoc = parseXml(currentXml);
         if (!xmlDoc) {
-            issues.push(t('validation.xmlParseFailed'));
+            issues.push(errorIssue('xml.parse_failed', t('validation.xmlParseFailed')));
         }
     } catch (error) {
-        issues.push(`${t('validation.xmlParseFailed')}: ${error instanceof Error ? error.message : String(error)}`);
+        const reason = error instanceof Error ? error.message : String(error);
+        issues.push(errorIssue('xml.parse_failed', `${t('validation.xmlParseFailed')}: ${reason}`, { reason }));
     }
 
     return issues;
 }
 
-function validateBasicStructure(currentXml: string | null, t: TranslateFunction): string[] {
-    const issues: string[] = [];
+function validateBasicStructure(currentXml: string | null, t: TranslateFunction): ScoreValidationIssue[] {
+    const issues: ScoreValidationIssue[] = [];
 
     if (!currentXml) {
         return issues;
@@ -43,46 +60,35 @@ function validateBasicStructure(currentXml: string | null, t: TranslateFunction)
         }
         const scorePartwise = xmlDoc.querySelector('score-partwise');
         if (!scorePartwise) {
-            issues.push(t('validation.missingRootElement'));
+            issues.push(errorIssue('structure.missing_root', t('validation.missingRootElement')));
         }
         const partList = xmlDoc.querySelector('part-list');
         if (!partList) {
-            issues.push(t('validation.missingPartList'));
+            issues.push(errorIssue('structure.missing_part_list', t('validation.missingPartList')));
         }
         const parts = xmlDoc.querySelectorAll('part');
         if (parts.length === 0) {
-            issues.push(t('validation.missingPart'));
+            issues.push(errorIssue('structure.missing_part', t('validation.missingPart')));
         }
         const measures = xmlDoc.querySelectorAll('measure');
         if (measures.length === 0) {
-            issues.push(t('validation.missingMeasure'));
+            issues.push(errorIssue('structure.missing_measure', t('validation.missingMeasure')));
         }
 
     } catch (error) {
-        issues.push(`${t('validation.xmlParseFailed')}: ${error instanceof Error ? error.message : String(error)}`);
+        const reason = error instanceof Error ? error.message : String(error);
+        issues.push(errorIssue('xml.parse_failed', `${t('validation.xmlParseFailed')}: ${reason}`, { reason }));
     }
 
     return issues;
-}
-
-function getDurationDivisions(duration: string, divisions: number): number {
-    const durationMap: Record<string, number> = {
-        'durationWhole': divisions * 4,
-        'durationHalf': divisions * 2,
-        'durationQuarter': divisions,
-        'durationEighth': divisions / 2,
-        'duration16th': divisions / 4,
-        'duration32nd': divisions / 8,
-    };
-    return durationMap[duration] ?? divisions;
 }
 
 function validateMeasureDurations(
     scoreData: ScoreData | null,
     currentXml: string | null,
     t: TranslateFunction
-): string[] {
-    const warnings: string[] = [];
+): ScoreValidationIssue[] {
+    const warnings: ScoreValidationIssue[] = [];
 
     if (!scoreData || !currentXml) {
         return warnings;
@@ -95,49 +101,47 @@ function validateMeasureDurations(
         }
         const divisionsEl = xmlDoc.querySelector('attributes divisions');
         const divisions = divisionsEl ? parseInt(divisionsEl.textContent || '4', 10) : 4;
-        const beatsEl = xmlDoc.querySelector('time beats');
-        const beatTypeEl = xmlDoc.querySelector('time beat-type');
-        const beats = beatsEl ? parseInt(beatsEl.textContent || '4', 10) : 4;
-        const beatType = beatTypeEl ? parseInt(beatTypeEl.textContent || '4', 10) : 4;
-        const measureTicks = Math.round(divisions * beats * (4 / beatType));
-        scoreData.measures.forEach((measure: Measure, measureIndex: number) => {
-            measure.staves.forEach((stave: Stave, staveIndex: number) => {
-                stave.voices.forEach((voice: Voice) => {
-                    let totalTicks = 0;
-                    voice.notes.forEach((entity: ScoreEntity) => {
-                        const durationTicks = getDurationDivisions(entity.duration, divisions);
-                        const actualTicks = entity.dotted ? durationTicks * 1.5 : durationTicks;
-                        totalTicks += actualTicks;
-                    });
-                    if (totalTicks !== measureTicks && voice.notes.length > 0) {
-                        const delta = totalTicks - measureTicks;
-                        const status = delta > 0 ? t('editor.durationExceeds') : t('editor.durationInsufficient');
-                        const staffLabel = staveIndex === 0 ? t('editor.trebleClef') : t('editor.bassClef');
-                        const voiceNumber = voice.name.replace(/\D/g, '') || '1';
-                        warnings.push(
-                            `${t('common.measure')}${measureIndex + 1} ${staffLabel} ${t('common.voice')}${voiceNumber}: ${status} (${totalTicks}/${measureTicks})`
-                        );
-                    }
+        buildDirtyMeasureStatuses(scoreData, divisions).forEach((measureStatus) => {
+            measureStatus.voices.forEach((voiceStatus) => {
+                const status = voiceStatus.kind === 'overflow'
+                    ? t('editor.durationExceeds')
+                    : t('editor.durationInsufficient');
+                const staffLabel = voiceStatus.staveIndex === 0
+                    ? t('editor.trebleClef')
+                    : t('editor.bassClef');
+                warnings.push({
+                    code: `measure.duration_${voiceStatus.kind}`,
+                    severity: 'warning',
+                    message: `${t('common.measure')}${voiceStatus.measureNumber} ${staffLabel} ${t('common.voice')}${voiceStatus.xmlVoice}: ${status} (${voiceStatus.actualTicks}/${voiceStatus.expectedTicks})`,
+                    measureIndex: voiceStatus.measureIndex,
+                    staffIndex: voiceStatus.staveIndex,
+                    voice: voiceStatus.xmlVoice,
+                    details: {
+                        expectedTicks: voiceStatus.expectedTicks,
+                        actualTicks: voiceStatus.actualTicks,
+                        deltaTicks: voiceStatus.deltaTicks,
+                    },
                 });
             });
         });
     } catch (error) {
-        warnings.push(`${t('validation.xmlParseFailed')}: ${error instanceof Error ? error.message : String(error)}`);
+        const reason = error instanceof Error ? error.message : String(error);
+        warnings.push({ code: 'xml.parse_failed', severity: 'warning', message: `${t('validation.xmlParseFailed')}: ${reason}`, details: { reason } });
     }
 
     return warnings;
 }
 
-function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFunction): string[] {
-    const warnings: string[] = [];
+function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFunction): ScoreValidationIssue[] {
+    const warnings: ScoreValidationIssue[] = [];
 
     if (!scoreData?.connections?.noteConnections || !scoreData?.connections?.entityInfoMap) {
         return warnings;
     }
 
     const { noteConnections, entityInfoMap } = scoreData.connections;
-    scoreData.measures.forEach((measure: Measure) => {
-        measure.staves.forEach((stave: Stave) => {
+    scoreData.measures.forEach((measure: Measure, measureIndex: number) => {
+        measure.staves.forEach((stave: Stave, staveIndex: number) => {
             stave.voices.forEach((voice: Voice) => {
                 voice.notes.forEach((entity: ScoreEntity) => {
                     if (!entity.meta?.id) return;
@@ -150,25 +154,19 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
                     if (articulation.includes('beam')) {
                         const pairedBeams = entityConns?.beams?.length ?? 0;
                         if (pairedBeams === 0 && entityInfo) {
-                            warnings.push(
-                                `${t('validation.unpairedBeam')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`
-                            );
+                            warnings.push({ code: 'connection.unpaired_beam', severity: 'warning', message: `${t('validation.unpairedBeam')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`, measureIndex, staffIndex: staveIndex, voice: entityInfo.voiceNumber, entityIds: [entityId] });
                         }
                     }
                     if (articulation.includes('tie')) {
                         const pairedTies = entityConns?.ties?.length ?? 0;
                         if (pairedTies === 0 && entityInfo) {
-                            warnings.push(
-                                `${t('validation.unpairedTie')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`
-                            );
+                            warnings.push({ code: 'connection.unpaired_tie', severity: 'warning', message: `${t('validation.unpairedTie')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`, measureIndex, staffIndex: staveIndex, voice: entityInfo.voiceNumber, entityIds: [entityId] });
                         }
                     }
                     if (articulation.includes('slur')) {
                         const pairedSlurs = entityConns?.slurs?.length ?? 0;
                         if (pairedSlurs === 0 && entityInfo) {
-                            warnings.push(
-                                `${t('validation.unpairedSlur')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`
-                            );
+                            warnings.push({ code: 'connection.unpaired_slur', severity: 'warning', message: `${t('validation.unpairedSlur')}: ${entityInfo.pitch} (${t('common.measure')}${entityInfo.measureNumber} | ${getStaveLabel(entityInfo.staveLabel)} | ${t('common.voice')}${entityInfo.voiceNumber} | ${t('common.position')}${entityInfo.position})`, measureIndex, staffIndex: staveIndex, voice: entityInfo.voiceNumber, entityIds: [entityId] });
                         }
                     }
                 });
@@ -184,8 +182,8 @@ export function validateDataIntegrity(
     currentXml: string | null,
     t: TranslateFunction
 ): ValidationResult {
-    const issues: string[] = [];
-    const warnings: string[] = [];
+    const issues: ScoreValidationIssue[] = [];
+    const warnings: ScoreValidationIssue[] = [];
     issues.push(...validateXMLFormat(currentXml, t));
     issues.push(...validateBasicStructure(currentXml, t));
     if (issues.length === 0) {

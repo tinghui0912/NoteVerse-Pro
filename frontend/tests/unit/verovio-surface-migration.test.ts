@@ -16,7 +16,7 @@ describe('Verovio listen surfaces', () => {
     expect(page).not.toContain('<Footer');
     expect(player).toContain('<ScorePreviewViewport');
     expect(player).toContain('<ScorePlaybackDock');
-    expect(sidebar).toContain('resolveScoreShellCapabilities');
+    expect(sidebar).toContain('useScoreShell');
   });
 
   it('renders public score access through the score shell and capability model', () => {
@@ -177,12 +177,15 @@ describe('Verovio listen surfaces', () => {
     const viewport = readSource('src/components/score/score-preview-viewport.tsx');
     const panel = readSource('src/components/editor/editor-preview-panel.tsx');
     const measureStatus = readSource('src/lib/editor/measure-status.ts');
+    const validator = readSource('src/lib/musicxml/validator.ts');
+    const overlay = readSource('src/hooks/score/use-measure-warning-overlay.ts');
 
     expect(viewport).toContain('score-measure-warning-outline');
-    expect(panel).toContain('buildDirtyMeasureStatuses');
-    expect(panel).toContain('[data-score-measure-warning]');
-    expect(panel).toContain('[data-score-measure-warning-outline]');
-    expect(panel).not.toContain("element.textContent = '⚠'");
+    expect(panel).toContain('validateDataIntegrity');
+    expect(panel).toContain('useMeasureWarningOverlay');
+    expect(validator).toContain('buildDirtyMeasureStatuses');
+    expect(overlay).toContain('data-score-measure-warning-outline');
+    expect(overlay).not.toContain("element.textContent = '⚠'");
     expect(measureStatus).toContain('DirtyMeasureStatus');
     expect(measureStatus).toContain('getMeasureDurationTicks');
     expect(measureStatus).toContain("kind: deltaTicks > 0 ? 'overflow' : 'underfill'");

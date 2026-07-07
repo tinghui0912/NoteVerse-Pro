@@ -9,7 +9,6 @@ from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions, ImportJobSubmitRequestLike, ImportJobSubmitResult
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.shared.constants import ErrorCode
-from app.shared.import_dispatcher import dispatch_import_job
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
@@ -24,14 +23,20 @@ class ImportJobSubmissionService:
         if idempotency_key:
             existing = self._existing_job_uuid(user_id, idempotency_key)
             if existing:
-                dispatch_import_job(existing)
-                return {"job_id": existing, "count": len(request.file_ids)}
+                return {
+                    "job_id": existing,
+                    "count": len(request.file_ids),
+                    "state": ImportJobState.PENDING,
+                }
 
         self._ensure_uploads_exist(user_id, request.file_ids)
         job_uuid = str(uuid.uuid4())
         self._create_pending_job(job_uuid, user_id, request, idempotency_key)
-        dispatch_import_job(job_uuid)
-        return {"job_id": job_uuid, "count": len(request.file_ids)}
+        return {
+            "job_id": job_uuid,
+            "count": len(request.file_ids),
+            "state": ImportJobState.PENDING,
+        }
 
     @staticmethod
     def _normalize_key(value: object) -> str | None:

@@ -227,7 +227,7 @@ export function UploadForm(props: UploadFormProps) {
               disabled={props.files.length === 0 || props.isProcessing}
             >
               {props.isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('uploading')}</>
-                : props.isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('processingProgress', { progress: props.taskProgress })}</>
+                : props.isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{props.taskProgress > 0 ? t('processingProgress', { progress: props.taskProgress }) : t('awaitingProcessing')}</>
                   : t('startRecognition')}
             </Button>
           </div>

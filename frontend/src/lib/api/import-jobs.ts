@@ -1,12 +1,14 @@
 import { apiClient, type ApiResponse, type PaginatedResponse } from '../api-client';
-import type { ImportJob } from '@/types/api';
+import type { ImportJob, ImportJobState } from '@/types/api';
+
+type ImportJobSubmission = { job_id: string; state: ImportJobState };
 
 export async function submitImportJob(
   fileIds: string[],
   options?: Record<string, unknown>,
   idempotencyKey?: string
-): Promise<ApiResponse<{ job_id: string }>> {
-  return apiClient.post<ApiResponse<{ job_id: string }>>('/import-jobs', {
+): Promise<ApiResponse<ImportJobSubmission>> {
+  return apiClient.post<ApiResponse<ImportJobSubmission>>('/import-jobs', {
     file_ids: fileIds,
     idempotency_key: idempotencyKey,
     options,

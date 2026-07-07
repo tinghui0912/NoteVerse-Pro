@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,17 +29,17 @@ async def list_jobs(
     return paginated_response(rows, page, page_size, total)
 
 
-@router.post("")
+@router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def submit_job(
     request: ImportJobSubmitRequest,
     current_user: User = Depends(get_current_user),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     result = await service.submit(current_user, request)
-    return success_response(data=result, message=SuccessCode.PROCESSING_STARTED)
+    return success_response(data=result, message=SuccessCode.IMPORT_JOB_ACCEPTED)
 
 
-@router.post("/{job_id}/retry")
+@router.post("/{job_id}/retry", status_code=status.HTTP_202_ACCEPTED)
 async def retry_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -48,7 +48,7 @@ async def retry_job(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.retry(db, job_id, current_user, user_id)
-    return success_response(data=result, message=SuccessCode.PROCESSING_STARTED)
+    return success_response(data=result, message=SuccessCode.IMPORT_JOB_ACCEPTED)
 
 
 @router.get("/{job_id}")

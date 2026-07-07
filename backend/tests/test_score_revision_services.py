@@ -748,14 +748,41 @@ def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
     session.add(job)
     session.commit()
 
-    due = ImportDispatchService().recover_and_list_due(session)
+    due = ImportDispatchService().recover_and_claim_due(session)
 
     assert due == [job.job_uuid]
     assert job.state == ImportJobState.PENDING
-    assert job.dispatch_status == ImportDispatchStatus.PENDING
+    assert job.dispatch_status == ImportDispatchStatus.DISPATCHED
     assert job.progress == 0
     assert job.current_step is None
     assert job.error is None
+
+
+def test_import_dispatch_publish_failure_uses_exponential_backoff(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    now = utc_now_naive()
+    job = ImportJob(
+        id=504,
+        job_uuid="broker-backoff-job",
+        user_id=1,
+        state=ImportJobState.PENDING,
+        dispatch_status=ImportDispatchStatus.DISPATCHED,
+        dispatched_at=now,
+        next_dispatch_at=now,
+    )
+    session.add(job)
+    session.commit()
+
+    ImportDispatchService().release_dispatch(session, job.job_uuid, "broker unavailable")
+    session.commit()
+
+    assert job.state == ImportJobState.PENDING
+    assert job.dispatch_status == ImportDispatchStatus.PENDING
+    assert job.publish_attempt_count == 1
+    assert job.next_dispatch_at > now
+    assert job.dispatch_error == "broker unavailable"
 
 
 @pytest.mark.asyncio

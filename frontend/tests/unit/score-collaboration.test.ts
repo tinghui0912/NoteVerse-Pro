@@ -86,7 +86,8 @@ describe('score collaboration invite architecture', () => {
     expect(center).toContain("notification.type === 'score_invite.accepted'");
     expect(center).toContain("notification.type === 'score_invite.declined'");
     expect(center).toContain("notification.type === 'score.version.created'");
-    expect(center).toContain('router.push(`/score/${notification.score_id}`)');
+    expect(center).toContain('notificationHref(notification)');
+    expect(center).toContain('router.push(href)');
 
     expect(notificationsApi).toContain('/me/notifications');
     expect(notificationsApi).toContain('/me/notifications/unread-count');

@@ -61,7 +61,7 @@ export default function ReviewPage({ params }: { params: Promise<{ jobId: string
       {hero}
       <div className="mx-auto max-w-7xl px-4 py-16">
         <ReviewValidationWarnings warnings={page.validationWarnings} />
-        <ReviewScoreComparison original={page.original} recognizedXml={page.recognizedXml} />
+        <ReviewScoreComparison original={page.original} recognizedXml={page.recognizedXml} validationIssues={page.validationWarnings} />
         <div className="mt-8 flex justify-center gap-4">
           <Button
             size="lg"

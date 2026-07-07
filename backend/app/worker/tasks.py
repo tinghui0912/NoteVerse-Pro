@@ -148,7 +148,7 @@ def run_import_dispatch_maintenance() -> dict[str, int]:
     """Recover stale import deliveries and dispatch all due jobs."""
 
     with get_worker_db() as db:
-        due = import_dispatch_service.recover_and_list_due(db)
+        due = import_dispatch_service.recover_and_claim_due(db)
 
     from app.shared.import_dispatcher import dispatch_import_job
 

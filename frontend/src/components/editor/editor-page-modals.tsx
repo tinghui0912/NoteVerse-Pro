@@ -54,13 +54,13 @@ export function EditorPageModals(props: EditorPageModalsProps) {
                 {props.validationResult?.issues?.length ? (
                   <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
                     <p className="mb-2 text-sm font-medium text-destructive">{auth('validation.foundIssues', { count: props.validationResult.issues.length })}</p>
-                    <ul className="space-y-1 text-xs">{props.validationResult.issues.map((issue, index) => <li key={`${index}-${issue}`} className="border-l-2 border-destructive/30 pl-3 text-destructive/80">{issue}</li>)}</ul>
+                    <ul className="space-y-1 text-xs">{props.validationResult.issues.map((issue, index) => <li key={`${issue.code}-${index}`} className="border-l-2 border-destructive/30 pl-3 text-destructive/80">{issue.message}</li>)}</ul>
                   </div>
                 ) : null}
                 {props.validationResult?.warnings?.length ? (
                   <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3">
                     <p className="mb-2 text-sm font-medium text-yellow-600">{auth('validation.foundWarnings', { count: props.validationResult.warnings.length })}</p>
-                    <ul className="max-h-40 space-y-1 overflow-y-auto text-xs custom-scrollbar">{props.validationResult.warnings.map((warning, index) => <li key={`${index}-${warning}`} className="border-l-2 border-yellow-500/30 pl-3 text-yellow-600/80">{warning}</li>)}</ul>
+                    <ul className="max-h-40 space-y-1 overflow-y-auto text-xs custom-scrollbar">{props.validationResult.warnings.map((warning, index) => <li key={`${warning.code}-${index}`} className="border-l-2 border-yellow-500/30 pl-3 text-yellow-600/80">{warning.message}</li>)}</ul>
                   </div>
                 ) : null}
                 <p className="text-sm text-muted-foreground">{props.validationResult?.success ? auth('validation.warningDescription') : auth('validation.errorDescription')}</p>

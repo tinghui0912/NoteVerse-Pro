@@ -151,6 +151,6 @@ class SuccessCode:
 
     TASKS_DELETED = "tasks_deleted"
     SHARES_DELETED = "shares_deleted"
-    PROCESSING_STARTED = "processing_started"
+    IMPORT_JOB_ACCEPTED = "import_job_accepted"
 
 __all__ = ["ErrorCode", "SuccessCode"]

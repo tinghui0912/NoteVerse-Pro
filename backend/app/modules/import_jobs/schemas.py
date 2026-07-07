@@ -34,6 +34,7 @@ class ImportJobArtifactItem(TypedDict):
 class ImportJobSubmitResult(TypedDict):
     job_id: str
     count: int
+    state: ImportJobState
 
 
 class ImportJobStatusEntry(TypedDict):

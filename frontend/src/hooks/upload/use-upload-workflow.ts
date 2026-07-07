@@ -259,7 +259,7 @@ export function useUploadWorkflow() {
       if (!jobId) throw new Error(tCommon('operationFailed'));
       submissionKeyRef.current = null;
       setCurrentJobId(jobId);
-      setTaskProgress(5);
+      setTaskProgress(0);
       setPollStartTime(Date.now());
       setPollInterval(TASK_POLL_INTERVAL_MS);
       toast({ title: t('taskStarted'), description: t('taskStartedDesc') });

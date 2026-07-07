@@ -23,6 +23,7 @@ from app.processing.engines.matchmaker_live import (
 )
 from app.db.models.practice import PracticeReportStatus, PracticeSessionState
 from app.db.models.score_access import AccessOrigin
+from app.db.models.import_job import ImportJobState
 from app.modules.files.service import FilesService
 from app.modules.practice.service import PracticeService
 from app.modules.profile.service import AvatarService
@@ -324,24 +325,20 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
 
 
 @pytest.mark.asyncio
-async def test_import_job_submission_remains_queued_when_dispatch_fails() -> None:
+async def test_import_job_submission_persists_without_contacting_celery() -> None:
     service = ImportJobSubmissionService()
     request = SimpleNamespace(file_ids=["abc"], options={}, idempotency_key=None)
     current_user = SimpleNamespace(id=5)
 
     with patch.object(service, "_ensure_uploads_exist") as ensure_mock:
         with patch.object(service, "_create_pending_job") as create_mock:
-            with patch(
-                "app.modules.import_jobs.submission_service.dispatch_import_job",
-                return_value=False,
-            ) as dispatch_mock:
-                result = await service.submit(current_user, request)
+            result = await service.submit(current_user, request)
 
     ensure_mock.assert_called_once_with(5, ["abc"])
     create_mock.assert_called_once()
-    dispatch_mock.assert_called_once()
     assert result["count"] == 1
-    assert result["job_id"] == dispatch_mock.call_args.args[0]
+    assert result["state"] == ImportJobState.PENDING
+    assert result["job_id"] == create_mock.call_args.args[0]
 
 
 @pytest.mark.asyncio
@@ -359,15 +356,16 @@ async def test_import_job_submission_reuses_existing_idempotency_key() -> None:
         "_existing_job_uuid",
         return_value="existing-job",
     ) as existing_mock:
-        with patch.object(service, "_ensure_uploads_exist") as ensure_mock, patch(
-            "app.modules.import_jobs.submission_service.dispatch_import_job"
-        ) as dispatch_mock:
+        with patch.object(service, "_ensure_uploads_exist") as ensure_mock:
             result = await service.submit(current_user, request)
 
-    assert result == {"job_id": "existing-job", "count": 1}
+    assert result == {
+        "job_id": "existing-job",
+        "count": 1,
+        "state": ImportJobState.PENDING,
+    }
     existing_mock.assert_called_once_with(5, "submission-key-1")
     ensure_mock.assert_not_called()
-    dispatch_mock.assert_called_once_with("existing-job")
 
 
 def test_import_job_execution_resolves_file_ids_inside_worker() -> None:

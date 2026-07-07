@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from '@/components/ui/carousel';
 import { ScorePreviewViewport } from '@/components/score/score-preview-viewport';
 import { useScorePreviewPlayback } from '@/hooks/score/use-score-preview-playback';
+import { useMeasureWarningOverlay } from '@/hooks/score/use-measure-warning-overlay';
+import type { ScoreValidationIssue } from '@/lib/musicxml/validator';
 
 function ReviewCarousel({
   title,
@@ -75,7 +77,7 @@ function ReviewCarousel({
   );
 }
 
-function RecognizedScorePreview({ xmlString }: { xmlString: string | null }) {
+function RecognizedScorePreview({ xmlString, issues }: { xmlString: string | null; issues: ScoreValidationIssue[] }) {
   const t = useTranslations('review');
   const scoreText = useTranslations('score');
   const {
@@ -84,6 +86,7 @@ function RecognizedScorePreview({ xmlString }: { xmlString: string | null }) {
     loadError,
     scoreContainerRef,
   } = useScorePreviewPlayback({ isOpen: Boolean(xmlString), xmlString });
+  useMeasureWarningOverlay({ containerRef, isLoading, issues });
 
   return (
     <Card className="rounded-2xl bg-white shadow-lg">
@@ -113,15 +116,17 @@ function RecognizedScorePreview({ xmlString }: { xmlString: string | null }) {
 export function ReviewScoreComparison({
   original,
   recognizedXml,
+  validationIssues,
 }: {
   original: { urls: string[]; loading: boolean };
   recognizedXml: string | null;
+  validationIssues: ScoreValidationIssue[];
 }) {
   const t = useTranslations('review');
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
       <ReviewCarousel title={t('originalScore')} altKey="originalScorePage" {...original} />
-      <RecognizedScorePreview xmlString={recognizedXml} />
+      <RecognizedScorePreview xmlString={recognizedXml} issues={validationIssues} />
     </div>
   );
 }

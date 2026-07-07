@@ -74,27 +74,19 @@ class ImportDispatchService:
         job.dispatch_error = None
         job.updated_at = now
 
-    def mark_dispatched(self, db: Session, job_uuid: str) -> bool:
-        job = self._get(db, job_uuid)
-        if job is None or not self._is_dispatchable(job):
-            return False
-        now = utc_now_naive()
-        job.dispatch_status = ImportDispatchStatus.DISPATCHED
-        job.dispatched_at = now
-        job.dispatch_error = None
-        job.updated_at = now
-        return True
-
     def release_dispatch(self, db: Session, job_uuid: str, error: str) -> None:
         job = self._get(db, job_uuid)
         if job is None or job.dispatch_status != ImportDispatchStatus.DISPATCHED:
             return
         job.dispatch_status = ImportDispatchStatus.PENDING
         job.dispatched_at = None
+        job.publish_attempt_count += 1
+        delay_seconds = min(300, 2 ** min(job.publish_attempt_count, 8))
+        job.next_dispatch_at = utc_now_naive() + timedelta(seconds=delay_seconds)
         job.dispatch_error = error[:4000]
         job.updated_at = utc_now_naive()
 
-    def recover_and_list_due(self, db: Session) -> list[str]:
+    def recover_and_claim_due(self, db: Session) -> list[str]:
         now = utc_now_naive()
         dispatch_cutoff = now - timedelta(seconds=settings.IMPORT_DISPATCH_TIMEOUT_SECONDS)
         processing_cutoff = now - timedelta(seconds=settings.IMPORT_PROCESSING_TIMEOUT_SECONDS)
@@ -132,7 +124,7 @@ class ImportDispatchService:
             job.updated_at = now
 
         due = db.execute(
-            select(ImportJob.job_uuid)
+            select(ImportJob)
             .where(
                 ImportJob.state == ImportJobState.PENDING,
                 ImportJob.dispatch_status.in_([
@@ -144,9 +136,15 @@ class ImportDispatchService:
             )
             .order_by(ImportJob.created_at)
             .limit(settings.IMPORT_DISPATCH_BATCH_SIZE)
+            .with_for_update(skip_locked=True)
         ).scalars().all()
+        for job in due:
+            job.dispatch_status = ImportDispatchStatus.DISPATCHED
+            job.dispatched_at = now
+            job.dispatch_error = None
+            job.updated_at = now
         db.commit()
-        return list(due)
+        return [job.job_uuid for job in due]
 
     @staticmethod
     def _get(db: Session, job_uuid: str) -> ImportJob | None:
