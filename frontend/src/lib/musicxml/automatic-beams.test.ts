@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { rebuildAutomaticBeamsForMeasure } from './automatic-beams';
+import { getManualBeamDirectionAtEntity, rebuildAutomaticBeamsForMeasure, repairAutomaticBeamsForVoice, updateManualBeamAtEntity, updateManualBeamDirectionAtEntity } from './automatic-beams';
 
 function note(duration: number, type: string, extra = '') {
   return `<note><pitch><step>C</step><octave>4</octave></pitch><duration>${duration}</duration><voice>1</voice><type>${type}</type><staff>1</staff>${extra}</note>`;
@@ -26,6 +26,21 @@ describe('Automatic Beam v2 foundation', () => {
     rebuildAutomaticBeamsForMeasure(xmlDoc, xmlDoc.querySelector('measure')!);
     expect(beams(xmlDoc)).toEqual([
       ['1:begin'], ['1:end'], ['1:begin'], ['1:end'],
+    ]);
+  });
+
+  it('writes beam elements only to each chord root note', () => {
+    const chordMember = note(2, 'eighth').replace('<note>', '<note><chord/>');
+    const xmlDoc = documentFor(
+      '4',
+      4,
+      note(2, 'eighth') + chordMember + note(2, 'eighth') + chordMember,
+    );
+
+    rebuildAutomaticBeamsForMeasure(xmlDoc, xmlDoc.querySelector('measure')!);
+
+    expect(beams(xmlDoc)).toEqual([
+      ['1:begin'], [], ['1:end'], [],
     ]);
   });
 
@@ -98,5 +113,83 @@ describe('Automatic Beam v2 foundation', () => {
     const xmlDoc = documentFor('4', 4, first + second);
     rebuildAutomaticBeamsForMeasure(xmlDoc, xmlDoc.querySelector('measure')!);
     expect(beams(xmlDoc)).toEqual([['1:begin'], ['1:end']]);
+  });
+
+  it('preserves a valid imported beam group that crosses a default beat boundary', () => {
+    const xmlDoc = documentFor(
+      '4',
+      4,
+      note(2, 'eighth', '<beam>begin</beam>')
+        + note(1, '16th', '<beam>continue</beam>')
+        + note(3, 'eighth', '<dot/><beam>end</beam>'),
+    );
+
+    repairAutomaticBeamsForVoice(xmlDoc, xmlDoc.querySelector('measure')!, 1, 1);
+
+    expect(beams(xmlDoc).map((items) => items[0])).toEqual([
+      '1:begin', '1:continue', '1:end',
+    ]);
+  });
+
+  it('absorbs an inserted short event between preserved beam endpoints', () => {
+    const xmlDoc = documentFor(
+      '4',
+      4,
+      note(1, '16th', '<beam>begin</beam>')
+        + note(1, '16th')
+        + note(2, 'eighth', '<beam>end</beam>'),
+    );
+
+    repairAutomaticBeamsForVoice(xmlDoc, xmlDoc.querySelector('measure')!, 1, 1);
+
+    expect(beams(xmlDoc).map((items) => items[0])).toEqual([
+      '1:begin', '1:continue', '1:end',
+    ]);
+  });
+
+  it('joins a selected event to the next event without changing unrelated notes', () => {
+    const xmlDoc = documentFor(
+      '4',
+      4,
+      note(2, 'eighth').replace('<note>', '<note xml:id="n1">')
+        + note(2, 'eighth').replace('<note>', '<note xml:id="n2">')
+        + note(4, 'quarter').replace('<note>', '<note xml:id="n3">'),
+    );
+
+    expect(updateManualBeamAtEntity(xmlDoc, 'n1', 'next')).toBe(true);
+    expect(beams(xmlDoc)).toEqual([['1:begin'], ['1:end'], []]);
+  });
+
+  it('breaks an existing beam after the selected event', () => {
+    const xmlDoc = documentFor(
+      '4',
+      4,
+      note(1, '16th', '<beam>begin</beam>').replace('<note>', '<note xml:id="n1">')
+        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note xml:id="n2">')
+        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note xml:id="n3">')
+        + note(1, '16th', '<beam>end</beam>').replace('<note>', '<note xml:id="n4">'),
+    );
+
+    expect(updateManualBeamAtEntity(xmlDoc, 'n2', 'break')).toBe(true);
+    expect(beams(xmlDoc).map((items) => items[0])).toEqual([
+      '1:begin', '1:end', '1:begin', '1:end',
+    ]);
+  });
+
+  it('sets and clears the stem direction for an entire beam group', () => {
+    const xmlDoc = documentFor(
+      '4',
+      4,
+      note(2, 'eighth', '<beam>begin</beam>').replace('<note>', '<note xml:id="n1">')
+        + note(2, 'eighth', '<beam>end</beam>').replace('<note>', '<note xml:id="n2">'),
+    );
+
+    expect(updateManualBeamDirectionAtEntity(xmlDoc, 'n1', 'up')).toBe(true);
+    expect(Array.from(xmlDoc.querySelectorAll('note')).map((item) => item.querySelector('stem')?.textContent)).toEqual(['up', 'up']);
+    expect(getManualBeamDirectionAtEntity(xmlDoc, 'n2')).toBe('up');
+
+    expect(updateManualBeamDirectionAtEntity(xmlDoc, 'n2', 'auto')).toBe(true);
+    expect(xmlDoc.querySelectorAll('stem')).toHaveLength(0);
+    expect(getManualBeamDirectionAtEntity(xmlDoc, 'n1')).toBe('auto');
   });
 });

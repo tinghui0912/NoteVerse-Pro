@@ -54,4 +54,31 @@ describe('updateExistingEntity beam trigger', () => {
     const updated = new DOMParser().parseFromString(result.newXml!, 'application/xml');
     expect(updated.querySelector('beam')).toBeNull();
   });
+
+  it('updates sounding duration and keeps beams on chord roots after adding a dot', () => {
+    const chordXml = xml.replace(
+      '</note>',
+      '</note><note xml:id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff></note><note xml:id="n3"><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff></note>',
+    );
+    const result = updateExistingEntity({
+      currentXml: chordXml,
+      scoreData,
+      editingEntityLocation: { measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0 },
+      updatedEntity: {
+        type: 'chord',
+        pitches: ['C4', 'E4'],
+        fingerings: [],
+        duration: 'durationEighth',
+        dotted: true,
+      },
+      getExpectedVoices: () => undefined,
+    });
+
+    expect(result.success).toBe(true);
+    const updated = new DOMParser().parseFromString(result.newXml!, 'application/xml');
+    const notes = Array.from(updated.querySelectorAll('note'));
+    expect(notes[0].querySelector(':scope > duration')?.textContent).toBe('3');
+    expect(notes[1].querySelector(':scope > duration')?.textContent).toBe('3');
+    expect(notes[1].querySelector(':scope > beam')).toBeNull();
+  });
 });

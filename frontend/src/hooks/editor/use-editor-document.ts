@@ -8,6 +8,7 @@ import { useEditorSaveErrorToast } from '@/hooks/editor/use-editor-save-error-to
 import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completion';
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
+import { ensureStableMusicXmlIdsString, stripAppOwnedMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import { useImportJobDetail } from '@/hooks/queries/use-import-job-queries';
 import {
   useCreateRevision,
@@ -71,7 +72,8 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
       try {
         const draft = await loadDraft(scoreId, revisionId);
         if (cancelled) return;
-        if (draft && draft.xml !== xmlContent) {
+        const serverWorkingXml = ensureStableMusicXmlIdsString(xmlContent);
+        if (draft && stripAppOwnedMusicXmlIdsString(draft.xml) !== stripAppOwnedMusicXmlIdsString(serverWorkingXml)) {
           setPendingDraft(draft);
           setDraftDialogOpen(true);
         } else if (draft) {
@@ -99,7 +101,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     createRevision.mutate(
       {
         scoreId,
-        content: currentXml,
+        content: stripAppOwnedMusicXmlIdsString(currentXml),
         base_revision_id: revisionId,
         idempotency_key: crypto.randomUUID(),
       },

@@ -159,6 +159,14 @@ export function getDurationValue(durationType: string, divisions: number = 1): n
     return baseDuration * divisions;
 }
 
+export function getEffectiveDurationValue(
+    durationType: string,
+    divisions: number = 1,
+    dotted: boolean = false
+): number {
+    return Math.round(getDurationValue(durationType, divisions) * (dotted ? 1.5 : 1));
+}
+
 /**
  * Get MusicXML <type> element value from duration type string
  */

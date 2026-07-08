@@ -11,7 +11,7 @@ import {
     parseXml,
     serializeXml,
     getEntityGroupsFromMeasure,
-    getDurationValue,
+    getEffectiveDurationValue,
     getDurationTypeName,
 } from '@/lib/musicxml/core';
 import {
@@ -19,7 +19,7 @@ import {
     createNoteElementFromPitch,
 } from '@/lib/musicxml/elements';
 import { recalculateBackups } from '@/lib/musicxml/backup';
-import { rebuildAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
+import { repairAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
 import { ensureStableMusicXmlIds } from '@/lib/musicxml/stable-ids';
 
 export interface UpdateExistingEntityParams {
@@ -152,7 +152,10 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
 
             const durationEl = mainNote.querySelector('duration');
             if (durationEl) {
-                durationEl.textContent = String(getDurationValue(updatedEntity.duration, divisions));
+                const dotted = 'dotted' in updatedEntity && Boolean(updatedEntity.dotted);
+                durationEl.textContent = String(
+                    getEffectiveDurationValue(updatedEntity.duration, divisions, dotted)
+                );
             }
 
             const typeEl = mainNote.querySelector('type');
@@ -165,7 +168,7 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
         const updatedRhythmSignature = getRhythmSignature(updatedGroups[entityIndex]?.elements ?? targetElements);
         if (originalRhythmSignature !== updatedRhythmSignature) {
             recalculateBackups(measureEl);
-            rebuildAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
+            repairAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
         }
         ensureStableMusicXmlIds(xmlDoc);
 

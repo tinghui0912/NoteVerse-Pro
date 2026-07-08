@@ -17,7 +17,7 @@ import {
     getEntityGroupsFromMeasure,
 } from '@/lib/musicxml/core';
 import { recalculateBackups } from '@/lib/musicxml/backup';
-import { rebuildAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
+import { repairAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
 import { createDefaultEditableEvent, toScoreEntity } from '@/lib/editor/editable-event';
 import { insertEntity } from './entity-editor/insert-entity';
 import { updateExistingEntity } from './entity-editor/update-existing-entity';
@@ -202,7 +202,7 @@ export function useEntityEditor() {
             targetGroup.elements.forEach(el => el.parentNode?.removeChild(el));
 
             recalculateBackups(measureEl);
-            rebuildAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
+            repairAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
 
             const newXml = serializeXml(xmlDoc);
 

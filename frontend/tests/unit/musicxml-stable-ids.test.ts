@@ -35,7 +35,7 @@ describe('stable MusicXML ids', () => {
     const parsedNote = new MusicXMLParser(normalized).parse().measures[0]?.staves[0]?.voices[0]?.notes[0];
 
     expect(normalized).toContain('xml:id="source-note-1"');
-    expect(normalized).toContain('id="source-note-1"');
+    expect(parseXml(normalized).querySelector('note')?.hasAttribute('id')).toBe(false);
     expect(parsedNote?.meta?.id).toBe('source-note-1');
   });
 
@@ -43,30 +43,31 @@ describe('stable MusicXML ids', () => {
     const normalized = ensureStableMusicXmlIdsString(baseScore(`${note()}<forward><duration>1</duration><voice>1</voice><staff>1</staff></forward>`));
     const doc = parseXml(normalized);
     const elements = Array.from(doc.querySelectorAll('note, forward'));
-    const ids = elements.map((element) => element.getAttribute('xml:id'));
+    const ids = elements.map((element) => element.getAttribute('id'));
 
     expect(ids).toHaveLength(2);
     expect(ids.every((id) => id?.startsWith('nv-'))).toBe(true);
-    expect(elements.map((element) => element.getAttribute('id'))).toEqual(ids);
+    expect(elements.every((element) => !element.hasAttribute('xml:id'))).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('renames duplicate ids instead of keeping ambiguous SVG anchors', () => {
     const normalized = ensureStableMusicXmlIdsString(baseScore(`${note('xml:id="same-id"')}${note('xml:id="same-id"')}`));
     const elements = Array.from(parseXml(normalized).querySelectorAll('note'));
-    const ids = elements.map((element) => element.getAttribute('xml:id'));
+    const ids = elements.map((element) => element.getAttribute('xml:id') || element.getAttribute('id'));
 
     expect(ids).toEqual(['same-id', 'same-id-2']);
-    expect(elements.map((element) => element.getAttribute('id'))).toEqual(ids);
+    expect(elements[0].hasAttribute('id')).toBe(false);
+    expect(elements[1].getAttribute('id')).toBe('same-id-2');
   });
 
   it('normalizes invalid ids to legal XML id values', () => {
     const normalized = ensureStableMusicXmlIdsString(baseScore(note('id="1 bad id"')));
     const noteEl = parseXml(normalized).querySelector('note');
-    const id = noteEl?.getAttribute('xml:id');
+    const id = noteEl?.getAttribute('id');
 
     expect(id).toBe('nv-1-bad-id');
-    expect(noteEl?.getAttribute('id')).toBe('nv-1-bad-id');
+    expect(noteEl?.hasAttribute('xml:id')).toBe(false);
     expect(normalized).not.toContain('id="1 bad id"');
   });
 });

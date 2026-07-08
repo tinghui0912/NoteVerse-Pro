@@ -69,11 +69,7 @@ describe('score preview playback ownership', () => {
 
   it('reloads the Verovio controller when the MusicXML changes', async () => {
     const firstController = createFakeController();
-    const secondController = createFakeController();
-    const createController = vi
-      .fn()
-      .mockResolvedValueOnce(firstController)
-      .mockResolvedValueOnce(secondController);
+    const createController = vi.fn().mockResolvedValue(firstController);
     const { result, rerender } = renderHook(
       ({ xmlString }) => useScorePreviewPlayback({ isOpen: true, xmlString, createController }),
       { initialProps: { xmlString: '<score-partwise><work><work-title>Old</work-title></work></score-partwise>' }, wrapper: IntlWrapper }
@@ -85,9 +81,9 @@ describe('score preview playback ownership', () => {
 
     rerender({ xmlString: '<score-partwise><work><work-title>New</work-title></work></score-partwise>' });
 
-    await waitFor(() => expect(firstController.dispose).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(secondController.loadScore).toHaveBeenCalledTimes(1));
-    expect(secondController.loadScore).toHaveBeenCalledWith('<score-partwise><work><work-title>New</work-title></work></score-partwise>');
+    await waitFor(() => expect(firstController.loadScore).toHaveBeenCalledTimes(2));
+    expect(firstController.dispose).not.toHaveBeenCalled();
+    expect(firstController.loadScore).toHaveBeenLastCalledWith('<score-partwise><work><work-title>New</work-title></work></score-partwise>');
   });
 
   it('disposes a controller whose score load fails', async () => {

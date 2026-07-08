@@ -23,15 +23,35 @@ export function useAutoSave(
   const [isSaving, setIsSaving] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedXmlRef = useRef<string | null>(null);
+  const pendingXmlRef = useRef<string | null>(null);
+  const baselineKeyRef = useRef<string | null>(null);
+
+  const flushPendingDraft = useCallback(() => {
+    const pendingXml = pendingXmlRef.current;
+    if (!pendingXml || !scoreId || !baseRevisionId || pendingXml === lastSavedXmlRef.current) return;
+    pendingXmlRef.current = null;
+    void saveDraft(scoreId, baseRevisionId, pendingXml).then(() => {
+      lastSavedXmlRef.current = pendingXml;
+    });
+  }, [baseRevisionId, scoreId]);
 
   useEffect(() => {
     if (!enabled || !xml || !scoreId || !baseRevisionId || xml === lastSavedXmlRef.current) return;
+    const baselineKey = `${scoreId}:${baseRevisionId}`;
+    if (baselineKeyRef.current !== baselineKey) {
+      baselineKeyRef.current = baselineKey;
+      lastSavedXmlRef.current = xml;
+      pendingXmlRef.current = null;
+      return;
+    }
+    pendingXmlRef.current = xml;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(async () => {
       setIsSaving(true);
       try {
         await saveDraft(scoreId, baseRevisionId, xml);
         lastSavedXmlRef.current = xml;
+        if (pendingXmlRef.current === xml) pendingXmlRef.current = null;
       } finally {
         setIsSaving(false);
       }
@@ -39,7 +59,16 @@ export function useAutoSave(
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [baseRevisionId, debounceMs, enabled, scoreId, xml]);
+  }, [baseRevisionId, debounceMs, enabled, flushPendingDraft, scoreId, xml]);
+
+  useEffect(() => {
+    const handlePageHide = () => flushPendingDraft();
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      flushPendingDraft();
+    };
+  }, [flushPendingDraft]);
 
   useEffect(() => {
     void cleanOldDrafts(7);

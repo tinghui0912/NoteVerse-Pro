@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useHistory, useScoreData } from '@/contexts/editor-provider';
 import { normalizeMeasureVoices } from '@/lib/musicxml/flatten';
 import { ensureStableMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 
 export function useEditorXmlActions() {
+  const t = useTranslations('editor');
   const { setScoreData, setRawXml, currentXml, currentXmlRef, setCurrentXml } = useScoreData();
   const { initialize: initializeHistory, push: pushHistory } = useHistory();
 
@@ -33,8 +35,11 @@ export function useEditorXmlActions() {
 
   const normalizeVoices = useCallback(async () => {
     if (!currentXml) return;
-    await applyXml(normalizeMeasureVoices(currentXml), { resetHistory: true });
-  }, [applyXml, currentXml]);
+    await applyXml(normalizeMeasureVoices(currentXml), {
+      historyLabel: t('normalizeVoices'),
+      resetHistory: false,
+    });
+  }, [applyXml, currentXml, t]);
 
   const clearXml = useCallback(() => {
     setScoreData(null);

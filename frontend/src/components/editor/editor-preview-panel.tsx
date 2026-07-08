@@ -680,33 +680,39 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     const container = playback.containerRef.current;
     if (!container) return;
 
-    container
-      .querySelectorAll('.score-editor-selected')
-      .forEach((element) => {
-        element.classList.remove('score-editor-selected');
-        if (element instanceof HTMLElement || element instanceof SVGElement) {
-          element.style.removeProperty('--score-editor-selection-color');
-        }
-      });
-
     const sourceIds = editingEntity?.meta
       ? new Set(editingEntity.meta.sourceIds || [editingEntity.meta.id])
       : null;
-    if (!sourceIds) return;
-
     const selectedColor = editingEntity?.meta
       ? getTrackColor(editingEntity.meta.staveIndex, editingEntity.meta.xmlVoice)
       : undefined;
 
-    container.querySelectorAll('[data-id], [id]').forEach((element) => {
-      const id = element.getAttribute('data-id') || element.getAttribute('id');
-      if (id && sourceIds.has(id)) {
-        element.classList.add('score-editor-selected');
-        if (selectedColor && (element instanceof HTMLElement || element instanceof SVGElement)) {
-          element.style.setProperty('--score-editor-selection-color', selectedColor);
+    const applySelection = () => {
+      container
+        .querySelectorAll('.score-editor-selected')
+        .forEach((element) => {
+          element.classList.remove('score-editor-selected');
+          if (element instanceof HTMLElement || element instanceof SVGElement) {
+            element.style.removeProperty('--score-editor-selection-color');
+          }
+        });
+
+      if (!sourceIds) return;
+      container.querySelectorAll('[data-id], [id]').forEach((element) => {
+        const id = element.getAttribute('data-id') || element.getAttribute('id');
+        if (id && sourceIds.has(id)) {
+          element.classList.add('score-editor-selected');
+          if (selectedColor && (element instanceof HTMLElement || element instanceof SVGElement)) {
+            element.style.setProperty('--score-editor-selection-color', selectedColor);
+          }
         }
-      }
-    });
+      });
+    };
+
+    applySelection();
+    const observer = new MutationObserver(() => applySelection());
+    observer.observe(container, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, [currentXml, editingEntity, playback.containerRef, playback.isLoading]);
 
   useEffect(() => {
@@ -1028,7 +1034,7 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
       <ScorePreviewViewport
         className="min-h-[62vh] rounded-lg border bg-white p-4 shadow-sm"
         containerRef={playback.containerRef}
-        isLoading={playback.isLoading}
+        isLoading={playback.isLoading && !playback.hasRenderedScore}
         loadError={playback.loadError}
         onScoreClick={handleScoreClick}
         onScoreMouseLeave={handleScoreMouseLeave}

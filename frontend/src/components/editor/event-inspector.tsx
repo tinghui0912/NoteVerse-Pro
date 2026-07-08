@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowUp, Check, ChevronRight, Minus, Plus, Trash2, Unlink, X } from 'lucide-react';
+import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, Check, ChevronRight, Minus, Plus, Scissors, Trash2, Unlink, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import {
   type ConnectionDirection,
 } from '@/lib/musicxml/connections';
 import { getDivisions, parseXml } from '@/lib/musicxml/core';
+import { getManualBeamDirectionAtEntity, updateManualBeamAtEntity, updateManualBeamDirectionAtEntity, type BeamDirection } from '@/lib/musicxml/automatic-beams';
 import { cn } from '@/lib/utils';
 
 const PITCH_NAMES = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
@@ -636,6 +637,11 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
     : undefined;
   const currentXmlDoc = useMemo(() => currentXml ? parseXml(currentXml) : null, [currentXml]);
   const [notePropertiesOpen, setNotePropertiesOpen] = useState(true);
+  const [beamPropertiesOpen, setBeamPropertiesOpen] = useState(false);
+  const beamDirection = useMemo(() => {
+    const entityId = editingEntity.meta?.id;
+    return currentXmlDoc && entityId ? getManualBeamDirectionAtEntity(currentXmlDoc, entityId) : null;
+  }, [currentXmlDoc, editingEntity.meta?.id]);
   const tieDetails = useMemo(() => buildTieDetails(
     editingEntity.meta?.id,
     entityConnections?.ties ?? [],
@@ -752,6 +758,30 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
       xmlVoice: found.meta.xmlVoice,
       entityIndex: found.meta.entityIndex,
     });
+  };
+
+  const updateBeam = (action: 'previous' | 'next' | 'break') => {
+    const entityId = editingEntity.meta?.id;
+    if (!entityId) return;
+    let changed = false;
+    updateMusicXML((doc) => {
+      changed = updateManualBeamAtEntity(doc, entityId, action);
+    }, t('actions.updateBeam'));
+    if (!changed) {
+      toast({
+        title: common('operationFailed'),
+        description: t('beamActionUnavailable'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateBeamDirection = (direction: BeamDirection) => {
+    const entityId = editingEntity.meta?.id;
+    if (!entityId) return;
+    updateMusicXML((doc) => {
+      updateManualBeamDirectionAtEntity(doc, entityId, direction);
+    }, t('actions.updateBeamDirection'));
   };
 
   return (
@@ -929,7 +959,7 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
                       <DirectionRadioGroup
                         value={event.stemDirection}
                         options={[
-                          { value: 'none', ariaLabel: 'none', icon: Minus },
+                          { value: 'none', ariaLabel: t('directionAuto'), label: t('directionAuto') },
                           { value: 'up', ariaLabel: 'up', icon: ArrowUp },
                           { value: 'down', ariaLabel: 'down', icon: ArrowDown },
                         ]}
@@ -940,6 +970,48 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
                 </div>
               </CollapsibleContent>
             </Collapsible>
+
+              {event.pitches.length > 0 && (
+                <Collapsible
+                  open={beamPropertiesOpen}
+                  onOpenChange={setBeamPropertiesOpen}
+                  className="border-b last:border-b-0"
+                >
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-secondary/50">
+                      <span className="text-sm font-semibold">{t('beamProperties')}</span>
+                      <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', beamPropertiesOpen && 'rotate-90')} />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="grid grid-cols-3 gap-2 border-t bg-secondary/20 p-4">
+                      <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('previous')} aria-label={t('beamJoinPrevious')} title={t('beamJoinPrevious')}>
+                        <ArrowLeftToLine className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('next')} aria-label={t('beamJoinNext')} title={t('beamJoinNext')}>
+                        <ArrowRightToLine className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('break')} aria-label={t('beamBreakHere')} title={t('beamBreakHere')}>
+                        <Scissors className="h-4 w-4" />
+                      </Button>
+                      {beamDirection && (
+                        <div className="col-span-3 space-y-2 pt-2">
+                          <Label>{t('beamDirectionLabel')}</Label>
+                          <DirectionRadioGroup
+                            value={beamDirection}
+                            options={[
+                              { value: 'auto', ariaLabel: t('directionAuto'), label: t('directionAuto') },
+                              { value: 'up', ariaLabel: t('directionUp'), icon: ArrowUp },
+                              { value: 'down', ariaLabel: t('directionDown'), icon: ArrowDown },
+                            ]}
+                            onValueChange={(value) => updateBeamDirection(value as BeamDirection)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
 
               {event.pitches.length > 0 && (
                 <>
@@ -1040,7 +1112,7 @@ function ConnectionDetailGroup({
                       <DirectionRadioGroup
                         value={detail.direction}
                         options={[
-                          { value: 'auto', ariaLabel: 'auto', icon: Minus },
+                          { value: 'auto', ariaLabel: t('directionAuto'), label: t('directionAuto') },
                           { value: 'above', ariaLabel: 'above', icon: ArrowUp },
                           { value: 'below', ariaLabel: 'below', icon: ArrowDown },
                         ]}
@@ -1076,7 +1148,8 @@ function DirectionRadioGroup<TValue extends string>({
   options: Array<{
     value: TValue;
     ariaLabel: string;
-    icon: typeof Minus;
+    icon?: typeof Minus;
+    label?: string;
   }>;
   onValueChange: (value: TValue) => void;
 }) {
@@ -1086,7 +1159,7 @@ function DirectionRadioGroup<TValue extends string>({
       onValueChange={(nextValue) => onValueChange(nextValue as TValue)}
       className="grid grid-cols-3 gap-2"
     >
-      {options.map(({ value: optionValue, ariaLabel, icon: Icon }) => (
+      {options.map(({ value: optionValue, ariaLabel, icon: Icon, label }) => (
         <Label
           key={optionValue}
           aria-label={ariaLabel}
@@ -1097,7 +1170,7 @@ function DirectionRadioGroup<TValue extends string>({
           )}
         >
           <RadioGroupItem value={optionValue} className="sr-only" />
-          <Icon className="h-4 w-4" />
+          {Icon ? <Icon className="h-4 w-4" /> : <span>{label}</span>}
         </Label>
       ))}
     </RadioGroup>

@@ -39,6 +39,7 @@ export function useScorePreviewPlayback({
   const [currentTime, setCurrentTime] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasRenderedScore, setHasRenderedScore] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [isFollowSuspended, setIsFollowSuspended] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -174,6 +175,7 @@ export function useScorePreviewPlayback({
 
       const duration = controller.getPlaybackSnapshot().duration;
       loadedXmlRef.current = xmlString;
+      setHasRenderedScore(true);
       setTotalTime(duration > 0 ? duration : 0);
       setIsLoading(false);
     } catch (error) {
@@ -197,17 +199,31 @@ export function useScorePreviewPlayback({
     const scoreContainer = scoreContainerNodeRef.current;
     if (!isOpen || !xmlString || !scoreContainer) return;
     if (!loadedXmlRef.current || loadedXmlRef.current === xmlString) return;
-
-    disposeController();
+    const controller = controllerRef.current;
+    if (!controller) return;
+    const generation = ++loadGenerationRef.current;
+    let cancelled = false;
     queueMicrotask(() => {
+      if (cancelled || generation !== loadGenerationRef.current) return;
       resetState();
-      setTotalTime(0);
       setIsLoading(true);
       setLoadError(null);
       updateFollowSuspended(false);
-      void loadScore(scoreContainer);
+      void controller.loadScore(xmlString).then(() => {
+        if (cancelled || generation !== loadGenerationRef.current || controllerRef.current !== controller) return;
+        loadedXmlRef.current = xmlString;
+        const duration = controller.getPlaybackSnapshot().duration;
+        setTotalTime(duration > 0 ? duration : 0);
+        setHasRenderedScore(true);
+        setIsLoading(false);
+      }).catch((error) => {
+        if (cancelled || generation !== loadGenerationRef.current || controllerRef.current !== controller) return;
+        setLoadError(error instanceof Error ? error.message : t('errorBoundaryDesc'));
+        setIsLoading(false);
+      });
     });
-  }, [disposeController, isOpen, loadScore, resetState, updateFollowSuspended, xmlString]);
+    return () => { cancelled = true; };
+  }, [isOpen, resetState, t, updateFollowSuspended, xmlString]);
 
   useEffect(() => {
     if (isOpen) return;
@@ -216,6 +232,7 @@ export function useScorePreviewPlayback({
       resetState();
       setIsLooping(false);
       setIsLoading(true);
+      setHasRenderedScore(false);
       setLoadError(null);
       setTotalTime(0);
       updateFollowSuspended(false);
@@ -392,6 +409,7 @@ export function useScorePreviewPlayback({
   return {
     containerRef,
     currentTime,
+    hasRenderedScore,
     isLoading,
     isLooping,
     isPlaying,

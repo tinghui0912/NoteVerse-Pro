@@ -9,6 +9,7 @@
 import {
     parsePitchString,
     getDurationValue,
+    getEffectiveDurationValue,
     getDurationTypeName,
     getEntityGroupsFromMeasure,
 } from './core';
@@ -105,8 +106,9 @@ export function updateSingleNoteInXml(
 
     // Update duration
     const durationEl = noteEl.querySelector('duration');
+    const dotted = options?.dotted ?? Boolean(noteEl.querySelector(':scope > dot'));
     if (durationEl) {
-        durationEl.textContent = String(getDurationValue(duration, divisions));
+        durationEl.textContent = String(getEffectiveDurationValue(duration, divisions, dotted));
     }
 
     const typeEl = noteEl.querySelector('type');

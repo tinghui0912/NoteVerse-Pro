@@ -218,6 +218,7 @@ function validateBeamStructure(currentXml: string | null, t: TranslateFunction):
     xmlDoc.querySelectorAll('part > measure').forEach((measure, measureIndex) => {
         const open = new Map<string, { entityId: string; staff: number; voice: number; pitchLabel: string | null }>();
         measure.querySelectorAll(':scope > note').forEach((note, noteIndex) => {
+            if (note.querySelector(':scope > chord')) return;
             const staff = Number.parseInt(note.querySelector(':scope > staff')?.textContent ?? '1', 10) || 1;
             const voice = Number.parseInt(note.querySelector(':scope > voice')?.textContent ?? '1', 10) || 1;
             const staffLabel = staff === 1 ? t('editor.trebleClef') : t('editor.bassClef');

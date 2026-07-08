@@ -2,6 +2,7 @@ import { parseXml, serializeXml } from './core';
 
 const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
 const APP_ID_PREFIX = 'nv';
+const GENERATED_ID_MARKER = 'data-nv-generated-id';
 
 const XML_ID_START = /[A-Za-z_]/;
 const XML_ID_BODY = /[A-Za-z0-9_.-]/;
@@ -25,9 +26,11 @@ function getExistingXmlId(element: Element): string | null {
   return element.getAttributeNS(XML_NAMESPACE, 'id') || element.getAttribute('xml:id') || element.getAttribute('id');
 }
 
-function setXmlId(element: Element, id: string): void {
-  element.setAttributeNS(XML_NAMESPACE, 'xml:id', id);
+function setGeneratedId(element: Element, id: string): void {
+  element.removeAttributeNS(XML_NAMESPACE, 'id');
+  element.removeAttribute('xml:id');
   element.setAttribute('id', id);
+  element.setAttribute(GENERATED_ID_MARKER, 'true');
 }
 
 function getElementSignature(element: Element, index: number): string {
@@ -71,12 +74,12 @@ export function ensureStableMusicXmlIds(xmlDoc: XMLDocument): boolean {
 
     usedIds.add(nextId);
 
-    if (
-      existing !== nextId ||
-      element.getAttributeNS(XML_NAMESPACE, 'id') !== nextId ||
-      element.getAttribute('id') !== nextId
-    ) {
-      setXmlId(element, nextId);
+    const xmlId = element.getAttributeNS(XML_NAMESPACE, 'id') || element.getAttribute('xml:id');
+    if (canKeepExisting && xmlId && element.getAttribute('id') === xmlId) {
+      element.removeAttribute('id');
+      changed = true;
+    } else if (!canKeepExisting) {
+      setGeneratedId(element, nextId);
       changed = true;
     }
   });
@@ -87,5 +90,39 @@ export function ensureStableMusicXmlIds(xmlDoc: XMLDocument): boolean {
 export function ensureStableMusicXmlIdsString(xml: string): string {
   const xmlDoc = parseXml(xml);
   const changed = ensureStableMusicXmlIds(xmlDoc);
+  return changed ? serializeXml(xmlDoc) : xml;
+}
+
+/** Removes editor-generated ids before persisting canonical MusicXML. */
+export function stripAppOwnedMusicXmlIdsString(xml: string): string {
+  const xmlDoc = parseXml(xml);
+  let changed = false;
+  xmlDoc.querySelectorAll('note, forward').forEach((element) => {
+    if (element.getAttribute(GENERATED_ID_MARKER) === 'true') {
+      element.removeAttributeNS(XML_NAMESPACE, 'id');
+      element.removeAttribute('xml:id');
+      element.removeAttribute('id');
+      element.removeAttribute(GENERATED_ID_MARKER);
+      changed = true;
+    }
+  });
+  return changed ? serializeXml(xmlDoc) : xml;
+}
+
+/** Adds the plain id alias required by Verovio to its disposable render copy. */
+export function prepareMusicXmlIdsForVerovio(xml: string): string {
+  const xmlDoc = parseXml(ensureStableMusicXmlIdsString(xml));
+  let changed = false;
+  xmlDoc.querySelectorAll('note, forward').forEach((element) => {
+    const stableId = getExistingXmlId(element);
+    if (stableId && element.getAttribute('id') !== stableId) {
+      element.setAttribute('id', stableId);
+      changed = true;
+    }
+    if (element.hasAttribute(GENERATED_ID_MARKER)) {
+      element.removeAttribute(GENERATED_ID_MARKER);
+      changed = true;
+    }
+  });
   return changed ? serializeXml(xmlDoc) : xml;
 }

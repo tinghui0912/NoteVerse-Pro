@@ -157,14 +157,16 @@ function writeBeamLevel(
     const run = group.slice(start, index);
     if (run.length === 1) {
       const hook: BeamType = start === 0 ? 'forward hook' : 'backward hook';
-      run[0].elements.forEach((note) => addBeamElement(xmlDoc, note, level, hook));
+      const root = run[0].elements[0];
+      if (root) addBeamElement(xmlDoc, root, level, hook);
       continue;
     }
     run.forEach((candidate, runIndex) => {
       const type: BeamType = runIndex === 0
         ? 'begin'
         : runIndex === run.length - 1 ? 'end' : 'continue';
-      candidate.elements.forEach((note) => addBeamElement(xmlDoc, note, level, type));
+      const root = candidate.elements[0];
+      if (root) addBeamElement(xmlDoc, root, level, type);
     });
   }
 }
@@ -175,16 +177,90 @@ function writeBeamGroup(xmlDoc: XMLDocument, group: BeamCandidate[]): void {
   for (let level = 1; level <= maxLevel; level += 1) writeBeamLevel(xmlDoc, group, level);
 }
 
+function beamType(note: Element, level: number): string | null {
+  return Array.from(note.querySelectorAll(':scope > beam')).find((beam) => (
+    Number.parseInt(beam.getAttribute('number') ?? '1', 10) === level
+  ))?.textContent?.trim() ?? null;
+}
+
+function removeBeamLevel(note: Element, level: number): void {
+  note.querySelectorAll(':scope > beam').forEach((beam) => {
+    if (Number.parseInt(beam.getAttribute('number') ?? '1', 10) === level) beam.remove();
+  });
+}
+
+function normalizeExistingBeamRuns(
+  groups: ReturnType<typeof getEntityGroupsFromMeasure>,
+  divisions: number
+): void {
+  const roots = groups.map((group) => group.elements[0]).filter((note): note is Element => Boolean(note));
+  groups.forEach((group) => group.elements.slice(1).forEach(removeBeamElements));
+
+  roots.forEach((root) => {
+    const maxLevel = parseNotatedDuration(root, divisions).beamLevel;
+    root.querySelectorAll(':scope > beam').forEach((beam) => {
+      const level = Number.parseInt(beam.getAttribute('number') ?? '1', 10);
+      if (level < 1 || level > maxLevel) beam.remove();
+    });
+  });
+
+  for (let level = 1; level <= 8; level += 1) {
+    const normalizeRun = (run: number[]) => {
+      if (run.length < 2) {
+        run.forEach((item) => removeBeamLevel(roots[item], level));
+        return;
+      }
+      run.forEach((item, runIndex) => {
+        removeBeamLevel(roots[item], level);
+        addBeamElement(
+          roots[item].ownerDocument,
+          roots[item],
+          level,
+          runIndex === 0 ? 'begin' : runIndex === run.length - 1 ? 'end' : 'continue'
+        );
+      });
+    };
+    let open: number[] | null = null;
+    roots.forEach((root, index) => {
+      const type = beamType(root, level);
+      if (type === 'begin') {
+        if (open) normalizeRun(open);
+        open = [index];
+      } else if (type === 'continue') {
+        if (open) open.push(index);
+        else removeBeamLevel(root, level);
+      } else if (type === 'end') {
+        if (!open) {
+          removeBeamLevel(root, level);
+          return;
+        }
+        open.push(index);
+        normalizeRun(open);
+        open = null;
+      } else if (type !== 'forward hook' && type !== 'backward hook' && open) {
+        if (parseNotatedDuration(root, divisions).beamLevel >= level) open.push(index);
+        else {
+          normalizeRun(open);
+          open = null;
+        }
+      }
+    });
+    if (open) normalizeRun(open);
+  }
+}
+
 function rebuildVoiceBeams(
   xmlDoc: XMLDocument,
   measure: Element,
   voice: VoiceKey,
   divisions: number,
-  groupTicks: number[]
+  groupTicks: number[],
+  preserveExisting: boolean = false
 ): void {
   const entityGroups = getEntityGroupsFromMeasure(measure, voice.staff, voice.voice);
   if (isProtectedVoice(entityGroups, divisions) || hasCrossStaffBeam(measure, voice.voice)) return;
-  entityGroups.forEach((group) => group.elements.forEach(removeBeamElements));
+  if (preserveExisting) normalizeExistingBeamRuns(entityGroups, divisions);
+  else entityGroups.forEach((group) => group.elements.forEach(removeBeamElements));
 
   let cursor = getPickupOffset(measure, entityGroups, groupTicks);
   let bucket: number | null = null;
@@ -206,8 +282,11 @@ function rebuildVoiceBeams(
       && group.type !== 'forward'
       && !first?.querySelector(':scope > rest')
       && Boolean(notation && notation.beamLevel > 0);
+    const hasPreservedBeam = preserveExisting && group.elements.some((note) => (
+      Boolean(note.querySelector(':scope > beam'))
+    ));
 
-    if (!beamable || groupIndex === null) {
+    if (!beamable || groupIndex === null || hasPreservedBeam) {
       flush();
       cursor = endTick;
       return;
@@ -242,6 +321,147 @@ export function rebuildAutomaticBeamsForVoice(
     divisions,
     getBeatGroupTicks(xmlDoc, measure, divisions)
   );
+}
+
+export function repairAutomaticBeamsForVoice(
+  xmlDoc: XMLDocument,
+  measure: Element,
+  staff: number,
+  voice: number
+): void {
+  const divisions = getDivisions(xmlDoc);
+  rebuildVoiceBeams(
+    xmlDoc,
+    measure,
+    { staff, voice },
+    divisions,
+    getBeatGroupTicks(xmlDoc, measure, divisions),
+    true
+  );
+}
+
+type ManualBeamAction = 'previous' | 'next' | 'break';
+export type BeamDirection = 'auto' | 'up' | 'down';
+
+function noteId(note: Element): string | null {
+  return note.getAttributeNS('http://www.w3.org/XML/1998/namespace', 'id') || note.getAttribute('id');
+}
+
+function levelOneRunBounds(roots: Element[], index: number): [number, number] {
+  if (!beamType(roots[index], 1)) return [index, index];
+  let start = index;
+  let end = index;
+  while (start > 0 && beamType(roots[start], 1) !== 'begin' && beamType(roots[start - 1], 1)) start -= 1;
+  while (end < roots.length - 1 && beamType(roots[end], 1) !== 'end' && beamType(roots[end + 1], 1)) end += 1;
+  return [start, end];
+}
+
+function findBeamContext(xmlDoc: XMLDocument, entityId: string) {
+  const target = Array.from(xmlDoc.querySelectorAll('note')).find((note) => noteId(note) === entityId);
+  const measure = target?.closest('measure');
+  if (!target || !measure) return null;
+  const staff = directInt(target, ':scope > staff', 1);
+  const voice = directInt(target, ':scope > voice', 1);
+  const groups = getEntityGroupsFromMeasure(measure, staff, voice);
+  const index = groups.findIndex((group) => group.elements.some((note) => noteId(note) === entityId));
+  if (index < 0) return null;
+  const roots = groups.map((group) => group.elements[0]).filter((note): note is Element => Boolean(note));
+  return { target, measure, groups, index, roots };
+}
+
+/** Applies a contextual beam edit around one selected event. */
+export function updateManualBeamAtEntity(
+  xmlDoc: XMLDocument,
+  entityId: string,
+  action: ManualBeamAction
+): boolean {
+  const context = findBeamContext(xmlDoc, entityId);
+  if (!context) return false;
+  const { groups, index, roots } = context;
+  const divisions = getDivisions(xmlDoc);
+  const isBeamable = (item: number) => {
+    const group = groups[item];
+    const root = roots[item];
+    return Boolean(
+      group && root
+      && group.type !== 'rest'
+      && group.type !== 'forward'
+      && !root.querySelector(':scope > rest')
+      && parseNotatedDuration(root, divisions).beamLevel > 0
+    );
+  };
+
+  const [runStart, runEnd] = levelOneRunBounds(roots, index);
+  if (action === 'break') {
+    if (runStart === runEnd || index >= runEnd) return false;
+    for (let item = runStart; item <= runEnd; item += 1) groups[item].elements.forEach(removeBeamElements);
+    const writeRange = (start: number, end: number) => writeBeamGroup(xmlDoc, Array.from(
+      { length: Math.max(0, end - start + 1) },
+      (_, offset) => {
+        const item = start + offset;
+        const root = roots[item];
+        const notation = parseNotatedDuration(root, divisions);
+        return { elements: groups[item].elements, startTick: 0, duration: notation.soundingTicks, beamLevel: notation.beamLevel };
+      }
+    ));
+    if (index - runStart + 1 >= 2) writeRange(runStart, index);
+    if (runEnd - index >= 2) writeRange(index + 1, runEnd);
+    return true;
+  }
+
+  const neighbor = action === 'previous' ? runStart - 1 : runEnd + 1;
+  if (neighbor < 0 || neighbor >= groups.length || !isBeamable(index) || !isBeamable(neighbor)) return false;
+  const [neighborStart, neighborEnd] = levelOneRunBounds(roots, neighbor);
+  const start = Math.min(runStart, neighborStart);
+  const end = Math.max(runEnd, neighborEnd);
+  if (Array.from({ length: end - start + 1 }, (_, offset) => start + offset).some((item) => !isBeamable(item))) return false;
+
+  for (let item = start; item <= end; item += 1) groups[item].elements.forEach(removeBeamElements);
+  writeBeamGroup(xmlDoc, Array.from({ length: end - start + 1 }, (_, offset) => {
+    const item = start + offset;
+    const notation = parseNotatedDuration(roots[item], divisions);
+    return { elements: groups[item].elements, startTick: 0, duration: notation.soundingTicks, beamLevel: notation.beamLevel };
+  }));
+  return true;
+}
+
+function setStemDirection(xmlDoc: XMLDocument, note: Element, direction: BeamDirection): void {
+  note.querySelector(':scope > stem')?.remove();
+  if (direction === 'auto') return;
+  const stem = xmlDoc.createElement('stem');
+  stem.textContent = direction;
+  const anchor = note.querySelector(':scope > dot:last-of-type') || note.querySelector(':scope > type');
+  if (anchor) anchor.after(stem);
+  else note.appendChild(stem);
+}
+
+export function getManualBeamDirectionAtEntity(xmlDoc: XMLDocument, entityId: string): BeamDirection | null {
+  const context = findBeamContext(xmlDoc, entityId);
+  if (!context) return null;
+  const [start, end] = levelOneRunBounds(context.roots, context.index);
+  if (start === end) return null;
+  const values = context.roots.slice(start, end + 1).map((root) => root.querySelector(':scope > stem')?.textContent?.trim());
+  if (values.every((value) => value === 'up')) return 'up';
+  if (values.every((value) => value === 'down')) return 'down';
+  return 'auto';
+}
+
+export function updateManualBeamDirectionAtEntity(
+  xmlDoc: XMLDocument,
+  entityId: string,
+  direction: BeamDirection
+): boolean {
+  const context = findBeamContext(xmlDoc, entityId);
+  if (!context) return false;
+  const [start, end] = levelOneRunBounds(context.roots, context.index);
+  if (start === end) return false;
+  for (let item = start; item <= end; item += 1) {
+    const group = context.groups[item];
+    if (!group) continue;
+    setStemDirection(xmlDoc, group.elements[0], direction);
+    group.elements.slice(1).forEach((member) => member.querySelector(':scope > stem')?.remove());
+  }
+  return true;
 }
 
 export function rebuildAutomaticBeams(xmlDoc: XMLDocument): void {

@@ -19,7 +19,7 @@ import {
     updateSingleNoteInXml,
 } from '@/lib/musicxml/elements';
 import { recalculateBackups } from '@/lib/musicxml/backup';
-import { rebuildAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
+import { repairAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
 import { ensureStableMusicXmlIds } from '@/lib/musicxml/stable-ids';
 
 function createForwardElement(xmlDoc: XMLDocument, durationValue: number, voiceNum: number, staffNumber: number): Element {
@@ -267,7 +267,7 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
             recalculateBackups(measureEl);
         }
 
-        rebuildAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
+        repairAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
         ensureStableMusicXmlIds(xmlDoc);
 
         const newXml = serializeXml(xmlDoc);

@@ -111,8 +111,8 @@ describe('VerovioScoreAdapter', () => {
       </measure></part></score-partwise>
     `);
 
-    expect(toolkit.loadedXml).toContain('xml:id="nv-');
     expect(toolkit.loadedXml).toContain('id="nv-');
+    expect(toolkit.loadedXml).not.toContain('xml:id="nv-');
   });
 
   it('uses editor Verovio layout options so header credits and footer rights can render together', async () => {
