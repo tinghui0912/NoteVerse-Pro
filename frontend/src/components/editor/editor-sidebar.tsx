@@ -156,7 +156,7 @@ export function EditorSidebar({
             <Separator />
 
             <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">{t('correctionTools')}</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">{t('assistantTools')}</h3>
                 <div className="grid grid-cols-2 gap-2">
                     <Button
                         variant="outline"

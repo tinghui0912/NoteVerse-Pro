@@ -146,7 +146,7 @@ function getMeasureGridSnap(
   timeSignature: string | undefined,
   divisions: number
 ) {
-  const measureRect = measureElement.getBoundingClientRect();
+  const measureRect = getMeasureHorizontalBounds(measureElement);
   const snap = snapMeasureXToGridTick({
     clientX: event.clientX,
     measureLeft: measureRect.left,
@@ -159,6 +159,17 @@ function getMeasureGridSnap(
     ...snap,
     left: measureRect.left + snap.ratio * measureRect.width,
   };
+}
+
+function getMeasureHorizontalBounds(measureElement: Element) {
+  const staffRects = getDirectStaffElements(measureElement)
+    .map((staff) => staff.getBoundingClientRect())
+    .filter((rect) => rect.width > 0);
+  if (staffRects.length === 0) return measureElement.getBoundingClientRect();
+
+  const left = Math.min(...staffRects.map((rect) => rect.left));
+  const right = Math.max(...staffRects.map((rect) => rect.right));
+  return { left, right, width: Math.max(1, right - left) };
 }
 
 function getDirectStaffElements(measureElement: Element | null): Element[] {
@@ -183,13 +194,14 @@ function getMeasureElementFromPoint(container: Element | null, clientX: number, 
 
   measures.forEach((measure) => {
     const rect = measure.getBoundingClientRect();
-    const containsPoint = clientX >= rect.left - tolerance
-      && clientX <= rect.right + tolerance
+    const horizontal = getMeasureHorizontalBounds(measure);
+    const containsPoint = clientX >= horizontal.left - tolerance
+      && clientX <= horizontal.right + tolerance
       && clientY >= rect.top - tolerance
       && clientY <= rect.bottom + tolerance;
     if (!containsPoint) return;
 
-    const centerX = rect.left + rect.width / 2;
+    const centerX = horizontal.left + horizontal.width / 2;
     const centerY = rect.top + rect.height / 2;
     const distance = Math.hypot(clientX - centerX, clientY - centerY);
     if (distance < nearestDistance) {
@@ -280,11 +292,17 @@ function getEntityElementBounds(measureElement: Element, entity: ScoreEntity): {
   if (!element) return null;
 
   const renderedElement = getHiddenVerovioEventElement(element);
-  const rect = renderedElement.getBoundingClientRect();
-  return {
-    left: rect.left,
-    right: rect.right,
-  };
+  const notehead = element.matches('[data-class="note"]')
+    ? element.querySelector(':scope > [data-class="notehead"]')
+    : renderedElement.querySelector('[data-class="notehead"]');
+  const rect = (notehead ?? renderedElement).getBoundingClientRect();
+  if (notehead) {
+    const center = rect.left + rect.width / 2;
+    // A notehead center is the stable rhythmic anchor. Stems, beams, dots,
+    // and accidentals must not move insertion slots horizontally.
+    return { left: center, right: center };
+  }
+  return { left: rect.left, right: rect.right };
 }
 
 function getVisualInsertPlacement(params: {
@@ -350,7 +368,7 @@ function getVisualInsertPlacement(params: {
 
   if (visualAnchors.length === 0) return null;
 
-  const measureRect = measureElement.getBoundingClientRect();
+  const measureRect = getMeasureHorizontalBounds(measureElement);
   const placements: InsertPlacement[] = [];
   const first = visualAnchors[0];
   const last = visualAnchors[visualAnchors.length - 1];

@@ -234,6 +234,7 @@ export interface InsertEntityResult {
     newXml?: string;
     newScoreData?: ScoreData;
     historyLabel?: string;
+    insertedEntityId?: string;
 }
 
 /**
@@ -272,6 +273,7 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
 
         repairAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
         ensureStableMusicXmlIds(xmlDoc);
+        const insertedEntityId = created.elements[0]?.getAttribute('id') ?? undefined;
 
         const newXml = serializeXml(xmlDoc);
         const newParser = new MusicXMLParser(newXml, { expectedVoices: getExpectedVoices(scoreData) });
@@ -281,6 +283,7 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
             newXml,
             newScoreData: newParser.parse(),
             historyLabel: created.historyLabel,
+            insertedEntityId,
         };
     } catch (error) {
         console.error('Failed to insert entity:', error);

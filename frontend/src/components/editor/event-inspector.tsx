@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, Check, ChevronRight, Minus, Plus, Scissors, Trash2, Unlink, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowLeftToLine, ArrowRight, ArrowRightToLine, ArrowUp, Check, ChevronRight, Minus, Plus, Scissors, Trash2, Unlink, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -142,11 +142,24 @@ function getEntitySummaryIcon(entity: ScoreEntity): string {
   return '♩';
 }
 
-function getEntityBeatLabel(entity: ScoreEntity, xmlDoc: XMLDocument | null): string {
+function greatestCommonDivisor(left: number, right: number): number {
+  let a = Math.abs(left);
+  let b = Math.abs(right);
+  while (b > 0) [a, b] = [b, a % b];
+  return a || 1;
+}
+
+function getEntityBeatPosition(entity: ScoreEntity, xmlDoc: XMLDocument | null) {
   const divisions = xmlDoc ? getDivisions(xmlDoc) : 1;
   const startTick = entity.meta?.startTick ?? 0;
-  const beat = startTick / divisions + 1;
-  return Number.isInteger(beat) ? String(beat) : beat.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  const elapsedWholeBeats = Math.floor(startTick / divisions);
+  const remainder = startTick - elapsedWholeBeats * divisions;
+  if (remainder === 0) return { beat: elapsedWholeBeats + 1, offset: null };
+  const divisor = greatestCommonDivisor(remainder, divisions);
+  return {
+    beat: elapsedWholeBeats + 1,
+    offset: `${remainder / divisor}/${divisions / divisor}`,
+  };
 }
 
 function parseTimeSignatureParts(value: string | undefined) {
@@ -642,6 +655,9 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
   const { toast } = useToast();
   const { handleCloseModal, handleEditEntity, updateEntity } = useEntityEditor();
   const [event, setEvent] = useState<EditableEvent>(() => toEditableEvent(editingEntity));
+  useEffect(() => {
+    setEvent(toEditableEvent(editingEntity));
+  }, [editingEntity]);
   const {
     handleDeleteTieConnection,
     handleDeleteSlurConnection,
@@ -680,7 +696,7 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
   }, [event, t]);
   const summaryPitch = getEntitySummaryPitch(editingEntity, t('eventTypeRest'), t('emptyVoice'));
   const summaryIcon = getEntitySummaryIcon(editingEntity);
-  const summaryBeat = getEntityBeatLabel(editingEntity, currentXmlDoc);
+  const summaryBeat = getEntityBeatPosition(editingEntity, currentXmlDoc);
   const summaryMeasure = (editingEntity.meta?.measureIndex ?? 0) + 1;
   const summaryVoice = editingEntity.meta?.xmlVoice ?? 1;
 
@@ -792,7 +808,7 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
     });
   };
 
-  const updateBeam = (action: 'previous' | 'next' | 'break') => {
+  const updateBeam = (action: 'previous' | 'next' | 'break-left' | 'break-right') => {
     const entityId = editingEntity.meta?.id;
     if (!entityId) return;
     let changed = false;
@@ -834,7 +850,8 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
               <p className="text-sm font-semibold text-foreground">{eventTypeLabel}</p>
               <p className="truncate text-lg font-semibold text-foreground">{summaryPitch}</p>
               <p className="text-xs text-muted-foreground">
-                {t('selectionPosition', { measure: summaryMeasure, beat: summaryBeat })}
+                {t('selectionPosition', { measure: summaryMeasure, beat: summaryBeat.beat })}
+                {summaryBeat.offset ? t('selectionBeatOffset', { offset: summaryBeat.offset }) : null}
               </p>
               <p className="text-xs text-muted-foreground">
                 {t('summaryDuration', { duration: t(event.duration as never) })}
@@ -977,7 +994,7 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
                     )}
                   </section>
 
-                  <section className="grid grid-cols-2 gap-3">
+                  <section className="space-y-4">
                     <div className="space-y-2">
                       <Label>{t('durationLabel')}</Label>
                       <Select value={event.duration} onValueChange={(value) => commitEvent({ ...event, duration: value as Duration })}>
@@ -1036,18 +1053,21 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
                     </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="grid grid-cols-3 gap-2 border-t bg-secondary/20 p-4">
+                    <div className="grid grid-cols-4 gap-2 border-t bg-secondary/20 p-4">
                       <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('previous')} aria-label={t('beamJoinPrevious')} title={t('beamJoinPrevious')}>
                         <ArrowLeftToLine className="h-4 w-4" />
                       </Button>
                       <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('next')} aria-label={t('beamJoinNext')} title={t('beamJoinNext')}>
                         <ArrowRightToLine className="h-4 w-4" />
                       </Button>
-                      <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('break')} aria-label={t('beamBreakHere')} title={t('beamBreakHere')}>
-                        <Scissors className="h-4 w-4" />
+                      <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('break-left')} aria-label={t('beamBreakLeft')} title={t('beamBreakLeft')}>
+                        <span className="flex items-center"><ArrowLeft className="h-3 w-3" /><Scissors className="h-4 w-4" /></span>
+                      </Button>
+                      <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('break-right')} aria-label={t('beamBreakRight')} title={t('beamBreakRight')}>
+                        <span className="flex items-center"><Scissors className="h-4 w-4" /><ArrowRight className="h-3 w-3" /></span>
                       </Button>
                       {beamDirection && (
-                        <div className="col-span-3 space-y-2 pt-2">
+                        <div className="col-span-4 space-y-2 pt-2">
                           <Label>{t('beamDirectionLabel')}</Label>
                           <DirectionRadioGroup
                             value={beamDirection}

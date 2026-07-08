@@ -340,7 +340,7 @@ export function repairAutomaticBeamsForVoice(
   );
 }
 
-type ManualBeamAction = 'previous' | 'next' | 'break';
+type ManualBeamAction = 'previous' | 'next' | 'break-left' | 'break-right';
 export type BeamDirection = 'auto' | 'up' | 'down';
 
 function noteId(note: Element): string | null {
@@ -392,8 +392,9 @@ export function updateManualBeamAtEntity(
   };
 
   const [runStart, runEnd] = levelOneRunBounds(roots, index);
-  if (action === 'break') {
-    if (runStart === runEnd || index >= runEnd) return false;
+  if (action === 'break-left' || action === 'break-right') {
+    const splitAfter = action === 'break-left' ? index - 1 : index;
+    if (runStart === runEnd || splitAfter < runStart || splitAfter >= runEnd) return false;
     for (let item = runStart; item <= runEnd; item += 1) groups[item].elements.forEach(removeBeamElements);
     const writeRange = (start: number, end: number) => writeBeamGroup(xmlDoc, Array.from(
       { length: Math.max(0, end - start + 1) },
@@ -404,8 +405,8 @@ export function updateManualBeamAtEntity(
         return { elements: groups[item].elements, startTick: 0, duration: notation.soundingTicks, beamLevel: notation.beamLevel };
       }
     ));
-    if (index - runStart + 1 >= 2) writeRange(runStart, index);
-    if (runEnd - index >= 2) writeRange(index + 1, runEnd);
+    if (splitAfter - runStart + 1 >= 2) writeRange(runStart, splitAfter);
+    if (runEnd - splitAfter >= 2) writeRange(splitAfter + 1, runEnd);
     return true;
   }
 

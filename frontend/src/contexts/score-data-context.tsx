@@ -23,7 +23,7 @@ interface ScoreDataContextType {
 
     // 辅助函数
     getExpectedVoices: (data: ScoreData | null) => Map<number, Map<number, number[]>> | undefined;
-    reparseXml: (xml: string) => void;
+    reparseXml: (xml: string) => ScoreData | null;
 }
 
 const ScoreDataContext = createContext<ScoreDataContextType | undefined>(undefined);
@@ -95,8 +95,10 @@ export function ScoreDataProvider({ children }: ScoreDataProviderProps) {
             const parser = new MusicXMLParser(xml, { expectedVoices });
             const newScoreData = parser.parse();
             setScoreData(newScoreData);
+            return newScoreData;
         } catch (error) {
             console.error('Failed to reparse XML:', error);
+            return null;
         }
     }, [scoreData, getExpectedVoices]);
 

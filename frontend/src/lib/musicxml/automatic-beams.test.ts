@@ -170,7 +170,23 @@ describe('Automatic Beam v2 foundation', () => {
         + note(1, '16th', '<beam>end</beam>').replace('<note>', '<note id="n4">'),
     );
 
-    expect(updateManualBeamAtEntity(xmlDoc, 'n2', 'break')).toBe(true);
+    expect(updateManualBeamAtEntity(xmlDoc, 'n2', 'break-right')).toBe(true);
+    expect(beams(xmlDoc).map((items) => items[0])).toEqual([
+      '1:begin', '1:end', '1:begin', '1:end',
+    ]);
+  });
+
+  it('breaks an existing beam on the left of the selected event', () => {
+    const xmlDoc = documentFor(
+      '4',
+      4,
+      note(1, '16th', '<beam>begin</beam>').replace('<note>', '<note id="n1">')
+        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note id="n2">')
+        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note id="n3">')
+        + note(1, '16th', '<beam>end</beam>').replace('<note>', '<note id="n4">'),
+    );
+
+    expect(updateManualBeamAtEntity(xmlDoc, 'n3', 'break-left')).toBe(true);
     expect(beams(xmlDoc).map((items) => items[0])).toEqual([
       '1:begin', '1:end', '1:begin', '1:end',
     ]);

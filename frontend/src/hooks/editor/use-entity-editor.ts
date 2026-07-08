@@ -36,7 +36,7 @@ function findEntityAtLocation(data: ReturnType<MusicXMLParser['parse']>, locatio
     return { entity, location: entity.meta };
 }
 
-function findInsertedEntity(data: ReturnType<MusicXMLParser['parse']>, location: AddLocation) {
+function findInsertedEntity(data: ReturnType<MusicXMLParser['parse']>, location: AddLocation, insertedEntityId?: string) {
     const stave = data.measures[location.measureIndex]?.staves[location.staveIndex];
     const candidates = stave?.voices
         .flatMap((voice) => voice.notes)
@@ -46,8 +46,11 @@ function findInsertedEntity(data: ReturnType<MusicXMLParser['parse']>, location:
             && entity.meta.staveIndex === location.staveIndex
         )) ?? [];
 
+    const byId = insertedEntityId
+        ? candidates.find((entity) => entity.meta?.sourceIds?.includes(insertedEntityId) || entity.meta?.id === insertedEntityId)
+        : undefined;
     const exact = candidates.find((entity) => entity.meta?.startTick === location.tick);
-    const entity = exact ?? candidates[0];
+    const entity = byId ?? exact ?? candidates[0];
     if (!entity?.meta) return null;
     return { entity, location: entity.meta };
 }
@@ -105,7 +108,7 @@ export function useEntityEditor() {
             setCurrentXml(result.newXml);
             setScoreData(result.newScoreData);
 
-            const inserted = findInsertedEntity(result.newScoreData, location);
+            const inserted = findInsertedEntity(result.newScoreData, location, result.insertedEntityId);
             setEditingEntity(inserted?.entity ?? newEntity);
             setEditingEntityLocation(inserted?.location ?? {
                 measureIndex: location.measureIndex,
