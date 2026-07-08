@@ -120,6 +120,9 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
                     restEl = xmlDoc.createElement('rest');
                     mainNote.insertBefore(restEl, mainNote.firstChild);
                 }
+                if (updatedEntity.type === 'rest') {
+                    restEl.removeAttribute('measure');
+                }
 
                 if ('dotted' in updatedEntity) {
                     const existingDot = mainNote.querySelector('dot');
@@ -164,6 +167,16 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
             const typeEl = mainNote.querySelector('type');
             if (typeEl) {
                 typeEl.textContent = getDurationTypeName(updatedEntity.duration);
+            } else if (updatedEntity.type === 'rest') {
+                const newTypeEl = xmlDoc.createElement('type');
+                newTypeEl.textContent = getDurationTypeName(updatedEntity.duration);
+                const voiceEl = mainNote.querySelector('voice');
+                const durationEl = mainNote.querySelector('duration');
+                if (voiceEl) voiceEl.after(newTypeEl);
+                else if (durationEl) durationEl.after(newTypeEl);
+                else mainNote.appendChild(newTypeEl);
+                const dotEl = mainNote.querySelector('dot');
+                if (dotEl) newTypeEl.after(dotEl);
             }
         }
 

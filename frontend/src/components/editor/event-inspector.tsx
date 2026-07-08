@@ -39,7 +39,7 @@ import {
   getTieConnectionDirectionFromXML,
   type ConnectionDirection,
 } from '@/lib/musicxml/connections';
-import { getDivisions, parseXml } from '@/lib/musicxml/core';
+import { parseXml } from '@/lib/musicxml/core';
 import { getManualBeamDirectionAtEntity, updateManualBeamAtEntity, updateManualBeamDirectionAtEntity, type BeamDirection } from '@/lib/musicxml/automatic-beams';
 import { cn } from '@/lib/utils';
 
@@ -140,26 +140,6 @@ function getEntitySummaryIcon(entity: ScoreEntity): string {
   if (entity.type === 'rest') return '𝄽';
   if (entity.type === 'chord') return '♬';
   return '♩';
-}
-
-function greatestCommonDivisor(left: number, right: number): number {
-  let a = Math.abs(left);
-  let b = Math.abs(right);
-  while (b > 0) [a, b] = [b, a % b];
-  return a || 1;
-}
-
-function getEntityBeatPosition(entity: ScoreEntity, xmlDoc: XMLDocument | null) {
-  const divisions = xmlDoc ? getDivisions(xmlDoc) : 1;
-  const startTick = entity.meta?.startTick ?? 0;
-  const elapsedWholeBeats = Math.floor(startTick / divisions);
-  const remainder = startTick - elapsedWholeBeats * divisions;
-  if (remainder === 0) return { beat: elapsedWholeBeats + 1, offset: null };
-  const divisor = greatestCommonDivisor(remainder, divisions);
-  return {
-    beat: elapsedWholeBeats + 1,
-    offset: `${remainder / divisor}/${divisions / divisor}`,
-  };
 }
 
 function parseTimeSignatureParts(value: string | undefined) {
@@ -696,7 +676,6 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
   }, [event, t]);
   const summaryPitch = getEntitySummaryPitch(editingEntity, t('eventTypeRest'), t('emptyVoice'));
   const summaryIcon = getEntitySummaryIcon(editingEntity);
-  const summaryBeat = getEntityBeatPosition(editingEntity, currentXmlDoc);
   const summaryMeasure = (editingEntity.meta?.measureIndex ?? 0) + 1;
   const summaryVoice = editingEntity.meta?.xmlVoice ?? 1;
 
@@ -849,14 +828,11 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
             <div className="min-w-0 space-y-1">
               <p className="text-sm font-semibold text-foreground">{eventTypeLabel}</p>
               <p className="truncate text-lg font-semibold text-foreground">{summaryPitch}</p>
-              <p className="text-xs text-muted-foreground">
-                {t('selectionPosition', { measure: summaryMeasure, beat: summaryBeat.beat })}
-                {summaryBeat.offset ? t('selectionBeatOffset', { offset: summaryBeat.offset }) : null}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t('summaryDuration', { duration: t(event.duration as never) })}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('selectionMeasure', { measure: summaryMeasure })}</p>
               <p className="text-xs text-muted-foreground">{t('selectionVoice', { voice: summaryVoice })}</p>
+              <p className="text-xs text-muted-foreground">
+                {t(event.dotted ? 'summaryDottedDuration' : 'summaryDuration', { duration: t(event.duration as never) })}
+              </p>
             </div>
           </div>
         </div>

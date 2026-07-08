@@ -113,9 +113,16 @@ export function updateSingleNoteInXml(
         durationEl.textContent = String(getEffectiveDurationValue(duration, divisions, dotted));
     }
 
-    const typeEl = noteEl.querySelector('type');
+    let typeEl = noteEl.querySelector('type');
     if (typeEl) {
         typeEl.textContent = getDurationTypeName(duration);
+    } else {
+        typeEl = xmlDoc.createElement('type');
+        typeEl.textContent = getDurationTypeName(duration);
+        const voiceEl = noteEl.querySelector('voice');
+        if (voiceEl) voiceEl.after(typeEl);
+        else if (durationEl) durationEl.after(typeEl);
+        else noteEl.appendChild(typeEl);
     }
 
     // Handle dot element

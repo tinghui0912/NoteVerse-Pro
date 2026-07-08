@@ -55,6 +55,47 @@ describe('updateExistingEntity beam trigger', () => {
     expect(updated.querySelector('beam')).toBeNull();
   });
 
+  it('converts a measure rest into an explicitly notated rest when its duration changes', () => {
+    const measureRestXml = xml.replace(
+      '<pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type>',
+      '<rest measure="yes"/><duration>16</duration><voice>1</voice>',
+    ).replace('<beam number="1">begin</beam>', '');
+    const result = updateExistingEntity({
+      currentXml: measureRestXml,
+      scoreData,
+      editingEntityLocation: { measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0 },
+      updatedEntity: { type: 'rest', duration: 'durationHalf' },
+      getExpectedVoices: () => undefined,
+    });
+
+    expect(result.success).toBe(true);
+    const updated = new DOMParser().parseFromString(result.newXml!, 'application/xml');
+    expect(updated.querySelector('rest')?.hasAttribute('measure')).toBe(false);
+    expect(updated.querySelector('note > duration')?.textContent).toBe('8');
+    expect(updated.querySelector('note > type')?.textContent).toBe('half');
+  });
+
+  it('creates a notated type when a measure rest is converted into a pitched note', () => {
+    const measureRestXml = xml.replace(
+      '<pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type>',
+      '<rest measure="yes"/><duration>16</duration><voice>1</voice>',
+    ).replace('<beam number="1">begin</beam>', '');
+    const result = updateExistingEntity({
+      currentXml: measureRestXml,
+      scoreData,
+      editingEntityLocation: { measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0 },
+      updatedEntity: { type: 'note', pitch: 'C4', duration: 'durationHalf' },
+      getExpectedVoices: () => undefined,
+    });
+
+    expect(result.success).toBe(true);
+    const updated = new DOMParser().parseFromString(result.newXml!, 'application/xml');
+    expect(updated.querySelector('note > rest')).toBeNull();
+    expect(updated.querySelector('note > pitch > step')?.textContent).toBe('C');
+    expect(updated.querySelector('note > duration')?.textContent).toBe('8');
+    expect(updated.querySelector('note > type')?.textContent).toBe('half');
+  });
+
   it('writes matching pitch alteration and notated accidental', () => {
     const result = updateExistingEntity({
       currentXml: xml,
