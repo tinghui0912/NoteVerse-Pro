@@ -39,7 +39,7 @@ describe('validateDataIntegrity', () => {
   });
 
   it('returns structured beam closure and level warnings', () => {
-    const beamXml = `<?xml version="1.0"?><score-partwise><part-list/><part><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note xml:id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><staff>1</staff><beam number="2">begin</beam></note></measure></part></score-partwise>`;
+    const beamXml = `<?xml version="1.0"?><score-partwise><part-list/><part><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><staff>1</staff><beam number="2">begin</beam></note></measure></part></score-partwise>`;
     const scoreData: ScoreData = {
       timeSignature: '4/4',
       measures: [{ number: 1, staves: [{ clef: 'treble', name: 'trebleClef', voices: [] }] }],
@@ -90,7 +90,7 @@ describe('validateDataIntegrity', () => {
   });
 
   it('includes all chord pitches in an unpaired beam warning', () => {
-    const beamXml = `<?xml version="1.0"?><score-partwise><part-list/><part><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note xml:id="n1"><pitch><step>D</step><octave>2</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><staff>2</staff><beam>begin</beam></note><note xml:id="n2"><chord/><pitch><step>D</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><staff>2</staff></note></measure></part></score-partwise>`;
+    const beamXml = `<?xml version="1.0"?><score-partwise><part-list/><part><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id="n1"><pitch><step>D</step><octave>2</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><staff>2</staff><beam>begin</beam></note><note id="n2"><chord/><pitch><step>D</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type><staff>2</staff></note></measure></part></score-partwise>`;
     const scoreData: ScoreData = {
       timeSignature: '4/4',
       measures: [{ number: 1, staves: [{ clef: 'treble', name: 'trebleClef', voices: [] }] }],

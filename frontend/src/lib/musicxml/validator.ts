@@ -223,7 +223,7 @@ function validateBeamStructure(currentXml: string | null, t: TranslateFunction):
             const voice = Number.parseInt(note.querySelector(':scope > voice')?.textContent ?? '1', 10) || 1;
             const staffLabel = staff === 1 ? t('editor.trebleClef') : t('editor.bassClef');
             const location = formatIssueLocation(t, measureIndex + 1, staffLabel, voice);
-            const entityId = note.getAttribute('xml:id') || note.getAttribute('id') || `measure-${measureIndex}-note-${noteIndex}`;
+            const entityId = note.getAttribute('id') || `measure-${measureIndex}-note-${noteIndex}`;
             const pitchLabel = formatBeamEventPitches(note);
             const beamMessage = `${location}: ${t('validation.unpairedBeam')}${pitchLabel ? ` (${pitchLabel})` : ''}`;
             const beamElements = Array.from(note.querySelectorAll(':scope > beam'));

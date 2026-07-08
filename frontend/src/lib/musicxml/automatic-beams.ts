@@ -344,7 +344,7 @@ type ManualBeamAction = 'previous' | 'next' | 'break';
 export type BeamDirection = 'auto' | 'up' | 'down';
 
 function noteId(note: Element): string | null {
-  return note.getAttributeNS('http://www.w3.org/XML/1998/namespace', 'id') || note.getAttribute('id');
+  return note.getAttribute('id');
 }
 
 function levelOneRunBounds(roots: Element[], index: number): [number, number] {

@@ -1,10 +1,8 @@
-import type { ScoreData, ScoreEntity, Note, Chord, Rest, Blank, Measure, Stave, ConnectionData, NoteConnections, EntityInfo } from '@/types/score-types';
+import type { AccidentalValue, ScoreData, ScoreEntity, Note, Chord, Rest, Blank, Measure, Stave, ConnectionData, NoteConnections, EntityInfo } from '@/types/score-types';
 import { DEFAULT_TEMPO_BPM } from '../constants/audio';
 import { extractPitch, isDottedDuration, parseArticulations, parseDuration } from './parser-values';
 
 // A subset of melody-forge's parsing logic, adapted for modern TypeScript and our types.
-
-const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
 
 type NoteElementInfo = {
   entityId: string;
@@ -28,6 +26,13 @@ function normalizeFingeringText(value: string | null | undefined): string | unde
   if (!normalized) return undefined;
   const mapped = FINGERING_TEXT_MAP[normalized] ?? normalized;
   return /^[1-5]$/.test(mapped) ? mapped : undefined;
+}
+
+function parseAccidental(note: Element): AccidentalValue | undefined {
+  const value = note.querySelector(':scope > accidental')?.textContent?.trim();
+  return value === 'flat-flat' || value === 'flat' || value === 'natural' || value === 'sharp'
+    ? value
+    : undefined;
 }
 
 /**
@@ -70,8 +75,6 @@ export class MusicXMLParser {
 
   private getStableElementId(element: Element): string {
     return (
-      element.getAttributeNS(XML_NAMESPACE, 'id') ||
-      element.getAttribute('xml:id') ||
       element.getAttribute('id') ||
       this.generateId()
     );
@@ -302,6 +305,8 @@ export class MusicXMLParser {
                   lastEntity.fingerings = lastEntity.pitches.slice(0, -1).map(() => 'none');
                 }
                 lastEntity.fingerings.push(currentFingering || 'none');
+                if (!lastEntity.accidentals) lastEntity.accidentals = lastEntity.pitches.slice(0, -1).map(() => undefined);
+                lastEntity.accidentals.push(parseAccidental(noteNode));
                 if (lastEntity.meta) {
                   lastEntity.meta.sourceIds = [...(lastEntity.meta.sourceIds || [lastEntity.meta.id]), noteId];
                 }
@@ -316,6 +321,7 @@ export class MusicXMLParser {
                 dotted: lastEntity.dotted || hasDot,
                 stemDirection: lastEntity.stemDirection,
                 fingerings: [lastEntity.fingering || 'none', currentFingering || 'none'],
+                accidentals: [lastEntity.accidental, parseAccidental(noteNode)],
                 articulation: lastEntity.articulation,
                 meta: lastEntity.meta
                   ? { ...lastEntity.meta, sourceIds: [firstNoteId, noteId].filter(Boolean) as string[] }
@@ -366,6 +372,7 @@ export class MusicXMLParser {
                 dotted: hasDot,
                 stemDirection: stemDirection,
                 fingering: fingering,
+                accidental: parseAccidental(noteNode),
                 articulation: parseArticulations(noteNode),
                 meta: {
                   id: this.getStableElementId(noteNode),

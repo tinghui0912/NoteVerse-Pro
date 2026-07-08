@@ -151,9 +151,9 @@ describe('Automatic Beam v2 foundation', () => {
     const xmlDoc = documentFor(
       '4',
       4,
-      note(2, 'eighth').replace('<note>', '<note xml:id="n1">')
-        + note(2, 'eighth').replace('<note>', '<note xml:id="n2">')
-        + note(4, 'quarter').replace('<note>', '<note xml:id="n3">'),
+      note(2, 'eighth').replace('<note>', '<note id="n1">')
+        + note(2, 'eighth').replace('<note>', '<note id="n2">')
+        + note(4, 'quarter').replace('<note>', '<note id="n3">'),
     );
 
     expect(updateManualBeamAtEntity(xmlDoc, 'n1', 'next')).toBe(true);
@@ -164,10 +164,10 @@ describe('Automatic Beam v2 foundation', () => {
     const xmlDoc = documentFor(
       '4',
       4,
-      note(1, '16th', '<beam>begin</beam>').replace('<note>', '<note xml:id="n1">')
-        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note xml:id="n2">')
-        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note xml:id="n3">')
-        + note(1, '16th', '<beam>end</beam>').replace('<note>', '<note xml:id="n4">'),
+      note(1, '16th', '<beam>begin</beam>').replace('<note>', '<note id="n1">')
+        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note id="n2">')
+        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note id="n3">')
+        + note(1, '16th', '<beam>end</beam>').replace('<note>', '<note id="n4">'),
     );
 
     expect(updateManualBeamAtEntity(xmlDoc, 'n2', 'break')).toBe(true);
@@ -180,8 +180,8 @@ describe('Automatic Beam v2 foundation', () => {
     const xmlDoc = documentFor(
       '4',
       4,
-      note(2, 'eighth', '<beam>begin</beam>').replace('<note>', '<note xml:id="n1">')
-        + note(2, 'eighth', '<beam>end</beam>').replace('<note>', '<note xml:id="n2">'),
+      note(2, 'eighth', '<beam>begin</beam>').replace('<note>', '<note id="n1">')
+        + note(2, 'eighth', '<beam>end</beam>').replace('<note>', '<note id="n2">'),
     );
 
     expect(updateManualBeamDirectionAtEntity(xmlDoc, 'n1', 'up')).toBe(true);

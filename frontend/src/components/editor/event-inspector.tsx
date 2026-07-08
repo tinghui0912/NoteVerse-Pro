@@ -25,7 +25,7 @@ import {
 import { useEditorState, useEntityEditor, useMetadataEditor, useScoreData, useXmlUpdater } from '@/contexts/editor-provider';
 import { useConnectionOperations } from '@/hooks/editor/use-connection-operations';
 import { useToast } from '@/hooks/use-toast';
-import type { Blank, Duration, EntityInfo, ScoreEntity, SlurConnection, TieConnection } from '@/types/score-types';
+import type { AccidentalValue, Blank, Duration, EntityInfo, ScoreEntity, SlurConnection, TieConnection } from '@/types/score-types';
 import { findEntityById, findEntityMetaById } from '@/lib/editor/score-lookup';
 import {
   addPitch,
@@ -43,7 +43,13 @@ import { getDivisions, parseXml } from '@/lib/musicxml/core';
 import { getManualBeamDirectionAtEntity, updateManualBeamAtEntity, updateManualBeamDirectionAtEntity, type BeamDirection } from '@/lib/musicxml/automatic-beams';
 import { cn } from '@/lib/utils';
 
-const PITCH_NAMES = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
+const PITCH_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const ACCIDENTALS: Array<{ value: AccidentalValue; symbol: string }> = [
+  { value: 'flat-flat', symbol: '𝄫' },
+  { value: 'flat', symbol: '♭' },
+  { value: 'natural', symbol: '♮' },
+  { value: 'sharp', symbol: '♯' },
+];
 const DURATIONS: Duration[] = [
   'durationWhole',
   'durationHalf',
@@ -89,16 +95,26 @@ const SHARP_STAFF_Y = [14, 26, 11, 20, 32, 17, 29];
 const FLAT_STAFF_Y = [29, 17, 32, 20, 35, 23, 38];
 
 function splitPitch(pitch: string) {
-  const match = pitch.match(/^([A-Ga-g][#b]?)(\d)$/);
+  const match = pitch.match(/^([A-Ga-g])([#b]{0,2})(\d)$/);
   return {
     name: match?.[1] ?? 'C',
-    octave: match?.[2] ?? '4',
+    accidental: match?.[2] ?? '',
+    octave: match?.[3] ?? '4',
   };
 }
 
 function updatePitchPart(pitch: string, part: 'name' | 'octave', value: string) {
   const parsed = splitPitch(pitch);
-  return part === 'name' ? `${value}${parsed.octave}` : `${parsed.name}${value}`;
+  return part === 'name'
+    ? `${value}${parsed.accidental}${parsed.octave}`
+    : `${parsed.name}${parsed.accidental}${value}`;
+}
+
+function accidentalPitchSuffix(accidental: AccidentalValue) {
+  if (accidental === 'flat-flat') return 'bb';
+  if (accidental === 'flat') return 'b';
+  if (accidental === 'sharp') return '#';
+  return '';
 }
 
 function toEntityForSave(original: ScoreEntity, event: EditableEvent): ScoreEntity {
@@ -687,6 +703,22 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
     });
   };
 
+  const setAccidental = (index: number, accidental: AccidentalValue) => {
+    const parsed = splitPitch(event.pitches[index] ?? 'C4');
+    const shouldRemove = event.accidentals[index] === accidental;
+    commitEvent({
+      ...event,
+      pitches: event.pitches.map((pitch, pitchIndex) => (
+        pitchIndex === index
+          ? `${parsed.name}${shouldRemove ? '' : accidentalPitchSuffix(accidental)}${parsed.octave}`
+          : pitch
+      )),
+      accidentals: event.accidentals.map((value, accidentalIndex) => (
+        accidentalIndex === index ? (shouldRemove ? null : accidental) : value
+      )),
+    });
+  };
+
   const deleteTieConnection = (detail: ConnectionDetail) => {
     const result = handleDeleteTieConnection(
       editingEntity,
@@ -886,6 +918,26 @@ function EventInspectorPanel({ editingEntity }: { editingEntity: ScoreEntity }) 
                                     value={parsed.octave}
                                     onChange={(change) => setPitch(index, updatePitchPart(pitch, 'octave', change.target.value))}
                                   />
+                                </div>
+
+                                <div className="col-span-2 min-w-0 space-y-1">
+                                  <Label className="text-xs">{t('accidentalLabel')}</Label>
+                                  <div className="grid grid-cols-4 gap-2">
+                                    {ACCIDENTALS.map((accidental) => (
+                                      <Button
+                                        key={accidental.value}
+                                        type="button"
+                                        variant={event.accidentals[index] === accidental.value ? 'default' : 'outline'}
+                                        size="icon"
+                                        className="h-9 w-full font-[LelandText] text-xl"
+                                        aria-label={t(`accidental.${accidental.value}` as never)}
+                                        title={t(`accidental.${accidental.value}` as never)}
+                                        onClick={() => setAccidental(index, accidental.value)}
+                                      >
+                                        {accidental.symbol}
+                                      </Button>
+                                    ))}
+                                  </div>
                                 </div>
 
                                 <div className="col-span-2 min-w-0 space-y-1">

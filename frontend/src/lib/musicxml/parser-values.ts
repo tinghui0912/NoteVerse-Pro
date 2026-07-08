@@ -12,7 +12,7 @@ export function extractPitch(noteNode: Element): string | null {
   const step = pitchNode.querySelector('step')?.textContent || '';
   const alter = parseInt(pitchNode.querySelector('alter')?.textContent || '0', 10);
   const octave = pitchNode.querySelector('octave')?.textContent || '4';
-  const accidental = alter === 1 ? '#' : alter === -1 ? 'b' : '';
+  const accidental = alter > 0 ? '#'.repeat(alter) : alter < 0 ? 'b'.repeat(-alter) : '';
   return `${step}${accidental}${octave}`;
 }
 

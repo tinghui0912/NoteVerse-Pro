@@ -28,8 +28,6 @@ const readFixture = (name: string) =>
 
 function findNoteById(document: XMLDocument, id: string) {
   return Array.from(document.querySelectorAll('note')).find((note) => (
-    note.getAttribute('xml:id') === id ||
-    note.getAttributeNS('http://www.w3.org/XML/1998/namespace', 'id') === id ||
     note.getAttribute('id') === id
   )) ?? null;
 }
@@ -75,14 +73,14 @@ describe('MusicXML core utilities', () => {
               <time><beats>4</beats><beat-type>4</beat-type></time>
               <clef><sign>G</sign><line>2</line></clef>
             </attributes>
-            <note xml:id="n1">
+            <note id="n1">
               <pitch><step>C</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>
               <type>quarter</type>
               <staff>1</staff>
             </note>
-            <note xml:id="n2">
+            <note id="n2">
               <pitch><step>C</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>
@@ -125,14 +123,14 @@ describe('MusicXML core utilities', () => {
               <time><beats>4</beats><beat-type>4</beat-type></time>
               <clef><sign>G</sign><line>2</line></clef>
             </attributes>
-            <note xml:id="n1">
+            <note id="n1">
               <pitch><step>C</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>
               <type>quarter</type>
               <staff>1</staff>
             </note>
-            <note xml:id="n2">
+            <note id="n2">
               <pitch><step>C</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>
@@ -177,21 +175,21 @@ describe('MusicXML core utilities', () => {
               <time><beats>4</beats><beat-type>4</beat-type></time>
               <clef><sign>G</sign><line>2</line></clef>
             </attributes>
-            <note xml:id="n1">
+            <note id="n1">
               <pitch><step>E</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>
               <type>quarter</type>
               <staff>1</staff>
             </note>
-            <note xml:id="chord-c">
+            <note id="chord-c">
               <pitch><step>C</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>
               <type>quarter</type>
               <staff>1</staff>
             </note>
-            <note xml:id="chord-e">
+            <note id="chord-e">
               <chord/>
               <pitch><step>E</step><octave>4</octave></pitch>
               <duration>1</duration>

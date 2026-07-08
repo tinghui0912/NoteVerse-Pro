@@ -41,7 +41,7 @@ describe('MusicXML package surface', () => {
               <time><beats>4</beats><beat-type>4</beat-type></time>
               <clef><sign>G</sign><line>2</line></clef>
             </attributes>
-            <note xml:id="note-stable-1">
+            <note id="note-stable-1">
               <pitch><step>C</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>
@@ -71,14 +71,14 @@ describe('MusicXML package surface', () => {
               <time><beats>4</beats><beat-type>4</beat-type></time>
               <clef><sign>G</sign><line>2</line></clef>
             </attributes>
-            <note xml:id="chord-main">
+            <note id="chord-main">
               <pitch><step>C</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>
               <type>quarter</type>
               <staff>1</staff>
             </note>
-            <note xml:id="chord-member-2">
+            <note id="chord-member-2">
               <chord/>
               <pitch><step>E</step><octave>4</octave></pitch>
               <duration>1</duration>
@@ -111,7 +111,7 @@ describe('MusicXML package surface', () => {
               <time><beats>4</beats><beat-type>4</beat-type></time>
               <clef><sign>G</sign><line>2</line></clef>
             </attributes>
-            <note xml:id="note-with-fingering">
+            <note id="note-with-fingering">
               <pitch><step>C</step><octave>4</octave></pitch>
               <duration>1</duration>
               <voice>1</voice>

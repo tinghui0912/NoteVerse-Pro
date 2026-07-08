@@ -11,12 +11,7 @@ export function orderConnectionEndpoints(start: EntityMeta, end: EntityMeta) {
 }
 
 function getElementId(element: Element) {
-  return (
-    element.getAttribute('xml:id') ||
-    element.getAttributeNS('http://www.w3.org/XML/1998/namespace', 'id') ||
-    element.getAttribute('id') ||
-    ''
-  );
+  return element.getAttribute('id') || '';
 }
 
 export function findConnectionNoteElements(

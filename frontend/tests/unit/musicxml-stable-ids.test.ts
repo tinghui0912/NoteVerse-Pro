@@ -30,12 +30,12 @@ const note = (attributes = '') => `<note ${attributes}>
 </note>`;
 
 describe('stable MusicXML ids', () => {
-  it('preserves legal unique xml ids', () => {
-    const normalized = ensureStableMusicXmlIdsString(baseScore(note('xml:id="source-note-1"')));
+  it('preserves legal unique ids', () => {
+    const normalized = ensureStableMusicXmlIdsString(baseScore(note('id="source-note-1"')));
     const parsedNote = new MusicXMLParser(normalized).parse().measures[0]?.staves[0]?.voices[0]?.notes[0];
 
-    expect(normalized).toContain('xml:id="source-note-1"');
-    expect(parseXml(normalized).querySelector('note')?.hasAttribute('id')).toBe(false);
+    expect(normalized).toContain('id="source-note-1"');
+    expect(parseXml(normalized).querySelector('note')?.hasAttribute('id')).toBe(true);
     expect(parsedNote?.meta?.id).toBe('source-note-1');
   });
 
@@ -47,17 +47,17 @@ describe('stable MusicXML ids', () => {
 
     expect(ids).toHaveLength(2);
     expect(ids.every((id) => id?.startsWith('nv-'))).toBe(true);
-    expect(elements.every((element) => !element.hasAttribute('xml:id'))).toBe(true);
+    expect(elements.every((element) => element.hasAttribute('id'))).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('renames duplicate ids instead of keeping ambiguous SVG anchors', () => {
-    const normalized = ensureStableMusicXmlIdsString(baseScore(`${note('xml:id="same-id"')}${note('xml:id="same-id"')}`));
+    const normalized = ensureStableMusicXmlIdsString(baseScore(`${note('id="same-id"')}${note('id="same-id"')}`));
     const elements = Array.from(parseXml(normalized).querySelectorAll('note'));
-    const ids = elements.map((element) => element.getAttribute('xml:id') || element.getAttribute('id'));
+    const ids = elements.map((element) => element.getAttribute('id'));
 
     expect(ids).toEqual(['same-id', 'same-id-2']);
-    expect(elements[0].hasAttribute('id')).toBe(false);
+    expect(elements[0].hasAttribute('id')).toBe(true);
     expect(elements[1].getAttribute('id')).toBe('same-id-2');
   });
 
@@ -67,7 +67,7 @@ describe('stable MusicXML ids', () => {
     const id = noteEl?.getAttribute('id');
 
     expect(id).toBe('nv-1-bad-id');
-    expect(noteEl?.hasAttribute('xml:id')).toBe(false);
+    expect(noteEl?.hasAttribute('id')).toBe(true);
     expect(normalized).not.toContain('id="1 bad id"');
   });
 });

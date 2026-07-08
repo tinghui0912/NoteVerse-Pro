@@ -81,12 +81,14 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
         if (updatedEntity.type === 'chord' && 'pitches' in updatedEntity) {
             const pitches = updatedEntity.pitches;
             const fingerings = updatedEntity.fingerings || [];
+            const accidentals = updatedEntity.accidentals || [];
 
             pitches.forEach((pitchStr, i) => {
                 const noteOptions = {
                     dotted: 'dotted' in updatedEntity ? updatedEntity.dotted : undefined,
                     stemDirection: 'stemDirection' in updatedEntity ? updatedEntity.stemDirection : undefined,
                     fingering: fingerings[i] || undefined,
+                    accidental: accidentals[i],
                 };
 
                 if (i < targetElements.length) {
@@ -142,6 +144,7 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
                     dotted: updatedEntity.dotted,
                     stemDirection: updatedEntity.stemDirection,
                     fingering: updatedEntity.fingering,
+                    accidental: updatedEntity.accidental,
                 };
                 updateSingleNoteInXml(mainNote, updatedEntity.pitch, updatedEntity.duration, divisions, false, noteOptions);
 

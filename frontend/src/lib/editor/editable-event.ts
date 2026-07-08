@@ -1,4 +1,4 @@
-import type { Chord, Duration, EntityLocation, Note, Rest, ScoreEntity } from '@/types/score-types';
+import type { AccidentalValue, Chord, Duration, EntityLocation, Note, Rest, ScoreEntity } from '@/types/score-types';
 
 export type EditableEventKind = 'rest' | 'note' | 'chord';
 
@@ -8,6 +8,7 @@ export type EditableEvent = {
   pitches: string[];
   stemDirection: 'up' | 'down' | 'none';
   fingerings: string[];
+  accidentals: Array<AccidentalValue | null | undefined>;
 };
 
 export function getEditableEventKind(event: Pick<EditableEvent, 'pitches'>): EditableEventKind {
@@ -23,6 +24,7 @@ export function createDefaultEditableEvent(): EditableEvent {
     pitches: [],
     stemDirection: 'none',
     fingerings: [],
+    accidentals: [],
   };
 }
 
@@ -34,6 +36,7 @@ export function toEditableEvent(entity: ScoreEntity): EditableEvent {
       pitches: [...entity.pitches],
       stemDirection: entity.stemDirection ?? 'none',
       fingerings: entity.pitches.map((_, index) => entity.fingerings?.[index] ?? 'none'),
+      accidentals: entity.pitches.map((_, index) => entity.accidentals?.[index]),
     };
   }
 
@@ -44,6 +47,7 @@ export function toEditableEvent(entity: ScoreEntity): EditableEvent {
       pitches: [entity.pitch],
       stemDirection: entity.stemDirection ?? 'none',
       fingerings: [entity.fingering ?? 'none'],
+      accidentals: [entity.accidental],
     };
   }
 
@@ -53,6 +57,7 @@ export function toEditableEvent(entity: ScoreEntity): EditableEvent {
     pitches: [],
     stemDirection: 'none',
     fingerings: [],
+    accidentals: [],
   };
 }
 
@@ -85,6 +90,7 @@ export function toScoreEntity(event: EditableEvent, location?: EntityLocation): 
       dotted: event.dotted,
       stemDirection: event.stemDirection,
       fingering: event.fingerings[0] ?? 'none',
+      accidental: event.accidentals[0],
       meta,
     };
   }
@@ -96,6 +102,7 @@ export function toScoreEntity(event: EditableEvent, location?: EntityLocation): 
     dotted: event.dotted,
     stemDirection: event.stemDirection,
     fingerings: event.pitches.map((_, index) => event.fingerings[index] ?? 'none'),
+    accidentals: event.pitches.map((_, index) => event.accidentals[index]),
     meta,
   };
 }
@@ -105,6 +112,7 @@ export function addPitch(event: EditableEvent, pitch = 'C4'): EditableEvent {
     ...event,
     pitches: [...event.pitches, pitch],
     fingerings: [...event.fingerings, 'none'],
+    accidentals: [...event.accidentals, undefined],
   };
 }
 
@@ -113,6 +121,6 @@ export function removePitch(event: EditableEvent, pitchIndex: number): EditableE
     ...event,
     pitches: event.pitches.filter((_, index) => index !== pitchIndex),
     fingerings: event.fingerings.filter((_, index) => index !== pitchIndex),
+    accidentals: event.accidentals.filter((_, index) => index !== pitchIndex),
   };
 }
-

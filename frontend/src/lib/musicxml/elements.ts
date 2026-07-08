@@ -13,6 +13,7 @@ import {
     getDurationTypeName,
     getEntityGroupsFromMeasure,
 } from './core';
+import type { AccidentalValue } from '@/types/score-types';
 
 // ============================================================================
 // Types
@@ -25,6 +26,7 @@ export type UpdateSingleNoteOptions = {
     dotted?: boolean;
     stemDirection?: string;
     fingering?: string;
+    accidental?: AccidentalValue | null;
 };
 
 // ============================================================================
@@ -132,6 +134,20 @@ export function updateSingleNoteInXml(
         } else if (!options.dotted && existingDot) {
             existingDot.remove();
         }
+    }
+
+    if (options?.accidental) {
+        let accidentalEl = noteEl.querySelector(':scope > accidental');
+        if (!accidentalEl) {
+            accidentalEl = xmlDoc.createElement('accidental');
+            const dots = Array.from(noteEl.querySelectorAll(':scope > dot'));
+            const insertAfter = dots.at(-1) || noteEl.querySelector(':scope > type');
+            if (insertAfter) insertAfter.after(accidentalEl);
+            else noteEl.appendChild(accidentalEl);
+        }
+        accidentalEl.textContent = options.accidental;
+    } else if (options?.accidental === null) {
+        noteEl.querySelector(':scope > accidental')?.remove();
     }
 
     // Handle stem element

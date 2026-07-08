@@ -50,6 +50,13 @@
   "duration32nd": "32nd Note",
   "pitchLabel": "Pitch",
   "octaveLabel": "Octave",
+  "accidentalLabel": "Accidental",
+  "accidental": {
+    "flat-flat": "Double flat",
+    "flat": "Flat",
+    "natural": "Natural",
+    "sharp": "Sharp"
+  },
   "durationLabel": "Duration",
   "isDottedLabel": "Dotted Note",
   "isDottedTitle": "Dotted",

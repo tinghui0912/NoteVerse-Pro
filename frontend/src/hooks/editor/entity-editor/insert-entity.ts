@@ -140,6 +140,7 @@ function createEntityElements(
             dotted: entity.dotted,
             stemDirection: entity.stemDirection,
             fingering: entity.fingering,
+            accidental: entity.accidental,
         });
         return { elements: [noteEl], historyLabel: 'addNote' };
     }
@@ -162,6 +163,7 @@ function createEntityElements(
         if (entity.pitches.length === 0) return null;
 
         const fingerings = entity.fingerings || [];
+        const accidentals = entity.accidentals || [];
         const elements = entity.pitches.map((pitch, index) => {
             const isChordMember = index > 0;
             const noteEl = createNoteElementFromPitch(xmlDoc, pitch, entity.duration, voiceNum, staffNumber, divisions, isChordMember);
@@ -169,6 +171,7 @@ function createEntityElements(
                 dotted: entity.dotted,
                 stemDirection: entity.stemDirection,
                 fingering: fingerings[index],
+                accidental: accidentals[index],
             });
             return noteEl;
         });

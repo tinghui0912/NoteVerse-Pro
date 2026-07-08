@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { updateExistingEntity } from './update-existing-entity';
 import type { ScoreData } from '@/types/score-types';
 
-const xml = `<?xml version="1.0"?><score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>4</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note xml:id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff><beam number="1">begin</beam></note></measure></part></score-partwise>`;
+const xml = `<?xml version="1.0"?><score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>4</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff><beam number="1">begin</beam></note></measure></part></score-partwise>`;
 
 const scoreData: ScoreData = {
   timeSignature: '4/4',
@@ -55,10 +55,53 @@ describe('updateExistingEntity beam trigger', () => {
     expect(updated.querySelector('beam')).toBeNull();
   });
 
+  it('writes matching pitch alteration and notated accidental', () => {
+    const result = updateExistingEntity({
+      currentXml: xml,
+      scoreData,
+      editingEntityLocation: { measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0 },
+      updatedEntity: {
+        type: 'note',
+        pitch: 'Dbb4',
+        accidental: 'flat-flat',
+        duration: 'durationEighth',
+      },
+      getExpectedVoices: () => undefined,
+    });
+
+    const updated = new DOMParser().parseFromString(result.newXml!, 'application/xml');
+    expect(updated.querySelector('pitch > step')?.textContent).toBe('D');
+    expect(updated.querySelector('pitch > alter')?.textContent).toBe('-2');
+    expect(updated.querySelector('note > accidental')?.textContent).toBe('flat-flat');
+  });
+
+  it('removes both the alteration and accidental when a symbol is toggled off', () => {
+    const alteredXml = xml.replace(
+      '<pitch><step>C</step><octave>4</octave></pitch>',
+      '<pitch><step>C</step><alter>1</alter><octave>4</octave></pitch>',
+    ).replace('<type>eighth</type>', '<type>eighth</type><accidental>sharp</accidental>');
+    const result = updateExistingEntity({
+      currentXml: alteredXml,
+      scoreData,
+      editingEntityLocation: { measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0 },
+      updatedEntity: {
+        type: 'note',
+        pitch: 'C4',
+        accidental: null,
+        duration: 'durationEighth',
+      },
+      getExpectedVoices: () => undefined,
+    });
+
+    const updated = new DOMParser().parseFromString(result.newXml!, 'application/xml');
+    expect(updated.querySelector('pitch > alter')).toBeNull();
+    expect(updated.querySelector('note > accidental')).toBeNull();
+  });
+
   it('updates sounding duration and keeps beams on chord roots after adding a dot', () => {
     const chordXml = xml.replace(
       '</note>',
-      '</note><note xml:id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff></note><note xml:id="n3"><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff></note>',
+      '</note><note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff></note><note id="n3"><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff></note>',
     );
     const result = updateExistingEntity({
       currentXml: chordXml,

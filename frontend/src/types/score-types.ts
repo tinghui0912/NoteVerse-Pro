@@ -1,5 +1,6 @@
 
 export type Articulation = 'beam' | 'tie' | 'slur';
+export type AccidentalValue = 'flat-flat' | 'flat' | 'natural' | 'sharp';
 
 export type ScoreEntityType = 'note' | 'chord' | 'rest' | 'blank';
 
@@ -32,6 +33,7 @@ export type Note = {
   dotted?: boolean;
   stemDirection?: 'up' | 'down' | 'none';
   fingering?: string;
+  accidental?: AccidentalValue | null;
   articulation?: Articulation[];
   meta?: EntityMeta;
 };
@@ -43,6 +45,7 @@ export type Chord = {
   dotted?: boolean;
   stemDirection?: 'up' | 'down' | 'none';
   fingerings?: string[];  // 每个音符的指法，与 pitches 数组对应
+  accidentals?: Array<AccidentalValue | null | undefined>;
   articulation?: Articulation[];
   meta?: EntityMeta;
 };

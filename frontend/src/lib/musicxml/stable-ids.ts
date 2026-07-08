@@ -1,6 +1,5 @@
 import { parseXml, serializeXml } from './core';
 
-const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
 const APP_ID_PREFIX = 'nv';
 const GENERATED_ID_MARKER = 'data-nv-generated-id';
 
@@ -23,12 +22,10 @@ function sanitizeXmlId(value: string): string {
 }
 
 function getExistingXmlId(element: Element): string | null {
-  return element.getAttributeNS(XML_NAMESPACE, 'id') || element.getAttribute('xml:id') || element.getAttribute('id');
+  return element.getAttribute('id');
 }
 
 function setGeneratedId(element: Element, id: string): void {
-  element.removeAttributeNS(XML_NAMESPACE, 'id');
-  element.removeAttribute('xml:id');
   element.setAttribute('id', id);
   element.setAttribute(GENERATED_ID_MARKER, 'true');
 }
@@ -74,11 +71,7 @@ export function ensureStableMusicXmlIds(xmlDoc: XMLDocument): boolean {
 
     usedIds.add(nextId);
 
-    const xmlId = element.getAttributeNS(XML_NAMESPACE, 'id') || element.getAttribute('xml:id');
-    if (canKeepExisting && xmlId && element.getAttribute('id') === xmlId) {
-      element.removeAttribute('id');
-      changed = true;
-    } else if (!canKeepExisting) {
+    if (!canKeepExisting) {
       setGeneratedId(element, nextId);
       changed = true;
     }
@@ -99,8 +92,6 @@ export function stripAppOwnedMusicXmlIdsString(xml: string): string {
   let changed = false;
   xmlDoc.querySelectorAll('note, forward').forEach((element) => {
     if (element.getAttribute(GENERATED_ID_MARKER) === 'true') {
-      element.removeAttributeNS(XML_NAMESPACE, 'id');
-      element.removeAttribute('xml:id');
       element.removeAttribute('id');
       element.removeAttribute(GENERATED_ID_MARKER);
       changed = true;
@@ -109,16 +100,11 @@ export function stripAppOwnedMusicXmlIdsString(xml: string): string {
   return changed ? serializeXml(xmlDoc) : xml;
 }
 
-/** Adds the plain id alias required by Verovio to its disposable render copy. */
+/** Removes editor-only metadata from Verovio's disposable render copy. */
 export function prepareMusicXmlIdsForVerovio(xml: string): string {
   const xmlDoc = parseXml(ensureStableMusicXmlIdsString(xml));
   let changed = false;
   xmlDoc.querySelectorAll('note, forward').forEach((element) => {
-    const stableId = getExistingXmlId(element);
-    if (stableId && element.getAttribute('id') !== stableId) {
-      element.setAttribute('id', stableId);
-      changed = true;
-    }
     if (element.hasAttribute(GENERATED_ID_MARKER)) {
       element.removeAttribute(GENERATED_ID_MARKER);
       changed = true;

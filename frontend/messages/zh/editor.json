@@ -50,6 +50,13 @@
   "duration32nd": "三十二分音符",
   "pitchLabel": "音高",
   "octaveLabel": "八度",
+  "accidentalLabel": "临时升降号",
+  "accidental": {
+    "flat-flat": "重降号",
+    "flat": "降号",
+    "natural": "还原号",
+    "sharp": "升号"
+  },
   "durationLabel": "时值",
   "isDottedLabel": "附点音符",
   "isDottedTitle": "附点",
