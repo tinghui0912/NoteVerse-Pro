@@ -10,6 +10,31 @@ import { ScorePreviewViewport } from '@/components/score/score-preview-viewport'
 import { useScorePreviewPlayback } from '@/hooks/score/use-score-preview-playback';
 import { useMeasureWarningOverlay } from '@/hooks/score/use-measure-warning-overlay';
 import type { ScoreValidationIssue } from '@/lib/musicxml/validator';
+import type { ScorePreviewControllerFactory } from '@/hooks/score/use-score-preview-playback';
+
+const A4_HEIGHT_TO_WIDTH_RATIO = 297 / 210;
+
+const createReviewScoreController: ScorePreviewControllerFactory = async (container, bpm) => {
+  const { VerovioScorePreviewController } = await import(
+    '@/lib/score/verovio-score-preview-controller'
+  );
+  return new VerovioScorePreviewController({
+    container,
+    bpm,
+    toolkitOptions: {
+      pageWidth: 2100,
+      pageHeight: 2970,
+      adjustPageHeight: false,
+      justifyVertically: true,
+      justificationBraceGroup: 0,
+      justificationSystem: 1,
+    },
+    fitToContainerOptions: (pageWidth) => ({
+      pageWidth,
+      pageHeight: Math.round(pageWidth * A4_HEIGHT_TO_WIDTH_RATIO),
+    }),
+  });
+};
 
 function ReviewCarousel({
   title,
@@ -47,12 +72,12 @@ function ReviewCarousel({
         ) : null}
       </CardHeader>
       <CardContent>
-        {loading ? <div className="flex aspect-8.5/11 w-full items-center justify-center rounded-md bg-gray-100"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div> : urls.length ? (
+        {loading ? <div className="flex aspect-[210/297] w-full items-center justify-center rounded-md bg-white"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div> : urls.length ? (
           <Carousel className="w-full" setApi={setApi}>
             <CarouselContent>
               {urls.map((url, index) => (
                 <CarouselItem key={url}>
-                  <div className="relative flex aspect-8.5/11 w-full items-center justify-center overflow-hidden rounded-md bg-gray-100">
+                  <div className="relative flex aspect-[210/297] w-full items-center justify-center overflow-hidden rounded-md bg-white">
                     <Image
                       src={url}
                       alt={t(altKey, { page: index + 1 })}
@@ -71,7 +96,7 @@ function ReviewCarousel({
               </>
             ) : null}
           </Carousel>
-        ) : <div className="flex aspect-8.5/11 w-full flex-col items-center justify-center rounded-md bg-gray-100"><FileImage className="mb-2 h-12 w-12 text-gray-400" /><p className="text-sm text-gray-500">{scoreText('noImageAvailable')}</p></div>}
+        ) : <div className="flex aspect-[210/297] w-full flex-col items-center justify-center rounded-md bg-white"><FileImage className="mb-2 h-12 w-12 text-gray-400" /><p className="text-sm text-gray-500">{scoreText('noImageAvailable')}</p></div>}
       </CardContent>
     </Card>
   );
@@ -85,7 +110,11 @@ function RecognizedScorePreview({ xmlString, issues }: { xmlString: string | nul
     isLoading,
     loadError,
     scoreContainerRef,
-  } = useScorePreviewPlayback({ isOpen: Boolean(xmlString), xmlString });
+  } = useScorePreviewPlayback({
+    isOpen: Boolean(xmlString),
+    xmlString,
+    createController: createReviewScoreController,
+  });
   useMeasureWarningOverlay({ containerRef, isLoading, issues });
 
   return (
@@ -96,7 +125,7 @@ function RecognizedScorePreview({ xmlString, issues }: { xmlString: string | nul
       <CardContent>
         {xmlString ? (
           <ScorePreviewViewport
-            className="aspect-8.5/11 min-h-0 rounded-md bg-gray-100"
+            className="aspect-[210/297] min-h-0 rounded-md bg-white [&_.verovio-preview-page]:mb-0"
             containerRef={containerRef}
             isLoading={isLoading}
             loadError={loadError}

@@ -20,6 +20,8 @@ type VerovioScorePreviewControllerOptions = {
   bpm?: number;
   adapter?: VerovioScoreAdapter;
   audioEngine?: VerovioAudioEngine;
+  toolkitOptions?: Record<string, unknown>;
+  fitToContainerOptions?: (pageWidth: number) => Record<string, unknown>;
 };
 
 type CursorPlacementOptions = CursorSyncOptions & {
@@ -58,14 +60,16 @@ export class VerovioScorePreviewController implements ScorePreviewController {
   private activeCursorMode: 'measure-start' | 'note' | null = null;
   private disposed = false;
   private readonly initialBpm: number | null;
+  private readonly fitToContainerOptions: (pageWidth: number) => Record<string, unknown>;
 
   constructor(options: VerovioScorePreviewControllerOptions) {
     if (!options.container || !(options.container instanceof HTMLElement)) {
       throw new Error('Please pass a valid score preview container.');
     }
     this.container = options.container;
-    this.adapter = options.adapter ?? new VerovioScoreAdapter();
+    this.adapter = options.adapter ?? new VerovioScoreAdapter(undefined, options.toolkitOptions);
     this.initialBpm = options.bpm && options.bpm > 0 ? options.bpm : null;
+    this.fitToContainerOptions = options.fitToContainerOptions ?? ((pageWidth) => ({ pageWidth }));
     this.playback = new VerovioPlaybackPrototype(
       this.adapter,
       options.audioEngine ?? new SoundfontAudioEngine()
@@ -91,9 +95,8 @@ export class VerovioScorePreviewController implements ScorePreviewController {
       return;
     }
     const snapshot = this.playback.getPlaybackSnapshot();
-    this.renderPages(
-      this.adapter.relayout({ pageWidth: Math.max(900, Math.round(width * 2.25)) })
-    );
+    const pageWidth = Math.max(900, Math.round(width * 2.25));
+    this.renderPages(this.adapter.relayout(this.fitToContainerOptions(pageWidth)));
     if (
       snapshot.totalSteps > 0
       && snapshot.state !== 'IDLE'

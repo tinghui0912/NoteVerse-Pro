@@ -27,12 +27,16 @@ const DEFAULT_TOOLKIT_OPTIONS: Record<string, unknown> = {
 export class VerovioScoreAdapter {
   private toolkit: VerovioToolkitLike | null = null;
 
-  constructor(private readonly toolkitFactory: VerovioToolkitFactory = createVerovioToolkit) {}
+  constructor(
+    private readonly toolkitFactory: VerovioToolkitFactory = createVerovioToolkit,
+    private readonly toolkitOptions: Record<string, unknown> = {},
+  ) {}
 
   async loadMusicXml(xml: string, options: VerovioLoadOptions = {}) {
     const toolkit = await this.toolkitFactory();
     toolkit.setOptions({
       ...DEFAULT_TOOLKIT_OPTIONS,
+      ...this.toolkitOptions,
       ...options.toolkitOptions,
     });
 
