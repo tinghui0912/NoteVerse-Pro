@@ -14,6 +14,20 @@ import { translateErrorCode } from '@/lib/i18n/error-message';
 
 type VerifyState = 'verifying' | 'success' | 'error';
 
+const verificationRequests = new Map<string, Promise<void>>();
+
+function verifyEmailOnce(token: string, verifyEmail: (token: string) => Promise<void>) {
+  const existingRequest = verificationRequests.get(token);
+  if (existingRequest) return existingRequest;
+
+  const request = verifyEmail(token).catch((error) => {
+    verificationRequests.delete(token);
+    throw error;
+  });
+  verificationRequests.set(token, request);
+  return request;
+}
+
 export default function VerifyEmailPage() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
@@ -27,7 +41,7 @@ export default function VerifyEmailPage() {
     if (!token) return;
 
     let isMounted = true;
-    verifyEmail(token)
+    verifyEmailOnce(token, verifyEmail)
       .then(() => {
         if (isMounted) setState('success');
       })
@@ -35,7 +49,11 @@ export default function VerifyEmailPage() {
         if (!isMounted) return;
         setState('error');
         if (err instanceof ApiError) {
-          setError(translateErrorCode(tErrors, err.code, t('verifyEmailLinkInvalid')));
+          setError(
+            err.code === 'token_invalid_expired'
+              ? t('verifyEmailLinkInvalid')
+              : translateErrorCode(tErrors, err.code, t('verifyEmailLinkInvalid'))
+          );
         } else {
           setError(t('verifyFailedRetry'));
         }

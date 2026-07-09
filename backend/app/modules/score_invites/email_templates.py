@@ -57,7 +57,6 @@ def _build_zh_invite_email(
     )
     html_body = _build_html(
         project_name=project_name,
-        eyebrow="协作邀请",
         heading=f"{escape(inviter_name)} 邀请你协作",
         body=(
             f"你被邀请在 <strong>{escape(project_name)}</strong> 中协作乐谱 "
@@ -90,7 +89,6 @@ def _build_en_invite_email(
     )
     html_body = _build_html(
         project_name=project_name,
-        eyebrow="Collaboration invite",
         heading=f"{escape(inviter_name)} invited you to collaborate",
         body=(
             f"You were invited to collaborate on <strong>{escape(score_title)}</strong> "
@@ -108,7 +106,6 @@ def _build_en_invite_email(
 def _build_html(
     *,
     project_name: str,
-    eyebrow: str,
     heading: str,
     body: str,
     meta_label: str,
@@ -128,7 +125,6 @@ def _build_html(
             <tr>
               <td>
                 <div style="font-size:14px;font-weight:700;color:#ff6b1a;margin-bottom:16px;">{escape(project_name)}</div>
-                <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">{escape(eyebrow)}</div>
                 <h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;color:#111827;">{heading}</h1>
                 <p style="margin:0 0 20px;font-size:16px;line-height:1.6;color:#374151;">{body}</p>
                 <div style="margin:0 0 24px;padding:14px 16px;border:1px solid #e5e7eb;border-radius:12px;background:#fafafa;">

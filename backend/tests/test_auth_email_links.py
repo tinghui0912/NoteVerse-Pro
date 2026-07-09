@@ -6,15 +6,16 @@ import pytest
 
 from app.core import security
 from app.core.config import settings
-from app.core.exceptions import AuthenticationException, ValidationException
-from app.db.models.auth import AuthToken, RefreshToken
+from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
+from app.db.models.auth import AuthToken, PendingRegistration, RefreshToken
 from app.db.models.user import User
-from app.modules.auth.schemas import ForgotPasswordRequest, RegisterRequest, ResetPasswordRequest
-from app.modules.auth.service import (
-    AUTH_TOKEN_EMAIL_VERIFICATION,
-    AUTH_TOKEN_PASSWORD_RESET,
-    AuthService,
+from app.modules.auth.schemas import (
+    ForgotPasswordRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    VerifyEmailRequest,
 )
+from app.modules.auth.service import AUTH_TOKEN_PASSWORD_RESET, AuthService
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
@@ -39,6 +40,7 @@ class FakeDb:
     def __init__(self) -> None:
         self.users: list[User] = []
         self.auth_tokens: list[AuthToken] = []
+        self.pending_registrations: list[PendingRegistration] = []
         self.refresh_tokens: list[RefreshToken] = []
         self.commits = 0
         self.rollbacks = 0
@@ -52,8 +54,16 @@ class FakeDb:
             self.users.append(record)
         elif isinstance(record, AuthToken):
             self.auth_tokens.append(record)
+        elif isinstance(record, PendingRegistration):
+            self.pending_registrations.append(record)
         elif isinstance(record, RefreshToken):
             self.refresh_tokens.append(record)
+
+    async def delete(self, record) -> None:
+        if isinstance(record, PendingRegistration):
+            self.pending_registrations = [
+                pending for pending in self.pending_registrations if pending is not record
+            ]
 
     async def flush(self) -> None:
         return None
@@ -73,6 +83,8 @@ class FakeDb:
             return FakeResult(self.users)
         if entity is AuthToken:
             return FakeResult(self.auth_tokens)
+        if entity is PendingRegistration:
+            return FakeResult(self.pending_registrations)
         if entity is RefreshToken:
             return FakeResult(self.refresh_tokens)
         return FakeResult([])
@@ -90,13 +102,13 @@ def queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
 
 
 @pytest.mark.asyncio
-async def test_register_creates_unverified_user_and_sends_verification_link(
+async def test_register_creates_pending_registration_and_sends_verification_link(
     queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
     service = AuthService()
 
-    user = await service.register(
+    await service.register(
         db,  # type: ignore[arg-type]
         RegisterRequest(
             email="User@Example.com",
@@ -106,16 +118,15 @@ async def test_register_creates_unverified_user_and_sends_verification_link(
         ),
     )
 
-    assert user.email == "user@example.com"
-    assert user.email_verified_at is None
-    assert db.auth_tokens[0].purpose == AUTH_TOKEN_EMAIL_VERIFICATION
-    assert db.auth_tokens[0].used_at is None
+    assert db.users == []
+    assert db.pending_registrations[0].email == "user@example.com"
+    assert db.pending_registrations[0].consumed_at is None
     assert queued_mail[0]["recipient"] == "user@example.com"
     assert "/auth/verify-email?token=" in str(queued_mail[0]["text_body"])
 
 
 @pytest.mark.asyncio
-async def test_login_rejects_unverified_email(
+async def test_register_refreshes_existing_pending_registration(
     queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
@@ -129,11 +140,76 @@ async def test_login_rejects_unverified_email(
             locale="en",
         ),
     )
+    first_token_hash = db.pending_registrations[0].token_hash
 
-    with pytest.raises(AuthenticationException) as exc:
-        await service.login(db, "user@example.com", "secret123")  # type: ignore[arg-type]
+    await service.register(
+        db,  # type: ignore[arg-type]
+        RegisterRequest(
+            email="user@example.com",
+            password="new-secret",
+            display_name="New User",
+            locale="en",
+        ),
+    )
 
-    assert exc.value.code == ErrorCode.EMAIL_NOT_VERIFIED
+    assert len(db.pending_registrations) == 1
+    assert db.pending_registrations[0].token_hash != first_token_hash
+    assert db.pending_registrations[0].display_name == "New User"
+    assert db.pending_registrations[0].resend_count == 1
+    assert len(queued_mail) == 2
+
+
+@pytest.mark.asyncio
+async def test_verify_email_creates_user_and_removes_pending_registration(
+    queued_mail: list[dict[str, object]],
+) -> None:
+    db = FakeDb()
+    service = AuthService()
+    token = service._new_auth_token()
+    db.add(
+        PendingRegistration(
+            email="user@example.com",
+            display_name="User",
+            password_hash=security.get_password_hash("secret123"),
+            token_hash=service._hash_token(token),
+            expires_at=utc_now_naive() + timedelta(minutes=10),
+        )
+    )
+
+    user = await service.verify_email(
+        db,  # type: ignore[arg-type]
+        VerifyEmailRequest(token=token),
+    )
+
+    assert user.email == "user@example.com"
+    assert user.email_verified_at is not None
+    assert len(db.users) == 1
+    assert db.pending_registrations == []
+
+
+@pytest.mark.asyncio
+async def test_register_rejects_existing_verified_user() -> None:
+    db = FakeDb()
+    db.add(
+        User(
+            email="user@example.com",
+            display_name="User",
+            password_hash=security.get_password_hash("secret123"),
+            is_active=True,
+        )
+    )
+    service = AuthService()
+
+    with pytest.raises(ResourceAlreadyExistsException):
+        await service.register(
+            db,  # type: ignore[arg-type]
+            RegisterRequest(
+                email="user@example.com",
+                password="secret123",
+                display_name="User",
+                locale="en",
+            ),
+        )
 
 
 @pytest.mark.asyncio

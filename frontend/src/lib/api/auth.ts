@@ -32,8 +32,8 @@ export async function logout(): Promise<ApiResponse> {
  * 用户注册
  * @param data 注册信息
  */
-export async function register(data: RegisterRequest): Promise<ApiResponse<User>> {
-    return apiClient.post<ApiResponse<User>>('/auth/register', {
+export async function register(data: RegisterRequest): Promise<ApiResponse> {
+    return apiClient.post<ApiResponse>('/auth/register', {
         email: data.email,
         password: data.password,
         display_name: data.display_name,

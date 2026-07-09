@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, String
+from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, Integer, String
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.utils.timezone import utc_now_naive
@@ -62,4 +62,39 @@ class AuthToken(SQLModel, table=True):  # type: ignore[call-arg]
     created_at: datetime = Field(
         default_factory=utc_now_naive,
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class PendingRegistration(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "pending_registrations"
+    __table_args__ = (
+        Index("idx_pending_registrations_email", "email", unique=True),
+        Index("idx_pending_registrations_token_hash", "token_hash", unique=True),
+        Index("idx_pending_registrations_expires", "expires_at"),
+        Index("idx_pending_registrations_consumed", "consumed_at"),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    email: str = Field(sa_column=Column(String(255), nullable=False))
+    display_name: str = Field(sa_column=Column(String(128), nullable=False))
+    password_hash: str = Field(sa_column=Column(String(255), nullable=False))
+    token_hash: str = Field(sa_column=Column(String(64), nullable=False))
+    resend_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
+    attempt_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
+    user_agent: Optional[str] = Field(default=None, sa_column=Column(String(512), nullable=True))
+    ip_address: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
+    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
+    consumed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(
+            DateTime,
+            default=utc_now_naive,
+            onupdate=utc_now_naive,
+            nullable=False,
+        ),
     )

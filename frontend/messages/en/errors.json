@@ -13,7 +13,6 @@
   "token_invalid_expired": "Your session has expired. Please sign in again.",
   "account_inactive": "This account is inactive. Please contact support.",
   "invalid_credentials": "Incorrect email or password.",
-  "email_not_verified": "Please verify your email before logging in.",
   "email_mismatch": "Email verification does not match. Please request a new verification link.",
   "email_invalid": "Invalid email address.",
   "reset_token_invalid": "This reset link is invalid. Please request a new reset link.",

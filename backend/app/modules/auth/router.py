@@ -147,20 +147,21 @@ async def refresh_access_token(
     return success_response(message=SuccessCode.LOGIN_SUCCESS)
 
 
-@router.post("/register", response_model=UserSchema)
+@router.post("/register")
 async def register_user(
     request_context: Request,
     *,
     db: AsyncSession = Depends(deps.get_db),
     request: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
-) -> UserSchema:
-    return await auth_service.register(
+) -> SuccessResponsePayload:
+    await auth_service.register(
         db,
         request,
         user_agent=request_context.headers.get("user-agent"),
         ip_address=request_context.client.host if request_context.client else None,
     )
+    return success_response(message=SuccessCode.VERIFICATION_SUCCESS)
 
 
 @router.post("/email/verify", response_model=UserSchema)

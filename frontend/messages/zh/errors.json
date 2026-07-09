@@ -13,7 +13,6 @@
   "token_invalid_expired": "登录状态已过期，请重新登录。",
   "account_inactive": "账号未启用，请联系管理员。",
   "invalid_credentials": "邮箱或密码不正确。",
-  "email_not_verified": "请先验证邮箱后再登录。",
   "email_mismatch": "邮箱验证信息不匹配，请重新获取验证链接。",
   "email_invalid": "邮箱地址无效。",
   "reset_token_invalid": "重置链接无效，请重新获取重置链接。",

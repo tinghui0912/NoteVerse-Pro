@@ -17,7 +17,6 @@ class ErrorCode:
     INVALID_CREDENTIALS = "invalid_credentials"
     EMAIL_MISMATCH = "email_mismatch"
     EMAIL_INVALID = "email_invalid"
-    EMAIL_NOT_VERIFIED = "email_not_verified"
     EMAIL_SERVICE_UNAVAILABLE = "email_service_unavailable"
     RESET_TOKEN_INVALID = "reset_token_invalid"
 

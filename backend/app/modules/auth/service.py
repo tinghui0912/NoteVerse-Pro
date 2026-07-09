@@ -18,7 +18,7 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models.auth import AuthToken, RefreshToken
+from app.db.models.auth import AuthToken, PendingRegistration, RefreshToken
 from app.db.models.user import User
 from app.modules.auth.email_templates import (
     build_email_verification_email,
@@ -35,7 +35,6 @@ from app.modules.mail.outbox_service import queue_mail
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
-AUTH_TOKEN_EMAIL_VERIFICATION = "email_verification"
 AUTH_TOKEN_PASSWORD_RESET = "password_reset"
 
 
@@ -172,12 +171,6 @@ class AuthService:
                 code=ErrorCode.ACCOUNT_INACTIVE,
                 details={"email": user.email},
             )
-        if user.email_verified_at is None:
-            raise AuthenticationException(
-                code=ErrorCode.EMAIL_NOT_VERIFIED,
-                details={"email": user.email},
-            )
-
         access_token, refresh_token, _ = await self._create_token_pair(
             db,
             require_persisted_id(user.id, entity="user"),
@@ -220,12 +213,12 @@ class AuthService:
 
         result = await db.exec(select(User).where(User.id == current_token.user_id))
         user = result.one_or_none()
-        if not user or not user.is_active or user.email_verified_at is None:
+        if not user or not user.is_active:
             current_token.revoked_at = now
             await db.commit()
             raise AuthenticationException(
                 code=ErrorCode.TOKEN_INVALID_EXPIRED,
-                details={"reason": "user_inactive_missing_or_unverified"},
+                details={"reason": "user_inactive_or_missing"},
             )
 
         if user.password_changed_at and current_token.created_at <= user.password_changed_at:
@@ -290,7 +283,7 @@ class AuthService:
         *,
         user_agent: str | None = None,
         ip_address: str | None = None,
-    ) -> User:
+    ) -> None:
         email = str(request.email).strip().lower()
         result = await db.exec(select(User).where(User.email == email))
         if result.one_or_none():
@@ -299,26 +292,37 @@ class AuthService:
                 details={"email": email},
             )
 
-        user = User(
-            email=email,
-            display_name=request.display_name,
-            password_hash=security.get_password_hash(request.password),
-            is_active=True,
-            email_verified_at=None,
+        ttl_seconds = settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
+        token = self._new_auth_token()
+        now = utc_now_naive()
+        password_hash = security.get_password_hash(request.password)
+        pending_result = await db.exec(
+            select(PendingRegistration).where(PendingRegistration.email == email)
         )
-        db.add(user)
+        pending = pending_result.one_or_none()
+        if pending:
+            pending.display_name = request.display_name
+            pending.password_hash = password_hash
+            pending.token_hash = self._hash_token(token)
+            pending.expires_at = now + timedelta(seconds=ttl_seconds)
+            pending.consumed_at = None
+            pending.resend_count += 1
+            pending.user_agent = user_agent
+            pending.ip_address = ip_address
+            pending.updated_at = now
+        else:
+            pending = PendingRegistration(
+                email=email,
+                display_name=request.display_name,
+                password_hash=password_hash,
+                token_hash=self._hash_token(token),
+                expires_at=now + timedelta(seconds=ttl_seconds),
+                user_agent=user_agent,
+                ip_address=ip_address,
+            )
+            db.add(pending)
         await db.flush()
 
-        user_id = require_persisted_id(user.id, entity="user")
-        ttl_seconds = settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
-        token = await self._create_auth_token(
-            db,
-            user_id,
-            purpose=AUTH_TOKEN_EMAIL_VERIFICATION,
-            ttl_seconds=ttl_seconds,
-            user_agent=user_agent,
-            ip_address=ip_address,
-        )
         email_content = build_email_verification_email(
             locale=request.locale,
             project_name=settings.PROJECT_NAME,
@@ -328,31 +332,43 @@ class AuthService:
         await queue_mail(
             db,
             category="verification.email",
-            dedupe_key=f"verification.email:{user_id}:{self._hash_token(token)}",
+            dedupe_key=f"verification.email:{email}:{self._hash_token(token)}",
             recipient=email,
             subject=email_content.subject,
             text_body=email_content.text_body,
             html_body=email_content.html_body,
-            expires_at=utc_now_naive() + timedelta(seconds=ttl_seconds),
+            expires_at=now + timedelta(seconds=ttl_seconds),
         )
         await db.commit()
-        await db.refresh(user)
-        return user
 
     async def verify_email(self, db: AsyncSession, request: VerifyEmailRequest) -> User:
-        token_record = await self._consume_auth_token(
-            db,
-            request.token,
-            purpose=AUTH_TOKEN_EMAIL_VERIFICATION,
-            field="token",
+        now = utc_now_naive()
+        result = await db.exec(
+            select(PendingRegistration).where(
+                PendingRegistration.token_hash == self._hash_token(request.token)
+            )
         )
-        result = await db.exec(select(User).where(User.id == token_record.user_id))
-        user = result.one_or_none()
-        if not user:
+        pending = result.one_or_none()
+        if not pending or pending.consumed_at is not None or pending.expires_at <= now:
             raise ValidationException(code=ErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
-        if user.email_verified_at is None:
-            user.email_verified_at = utc_now_naive()
+        existing_result = await db.exec(select(User).where(User.email == pending.email))
+        if existing_result.one_or_none():
+            raise ResourceAlreadyExistsException(
+                resource_type="user",
+                details={"email": pending.email},
+            )
+
+        pending.consumed_at = now
+        user = User(
+            email=pending.email,
+            display_name=pending.display_name,
+            password_hash=pending.password_hash,
+            is_active=True,
+            email_verified_at=now,
+        )
+        db.add(user)
+        await db.delete(pending)
         await db.commit()
         await db.refresh(user)
         return user
@@ -368,7 +384,7 @@ class AuthService:
         email = str(request.email).strip().lower()
         result = await db.exec(select(User).where(User.email == email))
         user = result.one_or_none()
-        if not user or not user.is_active or user.email_verified_at is None:
+        if not user or not user.is_active:
             return
 
         user_id = require_persisted_id(user.id, entity="user")
