@@ -16,8 +16,8 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
 from app.db.models.score_access import InviteStatus, MembershipRole
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.modules.score_invites.email_templates import build_invite_email
 from app.modules.mail.outbox_service import queue_mail
+from app.modules.mail.templates.score_invites import build_invite_email
 from app.modules.score_invites.repository import ScoreInviteRepository
 from app.modules.score_invites.schemas import (
     InviteAcceptRead,
@@ -506,12 +506,13 @@ class ScoreInviteService:
             else settings.PROJECT_NAME
         )
         invite_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/invite/{token}"
+        role_label = self._role_label(invite.role, locale)
         email = build_invite_email(
             locale=locale,
             project_name=settings.PROJECT_NAME,
             inviter_name=inviter_name,
             score_title=score_title,
-            role=invite.role,
+            role_label=role_label,
             invite_url=invite_url,
         )
 
@@ -525,3 +526,9 @@ class ScoreInviteService:
             html_body=email.html_body,
             expires_at=invite.expires_at,
         )
+
+    @staticmethod
+    def _role_label(role: MembershipRole, locale: str) -> str:
+        if locale == "en":
+            return "Can edit" if role == MembershipRole.EDITOR else "View only"
+        return "可编辑" if role == MembershipRole.EDITOR else "仅查看"

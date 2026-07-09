@@ -20,7 +20,7 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models.auth import AuthToken, PendingRegistration, RefreshToken
 from app.db.models.user import User
-from app.modules.auth.email_templates import (
+from app.modules.mail.templates.auth import (
     build_email_verification_email,
     build_password_changed_email,
     build_password_reset_email,
