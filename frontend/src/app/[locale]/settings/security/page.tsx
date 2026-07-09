@@ -1,14 +1,5 @@
-import { getTranslations } from 'next-intl/server';
+import { SecuritySettingsPanel } from '@/components/settings/security-settings-panel';
 
-import { SettingsEmptyPanel } from '@/components/settings/settings-empty-panel';
-
-export default async function SettingsSecurityPage() {
-  const t = await getTranslations('settings');
-
-  return (
-    <SettingsEmptyPanel
-      title={t('security.heading')}
-      description={t('security.description')}
-    />
-  );
+export default function SettingsSecurityPage() {
+  return <SecuritySettingsPanel />;
 }

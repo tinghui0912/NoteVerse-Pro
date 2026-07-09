@@ -36,3 +36,38 @@ export interface AvatarResponse {
   avatar_url: string;
   filename: string;
 }
+
+export interface AccountSession {
+  id: number;
+  device_id?: string | null;
+  user_agent?: string | null;
+  ip_address?: string | null;
+  created_at: string;
+  last_used_at?: string | null;
+  expires_at: string;
+  is_current: boolean;
+}
+
+export interface AccountSessionsResponse {
+  sessions: AccountSession[];
+}
+
+export interface AccountSecurityOverview {
+  email: string;
+  email_verified_at?: string | null;
+  password_changed_at?: string | null;
+  active_sessions_count: number;
+  mfa_enabled: boolean;
+  mfa_available: boolean;
+  last_login?: string | null;
+}
+
+export interface AccountSecurityResponse {
+  security: AccountSecurityOverview;
+}
+
+export interface RequestEmailChangeRequest {
+  new_email: string;
+  current_password: string;
+  locale?: 'en' | 'zh';
+}

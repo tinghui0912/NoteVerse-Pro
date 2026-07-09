@@ -45,6 +45,10 @@ export async function verifyEmail(token: string): Promise<ApiResponse<User>> {
     return apiClient.post<ApiResponse<User>>('/auth/email/verify', { token });
 }
 
+export async function confirmEmailChange(token: string): Promise<ApiResponse<{ email: string }>> {
+    return apiClient.post<ApiResponse<{ email: string }>>('/auth/email/change/confirm', { token });
+}
+
 export async function requestPasswordReset(
     email: string,
     locale: 'en' | 'zh' = 'zh'
@@ -77,6 +81,7 @@ export const authApi = {
     login,
     register,
     verifyEmail,
+    confirmEmailChange,
     requestPasswordReset,
     resetPassword,
     logout,

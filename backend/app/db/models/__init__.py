@@ -1,5 +1,5 @@
 from .user import User, UserRole
-from .auth import AuthToken, PendingRegistration, RefreshToken
+from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
 from .file import Upload
 from .notification import NotificationEvent
 from .practice import (
@@ -54,6 +54,7 @@ __all__ = [
     "RefreshToken",
     "AuthToken",
     "PendingRegistration",
+    "EmailChangeRequest",
     "Upload",
     "NotificationEvent",
     "PracticeSession",

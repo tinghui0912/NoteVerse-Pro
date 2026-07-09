@@ -1,14 +1,5 @@
-import { getTranslations } from 'next-intl/server';
+import { SessionsSettingsPanel } from '@/components/settings/sessions-settings-panel';
 
-import { SettingsEmptyPanel } from '@/components/settings/settings-empty-panel';
-
-export default async function SettingsSessionsPage() {
-  const t = await getTranslations('settings');
-
-  return (
-    <SettingsEmptyPanel
-      title={t('sessions.heading')}
-      description={t('sessions.description')}
-    />
-  );
+export default function SettingsSessionsPage() {
+  return <SessionsSettingsPanel />;
 }

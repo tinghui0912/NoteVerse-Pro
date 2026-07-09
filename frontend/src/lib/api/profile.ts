@@ -2,7 +2,14 @@
  * 个人资料相关 API
  */
 import { apiClient, ApiResponse } from '../api-client';
-import type { UserProfile, UpdateProfileRequest, AvatarResponse } from '@/types/api';
+import type {
+    AccountSecurityResponse,
+    AccountSessionsResponse,
+    RequestEmailChangeRequest,
+    UserProfile,
+    UpdateProfileRequest,
+    AvatarResponse,
+} from '@/types/api';
 
 // ============ API 函数 ============
 
@@ -51,6 +58,26 @@ export async function deleteAvatar(): Promise<ApiResponse> {
     return apiClient.delete<ApiResponse>('/me/avatar');
 }
 
+export async function getSessions(): Promise<ApiResponse<AccountSessionsResponse>> {
+    return apiClient.get<ApiResponse<AccountSessionsResponse>>('/me/sessions');
+}
+
+export async function getSecurityOverview(): Promise<ApiResponse<AccountSecurityResponse>> {
+    return apiClient.get<ApiResponse<AccountSecurityResponse>>('/me/security');
+}
+
+export async function requestEmailChange(data: RequestEmailChangeRequest): Promise<ApiResponse> {
+    return apiClient.post<ApiResponse>('/me/email/change', data);
+}
+
+export async function revokeSession(sessionId: number): Promise<ApiResponse> {
+    return apiClient.delete<ApiResponse>(`/me/sessions/${sessionId}`);
+}
+
+export async function revokeOtherSessions(): Promise<ApiResponse> {
+    return apiClient.delete<ApiResponse>('/me/sessions');
+}
+
 /**
  * 获取头像 URL
  * @param avatarUrl 头像路径
@@ -76,6 +103,11 @@ export const profileApi = {
     changePassword,
     uploadAvatar,
     deleteAvatar,
+    getSessions,
+    getSecurityOverview,
+    requestEmailChange,
+    revokeSession,
+    revokeOtherSessions,
     getAvatarUrl,
 };
 

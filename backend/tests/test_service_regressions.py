@@ -21,12 +21,14 @@ from app.processing.engines.matchmaker_live import (
     BrowserAudioStreamAdapter,
     MatchmakerLiveEngine,
 )
+from app.db.models.user import User
 from app.db.models.practice import PracticeReportStatus, PracticeSessionState
 from app.db.models.score_access import AccessOrigin
 from app.db.models.import_job import ImportJobState
 from app.modules.files.service import FilesService
 from app.modules.practice.service import PracticeService
 from app.modules.account.avatar_service import AvatarService
+from app.modules.account.profile_service import ProfileService
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
 from app.modules.import_jobs.worker_service import sync_import_job_service
@@ -75,6 +77,18 @@ class FakeS3Client:
 
 class FakeS3NotFound(Exception):
     response = {"Error": {"Code": "NoSuchKey"}}
+
+
+class FakeAvatarDb:
+    def __init__(self) -> None:
+        self.commits = 0
+        self.refreshes = 0
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def refresh(self, _record: object) -> None:
+        self.refreshes += 1
 
 
 def test_allowed_file_accepts_supported_extensions() -> None:
@@ -258,6 +272,54 @@ def test_avatar_service_detects_missing_local_avatar() -> None:
         service = AvatarService(storage=storage)
 
         assert service.avatar_exists("missing.jpg") is False
+
+
+def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
+    user = User(
+        id=7,
+        email="user@example.com",
+        display_name="User",
+        password_hash="hash",
+        avatar_url="/api/v1/uploads/avatars/missing.jpg",
+    )
+
+    payload = ProfileService().profile_payload(user)
+
+    assert payload["user"]["avatar_url"] == "/api/v1/uploads/avatars/missing.jpg"
+    assert user.avatar_url == "/api/v1/uploads/avatars/missing.jpg"
+
+
+@pytest.mark.asyncio
+async def test_avatar_service_replaces_user_avatar_and_deletes_old_file() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        storage = LocalFileStorage(storage_root=temp_dir)
+        service = AvatarService(storage=storage)
+        old = storage.save_avatar(content=b"old", filename="old.jpg")
+        user = User(
+            id=7,
+            email="user@example.com",
+            display_name="User",
+            password_hash="hash",
+            avatar_url=old.public_url or storage.avatar_url("old.jpg"),
+        )
+        db = FakeAvatarDb()
+        image = Image.new("RGB", (20, 20), (255, 0, 0))
+        image_bytes = io.BytesIO()
+        image.save(image_bytes, format="PNG")
+
+        filename, avatar_url = await service.replace_user_avatar(
+            db,  # type: ignore[arg-type]
+            user,
+            file_bytes=image_bytes.getvalue(),
+            filename="avatar.png",
+        )
+
+        assert filename.startswith("7_")
+        assert user.avatar_url == avatar_url
+        assert storage.exists(f"avatars/{filename}")
+        assert not storage.exists("avatars/old.jpg")
+        assert db.commits == 1
+        assert db.refreshes == 1
 
 
 def test_s3_storage_saves_and_materializes_score_upload() -> None:

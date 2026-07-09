@@ -143,6 +143,8 @@ class SuccessCode:
     PASSWORD_RESET_SUCCESS = "password_reset_success"
     LOGIN_SUCCESS = "login_success"
     LOGOUT_SUCCESS = "logout_success"
+    SESSION_REVOKED = "session_revoked"
+    SESSIONS_REVOKED = "sessions_revoked"
 
     TASKS_DELETED = "tasks_deleted"
     SHARES_DELETED = "shares_deleted"

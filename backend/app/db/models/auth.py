@@ -98,3 +98,39 @@ class PendingRegistration(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
+
+
+class EmailChangeRequest(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "email_change_requests"
+    __table_args__ = (
+        Index("idx_email_change_requests_user_created", "user_id", "created_at"),
+        Index("idx_email_change_requests_new_email", "new_email"),
+        Index("idx_email_change_requests_token_hash", "token_hash", unique=True),
+        Index("idx_email_change_requests_expires", "expires_at"),
+        Index("idx_email_change_requests_consumed", "consumed_at"),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    user_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    )
+    new_email: str = Field(sa_column=Column(String(255), nullable=False))
+    token_hash: str = Field(sa_column=Column(String(64), nullable=False))
+    locale: str = Field(default="zh", sa_column=Column(String(8), default="zh", nullable=False))
+    user_agent: Optional[str] = Field(default=None, sa_column=Column(String(512), nullable=True))
+    ip_address: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
+    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
+    consumed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(
+            DateTime,
+            default=utc_now_naive,
+            onupdate=utc_now_naive,
+            nullable=False,
+        ),
+    )

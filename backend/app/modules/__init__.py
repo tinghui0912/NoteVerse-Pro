@@ -1,6 +1,6 @@
 __all__ = [
+    "account",
     "auth",
-    "profile",
     "shares",
     "files",
     "xml",

@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import FileException, ValidationException
-from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.dependencies import get_avatar_service, get_profile_service
@@ -20,13 +19,9 @@ router = APIRouter()
 @router.get("/profile")
 async def get_user_profile(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    avatar_service: AvatarService = Depends(get_avatar_service),
     profile_service: ProfileService = Depends(get_profile_service),
 ):
-    return success_response(
-        data=await profile_service.profile_payload(db, current_user, avatar_service)
-    )
+    return success_response(data=profile_service.profile_payload(current_user))
 
 
 @router.put("/profile")
@@ -56,11 +51,11 @@ async def upload_avatar(
         raise FileException(code=ErrorCode.FILE_READ_FAILED, filename=file.filename)
 
     try:
-        user_id = require_persisted_id(current_user.id, entity="user")
-        saved_filename, avatar_url = avatar_service.process_avatar(
+        saved_filename, avatar_url = await avatar_service.replace_user_avatar(
+            db,
+            current_user,
             file_bytes=file_bytes,
             filename=file.filename,
-            user_id=user_id,
         )
     except ValueError as exc:
         raise ValidationException(
@@ -75,15 +70,6 @@ async def upload_avatar(
             details={"error": str(exc)},
         )
 
-    if current_user.avatar_url:
-        old_filename = current_user.avatar_url.split("/")[-1]
-        if old_filename != saved_filename:
-            avatar_service.delete_avatar(old_filename)
-
-    current_user.avatar_url = avatar_url
-    await db.commit()
-    await db.refresh(current_user)
-
     return success_response(
         data={"avatar_url": avatar_url, "filename": saved_filename},
         message=SuccessCode.AVATAR_UPLOADED,
@@ -96,11 +82,5 @@ async def delete_avatar(
     db: AsyncSession = Depends(get_db),
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
-    if not current_user.avatar_url:
-        return success_response(message=SuccessCode.AVATAR_DELETED)
-
-    filename = current_user.avatar_url.split("/")[-1]
-    avatar_service.delete_avatar(filename)
-    current_user.avatar_url = None
-    await db.commit()
+    await avatar_service.clear_user_avatar(db, current_user)
     return success_response(message=SuccessCode.AVATAR_DELETED)

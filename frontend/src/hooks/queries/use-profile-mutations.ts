@@ -3,7 +3,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import { profileApi } from '@/lib/api';
-import type { UpdateProfileRequest } from '@/types/api';
+import type { RequestEmailChangeRequest, UpdateProfileRequest } from '@/types/api';
 
 /**
  * 上传头像
@@ -35,5 +35,23 @@ export function useChangePassword() {
             currentPassword: string;
             newPassword: string;
         }) => profileApi.changePassword(currentPassword, newPassword),
+    });
+}
+
+export function useRevokeSession() {
+    return useMutation({
+        mutationFn: (sessionId: number) => profileApi.revokeSession(sessionId),
+    });
+}
+
+export function useRevokeOtherSessions() {
+    return useMutation({
+        mutationFn: () => profileApi.revokeOtherSessions(),
+    });
+}
+
+export function useRequestEmailChange() {
+    return useMutation({
+        mutationFn: (data: RequestEmailChangeRequest) => profileApi.requestEmailChange(data),
     });
 }

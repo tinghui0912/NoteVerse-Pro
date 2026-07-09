@@ -27,6 +27,16 @@ class VerifyEmailRequest(BaseModel):
     token: str = Field(..., min_length=1, description="Email verification token")
 
 
+class RequestEmailChangeRequest(BaseModel):
+    new_email: EmailStr = Field(..., description="New email address")
+    current_password: str = Field(..., min_length=1, description="Current password")
+    locale: Literal["en", "zh"] = "zh"
+
+
+class ConfirmEmailChangeRequest(BaseModel):
+    token: str = Field(..., min_length=1, description="Email change confirmation token")
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr = Field(..., description="Email address")
     locale: Literal["en", "zh"] = "zh"
@@ -50,6 +60,27 @@ class ChangePasswordRequest(BaseModel):
         if current_password and value == current_password:
             raise ValueError("New password must differ from the current password")
         return value
+
+
+class SessionSummary(BaseModel):
+    id: int
+    device_id: str | None = None
+    user_agent: str | None = None
+    ip_address: str | None = None
+    created_at: datetime
+    last_used_at: datetime | None = None
+    expires_at: datetime
+    is_current: bool = False
+
+
+class SecurityOverview(BaseModel):
+    email: EmailStr
+    email_verified_at: datetime | None = None
+    password_changed_at: datetime | None = None
+    active_sessions_count: int
+    mfa_enabled: bool = False
+    mfa_available: bool = False
+    last_login: datetime | None = None
 
 
 class UserBase(BaseModel):
@@ -89,8 +120,10 @@ class UserInDB(UserInDBBase):
 
 __all__ = [
     "ChangePasswordRequest",
+    "ConfirmEmailChangeRequest",
     "ForgotPasswordRequest",
     "RegisterRequest",
+    "RequestEmailChangeRequest",
     "ResetPasswordRequest",
     "TokenPayload",
     "User",

@@ -2,11 +2,13 @@
 
 import hashlib
 import io
-from typing import Tuple
 
 from PIL import Image
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
+from app.db.model_utils import require_persisted_id
+from app.db.models import User
 from app.storage import FileStorage, file_storage
 
 
@@ -29,12 +31,17 @@ class AvatarService:
     def validate_file_size(self, file_bytes: bytes) -> bool:
         return len(file_bytes) <= self.MAX_FILE_SIZE
 
+    def filename_from_url(self, avatar_url: str | None) -> str | None:
+        if not avatar_url:
+            return None
+        return avatar_url.split("/")[-1].split("?")[0] or None
+
     def process_avatar(
         self,
         file_bytes: bytes,
         filename: str,
         user_id: int,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         if not self.is_allowed_extension(filename):
             raise ValueError("Unsupported file format")
         if not self.validate_file_size(file_bytes):
@@ -69,6 +76,52 @@ class AvatarService:
         except Exception as exc:
             logger.error(f"Avatar processing failed: {exc}")
             raise ValueError(f"Image processing failed: {str(exc)}")
+
+    async def replace_user_avatar(
+        self,
+        db: AsyncSession,
+        user: User,
+        *,
+        file_bytes: bytes,
+        filename: str,
+    ) -> tuple[str, str]:
+        user_id = require_persisted_id(user.id, entity="user")
+        old_filename = self.filename_from_url(user.avatar_url)
+        saved_filename, avatar_url = self.process_avatar(
+            file_bytes=file_bytes,
+            filename=filename,
+            user_id=user_id,
+        )
+
+        if old_filename and old_filename != saved_filename:
+            self.delete_avatar(old_filename)
+
+        user.avatar_url = avatar_url
+        await db.commit()
+        await db.refresh(user)
+        return saved_filename, avatar_url
+
+    async def clear_user_avatar(self, db: AsyncSession, user: User) -> bool:
+        old_filename = self.filename_from_url(user.avatar_url)
+        if old_filename:
+            self.delete_avatar(old_filename)
+
+        if user.avatar_url:
+            user.avatar_url = None
+            await db.commit()
+            return True
+
+        return False
+
+    async def clear_missing_avatar_reference(self, db: AsyncSession, user: User) -> bool:
+        avatar_filename = self.filename_from_url(user.avatar_url)
+        if not avatar_filename or self.avatar_exists(avatar_filename):
+            return False
+
+        user.avatar_url = None
+        await db.commit()
+        logger.info(f"Cleared missing avatar reference for user_id={user.id}")
+        return True
 
     def delete_avatar(self, filename: str) -> bool:
         try:

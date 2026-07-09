@@ -2,7 +2,11 @@ from fastapi import APIRouter
 
 from app.modules.account.router import router as account
 from app.modules.auth.router import router as auth
+from app.modules.auth.email_change_router import auth_router as auth_email_change
+from app.modules.auth.email_change_router import me_router as account_email_change
 from app.modules.auth.password_router import router as auth_password
+from app.modules.auth.security_router import router as auth_security
+from app.modules.auth.sessions_router import router as auth_sessions
 from app.modules.artifacts.router import router as artifacts
 from app.modules.artifacts.router import score_artifact_router
 from app.modules.files.router import router as files
@@ -25,7 +29,11 @@ api_router = APIRouter()
 
 api_router.include_router(account, prefix="/me", tags=["Account"])
 api_router.include_router(auth, prefix="/auth", tags=["Authentication"])
+api_router.include_router(auth_email_change, prefix="/auth", tags=["Authentication"])
+api_router.include_router(account_email_change, prefix="/me", tags=["Account Security"])
 api_router.include_router(auth_password, prefix="/me", tags=["Account Security"])
+api_router.include_router(auth_security, prefix="/me", tags=["Account Security"])
+api_router.include_router(auth_sessions, prefix="/me", tags=["Account Security"])
 api_router.include_router(artifacts, prefix="/artifacts", tags=["Score Artifacts"])
 api_router.include_router(files, prefix="/files", tags=["File Operations"])
 api_router.include_router(jobs, prefix="/import-jobs", tags=["Import Jobs"])
