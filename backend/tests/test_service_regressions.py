@@ -26,7 +26,7 @@ from app.db.models.score_access import AccessOrigin
 from app.db.models.import_job import ImportJobState
 from app.modules.files.service import FilesService
 from app.modules.practice.service import PracticeService
-from app.modules.profile.service import AvatarService
+from app.modules.account.avatar_service import AvatarService
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
 from app.modules.import_jobs.worker_service import sync_import_job_service

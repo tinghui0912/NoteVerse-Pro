@@ -57,7 +57,6 @@ def _build_zh_invite_email(
         action_label="接受邀请",
         action_url=invite_url,
         footer="如果你不认识这次邀请，可以忽略这封邮件。",
-        action_border_radius="999px",
         max_width=560,
     )
     return MailContent(subject=subject, text_body=text_body, html_body=html_body)
@@ -89,7 +88,6 @@ def _build_en_invite_email(
         action_label="Accept invite",
         action_url=invite_url,
         footer="If you were not expecting this invitation, you can ignore this email.",
-        action_border_radius="999px",
         max_width=560,
     )
     return MailContent(subject=subject, text_body=text_body, html_body=html_body)

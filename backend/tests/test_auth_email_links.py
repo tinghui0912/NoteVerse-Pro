@@ -9,7 +9,9 @@ from app.core.config import settings
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.models.auth import AuthToken, PendingRegistration, RefreshToken
 from app.db.models.user import User
+from app.modules.auth.password_service import PasswordService
 from app.modules.auth.schemas import (
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -297,3 +299,79 @@ async def test_expired_password_reset_token_is_rejected(
         )
 
     assert exc.value.code == ErrorCode.RESET_TOKEN_INVALID
+
+
+@pytest.mark.asyncio
+async def test_current_user_password_change_revokes_sessions_and_sends_notice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    queued: list[dict[str, object]] = []
+
+    async def capture_mail(_db, **kwargs) -> None:
+        queued.append(kwargs)
+
+    monkeypatch.setattr("app.modules.auth.password_service.queue_mail", capture_mail)
+
+    db = FakeDb()
+    user = User(
+        email="user@example.com",
+        display_name="User",
+        password_hash=security.get_password_hash("old-password"),
+        is_active=True,
+        email_verified_at=utc_now_naive(),
+    )
+    db.add(user)
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash="refresh-token-hash",
+            expires_at=utc_now_naive() + timedelta(days=1),
+        )
+    )
+
+    await PasswordService().change_current_user_password(
+        db,  # type: ignore[arg-type]
+        user,
+        ChangePasswordRequest(
+            current_password="old-password",
+            new_password="new-password",
+            locale="en",
+        ),
+    )
+
+    assert security.verify_password("new-password", user.password_hash)
+    assert user.password_changed_at is not None
+    assert len(db.refresh_tokens) == 2
+    assert db.refresh_tokens[0].revoked_at == user.password_changed_at
+    assert db.refresh_tokens[1].revoked_at is None
+    assert queued[0]["category"] == "password.changed"
+    assert queued[0]["recipient"] == "user@example.com"
+    assert db.commits == 1
+
+
+@pytest.mark.asyncio
+async def test_current_user_password_change_rejects_wrong_current_password() -> None:
+    db = FakeDb()
+    user = User(
+        email="user@example.com",
+        display_name="User",
+        password_hash=security.get_password_hash("old-password"),
+        is_active=True,
+        email_verified_at=utc_now_naive(),
+    )
+    db.add(user)
+
+    with pytest.raises(ValidationException) as exc:
+        await PasswordService().change_current_user_password(
+            db,  # type: ignore[arg-type]
+            user,
+            ChangePasswordRequest(
+                current_password="wrong-password",
+                new_password="new-password",
+                locale="en",
+            ),
+        )
+
+    assert exc.value.code == ErrorCode.CURRENT_PASSWORD_WRONG
+    assert security.verify_password("old-password", user.password_hash)
+    assert db.commits == 0

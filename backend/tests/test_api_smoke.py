@@ -48,7 +48,7 @@ def test_protected_endpoints_require_authentication(client: TestClient) -> None:
     protected_paths = [
         "/api/v1/import-jobs/test-job",
         "/api/v1/scores/test-score",
-        "/api/v1/profile",
+        "/api/v1/me/profile",
     ]
 
     for path in protected_paths:
@@ -140,11 +140,10 @@ def test_files_feature_routes_require_authentication(client: TestClient) -> None
 
 def test_profile_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
-        ("get", "/api/v1/profile", None),
-        ("put", "/api/v1/profile", {"email": "new@example.com"}),
-        ("post", "/api/v1/profile/password", {"current_password": "old", "new_password": "new"}),
-        ("post", "/api/v1/profile/avatar", None),
-        ("delete", "/api/v1/profile/avatar", None),
+        ("get", "/api/v1/me/profile", None),
+        ("put", "/api/v1/me/profile", {"display_name": "New Name"}),
+        ("post", "/api/v1/me/avatar", None),
+        ("delete", "/api/v1/me/avatar", None),
     ]
 
     for method, path, payload in protected_requests:
@@ -152,18 +151,40 @@ def test_profile_feature_routes_require_authentication(client: TestClient) -> No
         assert response.status_code == 401, f"{method.upper()} {path}"
 
 
+def test_account_security_routes_require_authentication(client: TestClient) -> None:
+    response = client.put(
+        "/api/v1/me/password",
+        json={"current_password": "old", "new_password": "new-password"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_legacy_profile_routes_are_absent(client: TestClient) -> None:
+    protected_requests = [
+        ("get", "/api/v1/profile", None),
+        ("put", "/api/v1/profile", {"display_name": "New Name"}),
+        ("post", "/api/v1/profile/avatar", None),
+        ("delete", "/api/v1/profile/avatar", None),
+    ]
+
+    for method, path, payload in protected_requests:
+        response = _request(client, method, path, payload)
+        assert response.status_code == 404, f"{method.upper()} {path}"
+
+
 def test_cookie_authenticated_writes_require_csrf_header(client: TestClient) -> None:
     client.cookies.set(settings.AUTH_COOKIE_NAME, "invalid-token")
     client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
 
     try:
-        missing_header = client.put("/api/v1/profile", json={"email": "new@example.com"})
+        missing_header = client.put("/api/v1/me/profile", json={"display_name": "New Name"})
         assert missing_header.status_code == 403
         assert missing_header.json()["code"] == "csrf_token_invalid"
 
         matching_header = client.put(
-            "/api/v1/profile",
-            json={"email": "new@example.com"},
+            "/api/v1/me/profile",
+            json={"display_name": "New Name"},
             headers={settings.CSRF_HEADER_NAME: "csrf-token"},
         )
         assert matching_header.status_code == 401

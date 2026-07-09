@@ -14,7 +14,7 @@ const inviteAccess = {
 };
 
 test('invite login and registration links preserve returnUrl', async ({ page }) => {
-  await page.route('**/api/v1/profile**', (route) => route.fulfill({
+  await page.route('**/api/v1/me/profile**', (route) => route.fulfill({
     status: 401,
     contentType: 'application/json',
     body: '{}',

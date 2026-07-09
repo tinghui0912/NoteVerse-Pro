@@ -111,7 +111,7 @@ test('notification center combines pending invites and update notifications', as
       body: JSON.stringify({ success: true, data: null }),
     })
   );
-  await page.route('**/api/v1/profile**', (route) =>
+  await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -200,7 +200,7 @@ test('failed processing notification opens the matching upload job', async ({ pa
       body: JSON.stringify({ success: true, data: null }),
     })
   );
-  await page.route('**/api/v1/profile**', (route) =>
+  await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -293,7 +293,7 @@ test('completed processing notification opens job review', async ({ page }) => {
       body: JSON.stringify({ success: true, data: null }),
     })
   );
-  await page.route('**/api/v1/profile**', (route) =>
+  await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -358,7 +358,7 @@ test('confirmed processing notification opens created score', async ({ page }) =
       body: JSON.stringify({ success: true, data: null }),
     })
   );
-  await page.route('**/api/v1/profile**', (route) =>
+  await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',

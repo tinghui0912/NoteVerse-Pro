@@ -221,7 +221,7 @@ class AuthService:
                 details={"reason": "user_inactive_or_missing"},
             )
 
-        if user.password_changed_at and current_token.created_at <= user.password_changed_at:
+        if user.password_changed_at and current_token.created_at < user.password_changed_at:
             current_token.revoked_at = now
             await db.commit()
             raise AuthenticationException(

@@ -105,7 +105,7 @@ async def get_current_user(
         )
     if user.password_changed_at and token_data.iat:
         token_issued_at = datetime.fromtimestamp(token_data.iat, timezone.utc).replace(tzinfo=None)
-        if token_issued_at <= user.password_changed_at:
+        if token_issued_at < user.password_changed_at:
             raise AuthenticationException(
                 code=ErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "password_changed"},

@@ -10,7 +10,7 @@ import type { UserProfile, UpdateProfileRequest, AvatarResponse } from '@/types/
  * 获取当前用户资料
  */
 export async function getProfile(options?: { suppressAuthRedirect?: boolean }): Promise<ApiResponse<UserProfile>> {
-    return apiClient.get<ApiResponse<UserProfile>>('/profile', undefined, options);
+    return apiClient.get<ApiResponse<UserProfile>>('/me/profile', undefined, options);
 }
 
 /**
@@ -18,7 +18,7 @@ export async function getProfile(options?: { suppressAuthRedirect?: boolean }): 
  * @param data 更新数据
  */
 export async function updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<{ updated_fields: string[] }>> {
-    return apiClient.put<ApiResponse<{ updated_fields: string[] }>>('/profile', data);
+    return apiClient.put<ApiResponse<{ updated_fields: string[] }>>('/me/profile', data);
 }
 
 /**
@@ -30,7 +30,7 @@ export async function changePassword(
     currentPassword: string,
     newPassword: string
 ): Promise<ApiResponse> {
-    return apiClient.post<ApiResponse>('/profile/password', {
+    return apiClient.put<ApiResponse>('/me/password', {
         current_password: currentPassword,
         new_password: newPassword,
     });
@@ -41,14 +41,14 @@ export async function changePassword(
  * @param file 头像文件
  */
 export async function uploadAvatar(file: File): Promise<ApiResponse<AvatarResponse>> {
-    return apiClient.upload<ApiResponse<AvatarResponse>>('/profile/avatar', file);
+    return apiClient.upload<ApiResponse<AvatarResponse>>('/me/avatar', file);
 }
 
 /**
  * 删除头像
  */
 export async function deleteAvatar(): Promise<ApiResponse> {
-    return apiClient.delete<ApiResponse>('/profile/avatar');
+    return apiClient.delete<ApiResponse>('/me/avatar');
 }
 
 /**

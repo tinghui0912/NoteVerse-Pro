@@ -30,9 +30,6 @@ export interface UserProfile {
 
 export interface UpdateProfileRequest {
   display_name?: string;
-  email?: string;
-  current_password?: string;
-  new_password?: string;
 }
 
 export interface AvatarResponse {

@@ -67,7 +67,6 @@ def build_html_shell(
     note: str | None = None,
     footer: str | None = None,
     extra_html: str = "",
-    action_border_radius: str = "10px",
     max_width: int = 520,
 ) -> str:
     action_html = ""
@@ -75,7 +74,7 @@ def build_html_shell(
         escaped_url = escape(action_url, quote=True)
         action_html = f"""
                 <div style="margin:0 0 24px;">
-                  <a href="{escaped_url}" style="display:inline-block;background:#ff6b1a;color:#ffffff;text-decoration:none;border-radius:{escape(action_border_radius, quote=True)};padding:12px 18px;font-size:15px;font-weight:700;">{escape(action_label)}</a>
+                  <a href="{escaped_url}" style="display:inline-block;background:#ff6b1a;color:#ffffff;text-decoration:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:700;">{escape(action_label)}</a>
                 </div>"""
 
     note_html = (

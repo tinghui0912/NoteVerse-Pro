@@ -1,6 +1,5 @@
-"""
-Avatar service under the profile module boundary.
-"""
+"""Avatar service under the account module boundary."""
+
 import hashlib
 import io
 from typing import Tuple
@@ -12,7 +11,7 @@ from app.storage import FileStorage, file_storage
 
 
 class AvatarService:
-    """Avatar image processing for the profile module."""
+    """Avatar image processing for account profile pictures."""
 
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
     MAX_FILE_SIZE = 5 * 1024 * 1024

@@ -41,6 +41,7 @@ class ResetPasswordRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=1, description="Current password")
     new_password: str = Field(..., min_length=6, max_length=128, description="New password")
+    locale: Literal["en", "zh"] = "zh"
 
     @field_validator("new_password")
     @classmethod
