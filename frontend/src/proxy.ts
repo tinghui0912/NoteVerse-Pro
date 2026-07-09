@@ -39,7 +39,7 @@ function isPublicSharePath(pathname: string): boolean {
 }
 
 function getLoginPath(locale?: string): string {
-  return locale && locale !== routing.defaultLocale ? `/${locale}/login` : '/login';
+  return locale && locale !== routing.defaultLocale ? `/${locale}/auth/login` : '/auth/login';
 }
 
 export default function proxy(request: NextRequest) {

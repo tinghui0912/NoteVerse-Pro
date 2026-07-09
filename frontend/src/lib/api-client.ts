@@ -1,8 +1,8 @@
 'use client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
-const DEFAULT_LOGIN_PATH = '/login';
-const LOCALE_PATTERN = /^\/(en)(\/|$)/;
+const DEFAULT_LOGIN_PATH = '/auth/login';
+const LOCALE_PATTERN = /^\/(zh|en)(\/|$)/;
 const CSRF_COOKIE_NAME = process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME || 'noteverse_csrf';
 const CSRF_HEADER_NAME = process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || 'x-csrf-token';
 
@@ -77,7 +77,7 @@ function redirectToLoginIfNeeded(options?: RequestOptions): void {
   if (options?.suppressAuthRedirect || typeof window === 'undefined') return;
 
   const { pathname, search } = window.location;
-  if (pathname.endsWith('/login')) return;
+  if (pathname.endsWith('/auth/login')) return;
 
   const returnUrl = encodeURIComponent(`${pathname}${search}`);
   window.location.href = `${getLoginPath(pathname)}?returnUrl=${returnUrl}`;

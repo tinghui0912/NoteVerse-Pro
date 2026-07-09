@@ -9,10 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Footer } from '@/components/layout/footer';
-import { Music2, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
+import { AuthCard } from '@/components/auth/auth-card';
 
 export default function LoginPage() {
     const t = useTranslations('auth');
@@ -50,19 +50,7 @@ export default function LoginPage() {
     const isLoading = isSubmitting;
 
     return (
-        <div className="bg-gray-900 text-white">
-            <main className="min-h-screen flex items-center justify-center pt-24 pb-12 px-4">
-                <div className="w-full max-w-md text-center">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-orange-500/20 mb-8">
-                        <Music2 className="w-10 h-10 text-orange-400" />
-                    </div>
-                    <h1 className="text-4xl sm:text-6xl font-bold mb-4">
-                        {t('loginTitle')}
-                    </h1>
-                    <p className="text-lg text-gray-400 mb-12 max-w-xl mx-auto">
-                        {t('loginSubtitle')}
-                    </p>
-
+        <AuthCard title={t('loginTitle')} subtitle={t('loginSubtitle')}>
                     {error && (
                         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
                             {error}
@@ -87,7 +75,7 @@ export default function LoginPage() {
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="password">{t('passwordLabel')}</Label>
                                 <Link
-                                    href="/forgot-password"
+                                    href="/auth/forgot-password"
                                     className="text-sm text-white hover:underline"
                                 >
                                     {t('forgotPassword')}
@@ -122,7 +110,7 @@ export default function LoginPage() {
                             <p className="text-sm text-muted-foreground">
                                 {t('noAccount')}{' '}
                                 <Link
-                                    href={withReturnUrl('/register', returnUrl)}
+                                    href={withReturnUrl('/auth/register', returnUrl)}
                                     className="font-semibold text-white hover:underline"
                                 >
                                     {t('registerHere')}
@@ -130,9 +118,6 @@ export default function LoginPage() {
                             </p>
                         </div>
                     </form>
-                </div>
-            </main>
-            <Footer />
-        </div>
+        </AuthCard>
     );
 }

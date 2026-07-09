@@ -217,7 +217,7 @@ export default function PillNav() {
                 </>
               ) : (
                 <Link
-                  href="/login"
+                  href="/auth/login"
                   className="hidden md:block text-sm font-medium px-5 py-2.5 rounded-full transition-colors bg-white text-black hover:bg-gray-200"
                 >
                   {t('nav.login')}
@@ -262,7 +262,7 @@ export default function PillNav() {
                   );
                 })}
                 {!isLoading && !isAuthenticated && (
-                  <Link href="/login" className="bg-white text-black text-center font-medium mt-2 px-5 py-2.5 rounded-full hover:bg-gray-200 transition-colors">
+                  <Link href="/auth/login" className="bg-white text-black text-center font-medium mt-2 px-5 py-2.5 rounded-full hover:bg-gray-200 transition-colors">
                     {t('nav.login')}
                   </Link>
                 )}

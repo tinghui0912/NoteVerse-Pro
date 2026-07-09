@@ -74,7 +74,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const acceptAfterLogin = searchParams.get('accept') === '1';
   const returnUrl = new URL(currentUrl, 'http://noteverse.local');
   returnUrl.searchParams.set('accept', '1');
-  const loginHref = `/login?returnUrl=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}`;
+  const loginHref = `/auth/login?returnUrl=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}`;
   const userEmail = user?.email.toLowerCase() ?? null;
   const targetEmail = invite?.email?.toLowerCase() ?? null;
   const emailMatches = !targetEmail || !userEmail || targetEmail === userEmail;

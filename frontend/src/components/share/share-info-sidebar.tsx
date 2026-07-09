@@ -66,7 +66,7 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
     ? `/share/${props.shareId}`
     : `/${locale}/share/${props.shareId}`;
   const returnPath = `${pathname || localizedSharePath}${query ? `?${query}` : ''}`;
-  const loginHref = `/login?returnUrl=${encodeURIComponent(returnPath)}`;
+  const loginHref = `/auth/login?returnUrl=${encodeURIComponent(returnPath)}`;
   const sharedByName = props.shareData.shared_by?.display_name || t('anonymousUser');
   const genreTags = props.taxonomyTags
     .map((tag) => SCORE_GENRE_TAGS.find((item) => item.category === tag.category && item.code === tag.code))

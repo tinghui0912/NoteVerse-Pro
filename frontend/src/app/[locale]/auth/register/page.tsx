@@ -8,12 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Footer } from '@/components/layout/footer';
-import { Music2, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { ApiError } from '@/lib/api-client';
 import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 import { translateErrorCode } from '@/lib/i18n/error-message';
+import { AuthCard } from '@/components/auth/auth-card';
 
 export default function RegisterPage() {
   const t = useTranslations('auth');
@@ -179,8 +179,6 @@ export default function RegisterPage() {
 
   const renderStepOne = () => (
     <>
-      <h1 className="text-4xl sm:text-6xl font-bold mb-4">{t('registerTitle')}</h1>
-      <p className="text-lg text-gray-400 mb-12 max-w-xl mx-auto">{t('registerSubtitle')}</p>
       <form onSubmit={handleSendCode} className="space-y-6">
         <div className="space-y-2 text-left">
           <Label htmlFor="email">{t('emailLabel')}</Label>
@@ -237,7 +235,7 @@ export default function RegisterPage() {
           </Button>
           <p className="text-sm text-muted-foreground">
             {t('haveAccount')}{' '}
-            <Link href={withReturnUrl('/login', returnUrl)} className="font-semibold text-white hover:underline">
+            <Link href={withReturnUrl('/auth/login', returnUrl)} className="font-semibold text-white hover:underline">
               {t('loginHere')}
             </Link>
           </p>
@@ -248,11 +246,6 @@ export default function RegisterPage() {
 
   const renderStepTwo = () => (
     <>
-      <h1 className="text-4xl sm:text-6xl font-bold mb-4">{t('enterCodeTitle')}</h1>
-      <p
-        className="text-lg text-gray-400 mb-4 max-w-xl mx-auto"
-        dangerouslySetInnerHTML={{ __html: t('enterCodeSubtitle', { email: '{email}' }).replace('{email}', email) }}
-      />
       {infoMessage && (
         <div className="bg-white/20 border border-white/20 text-white p-3 rounded-md text-sm mb-8">
           {infoMessage}
@@ -314,16 +307,15 @@ export default function RegisterPage() {
   );
 
   return (
-    <div className="bg-gray-900 text-white">
-      <main className="min-h-screen flex items-center justify-center pt-24 pb-12 px-4">
-        <div className="w-full max-w-md text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-orange-500/20 mb-8">
-            <Music2 className="w-10 h-10 text-orange-400" />
-          </div>
-          {step === 'enter_details' ? renderStepOne() : renderStepTwo()}
-        </div>
-      </main>
-      <Footer />
-    </div>
+    <AuthCard
+      title={step === 'enter_details' ? t('registerTitle') : t('enterCodeTitle')}
+      subtitle={
+        step === 'enter_details'
+          ? t('registerSubtitle')
+          : t('enterCodeSubtitle', { email })
+      }
+    >
+      {step === 'enter_details' ? renderStepOne() : renderStepTwo()}
+    </AuthCard>
   );
 }

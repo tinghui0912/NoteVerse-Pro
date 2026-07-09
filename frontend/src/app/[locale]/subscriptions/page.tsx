@@ -117,7 +117,7 @@ export default function SubscriptionsPage() {
                 <CardFooter className="p-6">
                   {tier.available ? (
                     <Button asChild size="lg" className="w-full rounded-full bg-orange-500 text-white hover:bg-orange-600">
-                      <Link href={isAuthenticated ? '/upload' : '/login'}>{t('startForFree')}</Link>
+                      <Link href={isAuthenticated ? '/upload' : '/auth/login'}>{t('startForFree')}</Link>
                     </Button>
                   ) : (
                     <Button disabled size="lg" className="w-full rounded-full">{t('comingSoon')}</Button>

@@ -110,7 +110,7 @@ export default function HomePage() {
     maximumFractionDigits: 0,
   }).format(price);
 
-  const ctaLink = isAuthenticated ? '/upload' : '/login';
+  const ctaLink = isAuthenticated ? '/upload' : '/auth/login';
 
   return (
     <main className="bg-white">
@@ -301,7 +301,7 @@ export default function HomePage() {
                       size="lg"
                       className="w-full rounded-full bg-white text-orange-500 border border-orange-500 hover:bg-orange-50 shadow-lg transition-transform hover:scale-105"
                     >
-                      <Link href={isAuthenticated ? '/upload' : '/login'}>{tPricing(tier.cta as never)}</Link>
+                      <Link href={isAuthenticated ? '/upload' : '/auth/login'}>{tPricing(tier.cta as never)}</Link>
                     </Button>
                   ) : (
                     <Button disabled size="lg" className="w-full rounded-full">

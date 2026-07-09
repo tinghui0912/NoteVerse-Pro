@@ -12,7 +12,7 @@ export function Footer() {
   const tCommon = useTranslations('common');
   const { isAuthenticated } = useAuth();
 
-  const ctaLink = isAuthenticated ? '/upload' : '/login';
+  const ctaLink = isAuthenticated ? '/upload' : '/auth/login';
 
   return (
     <footer className="bg-black text-white py-16" id="contact">

@@ -7,31 +7,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
-import { Footer } from '@/components/layout/footer';
-import { Music2, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
+import { AuthCard } from '@/components/auth/auth-card';
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
   const router = useRouter();
-  const { sendEmailCode, verifyPasswordResetCode, resetPassword } = useAuth();
+  const { sendEmailCode, verifyPasswordResetCode } = useAuth();
 
-  const [step, setStep] = useState<'enter_email' | 'verify_code' | 'new_password'>('enter_email');
+  const [step, setStep] = useState<'enter_email' | 'verify_code'>('enter_email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState(new Array(6).fill(''));
-  const [newPasswordValue, setNewPasswordValue] = useState('');
-  const [confirmPasswordValue, setConfirmPasswordValue] = useState('');
   const [challengeId, setChallengeId] = useState('');
-  const [verifiedToken, setVerifiedToken] = useState('');
   const [countdown, setCountdown] = useState(0);
   const [emailError, setEmailError] = useState('');
   const [codeError, setCodeError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -95,42 +91,13 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
     try {
       const token = await verifyPasswordResetCode(email, enteredCode, challengeId);
-      setVerifiedToken(token);
-      setStep('new_password');
+      const params = new URLSearchParams({ email, token });
+      router.push(`/auth/reset-password?${params.toString()}`);
     } catch (err) {
       if (err instanceof ApiError) {
         setCodeError(translateErrorCode(tErrors, err.code, t('verifyFailed')));
       } else {
         setCodeError(t('verifyFailedRetry'));
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // 重置密码
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError('');
-
-    if (newPasswordValue.length < 6) {
-      setPasswordError(t('validation.passwordTooShort'));
-      return;
-    }
-    if (newPasswordValue !== confirmPasswordValue) {
-      setPasswordError(t('validation.passwordsDoNotMatch'));
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await resetPassword(email, newPasswordValue, verifiedToken);
-      router.push('/login?reset=success');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setPasswordError(translateErrorCode(tErrors, err.code, t('resetFailed')));
-      } else {
-        setPasswordError(t('resetFailedRetry'));
       }
     } finally {
       setIsSubmitting(false);
@@ -167,8 +134,6 @@ export default function ForgotPasswordPage() {
 
   const renderEmailStep = () => (
     <>
-      <h1 className="text-4xl sm:text-6xl font-bold mb-4">{t('resetPasswordTitle')}</h1>
-      <p className="text-lg text-gray-400 mb-12 max-w-xl mx-auto">{t('resetPasswordSubtitle')}</p>
       <form onSubmit={handleSendCode} className="space-y-6">
         <div className="space-y-2 text-left">
           <Label htmlFor="email">{t('emailLabel')}</Label>
@@ -188,7 +153,7 @@ export default function ForgotPasswordPage() {
             {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('sendingCode')}</> : t('verifyEmailButton')}
           </Button>
           <Button variant="link" asChild className="text-white">
-            <Link href="/login">{t('backToLogin')}</Link>
+            <Link href="/auth/login">{t('backToLogin')}</Link>
           </Button>
         </div>
       </form>
@@ -197,8 +162,6 @@ export default function ForgotPasswordPage() {
 
   const renderCodeStep = () => (
     <>
-      <h1 className="text-4xl sm:text-6xl font-bold mb-4">{t('enterCodeTitle')}</h1>
-      <p className="text-lg text-gray-400 mb-8 max-w-xl mx-auto" dangerouslySetInnerHTML={{ __html: t('enterCodeSubtitle', { email: '{email}' }).replace('{email}', email) }} />
       <form onSubmit={handleVerifyCode} className="space-y-8">
         <div className="text-left space-y-2" onPaste={handlePaste}>
           <Label>{t('codeLabel')}</Label>
@@ -227,54 +190,17 @@ export default function ForgotPasswordPage() {
     </>
   );
 
-  const renderPasswordStep = () => (
-    <>
-      <h1 className="text-4xl sm:text-6xl font-bold mb-4">{t('setNewPasswordTitle')}</h1>
-      <p className="text-lg text-gray-400 mb-8 max-w-xl mx-auto">{t('enterNewPassword')}</p>
-      <form onSubmit={handleResetPassword} className="space-y-6">
-        <div className="space-y-2 text-left">
-          <Label htmlFor="new-password">{t('newPasswordLabel')}</Label>
-          <Input
-            id="new-password"
-            type="password"
-            value={newPasswordValue}
-            onChange={(e) => setNewPasswordValue(e.target.value)}
-            disabled={isSubmitting}
-            className="bg-gray-800 border-gray-700 text-white h-12 text-base focus-visible:ring-transparent focus-visible:border-white"
-          />
-        </div>
-        <div className="space-y-2 text-left">
-          <Label htmlFor="confirm-password">{t('confirmPasswordLabel')}</Label>
-          <Input
-            id="confirm-password"
-            type="password"
-            value={confirmPasswordValue}
-            onChange={(e) => setConfirmPasswordValue(e.target.value)}
-            disabled={isSubmitting}
-            className="bg-gray-800 border-gray-700 text-white h-12 text-base focus-visible:ring-transparent focus-visible:border-white"
-          />
-          {passwordError && <p className="text-sm text-destructive mt-2">{passwordError}</p>}
-        </div>
-        <Button type="submit" size="lg" disabled={isSubmitting} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-          {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('resettingPassword')}</> : t('resetPasswordButton')}
-        </Button>
-      </form>
-    </>
-  );
-
   return (
-    <div className="bg-gray-900 text-white">
-      <main className="min-h-screen flex items-center justify-center pt-24 pb-12 px-4">
-        <div className="w-full max-w-md text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-orange-500/20 mb-8">
-            <Music2 className="w-10 h-10 text-orange-400" />
-          </div>
-          {step === 'enter_email' && renderEmailStep()}
-          {step === 'verify_code' && renderCodeStep()}
-          {step === 'new_password' && renderPasswordStep()}
-        </div>
-      </main>
-      <Footer />
-    </div>
+    <AuthCard
+      title={step === 'enter_email' ? t('resetPasswordTitle') : t('enterCodeTitle')}
+      subtitle={
+        step === 'enter_email'
+          ? t('resetPasswordSubtitle')
+          : t('enterCodeSubtitle', { email })
+      }
+    >
+      {step === 'enter_email' && renderEmailStep()}
+      {step === 'verify_code' && renderCodeStep()}
+    </AuthCard>
   );
 }
