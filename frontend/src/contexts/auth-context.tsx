@@ -26,17 +26,16 @@ interface AuthContextType {
   logout: () => Promise<void>;
 
   // 注册
-  register: (email: string, password: string, displayName: string, verifiedToken: string) => Promise<void>;
+  register: (email: string, password: string, displayName: string, locale?: 'en' | 'zh') => Promise<void>;
 
-  // 发送验证码
-  sendEmailCode: (email: string, purpose?: 'register' | 'password_reset', locale?: 'en' | 'zh') => Promise<string>;
+  // 验证邮箱
+  verifyEmail: (token: string) => Promise<void>;
 
-  // 验证验证码
-  verifyEmailCode: (email: string, code: string, challengeId: string) => Promise<string>;
-  verifyPasswordResetCode: (email: string, code: string, challengeId: string) => Promise<string>;
+  // 请求重置密码
+  requestPasswordReset: (email: string, locale?: 'en' | 'zh') => Promise<void>;
 
   // 重置密码
-  resetPassword: (email: string, newPassword: string, resetToken: string) => Promise<void>;
+  resetPassword: (newPassword: string, token: string, locale?: 'en' | 'zh') => Promise<void>;
 
   // 刷新用户信息
   refreshUser: () => Promise<void>;
@@ -126,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     email: string,
     password: string,
     displayName: string,
-    verifiedToken: string
+    locale: 'en' | 'zh' = 'zh'
   ) => {
     setIsLoading(true);
     try {
@@ -134,66 +133,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email,
         password,
         display_name: displayName,
-        verified_token: verifiedToken,
+        locale,
       });
-      // 注册成功后自动登录
-      await login(email, password);
     } finally {
       setIsLoading(false);
     }
   };
 
   /**
-   * 发送验证码
+   * 验证邮箱
    */
-  const sendEmailCode = async (
-    email: string,
-    purpose: 'register' | 'password_reset' = 'register',
-    locale: 'en' | 'zh' = 'zh'
-  ): Promise<string> => {
-    const response = await authApi.sendEmailCode(email, purpose, locale);
-    if (!response.data?.challenge_id) {
-      throw new Error('SEND_CODE_FAILED');
-    }
-    return response.data.challenge_id;
+  const verifyEmail = async (token: string) => {
+    await authApi.verifyEmail(token);
   };
 
   /**
-   * 验证验证码
+   * 请求重置密码
    */
-  const verifyEmailCode = async (
+  const requestPasswordReset = async (
     email: string,
-    code: string,
-    challengeId: string
-  ): Promise<string> => {
-    const response = await authApi.verifyEmailCode(email, code, challengeId);
-    if (!response.data?.verified_token) {
-      throw new Error('VERIFY_FAILED');
-    }
-    return response.data.verified_token;
-  };
-
-  const verifyPasswordResetCode = async (
-    email: string,
-    code: string,
-    challengeId: string
-  ): Promise<string> => {
-    const response = await authApi.verifyPasswordResetCode(email, code, challengeId);
-    if (!response.data?.reset_token) {
-      throw new Error('VERIFY_FAILED');
-    }
-    return response.data.reset_token;
+    locale: 'en' | 'zh' = 'zh'
+  ) => {
+    await authApi.requestPasswordReset(email, locale);
   };
 
   /**
    * 重置密码
    */
   const resetPassword = async (
-    email: string,
     newPassword: string,
-    resetToken: string
+    token: string,
+    locale: 'en' | 'zh' = 'zh'
   ) => {
-    await authApi.resetPassword(email, newPassword, resetToken);
+    await authApi.resetPassword(newPassword, token, locale);
   };
 
   return (
@@ -205,9 +177,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         logout,
         register,
-        sendEmailCode,
-        verifyEmailCode,
-        verifyPasswordResetCode,
+        verifyEmail,
+        requestPasswordReset,
         resetPassword,
         refreshUser,
         setUser,

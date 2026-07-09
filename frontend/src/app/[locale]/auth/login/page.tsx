@@ -13,9 +13,11 @@ import { Loader2 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 import { AuthCard } from '@/components/auth/auth-card';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 
 export default function LoginPage() {
     const t = useTranslations('auth');
+    const tErrors = useTranslations('errors');
     const { login } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -37,8 +39,8 @@ export default function LoginPage() {
             router.push(getSafeReturnUrl(returnUrl));
         } catch (err) {
             // 使用前端翻译显示错误信息，而不是直接使用后端返回的中文
-            if (err instanceof ApiError && err.status === 401) {
-                setError(t('validation.loginError'));
+            if (err instanceof ApiError) {
+                setError(translateErrorCode(tErrors, err.code, t('validation.loginError')));
             } else {
                 setError(t('validation.loginFailed'));
             }

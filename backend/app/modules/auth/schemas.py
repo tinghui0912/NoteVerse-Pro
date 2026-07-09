@@ -16,39 +16,26 @@ class TokenPayload(BaseModel):
     typ: str
 
 
-class SendCodeRequest(BaseModel):
-    email: EmailStr = Field(..., description="Email address")
-    purpose: Literal["register", "password_reset"] = Field(
-        default="register",
-        description="Verification code purpose",
-    )
-    locale: Literal["en", "zh"] = "zh"
-
-
-class VerifyCodeRequest(BaseModel):
-    email: EmailStr = Field(..., description="Email address")
-    code: str = Field(..., min_length=6, max_length=6, description="6-digit code")
-    challenge_id: str = Field(..., min_length=1, description="Challenge ID")
-
-    @field_validator("code")
-    @classmethod
-    def validate_code_format(cls, value: str) -> str:
-        if not value.isdigit():
-            raise ValueError("Verification code must be a 6-digit number")
-        return value
-
-
 class RegisterRequest(BaseModel):
     email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., min_length=6, max_length=128, description="Password")
     display_name: str = Field(..., min_length=1, max_length=50, description="Display name")
-    verified_token: str = Field(..., min_length=1, description="Email verification token")
+    locale: Literal["en", "zh"] = "zh"
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(..., min_length=1, description="Email verification token")
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description="Email address")
+    locale: Literal["en", "zh"] = "zh"
 
 
 class ResetPasswordRequest(BaseModel):
-    email: EmailStr = Field(..., description="Email address")
     new_password: str = Field(..., min_length=6, max_length=128, description="New password")
-    reset_token: str = Field(..., min_length=1, description="Password reset token")
+    token: str = Field(..., min_length=1, description="Password reset token")
+    locale: Literal["en", "zh"] = "zh"
 
 
 class ChangePasswordRequest(BaseModel):
@@ -88,6 +75,7 @@ class UserInDBBase(UserBase):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     avatar_url: str | None = None
+    email_verified_at: datetime | None = None
 
 
 class User(UserInDBBase):
@@ -98,17 +86,11 @@ class UserInDB(UserInDBBase):
     password_hash: str
 
 
-class SendCodeResult(BaseModel):
-    challenge_id: str
-    cooldown: int
-
-
 __all__ = [
     "ChangePasswordRequest",
+    "ForgotPasswordRequest",
     "RegisterRequest",
     "ResetPasswordRequest",
-    "SendCodeResult",
-    "SendCodeRequest",
     "TokenPayload",
     "User",
     "UserBase",
@@ -116,5 +98,5 @@ __all__ = [
     "UserInDB",
     "UserInDBBase",
     "UserUpdate",
-    "VerifyCodeRequest",
+    "VerifyEmailRequest",
 ]

@@ -1,140 +1,70 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
 
+import { AuthCard } from '@/components/auth/auth-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
-import { Loader2 } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { Link } from '@/i18n/routing';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
-import { AuthCard } from '@/components/auth/auth-card';
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
-  const router = useRouter();
-  const { sendEmailCode, verifyPasswordResetCode } = useAuth();
+  const { requestPasswordReset } = useAuth();
 
-  const [step, setStep] = useState<'enter_email' | 'verify_code'>('enter_email');
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState(new Array(6).fill(''));
-  const [challengeId, setChallengeId] = useState('');
-  const [countdown, setCountdown] = useState(0);
   const [emailError, setEmailError] = useState('');
-  const [codeError, setCodeError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | undefined;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
-
-  useEffect(() => {
-    if (step === 'verify_code' && inputRefs.current[0]) {
-      inputRefs.current[0].focus();
-    }
-  }, [step]);
-
-  // 发送验证码
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRequestReset = async (event: React.FormEvent) => {
+    event.preventDefault();
     setEmailError('');
 
     if (!email) {
       setEmailError(t('validation.emailRequired'));
       return;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEmailError(t('validation.invalidEmail'));
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const challengeIdResult = await sendEmailCode(email, 'password_reset', locale === 'en' ? 'en' : 'zh');
-      setChallengeId(challengeIdResult);
-      setCountdown(60);
-      setStep('verify_code');
+      await requestPasswordReset(email, locale === 'en' ? 'en' : 'zh');
+      setIsSubmitted(true);
     } catch (err) {
       if (err instanceof ApiError) {
-        setEmailError(translateErrorCode(tErrors, err.code, t('sendCodeFailed')));
+        setEmailError(translateErrorCode(tErrors, err.code, t('resetRequestFailed')));
       } else {
-        setEmailError(t('sendCodeFailedRetry'));
+        setEmailError(t('resetRequestFailedRetry'));
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 验证验证码
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCodeError('');
-    const enteredCode = code.join('');
-    if (enteredCode.length !== 6) {
-      setCodeError(t('validation.codeInvalid'));
-      return;
-    }
+  if (isSubmitted) {
+    return (
+      <AuthCard title={t('resetEmailSentTitle')} subtitle={t('resetEmailSentSubtitle', { email })}>
+        <Button asChild size="lg" className="w-full bg-orange-500 font-semibold text-white hover:bg-orange-600">
+          <Link href="/auth/login">{t('backToLogin')}</Link>
+        </Button>
+      </AuthCard>
+    );
+  }
 
-    setIsSubmitting(true);
-    try {
-      const token = await verifyPasswordResetCode(email, enteredCode, challengeId);
-      const params = new URLSearchParams({ email, token });
-      router.push(`/auth/reset-password?${params.toString()}`);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setCodeError(translateErrorCode(tErrors, err.code, t('verifyFailed')));
-      } else {
-        setCodeError(t('verifyFailedRetry'));
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCodeChange = (element: HTMLInputElement, index: number) => {
-    if (isNaN(Number(element.value))) return;
-    const newCode = [...code];
-    newCode[index] = element.value;
-    setCode(newCode);
-    if (element.nextSibling && element.value) {
-      (element.nextSibling as HTMLInputElement).focus();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === 'Backspace' && !code[index] && inputRefs.current[index - 1]) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pasteData = e.clipboardData.getData('text');
-    if (/^\d{6}$/.test(pasteData)) {
-      const newCode = pasteData.split('');
-      setCode(newCode);
-      if (inputRefs.current[5]) {
-        inputRefs.current[5]?.focus();
-      }
-    }
-  };
-
-  const renderEmailStep = () => (
-    <>
-      <form onSubmit={handleSendCode} className="space-y-6">
+  return (
+    <AuthCard title={t('resetPasswordTitle')} subtitle={t('resetPasswordSubtitle')}>
+      <form onSubmit={handleRequestReset} className="space-y-6">
         <div className="space-y-2 text-left">
           <Label htmlFor="email">{t('emailLabel')}</Label>
           <Input
@@ -142,65 +72,33 @@ export default function ForgotPasswordPage() {
             type="email"
             placeholder="name@example.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             disabled={isSubmitting}
-            className="bg-gray-800 border-gray-700 text-white h-12 text-base focus-visible:ring-transparent focus-visible:border-white"
+            className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
           />
-          {emailError && <p className="text-sm text-destructive mt-2">{emailError}</p>}
+          {emailError ? <p className="mt-2 text-sm text-destructive">{emailError}</p> : null}
         </div>
         <div className="flex flex-col gap-4 pt-4">
-          <Button type="submit" size="lg" disabled={isSubmitting} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('sendingCode')}</> : t('verifyEmailButton')}
+          <Button
+            type="submit"
+            size="lg"
+            disabled={isSubmitting}
+            className="w-full bg-orange-500 font-semibold text-white hover:bg-orange-600"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('sendingEmail')}
+              </>
+            ) : (
+              t('sendResetLinkButton')
+            )}
           </Button>
           <Button variant="link" asChild className="text-white">
             <Link href="/auth/login">{t('backToLogin')}</Link>
           </Button>
         </div>
       </form>
-    </>
-  );
-
-  const renderCodeStep = () => (
-    <>
-      <form onSubmit={handleVerifyCode} className="space-y-8">
-        <div className="text-left space-y-2" onPaste={handlePaste}>
-          <Label>{t('codeLabel')}</Label>
-          <div className="flex justify-between gap-2">
-            {code.map((digit, index) => (
-              <Input
-                key={index}
-                ref={(el: HTMLInputElement | null) => { inputRefs.current[index] = el; }}
-                type="text"
-                maxLength={1}
-                value={digit}
-                onChange={e => handleCodeChange(e.target, index)}
-                onKeyDown={e => handleKeyDown(e, index)}
-                onFocus={e => e.target.select()}
-                disabled={isSubmitting}
-                className="h-14 flex-1 text-2xl text-center font-mono bg-gray-800 border-gray-700 text-white focus-visible:ring-transparent focus-visible:border-white"
-              />
-            ))}
-          </div>
-          {codeError && <p className="text-sm text-destructive mt-2">{codeError}</p>}
-        </div>
-        <Button type="submit" size="lg" disabled={isSubmitting} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-          {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('verifyingCode')}</> : t('verifyButton')}
-        </Button>
-      </form>
-    </>
-  );
-
-  return (
-    <AuthCard
-      title={step === 'enter_email' ? t('resetPasswordTitle') : t('enterCodeTitle')}
-      subtitle={
-        step === 'enter_email'
-          ? t('resetPasswordSubtitle')
-          : t('enterCodeSubtitle', { email })
-      }
-    >
-      {step === 'enter_email' && renderEmailStep()}
-      {step === 'verify_code' && renderCodeStep()}
     </AuthCard>
   );
 }

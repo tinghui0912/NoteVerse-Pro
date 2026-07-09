@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -17,16 +17,16 @@ import { translateErrorCode } from '@/lib/i18n/error-message';
 export default function ResetPasswordPage() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { resetPassword } = useAuth();
-  const email = searchParams.get('email') ?? '';
   const token = searchParams.get('token') ?? '';
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const canReset = Boolean(email && token);
+  const canReset = Boolean(token);
 
   const handleResetPassword = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      await resetPassword(email, password, token);
+      await resetPassword(password, token, locale === 'en' ? 'en' : 'zh');
       router.push('/auth/login?reset=success');
     } catch (err) {
       if (err instanceof ApiError) {

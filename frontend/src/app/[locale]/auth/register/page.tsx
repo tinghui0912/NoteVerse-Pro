@@ -1,72 +1,48 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
+import { AuthCard } from '@/components/auth/auth-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
+import { Link } from '@/i18n/routing';
+import { withReturnUrl } from '@/lib/auth/return-url';
 import { ApiError } from '@/lib/api-client';
-import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 import { translateErrorCode } from '@/lib/i18n/error-message';
-import { AuthCard } from '@/components/auth/auth-card';
 
 export default function RegisterPage() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
-  const { register, sendEmailCode, verifyEmailCode } = useAuth();
-  const router = useRouter();
+  const { register } = useAuth();
   const searchParams = useSearchParams();
 
-  const [step, setStep] = useState<'enter_details' | 'verify_code'>('enter_details');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [code, setCode] = useState(new Array(6).fill(''));
-  const [countdown, setCountdown] = useState(0);
-  const [infoMessage, setInfoMessage] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [codeError, setCodeError] = useState('');
+  const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const returnUrl = searchParams.get('returnUrl');
 
-  // 存储 challenge_id 和 verified_token
-  const [challengeId, setChallengeId] = useState('');
-
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | undefined;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
-
-  useEffect(() => {
-    if (step === 'verify_code' && inputRefs.current[0]) {
-      inputRefs.current[0].focus();
-    }
-  }, [step]);
-
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegister = async (event: React.FormEvent) => {
+    event.preventDefault();
     setEmailError('');
     setPasswordError('');
-    setInfoMessage('');
+    setFormError('');
 
     if (!email) {
       setEmailError(t('validation.emailEmpty'));
       return;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEmailError(t('validation.emailInvalid'));
       return;
     }
@@ -81,105 +57,45 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     try {
-      const challengeIdResult = await sendEmailCode(email, 'register', locale === 'en' ? 'en' : 'zh');
-      setChallengeId(challengeIdResult);
-      setCountdown(60);
-      setStep('verify_code');
+      await register(
+        email,
+        password,
+        displayName || email.split('@')[0],
+        locale === 'en' ? 'en' : 'zh'
+      );
+      setIsSubmitted(true);
     } catch (err) {
       if (err instanceof ApiError) {
-        setEmailError(translateErrorCode(tErrors, err.code, t('sendCodeFailed')));
+        setFormError(translateErrorCode(tErrors, err.code, t('registerFailed')));
       } else {
-        setEmailError(t('sendCodeFailedRetry'));
+        setFormError(t('registerFailed'));
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleResendCode = async () => {
-    if (countdown > 0) return;
+  if (isSubmitted) {
+    return (
+      <AuthCard title={t('verifyEmailSentTitle')} subtitle={t('verifyEmailSentSubtitle', { email })}>
+        <div className="flex flex-col gap-4">
+          <Button asChild size="lg" className="w-full bg-orange-500 font-semibold text-white hover:bg-orange-600">
+            <Link href="/auth/login">{t('backToLogin')}</Link>
+          </Button>
+        </div>
+      </AuthCard>
+    );
+  }
 
-    setIsSubmitting(true);
-    try {
-      const challengeIdResult = await sendEmailCode(email, 'register', locale === 'en' ? 'en' : 'zh');
-      setChallengeId(challengeIdResult);
-      setCountdown(60);
-      setInfoMessage(t('codeSent'));
-      setTimeout(() => setInfoMessage(''), 5000);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setCodeError(translateErrorCode(tErrors, err.code, t('resendFailed')));
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  return (
+    <AuthCard title={t('registerTitle')} subtitle={t('registerSubtitle')}>
+      {formError ? (
+        <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+          {formError}
+        </div>
+      ) : null}
 
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCodeError('');
-    const enteredCode = code.join('');
-    if (enteredCode.length !== 6) {
-      setCodeError(t('validation.codeInvalid'));
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      // 第一步：验证验证码，获取 verified_token
-      const token = await verifyEmailCode(email, enteredCode, challengeId);
-
-      // 第二步：注册（会自动登录）
-      await register(email, password, displayName || email.split('@')[0], token);
-
-      router.push(getSafeReturnUrl(returnUrl));
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setCodeError(translateErrorCode(tErrors, err.code, t('verifyFailed')));
-      } else {
-        setCodeError(t('registerFailed'));
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCodeChange = (element: HTMLInputElement, index: number) => {
-    if (isNaN(Number(element.value))) return;
-
-    const newCode = [...code];
-    newCode[index] = element.value;
-    setCode(newCode);
-
-    // Focus next input
-    if (element.nextSibling && element.value) {
-      (element.nextSibling as HTMLInputElement).focus();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === 'Backspace' && !code[index] && inputRefs.current[index - 1]) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pasteData = e.clipboardData.getData('text');
-    if (/^\d{6}$/.test(pasteData)) {
-      const newCode = pasteData.split('');
-      setCode(newCode);
-      if (inputRefs.current[5]) {
-        inputRefs.current[5]?.focus();
-      }
-    }
-  };
-
-  const isLoading = isSubmitting;
-
-  const renderStepOne = () => (
-    <>
-      <form onSubmit={handleSendCode} className="space-y-6">
+      <form onSubmit={handleRegister} className="space-y-6">
         <div className="space-y-2 text-left">
           <Label htmlFor="email">{t('emailLabel')}</Label>
           <Input
@@ -187,11 +103,11 @@ export default function RegisterPage() {
             type="email"
             placeholder="name@example.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={isLoading}
-            className="bg-gray-800 border-gray-700 text-white h-12 text-base focus-visible:ring-transparent focus-visible:border-white"
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={isSubmitting}
+            className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
           />
-          {emailError && <p className="text-sm text-destructive mt-2">{emailError}</p>}
+          {emailError ? <p className="mt-2 text-sm text-destructive">{emailError}</p> : null}
         </div>
         <div className="space-y-2 text-left">
           <Label htmlFor="displayName">{t('displayNameLabel')}</Label>
@@ -200,9 +116,9 @@ export default function RegisterPage() {
             type="text"
             placeholder={t('displayNamePlaceholder')}
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            disabled={isLoading}
-            className="bg-gray-800 border-gray-700 text-white h-12 text-base focus-visible:ring-transparent focus-visible:border-white"
+            onChange={(event) => setDisplayName(event.target.value)}
+            disabled={isSubmitting}
+            className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
           />
         </div>
         <div className="space-y-2 text-left">
@@ -211,23 +127,23 @@ export default function RegisterPage() {
             id="password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading}
-            className="bg-gray-800 border-gray-700 text-white h-12 text-base focus-visible:ring-transparent focus-visible:border-white"
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={isSubmitting}
+            className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
           />
-          {passwordError && <p className="text-sm text-destructive mt-2">{passwordError}</p>}
+          {passwordError ? <p className="mt-2 text-sm text-destructive">{passwordError}</p> : null}
         </div>
         <div className="flex flex-col gap-4 pt-4">
           <Button
             type="submit"
             size="lg"
-            disabled={isLoading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+            disabled={isSubmitting}
+            className="w-full bg-orange-500 font-semibold text-white hover:bg-orange-600"
           >
-            {isLoading ? (
+            {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('sendingCode')}
+                {t('creatingAccount')}
               </>
             ) : (
               t('registerButton')
@@ -241,81 +157,6 @@ export default function RegisterPage() {
           </p>
         </div>
       </form>
-    </>
-  );
-
-  const renderStepTwo = () => (
-    <>
-      {infoMessage && (
-        <div className="bg-white/20 border border-white/20 text-white p-3 rounded-md text-sm mb-8">
-          {infoMessage}
-        </div>
-      )}
-      <form onSubmit={handleVerifyCode} className="space-y-8">
-        <div className="text-left space-y-2" onPaste={handlePaste}>
-          <Label htmlFor="code-0">{t('codeLabel')}</Label>
-          <div className="flex justify-between gap-2">
-            {code.map((digit, index) => (
-              <Input
-                key={index}
-                id={`code-${index}`}
-                ref={(el: HTMLInputElement | null) => { inputRefs.current[index] = el; }}
-                type="text"
-                maxLength={1}
-                value={digit}
-                onChange={e => handleCodeChange(e.target, index)}
-                onKeyDown={e => handleKeyDown(e, index)}
-                onFocus={e => e.target.select()}
-                disabled={isLoading}
-                className="h-14 flex-1 text-2xl text-center font-mono bg-gray-800 border-gray-700 text-white focus-visible:ring-transparent focus-visible:border-white"
-              />
-            ))}
-          </div>
-          {codeError && <p className="text-sm text-destructive mt-2">{codeError}</p>}
-        </div>
-        <div className="flex flex-col gap-4 pt-4">
-          <Button
-            type="submit"
-            size="lg"
-            disabled={isLoading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('verifyingCode')}
-              </>
-            ) : (
-              t('verifyEmailButton')
-            )}
-          </Button>
-          <div className="text-sm text-muted-foreground text-center">
-            <span>{t('didNotReceiveCode')}</span>
-            <Button
-              type="button"
-              variant="link"
-              onClick={handleResendCode}
-              disabled={countdown > 0 || isLoading}
-              className="font-semibold text-white hover:underline p-0 h-auto ml-1"
-            >
-              {countdown > 0 ? `${t('resendAfter')} (${countdown}s)` : t('resend')}
-            </Button>
-          </div>
-        </div>
-      </form>
-    </>
-  );
-
-  return (
-    <AuthCard
-      title={step === 'enter_details' ? t('registerTitle') : t('enterCodeTitle')}
-      subtitle={
-        step === 'enter_details'
-          ? t('registerSubtitle')
-          : t('enterCodeSubtitle', { email })
-      }
-    >
-      {step === 'enter_details' ? renderStepOne() : renderStepTwo()}
     </AuthCard>
   );
 }

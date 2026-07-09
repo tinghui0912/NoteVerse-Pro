@@ -10,11 +10,11 @@ from app.api import deps
 from app.core.exceptions import AuthenticationException
 from app.modules.auth.dependencies import get_auth_service
 from app.modules.auth.schemas import (
+    ForgotPasswordRequest,
     RegisterRequest,
     ResetPasswordRequest,
-    SendCodeRequest,
     User as UserSchema,
-    VerifyCodeRequest,
+    VerifyEmailRequest,
 )
 from app.modules.auth.service import AuthService
 from app.core.config import settings
@@ -149,49 +149,43 @@ async def refresh_access_token(
 
 @router.post("/register", response_model=UserSchema)
 async def register_user(
+    request_context: Request,
     *,
     db: AsyncSession = Depends(deps.get_db),
     request: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserSchema:
-    return await auth_service.register(db, request)
+    return await auth_service.register(
+        db,
+        request,
+        user_agent=request_context.headers.get("user-agent"),
+        ip_address=request_context.client.host if request_context.client else None,
+    )
 
 
-@router.post("/email/send-code")
-async def send_email_code(
-    request: SendCodeRequest,
+@router.post("/email/verify", response_model=UserSchema)
+async def verify_email(
+    request: VerifyEmailRequest,
+    db: AsyncSession = Depends(deps.get_db),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UserSchema:
+    return await auth_service.verify_email(db, request)
+
+
+@router.post("/password/forgot")
+async def forgot_password(
+    request_context: Request,
+    request: ForgotPasswordRequest,
     db: AsyncSession = Depends(deps.get_db),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> SuccessResponsePayload:
-    result = await auth_service.send_email_code(db, request)
-    return success_response(
-        data=result.model_dump(),
-        message=SuccessCode.VERIFICATION_CODE_SENT,
+    await auth_service.request_password_reset(
+        db,
+        request,
+        user_agent=request_context.headers.get("user-agent"),
+        ip_address=request_context.client.host if request_context.client else None,
     )
-
-
-@router.post("/email/verify-code")
-def verify_email_code(
-    request: VerifyCodeRequest,
-    auth_service: AuthService = Depends(get_auth_service),
-):
-    result = auth_service.verify_email_code(request)
-    return success_response(
-        data=result,
-        message=SuccessCode.EMAIL_VERIFIED,
-    )
-
-
-@router.post("/password/verify-code")
-def verify_password_reset_code(
-    request: VerifyCodeRequest,
-    auth_service: AuthService = Depends(get_auth_service),
-):
-    result = auth_service.verify_password_reset_code(request)
-    return success_response(
-        data=result,
-        message=SuccessCode.VERIFICATION_SUCCESS,
-    )
+    return success_response(message=SuccessCode.VERIFICATION_SUCCESS)
 
 
 @router.post("/password/reset")

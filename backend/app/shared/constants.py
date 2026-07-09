@@ -17,11 +17,8 @@ class ErrorCode:
     INVALID_CREDENTIALS = "invalid_credentials"
     EMAIL_MISMATCH = "email_mismatch"
     EMAIL_INVALID = "email_invalid"
+    EMAIL_NOT_VERIFIED = "email_not_verified"
     EMAIL_SERVICE_UNAVAILABLE = "email_service_unavailable"
-    VERIFICATION_CODE_INVALID = "verification_code_invalid"
-    VERIFICATION_CODE_WRONG = "verification_code_wrong"
-    VERIFICATION_ATTEMPTS_EXCEEDED = "verification_attempts_exceeded"
-    VERIFICATION_TYPE_MISMATCH = "verification_type_mismatch"
     RESET_TOKEN_INVALID = "reset_token_invalid"
 
     NO_ACCESS = "no_access"
@@ -142,7 +139,6 @@ class SuccessCode:
     FILE_UPLOADED = "file_uploaded"
     FILE_DELETED = "file_deleted"
 
-    VERIFICATION_CODE_SENT = "verification_code_sent"
     EMAIL_VERIFIED = "email_verified"
     VERIFICATION_SUCCESS = "verification_success"
     PASSWORD_RESET_SUCCESS = "password_reset_success"

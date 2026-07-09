@@ -216,10 +216,15 @@ class SyncImportJobService:
                 "mime_type": row.mime_type,
                 "sha256": row.sha256,
             })
+
+        def first_artifact(kind: str) -> ImportJobArtifactItem | None:
+            items = artifacts.get(kind)
+            return items[0] if items else None
+
         thumbnail = (
-            (artifacts.get(FileKind.RESULT_THUMBNAIL.value) or [None])[0]
-            or (artifacts.get(FileKind.PREVIEW_IMAGE.value) or [None])[0]
-            or (artifacts.get(FileKind.ORIGINAL_IMAGE.value) or [None])[0]
+            first_artifact(FileKind.RESULT_THUMBNAIL.value)
+            or first_artifact(FileKind.PREVIEW_IMAGE.value)
+            or first_artifact(FileKind.ORIGINAL_IMAGE.value)
         )
         return {
             "job_id": job.job_uuid,

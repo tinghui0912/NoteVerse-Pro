@@ -227,11 +227,8 @@ class Settings(BaseSettings):
     RESEND_API_KEY: Optional[str] = None
     RESEND_API_URL: str = "https://api.resend.com/emails"
 
-    # Email verification
-    EMAIL_REGISTER_CODE_TTL_SECONDS: int = 600
-    EMAIL_PASSWORD_RESET_CODE_TTL_SECONDS: int = 300
-    EMAIL_CODE_COOLDOWN_SECONDS: int = 60
-    EMAIL_CODE_MAX_ATTEMPTS: int = 5
+    # Auth email links
+    EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS: int = 300
     EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS: int = 900
 
     @model_validator(mode="after")

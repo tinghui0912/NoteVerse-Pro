@@ -46,22 +46,6 @@ def create_access_token(
     return create_token(subject, "access", expires_delta)
 
 
-def create_email_verification_token(
-    subject: object,
-    expires_delta: timedelta | None = None,
-) -> str:
-    """Create a short-lived token for email verification."""
-    return create_token(subject, "email_verification", expires_delta)
-
-
-def create_password_reset_token(
-    subject: object,
-    expires_delta: timedelta | None = None,
-) -> str:
-    """Create a short-lived token for password reset."""
-    return create_token(subject, "password_reset", expires_delta)
-
-
 def decode_token(token: str) -> dict[str, object]:
     """Decode and validate a signed JWT."""
 

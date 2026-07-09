@@ -2,7 +2,7 @@ export interface RegisterRequest {
   email: string;
   password: string;
   display_name?: string;
-  verified_token: string;
+  locale?: 'en' | 'zh';
 }
 
 export interface User {
@@ -13,18 +13,7 @@ export interface User {
   is_active: boolean;
   role?: string;
   created_at?: string;
-}
-
-export interface SendCodeResponse {
-  challenge_id: string;
-  message?: string;
-  cooldown?: number;
-}
-
-export interface VerifyCodeResponse {
-  verified_token?: string;
-  reset_token?: string;
-  message?: string;
+  email_verified_at?: string;
 }
 
 export interface UserProfile {

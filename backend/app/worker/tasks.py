@@ -98,20 +98,19 @@ def render_outbox_task(outbox_uuid: str) -> dict[str, str | None]:
     try:
         artifact_id: str | None = None
         if payload.target_type == RenderTargetType.SCORE_REVISION:
-            if (
-                payload.score_uuid is None
-                or payload.revision_uuid is None
-                or payload.user_id is None
-            ):
+            score_uuid = payload.score_uuid
+            revision_uuid = payload.revision_uuid
+            user_id = payload.user_id
+            if score_uuid is None or revision_uuid is None or user_id is None:
                 raise ValueError("Revision render payload is incomplete")
 
             async def _run_revision() -> None:
                 async with AsyncSessionLocal() as db:
                     await RevisionRenderService().render(
                         db,
-                        payload.score_uuid,
-                        payload.revision_uuid,
-                        payload.user_id,
+                        score_uuid,
+                        revision_uuid,
+                        user_id,
                         profile=payload.render_profile,
                     )
 

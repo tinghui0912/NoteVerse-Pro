@@ -5,8 +5,6 @@ import { apiClient, ApiResponse } from '../api-client';
 import type {
     RegisterRequest,
     User,
-    SendCodeResponse,
-    VerifyCodeResponse,
 } from '@/types/api';
 
 // ============ API 函数 ============
@@ -31,41 +29,6 @@ export async function logout(): Promise<ApiResponse> {
 }
 
 /**
- * 发送邮箱验证码
- * @param email 邮箱地址
- * @param purpose 用途: 'register' | 'password_reset'
- */
-export async function sendEmailCode(
-    email: string,
-    purpose: 'register' | 'password_reset' = 'register',
-    locale: 'en' | 'zh' = 'zh'
-): Promise<ApiResponse<SendCodeResponse>> {
-    return apiClient.post<ApiResponse<SendCodeResponse>>('/auth/email/send-code', {
-        email,
-        purpose,
-        locale,
-    });
-}
-
-/**
- * 验证邮箱验证码
- * @param email 邮箱
- * @param code 验证码
- * @param challengeId 挑战 ID
- */
-export async function verifyEmailCode(
-    email: string,
-    code: string,
-    challengeId: string
-): Promise<ApiResponse<VerifyCodeResponse>> {
-    return apiClient.post<ApiResponse<VerifyCodeResponse>>('/auth/email/verify-code', {
-        email,
-        code,
-        challenge_id: challengeId,
-    });
-}
-
-/**
  * 用户注册
  * @param data 注册信息
  */
@@ -74,22 +37,21 @@ export async function register(data: RegisterRequest): Promise<ApiResponse<User>
         email: data.email,
         password: data.password,
         display_name: data.display_name,
-        verified_token: data.verified_token,
+        locale: data.locale,
     });
 }
 
-/**
- * 验证密码重置验证码
- */
-export async function verifyPasswordResetCode(
+export async function verifyEmail(token: string): Promise<ApiResponse<User>> {
+    return apiClient.post<ApiResponse<User>>('/auth/email/verify', { token });
+}
+
+export async function requestPasswordReset(
     email: string,
-    code: string,
-    challengeId: string
-): Promise<ApiResponse<{ reset_token: string }>> {
-    return apiClient.post<ApiResponse<{ reset_token: string }>>('/auth/password/verify-code', {
+    locale: 'en' | 'zh' = 'zh'
+): Promise<ApiResponse> {
+    return apiClient.post<ApiResponse>('/auth/password/forgot', {
         email,
-        code,
-        challenge_id: challengeId,
+        locale,
     });
 }
 
@@ -100,23 +62,22 @@ export async function verifyPasswordResetCode(
  * @param resetToken 重置令牌
  */
 export async function resetPassword(
-    email: string,
     newPassword: string,
-    resetToken: string
+    token: string,
+    locale: 'en' | 'zh' = 'zh'
 ): Promise<ApiResponse> {
     return apiClient.post<ApiResponse>('/auth/password/reset', {
-        email,
         new_password: newPassword,
-        reset_token: resetToken,
+        token,
+        locale,
     });
 }
 
 export const authApi = {
     login,
-    sendEmailCode,
-    verifyEmailCode,
     register,
-    verifyPasswordResetCode,
+    verifyEmail,
+    requestPasswordReset,
     resetPassword,
     logout,
 };

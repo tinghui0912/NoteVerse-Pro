@@ -1,7 +1,7 @@
 """Shared API response models and helpers."""
 
 from datetime import datetime, timezone
-from typing import Generic, Optional, Sequence, TypeVar
+from typing import Generic, Optional, Sequence, TypeVar, cast
 
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
@@ -156,7 +156,7 @@ def paginated_response(
 ) -> PaginatedResponsePayload:
     return {
         "success": True,
-        "data": encode_response_data(list(data)),
+        "data": cast(list[object], encode_response_data(list(data))),
         "pagination": {
             "page": page,
             "page_size": page_size,

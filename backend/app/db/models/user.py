@@ -31,6 +31,7 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     is_active: bool = Field(default=True, sa_column=Column(Boolean, default=True, nullable=False))
+    email_verified_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     last_login: Optional[datetime] = Field(sa_column=Column(DateTime))
     password_changed_at: Optional[datetime] = Field(sa_column=Column(DateTime))
     avatar_url: Optional[str] = Field(sa_column=Column(String(512)))
