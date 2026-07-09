@@ -16,7 +16,6 @@ import { translateErrorCode } from '@/lib/i18n/error-message';
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
-  const tProfile = useTranslations('profile');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
   const router = useRouter();
@@ -234,7 +233,7 @@ export default function ForgotPasswordPage() {
       <p className="text-lg text-gray-400 mb-8 max-w-xl mx-auto">{t('enterNewPassword')}</p>
       <form onSubmit={handleResetPassword} className="space-y-6">
         <div className="space-y-2 text-left">
-          <Label htmlFor="new-password">{tProfile('newPassword')}</Label>
+          <Label htmlFor="new-password">{t('newPasswordLabel')}</Label>
           <Input
             id="new-password"
             type="password"

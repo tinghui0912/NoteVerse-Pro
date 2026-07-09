@@ -10,7 +10,7 @@ const PROTECTED_PATH_PREFIXES = [
   '/upload',
   '/library',
   '/my-scores',
-  '/profile',
+  '/settings',
   '/review',
   '/score',
   '/share',

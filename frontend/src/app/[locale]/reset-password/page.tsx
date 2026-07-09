@@ -14,7 +14,6 @@ import { useRouter } from 'next/navigation';
 
 export default function ResetPasswordPage() {
   const t = useTranslations('auth');
-  const tProfile = useTranslations('profile');
   const router = useRouter();
   
   const [password, setPassword] = useState('');
@@ -63,7 +62,7 @@ export default function ResetPasswordPage() {
             </p>
             <form onSubmit={handleResetPassword} className="space-y-6">
                 <div className="space-y-2 text-left">
-                  <Label htmlFor="password">{tProfile('newPassword')}</Label>
+                  <Label htmlFor="password">{t('newPasswordLabel')}</Label>
                   <Input
                       id="password"
                       type="password"

@@ -16,12 +16,12 @@ const namespaces = [
   'library',
   'myScores',
   'share',
-  'profile',
   'practice',
   'pricing',
   'help',
   'metadata',
   'scoreStyles',
+  'settings',
 ] as const;
 
 export default getRequestConfig(async ({ requestLocale }) => {

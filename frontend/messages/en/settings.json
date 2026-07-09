@@ -1,0 +1,56 @@
+{
+  "title": "Account Settings",
+  "tabsLabel": "Account settings sections",
+  "breadcrumb": {
+    "settings": "Settings",
+    "account": "Account"
+  },
+  "tabs": {
+    "profile": "Profile",
+    "security": "Security",
+    "password": "Password",
+    "sessions": "Sessions",
+    "billing": "Billing"
+  },
+  "profile": {
+    "heading": "Profile",
+    "save": "Save profile"
+  },
+  "password": {
+    "heading": "Password",
+    "description": "Change your password regularly to keep your account and music assets protected.",
+    "save": "Update password"
+  },
+  "security": {
+    "heading": "Security",
+    "description": "Two-factor authentication, email verification, and security checks will appear here as the account security system expands."
+  },
+  "sessions": {
+    "heading": "Sessions",
+    "description": "Active devices and login sessions will appear here when session management is available."
+  },
+  "billing": {
+    "heading": "Billing",
+    "description": "Your account billing, current plan, and subscription management will live here. Public plan information remains on the subscriptions page.",
+    "viewPlans": "View public plans"
+  },
+  "currentPassword": "Current password",
+  "newPassword": "New password",
+  "cropAvatar": "Crop avatar",
+  "saveAvatar": "Save avatar",
+  "avatarSuccess": "Avatar updated successfully",
+  "avatarUpdated": "Your avatar has been updated",
+  "uploadFailed": "Upload failed",
+  "uploadFailedDesc": "Unable to upload avatar",
+  "profileSuccess": "Profile updated successfully",
+  "profileUpdated": "Your profile has been updated",
+  "profileFailed": "Update failed",
+  "profileFailedDesc": "Unable to update profile",
+  "passwordMismatchTitle": "Password mismatch",
+  "passwordMismatch": "New password and confirmation do not match",
+  "passwordTooShortTitle": "Password too short",
+  "passwordSuccess": "Password updated successfully",
+  "passwordUpdated": "Your password has been updated",
+  "passwordFailed": "Update failed",
+  "passwordFailedDesc": "Unable to change password"
+}

@@ -9,10 +9,10 @@ import {
   Bell,
   Check,
   Globe,
-  Heart,
   LogOut,
   Menu,
   Music2,
+  Settings,
   User,
   X,
 } from 'lucide-react';
@@ -66,15 +66,9 @@ const UserMenu = () => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/profile">
-            <User className="mr-2 h-4 w-4" />
-            <span>{t('profile')}</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/subscriptions">
-            <Heart className="mr-2 h-4 w-4" />
-            <span>{t('subscriptions')}</span>
+          <Link href="/settings/profile">
+            <Settings className="mr-2 h-4 w-4" />
+            <span>{t('settings')}</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
