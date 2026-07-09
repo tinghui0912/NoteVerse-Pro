@@ -56,10 +56,8 @@ export interface AccountSecurityOverview {
   email: string;
   email_verified_at?: string | null;
   password_changed_at?: string | null;
-  active_sessions_count: number;
   mfa_enabled: boolean;
   mfa_available: boolean;
-  last_login?: string | null;
 }
 
 export interface AccountSecurityResponse {

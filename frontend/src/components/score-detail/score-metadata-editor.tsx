@@ -11,8 +11,9 @@ import { useScoreShell } from '@/components/score-shell/score-shell';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
 import { ApiError } from '@/lib/api-client';
+import { formatApiDateTime } from '@/lib/date-time';
 import { translateErrorCode } from '@/lib/i18n/error-message';
-import { formatApiDateTime, formatKeySignature } from '@/lib/score/metadata-display';
+import { formatKeySignature } from '@/lib/score/metadata-display';
 import type { ScoreDetail } from '@/types/api';
 
 interface ScoreMetadataEditorProps {

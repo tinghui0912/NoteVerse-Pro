@@ -597,7 +597,7 @@ async def test_revoke_other_user_sessions_keeps_current_session() -> None:
 
 
 @pytest.mark.asyncio
-async def test_security_overview_counts_active_sessions() -> None:
+async def test_security_overview_returns_identity_security_summary() -> None:
     db = FakeDb()
     user = User(
         email="user@example.com",
@@ -608,33 +608,11 @@ async def test_security_overview_counts_active_sessions() -> None:
         password_changed_at=utc_now_naive(),
     )
     db.add(user)
-    db.add(
-        RefreshToken(
-            user_id=user.id,
-            token_hash="active-token",
-            expires_at=utc_now_naive() + timedelta(days=1),
-        )
-    )
-    db.add(
-        RefreshToken(
-            user_id=user.id,
-            token_hash="expired-token",
-            expires_at=utc_now_naive() - timedelta(seconds=1),
-        )
-    )
-    db.add(
-        RefreshToken(
-            user_id=999,
-            token_hash="other-user-token",
-            expires_at=utc_now_naive() + timedelta(days=1),
-        )
-    )
 
     overview = await SecurityService().overview(db, user)  # type: ignore[arg-type]
 
     assert overview.email == "user@example.com"
     assert overview.email_verified_at is not None
     assert overview.password_changed_at is not None
-    assert overview.active_sessions_count == 1
     assert overview.mfa_enabled is False
     assert overview.mfa_available is False

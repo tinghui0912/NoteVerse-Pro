@@ -77,10 +77,8 @@ class SecurityOverview(BaseModel):
     email: EmailStr
     email_verified_at: datetime | None = None
     password_changed_at: datetime | None = None
-    active_sessions_count: int
     mfa_enabled: bool = False
     mfa_available: bool = False
-    last_login: datetime | None = None
 
 
 class UserBase(BaseModel):

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
@@ -12,7 +12,15 @@ import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 
-export function PasswordSettingsForm() {
+type PasswordSettingsFormProps = {
+  embedded?: boolean;
+  showHeader?: boolean;
+};
+
+export function PasswordSettingsForm({
+  embedded = false,
+  showHeader = true,
+}: PasswordSettingsFormProps = {}) {
   const t = useTranslations('settings');
   const tAuth = useTranslations('auth');
   const tErrors = useTranslations('errors');
@@ -22,7 +30,9 @@ export function PasswordSettingsForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const passwordMutation = useChangePassword();
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = (event: FormEvent) => {
+    event.preventDefault();
+
     if (newPassword !== confirmPassword) {
       toast({
         title: t('passwordMismatchTitle'),
@@ -67,11 +77,27 @@ export function PasswordSettingsForm() {
     );
   };
 
-  return (
-    <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-2 text-xl font-semibold text-gray-950">{t('password.heading')}</h2>
-      <p className="mb-6 max-w-2xl text-sm text-gray-500">{t('password.description')}</p>
-      <div className="max-w-xl space-y-4">
+  const content = (
+    <>
+      {showHeader ? (
+        embedded ? (
+          <h3 className="text-sm font-semibold text-gray-950">{t('password.heading')}</h3>
+        ) : (
+          <h2 className="mb-2 text-xl font-semibold text-gray-950">{t('password.heading')}</h2>
+        )
+      ) : null}
+      {showHeader ? (
+        <p
+          className={
+            embedded
+              ? 'mt-1 text-sm leading-6 text-gray-500'
+              : 'mb-6 max-w-2xl text-sm text-gray-500'
+          }
+        >
+          {t('password.description')}
+        </p>
+      ) : null}
+      <div className={showHeader && embedded ? 'mt-5 max-w-xl space-y-4' : 'max-w-xl space-y-4'}>
         <div className="space-y-2">
           <Label htmlFor="current-password">{t('currentPassword')}</Label>
           <Input
@@ -103,8 +129,8 @@ export function PasswordSettingsForm() {
           />
         </div>
         <Button
+          type="submit"
           className="bg-orange-500 text-white hover:bg-orange-600"
-          onClick={handleUpdatePassword}
           disabled={passwordMutation.isPending}
         >
           {passwordMutation.isPending ? (
@@ -113,6 +139,20 @@ export function PasswordSettingsForm() {
           {t('password.save')}
         </Button>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <form onSubmit={handleUpdatePassword}>
+        {content}
+      </form>
+    );
+  }
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <form onSubmit={handleUpdatePassword}>{content}</form>
     </section>
   );
 }

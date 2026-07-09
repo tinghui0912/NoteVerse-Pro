@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatApiDateTime } from '@/lib/score/metadata-display';
+import { formatApiDateTime } from '@/lib/date-time';
 import { cn } from '@/lib/utils';
 import type { LibraryEntry, LibraryPracticeState } from '@/types/api';
 

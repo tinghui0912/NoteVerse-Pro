@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { importJobsApi } from '@/lib/api';
-import { formatApiDateTime } from '@/lib/score/metadata-display';
+import { formatApiDateTime } from '@/lib/date-time';
 import { cn } from '@/lib/utils';
 import { isImportJob } from '@/lib/my-scores/state';
 import type { ImportJob } from '@/types/api';

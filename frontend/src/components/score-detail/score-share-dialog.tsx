@@ -40,9 +40,9 @@ import {
 } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
+import { formatApiDateTime, parseApiDate } from '@/lib/date-time';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import { getShareExpirationDays } from '@/lib/score-detail/share';
-import { formatApiDateTime, parseApiDate } from '@/lib/score/metadata-display';
 import type { ScoreGrant } from '@/types/api';
 
 function absoluteShareUrl(token: string, locale: string) {

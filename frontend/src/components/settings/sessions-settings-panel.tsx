@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { profileApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
+import { formatApiDateTime } from '@/lib/date-time';
 import type { AccountSession } from '@/types/api';
 
 const sessionsQueryKey = ['account', 'sessions'];
@@ -25,16 +26,6 @@ function deviceLabel(session: AccountSession, fallback: string): string {
   if (/Safari/i.test(agent)) return 'Safari';
   if (/Edge/i.test(agent)) return 'Edge';
   return fallback;
-}
-
-function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
-  if (!value) return fallback;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
 }
 
 function SessionIcon({ session }: { session: AccountSession }) {
@@ -162,13 +153,13 @@ export function SessionsSettingsPanel() {
                     <div className="mt-2 grid gap-1 text-xs text-gray-500 sm:grid-cols-2">
                       <span>{t('sessions.ip')}: {session.ip_address ?? t('sessions.unknown')}</span>
                       <span>
-                        {t('sessions.created')}: {formatDate(session.created_at, locale, t('sessions.unknown'))}
+                        {t('sessions.created')}: {formatApiDateTime(session.created_at, locale)}
                       </span>
                       <span>
-                        {t('sessions.lastUsed')}: {formatDate(session.last_used_at, locale, t('sessions.never'))}
+                        {t('sessions.lastUsed')}: {session.last_used_at ? formatApiDateTime(session.last_used_at, locale) : t('sessions.never')}
                       </span>
                       <span>
-                        {t('sessions.expires')}: {formatDate(session.expires_at, locale, t('sessions.unknown'))}
+                        {t('sessions.expires')}: {formatApiDateTime(session.expires_at, locale)}
                       </span>
                     </div>
                   </div>

@@ -20,8 +20,9 @@ import { useDownload } from '@/hooks/use-download';
 import { useToast } from '@/hooks/use-toast';
 import { scoreSharingApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
+import { formatApiDateTime } from '@/lib/date-time';
 import { translateErrorCode } from '@/lib/i18n/error-message';
-import { formatApiDateTime, formatKeySignature } from '@/lib/score/metadata-display';
+import { formatKeySignature } from '@/lib/score/metadata-display';
 import { SCORE_GENRE_TAGS, taxonomyTagKey } from '@/lib/score/taxonomy';
 import type {
   ScoreArtifact,

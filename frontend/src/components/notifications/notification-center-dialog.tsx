@@ -28,7 +28,7 @@ import {
   useMarkNotificationRead,
   useMyNotifications,
 } from '@/hooks/queries/use-notification-queries';
-import { formatApiDateTime } from '@/lib/score/metadata-display';
+import { formatApiDateTime } from '@/lib/date-time';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { NotificationEvent, PendingScoreInvite } from '@/types/api';

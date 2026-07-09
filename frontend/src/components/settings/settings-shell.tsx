@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { CreditCard, KeyRound, Monitor, ShieldCheck, User } from 'lucide-react';
+import { CreditCard, Monitor, ShieldCheck, User } from 'lucide-react';
 
 import { Link, usePathname } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,6 @@ import { Footer } from '@/components/layout/footer';
 const settingsTabs = [
   { href: '/settings/profile', label: 'tabs.profile', icon: User },
   { href: '/settings/security', label: 'tabs.security', icon: ShieldCheck },
-  { href: '/settings/password', label: 'tabs.password', icon: KeyRound },
   { href: '/settings/sessions', label: 'tabs.sessions', icon: Monitor },
   { href: '/settings/billing', label: 'tabs.billing', icon: CreditCard },
 ] as const;

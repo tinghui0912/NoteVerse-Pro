@@ -11,7 +11,7 @@ import { Link } from '@/i18n/routing';
 import { useAcceptScoreInvite, useScoreInviteAccess } from '@/hooks/queries/use-score-queries';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
-import { formatApiDateTime } from '@/lib/score/metadata-display';
+import { formatApiDateTime } from '@/lib/date-time';
 
 function getInviteErrorConfig(
   error: unknown,
