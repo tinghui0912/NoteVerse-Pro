@@ -13,7 +13,7 @@ import { ImportJobCard } from '@/components/my-scores/import-job-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Footer } from '@/components/layout/footer';
+import { PageHeader } from '@/components/app-shell/page-header';
 import { useDeleteImportJob, useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import {
   useDeleteMyScores,
@@ -179,15 +179,19 @@ export default function MyScoresPage({
   const loadError = scoresQuery.error ?? jobsQuery.error;
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <div className="bg-gray-900">
-        <div className="mx-auto max-w-7xl px-4 pb-14 pt-28">
-          <h1 className="text-4xl font-bold text-white sm:text-5xl">{t('title')}</h1>
-          <p className="mt-3 text-lg text-gray-300">{t('subtitle')}</p>
-        </div>
-      </div>
-      <main className="grow">
-        <div className="mx-auto max-w-7xl px-4 py-10">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          <Button asChild>
+            <Link href="/upload">
+              <Upload className="mr-2 h-4 w-4" />
+              {t('uploadScore')}
+            </Link>
+          </Button>
+        }
+      />
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap gap-2">
               {MY_SCORE_PAGE_VIEWS.map((item) => (
@@ -209,12 +213,6 @@ export default function MyScoresPage({
                   {batchMode ? t('cancelBatchEdit') : t('batchEdit')}
                 </Button>
               ) : null}
-              <Button asChild>
-                <Link href="/upload">
-                  <Upload className="mr-2 h-4 w-4" />
-                  {t('uploadScore')}
-                </Link>
-              </Button>
             </div>
           </div>
           <div className="mb-5">
@@ -322,9 +320,6 @@ export default function MyScoresPage({
               t={t}
             />
           ) : null}
-        </div>
-      </main>
-      <Footer />
     </div>
   );
 }

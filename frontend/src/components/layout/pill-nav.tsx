@@ -1,151 +1,18 @@
 
 'use client';
 
-import { useTranslations, useLocale } from 'next-intl';
-import { useRouter, usePathname, Link } from '@/i18n/routing';
-import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { usePathname, Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import {
-  Bell,
-  Check,
-  Globe,
-  LogOut,
   Menu,
   Music2,
-  Settings,
-  User,
   X,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
-import { Button } from '../ui/button';
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ClientOnly } from '../client-only';
-import { useMyPendingScoreInvites } from '@/hooks/queries/use-score-queries';
-import { useNotificationUnreadCount } from '@/hooks/queries/use-notification-queries';
-import { NotificationCenterDialog } from '@/components/notifications/notification-center-dialog';
-
-const UserMenu = () => {
-  const { user, logout } = useAuth();
-  const t = useTranslations('common');
-  
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="relative h-10 w-10 rounded-full"
-        >
-          <Avatar className="h-9 w-9">
-            <AvatarImage
-              src={user?.avatar || undefined}
-              alt={user?.name || ''}
-            />
-            <AvatarFallback>
-              <User className="h-5 w-5" />
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {t('premiumUser')}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/settings/profile">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>{t('settings')}</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>{t('logout')}</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
-
-const NotificationBell = () => {
-  const t = useTranslations('notifications');
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const pendingInvites = useMyPendingScoreInvites(true);
-  const unreadNotifications = useNotificationUnreadCount(true);
-  const pendingInviteCount = pendingInvites.data?.data?.length ?? 0;
-  const unreadNotificationCount = unreadNotifications.data?.data?.count ?? 0;
-  const badgeCount = pendingInviteCount + unreadNotificationCount;
-
-  return (
-    <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={t('bellLabel')}
-        className="relative rounded-full text-white hover:bg-white/20 hover:text-white"
-        onClick={() => setIsNotificationsOpen(true)}
-      >
-        <Bell className="h-5 w-5" />
-        {badgeCount > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[11px] font-semibold text-white">
-            {badgeCount > 99 ? '99+' : badgeCount}
-          </span>
-        ) : null}
-      </Button>
-      <NotificationCenterDialog
-        open={isNotificationsOpen}
-        onOpenChange={setIsNotificationsOpen}
-      />
-    </>
-  );
-};
-
-const LanguageSwitcher = () => {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const locale = useLocale();
-  const currentHref = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-  
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 hover:text-white rounded-full">
-          <Globe className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => router.replace(currentHref, { locale: 'zh' })}>
-          <div className="flex items-center w-full justify-between">
-            <span>中文</span>
-            {locale === 'zh' && <Check className="h-4 w-4" />}
-          </div>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.replace(currentHref, { locale: 'en' })}>
-          <div className="flex items-center w-full justify-between">
-            <span>English</span>
-            {locale === 'en' && <Check className="h-4 w-4" />}
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
+import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/layout/nav-actions';
 
 export default function PillNav() {
   const t = useTranslations('common');

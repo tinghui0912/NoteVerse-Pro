@@ -28,7 +28,7 @@ import { LibrarySidebar } from '@/components/library/library-sidebar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Footer } from '@/components/layout/footer';
+import { PageHeader } from '@/components/app-shell/page-header';
 import {
   useCreateLibraryFolder,
   useDeleteLibraryFolder,
@@ -358,15 +358,13 @@ export default function LibraryPage({
   }, [view, folderId, params.search, params.sort, page]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <div className="bg-gray-900">
-        <div className="mx-auto max-w-7xl px-4 pb-14 pt-28">
-          <h1 className="text-4xl font-bold text-white sm:text-5xl">{t('title')}</h1>
-          <p className="mt-3 text-lg text-gray-300">{t('subtitle')}</p>
-        </div>
-      </div>
-      <main className="grow">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 lg:grid-cols-[280px_minmax(0,1fr)]">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={<Button onClick={() => router.push('/upload')}>{t('uploadScore')}</Button>}
+      />
+      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
           <LibrarySidebar
             currentView={view}
             currentFolderId={folderId}
@@ -409,7 +407,6 @@ export default function LibraryPage({
                     {batchMode ? t('cancelBatchEdit') : t('batchEdit')}
                   </Button>
                 ) : null}
-                <Button onClick={() => router.push('/upload')}>{t('uploadScore')}</Button>
               </div>
             </div>
             {!batchMode ? (
@@ -518,8 +515,7 @@ export default function LibraryPage({
               />
             ) : null}
           </section>
-        </div>
-      </main>
+      </div>
       <LibraryFolderDialog
         open={folderForm !== null}
         mode={folderForm?.mode ?? 'create'}
@@ -583,7 +579,6 @@ export default function LibraryPage({
         onConfirm={trashActionEntries}
         t={t}
       />
-      <Footer />
     </div>
   );
 }
