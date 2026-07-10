@@ -65,7 +65,7 @@ describe('score collaboration invite architecture', () => {
   });
 
   it('keeps notification center as a projection over pending invites and notification events', () => {
-    const navActions = readSource('src/components/layout/nav-actions.tsx');
+    const navActions = readSource('src/components/navigation/nav-actions.tsx');
     const center = readSource('src/components/notifications/notification-center-dialog.tsx');
     const notificationsApi = readSource('src/lib/api/notifications.ts');
     const notificationHooks = readSource('src/hooks/queries/use-notification-queries.ts');

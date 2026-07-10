@@ -4,7 +4,7 @@ import { routing } from '@/i18n/routing';
 import { notFound } from 'next/navigation';
 import localFont from 'next/font/local';
 import { cn } from '@/lib/utils';
-import { ClientProviders } from '@/components/layout/client-providers';
+import { ClientProviders } from '@/components/providers/client-providers';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({

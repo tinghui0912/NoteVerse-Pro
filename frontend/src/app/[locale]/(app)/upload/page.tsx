@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
-import { PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/page/page-header';
 import { UploadForm } from '@/components/upload/upload-form';
 import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
 

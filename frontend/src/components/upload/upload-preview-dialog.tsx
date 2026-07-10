@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
-import type { UploadableFile } from './upload-types';
+import type { UploadableFile } from '@/lib/upload/upload-workflow';
 import {
   Carousel,
   CarouselContent,

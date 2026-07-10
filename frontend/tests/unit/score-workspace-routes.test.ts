@@ -36,7 +36,7 @@ describe('score workspace routes', () => {
 
   it('routes score detail actions into score workspaces', () => {
     const actions = readSource('src/components/score-detail/score-actions.tsx');
-    const upload = readSource('src/components/upload/upload-types.ts');
+    const upload = readSource('src/lib/upload/upload-workflow.ts');
     const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
     const scoreEditor = readSource('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx');
     const reviewEditor = readSource('src/app/[locale]/(workspace)/review/[jobId]/edit/page.tsx');
@@ -53,8 +53,8 @@ describe('score workspace routes', () => {
 
   it('keeps share and public routes as score access entries', () => {
     const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-    const shareSidebar = readSource('src/components/share/share-info-sidebar.tsx');
-    const publicPage = readSource('src/components/public/public-score-page.tsx');
+    const shareSidebar = readSource('src/components/external/share-info-sidebar.tsx');
+    const publicPage = readSource('src/components/external/public-score-page.tsx');
 
     expect(sharePage).toContain('<ScoreSurface');
     expect(sharePage).toContain('<ScoreCapabilityProvider');
@@ -72,7 +72,7 @@ describe('score workspace routes', () => {
     const actions = readSource('src/components/score-detail/score-actions.tsx');
     const metadata = readSource('src/components/score-detail/score-metadata-editor.tsx');
     const styleTags = readSource('src/components/score-detail/score-style-tags-editor.tsx');
-    const shareSidebar = readSource('src/components/share/share-info-sidebar.tsx');
+    const shareSidebar = readSource('src/components/external/share-info-sidebar.tsx');
 
     expect(existsSync(projectPath('src/components/score-shell'))).toBe(false);
     expect(surface).toContain('ScoreSurface');

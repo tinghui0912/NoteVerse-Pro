@@ -7,7 +7,7 @@ import { ArrowLeft, Activity, FileText, Lightbulb, LoaderCircle, Target } from '
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/page/page-header';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { practiceApi } from '@/lib/api';
 import type { PracticeReportPayload } from '@/types/api';

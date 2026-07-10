@@ -7,10 +7,10 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 const projectPath = (path: string) => resolve(process.cwd(), path);
 
 describe('Verovio listen surfaces', () => {
-  it('renders share access through the score shell and shared player surface', () => {
+  it('renders share access through the external score surface and shared player', () => {
     const page = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-    const player = readSource('src/components/share/share-score-player.tsx');
-    const sidebar = readSource('src/components/share/share-info-sidebar.tsx');
+    const player = readSource('src/components/external/share-score-player.tsx');
+    const sidebar = readSource('src/components/external/share-info-sidebar.tsx');
 
     expect(page).toContain('<ScoreSurface');
     expect(page).toContain('<ScoreCapabilityProvider');
@@ -21,8 +21,8 @@ describe('Verovio listen surfaces', () => {
     expect(sidebar).toContain('useScoreCapabilities');
   });
 
-  it('renders public score access through the score shell and capability model', () => {
-    const page = readSource('src/components/public/public-score-page.tsx');
+  it('renders public score access through the external score surface and capability model', () => {
+    const page = readSource('src/components/external/public-score-page.tsx');
 
     expect(page).toContain('<ScoreSurface');
     expect(page).toContain('<ScoreCapabilityProvider');

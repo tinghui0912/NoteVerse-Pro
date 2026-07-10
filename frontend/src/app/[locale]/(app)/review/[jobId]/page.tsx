@@ -4,7 +4,7 @@ import React from 'react';
 import { Check, CircleAlert, Loader2, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/page/page-header';
 import { Button } from '@/components/ui/button';
 import { ReviewScoreComparison } from '@/components/review/review-score-comparison';
 import { ReviewValidationWarnings } from '@/components/review/review-validation-warnings';

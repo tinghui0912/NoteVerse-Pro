@@ -3,14 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { UploadableFile } from '@/components/upload/upload-types';
-import { getCompletedJobRoute } from '@/components/upload/upload-types';
 import { useImportJobDetail, useSubmitImportJob } from '@/hooks/queries/use-import-job-queries';
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, importJobsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
+import { getCompletedJobRoute, type UploadableFile } from '@/lib/upload/upload-workflow';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
 const TASK_WAIT_TIMEOUT_MS = 18 * 60 * 1_000;

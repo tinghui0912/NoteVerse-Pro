@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/page/page-header';
 import { practiceApi } from '@/lib/api';
 import {
   useGrantContent,

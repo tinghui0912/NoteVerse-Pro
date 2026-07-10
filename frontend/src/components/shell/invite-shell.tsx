@@ -4,7 +4,7 @@ import { Music2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
-import { LanguageSwitcher } from '@/components/layout/nav-actions';
+import { LanguageSwitcher } from '@/components/navigation/nav-actions';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 

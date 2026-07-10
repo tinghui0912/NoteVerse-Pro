@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
-import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/layout/nav-actions';
+import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/navigation/nav-actions';
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   const t = useTranslations('common');

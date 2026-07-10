@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Loader2, PlusSquare, UploadCloud, XCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { UploadPreviewDialog } from './upload-preview-dialog';
-import type { UploadableFile } from './upload-types';
+import type { UploadableFile } from '@/lib/upload/upload-workflow';
 import {
   AlertDialog,
   AlertDialogAction,

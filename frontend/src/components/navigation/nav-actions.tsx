@@ -17,9 +17,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/auth-context';
-import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useMyPendingScoreInvites } from '@/hooks/queries/use-score-queries';
 import { useNotificationUnreadCount } from '@/hooks/queries/use-notification-queries';
+import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
 export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
@@ -29,15 +29,9 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className={cn('relative h-10 w-10 rounded-full', triggerClassName)}
-        >
+        <Button variant="ghost" className={cn('relative h-10 w-10 rounded-full', triggerClassName)}>
           <Avatar className="h-9 w-9">
-            <AvatarImage
-              src={user?.avatar || undefined}
-              alt={user?.name || ''}
-            />
+            <AvatarImage src={user?.avatar || undefined} alt={user?.name || ''} />
             <AvatarFallback>
               <User className="h-5 w-5" />
             </AvatarFallback>
@@ -48,9 +42,7 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{user?.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {t('premiumUser')}
-            </p>
+            <p className="text-xs leading-none text-muted-foreground">{t('premiumUser')}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -99,10 +91,7 @@ export function NotificationBell({ buttonClassName }: { buttonClassName?: string
           </span>
         ) : null}
       </Button>
-      <NotificationCenterDialog
-        open={isNotificationsOpen}
-        onOpenChange={setIsNotificationsOpen}
-      />
+      <NotificationCenterDialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen} />
     </>
   );
 }
@@ -120,7 +109,10 @@ export function LanguageSwitcher({ buttonClassName }: { buttonClassName?: string
         <Button
           variant="ghost"
           size="icon"
-          className={cn('rounded-full', buttonClassName ?? 'text-white hover:bg-white/20 hover:text-white')}
+          className={cn(
+            'rounded-full',
+            buttonClassName ?? 'text-white hover:bg-white/20 hover:text-white'
+          )}
         >
           <Globe className="h-5 w-5" />
         </Button>
@@ -129,13 +121,13 @@ export function LanguageSwitcher({ buttonClassName }: { buttonClassName?: string
         <DropdownMenuItem onClick={() => router.replace(currentHref, { locale: 'zh' })}>
           <div className="flex w-full items-center justify-between">
             <span>中文</span>
-            {locale === 'zh' && <Check className="h-4 w-4" />}
+            {locale === 'zh' ? <Check className="h-4 w-4" /> : null}
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.replace(currentHref, { locale: 'en' })}>
           <div className="flex w-full items-center justify-between">
             <span>English</span>
-            {locale === 'en' && <Check className="h-4 w-4" />}
+            {locale === 'en' ? <Check className="h-4 w-4" /> : null}
           </div>
         </DropdownMenuItem>
       </DropdownMenuContent>

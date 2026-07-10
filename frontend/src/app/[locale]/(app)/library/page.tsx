@@ -28,7 +28,7 @@ import { LibrarySidebar } from '@/components/library/library-sidebar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/page/page-header';
 import {
   useCreateLibraryFolder,
   useDeleteLibraryFolder,

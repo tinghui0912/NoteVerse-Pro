@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { PublicScorePage } from '@/components/public/public-score-page';
+import { PublicScorePage } from '@/components/external/public-score-page';
 
 async function fetchPublicTitle(slug: string): Promise<string | null> {
   const origin = process.env.NEXT_BACKEND_ORIGIN;

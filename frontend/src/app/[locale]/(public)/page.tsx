@@ -10,7 +10,7 @@ import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { useAuth } from '@/contexts/auth-context';
-import { AnimatedSection } from '@/components/home/animated-section';
+import { AnimatedSection } from '@/components/marketing/animated-section';
 import { MarketingFooter } from '@/components/marketing/marketing-footer';
 
 const features = [

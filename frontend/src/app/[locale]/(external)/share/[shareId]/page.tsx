@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
-import { ShareInfoSidebar } from '@/components/share/share-info-sidebar';
-import { ShareScorePlayer } from '@/components/share/share-score-player';
+import { ShareInfoSidebar } from '@/components/external/share-info-sidebar';
+import { ShareScorePlayer } from '@/components/external/share-score-player';
 import { useSharePageData } from '@/hooks/share/use-share-page-data';
 
 export default function SharePage({ params }: { params: Promise<{ shareId: string }> }) {

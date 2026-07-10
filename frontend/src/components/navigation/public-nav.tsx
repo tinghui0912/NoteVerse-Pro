@@ -12,7 +12,7 @@ import {
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { ClientOnly } from '@/components/client-only';
-import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/layout/nav-actions';
+import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/navigation/nav-actions';
 
 export function PublicNav() {
   const t = useTranslations('common');
