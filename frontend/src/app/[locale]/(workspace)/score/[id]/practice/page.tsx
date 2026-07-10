@@ -27,9 +27,11 @@ import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer
 import { PracticeControls } from '@/components/practice/practice-controls';
 import { PracticeStatusPanel } from '@/components/practice/practice-status-panel';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
+import { ResourceLoadError } from '@/components/error/resource-load-error';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { translateErrorCode } from '@/lib/i18n/error-message';
+import { ApiError } from '@/lib/api-client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type {
   PracticeConnectionStatus,
@@ -50,6 +52,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
   const t = useTranslations('practice');
+  const common = useTranslations('common');
   const errors = useTranslations('errors');
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -131,6 +134,17 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     : publicSlug
       ? publicContent.isLoading
       : scoreQuery.isLoading || revisionQuery.isLoading;
+  const loadError = shareToken
+    ? grantContent.error
+    : publicSlug
+      ? publicContent.error
+      : scoreQuery.error ?? revisionQuery.error;
+  const loadErrorDescription = loadError instanceof ApiError
+    ? translateErrorCode(errors, loadError.code, common('loadFailed'))
+    : loadError
+      ? common('loadFailed')
+      : null;
+  const canPreparePractice = canEnterPractice && Boolean(revisionId) && !loadError;
 
   const practiceStatusRef = useRef<PracticeStatus>('idle');
   const preconnectStartedRef = useRef(false);
@@ -316,7 +330,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   }
 
   preparePracticeSessionRef.current = async () => {
-    if (preconnectStartedRef.current || !audioWorkletSupported || !canEnterPractice) {
+    if (preconnectStartedRef.current || !audioWorkletSupported || !canPreparePractice) {
       return;
     }
 
@@ -345,7 +359,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     void preparePracticeSession();
-  }, [audioWorkletSupported, canEnterPractice, id, preparePracticeSession, shareToken]);
+  }, [audioWorkletSupported, canPreparePractice, id, preparePracticeSession, publicSlug, shareToken]);
 
   const handleStart = async () => {
     if (!canEnterPractice) {
@@ -515,6 +529,25 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
   };
 
+  if (loadErrorDescription) {
+    return (
+      <ScoreSurface>
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+          <PageHeader
+            title={t('mode')}
+            description={t('subtitle')}
+          />
+          <ResourceLoadError
+            title={common('loadFailed')}
+            description={loadErrorDescription}
+            actionLabel={common('back')}
+            onAction={() => router.back()}
+          />
+        </div>
+      </ScoreSurface>
+    );
+  }
+
   return (
     <ScoreSurface>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -559,6 +592,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                       connectionStatus={connectionStatus}
                       isLoading={isLoading}
                       isPreparingSession={isPreparingSession}
+                      canPrepareSession={canPreparePractice}
                       audioWorkletSupported={audioWorkletSupported}
                       practiceClockStarted={practiceClockStarted}
                       practiceTime={practiceTime}

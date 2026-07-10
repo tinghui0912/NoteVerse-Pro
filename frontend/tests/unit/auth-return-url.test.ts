@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
+import {
+  getLoginHrefForReturnUrl,
+  getLoginPath,
+  getSafeReturnUrl,
+  withReturnUrl,
+} from '@/lib/auth/return-url';
 
 describe('auth return url helpers', () => {
   it('accepts only relative same-origin return URLs', () => {
@@ -17,5 +22,14 @@ describe('auth return url helpers', () => {
     );
     expect(withReturnUrl('/login', '/score/score-1')).toBe('/login?returnUrl=%2Fscore%2Fscore-1');
     expect(withReturnUrl('/register', 'https://evil.example')).toBe('/register');
+  });
+
+  it('builds locale-aware login URLs with the current route as returnUrl', () => {
+    expect(getLoginPath('/library')).toBe('/auth/login');
+    expect(getLoginPath('/zh/library')).toBe('/zh/auth/login');
+    expect(getLoginPath('/en/settings/profile')).toBe('/en/auth/login');
+    expect(getLoginHrefForReturnUrl('/zh/library?view=all')).toBe(
+      '/zh/auth/login?returnUrl=%2Fzh%2Flibrary%3Fview%3Dall'
+    );
   });
 });

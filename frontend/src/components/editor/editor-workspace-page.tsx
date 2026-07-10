@@ -1,10 +1,10 @@
 'use client';
 
-import { CircleAlert, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
+import { ResourceLoadError } from '@/components/error/resource-load-error';
 import { PageHeader } from '@/components/page/page-header';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
@@ -66,15 +66,12 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
 
   if (document.finalLoadError) {
     return renderFrame(
-      <div className="flex min-h-[50vh] items-center justify-center py-16">
-        <div className="mx-4 w-full max-w-md text-center">
-          <CircleAlert className="mx-auto mb-6 h-14 w-14 text-destructive" />
-          <h2 className="mb-3 text-2xl font-bold text-gray-900">{common('loadFailed')}</h2>
-          <p className="mb-2 text-gray-600">{document.finalLoadError}</p>
-          <p className="mb-8 text-sm text-gray-500">{t('loadFailedHint')}</p>
-          <Button onClick={() => router.back()} className="px-8">{common('back')}</Button>
-        </div>
-      </div>
+      <ResourceLoadError
+        title={common('loadFailed')}
+        description={document.finalLoadError}
+        actionLabel={common('back')}
+        onAction={() => router.back()}
+      />
     );
   }
 

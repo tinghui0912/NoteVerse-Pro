@@ -5,18 +5,22 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ResourceLoadError } from '@/components/error/resource-load-error';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ScorePlayer } from '@/components/score-detail/score-player';
 import { useAuth } from '@/contexts/auth-context';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { usePublicScore, usePublicScoreContent } from '@/hooks/queries/use-score-queries';
+import { ApiError } from '@/lib/api-client';
 import { filesApi, publicationsApi } from '@/lib/api';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { formatKeySignature } from '@/lib/score/metadata-display';
 import { resolveScoreCapabilities } from '@/lib/score/capabilities';
 
 function PublicScoreContent({ slug }: { slug: string }) {
   const common = useTranslations('common');
+  const errors = useTranslations('errors');
   const practice = useTranslations('practice');
   const scoreText = useTranslations('score');
   const { isAuthenticated } = useAuth();
@@ -35,12 +39,20 @@ function PublicScoreContent({ slug }: { slug: string }) {
     );
   }
 
-  if (!data || publication.error || content.error) {
+  const loadError = publication.error ?? content.error;
+  if (!data || loadError) {
+    const description = loadError instanceof ApiError
+      ? translateErrorCode(errors, loadError.code, common('loadFailed'))
+      : common('loadFailed');
     return (
       <ScoreSurface>
-        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center text-muted-foreground">
-          {common('loadFailed')}
-        </div>
+        <ResourceLoadError
+          title={common('loadFailed')}
+          description={description}
+          actionLabel={common('nav.home')}
+          actionHref="/"
+          className="min-h-[calc(100vh-4rem)]"
+        />
       </ScoreSurface>
     );
   }

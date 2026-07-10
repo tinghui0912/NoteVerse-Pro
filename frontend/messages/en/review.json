@@ -7,7 +7,6 @@
   "needsEdit": "Needs Edit",
   "loadFailed": "Load Failed",
   "saveFailed": "Save Failed",
-  "loadFailedHint": "Please verify the task processing is complete, or contact admin.",
   "invalidTaskState": "Invalid task state: {state}",
   "loadTaskFailed": "Failed to load task details",
   "originalScorePage": "Original Score Page {page}",

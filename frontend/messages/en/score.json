@@ -31,7 +31,6 @@
   "saveSuccess": "Save Successful",
   "saveFailed": "Save Failed",
   "saveFailedDesc": "Unable to save score info",
-  "loadFailedHint": "Please verify the task exists, or contact admin.",
   "nameEmptyTitle": "Name cannot be empty",
   "nameEmptyDesc": "The score name cannot be empty.",
   "scoreInfoUpdated": "Score info has been updated.",

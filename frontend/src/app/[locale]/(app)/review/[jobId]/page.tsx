@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Check, CircleAlert, Loader2, Pencil } from 'lucide-react';
+import { Check, Loader2, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page/page-header';
 import { Button } from '@/components/ui/button';
+import { ResourceLoadError } from '@/components/error/resource-load-error';
 import { ReviewScoreComparison } from '@/components/review/review-score-comparison';
 import { ReviewValidationWarnings } from '@/components/review/review-validation-warnings';
 import { useReviewPageData } from '@/hooks/review/use-review-page-data';
@@ -35,15 +36,12 @@ export default function ReviewPage({ params }: { params: Promise<{ jobId: string
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader title={t('title')} description={t('subtitle')} />
-        <div className="flex min-h-[50vh] items-center justify-center py-16">
-          <div className="mx-4 w-full max-w-md text-center">
-            <CircleAlert className="mx-auto mb-6 h-14 w-14 text-destructive" />
-            <h2 className="mb-3 text-2xl font-bold text-gray-900">{common('loadFailed')}</h2>
-            <p className="mb-2 text-gray-600">{page.error}</p>
-            <p className="mb-8 text-sm text-gray-500">{t('loadFailedHint')}</p>
-            <Button onClick={() => router.back()} className="px-8">{common('back')}</Button>
-          </div>
-        </div>
+        <ResourceLoadError
+          title={common('loadFailed')}
+          description={page.error}
+          actionLabel={common('back')}
+          onAction={() => router.back()}
+        />
       </div>
     );
   }

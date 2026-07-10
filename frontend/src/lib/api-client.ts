@@ -1,8 +1,8 @@
 'use client';
 
+import { getCurrentLoginHref } from '@/lib/auth/return-url';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
-const DEFAULT_LOGIN_PATH = '/auth/login';
-const LOCALE_PATTERN = /^\/(zh|en)(\/|$)/;
 const CSRF_COOKIE_NAME = process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME || 'noteverse_csrf';
 const CSRF_HEADER_NAME = process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || 'x-csrf-token';
 
@@ -68,19 +68,13 @@ function shouldSkipRefresh(url: string): boolean {
   );
 }
 
-function getLoginPath(pathname: string): string {
-  const localeMatch = pathname.match(LOCALE_PATTERN);
-  return localeMatch ? `/${localeMatch[1]}${DEFAULT_LOGIN_PATH}` : DEFAULT_LOGIN_PATH;
-}
-
 function redirectToLoginIfNeeded(options?: RequestOptions): void {
   if (options?.suppressAuthRedirect || typeof window === 'undefined') return;
 
-  const { pathname, search } = window.location;
+  const { pathname } = window.location;
   if (pathname.endsWith('/auth/login')) return;
 
-  const returnUrl = encodeURIComponent(`${pathname}${search}`);
-  window.location.href = `${getLoginPath(pathname)}?returnUrl=${returnUrl}`;
+  window.location.href = getCurrentLoginHref();
 }
 
 async function readJsonSafely(response: Response): Promise<Record<string, unknown>> {

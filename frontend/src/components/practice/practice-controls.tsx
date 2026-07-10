@@ -18,6 +18,7 @@ interface PracticeControlsProps {
   connectionStatus: PracticeConnectionStatus;
   isLoading: boolean;
   isPreparingSession: boolean;
+  canPrepareSession: boolean;
   audioWorkletSupported: boolean;
   practiceClockStarted: boolean;
   practiceTime: number;
@@ -31,6 +32,7 @@ export function PracticeControls({
   connectionStatus,
   isLoading,
   isPreparingSession,
+  canPrepareSession,
   audioWorkletSupported,
   practiceClockStarted,
   practiceTime,
@@ -47,11 +49,13 @@ export function PracticeControls({
     (status === 'arming' || status === 'listening' || status === 'practicing' || status === 'paused');
   const isPreparingConnection =
     (status === 'idle' || status === 'finished') &&
+    canPrepareSession &&
     audioWorkletSupported &&
     !isLoading &&
     (isPreparingSession || connectionStatus !== 'ready');
   const canStart =
     (status === 'idle' || status === 'finished') &&
+    canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
     connectionStatus === 'ready' &&

@@ -3,8 +3,7 @@
 import React from 'react';
 import { Ban, CircleAlert, Clock3, Loader2, SearchX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { ResourceLoadError } from '@/components/error/resource-load-error';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ShareInfoSidebar } from '@/components/external/share-info-sidebar';
@@ -15,7 +14,6 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   const { shareId } = React.use(params);
   const t = useTranslations('share');
   const common = useTranslations('common');
-  const router = useRouter();
   const page = useSharePageData(shareId);
 
   if (page.authLoading || page.loading) {
@@ -34,39 +32,34 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         icon: SearchX,
         title: t('errorNotFoundTitle'),
         description: t('errorNotFoundDesc'),
-        hint: t('hintNotFound'),
       }
       : type === 'revoked'
         ? {
           icon: Ban,
           title: t('errorRevokedTitle'),
           description: t('errorRevokedDesc'),
-          hint: t('hintRevoked'),
         }
         : type === 'expired'
           ? {
             icon: Clock3,
             title: t('errorExpiredTitle'),
             description: t('errorExpiredDesc'),
-            hint: t('hintExpired'),
           }
           : {
             icon: CircleAlert,
             title: t('loadFailed'),
             description: t('loadFailed'),
-            hint: t('hintNotFound'),
           };
     return (
       <ScoreSurface>
-        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center py-16">
-          <div className="mx-4 w-full max-w-md text-center">
-            <config.icon className="mx-auto mb-6 h-14 w-14 text-destructive" />
-            <h2 className="mb-3 text-2xl font-bold">{config.title}</h2>
-            <p className="mb-2 text-gray-600">{config.description}</p>
-            <p className="mb-8 text-sm text-gray-500">{config.hint}</p>
-            <Button onClick={() => router.push('/')}>{common('nav.home')}</Button>
-          </div>
-        </div>
+        <ResourceLoadError
+          icon={config.icon}
+          title={config.title}
+          description={config.description}
+          actionLabel={common('nav.home')}
+          actionHref="/"
+          className="min-h-[calc(100vh-4rem)]"
+        />
       </ScoreSurface>
     );
   }

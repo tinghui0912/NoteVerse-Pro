@@ -4,6 +4,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback, Rea
 import { authApi, profileApi } from '@/lib/api';
 import type { User as ApiUser } from '@/types/api';
 import { ApiError } from '@/lib/api-client';
+import { getCurrentLoginHref } from '@/lib/auth/return-url';
 
 // ============ 类型定义 ============
 
@@ -116,6 +117,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await authApi.logout();
     setIsAuthenticated(false);
     setUser(null);
+    if (typeof window !== 'undefined') {
+      window.location.assign(getCurrentLoginHref());
+    }
   };
 
   /**

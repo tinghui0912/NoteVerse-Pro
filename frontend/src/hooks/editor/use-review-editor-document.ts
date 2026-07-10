@@ -9,6 +9,8 @@ import { useEditorSaveErrorToast } from '@/hooks/editor/use-editor-save-error-to
 import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completion';
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
+import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { ensureStableMusicXmlIdsString, stripAppOwnedMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { useImportJobReview, useUpdateImportJobReview } from '@/hooks/queries/use-review-queries';
@@ -22,7 +24,8 @@ export function useReviewEditorDocument({
   returnUrl?: string;
 }): EditorWorkspaceDocument {
   const router = useRouter();
-  const reviewT = useTranslations('review');
+  const common = useTranslations('common');
+  const errors = useTranslations('errors');
   const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
   const completeSave = useEditorSaveCompletion({ applyXml });
   const showSaveError = useEditorSaveErrorToast({ titleNamespace: 'review' });
@@ -76,7 +79,7 @@ export function useReviewEditorDocument({
       } catch (error) {
         console.error('Failed to parse review XML:', error);
         if (!cancelled) {
-          setLoadError(reviewT('loadFailedHint'));
+          setLoadError(common('loadFailed'));
           clearXml();
         }
       } finally {
@@ -86,7 +89,7 @@ export function useReviewEditorDocument({
     return () => {
       cancelled = true;
     };
-  }, [applyXml, clearXml, draftBaseRevisionId, draftResourceId, initialized, reviewT, xmlContent]);
+  }, [applyXml, clearXml, common, draftBaseRevisionId, draftResourceId, initialized, xmlContent]);
 
   const performSave = () => {
     if (!currentXml) return;
@@ -120,7 +123,11 @@ export function useReviewEditorDocument({
     currentXml,
     discardDraft,
     draftDialogOpen,
-    finalLoadError: reviewQuery.error ? reviewT('loadFailedHint') : loadError,
+    finalLoadError: reviewQuery.error
+      ? reviewQuery.error instanceof ApiError
+        ? translateErrorCode(errors, reviewQuery.error.code, common('loadFailed'))
+        : common('loadFailed')
+      : loadError,
     isAutoSaving,
     isLoading: reviewQuery.isLoading || (Boolean(xmlContent) && !initialized),
     normalizeVoices,

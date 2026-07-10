@@ -139,4 +139,14 @@ describe('route shell groups', () => {
     expect(uploadHook).toContain('@/lib/upload/upload-workflow');
     expect(uploadHook).not.toContain('@/components/upload');
   });
+
+  it('redirects logout and expired sessions through the same returnUrl helper', () => {
+    const authContext = readSource('src/contexts/auth-context.tsx');
+    const apiClient = readSource('src/lib/api-client.ts');
+
+    expect(authContext).toContain('getCurrentLoginHref');
+    expect(authContext).toContain('window.location.assign(getCurrentLoginHref())');
+    expect(apiClient).toContain('getCurrentLoginHref');
+    expect(apiClient).toContain('window.location.href = getCurrentLoginHref()');
+  });
 });

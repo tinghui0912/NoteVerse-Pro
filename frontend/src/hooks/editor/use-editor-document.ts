@@ -25,6 +25,7 @@ import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
 export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; returnUrl?: string }): EditorWorkspaceDocument {
   const t = useTranslations('editor');
+  const common = useTranslations('common');
   const errors = useTranslations('errors');
   const { toast } = useToast();
   const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
@@ -84,7 +85,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
       } catch (error) {
         console.error('Failed to parse score XML:', error);
         if (!cancelled) {
-          setLoadError(t('loadFailedHint'));
+          setLoadError(common('loadFailed'));
           clearXml();
         }
       } finally {
@@ -94,7 +95,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     return () => {
       cancelled = true;
     };
-  }, [applyXml, clearXml, initialized, revisionId, scoreId, t, xmlContent]);
+  }, [applyXml, clearXml, common, initialized, revisionId, scoreId, xmlContent]);
 
   const performSave = () => {
     if (!currentXml || !revisionId) return;
@@ -187,7 +188,13 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     currentXml,
     discardDraft,
     draftDialogOpen,
-    finalLoadError: scoreQuery.error || revisionQuery.error ? t('loadFailedHint') : loadError,
+    finalLoadError: scoreQuery.error || revisionQuery.error
+      ? scoreQuery.error instanceof ApiError
+        ? translateErrorCode(errors, scoreQuery.error.code, common('loadFailed'))
+        : revisionQuery.error instanceof ApiError
+          ? translateErrorCode(errors, revisionQuery.error.code, common('loadFailed'))
+          : common('loadFailed')
+      : loadError,
     fingeringPending: generateFingeringMutation.isPending,
     generateFingering,
     isAutoSaving,

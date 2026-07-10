@@ -112,7 +112,6 @@
   "mustAdjacentNotes": "延音线必须连接相邻音符",
   "saveFailed": "保存失败",
   "saveFailedDesc": "无法保存乐谱",
-  "loadFailedHint": "请确认任务是否存在，或联系管理员。",
   "draftRecovered": "草稿已恢复",
   "draftRecoveredDesc": "已恢复上次编辑的内容",
   "draftDiscarded": "草稿已放弃",

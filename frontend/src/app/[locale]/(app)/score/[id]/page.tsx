@@ -1,11 +1,10 @@
 'use client';
 
 import React, { Suspense } from 'react';
-import { CircleAlert, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/routing';
 import { PageHeader } from '@/components/page/page-header';
-import { Button } from '@/components/ui/button';
+import { ResourceLoadError } from '@/components/error/resource-load-error';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ScoreActions } from '@/components/score-detail/score-actions';
@@ -55,19 +54,13 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
       <ScoreSurface>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <PageHeader title={t('title')} />
-          <div className="flex min-h-[40vh] items-center justify-center py-16">
-            <div className="mx-4 w-full max-w-md text-center">
-              <CircleAlert className="mx-auto mb-6 h-14 w-14 text-destructive" />
-              <h2 className="mb-3 text-2xl font-bold text-gray-900">{common('loadFailed')}</h2>
-              <p className="mb-2 text-gray-600">{error}</p>
-              <p className="mb-8 text-sm text-gray-500">{t('loadFailedHint')}</p>
-              <Button asChild className="px-8">
-                <Link href={source === 'my-scores' ? '/my-scores' : '/library'}>
-                  {source === 'my-scores' ? common('nav.myScores') : t('backToLibrary')}
-                </Link>
-              </Button>
-            </div>
-          </div>
+          <ResourceLoadError
+            title={common('loadFailed')}
+            description={error}
+            actionLabel={source === 'my-scores' ? common('nav.myScores') : t('backToLibrary')}
+            actionHref={source === 'my-scores' ? '/my-scores' : '/library'}
+            className="min-h-[40vh]"
+          />
         </div>
       </ScoreSurface>
     );

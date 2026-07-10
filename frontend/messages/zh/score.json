@@ -31,7 +31,6 @@
   "saveSuccess": "保存成功",
   "saveFailed": "保存失败",
   "saveFailedDesc": "无法保存乐谱信息",
-  "loadFailedHint": "请确认乐谱是否存在，或联系管理员。",
   "nameEmptyTitle": "名称不能为空",
   "nameEmptyDesc": "乐谱名称不能为空。",
   "scoreInfoUpdated": "乐谱信息已更新。",
