@@ -8,12 +8,14 @@ const readSource = (path: string) => readFileSync(projectPath(path), 'utf8');
 
 describe('score workspace routes', () => {
   it('keeps score as the product route family', () => {
-    expect(existsSync(projectPath('src/app/[locale]/score/[id]/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/score/[id]/edit/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/score/[id]/practice/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/score/[id]/practice/performance/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/review/[jobId]/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/review/[jobId]/edit/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(app)/score/[id]/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/performance/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(app)/review/[jobId]/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(workspace)/review/[jobId]/edit/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(external)/share/[shareId]/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(external)/public/[slug]/page.tsx'))).toBe(true);
 
     expect(existsSync(projectPath('src/app/[locale]/results'))).toBe(false);
     expect(existsSync(projectPath('src/app/[locale]/editor'))).toBe(false);
@@ -24,8 +26,9 @@ describe('score workspace routes', () => {
     const proxy = readSource('src/proxy.ts');
 
     expect(proxy).toContain("'/score'");
-    expect(proxy).toContain("'/share'");
     expect(proxy).toContain("'/review'");
+    expect(proxy).not.toContain("'/share'");
+    expect(proxy).not.toContain("'/public'");
     expect(proxy).not.toContain("'/results'");
     expect(proxy).not.toContain("'/editor'");
     expect(proxy).not.toContain("'/practice'");
@@ -34,9 +37,9 @@ describe('score workspace routes', () => {
   it('routes score detail actions into score workspaces', () => {
     const actions = readSource('src/components/score-detail/score-actions.tsx');
     const upload = readSource('src/components/upload/upload-types.ts');
-    const reviewPage = readSource('src/app/[locale]/review/[jobId]/page.tsx');
-    const scoreEditor = readSource('src/app/[locale]/score/[id]/edit/page.tsx');
-    const reviewEditor = readSource('src/app/[locale]/review/[jobId]/edit/page.tsx');
+    const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
+    const scoreEditor = readSource('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx');
+    const reviewEditor = readSource('src/app/[locale]/(workspace)/review/[jobId]/edit/page.tsx');
 
     expect(actions).toContain('/score/${scoreId}/edit');
     expect(actions).toContain('/score/${scoreId}/practice');
@@ -49,8 +52,8 @@ describe('score workspace routes', () => {
   });
 
   it('keeps share and public routes as score access entries', () => {
-    const sharePage = readSource('src/app/[locale]/share/[shareId]/page.tsx');
-    const invitePage = readSource('src/app/[locale]/invite/[token]/page.tsx');
+    const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
+    const invitePage = readSource('src/app/[locale]/(public)/invite/[token]/page.tsx');
     const shareSidebar = readSource('src/components/share/share-info-sidebar.tsx');
     const publicPage = readSource('src/components/public/public-score-page.tsx');
 

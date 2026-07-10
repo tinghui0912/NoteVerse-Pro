@@ -24,5 +24,8 @@
   "yourCurrentPlan": "Your Current Plan",
   "upgradePlan": "Upgrade Plan",
   "manageSubscription": "Manage Subscription",
+  "signedInPlanStatus": "You are signed in to NoteVerse Pro",
+  "signedInPlanDesc": "This public pricing page explains available plans. Manage your account billing and current subscription in settings.",
+  "backToBilling": "Back to billing settings",
   "comingSoon": "Coming Soon"
 }

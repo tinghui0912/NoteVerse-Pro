@@ -2,6 +2,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { ArrowLeft } from 'lucide-react';
 
 import {
   Accordion,
@@ -9,8 +10,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Footer } from '@/components/layout/footer';
+import { useAuth } from '@/contexts/auth-context';
+import { Link } from '@/i18n/routing';
 
 const faqs = [
   {
@@ -33,6 +37,7 @@ const faqs = [
 
 export default function HelpPage() {
   const t = useTranslations('help');
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col">
@@ -45,6 +50,20 @@ export default function HelpPage() {
 
       <main className="flex-grow">
         <div className="max-w-4xl mx-auto px-4 py-16">
+          {isAuthenticated ? (
+            <div className="mb-8 flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{t('signedInHelpTitle')}</p>
+                <p className="mt-1 text-sm text-gray-600">{t('signedInHelpDesc')}</p>
+              </div>
+              <Button asChild variant="outline">
+                <Link href="/library">
+                  <ArrowLeft className="h-4 w-4" />
+                  {t('backToApp')}
+                </Link>
+              </Button>
+            </div>
+          ) : null}
           <Card className="bg-white p-8 rounded-2xl shadow-lg">
             <CardContent className="p-0">
               <Accordion type="single" collapsible className="w-full">

@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
@@ -74,6 +74,20 @@ export default function SubscriptionsPage() {
       
       <main className="grow">
         <div className="max-w-7xl mx-auto px-4 py-16">
+          {isAuthenticated ? (
+            <div className="mb-8 flex flex-col gap-4 rounded-lg border border-orange-200 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-orange-700">{t('signedInPlanStatus')}</p>
+                <p className="mt-1 text-sm text-orange-900">{t('signedInPlanDesc')}</p>
+              </div>
+              <Button asChild variant="outline" className="border-orange-300 bg-white">
+                <Link href="/settings/billing">
+                  <ArrowLeft className="h-4 w-4" />
+                  {t('backToBilling')}
+                </Link>
+              </Button>
+            </div>
+          ) : null}
           <div className="grid items-start gap-8 md:grid-cols-3">
             {pricingTiers.map((tier) => (
               <Card

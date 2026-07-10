@@ -1,12 +1,13 @@
 'use client';
 
-import { Download, Gamepad2, Loader2 } from 'lucide-react';
+import { Download, ExternalLink, Gamepad2, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScoreShell } from '@/components/score-shell/score-shell';
 import { ScorePlayer } from '@/components/score-detail/score-player';
+import { useAuth } from '@/contexts/auth-context';
 import { EditorProvider } from '@/contexts/editor-provider';
 import { usePublicScore, usePublicScoreContent } from '@/hooks/queries/use-score-queries';
 import { filesApi, publicationsApi } from '@/lib/api';
@@ -17,6 +18,7 @@ function PublicScoreContent({ slug }: { slug: string }) {
   const common = useTranslations('common');
   const practice = useTranslations('practice');
   const scoreText = useTranslations('score');
+  const { isAuthenticated } = useAuth();
   const publication = usePublicScore(slug);
   const content = usePublicScoreContent(slug);
   const data = publication.data?.data;
@@ -103,6 +105,15 @@ function PublicScoreContent({ slug }: { slug: string }) {
                 <CardTitle>{scoreText('actionsTitle')}</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-3">
+                {isAuthenticated ? (
+                  <Button asChild variant="outline" className="h-16 justify-start gap-3 bg-white px-4">
+                    <Link href={`/score/${scoreId}`}>
+                      <ExternalLink className="h-5 w-5 shrink-0" />
+                      <span className="truncate">{common('openApp')}</span>
+                    </Link>
+                  </Button>
+                ) : null}
+
                 {capabilities.can_practice ? (
                   <Button asChild variant="outline" className="h-16 justify-start gap-3 bg-white px-4">
                     <Link href={`/score/${scoreId}/practice?publicSlug=${slug}`}>
