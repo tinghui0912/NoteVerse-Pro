@@ -66,7 +66,7 @@ export default function ConfirmEmailChangePage() {
   if (state === 'confirming') {
     return (
       <AuthCard title={t('confirmingEmailChangeTitle')} subtitle={t('confirmingEmailChangeSubtitle')}>
-        <div className="flex justify-center py-6 text-white">
+        <div className="flex justify-center py-6 text-orange-600">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
       </AuthCard>

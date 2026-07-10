@@ -67,7 +67,7 @@ export default function VerifyEmailPage() {
   if (state === 'verifying') {
     return (
       <AuthCard title={t('verifyingEmailTitle')} subtitle={t('verifyingEmailSubtitle')}>
-        <div className="flex justify-center py-6 text-white">
+        <div className="flex justify-center py-6 text-orange-600">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
       </AuthCard>

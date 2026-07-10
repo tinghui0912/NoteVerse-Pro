@@ -15,31 +15,33 @@ export function Footer() {
   const ctaLink = isAuthenticated ? '/upload' : '/auth/login';
 
   return (
-    <footer className="bg-black text-white py-16" id="contact">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-16 gap-8">
-            <h2 className="text-4xl sm:text-5xl font-medium">
+    <footer className="border-t border-gray-200 bg-white py-12 text-gray-900" id="contact">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mb-12 flex flex-col items-start justify-between gap-6 rounded-lg border border-orange-100 bg-orange-50/70 p-6 lg:flex-row lg:items-center">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               {tHome('ctaTitle')}
             </h2>
             <Link href={ctaLink}>
-              <Button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold group px-8 py-3">
+              <Button className="group bg-orange-500 px-6 py-3 font-semibold text-white hover:bg-orange-600">
                 {tHome('ctaButton')}
                 <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
           </div>
-          <div className="border-t border-gray-800 pt-8 mt-16">
+          <div className="border-t border-gray-200 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                <div className="flex items-center gap-2">
-                <Music2 className="h-6 w-6 text-primary" />
-                <span className="font-headline text-xl font-bold">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-orange-500 text-white">
+                  <Music2 className="h-5 w-5" />
+                </span>
+                <span className="font-headline text-xl font-semibold tracking-tight">
                   NoteVerse Pro
                 </span>
               </div>
-              <p className="text-gray-500 text-sm">© {new Date().getFullYear()} NoteVerse Pro. {tCommon('allRightsReserved')}</p>
-              <div className="flex space-x-6 text-sm text-gray-400">
-                <a href="#" className="hover:text-white transition-colors">{tCommon('privacyPolicy')}</a>
-                <a href="#" className="hover:text-white transition-colors">{tCommon('termsOfService')}</a>
+              <p className="text-sm text-gray-500">© {new Date().getFullYear()} NoteVerse Pro. {tCommon('allRightsReserved')}</p>
+              <div className="flex space-x-6 text-sm text-gray-500">
+                <a href="#" className="transition-colors hover:text-gray-950">{tCommon('privacyPolicy')}</a>
+                <a href="#" className="transition-colors hover:text-gray-950">{tCommon('termsOfService')}</a>
               </div>
             </div>
           </div>

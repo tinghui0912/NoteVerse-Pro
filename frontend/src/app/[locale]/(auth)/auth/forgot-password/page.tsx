@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={isSubmitting}
-            className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
+            className="h-12 border-gray-200 bg-white text-base text-gray-950 focus-visible:border-orange-500 focus-visible:ring-orange-100"
           />
           {emailError ? <p className="mt-2 text-sm text-destructive">{emailError}</p> : null}
         </div>
@@ -102,7 +102,7 @@ export default function ForgotPasswordPage() {
               t('sendResetLinkButton')
             )}
           </Button>
-          <Button variant="link" asChild className="text-white">
+          <Button variant="link" asChild className="text-orange-600 hover:text-orange-700">
             <Link href="/auth/login">{t('backToLogin')}</Link>
           </Button>
         </div>

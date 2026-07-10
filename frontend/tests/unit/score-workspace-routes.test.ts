@@ -53,13 +53,10 @@ describe('score workspace routes', () => {
 
   it('keeps share and public routes as score access entries', () => {
     const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-    const invitePage = readSource('src/app/[locale]/(public)/invite/[token]/page.tsx');
     const shareSidebar = readSource('src/components/share/share-info-sidebar.tsx');
     const publicPage = readSource('src/components/public/public-score-page.tsx');
 
     expect(sharePage).toContain('<ScoreShell');
-    expect(invitePage).toContain('<ScoreShell');
-    expect(invitePage).toContain('/score/${scoreId}');
     expect(sharePage).toContain('capabilities={data.capabilities}');
     expect(shareSidebar).toContain('/score/${props.scoreId}/practice?shareToken=${props.shareId}');
     expect(publicPage).toContain('<ScoreShell');

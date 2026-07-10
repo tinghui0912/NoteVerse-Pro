@@ -40,11 +40,11 @@ export default function HelpPage() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="bg-gray-50 min-h-screen flex flex-col">
-      <div className="bg-gray-900">
-        <div className="pt-32 pb-16 max-w-7xl mx-auto px-4 text-center">
-          <h1 className="text-4xl sm:text-6xl font-bold text-white mb-4">{t('title')}</h1>
-          <p className="text-lg text-gray-300">{t('subtitle')}</p>
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-16 text-center">
+          <h1 className="mb-4 text-4xl font-semibold tracking-tight text-gray-950 sm:text-5xl">{t('title')}</h1>
+          <p className="text-lg text-gray-600">{t('subtitle')}</p>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ export default function HelpPage() {
               </Button>
             </div>
           ) : null}
-          <Card className="bg-white p-8 rounded-2xl shadow-lg">
+          <Card className="rounded-lg bg-white p-8 shadow-sm">
             <CardContent className="p-0">
               <Accordion type="single" collapsible className="w-full">
                 {faqs.map((faq, index) => (

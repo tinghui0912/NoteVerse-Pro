@@ -113,36 +113,35 @@ export default function HomePage() {
   const ctaLink = isAuthenticated ? '/upload' : '/auth/login';
 
   return (
-    <main className="bg-white">
+    <main className="bg-gray-50">
       {/* Hero Section */}
-      <div className="relative min-h-screen overflow-hidden">
+      <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-gray-50">
         <div className="absolute inset-0">
           <Image
             src={placeholderImages['main-bg'].url}
             alt="Musical background"
             fill
             priority
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover opacity-20"
           />
-          <div className="absolute inset-0 bg-linear-to-r from-gray-900/80 via-gray-900/60 to-gray-900/80"></div>
-          <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent"></div>
+          <div className="absolute inset-0 bg-white/80"></div>
         </div>
-        <div className="relative z-10 min-h-screen flex items-center">
-          <div className="max-w-7xl mx-auto px-6 w-full text-white text-left">
-            <h1 className="text-5xl lg:text-7xl font-bold leading-tight">
+        <div className="relative z-10 flex min-h-[calc(100vh-4rem)] items-center">
+          <div className="mx-auto w-full max-w-7xl px-6 text-left text-gray-950">
+            <h1 className="text-5xl font-semibold leading-tight tracking-tight lg:text-7xl">
               NOTEVERSE
               <br />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-orange-400 to-red-500">
+              <span className="text-orange-600">
                 PRO
               </span>
             </h1>
-            <p className="mt-6 text-xl text-white/90 leading-relaxed max-w-2xl">
+            <p className="mt-6 max-w-2xl text-xl leading-relaxed text-gray-600">
               {t('heroSubtitle')}
             </p>
              <div className="mt-8 flex flex-col items-start justify-start gap-4 sm:flex-row">
                 <Button 
                   size="lg"
-                  className="bg-linear-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold px-8 py-4 text-lg group transition-all duration-300"
+                  className="group bg-orange-500 px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-orange-600"
                 >
                   <Link href={ctaLink} className="flex items-center">
                     {tPricing('startForFree')}
@@ -152,13 +151,12 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-white to-transparent"></div>
       </div>
 
       {/* How It Works Section */}
       <AnimatedSection className="py-24 sm:py-32 bg-gray-50/80">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 bg-gray-200 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 mb-6">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-md bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200">
             {t('howItWorksTitle')}
           </div>
           <h2 className="text-4xl sm:text-5xl font-medium text-gray-900 leading-tight mb-6">{t('howItWorksSubtitle')}</h2>
@@ -198,19 +196,19 @@ export default function HomePage() {
               {features.map((feature, index) => (
                 <Card
                   key={index}
-                  className={`p-6 rounded-2xl transition-all duration-300 group ${
+                  className={`rounded-lg p-6 transition-all duration-300 group ${
                     feature.highlighted
-                      ? 'bg-orange-500 text-white shadow-2xl'
-                      : 'bg-gray-50 text-gray-900 hover:shadow-xl hover:-translate-y-2'
+                      ? 'border-orange-200 bg-orange-50 text-gray-900 shadow-sm'
+                      : 'bg-gray-50 text-gray-900 hover:-translate-y-1 hover:shadow-lg'
                   }`}
                 >
                   <div className="space-y-4">
-                    <feature.icon className={`w-8 h-8 ${feature.highlighted ? 'text-white' : 'text-orange-500'}`} />
+                    <feature.icon className="h-8 w-8 text-orange-500" />
                     <h3 className="text-xl font-semibold">{t(feature.title as never)}</h3>
-                    <p className={`${feature.highlighted ? 'text-white/90' : 'text-gray-600'}`}>
+                    <p className="text-gray-600">
                       {t(feature.description as never)}
                     </p>
-                    <a href="#" className={`flex items-center gap-2 text-sm font-semibold ${feature.highlighted ? 'text-white' : 'text-orange-500'} group-hover:gap-3 transition-all`}>
+                    <a href="#" className="flex items-center gap-2 text-sm font-semibold text-orange-600 transition-all group-hover:gap-3">
                       {t('viewDetails')}
                       <ArrowRight className="w-4 h-4" />
                     </a>
@@ -227,7 +225,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row justify-between items-start gap-8 mb-12">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 bg-gray-200 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800">
+              <div className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200">
                 {t('testimonialsTag')}
               </div>
               <h2 className="text-4xl sm:text-5xl font-medium text-gray-900 leading-tight">
@@ -237,7 +235,7 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <Card key={index} className="bg-white p-8 rounded-2xl shadow-lg space-y-6">
+              <Card key={index} className="space-y-6 rounded-lg bg-white p-8 shadow-sm">
                 <p className="text-gray-600">&ldquo;{t(testimonial.quote as never) || testimonial.quote}&rdquo;</p>
                 <div className="flex items-center gap-4">
                   <Image src={testimonial.avatar} alt={t(testimonial.name as never)} width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
@@ -265,7 +263,7 @@ export default function HomePage() {
           </div>
           <div className="mt-16 grid lg:grid-cols-3 gap-8 items-stretch">
             {pricingTiers.map((tier) => (
-              <Card key={tier.name} className={`rounded-2xl shadow-lg flex flex-col ${tier.popular ? 'border-2 border-orange-500 relative' : 'bg-gray-50'}`}>
+              <Card key={tier.name} className={`flex flex-col rounded-lg shadow-sm ${tier.popular ? 'relative border-2 border-orange-500' : 'bg-gray-50'}`}>
                  {tier.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
                     {tPricing('popular')}
@@ -299,12 +297,12 @@ export default function HomePage() {
                     <Button
                       asChild
                       size="lg"
-                      className="w-full rounded-full bg-white text-orange-500 border border-orange-500 hover:bg-orange-50 shadow-lg transition-transform hover:scale-105"
+                      className="w-full border border-orange-500 bg-white text-orange-500 shadow-sm transition-colors hover:bg-orange-50"
                     >
                       <Link href={isAuthenticated ? '/upload' : '/auth/login'}>{tPricing(tier.cta as never)}</Link>
                     </Button>
                   ) : (
-                    <Button disabled size="lg" className="w-full rounded-full">
+                    <Button disabled size="lg" className="w-full">
                       {tPricing('comingSoon')}
                     </Button>
                   )}

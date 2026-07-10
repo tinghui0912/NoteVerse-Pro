@@ -97,7 +97,7 @@ export default function RegisterPage() {
   return (
     <AuthCard title={t('registerTitle')} subtitle={t('registerSubtitle')}>
       {formError ? (
-        <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {formError}
         </div>
       ) : null}
@@ -112,7 +112,7 @@ export default function RegisterPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={isSubmitting}
-            className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
+            className="h-12 border-gray-200 bg-white text-base text-gray-950 focus-visible:border-orange-500 focus-visible:ring-orange-100"
           />
           {emailError ? <p className="mt-2 text-sm text-destructive">{emailError}</p> : null}
         </div>
@@ -125,7 +125,7 @@ export default function RegisterPage() {
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             disabled={isSubmitting}
-            className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
+            className="h-12 border-gray-200 bg-white text-base text-gray-950 focus-visible:border-orange-500 focus-visible:ring-orange-100"
           />
         </div>
         <div className="space-y-2 text-left">
@@ -136,7 +136,7 @@ export default function RegisterPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             disabled={isSubmitting}
-            className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
+            className="h-12 border-gray-200 bg-white text-base text-gray-950 focus-visible:border-orange-500 focus-visible:ring-orange-100"
           />
           {passwordError ? <p className="mt-2 text-sm text-destructive">{passwordError}</p> : null}
         </div>
@@ -158,7 +158,7 @@ export default function RegisterPage() {
           </Button>
           <p className="text-sm text-muted-foreground">
             {t('haveAccount')}{' '}
-            <Link href={withReturnUrl('/auth/login', returnUrl)} className="font-semibold text-white hover:underline">
+            <Link href={withReturnUrl('/auth/login', returnUrl)} className="font-semibold text-orange-600 hover:text-orange-700 hover:underline">
               {t('loginHere')}
             </Link>
           </p>

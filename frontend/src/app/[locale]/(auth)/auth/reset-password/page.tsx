@@ -72,7 +72,7 @@ export default function ResetPasswordPage() {
     <AuthCard title={t('setNewPasswordTitle')} subtitle={t('setNewPasswordSubtitle')}>
       {!canReset ? (
         <div className="space-y-6">
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {t('resetLinkInvalid')}
           </div>
           <Button asChild size="lg" className="w-full bg-orange-500 font-semibold text-white hover:bg-orange-600">
@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               disabled={isSubmitting}
-              className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
+              className="h-12 border-gray-200 bg-white text-base text-gray-950 focus-visible:border-orange-500 focus-visible:ring-orange-100"
             />
           </div>
           <div className="space-y-2 text-left">
@@ -100,11 +100,11 @@ export default function ResetPasswordPage() {
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               disabled={isSubmitting}
-              className="h-12 border-gray-700 bg-gray-800 text-base text-white focus-visible:border-white focus-visible:ring-transparent"
+              className="h-12 border-gray-200 bg-white text-base text-gray-950 focus-visible:border-orange-500 focus-visible:ring-orange-100"
             />
           </div>
           {error ? (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               {error}
             </div>
           ) : null}
@@ -124,7 +124,7 @@ export default function ResetPasswordPage() {
                 t('resetPasswordButton')
               )}
             </Button>
-            <Button variant="link" asChild className="text-white">
+            <Button variant="link" asChild className="text-orange-600 hover:text-orange-700">
               <Link href="/auth/login">{t('backToLogin')}</Link>
             </Button>
           </div>

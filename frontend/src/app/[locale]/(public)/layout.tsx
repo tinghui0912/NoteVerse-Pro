@@ -1,13 +1,5 @@
-import PillNav from '@/components/layout/pill-nav';
-import { ClientOnly } from '@/components/client-only';
+import { PublicShell } from '@/components/shell/public-shell';
 
 export default function PublicGroupLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <ClientOnly>
-        <PillNav />
-      </ClientOnly>
-      {children}
-    </>
-  );
+  return <PublicShell>{children}</PublicShell>;
 }

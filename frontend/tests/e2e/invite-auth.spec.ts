@@ -29,12 +29,12 @@ test('invite login and registration links preserve returnUrl', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Collab Score' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Log in to accept' }).click();
-  await expect(page).toHaveURL(/\/en\/login\?/);
+  await expect(page).toHaveURL(/\/auth\/login\?/);
   const loginUrl = new URL(page.url());
-  expect(loginUrl.searchParams.get('returnUrl')).toBe('/en/invite/invite-token?accept=1');
+  expect(loginUrl.searchParams.get('returnUrl')).toBe('/invite/invite-token?accept=1');
 
-  await page.locator('a[href*="/register?returnUrl="]').click();
-  await expect(page).toHaveURL(/\/en\/register\?/);
+  await page.locator('a[href*="/auth/register?returnUrl="]').click();
+  await expect(page).toHaveURL(/\/auth\/register\?/);
   const registerUrl = new URL(page.url());
-  expect(registerUrl.searchParams.get('returnUrl')).toBe('/en/invite/invite-token?accept=1');
+  expect(registerUrl.searchParams.get('returnUrl')).toBe('/invite/invite-token?accept=1');
 });

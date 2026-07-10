@@ -62,7 +62,7 @@ export default function LoginPage() {
     return (
         <AuthCard title={t('loginTitle')} subtitle={t('loginSubtitle')}>
                     {error && (
-                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                             {error}
                         </div>
                     )}
@@ -78,7 +78,7 @@ export default function LoginPage() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
-                                className="bg-gray-800 border-gray-700 text-white h-12 text-base focus-visible:ring-transparent focus-visible:border-white"
+                                className="h-12 border-gray-200 bg-white text-base text-gray-950 focus-visible:border-orange-500 focus-visible:ring-orange-100"
                             />
                         </div>
                         <div className="space-y-2 text-left">
@@ -86,7 +86,7 @@ export default function LoginPage() {
                                 <Label htmlFor="password">{t('passwordLabel')}</Label>
                                 <Link
                                     href="/auth/forgot-password"
-                                    className="text-sm text-white hover:underline"
+                                    className="text-sm font-medium text-orange-600 hover:text-orange-700 hover:underline"
                                 >
                                     {t('forgotPassword')}
                                 </Link>
@@ -98,7 +98,7 @@ export default function LoginPage() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 disabled={isLoading}
-                                className="bg-gray-800 border-gray-700 text-white h-12 text-base focus-visible:ring-transparent focus-visible:border-white"
+                                className="h-12 border-gray-200 bg-white text-base text-gray-950 focus-visible:border-orange-500 focus-visible:ring-orange-100"
                             />
                         </div>
                         <div className="flex flex-col gap-4 pt-4">
@@ -121,7 +121,7 @@ export default function LoginPage() {
                                 {t('noAccount')}{' '}
                                 <Link
                                     href={withReturnUrl('/auth/register', returnUrl)}
-                                    className="font-semibold text-white hover:underline"
+                                    className="font-semibold text-orange-600 hover:text-orange-700 hover:underline"
                                 >
                                     {t('registerHere')}
                                 </Link>

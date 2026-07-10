@@ -64,11 +64,11 @@ export default function SubscriptionsPage() {
   }).format(price);
 
   return (
-    <div className="bg-gray-50 min-h-screen flex flex-col">
-      <div className="bg-gray-900">
-        <div className="pt-32 pb-16 max-w-7xl mx-auto px-4 text-center">
-          <h1 className="text-4xl sm:text-6xl font-bold text-white mb-4">{t('subscriptionsTitle')}</h1>
-          <p className="text-lg text-gray-300">{t('subscriptionsSubtitle')}</p>
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-16 text-center">
+          <h1 className="mb-4 text-4xl font-semibold tracking-tight text-gray-950 sm:text-5xl">{t('subscriptionsTitle')}</h1>
+          <p className="text-lg text-gray-600">{t('subscriptionsSubtitle')}</p>
         </div>
       </div>
       
@@ -93,7 +93,7 @@ export default function SubscriptionsPage() {
               <Card
                 key={tier.name}
                 className={cn(
-                  'bg-white rounded-2xl flex flex-col h-full shadow-lg transition-all',
+                  'flex h-full flex-col rounded-lg bg-white shadow-sm transition-all',
                   tier.available ? 'border-2 border-orange-500' : 'border',
                   tier.popular ? 'transform md:scale-105' : ''
                 )}
@@ -130,11 +130,11 @@ export default function SubscriptionsPage() {
                 </CardContent>
                 <CardFooter className="p-6">
                   {tier.available ? (
-                    <Button asChild size="lg" className="w-full rounded-full bg-orange-500 text-white hover:bg-orange-600">
+                    <Button asChild size="lg" className="w-full bg-orange-500 text-white hover:bg-orange-600">
                       <Link href={isAuthenticated ? '/upload' : '/auth/login'}>{t('startForFree')}</Link>
                     </Button>
                   ) : (
-                    <Button disabled size="lg" className="w-full rounded-full">{t('comingSoon')}</Button>
+                    <Button disabled size="lg" className="w-full">{t('comingSoon')}</Button>
                   )}
                 </CardFooter>
               </Card>

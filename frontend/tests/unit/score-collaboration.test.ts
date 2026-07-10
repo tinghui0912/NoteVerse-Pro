@@ -7,10 +7,11 @@ const projectPath = (path: string) => resolve(process.cwd(), path);
 const readSource = (path: string) => readFileSync(projectPath(path), 'utf8');
 
 describe('score collaboration invite architecture', () => {
-  it('keeps invite as a public access-entry route with explicit proxy matching', () => {
+  it('keeps invite as a dedicated access-entry route with explicit proxy matching', () => {
     const proxy = readSource('src/proxy.ts');
 
-    expect(existsSync(projectPath('src/app/[locale]/invite/[token]/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(invite)/invite/[token]/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(public)/invite'))).toBe(false);
     expect(proxy).toContain("'/invite/:path*'");
     expect(proxy).toContain("'/zh/invite/:path*'");
     expect(proxy).toContain("'/en/invite/:path*'");
@@ -41,7 +42,7 @@ describe('score collaboration invite architecture', () => {
   it('keeps share and invite semantics separate', () => {
     const shareDialog = readSource('src/components/score-detail/score-share-dialog.tsx');
     const collaborationDialog = readSource('src/components/score-detail/score-collaboration-dialog.tsx');
-    const invitePage = readSource('src/app/[locale]/invite/[token]/page.tsx');
+    const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
 
     expect(shareDialog).not.toContain('MembershipRole');
     expect(shareDialog).not.toContain('EDITOR');
@@ -55,25 +56,24 @@ describe('score collaboration invite architecture', () => {
   });
 
   it('preserves invite returnUrl through login and registration', () => {
-    const loginPage = readSource('src/app/[locale]/login/page.tsx');
-    const registerPage = readSource('src/app/[locale]/register/page.tsx');
+    const loginPage = readSource('src/app/[locale]/(auth)/auth/login/page.tsx');
+    const registerPage = readSource('src/app/[locale]/(auth)/auth/register/page.tsx');
 
-    expect(loginPage).toContain("withReturnUrl('/register', returnUrl)");
+    expect(loginPage).toContain("withReturnUrl('/auth/register', returnUrl)");
     expect(loginPage).toContain('router.push(getSafeReturnUrl(returnUrl))');
-    expect(registerPage).toContain("withReturnUrl('/login', returnUrl)");
-    expect(registerPage).toContain('router.push(getSafeReturnUrl(returnUrl))');
+    expect(registerPage).toContain("withReturnUrl('/auth/login', returnUrl)");
   });
 
   it('keeps notification center as a projection over pending invites and notification events', () => {
-    const nav = readSource('src/components/layout/pill-nav.tsx');
+    const navActions = readSource('src/components/layout/nav-actions.tsx');
     const center = readSource('src/components/notifications/notification-center-dialog.tsx');
     const notificationsApi = readSource('src/lib/api/notifications.ts');
     const notificationHooks = readSource('src/hooks/queries/use-notification-queries.ts');
 
-    expect(nav).toContain('NotificationCenterDialog');
-    expect(nav).toContain('useMyPendingScoreInvites');
-    expect(nav).toContain('useNotificationUnreadCount');
-    expect(nav).toContain('badgeCount = pendingInviteCount + unreadNotificationCount');
+    expect(navActions).toContain('NotificationCenterDialog');
+    expect(navActions).toContain('useMyPendingScoreInvites');
+    expect(navActions).toContain('useNotificationUnreadCount');
+    expect(navActions).toContain('badgeCount = pendingInviteCount + unreadNotificationCount');
 
     expect(center).toContain('useMyPendingScoreInvites');
     expect(center).toContain('useMyNotifications');

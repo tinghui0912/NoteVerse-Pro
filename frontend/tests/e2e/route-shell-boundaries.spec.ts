@@ -93,6 +93,37 @@ test('anonymous users can access public and external shells without AppShell sid
   await expect(page.getByRole('heading', { name: 'Public Shell Score' })).toBeVisible();
 });
 
+test('invite routes use InviteShell instead of public marketing navigation', async ({ page }) => {
+  await page.route('**/api/v1/invites/shell-invite', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          invite_id: 'invite-1',
+          score_id: scoreId,
+          score_title: 'Invite Shell Score',
+          inviter: { display_name: 'Owner', email: 'owner@example.com', avatar_url: null },
+          email: 'member@example.com',
+          role: 'EDITOR',
+          status: 'PENDING',
+          expires_at: null,
+          requires_login: true,
+          can_accept: false,
+        },
+      }),
+    })
+  );
+
+  await page.goto('/en/invite/shell-invite');
+  await expect(page).not.toHaveURL(/\/auth\/login/);
+  await expect(page.getByRole('heading', { name: 'Invite Shell Score' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Upload' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Pricing' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Log In', exact: true })).toBeVisible();
+});
+
 test('auth routes use the focused AuthShell instead of app or marketing navigation', async ({ page }) => {
   for (const path of [
     '/en/auth/login',
