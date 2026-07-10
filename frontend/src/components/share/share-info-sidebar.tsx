@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
-import { useScoreShell } from '@/components/score-shell/score-shell';
+import { useScoreCapabilities } from '@/components/score/score-capability-context';
 import { useDownload } from '@/hooks/use-download';
 import { useToast } from '@/hooks/use-toast';
 import { scoreSharingApi } from '@/lib/api';
@@ -72,7 +72,7 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
   const genreTags = props.taxonomyTags
     .map((tag) => SCORE_GENRE_TAGS.find((item) => item.category === tag.category && item.code === tag.code))
     .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag));
-  const { capabilities } = useScoreShell();
+  const { capabilities } = useScoreCapabilities();
   const actionButtonClass = 'h-16 w-full justify-start gap-3 bg-white px-4 text-left';
   const iconClass = 'h-5 w-5 shrink-0';
 

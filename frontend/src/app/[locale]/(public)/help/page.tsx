@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Footer } from '@/components/layout/footer';
+import { MarketingFooter } from '@/components/marketing/marketing-footer';
 import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
 
@@ -80,7 +80,7 @@ export default function HelpPage() {
           </Card>
         </div>
       </main>
-      <Footer />
+      <MarketingFooter />
     </div>
   );
 }

@@ -20,7 +20,7 @@ import {
   useScorePublication,
   useUnpublishScore,
 } from '@/hooks/queries/use-score-queries';
-import { useScoreShell } from '@/components/score-shell/score-shell';
+import { useScoreCapabilities } from '@/components/score/score-capability-context';
 import type { ScoreArtifact } from '@/types/api';
 
 export function ScoreActions({
@@ -44,7 +44,7 @@ export function ScoreActions({
   const [shareOpen, setShareOpen] = useState(false);
   const [collaborationOpen, setCollaborationOpen] = useState(false);
   const isPublished = publication.data?.data?.status === 'PUBLISHED';
-  const { capabilities } = useScoreShell();
+  const { capabilities } = useScoreCapabilities();
 
   const buttonClass = 'h-16 w-full justify-start gap-3 bg-white px-4 text-left';
   const iconClass = 'h-5 w-5 shrink-0';

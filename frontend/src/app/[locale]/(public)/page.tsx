@@ -11,7 +11,7 @@ import { Link } from '@/i18n/routing';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { useAuth } from '@/contexts/auth-context';
 import { AnimatedSection } from '@/components/home/animated-section';
-import { Footer } from '@/components/layout/footer';
+import { MarketingFooter } from '@/components/marketing/marketing-footer';
 
 const features = [
   {
@@ -313,7 +313,7 @@ export default function HomePage() {
         </div>
       </AnimatedSection>
       
-      <Footer />
+      <MarketingFooter />
     </main>
   );
 }

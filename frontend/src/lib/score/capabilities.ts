@@ -1,8 +1,8 @@
 import type { ScoreCapabilities } from '@/types/api';
 
-export type ScoreShellCapabilities = ScoreCapabilities;
+export type ScoreCapabilitySet = ScoreCapabilities;
 
-export const READONLY_SCORE_CAPABILITIES: ScoreShellCapabilities = {
+export const READONLY_SCORE_CAPABILITIES: ScoreCapabilitySet = {
   can_view: true,
   can_edit: false,
   can_delete: false,
@@ -13,8 +13,8 @@ export const READONLY_SCORE_CAPABILITIES: ScoreShellCapabilities = {
   can_publish: false,
 };
 
-export function resolveScoreShellCapabilities(
+export function resolveScoreCapabilities(
   capabilities?: ScoreCapabilities | null
-): ScoreShellCapabilities {
+): ScoreCapabilitySet {
   return capabilities ?? READONLY_SCORE_CAPABILITIES;
 }

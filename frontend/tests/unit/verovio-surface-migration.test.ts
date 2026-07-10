@@ -1,48 +1,55 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
+const projectPath = (path: string) => resolve(process.cwd(), path);
 
 describe('Verovio listen surfaces', () => {
   it('renders share access through the score shell and shared player surface', () => {
-    const page = readSource('src/app/[locale]/share/[shareId]/page.tsx');
+    const page = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
     const player = readSource('src/components/share/share-score-player.tsx');
     const sidebar = readSource('src/components/share/share-info-sidebar.tsx');
 
-    expect(page).toContain('<ScoreShell');
+    expect(page).toContain('<ScoreSurface');
+    expect(page).toContain('<ScoreCapabilityProvider');
     expect(page).toContain('<ShareScorePlayer');
     expect(page).not.toContain('<Footer');
     expect(player).toContain('<ScorePreviewViewport');
     expect(player).toContain('<ScorePlaybackDock');
-    expect(sidebar).toContain('useScoreShell');
+    expect(sidebar).toContain('useScoreCapabilities');
   });
 
   it('renders public score access through the score shell and capability model', () => {
     const page = readSource('src/components/public/public-score-page.tsx');
 
-    expect(page).toContain('<ScoreShell');
+    expect(page).toContain('<ScoreSurface');
+    expect(page).toContain('<ScoreCapabilityProvider');
     expect(page).toContain('<ScorePlayer');
-    expect(page).toContain('resolveScoreShellCapabilities');
+    expect(page).toContain('resolveScoreCapabilities');
     expect(page).toContain('publicSlug');
     expect(page).not.toContain('<Footer');
   });
 
-  it('editor modals no longer own score playback preview', () => {
+  it('removes the old listen modal preview path', () => {
+    expect(existsSync(projectPath('src/components/score/listen-modal.tsx'))).toBe(false);
     const source = readSource('src/components/editor/editor-page-modals.tsx');
-    expect(source).not.toContain('<ListenModal');
+    const actions = readSource('src/components/score-detail/score-actions.tsx');
+
+    expect(source).not.toContain('ListenModal');
     expect(source).not.toContain('ScorePreview');
+    expect(actions).not.toContain('ListenModal');
   });
 
   it('renders score detail with a shared viewport and persistent playback dock', () => {
-    const page = readSource('src/app/[locale]/score/[id]/page.tsx');
+    const page = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
     const actions = readSource('src/components/score-detail/score-actions.tsx');
     const player = readSource('src/components/score-detail/score-player.tsx');
     expect(page).toContain('<ScorePlayer');
     expect(page).toContain('<ScoreBreadcrumbs');
     expect(page).not.toContain('<ScorePreviewPanel');
-    expect(actions).not.toContain('<ListenModal');
+    expect(actions).not.toContain('ListenModal');
     expect(player).toContain('<ScorePreviewViewport');
     expect(player).toContain('<ScorePlaybackDock');
     expect(player).toContain("followViewport: 'window'");
@@ -205,7 +212,7 @@ describe('Verovio listen surfaces', () => {
 
   it('uses the Verovio score as the primary editor center surface', () => {
     const center = readSource('src/components/editor/editor-workbench-center.tsx');
-    const page = readSource('src/app/[locale]/score/[id]/edit/page.tsx');
+    const page = readSource('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx');
     const toolbar = readSource('src/components/editor/editor-toolbar.tsx');
 
     expect(center).toContain('<EditorPreviewPanel');

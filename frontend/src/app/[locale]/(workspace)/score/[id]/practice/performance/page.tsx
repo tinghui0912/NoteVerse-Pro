@@ -8,7 +8,7 @@ import { ArrowLeft, Activity, FileText, Lightbulb, LoaderCircle, Target } from '
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/layout/page-header';
-import { ScoreShell } from '@/components/score-shell/score-shell';
+import { ScoreSurface } from '@/components/score/score-surface';
 import { practiceApi } from '@/lib/api';
 import type { PracticeReportPayload } from '@/types/api';
 
@@ -92,7 +92,7 @@ export default function PracticePerformancePage() {
     : '';
 
   return (
-    <ScoreShell embedded footer={false} workspace="performance">
+    <ScoreSurface>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           title={t('performanceTitle')}
@@ -140,6 +140,6 @@ export default function PracticePerformancePage() {
           </div>
         )}
       </div>
-    </ScoreShell>
+    </ScoreSurface>
   );
 }

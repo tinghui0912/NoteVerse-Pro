@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/layout/page-header';
-import { ScoreShell } from '@/components/score-shell/score-shell';
-import { WorkspaceAccessDenied } from '@/components/score-shell/workspace-access-denied';
+import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
+import { ScoreSurface } from '@/components/score/score-surface';
+import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { EditorPageHeader } from '@/components/editor/editor-page-header';
 import { EditorPageModals } from '@/components/editor/editor-page-modals';
 import { EditorWorkbench } from '@/components/editor/editor-workbench';
@@ -40,15 +41,15 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
     }
 
     return (
-      <ScoreShell
+      <ScoreCapabilityProvider
         capabilities={scoreShell.capabilities}
-        embedded
-        footer={false}
         scoreId={scoreShell.scoreId}
         workspace="edit"
       >
-        {content}
-      </ScoreShell>
+        <ScoreSurface>
+          {content}
+        </ScoreSurface>
+      </ScoreCapabilityProvider>
     );
   };
 

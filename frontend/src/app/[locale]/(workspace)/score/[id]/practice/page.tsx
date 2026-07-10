@@ -27,8 +27,8 @@ import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer
 import { PracticeControls } from '@/components/practice/practice-controls';
 import { PracticeStatusPanel } from '@/components/practice/practice-status-panel';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
-import { ScoreShell } from '@/components/score-shell/score-shell';
-import { WorkspaceAccessDenied } from '@/components/score-shell/workspace-access-denied';
+import { ScoreSurface } from '@/components/score/score-surface';
+import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type {
@@ -516,10 +516,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   };
 
   return (
-    <ScoreShell
-      embedded
-      footer={false}
-    >
+    <ScoreSurface>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           title={t('mode')}
@@ -589,6 +586,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         onRestart={handleRestart}
         onViewPerformance={() => void handleGetAnalysis()}
       />
-    </ScoreShell>
+    </ScoreSurface>
   );
 }

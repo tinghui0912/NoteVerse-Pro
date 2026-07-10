@@ -7,6 +7,24 @@ const projectPath = (path: string) => resolve(process.cwd(), path);
 const readSource = (path: string) => readFileSync(projectPath(path), 'utf8');
 
 describe('route shell groups', () => {
+  it('keeps route shells in the shared shell directory', () => {
+    for (const shellName of [
+      'app-shell',
+      'auth-shell',
+      'external-viewer-shell',
+      'invite-shell',
+      'public-shell',
+      'workspace-shell',
+    ]) {
+      expect(existsSync(projectPath(`src/components/shell/${shellName}.tsx`))).toBe(true);
+    }
+
+    expect(existsSync(projectPath('src/components/app-shell'))).toBe(false);
+    expect(existsSync(projectPath('src/components/external-viewer'))).toBe(false);
+    expect(existsSync(projectPath('src/components/workspace-shell'))).toBe(false);
+    expect(existsSync(projectPath('src/components/auth/auth-shell.tsx'))).toBe(false);
+  });
+
   it('keeps auth flows in a dedicated AuthShell route group', () => {
     expect(existsSync(projectPath('src/app/[locale]/(auth)/layout.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(auth)/auth/login/page.tsx'))).toBe(true);
@@ -26,6 +44,8 @@ describe('route shell groups', () => {
   it('keeps public and invite routes in purpose-built shells', () => {
     expect(existsSync(projectPath('src/components/navigation/public-nav.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/components/layout/pill-nav.tsx'))).toBe(false);
+    expect(existsSync(projectPath('src/components/marketing/marketing-footer.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/layout/footer.tsx'))).toBe(false);
     expect(existsSync(projectPath('src/components/shell/public-shell.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/components/shell/invite-shell.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(invite)/layout.tsx'))).toBe(true);
@@ -38,6 +58,17 @@ describe('route shell groups', () => {
 
     expect(publicShell).toContain('<PublicNav');
     expect(inviteLayout).toContain('<InviteShell>');
-    expect(invitePage).not.toContain('ScoreShell');
+    expect(invitePage).not.toContain('ScoreSurface');
+
+    for (const publicPage of [
+      'src/app/[locale]/(public)/page.tsx',
+      'src/app/[locale]/(public)/subscriptions/page.tsx',
+      'src/app/[locale]/(public)/help/page.tsx',
+    ]) {
+      const source = readSource(publicPage);
+
+      expect(source).toContain('MarketingFooter');
+      expect(source).not.toContain("components/layout/footer");
+    }
   });
 });

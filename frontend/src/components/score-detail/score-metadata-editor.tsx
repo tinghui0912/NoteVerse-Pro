@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useScoreShell } from '@/components/score-shell/score-shell';
+import { useScoreCapabilities } from '@/components/score/score-capability-context';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
 import { ApiError } from '@/lib/api-client';
@@ -35,7 +35,7 @@ export function ScoreMetadataEditor({
   const locale = useLocale();
   const { toast } = useToast();
   const mutation = useUpdateScore();
-  const { capabilities } = useScoreShell();
+  const { capabilities } = useScoreCapabilities();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const canEdit = capabilities.can_edit;
   const currentTitle = score?.title || parsedTitle || '';

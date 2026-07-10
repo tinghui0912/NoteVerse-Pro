@@ -6,7 +6,8 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import { ScoreShell } from '@/components/score-shell/score-shell';
+import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
+import { ScoreSurface } from '@/components/score/score-surface';
 import { ScoreActions } from '@/components/score-detail/score-actions';
 import { ScoreBreadcrumbs } from '@/components/score-detail/score-breadcrumbs';
 import { ScoreMetadataEditor } from '@/components/score-detail/score-metadata-editor';
@@ -35,7 +36,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
 
   if (resources.scoreLoading) {
     return (
-      <ScoreShell embedded footer={false}>
+      <ScoreSurface>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <PageHeader title={t('title')} />
           <div className="flex min-h-[40vh] items-center justify-center">
@@ -45,13 +46,13 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             </div>
           </div>
         </div>
-      </ScoreShell>
+      </ScoreSurface>
     );
   }
 
   if (error) {
     return (
-      <ScoreShell embedded footer={false}>
+      <ScoreSurface>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <PageHeader title={t('title')} />
           <div className="flex min-h-[40vh] items-center justify-center py-16">
@@ -68,41 +69,43 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             </div>
           </div>
         </div>
-      </ScoreShell>
+      </ScoreSurface>
     );
   }
 
   return (
-    <ScoreShell capabilities={capabilities} embedded footer={false} scoreId={id} workspace="view">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <PageHeader title={scoreTitle} description={t('subtitle')} />
-        <ScoreBreadcrumbs scoreTitle={scoreTitle} source={source} />
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <ScorePlayer rawXml={resources.rawXml} />
-          </div>
-          <div className="sticky top-24 space-y-6 lg:col-span-1">
-            <ScoreMetadataEditor
-              imageCount={resources.imageCount}
-              scoreId={id}
-              score={resources.score}
-              parsedTitle={resources.parsedTitle}
-            />
-            <ScoreActions
-              artifacts={resources.artifacts}
-              revisionId={resources.score?.head_revision_id}
-              scoreTitle={scoreTitle}
-              scoreId={id}
-            />
-            <ScoreStyleTagsEditor
-              taxonomyTags={resources.score?.taxonomy_tags ?? []}
-              scoreId={id}
-              version={resources.score?.version ?? 1}
-            />
+    <ScoreCapabilityProvider capabilities={capabilities} scoreId={id} workspace="view">
+      <ScoreSurface>
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <PageHeader title={scoreTitle} description={t('subtitle')} />
+          <ScoreBreadcrumbs scoreTitle={scoreTitle} source={source} />
+          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
+              <ScorePlayer rawXml={resources.rawXml} />
+            </div>
+            <div className="sticky top-24 space-y-6 lg:col-span-1">
+              <ScoreMetadataEditor
+                imageCount={resources.imageCount}
+                scoreId={id}
+                score={resources.score}
+                parsedTitle={resources.parsedTitle}
+              />
+              <ScoreActions
+                artifacts={resources.artifacts}
+                revisionId={resources.score?.head_revision_id}
+                scoreTitle={scoreTitle}
+                scoreId={id}
+              />
+              <ScoreStyleTagsEditor
+                taxonomyTags={resources.score?.taxonomy_tags ?? []}
+                scoreId={id}
+                version={resources.score?.version ?? 1}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </ScoreShell>
+      </ScoreSurface>
+    </ScoreCapabilityProvider>
   );
 }
 

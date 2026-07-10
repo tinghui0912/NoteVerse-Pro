@@ -56,27 +56,33 @@ describe('score workspace routes', () => {
     const shareSidebar = readSource('src/components/share/share-info-sidebar.tsx');
     const publicPage = readSource('src/components/public/public-score-page.tsx');
 
-    expect(sharePage).toContain('<ScoreShell');
+    expect(sharePage).toContain('<ScoreSurface');
+    expect(sharePage).toContain('<ScoreCapabilityProvider');
     expect(sharePage).toContain('capabilities={data.capabilities}');
     expect(shareSidebar).toContain('/score/${props.scoreId}/practice?shareToken=${props.shareId}');
-    expect(publicPage).toContain('<ScoreShell');
+    expect(publicPage).toContain('<ScoreSurface');
+    expect(publicPage).toContain('<ScoreCapabilityProvider');
     expect(publicPage).toContain('capabilities={capabilities}');
     expect(publicPage).toContain('/score/${scoreId}/practice?publicSlug=${slug}');
   });
 
-  it('centralizes view/share capabilities in the score shell context', () => {
-    const shell = readSource('src/components/score-shell/score-shell.tsx');
+  it('centralizes view/share capabilities without a score shell wrapper', () => {
+    const surface = readSource('src/components/score/score-surface.tsx');
+    const capabilityContext = readSource('src/components/score/score-capability-context.tsx');
     const actions = readSource('src/components/score-detail/score-actions.tsx');
     const metadata = readSource('src/components/score-detail/score-metadata-editor.tsx');
     const styleTags = readSource('src/components/score-detail/score-style-tags-editor.tsx');
     const shareSidebar = readSource('src/components/share/share-info-sidebar.tsx');
 
-    expect(shell).toContain('ScoreShellContext.Provider');
-    expect(shell).toContain('useScoreShell');
-    expect(actions).toContain('useScoreShell');
-    expect(metadata).toContain('useScoreShell');
-    expect(styleTags).toContain('useScoreShell');
-    expect(shareSidebar).toContain('useScoreShell');
+    expect(existsSync(projectPath('src/components/score-shell'))).toBe(false);
+    expect(surface).toContain('ScoreSurface');
+    expect(capabilityContext).toContain('ScoreCapabilityContext.Provider');
+    expect(capabilityContext).toContain('resolveScoreCapabilities');
+    expect(capabilityContext).toContain('useScoreCapabilities');
+    expect(actions).toContain('useScoreCapabilities');
+    expect(metadata).toContain('useScoreCapabilities');
+    expect(styleTags).toContain('useScoreCapabilities');
+    expect(shareSidebar).toContain('useScoreCapabilities');
     expect(actions).not.toContain('capabilities?:');
     expect(shareSidebar).not.toContain('capabilities?:');
   });

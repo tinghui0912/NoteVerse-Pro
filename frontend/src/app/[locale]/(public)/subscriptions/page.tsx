@@ -9,7 +9,7 @@ import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
-import { Footer } from '@/components/layout/footer';
+import { MarketingFooter } from '@/components/marketing/marketing-footer';
 
 const pricingTiers = [
   {
@@ -142,7 +142,7 @@ export default function SubscriptionsPage() {
           </div>
         </div>
       </main>
-      <Footer />
+      <MarketingFooter />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
-import { useScoreShell } from '@/components/score-shell/score-shell';
+import { useScoreCapabilities } from '@/components/score/score-capability-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -54,7 +54,7 @@ export function ScoreStyleTagsEditor({
   const errors = useTranslations('errors');
   const mutation = useUpdateScore();
   const { toast } = useToast();
-  const { capabilities } = useScoreShell();
+  const { capabilities } = useScoreCapabilities();
   const canEdit = capabilities.can_edit;
   const serverTags = normalizeGenreTags(taxonomyTags);
   const serverKey = serverTags.map(taxonomyTagKey).join('|');
