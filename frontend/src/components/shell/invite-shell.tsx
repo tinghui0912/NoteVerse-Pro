@@ -4,12 +4,14 @@ import { Music2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
-import { LanguageSwitcher } from '@/components/navigation/nav-actions';
+import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation/nav-actions';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
 
 export function InviteShell({ children }: { children: ReactNode }) {
   const t = useTranslations('common');
+  const { isAuthenticated, isLoading } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -23,10 +25,18 @@ export function InviteShell({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-1">
-            <Button asChild variant="ghost" className="hidden sm:inline-flex">
-              <Link href="/auth/login">{t('nav.login')}</Link>
-            </Button>
-            <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+            {isLoading ? (
+              <div className="hidden h-10 w-10 rounded-full bg-gray-100 sm:block" />
+            ) : isAuthenticated ? (
+              <AuthenticatedNavActions showNotifications />
+            ) : (
+              <>
+                <Button asChild variant="ghost" className="hidden sm:inline-flex">
+                  <Link href="/auth/login">{t('nav.login')}</Link>
+                </Button>
+                <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+              </>
+            )}
           </div>
         </div>
       </header>

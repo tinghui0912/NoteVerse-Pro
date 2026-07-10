@@ -59,7 +59,6 @@ function getInviteErrorConfig(
 export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = React.use(params);
   const t = useTranslations('scoreCollaboration');
-  const common = useTranslations('common');
   const errors = useTranslations('errors');
   const locale = useLocale();
   const router = useRouter();
@@ -198,7 +197,10 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           {!isAuthenticated ? (
             <Button asChild className="flex-1">
-              <Link href={loginHref}>{t('loginToAccept')}</Link>
+              <Link href={loginHref}>
+                <UserPlus className="h-4 w-4" />
+                {t('acceptInvite')}
+              </Link>
             </Button>
           ) : invite.status === 'ACCEPTED' ? (
             <Button className="flex-1" onClick={() => router.push(`/score/${invite.score_id}`)}>
@@ -215,9 +217,6 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
               {acceptInvite.isPending ? t('accepting') : t('acceptInvite')}
             </Button>
           )}
-          <Button variant="outline" onClick={() => router.push('/')}>
-            {common('nav.home')}
-          </Button>
         </div>
       </div>
     </div>

@@ -1,9 +1,6 @@
 {
   "title": "Help Center",
   "subtitle": "Find answers to frequently asked questions here.",
-  "signedInHelpTitle": "You are viewing the public help center",
-  "signedInHelpDesc": "This page is available to everyone. Return to the app whenever you are ready to keep working.",
-  "backToApp": "Back to app",
   "faq1Title": "How to improve recognition accuracy?",
   "faq1Answer": "Please ensure the uploaded image is clear, evenly lit, and not distorted. Scans are preferred over photos.",
   "faq2Title": "Which instrument fingerings are supported?",

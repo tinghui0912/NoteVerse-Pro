@@ -28,7 +28,7 @@ test('invite login and registration links preserve returnUrl', async ({ page }) 
   await page.goto('/en/invite/invite-token');
   await expect(page.getByRole('heading', { name: 'Collab Score' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Log in to accept' }).click();
+  await page.getByRole('link', { name: 'Accept invite' }).click();
   await expect(page).toHaveURL(/\/auth\/login\?/);
   const loginUrl = new URL(page.url());
   expect(loginUrl.searchParams.get('returnUrl')).toBe('/invite/invite-token?accept=1');

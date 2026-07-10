@@ -12,31 +12,19 @@ import {
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { ClientOnly } from '@/components/client-only';
-import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/navigation/nav-actions';
+import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation/nav-actions';
+
+const publicNavItems = [
+  { label: 'nav.home' as const, href: '/' as const },
+  { label: 'nav.pricing' as const, href: '/subscriptions' as const },
+  { label: 'nav.help' as const, href: '/help' as const },
+] as const;
 
 export function PublicNav() {
   const t = useTranslations('common');
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const navItems = isAuthenticated
-    ? [
-      { label: 'nav.home' as const, href: '/' as const },
-      { label: 'nav.upload' as const, href: '/upload' as const },
-      { label: 'nav.myScores' as const, href: '/my-scores' as const },
-      { label: 'nav.library' as const, href: '/library' as const },
-      { label: 'nav.pricing' as const, href: '/subscriptions' as const },
-      { label: 'nav.help' as const, href: '/help' as const },
-    ]
-    : [
-      { label: 'nav.home' as const, href: '/' as const },
-      { label: 'nav.pricing' as const, href: '/subscriptions' as const },
-      { label: 'nav.help' as const, href: '/help' as const },
-    ];
-
-
-
 
   return (
     <header className="sticky left-0 right-0 top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -53,7 +41,7 @@ export function PublicNav() {
           <>
             {/* Desktop Navigation */}
             <nav className="hidden items-center space-x-1 md:flex">
-              {navItems.map((item) => {
+              {publicNavItems.map((item) => {
                 const isActive = (item.href === '/' && pathname === '/') || (item.href !== '/' && pathname.startsWith(item.href));
 
                 return (
@@ -78,10 +66,7 @@ export function PublicNav() {
               {isLoading ? (
                 <div className="hidden h-10 w-10 rounded-full bg-gray-100 md:block" />
               ) : isAuthenticated ? (
-                <>
-                  <NotificationBell buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
-                  <UserMenu triggerClassName="hover:bg-gray-100" />
-                </>
+                <AuthenticatedNavActions />
               ) : (
                 <Link
                   href="/auth/login"
@@ -90,7 +75,9 @@ export function PublicNav() {
                   {t('nav.login')}
                 </Link>
               )}
-              <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+              {!isAuthenticated ? (
+                <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+              ) : null}
 
               {/* Mobile Menu Button */}
               <div className="md:hidden">
@@ -112,7 +99,7 @@ export function PublicNav() {
           {isMobileMenuOpen && (
             <div className="mx-4 mt-2 rounded-lg border border-gray-200 bg-white p-3 shadow-lg md:hidden">
               <nav className="flex flex-col space-y-2">
-                {navItems.map((item) => {
+                {publicNavItems.map((item) => {
                   const isActive = (item.href === '/' && pathname === '/') || (item.href !== '/' && pathname.startsWith(item.href));
                   return (
                     <Link
@@ -128,6 +115,15 @@ export function PublicNav() {
                     </Link>
                   );
                 })}
+                {!isLoading && isAuthenticated ? (
+                  <Link
+                    href="/library"
+                    className="mt-2 rounded-md bg-orange-500 px-5 py-2.5 text-center font-medium text-white transition-colors hover:bg-orange-600"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {t('returnToApp')}
+                  </Link>
+                ) : null}
                 {!isLoading && !isAuthenticated && (
                   <Link href="/auth/login" className="mt-2 rounded-md bg-orange-500 px-5 py-2.5 text-center font-medium text-white transition-colors hover:bg-orange-600">
                     {t('nav.login')}

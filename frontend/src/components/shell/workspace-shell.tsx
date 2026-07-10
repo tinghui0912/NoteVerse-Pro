@@ -1,16 +1,12 @@
 'use client';
 
-import { LayoutDashboard, Music2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { Music2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Link } from '@/i18n/routing';
-import { Button } from '@/components/ui/button';
-import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/navigation/nav-actions';
+import { AuthenticatedNavActions } from '@/components/navigation/nav-actions';
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
-  const t = useTranslations('common');
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -25,15 +21,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-1">
-            <Button asChild variant="outline" className="hidden sm:inline-flex">
-              <Link href="/library">
-                <LayoutDashboard className="h-4 w-4" />
-                {t('returnToApp')}
-              </Link>
-            </Button>
-            <NotificationBell buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
-            <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
-            <UserMenu triggerClassName="hover:bg-gray-100" />
+            <AuthenticatedNavActions showNotifications />
           </div>
         </div>
       </header>

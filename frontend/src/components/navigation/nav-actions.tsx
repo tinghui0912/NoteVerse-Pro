@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { Bell, Check, Globe, LogOut, Settings, User } from 'lucide-react';
+import { Bell, Check, Globe, LayoutDashboard, LogOut, Settings, User } from 'lucide-react';
 
 import { NotificationCenterDialog } from '@/components/notifications/notification-center-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -59,6 +59,36 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+export function ReturnToAppButton({ className }: { className?: string }) {
+  const t = useTranslations('common');
+
+  return (
+    <Button asChild variant="outline" className={cn('hidden sm:inline-flex', className)}>
+      <Link href="/library">
+        <LayoutDashboard className="h-4 w-4" />
+        {t('returnToApp')}
+      </Link>
+    </Button>
+  );
+}
+
+export function AuthenticatedNavActions({
+  showNotifications = false,
+}: {
+  showNotifications?: boolean;
+}) {
+  return (
+    <>
+      <ReturnToAppButton />
+      {showNotifications ? (
+        <NotificationBell buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+      ) : null}
+      <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+      <UserMenu triggerClassName="hover:bg-gray-100" />
+    </>
   );
 }
 

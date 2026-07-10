@@ -60,10 +60,18 @@ describe('route shell groups', () => {
     expect(existsSync(projectPath('src/app/[locale]/(public)/invite'))).toBe(false);
 
     const publicShell = readSource('src/components/shell/public-shell.tsx');
+    const publicNav = readSource('src/components/navigation/public-nav.tsx');
     const inviteLayout = readSource('src/app/[locale]/(invite)/layout.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
 
     expect(publicShell).toContain('<PublicNav');
+    expect(publicNav).toContain("href: '/subscriptions'");
+    expect(publicNav).toContain("href: '/help'");
+    expect(publicNav).toContain('<AuthenticatedNavActions />');
+    expect(publicNav).toContain('returnToApp');
+    expect(publicNav).not.toContain('openApp');
+    expect(publicNav).not.toContain("href: '/upload'");
+    expect(publicNav).not.toContain("href: '/my-scores'");
     expect(inviteLayout).toContain('<InviteShell>');
     expect(invitePage).not.toContain('ScoreSurface');
 
@@ -93,6 +101,29 @@ describe('route shell groups', () => {
     expect(publicEntry).toContain('@/components/external/public-score-page');
     expect(shareEntry).toContain('@/components/external/share-info-sidebar');
     expect(shareEntry).toContain('@/components/external/share-score-player');
+  });
+
+  it('uses one authenticated nav action pattern across public, external, and workspace shells', () => {
+    const actions = readSource('src/components/navigation/nav-actions.tsx');
+    const publicNav = readSource('src/components/navigation/public-nav.tsx');
+    const externalShell = readSource('src/components/shell/external-viewer-shell.tsx');
+    const inviteShell = readSource('src/components/shell/invite-shell.tsx');
+    const workspaceShell = readSource('src/components/shell/workspace-shell.tsx');
+
+    expect(actions).toContain('function ReturnToAppButton');
+    expect(actions).toContain('LayoutDashboard');
+    expect(actions).toContain("t('returnToApp')");
+    expect(actions).toContain('function AuthenticatedNavActions');
+    expect(actions).toContain('showNotifications');
+    expect(actions).toContain('<ReturnToAppButton');
+    expect(actions).toContain('<LanguageSwitcher');
+    expect(actions).toContain('<UserMenu');
+
+    expect(publicNav).toContain('<AuthenticatedNavActions />');
+    expect(workspaceShell).toContain('<AuthenticatedNavActions showNotifications');
+    expect(externalShell).toContain('<AuthenticatedNavActions showNotifications');
+    expect(inviteShell).toContain('<AuthenticatedNavActions showNotifications');
+    expect(externalShell).not.toContain("t('openApp')");
   });
 
   it('keeps upload workflow primitives out of component modules', () => {

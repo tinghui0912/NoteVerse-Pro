@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
-import { LanguageSwitcher, UserMenu } from '@/components/navigation/nav-actions';
+import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation/nav-actions';
 import { useAuth } from '@/contexts/auth-context';
 
 export function ExternalViewerShell({ children }: { children: ReactNode }) {
@@ -28,12 +28,7 @@ export function ExternalViewerShell({ children }: { children: ReactNode }) {
             {isLoading ? (
               <div className="h-10 w-24 rounded-md bg-gray-100" />
             ) : isAuthenticated ? (
-              <>
-                <Button asChild variant="outline" className="hidden sm:inline-flex">
-                  <Link href="/library">{t('openApp')}</Link>
-                </Button>
-                <UserMenu triggerClassName="hover:bg-gray-100" />
-              </>
+              <AuthenticatedNavActions showNotifications />
             ) : (
               <>
                 <Button asChild variant="ghost" className="hidden sm:inline-flex">
@@ -44,7 +39,9 @@ export function ExternalViewerShell({ children }: { children: ReactNode }) {
                 </Button>
               </>
             )}
-            <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+            {!isAuthenticated ? (
+              <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+            ) : null}
           </div>
         </div>
       </header>
