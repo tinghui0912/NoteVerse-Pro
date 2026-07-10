@@ -4,6 +4,7 @@ import React from 'react';
 import { Ban, CheckCircle2, CircleAlert, Clock3, Loader2, SearchX, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ResourceLoadError } from '@/components/error/resource-load-error';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
@@ -120,16 +121,14 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   if (inviteQuery.error || !invite) {
     const config = getInviteErrorConfig(inviteQuery.error, t, errors);
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-16">
-        <div className="w-full max-w-md text-center">
-          <config.icon className="mx-auto mb-6 h-14 w-14 text-destructive" />
-          <h1 className="mb-3 text-2xl font-bold">{config.title}</h1>
-          <p className="mb-8 text-muted-foreground">{config.description}</p>
-          <Button asChild>
-            <Link href="/">{t('backHome')}</Link>
-          </Button>
-        </div>
-      </div>
+      <ResourceLoadError
+        icon={config.icon}
+        title={config.title}
+        description={config.description}
+        actionLabel={t('backHome')}
+        actionHref="/"
+        className="min-h-[calc(100vh-4rem)] px-4"
+      />
     );
   }
 

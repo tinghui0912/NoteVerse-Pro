@@ -126,6 +126,39 @@ describe('route shell groups', () => {
     expect(externalShell).not.toContain("t('openApp')");
   });
 
+  it('keeps resource load errors explicit and visually consistent', () => {
+    expect(existsSync(projectPath('src/components/error/resource-load-error.tsx'))).toBe(true);
+
+    const resourceLoadError = readSource('src/components/error/resource-load-error.tsx');
+    const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
+    const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
+    const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
+    const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
+    const publicScorePage = readSource('src/components/external/public-score-page.tsx');
+    const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+    const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
+    const practiceControls = readSource('src/components/practice/practice-controls.tsx');
+
+    expect(resourceLoadError).toContain('function ResourceLoadError');
+    expect(resourceLoadError).toContain('CircleAlert');
+    expect(resourceLoadError).toContain('actionHref');
+    expect(resourceLoadError).toContain('onAction');
+
+    for (const source of [reviewPage, scorePage, editorWorkspace, sharePage, publicScorePage, practicePage, invitePage]) {
+      expect(source).toContain('ResourceLoadError');
+    }
+
+    expect(publicScorePage).toContain('publication.error ?? content.error');
+    expect(publicScorePage).toContain('translateErrorCode');
+    expect(publicScorePage).not.toContain("text-muted-foreground\">\n          {common('loadFailed')}");
+
+    expect(practicePage).toContain('scoreQuery.error ?? revisionQuery.error');
+    expect(practicePage).toContain('grantContent.error');
+    expect(practicePage).toContain('publicContent.error');
+    expect(practicePage).toContain('canPreparePractice');
+    expect(practiceControls).toContain('canPrepareSession');
+  });
+
   it('keeps upload workflow primitives out of component modules', () => {
     expect(existsSync(projectPath('src/lib/upload/upload-workflow.ts'))).toBe(true);
     expect(existsSync(projectPath('src/components/upload/upload-types.ts'))).toBe(false);

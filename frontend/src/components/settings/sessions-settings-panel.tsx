@@ -3,8 +3,9 @@
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Monitor, ShieldCheck, Smartphone } from 'lucide-react';
+import { CircleAlert, Loader2, Monitor, ShieldCheck, Smartphone } from 'lucide-react';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useRevokeOtherSessions, useRevokeSession } from '@/hooks/queries/use-profile-mutations';
 import { useToast } from '@/hooks/use-toast';
@@ -124,7 +125,10 @@ export function SessionsSettingsPanel() {
             {t('sessions.loading')}
           </div>
         ) : sessionsQuery.isError ? (
-          <div className="p-5 text-sm text-red-600">{t('sessions.loadFailed')}</div>
+          <Alert variant="destructive" className="m-5">
+            <CircleAlert className="h-4 w-4" />
+            <AlertDescription>{t('sessions.loadFailed')}</AlertDescription>
+          </Alert>
         ) : sessions.length === 0 ? (
           <div className="p-5 text-sm text-gray-500">{t('sessions.empty')}</div>
         ) : (

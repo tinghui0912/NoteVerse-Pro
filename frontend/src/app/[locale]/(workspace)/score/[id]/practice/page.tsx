@@ -15,7 +15,7 @@ import {
   type PracticeServerMessage,
   type PracticeSessionDetail,
 } from '@/types/api';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePracticeAudioStream } from '@/hooks/practice/use-practice-audio-stream';
@@ -134,17 +134,25 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     : publicSlug
       ? publicContent.isLoading
       : scoreQuery.isLoading || revisionQuery.isLoading;
+  const isResourceLoading = shareToken
+    ? grantContent.isLoading
+    : publicSlug
+      ? publicContent.isLoading
+      : scoreQuery.isLoading || (Boolean(scoreQuery.data?.data?.head_revision_id) && revisionQuery.isLoading);
   const loadError = shareToken
     ? grantContent.error
     : publicSlug
       ? publicContent.error
       : scoreQuery.error ?? revisionQuery.error;
+  const resourceMissingAfterLoad = !isResourceLoading && !loadError && (!revisionId || !xmlContent);
   const loadErrorDescription = loadError instanceof ApiError
     ? translateErrorCode(errors, loadError.code, common('loadFailed'))
     : loadError
       ? common('loadFailed')
+      : resourceMissingAfterLoad
+        ? common('loadFailed')
       : null;
-  const canPreparePractice = canEnterPractice && Boolean(revisionId) && !loadError;
+  const canPreparePractice = canEnterPractice && Boolean(revisionId && xmlContent) && !isResourceLoading && !loadError;
 
   const practiceStatusRef = useRef<PracticeStatus>('idle');
   const preconnectStartedRef = useRef(false);
@@ -529,26 +537,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
   };
 
-  if (loadErrorDescription) {
-    return (
-      <ScoreSurface>
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-          <PageHeader
-            title={t('mode')}
-            description={t('subtitle')}
-          />
-          <ResourceLoadError
-            title={common('loadFailed')}
-            description={loadErrorDescription}
-            actionLabel={common('back')}
-            onAction={() => router.back()}
-          />
-        </div>
-      </ScoreSurface>
-    );
-  }
-
-  return (
+  const renderFrame = (children: React.ReactNode) => (
     <ScoreSurface>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
@@ -561,6 +550,35 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             </Button>
           }
         />
+        {children}
+      </div>
+    </ScoreSurface>
+  );
+
+  if (isResourceLoading) {
+    return renderFrame(
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-orange-500" />
+          <p className="text-gray-600">{common('loadingScoreData')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadErrorDescription) {
+    return renderFrame(
+      <ResourceLoadError
+        title={common('loadFailed')}
+        description={loadErrorDescription}
+        actionLabel={common('back')}
+        onAction={() => router.back()}
+      />
+    );
+  }
+
+  return renderFrame(
+    <>
       {!hasAccessToken && scoreCapabilities && !scoreCapabilities.can_practice ? (
         <WorkspaceAccessDenied
           title={t('accessDeniedTitle')}
@@ -610,7 +628,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
       )}
-      </div>
       <PracticeCompletionDialog
         open={isCompletionDialogOpen}
         audioUrl={audioURL}
@@ -620,6 +637,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         onRestart={handleRestart}
         onViewPerformance={() => void handleGetAnalysis()}
       />
-    </ScoreSurface>
+    </>
   );
 }
