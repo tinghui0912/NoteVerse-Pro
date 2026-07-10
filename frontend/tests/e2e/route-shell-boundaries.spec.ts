@@ -93,6 +93,44 @@ test('anonymous users can access public and external shells without AppShell sid
   await expect(page.getByRole('heading', { name: 'Public Shell Score' })).toBeVisible();
 });
 
+test('auth routes use the focused AuthShell instead of app or marketing navigation', async ({ page }) => {
+  for (const path of [
+    '/en/auth/login',
+    '/en/auth/register',
+    '/en/auth/forgot-password',
+    '/en/auth/reset-password?token=shell-token',
+  ]) {
+    await page.goto(path);
+    await expect(page).not.toHaveURL(/\/auth\/login\?returnUrl=/);
+    await expect(page.getByRole('link', { name: 'Upload' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Pricing' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Return Home' })).toBeVisible();
+  }
+});
+
+test('auth routes remain focused and usable on mobile viewports', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  for (const path of [
+    '/zh/auth/login',
+    '/zh/auth/register',
+    '/zh/auth/forgot-password',
+    '/zh/auth/reset-password?token=shell-token',
+  ]) {
+    await page.goto(path);
+    await expect(page.getByRole('link', { name: '返回首页' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '上传' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '设置' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '定价' })).toHaveCount(0);
+
+    const hasHorizontalOverflow = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
+    });
+    expect(hasHorizontalOverflow).toBe(false);
+  }
+});
+
 test('anonymous users are redirected from app and workspace routes with returnUrl', async ({ page }) => {
   const protectedPaths = [
     '/zh/library?view=all',

@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import { translateErrorCode } from '@/lib/i18n/error-message';
 export default function LoginPage() {
     const t = useTranslations('auth');
     const tErrors = useTranslations('errors');
-    const { login } = useAuth();
+    const { isAuthenticated, isLoading: isAuthLoading, login } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -26,12 +26,20 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasSubmittedLogin, setHasSubmittedLogin] = useState(false);
     const returnUrl = searchParams.get('returnUrl');
+
+    useEffect(() => {
+        if (!isAuthLoading && isAuthenticated && !hasSubmittedLogin) {
+            router.replace('/library');
+        }
+    }, [hasSubmittedLogin, isAuthenticated, isAuthLoading, router]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsSubmitting(true);
+        setHasSubmittedLogin(true);
 
         try {
             await login(email, password);

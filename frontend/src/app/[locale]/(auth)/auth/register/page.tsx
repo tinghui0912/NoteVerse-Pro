@@ -2,8 +2,8 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
-import React, { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { AuthCard } from '@/components/auth/auth-card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,8 @@ export default function RegisterPage() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
-  const { register } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading, register } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState('');
@@ -31,6 +32,12 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const returnUrl = searchParams.get('returnUrl');
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      router.replace('/library');
+    }
+  }, [isAuthenticated, isAuthLoading, router]);
 
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();

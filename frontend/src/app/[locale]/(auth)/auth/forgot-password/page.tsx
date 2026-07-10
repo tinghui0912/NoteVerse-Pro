@@ -2,7 +2,8 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { AuthCard } from '@/components/auth/auth-card';
 import { Button } from '@/components/ui/button';
@@ -17,12 +18,19 @@ export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
-  const { requestPasswordReset } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading, requestPasswordReset } = useAuth();
+  const router = useRouter();
 
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      router.replace('/settings/security');
+    }
+  }, [isAuthenticated, isAuthLoading, router]);
 
   const handleRequestReset = async (event: React.FormEvent) => {
     event.preventDefault();
