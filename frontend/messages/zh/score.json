@@ -1,5 +1,6 @@
 {
   "title": "乐谱详情",
+  "publicScore": "公开乐谱",
   "subtitle": "现在你可以播放、练习、分享、下载或继续编辑你的作品。",
   "scoreFallbackTitle": "乐谱 {id}",
   "playScore": "播放乐谱",

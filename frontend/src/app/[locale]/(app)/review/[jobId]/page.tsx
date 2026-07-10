@@ -4,6 +4,7 @@ import React from 'react';
 import { Check, CircleAlert, Loader2, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { ReviewScoreComparison } from '@/components/review/review-score-comparison';
 import { ReviewValidationWarnings } from '@/components/review/review-validation-warnings';
@@ -16,33 +17,24 @@ export default function ReviewPage({ params }: { params: Promise<{ jobId: string
   const router = useRouter();
   const page = useReviewPageData(jobId);
 
-  const hero = (
-    <div className="bg-gray-900">
-      <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center">
-        <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1>
-        <p className="text-lg text-gray-300">{t('subtitle')}</p>
-      </div>
-    </div>
-  );
-
   if (page.loading) {
     return (
-      <>
-        {hero}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader title={t('title')} description={t('subtitle')} />
         <div className="flex min-h-[50vh] items-center justify-center">
           <div className="text-center">
             <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-orange-500" />
             <p className="text-gray-600">{common('loading')}</p>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   if (page.error) {
     return (
-      <>
-        {hero}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader title={t('title')} description={t('subtitle')} />
         <div className="flex min-h-[50vh] items-center justify-center py-16">
           <div className="mx-4 w-full max-w-md text-center">
             <CircleAlert className="mx-auto mb-6 h-14 w-14 text-destructive" />
@@ -52,14 +44,13 @@ export default function ReviewPage({ params }: { params: Promise<{ jobId: string
             <Button onClick={() => router.back()} className="px-8">{common('back')}</Button>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      {hero}
-      <div className="mx-auto max-w-7xl px-4 py-16">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader title={t('title')} description={t('subtitle')} />
         <ReviewValidationWarnings warnings={page.validationWarnings} />
         <ReviewScoreComparison original={page.original} recognizedXml={page.recognizedXml} validationIssues={page.validationWarnings} />
         <div className="mt-8 flex justify-center gap-4">
@@ -92,7 +83,6 @@ export default function ReviewPage({ params }: { params: Promise<{ jobId: string
             )}
           </Button>
         </div>
-      </div>
-    </>
+    </div>
   );
 }

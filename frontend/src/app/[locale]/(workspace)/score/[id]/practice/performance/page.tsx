@@ -7,6 +7,7 @@ import { ArrowLeft, Activity, FileText, Lightbulb, LoaderCircle, Target } from '
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/layout/page-header';
 import { ScoreShell } from '@/components/score-shell/score-shell';
 import { practiceApi } from '@/lib/api';
 import type { PracticeReportPayload } from '@/types/api';
@@ -91,21 +92,18 @@ export default function PracticePerformancePage() {
     : '';
 
   return (
-    <ScoreShell
-      hero={<div className="border-b bg-white">
-        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-5">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{t('performanceTitle')}</h1>
-            <p className="text-sm text-muted-foreground">{t('performanceSubtitle')}</p>
-          </div>
-        </div>
-      </div>}
-    >
-
-      <div className="mx-auto max-w-5xl px-4 py-8">
+    <ScoreShell embedded footer={false} workspace="performance">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          title={t('performanceTitle')}
+          description={t('performanceSubtitle')}
+          actions={
+            <Button variant="outline" onClick={() => router.back()}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {t('backToPractice')}
+            </Button>
+          }
+        />
         {isLoading && (
           <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
             <LoaderCircle className="h-10 w-10 animate-spin text-orange-500" />

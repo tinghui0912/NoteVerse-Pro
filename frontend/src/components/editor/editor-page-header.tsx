@@ -28,7 +28,7 @@ export function EditorPageHeader({
   const common = useTranslations('common');
 
   return (
-    <header className="sticky top-0 z-20 h-16 shrink-0 border-b bg-background/80 backdrop-blur-sm">
+    <header className="sticky top-16 z-20 h-16 shrink-0 border-b bg-background/80 backdrop-blur-sm">
       <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4">
         <EditorMobileToolSheet
           fingeringPending={fingeringPending}

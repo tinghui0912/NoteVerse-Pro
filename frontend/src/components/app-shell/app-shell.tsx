@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { CreditCard, HelpCircle, Library, Menu, Music2, Search, Settings, Upload, X } from 'lucide-react';
+import { HelpCircle, Library, Menu, Music2, Search, Settings, Upload, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
@@ -24,16 +24,11 @@ const primaryNavItems = [
   { href: '/settings/profile', label: 'settings', icon: Settings, match: '/settings' },
 ] as const;
 
-const secondaryNavItems = [
-  { href: '/subscriptions', label: 'nav.pricing', icon: CreditCard },
-  { href: '/help', label: 'nav.help', icon: HelpCircle },
-] as const;
-
 function AppSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTranslations('common');
   const pathname = usePathname();
 
-  const renderItem = (item: (typeof primaryNavItems)[number] | (typeof secondaryNavItems)[number]) => {
+  const renderItem = (item: (typeof primaryNavItems)[number]) => {
     const Icon = item.icon;
     const match = 'match' in item ? item.match : item.href;
     const isActive = pathname === match || pathname.startsWith(`${match}/`);
@@ -67,10 +62,6 @@ function AppSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {primaryNavItems.map(renderItem)}
-      </nav>
-
-      <nav className="space-y-1 border-t border-gray-200 px-3 py-4">
-        {secondaryNavItems.map(renderItem)}
       </nav>
     </div>
   );
@@ -121,6 +112,17 @@ function AppTopbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
             <Search className="h-5 w-5" />
           </Button>
           <NotificationBell buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            aria-label={t('nav.help')}
+            className="rounded-full text-gray-600 hover:bg-gray-100 hover:text-gray-950"
+          >
+            <Link href="/help">
+              <HelpCircle className="h-5 w-5" />
+            </Link>
+          </Button>
           <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
           <UserMenu triggerClassName="hover:bg-gray-100" />
         </div>

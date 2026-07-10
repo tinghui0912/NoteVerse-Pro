@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/layout/page-header';
 import { practiceApi } from '@/lib/api';
 import {
   useGrantContent,
@@ -516,27 +517,20 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   return (
     <ScoreShell
-      hero={<div className="bg-gray-900">
-        <div className="pt-32 pb-16 max-w-7xl mx-auto px-4">
-          <div className="w-full flex items-center">
-            <div className="w-12 shrink-0">
-              <Button
-                variant="ghost"
-                onClick={() => router.back()}
-                className="text-white hover:bg-white/10 hover:text-white h-12 w-12 rounded-full [&_svg]:size-6"
-              >
-                <ArrowLeft />
-              </Button>
-            </div>
-            <div className="flex-1 text-center">
-              <h1 className="text-4xl sm:text-6xl font-bold text-white mb-4">{t('mode')}</h1>
-              <p className="text-lg text-gray-300">{t('subtitle')}</p>
-            </div>
-            <div className="w-12 shrink-0" />
-          </div>
-        </div>
-      </div>}
+      embedded
+      footer={false}
     >
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          title={t('mode')}
+          description={t('subtitle')}
+          actions={
+            <Button variant="outline" onClick={() => router.back()}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {t('backToScore')}
+            </Button>
+          }
+        />
       {!hasAccessToken && scoreCapabilities && !scoreCapabilities.can_practice ? (
         <WorkspaceAccessDenied
           title={t('accessDeniedTitle')}
@@ -546,7 +540,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         />
       ) : (
 
-      <div className="max-w-4xl mx-auto px-4 py-16">
+      <div>
         <div className="flex flex-col gap-4">
           <div className="w-full space-y-6">
             <PracticeStatusPanel
@@ -585,6 +579,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
       )}
+      </div>
       <PracticeCompletionDialog
         open={isCompletionDialogOpen}
         audioUrl={audioURL}

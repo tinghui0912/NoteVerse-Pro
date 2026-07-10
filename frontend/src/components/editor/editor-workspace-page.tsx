@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/layout/page-header';
 import { ScoreShell } from '@/components/score-shell/score-shell';
 import { WorkspaceAccessDenied } from '@/components/score-shell/workspace-access-denied';
 import { EditorPageHeader } from '@/components/editor/editor-page-header';
@@ -21,47 +22,32 @@ interface EditorWorkspacePageProps {
   };
 }
 
-function EditorHero({ subtitle }: { subtitle: boolean }) {
-  const t = useTranslations('editor');
-
-  return (
-    <div className="bg-gray-900">
-      <div className="mx-auto max-w-7xl px-4 pb-16 pt-32">
-        <div className="flex w-full items-center">
-          <div className="flex-1 text-center">
-            <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{t('title')}</h1>
-            {subtitle ? <p className="text-lg text-gray-300">{t('subtitle')}</p> : null}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePageProps) {
   const t = useTranslations('editor');
   const common = useTranslations('common');
   const router = useRouter();
 
-  const renderFrame = (children: ReactNode, options?: { footer?: boolean; subtitle?: boolean }) => {
-    const hero = <EditorHero subtitle={Boolean(options?.subtitle)} />;
+  const renderFrame = (children: ReactNode) => {
+    const content = (
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader title={t('title')} description={t('subtitle')} />
+        {children}
+      </div>
+    );
+
     if (!scoreShell) {
-      return (
-        <>
-          {hero}
-          {children}
-        </>
-      );
+      return content;
     }
+
     return (
       <ScoreShell
         capabilities={scoreShell.capabilities}
-        footer={options?.footer}
-        hero={hero}
+        embedded
+        footer={false}
         scoreId={scoreShell.scoreId}
         workspace="edit"
       >
-        {children}
+        {content}
       </ScoreShell>
     );
   };
@@ -134,7 +120,6 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
         onSaveIgnoringWarnings={document.saveIgnoringWarnings}
         onValidationOpenChange={document.setValidationDialogOpen}
       />
-    </>,
-    { footer: Boolean(scoreShell), subtitle: true }
+    </>
   );
 }

@@ -11,6 +11,7 @@ import {
 interface ScoreShellProps {
   children: ReactNode;
   capabilities?: ScoreShellCapabilities | null;
+  embedded?: boolean;
   hero?: ReactNode;
   footer?: boolean;
   scoreId?: string;
@@ -34,6 +35,7 @@ export function useScoreShell(): ScoreShellContextValue {
 export function ScoreShell({
   children,
   capabilities,
+  embedded = false,
   hero,
   footer = true,
   scoreId,
@@ -47,10 +49,10 @@ export function ScoreShell({
 
   return (
     <ScoreShellContext.Provider value={value}>
-      <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className={embedded ? 'bg-gray-50' : 'flex min-h-screen flex-col bg-gray-50'}>
         {hero}
-        <main className="grow">{children}</main>
-        {footer ? <Footer /> : null}
+        {embedded ? children : <main className="grow">{children}</main>}
+        {!embedded && footer ? <Footer /> : null}
       </div>
     </ScoreShellContext.Provider>
   );

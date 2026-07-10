@@ -1,5 +1,6 @@
 {
   "title": "Score Details",
+  "publicScore": "Public score",
   "subtitle": "You can now listen, practice, share, download, or continue editing your work.",
   "scoreFallbackTitle": "Score {id}",
   "playScore": "Play Score",

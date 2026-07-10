@@ -13,7 +13,7 @@ import { ImportJobCard } from '@/components/my-scores/import-job-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { PageHeader } from '@/components/app-shell/page-header';
+import { PageHeader } from '@/components/layout/page-header';
 import { useDeleteImportJob, useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import {
   useDeleteMyScores,

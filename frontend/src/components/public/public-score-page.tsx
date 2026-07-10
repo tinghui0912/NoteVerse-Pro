@@ -24,8 +24,8 @@ function PublicScoreContent({ slug }: { slug: string }) {
 
   if (publication.isLoading || content.isLoading) {
     return (
-      <ScoreShell footer={false}>
-        <div className="flex min-h-screen items-center justify-center">
+      <ScoreShell embedded footer={false}>
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </ScoreShell>
@@ -34,8 +34,8 @@ function PublicScoreContent({ slug }: { slug: string }) {
 
   if (!data || publication.error || content.error) {
     return (
-      <ScoreShell>
-        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
+      <ScoreShell embedded footer={false}>
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center text-muted-foreground">
           {common('loadFailed')}
         </div>
       </ScoreShell>
@@ -45,13 +45,6 @@ function PublicScoreContent({ slug }: { slug: string }) {
   const capabilities = resolveScoreShellCapabilities(data.capabilities);
   const pageCount = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE').length;
   const scoreId = data.publication.score_id;
-  const hero = (
-    <div className="bg-gray-900">
-      <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 text-center">
-        <h1 className="mb-4 text-4xl font-bold text-white sm:text-6xl">{data.title}</h1>
-      </div>
-    </div>
-  );
 
   const download = async (kind: 'MUSICXML' | 'RENDERED_PAGE') => {
     const artifacts = data.artifacts.filter((artifact) => artifact.kind === kind);
@@ -62,14 +55,20 @@ function PublicScoreContent({ slug }: { slug: string }) {
   };
 
   return (
-    <ScoreShell capabilities={capabilities} hero={hero} scoreId={scoreId} workspace="public">
-      <div className="mx-auto max-w-7xl px-4 py-16">
+    <ScoreShell capabilities={capabilities} embedded footer={false} scoreId={scoreId} workspace="public">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <p className="text-sm font-medium text-orange-600">{scoreText('publicScore')}</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+            {data.title}
+          </h1>
+        </div>
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <ScorePlayer rawXml={rawXml} />
           </div>
 
-          <aside className="sticky top-8 space-y-6 lg:col-span-1">
+          <aside className="sticky top-24 space-y-6 lg:col-span-1">
             <Card className="rounded-2xl bg-white shadow-lg">
               <CardHeader>
                 <CardTitle>{scoreText('scoreInfo')}</CardTitle>
@@ -137,7 +136,6 @@ function PublicScoreContent({ slug }: { slug: string }) {
             </Card>
           </aside>
         </div>
-        <div aria-hidden="true" className="h-36 md:h-28" />
       </div>
     </ScoreShell>
   );
