@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
-import { Check, CircleAlert, KeyRound, Mail, ShieldCheck } from 'lucide-react';
+import { Check, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { InlineLoading } from '@/components/loading/inline-loading';
-import { SectionLoading } from '@/components/loading/section-loading';
+import { InlineLoading } from '@/components/loading';
+import { SectionLoading } from '@/components/loading';
+import { SectionErrorState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -245,10 +245,7 @@ export function SecuritySettingsPanel() {
           className="mt-6 rounded-lg border border-gray-200"
         />
       ) : securityQuery.isError ? (
-        <Alert variant="destructive" className="mt-6">
-          <CircleAlert className="h-4 w-4" />
-          <AlertDescription>{t('security.loadFailed')}</AlertDescription>
-        </Alert>
+        <SectionErrorState description={t('security.loadFailed')} className="mt-6" />
       ) : securityQuery.data?.data?.security ? (
         <SecurityContent security={securityQuery.data.data.security} />
       ) : null}

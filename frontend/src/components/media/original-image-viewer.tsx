@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { FloatingWindow } from '@/components/ui/floating-window';
+import { EmptyState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, FileImage } from 'lucide-react';
 import Image from 'next/image';
@@ -241,10 +242,11 @@ export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProp
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center w-full h-full bg-gray-100 rounded-md">
-          <FileImage className="h-12 w-12 text-gray-400 mb-2" />
-          <p className="text-gray-500 text-sm">{scoreText('noImageAvailable')}</p>
-        </div>
+        <EmptyState
+          icon={FileImage}
+          title={scoreText('noImageAvailable')}
+          className="h-full w-full rounded-md bg-gray-100"
+        />
       )}
     </FloatingWindow>
   );

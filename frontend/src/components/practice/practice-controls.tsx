@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Mic, Pause, Play, Square } from 'lucide-react';
-import { InlineLoading } from '@/components/loading/inline-loading';
+import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/practice-types';

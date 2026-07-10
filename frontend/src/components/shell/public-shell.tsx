@@ -1,5 +1,5 @@
 import { ClientOnly } from '@/components/client-only';
-import { PublicNav } from '@/components/navigation/public-nav';
+import { PublicNav } from '@/components/navigation';
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
   return (

@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/page/page-header';
+import { PageHeader } from '@/components/page';
 import { practiceApi } from '@/lib/api';
 import {
   useGrantContent,
@@ -27,8 +27,8 @@ import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer
 import { PracticeControls } from '@/components/practice/practice-controls';
 import { PracticeStatusPanel } from '@/components/practice/practice-status-panel';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
-import { ResourceLoadError } from '@/components/error/resource-load-error';
-import { ResourceLoading } from '@/components/loading/resource-loading';
+import { ResourceLoadError } from '@/components/states';
+import { ResourceLoading } from '@/components/loading';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { translateErrorCode } from '@/lib/i18n/error-message';

@@ -4,7 +4,7 @@ import { Music2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Link } from '@/i18n/routing';
-import { AuthenticatedNavActions } from '@/components/navigation/nav-actions';
+import { AuthenticatedNavActions } from '@/components/navigation';
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   return (

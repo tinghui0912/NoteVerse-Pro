@@ -2,7 +2,7 @@
 
 import { CheckCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { InlineLoading } from '@/components/loading/inline-loading';
+import { InlineLoading } from '@/components/loading';
 import { EditorMobileToolSheet } from '@/components/editor/editor-mobile-tool-sheet';
 import { EditorToolbar } from '@/components/editor/editor-toolbar';
 import type { FingeringHandSize } from '@/types/api';

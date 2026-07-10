@@ -2,8 +2,8 @@
 
 import { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
-import { PageLoading } from '@/components/loading/page-loading';
-import { PageHeader } from '@/components/page/page-header';
+import { PageLoading } from '@/components/loading';
+import { PageHeader } from '@/components/page';
 import { UploadForm } from '@/components/upload/upload-form';
 import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
 

@@ -2,8 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, LoaderCircle, Maximize, Minimize } from 'lucide-react';
+import { AlertTriangle, Maximize, Minimize } from 'lucide-react';
 
+import { PreviewLoading } from '@/components/loading';
+import { EmptyState } from '@/components/states';
 import { VerovioScoreViewer } from '@/components/score/verovio-score-viewer';
 import { Button } from '@/components/ui/button';
 import {
@@ -198,15 +200,10 @@ export function PracticeScoreViewer({
           isMaximized ? 'practice-score-svg-natural' : 'practice-score-svg-fit'
         )}
         loadingContent={
-          <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-muted-foreground">
-            <LoaderCircle className="h-8 w-8 animate-spin" />
-            <p>{tPractice('preparingPractice')}</p>
-          </div>
+          <PreviewLoading label={tPractice('preparingPractice')} className="min-h-[45vh]" />
         }
         emptyContent={
-          <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center text-muted-foreground">
-            <p>{tPractice('scoreDisplayArea')}</p>
-          </div>
+          <EmptyState title={tPractice('scoreDisplayArea')} className="min-h-[45vh]" />
         }
         renderError={(message) => (
           <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center text-destructive">

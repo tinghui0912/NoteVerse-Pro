@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { LoadingSpinner } from '@/components/loading/loading-spinner';
+import { LoadingSpinner } from './loading-spinner';
 import { cn } from '@/lib/utils';
 
 interface InlineLoadingProps {

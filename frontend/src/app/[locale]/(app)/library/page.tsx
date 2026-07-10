@@ -4,11 +4,9 @@ import React, { useMemo, useState } from 'react';
 import {
   CheckCircle2,
   Clock3,
-  CircleAlert,
   Music,
   Star,
   Target,
-  RefreshCw,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -24,11 +22,12 @@ import { LibraryFilterBar } from '@/components/library/library-filter-bar';
 import { LibraryFolderDialog } from '@/components/library/library-folder-dialog';
 import { LibraryPagination } from '@/components/library/library-pagination';
 import { LibrarySidebar } from '@/components/library/library-sidebar';
-import { SectionLoading } from '@/components/loading/section-loading';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { SectionLoading } from '@/components/loading';
+import { EmptyState } from '@/components/states';
+import { SectionErrorState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { PageHeader } from '@/components/page/page-header';
+import { PageHeader } from '@/components/page';
 import {
   useCreateLibraryFolder,
   useDeleteLibraryFolder,
@@ -426,11 +425,11 @@ export default function LibraryPage({
             />
             ) : null}
             {mutationError ? (
-              <Alert variant="destructive" className="mb-5">
-                <CircleAlert className="h-4 w-4" />
-                <AlertTitle>{t('operationFailed')}</AlertTitle>
-                <AlertDescription>{errorMessage(mutationError)}</AlertDescription>
-              </Alert>
+              <SectionErrorState
+                title={t('operationFailed')}
+                description={errorMessage(mutationError)}
+                className="mb-5"
+              />
             ) : null}
             {batchMode && entries.length ? (
               <LibraryBulkActions
@@ -451,17 +450,12 @@ export default function LibraryPage({
             {entriesQuery.isLoading ? (
               <SectionLoading label={t('loadingEntries')} className="py-20" />
             ) : entriesQuery.isError ? (
-              <Alert variant="destructive">
-                <CircleAlert className="h-4 w-4" />
-                <AlertTitle>{t('entriesLoadFailed')}</AlertTitle>
-                <AlertDescription className="space-y-3">
-                  <p>{errorMessage(entriesQuery.error)}</p>
-                  <Button size="sm" variant="outline" onClick={retryLibraryData}>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    {t('retry')}
-                  </Button>
-                </AlertDescription>
-              </Alert>
+              <SectionErrorState
+                title={t('entriesLoadFailed')}
+                description={errorMessage(entriesQuery.error)}
+                retryLabel={t('retry')}
+                onRetry={retryLibraryData}
+              />
             ) : entries.length ? (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {entries.map((entry) => (
@@ -492,14 +486,19 @@ export default function LibraryPage({
               </div>
             ) : (
               <Card className="rounded-2xl">
-                <CardContent className="py-20 text-center">
-                  <Music className="mx-auto mb-4 h-14 w-14 text-muted-foreground" />
-                  <p className="text-muted-foreground">{emptyMessage}</p>
-                  {!folderId && view === 'all' && !params.search ? (
-                    <Button className="mt-4" onClick={() => router.push('/upload')}>
-                      {t('uploadScore')}
-                    </Button>
-                  ) : null}
+                <CardContent>
+                  <EmptyState
+                    icon={Music}
+                    title={emptyMessage}
+                    className="py-20"
+                    action={
+                      !folderId && view === 'all' && !params.search ? (
+                        <Button onClick={() => router.push('/upload')}>
+                          {t('uploadScore')}
+                        </Button>
+                      ) : null
+                    }
+                  />
                 </CardContent>
               </Card>
             )}

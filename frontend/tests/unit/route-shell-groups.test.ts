@@ -10,14 +10,25 @@ describe('route shell groups', () => {
   it('keeps shared chrome primitives in semantic component directories', () => {
     expect(existsSync(projectPath('src/components/layout'))).toBe(false);
     expect(existsSync(projectPath('src/components/providers/client-providers.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/navigation/index.ts'))).toBe(true);
     expect(existsSync(projectPath('src/components/navigation/nav-actions.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/components/page/page-header.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/page/index.ts'))).toBe(true);
     expect(existsSync(projectPath('src/components/home'))).toBe(false);
     expect(existsSync(projectPath('src/components/marketing/animated-section.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/components/marketing/marketing-footer.tsx'))).toBe(true);
+
+    const navigationIndex = readSource('src/components/navigation/index.ts');
+    const pageIndex = readSource('src/components/page/index.ts');
+
+    expect(navigationIndex).toContain("export { PublicNav }");
+    expect(navigationIndex).toContain('AuthenticatedNavActions');
+    expect(pageIndex).toContain("export { PageHeader }");
   });
 
   it('keeps route shells in the shared shell directory', () => {
+    expect(existsSync(projectPath('src/components/shell/index.ts'))).toBe(true);
+
     for (const shellName of [
       'app-shell',
       'auth-shell',
@@ -127,9 +138,20 @@ describe('route shell groups', () => {
   });
 
   it('keeps resource load errors explicit and visually consistent', () => {
-    expect(existsSync(projectPath('src/components/error/resource-load-error.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/states/index.ts'))).toBe(true);
+    expect(existsSync(projectPath('src/components/states/error-state.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/states/empty-state.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/states/not-found-state.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/states/resource-load-error.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/states/section-error-state.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/error'))).toBe(false);
 
-    const resourceLoadError = readSource('src/components/error/resource-load-error.tsx');
+    const resourceLoadError = readSource('src/components/states/resource-load-error.tsx');
+    const statesIndex = readSource('src/components/states/index.ts');
+    const localeNotFound = readSource('src/app/[locale]/not-found.tsx');
+    const rootNotFound = readSource('src/app/not-found.tsx');
+    const localeError = readSource('src/app/[locale]/error.tsx');
+    const editorError = readSource('src/app/[locale]/(workspace)/score/[id]/edit/error.tsx');
     const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
@@ -138,11 +160,37 @@ describe('route shell groups', () => {
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
     const practiceControls = readSource('src/components/practice/practice-controls.tsx');
+    const myScoresPage = readSource('src/app/[locale]/(app)/my-scores/page.tsx');
+    const libraryPage = readSource('src/app/[locale]/(app)/library/page.tsx');
+    const notificationDialog = readSource('src/components/notifications/notification-center-dialog.tsx');
+    const reviewScoreComparison = readSource('src/components/review/review-score-comparison.tsx');
+    const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
+    const sessionsPanel = readSource('src/components/settings/sessions-settings-panel.tsx');
 
     expect(resourceLoadError).toContain('function ResourceLoadError');
+    expect(resourceLoadError).toContain('ErrorState');
     expect(resourceLoadError).toContain('CircleAlert');
     expect(resourceLoadError).toContain('actionHref');
     expect(resourceLoadError).toContain('onAction');
+    expect(statesIndex).toContain("export { ResourceLoadError }");
+    expect(statesIndex).toContain("export { SectionErrorState }");
+    expect(localeNotFound).toContain('NotFoundState');
+    expect(rootNotFound).toContain('NotFoundState');
+    expect(rootNotFound).not.toContain('style={{');
+    expect(localeError).toContain('ErrorState');
+    expect(editorError).toContain('ErrorState');
+    expect(editorError).toContain("process.env.NODE_ENV === 'development'");
+    expect(myScoresPage).toContain('EmptyState');
+    expect(libraryPage).toContain('EmptyState');
+    expect(notificationDialog).toContain('EmptyState');
+    expect(notificationDialog).not.toContain('function EmptyState');
+    expect(reviewScoreComparison).toContain('EmptyState');
+    expect(myScoresPage).toContain('SectionErrorState');
+    expect(libraryPage).toContain('SectionErrorState');
+    expect(notificationDialog).toContain('SectionErrorState');
+    expect(notificationDialog).not.toContain('function ErrorState');
+    expect(securityPanel).toContain('SectionErrorState');
+    expect(sessionsPanel).toContain('SectionErrorState');
 
     for (const source of [reviewPage, scorePage, editorWorkspace, sharePage, publicScorePage, practicePage, invitePage]) {
       expect(source).toContain('ResourceLoadError');
@@ -160,10 +208,13 @@ describe('route shell groups', () => {
   });
 
   it('keeps loading states in shared loading primitives', () => {
+    expect(existsSync(projectPath('src/components/loading/index.ts'))).toBe(true);
+
     for (const loadingComponent of [
       'inline-loading',
       'loading-spinner',
       'page-loading',
+      'preview-loading',
       'resource-loading',
       'section-loading',
     ]) {
@@ -171,6 +222,7 @@ describe('route shell groups', () => {
     }
 
     const globalLoading = readSource('src/app/[locale]/loading.tsx');
+    const loadingIndex = readSource('src/components/loading/index.ts');
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
     const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
@@ -185,8 +237,13 @@ describe('route shell groups', () => {
     const performancePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/performance/page.tsx');
     const loginPage = readSource('src/app/[locale]/(auth)/auth/login/page.tsx');
     const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
+    const scorePreviewViewport = readSource('src/components/score/score-preview-viewport.tsx');
+    const practiceScoreViewer = readSource('src/components/practice/practice-score-viewer.tsx');
+    const reviewScoreComparison = readSource('src/components/review/review-score-comparison.tsx');
 
     expect(globalLoading).toContain('<PageLoading');
+    expect(loadingIndex).toContain("export { ResourceLoading }");
+    expect(loadingIndex).toContain("export { SectionLoading }");
     expect(scorePage).toContain("common('loadingScoreData')");
     expect(reviewPage).toContain("common('loadingReviewData')");
     expect(editorWorkspace).toContain("common('loadingScoreData')");
@@ -201,6 +258,9 @@ describe('route shell groups', () => {
     expect(performancePage).toContain("t('loadingReport')");
     expect(loginPage).toContain('InlineLoading');
     expect(securityPanel).toContain('InlineLoading');
+    expect(scorePreviewViewport).toContain('PreviewLoading');
+    expect(practiceScoreViewer).toContain('PreviewLoading');
+    expect(reviewScoreComparison).toContain('PreviewLoading');
 
     for (const source of [scorePage, reviewPage, editorWorkspace, publicScorePage, sharePage, invitePage, practicePage]) {
       expect(source).toContain('ResourceLoading');
@@ -211,6 +271,10 @@ describe('route shell groups', () => {
     }
 
     expect(performancePage).toContain('ResourceLoading');
+  });
+
+  it('keeps retired score preview wrappers out of the shared score components', () => {
+    expect(existsSync(projectPath('src/components/score/score-preview-panel.tsx'))).toBe(false);
   });
 
   it('keeps upload workflow primitives out of component modules', () => {

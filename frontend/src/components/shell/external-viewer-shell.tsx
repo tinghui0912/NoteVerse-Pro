@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
-import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation/nav-actions';
+import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation';
 import { useAuth } from '@/contexts/auth-context';
 
 export function ExternalViewerShell({ children }: { children: ReactNode }) {

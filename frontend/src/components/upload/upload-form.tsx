@@ -6,8 +6,8 @@ import { useTranslations } from 'next-intl';
 import { PlusSquare, UploadCloud, XCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { UploadPreviewDialog } from './upload-preview-dialog';
-import { InlineLoading } from '@/components/loading/inline-loading';
-import { LoadingSpinner } from '@/components/loading/loading-spinner';
+import { InlineLoading } from '@/components/loading';
+import { LoadingSpinner } from '@/components/loading';
 import type { UploadableFile } from '@/lib/upload/upload-workflow';
 import {
   AlertDialog,

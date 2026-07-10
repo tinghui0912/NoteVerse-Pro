@@ -1,20 +1,21 @@
 'use client';
 
 import React from 'react';
-import { CircleAlert, Music, Upload } from 'lucide-react';
+import { Music, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { SectionLoading } from '@/components/loading/section-loading';
+import { SectionLoading } from '@/components/loading';
+import { EmptyState } from '@/components/states';
+import { SectionErrorState } from '@/components/states';
 import { MyScoresBulkActions } from '@/components/my-scores/my-scores-bulk-actions';
 import { MyScoresFilterBar } from '@/components/my-scores/my-scores-filter-bar';
 import { MyScoresPagination } from '@/components/my-scores/my-scores-pagination';
 import { MyScoreCard } from '@/components/my-scores/my-score-card';
 import { ImportJobCard } from '@/components/my-scores/import-job-card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { PageHeader } from '@/components/page/page-header';
+import { PageHeader } from '@/components/page';
 import { useDeleteImportJob, useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import {
   useDeleteMyScores,
@@ -254,13 +255,10 @@ export default function MyScoresPage({
           {isLoading ? (
             <SectionLoading label={t('loading')} className="py-20" />
           ) : isError ? (
-            <Alert variant="destructive">
-              <CircleAlert className="h-4 w-4" />
-              <AlertTitle>{t('loadFailed')}</AlertTitle>
-              <AlertDescription>
-                {loadError instanceof Error ? loadError.message : t('loadFailedDesc')}
-              </AlertDescription>
-            </Alert>
+            <SectionErrorState
+              title={t('loadFailed')}
+              description={loadError instanceof Error ? loadError.message : t('loadFailedDesc')}
+            />
           ) : visibleJobs.length || scores.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visibleJobs.map((job) => (
@@ -298,14 +296,17 @@ export default function MyScoresPage({
             </div>
           ) : (
             <Card className="rounded-2xl">
-              <CardContent className="py-20 text-center">
-                <Music className="mx-auto mb-4 h-14 w-14 text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  {params.search ? t('emptySearch') : t(`empty.${view}`)}
-                </p>
-                <Button className="mt-4" asChild>
-                  <Link href="/upload">{t('uploadScore')}</Link>
-                </Button>
+              <CardContent>
+                <EmptyState
+                  icon={Music}
+                  title={params.search ? t('emptySearch') : t(`empty.${view}`)}
+                  className="py-20"
+                  action={
+                    <Button asChild>
+                      <Link href="/upload">{t('uploadScore')}</Link>
+                    </Button>
+                  }
+                />
               </CardContent>
             </Card>
           )}

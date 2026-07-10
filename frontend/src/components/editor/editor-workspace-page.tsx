@@ -3,9 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { ResourceLoadError } from '@/components/error/resource-load-error';
-import { ResourceLoading } from '@/components/loading/resource-loading';
-import { PageHeader } from '@/components/page/page-header';
+import { ResourceLoadError } from '@/components/states';
+import { ResourceLoading } from '@/components/loading';
+import { PageHeader } from '@/components/page';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';

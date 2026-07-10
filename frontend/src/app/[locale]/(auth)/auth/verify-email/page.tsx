@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { AuthCard } from '@/components/auth/auth-card';
-import { InlineLoading } from '@/components/loading/inline-loading';
+import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';

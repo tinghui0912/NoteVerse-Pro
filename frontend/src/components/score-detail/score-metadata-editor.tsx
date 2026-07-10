@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Edit } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { InlineLoading } from '@/components/loading/inline-loading';
+import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

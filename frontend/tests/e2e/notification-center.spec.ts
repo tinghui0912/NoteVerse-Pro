@@ -161,7 +161,7 @@ test('notification center combines pending invites and update notifications', as
     })
   );
 
-  await page.goto('/en');
+  await page.goto('/en/upload');
   const bell = page.getByRole('button', { name: 'Notifications' });
   await expect(bell).toBeVisible();
   await expect(bell.getByText('2', { exact: true })).toBeVisible();
@@ -270,7 +270,7 @@ test('failed processing notification opens the matching upload job', async ({ pa
     })
   );
 
-  await page.goto('/en');
+  await page.goto('/en/upload');
   await page.getByRole('button', { name: 'Notifications' }).click();
   await page.getByText('Score processing failed').click();
 
@@ -335,7 +335,7 @@ test('completed processing notification opens job review', async ({ page }) => {
     })
   );
 
-  await page.goto('/en');
+  await page.goto('/en/upload');
   await page.getByRole('button', { name: 'Notifications' }).click();
   await page.getByText('Score processing completed').click();
 
@@ -407,7 +407,7 @@ test('confirmed processing notification opens created score', async ({ page }) =
     })
   );
 
-  await page.goto('/en');
+  await page.goto('/en/upload');
   await page.getByRole('button', { name: 'Notifications' }).click();
   await page.getByText('Score processing completed').click();
 

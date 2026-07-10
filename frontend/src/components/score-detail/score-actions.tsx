@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, Download, Edit, FileImage, FileMusic, Gamepad2, Globe2, Share2, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
-import { InlineLoading } from '@/components/loading/inline-loading';
+import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {

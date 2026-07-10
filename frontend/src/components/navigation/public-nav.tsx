@@ -12,7 +12,7 @@ import {
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { ClientOnly } from '@/components/client-only';
-import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation/nav-actions';
+import { AuthenticatedNavActions, LanguageSwitcher } from './nav-actions';
 
 const publicNavItems = [
   { label: 'nav.home' as const, href: '/' as const },

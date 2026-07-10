@@ -5,7 +5,7 @@ import { CreditCard, Monitor, ShieldCheck, User } from 'lucide-react';
 
 import { Link, usePathname } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
-import { PageHeader } from '@/components/page/page-header';
+import { PageHeader } from '@/components/page';
 
 const settingsTabs = [
   { href: '/settings/profile', label: 'tabs.profile', icon: User },

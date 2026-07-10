@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ResourceLoading } from '@/components/loading/resource-loading';
+import { ResourceLoading } from './resource-loading';
 
 interface PageLoadingProps {
   label?: string;

@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { AlertCircle, Bell, Check, MailPlus, X } from 'lucide-react';
+import { Bell, Check, MailPlus, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SectionErrorState } from '@/components/states';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -188,15 +190,15 @@ export function NotificationCenterDialog({
                 ) : null}
               </div>
               {pendingInvitesQuery.isLoading ? (
-                <EmptyState label={t('loading')} />
+                <EmptyState title={t('loading')} className="min-h-0 rounded-lg border border-dashed p-5" />
               ) : pendingInvitesQuery.isError ? (
-                <ErrorState
-                  label={t('loadActionsFailed')}
+                <SectionErrorState
+                  description={t('loadActionsFailed')}
                   retryLabel={t('retry')}
                   onRetry={() => void pendingInvitesQuery.refetch()}
                 />
               ) : invites.length === 0 ? (
-                <EmptyState label={t('emptyActions')} />
+                <EmptyState title={t('emptyActions')} className="min-h-0 rounded-lg border border-dashed p-5" />
               ) : (
                 <div className="space-y-3">
                   {invites.map((invite) => {
@@ -297,15 +299,15 @@ export function NotificationCenterDialog({
                 </div>
               </div>
               {notificationsQuery.isLoading ? (
-                <EmptyState label={t('loading')} />
+                <EmptyState title={t('loading')} className="min-h-0 rounded-lg border border-dashed p-5" />
               ) : notificationsQuery.isError ? (
-                <ErrorState
-                  label={t('loadUpdatesFailed')}
+                <SectionErrorState
+                  description={t('loadUpdatesFailed')}
                   retryLabel={t('retry')}
                   onRetry={() => void notificationsQuery.refetch()}
                 />
               ) : visibleNotifications.length === 0 ? (
-                <EmptyState label={t('emptyUpdates')} />
+                <EmptyState title={t('emptyUpdates')} className="min-h-0 rounded-lg border border-dashed p-5" />
               ) : (
                 <div className="space-y-4">
                   {groupedVisibleNotifications.map((group) => (
@@ -355,35 +357,5 @@ export function NotificationCenterDialog({
         </ScrollArea>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function EmptyState({ label }: { label: string }) {
-  return (
-    <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-      {label}
-    </div>
-  );
-}
-
-function ErrorState({
-  label,
-  retryLabel,
-  onRetry,
-}: {
-  label: string;
-  retryLabel: string;
-  onRetry: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
-      <span className="flex min-w-0 items-center gap-2 text-destructive">
-        <AlertCircle className="h-4 w-4 shrink-0" />
-        <span className="truncate">{label}</span>
-      </span>
-      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-        {retryLabel}
-      </Button>
-    </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { CheckCircle2, CircleAlert, MoreVertical, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { LoadingSpinner } from '@/components/loading/loading-spinner';
+import { LoadingSpinner } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';

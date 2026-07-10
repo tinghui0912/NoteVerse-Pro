@@ -2,8 +2,8 @@
 
 import type { RefObject } from 'react';
 import type { MouseEvent } from 'react';
-import { LoaderCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { PreviewLoading } from '@/components/loading';
 import { cn } from '@/lib/utils';
 
 interface ScorePreviewViewportProps {
@@ -143,10 +143,10 @@ export function ScorePreviewViewport({
         )}
       >
         {isLoading ? (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white/80 text-muted-foreground backdrop-blur-sm">
-            <LoaderCircle className="h-8 w-8 animate-spin" />
-            <p>{t('loadingScoreData')}</p>
-          </div>
+          <PreviewLoading
+            label={t('loadingScoreData')}
+            className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm"
+          />
         ) : null}
         {loadError ? (
           <div role="alert" className="absolute inset-0 z-10 flex items-center justify-center bg-white p-6 text-center text-destructive">

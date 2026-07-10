@@ -4,11 +4,11 @@ test('protected routes preserve return URL while share grants stay anonymous', a
   await page.route('**/api/v1/auth/refresh', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
   await page.route('**/api/v1/me/profile**', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
   await page.goto('/en/library?view=all');
-  await expect(page).toHaveURL(/\/en\/login\?/);
+  await expect(page).toHaveURL(/\/auth\/login\?/);
   expect(new URL(page.url()).searchParams.get('returnUrl')).toBe('/en/library?view=all');
 
   await page.goto('/en/my-scores?view=published');
-  await expect(page).toHaveURL(/\/en\/login\?/);
+  await expect(page).toHaveURL(/\/auth\/login\?/);
   expect(new URL(page.url()).searchParams.get('returnUrl')).toBe('/en/my-scores?view=published');
 
   await page.route('**/api/v1/score-grants/public-token', (route) => route.fulfill({
@@ -29,5 +29,5 @@ test('protected routes preserve return URL while share grants stay anonymous', a
     } }),
   }));
   await page.goto('/en/share/public-token');
-  await expect(page.getByText('Public Score')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Public Score' })).toBeVisible();
 });

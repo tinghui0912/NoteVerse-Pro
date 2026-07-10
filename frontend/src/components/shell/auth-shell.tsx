@@ -3,7 +3,7 @@
 import { Music2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { LanguageSwitcher } from '@/components/navigation/nav-actions';
+import { LanguageSwitcher } from '@/components/navigation';
 import { Link } from '@/i18n/routing';
 
 export function AuthShell({ children }: { children: React.ReactNode }) {

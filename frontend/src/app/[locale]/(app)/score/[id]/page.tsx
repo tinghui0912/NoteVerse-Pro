@@ -2,9 +2,9 @@
 
 import React, { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
-import { PageHeader } from '@/components/page/page-header';
-import { ResourceLoadError } from '@/components/error/resource-load-error';
-import { ResourceLoading } from '@/components/loading/resource-loading';
+import { PageHeader } from '@/components/page';
+import { ResourceLoadError } from '@/components/states';
+import { ResourceLoading } from '@/components/loading';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ScoreActions } from '@/components/score-detail/score-actions';

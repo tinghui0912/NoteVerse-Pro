@@ -3,8 +3,8 @@
 import React from 'react';
 import { Ban, CircleAlert, Clock3, SearchX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { ResourceLoadError } from '@/components/error/resource-load-error';
-import { ResourceLoading } from '@/components/loading/resource-loading';
+import { ResourceLoadError } from '@/components/states';
+import { ResourceLoading } from '@/components/loading';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ShareInfoSidebar } from '@/components/external/share-info-sidebar';

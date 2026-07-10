@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/navigation/nav-actions';
+import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/navigation';
 import { cn } from '@/lib/utils';
 
 const primaryNavItems = [

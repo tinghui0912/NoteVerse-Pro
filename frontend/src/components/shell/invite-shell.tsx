@@ -4,7 +4,7 @@ import { Music2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
-import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation/nav-actions';
+import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';

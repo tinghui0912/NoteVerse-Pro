@@ -2,7 +2,7 @@
 
 import { ImageIcon, Redo, Save, Undo } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { InlineLoading } from '@/components/loading/inline-loading';
+import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEditorState, useHistoryEditor } from '@/contexts/editor-provider';

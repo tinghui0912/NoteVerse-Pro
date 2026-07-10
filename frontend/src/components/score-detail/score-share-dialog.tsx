@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { routing } from '@/i18n/routing';
-import { InlineLoading } from '@/components/loading/inline-loading';
-import { SectionLoading } from '@/components/loading/section-loading';
+import { InlineLoading } from '@/components/loading';
+import { SectionLoading } from '@/components/loading';
+import { EmptyState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -421,7 +422,7 @@ export function ScoreShareDialog({
                 </div>
               </ScrollArea>
             ) : (
-              <p className="text-sm text-muted-foreground">{t('noLinks')}</p>
+              <EmptyState title={t('noLinks')} className="min-h-0 rounded-lg border border-dashed p-5" />
             )}
           </div>
           <Separator />

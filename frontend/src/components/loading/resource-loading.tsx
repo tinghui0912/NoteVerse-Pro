@@ -1,6 +1,6 @@
 'use client';
 
-import { LoadingSpinner } from '@/components/loading/loading-spinner';
+import { LoadingSpinner } from './loading-spinner';
 import { cn } from '@/lib/utils';
 
 type LoadingHeight = 'sm' | 'md' | 'lg' | 'screen';

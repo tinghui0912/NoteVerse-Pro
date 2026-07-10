@@ -10,7 +10,7 @@ import {
     Hand,
 } from 'lucide-react';
 import React, { useState, useSyncExternalStore } from 'react';
-import { InlineLoading } from '@/components/loading/inline-loading';
+import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,

@@ -4,8 +4,9 @@ import { useMemo, useState } from 'react';
 import { Copy, Trash2, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { routing } from '@/i18n/routing';
-import { InlineLoading } from '@/components/loading/inline-loading';
-import { SectionLoading } from '@/components/loading/section-loading';
+import { InlineLoading } from '@/components/loading';
+import { SectionLoading } from '@/components/loading';
+import { EmptyState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -223,7 +224,7 @@ export function ScoreCollaborationDialog({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">{t('noMembers')}</p>
+              <EmptyState title={t('noMembers')} className="min-h-0 rounded-lg border border-dashed p-5" />
             )}
           </section>
 
@@ -273,7 +274,7 @@ export function ScoreCollaborationDialog({
                 </div>
               </ScrollArea>
             ) : (
-              <p className="text-sm text-muted-foreground">{t('noInvites')}</p>
+              <EmptyState title={t('noInvites')} className="min-h-0 rounded-lg border border-dashed p-5" />
             )}
           </section>
 

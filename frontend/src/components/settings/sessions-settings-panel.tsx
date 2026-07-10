@@ -3,11 +3,12 @@
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CircleAlert, Monitor, ShieldCheck, Smartphone } from 'lucide-react';
+import { Monitor, ShieldCheck, Smartphone } from 'lucide-react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { InlineLoading } from '@/components/loading/inline-loading';
-import { SectionLoading } from '@/components/loading/section-loading';
+import { InlineLoading } from '@/components/loading';
+import { SectionLoading } from '@/components/loading';
+import { EmptyState } from '@/components/states';
+import { SectionErrorState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { useRevokeOtherSessions, useRevokeSession } from '@/hooks/queries/use-profile-mutations';
 import { useToast } from '@/hooks/use-toast';
@@ -124,12 +125,9 @@ export function SessionsSettingsPanel() {
         {sessionsQuery.isLoading ? (
           <SectionLoading label={t('sessions.loading')} />
         ) : sessionsQuery.isError ? (
-          <Alert variant="destructive" className="m-5">
-            <CircleAlert className="h-4 w-4" />
-            <AlertDescription>{t('sessions.loadFailed')}</AlertDescription>
-          </Alert>
+          <SectionErrorState description={t('sessions.loadFailed')} className="m-5" />
         ) : sessions.length === 0 ? (
-          <div className="p-5 text-sm text-gray-500">{t('sessions.empty')}</div>
+          <EmptyState title={t('sessions.empty')} className="min-h-0 p-5" />
         ) : (
           <div className="divide-y divide-gray-200">
             {sessions.map((session) => (

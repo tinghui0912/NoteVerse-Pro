@@ -12,7 +12,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError } from '@/lib/api-client';
 import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 import { AuthCard } from '@/components/auth/auth-card';
-import { InlineLoading } from '@/components/loading/inline-loading';
+import { InlineLoading } from '@/components/loading';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 
 export default function LoginPage() {

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { FileImage, Loader2 } from 'lucide-react';
+import { FileImage } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { PreviewLoading } from '@/components/loading';
+import { EmptyState } from '@/components/states';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from '@/components/ui/carousel';
 import { ScorePreviewViewport } from '@/components/score/score-preview-viewport';
@@ -48,6 +50,7 @@ function ReviewCarousel({
   loading: boolean;
 }) {
   const t = useTranslations('review');
+  const common = useTranslations('common');
   const scoreText = useTranslations('score');
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
@@ -72,7 +75,7 @@ function ReviewCarousel({
         ) : null}
       </CardHeader>
       <CardContent>
-        {loading ? <div className="flex aspect-[210/297] w-full items-center justify-center rounded-md bg-white"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div> : urls.length ? (
+        {loading ? <PreviewLoading label={common('loading')} className="aspect-[210/297] min-h-0 w-full rounded-md bg-white" /> : urls.length ? (
           <Carousel className="w-full" setApi={setApi}>
             <CarouselContent>
               {urls.map((url, index) => (
@@ -96,7 +99,7 @@ function ReviewCarousel({
               </>
             ) : null}
           </Carousel>
-        ) : <div className="flex aspect-[210/297] w-full flex-col items-center justify-center rounded-md bg-white"><FileImage className="mb-2 h-12 w-12 text-gray-400" /><p className="text-sm text-gray-500">{scoreText('noImageAvailable')}</p></div>}
+        ) : <EmptyState icon={FileImage} title={scoreText('noImageAvailable')} className="aspect-[210/297] min-h-0 w-full rounded-md bg-white" />}
       </CardContent>
     </Card>
   );
@@ -132,10 +135,11 @@ function RecognizedScorePreview({ xmlString, issues }: { xmlString: string | nul
             scoreContainerRef={scoreContainerRef}
           />
         ) : (
-          <div className="flex aspect-8.5/11 w-full flex-col items-center justify-center rounded-md bg-gray-100">
-            <FileImage className="mb-2 h-12 w-12 text-gray-400" />
-            <p className="text-sm text-gray-500">{scoreText('noImageAvailable')}</p>
-          </div>
+          <EmptyState
+            icon={FileImage}
+            title={scoreText('noImageAvailable')}
+            className="aspect-8.5/11 min-h-0 w-full rounded-md bg-gray-100"
+          />
         )}
       </CardContent>
     </Card>

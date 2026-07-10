@@ -1,11 +1,11 @@
 ﻿'use client';
 
 import type { LucideIcon } from 'lucide-react';
-import { CircleAlert, Folder, FolderInput, MoreHorizontal, Pencil, RefreshCw, Trash2 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Folder, FolderInput, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { SectionLoading } from '@/components/loading/section-loading';
+import { SectionLoading } from '@/components/loading';
+import { SectionErrorState } from '@/components/states';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,17 +64,12 @@ export function LibrarySidebar({
   return (
     <aside className="space-y-3">
       {foldersError ? (
-        <Alert variant="destructive">
-          <CircleAlert className="h-4 w-4" />
-          <AlertTitle>{t('foldersLoadFailed')}</AlertTitle>
-          <AlertDescription className="space-y-3">
-            <p>{errorMessage(foldersError)}</p>
-            <Button size="sm" variant="outline" onClick={onRetryFolders}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {t('retry')}
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <SectionErrorState
+          title={t('foldersLoadFailed')}
+          description={errorMessage(foldersError)}
+          retryLabel={t('retry')}
+          onRetry={onRetryFolders}
+        />
       ) : null}
       <Card className="rounded-2xl">
         <CardContent className="space-y-4 p-3">
