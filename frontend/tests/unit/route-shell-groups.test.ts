@@ -161,6 +161,7 @@ describe('route shell groups', () => {
 
   it('keeps loading states in shared loading primitives', () => {
     for (const loadingComponent of [
+      'inline-loading',
       'loading-spinner',
       'page-loading',
       'resource-loading',
@@ -177,6 +178,13 @@ describe('route shell groups', () => {
     const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+    const myScoresPage = readSource('src/app/[locale]/(app)/my-scores/page.tsx');
+    const libraryPage = readSource('src/app/[locale]/(app)/library/page.tsx');
+    const librarySidebar = readSource('src/components/library/library-sidebar.tsx');
+    const uploadPage = readSource('src/app/[locale]/(app)/upload/page.tsx');
+    const performancePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/performance/page.tsx');
+    const loginPage = readSource('src/app/[locale]/(auth)/auth/login/page.tsx');
+    const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
 
     expect(globalLoading).toContain('<PageLoading');
     expect(scorePage).toContain("common('loadingScoreData')");
@@ -186,10 +194,23 @@ describe('route shell groups', () => {
     expect(sharePage).toContain("common('loadingShareData')");
     expect(invitePage).toContain("common('loadingInvite')");
     expect(practicePage).toContain("common('loadingScoreData')");
+    expect(myScoresPage).toContain("t('loading')");
+    expect(libraryPage).toContain("t('loadingEntries')");
+    expect(librarySidebar).toContain("t('loadingFolders')");
+    expect(uploadPage).toContain('<PageLoading');
+    expect(performancePage).toContain("t('loadingReport')");
+    expect(loginPage).toContain('InlineLoading');
+    expect(securityPanel).toContain('InlineLoading');
 
     for (const source of [scorePage, reviewPage, editorWorkspace, publicScorePage, sharePage, invitePage, practicePage]) {
       expect(source).toContain('ResourceLoading');
     }
+
+    for (const source of [myScoresPage, libraryPage, librarySidebar]) {
+      expect(source).toContain('SectionLoading');
+    }
+
+    expect(performancePage).toContain('ResourceLoading');
   });
 
   it('keeps upload workflow primitives out of component modules', () => {

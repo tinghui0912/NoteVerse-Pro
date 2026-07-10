@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock3,
   CircleAlert,
-  Loader2,
   Music,
   Star,
   Target,
@@ -25,6 +24,7 @@ import { LibraryFilterBar } from '@/components/library/library-filter-bar';
 import { LibraryFolderDialog } from '@/components/library/library-folder-dialog';
 import { LibraryPagination } from '@/components/library/library-pagination';
 import { LibrarySidebar } from '@/components/library/library-sidebar';
+import { SectionLoading } from '@/components/loading/section-loading';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -372,6 +372,7 @@ export default function LibraryPage({
             practiceNodes={practiceNodes}
             folders={sortedFolders}
             folderDepth={(folder) => folderDepth(folder, folders)}
+            foldersLoading={foldersQuery.isLoading}
             foldersError={foldersQuery.isError ? foldersQuery.error : null}
             createFolderPending={createFolder.isPending}
             onCreateFolder={openCreateFolderDialog}
@@ -448,9 +449,7 @@ export default function LibraryPage({
               />
             ) : null}
             {entriesQuery.isLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+              <SectionLoading label={t('loadingEntries')} className="py-20" />
             ) : entriesQuery.isError ? (
               <Alert variant="destructive">
                 <CircleAlert className="h-4 w-4" />

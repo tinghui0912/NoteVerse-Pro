@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Edit, Loader2 } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -125,7 +126,7 @@ export function ScoreMetadataEditor({
                   onClick={startEditing}
                   disabled={mutation.isPending}
                 >
-                  {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit className="h-4 w-4" />}
+                  {mutation.isPending ? <InlineLoading /> : <Edit className="h-4 w-4" />}
                 </Button>
               ) : null}
             </div>

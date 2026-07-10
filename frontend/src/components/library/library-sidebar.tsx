@@ -5,6 +5,7 @@ import { CircleAlert, Folder, FolderInput, MoreHorizontal, Pencil, RefreshCw, Tr
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { SectionLoading } from '@/components/loading/section-loading';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ interface LibrarySidebarProps {
   practiceNodes: LibraryVirtualNode[];
   folders: LibraryFolder[];
   folderDepth: (folder: LibraryFolder) => number;
+  foldersLoading: boolean;
   foldersError: unknown;
   createFolderPending: boolean;
   onCreateFolder: () => void;
@@ -47,6 +49,7 @@ export function LibrarySidebar({
   practiceNodes,
   folders,
   folderDepth,
+  foldersLoading,
   foldersError,
   createFolderPending,
   onCreateFolder,
@@ -106,58 +109,62 @@ export function LibrarySidebar({
               {t('newFolder')}
             </Button>
           </div>
-          <div className="space-y-1">
-            {folders.map((folder) => (
-              <div
-                key={folder.folder_id}
-                className={cn(
-                  'flex w-full items-center justify-between rounded-lg py-1.5 pr-1 text-left text-sm hover:bg-muted',
-                  folder.folder_id === currentFolderId && 'bg-primary/10 text-primary'
-                )}
-                style={{ paddingLeft: 12 + folderDepth(folder) * 16 }}
-              >
-                <button
-                  className="flex min-w-0 flex-1 items-center gap-2 py-0.5 text-left"
-                  onClick={() => onNavigateFolder(folder.folder_id)}
+          {foldersLoading ? (
+            <SectionLoading label={t('loadingFolders')} className="min-h-24" />
+          ) : (
+            <div className="space-y-1">
+              {folders.map((folder) => (
+                <div
+                  key={folder.folder_id}
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-lg py-1.5 pr-1 text-left text-sm hover:bg-muted',
+                    folder.folder_id === currentFolderId && 'bg-primary/10 text-primary'
+                  )}
+                  style={{ paddingLeft: 12 + folderDepth(folder) * 16 }}
                 >
-                  <Folder className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{folder.name}</span>
-                </button>
-                <span className="px-2 text-xs text-muted-foreground">
-                  {folder.recursive_count}
-                </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEditFolder(folder)}>
-                      <Pencil className="h-4 w-4" />
-                      {t('renameFolder')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEditFolder(folder)}>
-                      <FolderInput className="h-4 w-4" />
-                      {t('moveFolder')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => onDeleteFolder(folder)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {t('deleteFolder')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
-          </div>
+                  <button
+                    className="flex min-w-0 flex-1 items-center gap-2 py-0.5 text-left"
+                    onClick={() => onNavigateFolder(folder.folder_id)}
+                  >
+                    <Folder className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{folder.name}</span>
+                  </button>
+                  <span className="px-2 text-xs text-muted-foreground">
+                    {folder.recursive_count}
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEditFolder(folder)}>
+                        <Pencil className="h-4 w-4" />
+                        {t('renameFolder')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEditFolder(folder)}>
+                        <FolderInput className="h-4 w-4" />
+                        {t('moveFolder')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => onDeleteFolder(folder)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {t('deleteFolder')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </aside>

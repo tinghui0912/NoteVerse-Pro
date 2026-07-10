@@ -1,7 +1,8 @@
 'use client';
 
-import { CheckCircle2, CircleAlert, Loader2, MoreVertical, Trash2 } from 'lucide-react';
+import { CheckCircle2, CircleAlert, MoreVertical, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { LoadingSpinner } from '@/components/loading/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -110,7 +111,7 @@ export function ImportJobCard({
               className="h-full w-full object-contain p-2"
             />
           ) : importing ? (
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <LoadingSpinner size="lg" />
           ) : job.state === 'PENDING_REVIEW' ? (
             <CheckCircle2 className="h-10 w-10 text-orange-500" />
           ) : (
@@ -118,7 +119,7 @@ export function ImportJobCard({
           )}
           {importing && thumbnailUrl ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/60">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <LoadingSpinner size="md" />
             </div>
           ) : null}
         </div>

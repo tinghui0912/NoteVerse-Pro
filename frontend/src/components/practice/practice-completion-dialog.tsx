@@ -1,7 +1,8 @@
 'use client';
 
-import { FileText, LoaderCircle, Repeat } from 'lucide-react';
+import { FileText, Repeat } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -46,8 +47,7 @@ export function PracticeCompletionDialog({
             </div>
           ) : (
             <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-              <span>{t('preparingPlayback')}</span>
+              <InlineLoading label={t('preparingPlayback')} />
             </div>
           )}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -62,7 +62,7 @@ export function PracticeCompletionDialog({
               className="bg-orange-500 text-white hover:bg-orange-600"
             >
               {isLoading ? (
-                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                <InlineLoading />
               ) : (
                 <FileText className="mr-2 h-4 w-4" />
               )}

@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
+import { PageLoading } from '@/components/loading/page-loading';
 import { PageHeader } from '@/components/page/page-header';
 import { UploadForm } from '@/components/upload/upload-form';
 import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
@@ -37,7 +37,7 @@ function UploadPageContent() {
 
 export default function UploadPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-500" /></div>}>
+    <Suspense fallback={<PageLoading />}>
       <UploadPageContent />
     </Suspense>
   );

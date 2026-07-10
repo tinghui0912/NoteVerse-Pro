@@ -8,9 +8,9 @@ import {
     Trash2,
     Combine,
     Hand,
-    Loader2,
 } from 'lucide-react';
 import React, { useState, useSyncExternalStore } from 'react';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -173,7 +173,7 @@ export function EditorSidebar({
                         onClick={() => setFingeringDialogOpen(true)}
                     >
                         <div className="h-6 w-6 mb-1 flex items-center justify-center">
-                            {fingeringPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Hand className="h-5 w-5" />}
+                            {fingeringPending ? <InlineLoading /> : <Hand className="h-5 w-5" />}
                         </div>
                         <span className="text-xs text-center">{t('generateFingering')}</span>
                     </Button>
@@ -206,7 +206,7 @@ export function EditorSidebar({
                             {common('cancel')}
                         </Button>
                         <Button type="button" disabled={fingeringPending || !onGenerateFingering} onClick={confirmGenerateFingering}>
-                            {fingeringPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {fingeringPending ? <InlineLoading /> : null}
                             {common('confirm')}
                         </Button>
                     </DialogFooter>

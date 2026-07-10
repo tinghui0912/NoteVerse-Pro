@@ -6,7 +6,6 @@ import {
   Download,
   Dumbbell,
   Link2Off,
-  Loader2,
   LockKeyhole,
   MessageCircle,
   RotateCcw,
@@ -15,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { routing } from '@/i18n/routing';
+import { InlineLoading } from '@/components/loading/inline-loading';
+import { SectionLoading } from '@/components/loading/section-loading';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -295,7 +296,7 @@ export function ScoreShareDialog({
           </div>
           <Button className="w-full" onClick={create} disabled={createGrant.isPending}>
             {createGrant.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <InlineLoading label={t('generateViewOnly')} />
             ) : (
               t('generateViewOnly')
             )}
@@ -340,7 +341,7 @@ export function ScoreShareDialog({
           <div className="space-y-3">
             <h3 className="font-semibold">{t('generatedLinks')}</h3>
             {grantsQuery.isLoading ? (
-              <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+              <SectionLoading label={common('loading')} className="min-h-16" />
             ) : grants.length ? (
               <ScrollArea className="max-h-64">
                 <div className="divide-y pr-3">

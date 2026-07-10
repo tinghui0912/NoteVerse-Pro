@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Activity, FileText, Lightbulb, LoaderCircle, Target } from 'lucide-react';
+import { ArrowLeft, Activity, FileText, Lightbulb, Target } from 'lucide-react';
 
+import { ResourceLoading } from '@/components/loading/resource-loading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/page/page-header';
@@ -104,12 +105,7 @@ export default function PracticePerformancePage() {
             </Button>
           }
         />
-        {isLoading && (
-          <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
-            <LoaderCircle className="h-10 w-10 animate-spin text-orange-500" />
-            <p className="mt-4 text-muted-foreground">{t('generatingReport')}</p>
-          </div>
-        )}
+        {isLoading && <ResourceLoading label={t('loadingReport')} minHeight="md" />}
 
         {!isLoading && error && (
           <Card className="rounded-lg bg-white">

@@ -2,8 +2,8 @@
 
 import { type FormEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
 
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -133,9 +133,7 @@ export function PasswordSettingsForm({
           className="bg-orange-500 text-white hover:bg-orange-600"
           disabled={passwordMutation.isPending}
         >
-          {passwordMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : null}
+          {passwordMutation.isPending ? <InlineLoading /> : null}
           {t('password.save')}
         </Button>
       </div>

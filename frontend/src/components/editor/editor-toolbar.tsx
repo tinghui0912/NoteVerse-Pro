@@ -1,7 +1,8 @@
 'use client';
 
-import { ImageIcon, Loader2, Redo, Save, Undo } from 'lucide-react';
+import { ImageIcon, Redo, Save, Undo } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEditorState, useHistoryEditor } from '@/contexts/editor-provider';
@@ -27,10 +28,10 @@ export function EditorToolbar({ savePending, onSave }: EditorToolbarProps) {
     <TooltipProvider>
       <div className="flex items-center gap-2">
         {items.map((item) => (
-          <Tooltip key={item.label}>
+            <Tooltip key={item.label}>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" onClick={item.onClick} disabled={item.disabled}>
-                {item.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <item.icon className="h-5 w-5" />}
+                {item.loading ? <InlineLoading /> : <item.icon className="h-5 w-5" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent>

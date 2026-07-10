@@ -1,9 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Copy, Loader2, Trash2, UserPlus } from 'lucide-react';
+import { Copy, Trash2, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { routing } from '@/i18n/routing';
+import { InlineLoading } from '@/components/loading/inline-loading';
+import { SectionLoading } from '@/components/loading/section-loading';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -55,6 +57,7 @@ export function ScoreCollaborationDialog({
   scoreId: string;
 }) {
   const t = useTranslations('scoreCollaboration');
+  const common = useTranslations('common');
   const errors = useTranslations('errors');
   const locale = useLocale();
   const { toast } = useToast();
@@ -172,7 +175,7 @@ export function ScoreCollaborationDialog({
               </div>
               <div className="flex items-end">
                 <Button onClick={submitInvite} disabled={busy || !email.trim()}>
-                  {createInvite.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                  {createInvite.isPending ? <InlineLoading /> : <UserPlus className="h-4 w-4" />}
                   {t('createInvite')}
                 </Button>
               </div>
@@ -184,7 +187,7 @@ export function ScoreCollaborationDialog({
           <section className="space-y-3">
             <h3 className="font-semibold">{t('members')}</h3>
             {membersQuery.isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <SectionLoading label={common('loading')} className="min-h-16" />
             ) : members.length ? (
               <div className="divide-y rounded-lg border">
                 {members.map((member) => (
@@ -227,7 +230,7 @@ export function ScoreCollaborationDialog({
           <section className="space-y-3">
             <h3 className="font-semibold">{t('pendingInvites')}</h3>
             {invitesQuery.isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <SectionLoading label={common('loading')} className="min-h-16" />
             ) : invites.length ? (
               <ScrollArea className="max-h-64">
                 <div className="divide-y rounded-lg border">

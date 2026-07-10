@@ -2,9 +2,10 @@
 
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Camera, Crown, Loader2, Save, User } from 'lucide-react';
+import { Camera, Crown, Save, User } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -131,7 +132,7 @@ export function ProfileSettingsForm() {
                 disabled={avatarMutation.isPending}
               >
                 {avatarMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <InlineLoading />
                 ) : (
                   <Camera className="h-4 w-4" />
                 )}
@@ -170,7 +171,7 @@ export function ProfileSettingsForm() {
                 disabled={profileMutation.isPending}
               >
                 {profileMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <InlineLoading />
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}

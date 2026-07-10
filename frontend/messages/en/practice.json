@@ -30,6 +30,7 @@
   "prepareFailedDesc": "The practice session could not be prepared. Please refresh the page and try again.",
   "analysisFailedTitle": "Analysis Failed",
   "analysisFailedDesc": "An error occurred while generating the practice report. Please try again later.",
+  "loadingReport": "Loading practice report...",
   "generatingReport": "Generating your practice report...",
   "report": "Practice Report",
   "performanceTitle": "Performance",

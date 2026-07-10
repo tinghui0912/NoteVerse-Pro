@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
-import { Check, CircleAlert, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { Check, CircleAlert, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { SectionLoading } from '@/components/loading/section-loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -185,9 +186,7 @@ function SecurityContent({ security }: { security: AccountSecurityOverview }) {
                 className="mt-5 bg-orange-500 text-white hover:bg-orange-600"
                 disabled={emailChangeMutation.isPending}
               >
-                {emailChangeMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : null}
+                {emailChangeMutation.isPending ? <InlineLoading /> : null}
                 {t('security.sendEmailChange')}
               </Button>
             </form>

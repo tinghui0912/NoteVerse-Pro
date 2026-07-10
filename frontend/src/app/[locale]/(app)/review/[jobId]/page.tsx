@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Check, Loader2, Pencil } from 'lucide-react';
+import { Check, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page/page-header';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
 import { ResourceLoading } from '@/components/loading/resource-loading';
@@ -65,10 +66,7 @@ export default function ReviewPage({ params }: { params: Promise<{ jobId: string
             disabled={page.confirming}
           >
             {page.confirming ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                {t('processing')}
-              </>
+              <InlineLoading label={t('processing')} />
             ) : (
               <>
                 <Check className="mr-2 h-5 w-5" />

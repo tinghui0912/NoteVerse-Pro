@@ -3,9 +3,9 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 
 import { AuthCard } from '@/components/auth/auth-card';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -116,10 +116,7 @@ export default function ResetPasswordPage() {
               className="w-full bg-orange-500 font-semibold text-white hover:bg-orange-600"
             >
               {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('resettingPassword')}
-                </>
+                <InlineLoading label={t('resettingPassword')} />
               ) : (
                 t('resetPasswordButton')
               )}

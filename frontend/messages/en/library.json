@@ -49,6 +49,8 @@
   "unavailable": "Access unavailable",
   "foldersLoadFailed": "Folders failed to load",
   "entriesLoadFailed": "Score list failed to load",
+  "loadingFolders": "Loading folders...",
+  "loadingEntries": "Loading scores...",
   "operationFailed": "Operation failed",
   "retry": "Retry",
   "moreActions": "More actions",

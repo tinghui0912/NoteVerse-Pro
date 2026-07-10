@@ -1,7 +1,8 @@
 'use client';
 
-import { CheckCircle2, LoaderCircle } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { EditorMobileToolSheet } from '@/components/editor/editor-mobile-tool-sheet';
 import { EditorToolbar } from '@/components/editor/editor-toolbar';
 import type { FingeringHandSize } from '@/types/api';
@@ -37,7 +38,7 @@ export function EditorPageHeader({
         />
         <div className="flex items-center gap-2">
           <div className="mr-4 flex items-center gap-2 text-sm text-muted-foreground">
-            {isAutoSaving ? <><LoaderCircle className="h-4 w-4 animate-spin" /><span>{common('saving')}</span></> : currentXml ? <><CheckCircle2 className="h-4 w-4 text-green-500" /><span>{common('saved')}</span></> : null}
+            {isAutoSaving ? <InlineLoading label={common('saving')} /> : currentXml ? <><CheckCircle2 className="h-4 w-4 text-green-500" /><span>{common('saved')}</span></> : null}
           </div>
           <EditorToolbar savePending={savePending} onSave={onSave} />
         </div>

@@ -9,10 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 import { AuthCard } from '@/components/auth/auth-card';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 
 export default function LoginPage() {
@@ -109,10 +109,7 @@ export default function LoginPage() {
                                 className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                             >
                                 {isLoading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        {t('loggingIn')}
-                                    </>
+                                    <InlineLoading label={t('loggingIn')} />
                                 ) : (
                                     t('loginButton')
                                 )}

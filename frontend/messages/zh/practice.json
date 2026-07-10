@@ -30,6 +30,7 @@
   "prepareFailedDesc": "暂时无法准备练习会话，请刷新页面后重试。",
   "analysisFailedTitle": "分析失败",
   "analysisFailedDesc": "生成练习报告时发生错误，请稍后重试。",
+  "loadingReport": "正在加载练习报告...",
   "generatingReport": "正在生成你的练习报告...",
   "report": "练习报告",
   "performanceTitle": "演奏结果",

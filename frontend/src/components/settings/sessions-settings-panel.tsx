@@ -3,9 +3,10 @@
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CircleAlert, Loader2, Monitor, ShieldCheck, Smartphone } from 'lucide-react';
+import { CircleAlert, Monitor, ShieldCheck, Smartphone } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { SectionLoading } from '@/components/loading/section-loading';
 import { Button } from '@/components/ui/button';
 import { useRevokeOtherSessions, useRevokeSession } from '@/hooks/queries/use-profile-mutations';
@@ -114,7 +115,7 @@ export function SessionsSettingsPanel() {
           disabled={isMutating || sessions.filter((session) => !session.is_current).length === 0}
           onClick={handleRevokeOthers}
         >
-          {revokeOthers.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {revokeOthers.isPending ? <InlineLoading /> : null}
           {t('sessions.revokeOthers')}
         </Button>
       </div>
@@ -172,7 +173,7 @@ export function SessionsSettingsPanel() {
                   disabled={isMutating || session.is_current}
                   onClick={() => handleRevoke(session.id)}
                 >
-                  {revokeSession.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {revokeSession.isPending ? <InlineLoading /> : null}
                   {session.is_current ? t('sessions.currentAction') : t('sessions.revoke')}
                 </Button>
               </div>

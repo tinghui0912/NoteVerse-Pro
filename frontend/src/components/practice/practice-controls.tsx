@@ -2,7 +2,8 @@
 
 import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { LoaderCircle, Mic, Pause, Play, Square } from 'lucide-react';
+import { Mic, Pause, Play, Square } from 'lucide-react';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/practice-types';
@@ -84,14 +85,12 @@ export function PracticeControls({
     <div className="flex flex-wrap items-center justify-end gap-2">
       {isPreparingConnection && (
         <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-sm font-medium text-muted-foreground">
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-          <span>{t('preparingPractice')}</span>
+          <InlineLoading label={t('preparingPractice')} />
         </div>
       )}
       {isPreparing && (
         <div className="flex items-center gap-2 rounded-full bg-orange-100 px-3 py-2 text-sm font-medium text-orange-700">
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-          <span>{t('preparingToPlay')}</span>
+          <InlineLoading label={t('preparingToPlay')} />
         </div>
       )}
       {status === 'listening' && (

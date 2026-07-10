@@ -11,6 +11,7 @@
   },
   "totalScores": "{count} 项",
   "uploadScore": "上传乐谱",
+  "loading": "正在加载作品...",
   "searchPlaceholder": "搜索作品...",
   "search": "搜索",
   "clearSearch": "清除",

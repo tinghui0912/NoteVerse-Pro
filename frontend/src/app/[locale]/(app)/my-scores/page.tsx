@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { CircleAlert, Loader2, Music, Upload } from 'lucide-react';
+import { CircleAlert, Music, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { SectionLoading } from '@/components/loading/section-loading';
 import { MyScoresBulkActions } from '@/components/my-scores/my-scores-bulk-actions';
 import { MyScoresFilterBar } from '@/components/my-scores/my-scores-filter-bar';
 import { MyScoresPagination } from '@/components/my-scores/my-scores-pagination';
@@ -251,9 +252,7 @@ export default function MyScoresPage({
             />
           ) : null}
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <SectionLoading label={t('loading')} className="py-20" />
           ) : isError ? (
             <Alert variant="destructive">
               <CircleAlert className="h-4 w-4" />

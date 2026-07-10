@@ -3,9 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 
 import { AuthCard } from '@/components/auth/auth-card';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import { authApi } from '@/lib/api';
@@ -67,7 +67,7 @@ export default function ConfirmEmailChangePage() {
     return (
       <AuthCard title={t('confirmingEmailChangeTitle')} subtitle={t('confirmingEmailChangeSubtitle')}>
         <div className="flex justify-center py-6 text-orange-600">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <InlineLoading />
         </div>
       </AuthCard>
     );

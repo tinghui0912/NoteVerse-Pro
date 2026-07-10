@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Ban, CheckCircle2, CircleAlert, Clock3, Loader2, SearchX, UserPlus } from 'lucide-react';
+import { Ban, CheckCircle2, CircleAlert, Clock3, SearchX, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { ResourceLoading } from '@/components/loading/resource-loading';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
@@ -212,7 +213,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
               disabled={!invite.can_accept || !emailMatches || acceptInvite.isPending}
               onClick={accept}
             >
-              {acceptInvite.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              {acceptInvite.isPending ? <InlineLoading /> : <UserPlus className="h-4 w-4" />}
               {acceptInvite.isPending ? t('accepting') : t('acceptInvite')}
             </Button>
           )}

@@ -11,6 +11,7 @@
   },
   "totalScores": "{count} items",
   "uploadScore": "Upload score",
+  "loading": "Loading scores...",
   "searchPlaceholder": "Search works...",
   "search": "Search",
   "clearSearch": "Clear",

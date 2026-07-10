@@ -1,10 +1,11 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { Bookmark, ChevronDown, Download, FileImage, FileMusic, Gamepad2, Loader2 } from 'lucide-react';
+import { Bookmark, ChevronDown, Download, FileImage, FileMusic, Gamepad2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Link, routing } from '@/i18n/routing';
+import { InlineLoading } from '@/components/loading/inline-loading';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -190,7 +191,7 @@ export function ShareInfoSidebar(props: ShareInfoSidebarProps) {
 
           {props.isAuthenticated ? (
             <Button variant="outline" className={actionButtonClass} onClick={save} disabled={bookmark.isPending}>
-              {bookmark.isPending ? <Loader2 className={`${iconClass} animate-spin`} /> : <Bookmark className={iconClass} />}
+              {bookmark.isPending ? <InlineLoading /> : <Bookmark className={iconClass} />}
               <span className="truncate">{t('saveToLibrary')}</span>
             </Button>
           ) : (

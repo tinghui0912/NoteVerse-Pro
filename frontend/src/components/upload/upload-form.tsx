@@ -3,9 +3,11 @@
 import { useState, type MouseEvent } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Loader2, PlusSquare, UploadCloud, XCircle } from 'lucide-react';
+import { PlusSquare, UploadCloud, XCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { UploadPreviewDialog } from './upload-preview-dialog';
+import { InlineLoading } from '@/components/loading/inline-loading';
+import { LoadingSpinner } from '@/components/loading/loading-spinner';
 import type { UploadableFile } from '@/lib/upload/upload-workflow';
 import {
   AlertDialog,
@@ -173,7 +175,7 @@ export function UploadForm(props: UploadFormProps) {
                     <Image src={item.preview} alt={item.file.name} fill unoptimized className="object-cover transition-transform duration-300 group-hover:scale-110" />
                     {item.status === 'uploading' && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <Loader2 className="h-6 w-6 text-white animate-spin" />
+                        <LoadingSpinner size="md" className="text-white" />
                       </div>
                     )}
                     {item.status === 'uploaded' && (
@@ -226,8 +228,8 @@ export function UploadForm(props: UploadFormProps) {
               className="w-full max-w-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold"
               disabled={props.files.length === 0 || props.isProcessing}
             >
-              {props.isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('uploading')}</>
-                : props.isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{props.taskProgress > 0 ? t('processingProgress', { progress: props.taskProgress }) : t('awaitingProcessing')}</>
+              {props.isUploading ? <InlineLoading label={t('uploading')} />
+                : props.isSubmitting ? <InlineLoading label={props.taskProgress > 0 ? t('processingProgress', { progress: props.taskProgress }) : t('awaitingProcessing')} />
                   : t('startRecognition')}
             </Button>
           </div>
