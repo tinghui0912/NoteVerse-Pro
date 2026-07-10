@@ -1,11 +1,12 @@
 'use client';
 
-import { Download, ExternalLink, Gamepad2, Loader2 } from 'lucide-react';
+import { Download, ExternalLink, Gamepad2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
+import { ResourceLoading } from '@/components/loading/resource-loading';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ScorePlayer } from '@/components/score-detail/score-player';
@@ -32,9 +33,7 @@ function PublicScoreContent({ slug }: { slug: string }) {
   if (publication.isLoading || content.isLoading) {
     return (
       <ScoreSurface>
-        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <ResourceLoading label={common('loadingPublicScore')} minHeight="screen" />
       </ScoreSurface>
     );
   }

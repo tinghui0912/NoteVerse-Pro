@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page/page-header';
 import { Button } from '@/components/ui/button';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
+import { ResourceLoading } from '@/components/loading/resource-loading';
 import { ReviewScoreComparison } from '@/components/review/review-score-comparison';
 import { ReviewValidationWarnings } from '@/components/review/review-validation-warnings';
 import { useReviewPageData } from '@/hooks/review/use-review-page-data';
@@ -22,12 +23,7 @@ export default function ReviewPage({ params }: { params: Promise<{ jobId: string
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader title={t('title')} description={t('subtitle')} />
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-orange-500" />
-            <p className="text-gray-600">{common('loading')}</p>
-          </div>
-        </div>
+        <ResourceLoading label={common('loadingReviewData')} />
       </div>
     );
   }

@@ -15,7 +15,7 @@ import {
   type PracticeServerMessage,
   type PracticeSessionDetail,
 } from '@/types/api';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePracticeAudioStream } from '@/hooks/practice/use-practice-audio-stream';
@@ -28,6 +28,7 @@ import { PracticeControls } from '@/components/practice/practice-controls';
 import { PracticeStatusPanel } from '@/components/practice/practice-status-panel';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
+import { ResourceLoading } from '@/components/loading/resource-loading';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { translateErrorCode } from '@/lib/i18n/error-message';
@@ -557,12 +558,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   if (isResourceLoading) {
     return renderFrame(
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-orange-500" />
-          <p className="text-gray-600">{common('loadingScoreData')}</p>
-        </div>
-      </div>
+      <ResourceLoading label={common('loadingScoreData')} />
     );
   }
 

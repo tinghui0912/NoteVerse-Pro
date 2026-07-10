@@ -1,10 +1,10 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
+import { ResourceLoading } from '@/components/loading/resource-loading';
 import { PageHeader } from '@/components/page/page-header';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
@@ -55,12 +55,7 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
 
   if (document.isLoading) {
     return renderFrame(
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-orange-500" />
-          <p className="text-gray-600">{common('loading')}</p>
-        </div>
-      </div>
+      <ResourceLoading label={common('loadingScoreData')} />
     );
   }
 

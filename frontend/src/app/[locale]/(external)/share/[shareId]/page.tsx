@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Ban, CircleAlert, Clock3, Loader2, SearchX } from 'lucide-react';
+import { Ban, CircleAlert, Clock3, SearchX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
+import { ResourceLoading } from '@/components/loading/resource-loading';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ShareInfoSidebar } from '@/components/external/share-info-sidebar';
@@ -19,9 +20,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   if (page.authLoading || page.loading) {
     return (
       <ScoreSurface>
-        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <ResourceLoading label={common('loadingShareData')} minHeight="screen" />
       </ScoreSurface>
     );
   }

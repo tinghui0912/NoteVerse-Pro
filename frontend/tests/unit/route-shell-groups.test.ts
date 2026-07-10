@@ -159,6 +159,39 @@ describe('route shell groups', () => {
     expect(practiceControls).toContain('canPrepareSession');
   });
 
+  it('keeps loading states in shared loading primitives', () => {
+    for (const loadingComponent of [
+      'loading-spinner',
+      'page-loading',
+      'resource-loading',
+      'section-loading',
+    ]) {
+      expect(existsSync(projectPath(`src/components/loading/${loadingComponent}.tsx`))).toBe(true);
+    }
+
+    const globalLoading = readSource('src/app/[locale]/loading.tsx');
+    const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
+    const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
+    const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
+    const publicScorePage = readSource('src/components/external/public-score-page.tsx');
+    const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
+    const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
+    const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
+
+    expect(globalLoading).toContain('<PageLoading');
+    expect(scorePage).toContain("common('loadingScoreData')");
+    expect(reviewPage).toContain("common('loadingReviewData')");
+    expect(editorWorkspace).toContain("common('loadingScoreData')");
+    expect(publicScorePage).toContain("common('loadingPublicScore')");
+    expect(sharePage).toContain("common('loadingShareData')");
+    expect(invitePage).toContain("common('loadingInvite')");
+    expect(practicePage).toContain("common('loadingScoreData')");
+
+    for (const source of [scorePage, reviewPage, editorWorkspace, publicScorePage, sharePage, invitePage, practicePage]) {
+      expect(source).toContain('ResourceLoading');
+    }
+  });
+
   it('keeps upload workflow primitives out of component modules', () => {
     expect(existsSync(projectPath('src/lib/upload/upload-workflow.ts'))).toBe(true);
     expect(existsSync(projectPath('src/components/upload/upload-types.ts'))).toBe(false);

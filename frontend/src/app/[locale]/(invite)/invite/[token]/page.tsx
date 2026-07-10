@@ -5,6 +5,7 @@ import { Ban, CheckCircle2, CircleAlert, Clock3, Loader2, SearchX, UserPlus } fr
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
+import { ResourceLoading } from '@/components/loading/resource-loading';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
@@ -60,6 +61,7 @@ function getInviteErrorConfig(
 export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = React.use(params);
   const t = useTranslations('scoreCollaboration');
+  const common = useTranslations('common');
   const errors = useTranslations('errors');
   const locale = useLocale();
   const router = useRouter();
@@ -112,9 +114,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
 
   if (authLoading || inviteQuery.isLoading) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <ResourceLoading label={common('loadingInvite')} minHeight="screen" />
     );
   }
 

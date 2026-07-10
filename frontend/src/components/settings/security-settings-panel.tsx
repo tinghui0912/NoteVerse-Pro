@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Check, CircleAlert, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SectionLoading } from '@/components/loading/section-loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -240,10 +241,10 @@ export function SecuritySettingsPanel() {
       <p className="max-w-2xl text-sm leading-6 text-gray-500">{t('security.description')}</p>
 
       {securityQuery.isLoading ? (
-        <div className="mt-6 flex min-h-32 items-center justify-center rounded-lg border border-gray-200 text-sm text-gray-500">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          {t('security.loading')}
-        </div>
+        <SectionLoading
+          label={t('security.loading')}
+          className="mt-6 rounded-lg border border-gray-200"
+        />
       ) : securityQuery.isError ? (
         <Alert variant="destructive" className="mt-6">
           <CircleAlert className="h-4 w-4" />

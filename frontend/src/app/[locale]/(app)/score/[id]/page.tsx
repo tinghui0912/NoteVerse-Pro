@@ -1,10 +1,10 @@
 'use client';
 
 import React, { Suspense } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/page/page-header';
 import { ResourceLoadError } from '@/components/error/resource-load-error';
+import { ResourceLoading } from '@/components/loading/resource-loading';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ScoreActions } from '@/components/score-detail/score-actions';
@@ -38,12 +38,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
       <ScoreSurface>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <PageHeader title={t('title')} />
-          <div className="flex min-h-[40vh] items-center justify-center">
-            <div className="text-center">
-              <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-orange-500" />
-              <p className="text-gray-600">{common('loading')}</p>
-            </div>
-          </div>
+          <ResourceLoading label={common('loadingScoreData')} minHeight="md" />
         </div>
       </ScoreSurface>
     );

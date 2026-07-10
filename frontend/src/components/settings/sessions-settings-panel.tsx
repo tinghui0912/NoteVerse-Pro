@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleAlert, Loader2, Monitor, ShieldCheck, Smartphone } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SectionLoading } from '@/components/loading/section-loading';
 import { Button } from '@/components/ui/button';
 import { useRevokeOtherSessions, useRevokeSession } from '@/hooks/queries/use-profile-mutations';
 import { useToast } from '@/hooks/use-toast';
@@ -120,10 +121,7 @@ export function SessionsSettingsPanel() {
 
       <div className="mt-6 overflow-hidden rounded-lg border border-gray-200">
         {sessionsQuery.isLoading ? (
-          <div className="flex min-h-32 items-center justify-center text-sm text-gray-500">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {t('sessions.loading')}
-          </div>
+          <SectionLoading label={t('sessions.loading')} />
         ) : sessionsQuery.isError ? (
           <Alert variant="destructive" className="m-5">
             <CircleAlert className="h-4 w-4" />
