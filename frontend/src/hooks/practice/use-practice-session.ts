@@ -12,11 +12,9 @@ import type { PracticeSessionDetail, PracticeSessionState } from '@/types/api';
 interface UsePracticeSessionOptions {
   scoreId: string;
   revisionId?: string;
-  shareToken?: string;
-  publicSlug?: string;
 }
 
-export function usePracticeSession({ scoreId, revisionId, shareToken, publicSlug }: UsePracticeSessionOptions) {
+export function usePracticeSession({ scoreId, revisionId }: UsePracticeSessionOptions) {
   const [session, setSession] = useState<PracticeSessionDetail | null>(null);
   const detailRef = useRef<PracticeSessionDetail | null>(null);
 
@@ -38,7 +36,7 @@ export function usePracticeSession({ scoreId, revisionId, shareToken, publicSlug
       sample_rate: PCM_SAMPLE_RATE,
       channels: PCM_CHANNELS,
       frame_format: PCM_FRAME_FORMAT,
-    }, { grantToken: shareToken, publicSlug });
+    });
     if (!response.data?.session_id || !response.data.ws_url) {
       throw new Error('Practice session creation failed.');
     }
@@ -47,7 +45,7 @@ export function usePracticeSession({ scoreId, revisionId, shareToken, publicSlug
       throw new Error('Practice session details are unavailable.');
     }
     return { detail: sync(detailResponse.data), wsUrl: response.data.ws_url };
-  }, [publicSlug, revisionId, scoreId, shareToken, sync]);
+  }, [revisionId, scoreId, sync]);
 
   const runRestControl = useCallback(
     async (action: 'pause' | 'resume' | 'finish', sessionId = detailRef.current?.session_id) => {

@@ -39,9 +39,3 @@ class PublicScoreRead(BaseModel):
     artifacts: list[ArtifactRead]
     capabilities: ScoreCapabilities
 
-
-class PublicScoreContentRead(BaseModel):
-    score_id: str
-    revision_id: str
-    content: str
-    mime_type: str

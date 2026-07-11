@@ -136,14 +136,6 @@ export function useGrantAccess(token: string) {
   });
 }
 
-export function useGrantContent(token: string) {
-  return useQuery({
-    queryKey: [...queryKeys.scores.grantAccess(token), 'content'] as const,
-    queryFn: ({ signal }) => scoreSharingApi.content(token, signal),
-    enabled: Boolean(token),
-  });
-}
-
 export function useScoreInvites(scoreId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.scores.invites(scoreId),
@@ -305,13 +297,5 @@ export function useUnpublishScore(scoreId: string) {
   return useMutation({
     mutationFn: () => publicationsApi.unpublish(scoreId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.scores.scorePublication(scoreId) }),
-  });
-}
-
-export function usePublicScoreContent(slug: string) {
-  return useQuery({
-    queryKey: [...queryKeys.scores.publication(slug), 'content'] as const,
-    queryFn: ({ signal }) => publicationsApi.content(slug, signal),
-    enabled: Boolean(slug),
   });
 }

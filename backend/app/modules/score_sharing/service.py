@@ -35,7 +35,6 @@ from app.modules.score_sharing.schemas import (
     GrantAccessRead,
     GrantCreateRequest,
     GrantCreatedRead,
-    GrantContentRead,
     GrantRead,
     ShareActorRead,
 )
@@ -219,32 +218,6 @@ class ScoreSharingService:
                 else None
             ),
             artifacts=artifacts,
-        )
-
-    async def grant_content(
-        self, db: AsyncSession, token: str, user_id: int | None
-    ) -> GrantContentRead:
-        grant = await self._grant_by_token(db, token)
-        score = await db.get(Score, grant.score_id)
-        if not score:
-            raise ResourceNotFoundException("score", token, ErrorCode.SCORE_NOT_FOUND)
-        access = await self.access_policy.authorize(
-            db,
-            score.score_uuid,
-            ScoreAction.VIEW,
-            user_id=user_id,
-            share_token=token,
-        )
-        artifact = await self.score_repository.canonical_artifact(
-            db, require_persisted_id(access.revision.id, entity="score revision")
-        )
-        if not artifact:
-            raise ResourceNotFoundException("artifact", token, ErrorCode.FILE_NOT_FOUND)
-        return GrantContentRead(
-            score_id=score.score_uuid,
-            revision_id=access.revision.revision_uuid,
-            content=self.storage.read_bytes(artifact.storage_key).decode("utf-8"),
-            mime_type=artifact.mime_type,
         )
 
     async def grant_artifact_delivery(

@@ -5,7 +5,6 @@ import type {
   ScoreGrant,
   ScoreGrantBookmark,
   ScoreGrantAccess,
-  ScoreGrantContent,
 } from '@/types/api';
 
 export const scoreSharingApi = {
@@ -27,11 +26,6 @@ export const scoreSharingApi = {
     apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/scores/grants/${grantId}`),
   access: (token: string, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<ScoreGrantAccess>>(`/score-grants/${token}`, undefined, {
-      signal,
-      suppressAuthRedirect: true,
-    }),
-  content: (token: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreGrantContent>>(`/score-grants/${token}/content`, undefined, {
       signal,
       suppressAuthRedirect: true,
     }),

@@ -7,15 +7,9 @@ import type {
 } from '@/types/api';
 
 export async function createPracticeSession(
-    data: CreatePracticeSessionRequest,
-    access?: { grantToken?: string; publicSlug?: string }
+    data: CreatePracticeSessionRequest
 ): Promise<ApiResponse<PracticeSessionSummary>> {
-    return apiClient.post<ApiResponse<PracticeSessionSummary>>('/practice/sessions', data, {
-        headers: {
-            ...(access?.grantToken ? { 'X-Score-Grant': access.grantToken } : {}),
-            ...(access?.publicSlug ? { 'X-Publication-Slug': access.publicSlug } : {}),
-        },
-    });
+    return apiClient.post<ApiResponse<PracticeSessionSummary>>('/practice/sessions', data);
 }
 
 export async function getPracticeSession(

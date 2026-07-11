@@ -73,8 +73,6 @@ class PracticeService:
         sample_rate: int,
         channels: int,
         frame_format: str,
-        share_token: str | None = None,
-        public_slug: str | None = None,
     ) -> PracticeSessionSummaryResult:
         access = await self.access_policy.authorize(
             db,
@@ -82,8 +80,6 @@ class PracticeService:
             ScoreAction.PRACTICE,
             user_id=user_id,
             revision_uuid=revision_uuid,
-            share_token=share_token,
-            public_slug=public_slug,
         )
         score_id = require_persisted_id(access.score.id, entity="score")
         revision_id = require_persisted_id(access.revision.id, entity="score revision")

@@ -123,13 +123,6 @@ export interface ScoreGrantAccess {
   artifacts: ScoreArtifact[];
 }
 
-export interface ScoreGrantContent {
-  score_id: string;
-  revision_id: string;
-  content: string;
-  mime_type: string;
-}
-
 export interface ScoreGrantBookmark {
   entry_id: string;
   score_id: string;
@@ -250,11 +243,4 @@ export interface PublicScore {
   metadata: ScoreMetadata | null;
   artifacts: ScoreArtifact[];
   capabilities: ScoreCapabilities;
-}
-
-export interface PublicScoreContent {
-  score_id: string;
-  revision_id: string;
-  content: string;
-  mime_type: string;
 }

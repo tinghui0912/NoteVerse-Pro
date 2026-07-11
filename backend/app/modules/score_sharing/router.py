@@ -9,7 +9,6 @@ from app.modules.score_sharing.dependencies import get_score_sharing_service
 from app.modules.score_sharing.schemas import (
     GrantAccessRead,
     GrantBookmarkRead,
-    GrantContentRead,
     GrantCreateRequest,
     GrantCreatedRead,
     GrantRead,
@@ -91,18 +90,6 @@ async def access_score_grant(
 ):
     user_id = current_user.id if current_user else None
     result = await service.access_grant(db, token, user_id)
-    return success_response(data=result)
-
-
-@grant_router.get("/{token}/content", response_model=APIResponse[GrantContentRead])
-async def get_score_grant_content(
-    token: str,
-    current_user: User | None = Depends(get_optional_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: ScoreSharingService = Depends(get_score_sharing_service),
-):
-    user_id = current_user.id if current_user else None
-    result = await service.grant_content(db, token, user_id)
     return success_response(data=result)
 
 

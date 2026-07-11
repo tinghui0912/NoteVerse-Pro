@@ -2,19 +2,16 @@ from __future__ import annotations
 
 import re
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
-    ScoreArtifact,
     ScorePublication,
     ScoreRevision,
     ScoreRevisionMetadata,
 )
-from app.db.models.score import ArtifactKind
 from app.db.models.score_access import PublicationStatus
 from app.modules.artifacts.service import ArtifactService
 from app.modules.metadata.service import MetadataProjectionService
@@ -22,7 +19,6 @@ from app.modules.publications.repository import PublicationRepository
 from app.modules.publications.schemas import (
     PublicationRead,
     PublicationUpsertRequest,
-    PublicScoreContentRead,
     PublicScoreRead,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
@@ -30,7 +26,6 @@ from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
-from app.storage import FileStorage, file_storage
 
 
 class PublicationService:
@@ -40,12 +35,10 @@ class PublicationService:
         access_policy: ScoreAccessPolicy | None = None,
         artifact_service: ArtifactService | None = None,
         score_repository: ScoreRepository | None = None,
-        storage: FileStorage | None = None,
     ) -> None:
         self.repository = repository or PublicationRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.score_repository = score_repository or ScoreRepository()
-        self.storage = storage or file_storage
         self.artifact_service = artifact_service or ArtifactService(
             access_policy=self.access_policy
         )
@@ -189,41 +182,6 @@ class PublicationService:
             ),
             artifacts=artifacts,
             capabilities=access.capabilities,
-        )
-
-    async def public_content(
-        self, db: AsyncSession, slug: str, user_id: int | None = None
-    ) -> PublicScoreContentRead:
-        publication = await self.repository.by_slug(db, slug)
-        if not publication or publication.status != PublicationStatus.PUBLISHED:
-            raise ResourceNotFoundException(
-                "publication", slug, ErrorCode.RESOURCE_NOT_FOUND
-            )
-        score = await db.get(Score, publication.score_id)
-        if not score:
-            raise ResourceNotFoundException("score", slug, ErrorCode.SCORE_NOT_FOUND)
-        access = await self.access_policy.authorize(
-            db,
-            score.score_uuid,
-            ScoreAction.VIEW,
-            user_id=user_id,
-            public_slug=slug,
-        )
-        artifact = (
-            await db.execute(
-                select(ScoreArtifact).where(
-                    ScoreArtifact.revision_id == access.revision.id,
-                    ScoreArtifact.kind == ArtifactKind.MUSICXML,
-                )
-            )
-        ).scalar_one_or_none()
-        if not artifact:
-            raise ResourceNotFoundException("artifact", slug, ErrorCode.FILE_NOT_FOUND)
-        return PublicScoreContentRead(
-            score_id=score.score_uuid,
-            revision_id=access.revision.revision_uuid,
-            content=self.storage.read_bytes(artifact.storage_key).decode("utf-8"),
-            mime_type=artifact.mime_type,
         )
 
     async def public_artifact_delivery(

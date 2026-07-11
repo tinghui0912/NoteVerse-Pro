@@ -5,8 +5,6 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page';
 import { practiceApi } from '@/lib/api';
 import {
-  useGrantContent,
-  usePublicScoreContent,
   useRevisionContent,
   useScoreDetail,
 } from '@/hooks/queries/use-score-queries';
@@ -33,7 +31,7 @@ import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import { ApiError } from '@/lib/api-client';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type {
   PracticeConnectionStatus,
   PracticeStatus,
@@ -56,10 +54,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const common = useTranslations('common');
   const errors = useTranslations('errors');
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const shareToken = searchParams.get('shareToken') || undefined;
-  const publicSlug = searchParams.get('publicSlug') || undefined;
-  const hasAccessToken = Boolean(shareToken || publicSlug);
   const { toast } = useToast();
 
   const [practiceStatus, setPracticeStatus] = useState<PracticeStatus>('idle');
@@ -114,37 +108,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       input_policy_confidence: 1,
     };
   }, [alignment, practiceStatus]);
-  const scoreQuery = useScoreDetail(id, !shareToken && !publicSlug);
+  const scoreQuery = useScoreDetail(id);
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
-  const canEnterPractice = hasAccessToken || scoreCapabilities?.can_practice === true;
+  const canEnterPractice = scoreCapabilities?.can_practice === true;
   const revisionQuery = useRevisionContent(id, scoreQuery.data?.data?.head_revision_id);
-  const grantContent = useGrantContent(shareToken ?? '');
-  const publicContent = usePublicScoreContent(publicSlug ?? '');
-  const xmlContent = shareToken
-    ? grantContent.data?.data?.content
-    : publicSlug
-      ? publicContent.data?.data?.content
-      : revisionQuery.data?.data?.content;
-  const revisionId = shareToken
-    ? grantContent.data?.data?.revision_id
-    : publicSlug
-      ? publicContent.data?.data?.revision_id
-      : scoreQuery.data?.data?.head_revision_id ?? undefined;
-  const isLoadingXml = shareToken
-    ? grantContent.isLoading
-    : publicSlug
-      ? publicContent.isLoading
-      : scoreQuery.isLoading || revisionQuery.isLoading;
-  const isResourceLoading = shareToken
-    ? grantContent.isLoading
-    : publicSlug
-      ? publicContent.isLoading
-      : scoreQuery.isLoading || (Boolean(scoreQuery.data?.data?.head_revision_id) && revisionQuery.isLoading);
-  const loadError = shareToken
-    ? grantContent.error
-    : publicSlug
-      ? publicContent.error
-      : scoreQuery.error ?? revisionQuery.error;
+  const xmlContent = revisionQuery.data?.data?.content;
+  const revisionId = scoreQuery.data?.data?.head_revision_id ?? undefined;
+  const isLoadingXml = scoreQuery.isLoading || revisionQuery.isLoading;
+  const isResourceLoading =
+    scoreQuery.isLoading || (Boolean(scoreQuery.data?.data?.head_revision_id) && revisionQuery.isLoading);
+  const loadError = scoreQuery.error ?? revisionQuery.error;
   const resourceMissingAfterLoad = !isResourceLoading && !loadError && (!revisionId || !xmlContent);
   const loadErrorDescription = loadError instanceof ApiError
     ? translateErrorCode(errors, loadError.code, common('loadFailed'))
@@ -164,8 +137,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const practiceSession = usePracticeSession({
     scoreId: id,
     revisionId,
-    shareToken,
-    publicSlug,
   });
   const { audioUrl: audioURL } = recording;
   const hasMicPermission = audioStream.hasMicPermission;
@@ -368,7 +339,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     void preparePracticeSession();
-  }, [audioWorkletSupported, canPreparePractice, id, preparePracticeSession, publicSlug, shareToken]);
+  }, [audioWorkletSupported, canPreparePractice, id, preparePracticeSession]);
 
   const handleStart = async () => {
     if (!canEnterPractice) {
@@ -575,7 +546,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   return renderFrame(
     <>
-      {!hasAccessToken && scoreCapabilities && !scoreCapabilities.can_practice ? (
+      {scoreCapabilities && !scoreCapabilities.can_practice ? (
         <WorkspaceAccessDenied
           title={t('accessDeniedTitle')}
           description={t('accessDeniedDesc')}

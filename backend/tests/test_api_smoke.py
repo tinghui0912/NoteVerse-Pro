@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.api.deps import get_db
 from app.core.config import settings
+from app.main import app
+from app.modules.playback.router import get_playback_service
+from app.modules.playback.service import PlaybackDelivery
 
 
 def _request(
@@ -42,6 +46,58 @@ def test_legacy_task_as_score_routes_are_absent(client: TestClient) -> None:
     assert not any(path.startswith("/api/v1/tasks") for path in paths)
     assert not any(path.startswith("/api/v1/xml") for path in paths)
     assert not any(path.startswith("/api/v1/shares") for path in paths)
+
+
+def test_external_musicxml_content_routes_are_absent(client: TestClient) -> None:
+    schema = client.get("/api/v1/openapi.json").json()
+    paths = schema["paths"]
+
+    assert "/api/v1/score-grants/{token}/content" not in paths
+    assert "/api/v1/publications/{slug}/content" not in paths
+
+    for path in (
+        "/api/v1/score-grants/share-token/content",
+        "/api/v1/publications/public-score/content",
+    ):
+        response = client.get(path)
+        assert response.status_code == 404, path
+
+
+def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> None:
+    audio_path = tmp_path / "playback.wav"
+    audio_path.write_bytes(b"RIFF\x24\x00\x00\x00WAVEfmt ")
+
+    class FakePlaybackService:
+        async def grant_delivery(self, db, token: str, user_id: int | None):
+            return PlaybackDelivery(
+                filename=f"{token}.wav",
+                media_type="audio/wav",
+                path=str(audio_path),
+            )
+
+        async def public_delivery(self, db, slug: str, user_id: int | None):
+            return PlaybackDelivery(
+                filename=f"{slug}.wav",
+                media_type="audio/wav",
+                path=str(audio_path),
+            )
+
+    async def fake_get_db():
+        yield object()
+
+    app.dependency_overrides[get_db] = fake_get_db
+    app.dependency_overrides[get_playback_service] = lambda: FakePlaybackService()
+    try:
+        grant_response = client.get("/api/v1/score-grants/share-token/playback")
+        public_response = client.get("/api/v1/publications/public-score/playback")
+    finally:
+        app.dependency_overrides.pop(get_playback_service, None)
+        app.dependency_overrides.pop(get_db, None)
+
+    assert grant_response.status_code == 200
+    assert grant_response.headers["content-type"].startswith("audio/wav")
+    assert public_response.status_code == 200
+    assert public_response.headers["content-type"].startswith("audio/wav")
 
 
 def test_protected_endpoints_require_authentication(client: TestClient) -> None:

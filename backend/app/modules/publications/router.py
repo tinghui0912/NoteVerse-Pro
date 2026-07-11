@@ -9,7 +9,6 @@ from app.modules.publications.dependencies import get_publication_service
 from app.modules.publications.schemas import (
     PublicationRead,
     PublicationUpsertRequest,
-    PublicScoreContentRead,
     PublicScoreRead,
 )
 from app.modules.publications.service import PublicationService
@@ -87,18 +86,6 @@ async def download_public_artifact(
         filename=delivery.filename,
         media_type=delivery.media_type,
     )
-
-
-@public_router.get("/{slug}/content", response_model=APIResponse[PublicScoreContentRead])
-async def get_public_score_content(
-    slug: str,
-    current_user: User | None = Depends(get_optional_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PublicationService = Depends(get_publication_service),
-):
-    user_id = current_user.id if current_user else None
-    result = await service.public_content(db, slug, user_id)
-    return success_response(data=result)
 
 
 @public_router.get("/{slug}/artifacts/{artifact_id}/view")

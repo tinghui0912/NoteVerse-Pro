@@ -1,5 +1,5 @@
 import { apiClient, apiUrl } from '@/lib/api-client';
-import type { ApiResponse, Publication, PublicScore, PublicScoreContent } from '@/types/api';
+import type { ApiResponse, Publication, PublicScore } from '@/types/api';
 
 export const publicationsApi = {
   forScore: (scoreId: string, signal?: AbortSignal) =>
@@ -17,11 +17,6 @@ export const publicationsApi = {
     apiClient.delete<ApiResponse<Publication>>(`/scores/${scoreId}/publication`),
   detail: (slug: string, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<PublicScore>>(`/publications/${slug}`, undefined, {
-      signal,
-      suppressAuthRedirect: true,
-    }),
-  content: (slug: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PublicScoreContent>>(`/publications/${slug}/content`, undefined, {
       signal,
       suppressAuthRedirect: true,
     }),

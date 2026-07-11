@@ -52,13 +52,6 @@ class GrantAccessRead(BaseModel):
     artifacts: list[ArtifactRead]
 
 
-class GrantContentRead(BaseModel):
-    score_id: str
-    revision_id: str
-    content: str
-    mime_type: str
-
-
 class GrantBookmarkRead(BaseModel):
     entry_id: str
     score_id: str
