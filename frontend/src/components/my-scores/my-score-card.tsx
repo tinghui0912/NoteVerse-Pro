@@ -74,7 +74,7 @@ export function MyScoreCard({
         ) : null}
         <ScoreThumbnail
           title={score.title}
-          thumbnailArtifactId={score.thumbnail_artifact_id}
+          thumbnailArtifactId={score.derived_assets.preview.artifact_id}
           className="mb-4"
         />
         <div className="flex items-start justify-between gap-3">

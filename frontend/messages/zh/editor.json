@@ -112,6 +112,8 @@
   "mustAdjacentNotes": "延音线必须连接相邻音符",
   "saveFailed": "保存失败",
   "saveFailedDesc": "无法保存乐谱",
+  "noChangesTitle": "没有新的更改",
+  "noChangesDesc": "乐谱内容与当前版本一致，未创建新版本。",
   "draftRecovered": "草稿已恢复",
   "draftRecoveredDesc": "已恢复上次编辑的内容",
   "draftDiscarded": "草稿已放弃",

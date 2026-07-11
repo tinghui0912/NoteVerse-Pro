@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.db.models import LibraryEntrySourceType, LibraryPracticeState
 from app.modules.metadata.schemas import MetadataRead
-from app.modules.scores.schemas import ScoreTaxonomyTagRead
+from app.modules.scores.schemas import ScoreDerivedAssetsRead, ScoreTaxonomyTagRead
 
 
 class LibraryView(str, Enum):
@@ -122,7 +122,7 @@ class LibraryEntryRead(BaseModel):
     source_type: LibraryEntrySourceType
     folder_id: str | None
     title: str
-    thumbnail_artifact_id: str | None
+    derived_assets: ScoreDerivedAssetsRead
     taxonomy_tags: list[ScoreTaxonomyTagRead]
     metadata: MetadataRead | None
     is_favorite: bool

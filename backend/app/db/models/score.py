@@ -197,11 +197,6 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
         ),
         UniqueConstraint(
             "score_id",
-            "content_hash",
-            name="uq_score_revisions_score_content_hash",
-        ),
-        UniqueConstraint(
-            "score_id",
             "idempotency_key",
             name="uq_score_revisions_score_idempotency_key",
         ),

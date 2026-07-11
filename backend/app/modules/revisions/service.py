@@ -96,17 +96,6 @@ class RevisionService:
             if existing:
                 return await self._read(db, existing)
 
-        duplicate = (
-            await db.execute(
-                select(ScoreRevision).where(
-                    ScoreRevision.score_id == score_id,
-                    ScoreRevision.content_hash == content_hash,
-                )
-            )
-        ).scalar_one_or_none()
-        if duplicate:
-            return await self._read(db, duplicate)
-
         base = await self.repository.revision(db, request.base_revision_id)
         if not base or base.score_id != score_id:
             raise ResourceNotFoundException(
@@ -122,6 +111,8 @@ class RevisionService:
                     "head_revision_id": head.revision_uuid if head else None,
                 },
             )
+        if base.content_hash == content_hash:
+            return await self._read(db, base)
 
         revision_uuid = str(uuid.uuid4())
         key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"

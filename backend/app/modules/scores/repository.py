@@ -5,8 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
     ImportJob,
+    PlaybackAssetKind,
+    PlaybackOutbox,
+    RenderOutbox,
     Score,
     ScoreArtifact,
+    ScorePlaybackAsset,
     ScorePublication,
     ScoreRevision,
     ScoreTaxonomyTag,
@@ -111,6 +115,80 @@ class ScoreRepository:
                 .limit(1)
             )
         ).scalar_one_or_none()
+
+    async def latest_render_outbox(
+        self, db: AsyncSession, revision_id: int, *, render_profile: str = "default"
+    ) -> RenderOutbox | None:
+        return (
+            await db.execute(
+                select(RenderOutbox)
+                .where(
+                    RenderOutbox.revision_id == revision_id,
+                    RenderOutbox.render_profile == render_profile,
+                )
+                .order_by(RenderOutbox.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    async def playback_asset(
+        self,
+        db: AsyncSession,
+        revision_id: int,
+        *,
+        kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
+    ) -> ScorePlaybackAsset | None:
+        return (
+            await db.execute(
+                select(ScorePlaybackAsset)
+                .where(
+                    ScorePlaybackAsset.revision_id == revision_id,
+                    ScorePlaybackAsset.kind == kind,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    async def latest_playback_outbox(
+        self,
+        db: AsyncSession,
+        revision_id: int,
+        *,
+        kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
+    ) -> PlaybackOutbox | None:
+        return (
+            await db.execute(
+                select(PlaybackOutbox)
+                .where(
+                    PlaybackOutbox.revision_id == revision_id,
+                    PlaybackOutbox.asset_kind == kind,
+                )
+                .order_by(PlaybackOutbox.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    async def fallback_rendered_page_artifact(
+        self, db: AsyncSession, score_id: int, head_revision_id: int
+    ) -> tuple[ScoreArtifact, ScoreRevision] | None:
+        row = (
+            await db.execute(
+                select(ScoreArtifact, ScoreRevision)
+                .join(ScoreRevision, ScoreArtifact.revision_id == ScoreRevision.id)
+                .where(
+                    ScoreRevision.score_id == score_id,
+                    ScoreRevision.id != head_revision_id,
+                    ScoreArtifact.kind == ArtifactKind.RENDERED_PAGE,
+                )
+                .order_by(
+                    ScoreRevision.revision_number.desc(),
+                    ScoreArtifact.page_number.asc(),
+                    ScoreArtifact.created_at.asc(),
+                )
+                .limit(1)
+            )
+        ).first()
+        return (row[0], row[1]) if row else None
 
     async def originating_job(
         self, db: AsyncSession, job_id: int | None

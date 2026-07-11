@@ -73,7 +73,7 @@ export function LibraryEntryCard({
         ) : null}
         <ScoreThumbnail
           title={entry.title}
-          thumbnailArtifactId={entry.thumbnail_artifact_id}
+          thumbnailArtifactId={entry.derived_assets.preview.artifact_id}
           className="mb-4"
         />
         <h3 className="truncate font-semibold">{entry.title}</h3>

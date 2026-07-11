@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useAutoSave } from '@/hooks/editor/use-auto-save';
 import { useEditorOriginalImages } from '@/hooks/editor/use-editor-original-images';
@@ -20,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { translateErrorCode } from '@/lib/i18n/error-message';
+import { queryKeys } from '@/lib/query-client';
 import type { FingeringHandSize } from '@/types/api';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
@@ -28,6 +30,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const common = useTranslations('common');
   const errors = useTranslations('errors');
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
   const completeSave = useEditorSaveCompletion({ applyXml });
   const showSaveError = useEditorSaveErrorToast();
@@ -99,21 +102,32 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
 
   const performSave = () => {
     if (!currentXml || !revisionId) return;
+    const sanitizedContent = stripAppOwnedMusicXmlIdsString(currentXml);
     createRevision.mutate(
       {
         scoreId,
-        content: stripAppOwnedMusicXmlIdsString(currentXml),
+        content: sanitizedContent,
         base_revision_id: revisionId,
         idempotency_key: crypto.randomUUID(),
       },
       {
         onSuccess: async (response) => {
           const nextRevision = response.data?.revision_id;
+          if (nextRevision === revisionId) {
+            await clearDraft();
+            toast({ title: t('noChangesTitle'), description: t('noChangesDesc') });
+            return;
+          }
           await completeSave({
             returnUrl: returnUrl || `/score/${scoreId}`,
             beforeNavigate: async () => {
               await clearDraft();
               if (nextRevision) setBaseRevisionId(nextRevision);
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(scoreId) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.scores.artifacts(scoreId) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(scoreId) }),
+              ]);
             },
           });
         },

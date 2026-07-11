@@ -1,5 +1,7 @@
 ﻿import type { ScoreMetadata, ScoreTaxonomyTag } from './scores';
 
+import type { ScoreDerivedAssets } from './scores';
+
 export type LibraryEntrySourceType = 'SELF_ADDED' | 'BOOKMARK';
 export type LibraryPracticeState = 'TO_PRACTICE' | 'IN_PROGRESS' | 'MASTERED';
 export type UserSettableLibraryPracticeState = 'TO_PRACTICE' | 'MASTERED';
@@ -49,7 +51,7 @@ export interface LibraryEntry {
   source_type: LibraryEntrySourceType;
   folder_id: string | null;
   title: string;
-  thumbnail_artifact_id: string | null;
+  derived_assets: ScoreDerivedAssets;
   taxonomy_tags: ScoreTaxonomyTag[];
   metadata: ScoreMetadata | null;
   is_favorite: boolean;

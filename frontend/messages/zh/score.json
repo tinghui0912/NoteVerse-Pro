@@ -20,6 +20,7 @@
   "measureCount": "小节数",
   "keySignature": "调号",
   "pageCount": "{count} 页",
+  "pageCountUnknown": "未知",
   "breadcrumbLabel": "面包屑导航",
   "libraryBreadcrumb": "我的乐谱库",
   "actionsTitle": "功能操作",

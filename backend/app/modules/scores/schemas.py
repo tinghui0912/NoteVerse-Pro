@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -62,13 +63,28 @@ class ScorePublicationSummaryRead(BaseModel):
     status: PublicationStatus
 
 
+DerivedAssetStatus = Literal["pending", "processing", "ready", "failed"]
+
+
+class ScoreDerivedAssetRead(BaseModel):
+    status: DerivedAssetStatus = "pending"
+    artifact_id: str | None = None
+    revision_id: str | None = None
+    is_fallback: bool = False
+
+
+class ScoreDerivedAssetsRead(BaseModel):
+    preview: ScoreDerivedAssetRead
+    audio: ScoreDerivedAssetRead
+
+
 class ScoreRead(BaseModel):
     score_id: str
     title: str
     taxonomy_tags: list[ScoreTaxonomyTagRead]
     version: int
     head_revision_id: str | None
-    thumbnail_artifact_id: str | None
+    derived_assets: ScoreDerivedAssetsRead
     publication: ScorePublicationSummaryRead | None
     originating_job_id: str | None
     metadata: MetadataRead | None

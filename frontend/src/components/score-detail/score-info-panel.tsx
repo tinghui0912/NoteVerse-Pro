@@ -33,6 +33,7 @@ interface ScoreInfoPanelProps {
   canEditTitle?: boolean;
   createdAt?: string | null;
   imageCount: number;
+  imageCountStatus?: 'pending' | 'processing' | 'ready' | 'failed';
   metadata?: ScoreMetadata | null;
   scoreId?: string;
   taxonomyTags: ScoreTaxonomyTag[];
@@ -61,6 +62,7 @@ export function ScoreInfoPanel({
   canEditTitle = false,
   createdAt,
   imageCount,
+  imageCountStatus = 'ready',
   metadata,
   scoreId,
   taxonomyTags,
@@ -90,6 +92,11 @@ export function ScoreInfoPanel({
   const selectedTags = optimistic?.serverKey === serverKey ? optimistic.tags : serverTags;
   const selectedKeys = new Set(selectedTags.map(taxonomyTagKey));
   const availableTags = SCORE_GENRE_TAGS.filter((tag) => !selectedKeys.has(taxonomyTagKey(tag)));
+  const imageCountLabel = imageCount > 0
+    ? t('pageCount', { count: imageCount })
+    : imageCountStatus === 'pending' || imageCountStatus === 'processing' || imageCountStatus === 'failed'
+      ? t('pageCountUnknown')
+      : t('pageCount', { count: imageCount });
 
   useEffect(() => {
     if (editing) {
@@ -227,7 +234,7 @@ export function ScoreInfoPanel({
           <div className="space-y-1.5">
             <span className="text-sm text-muted-foreground">{t('totalPages')}</span>
             <div className="min-h-10 rounded-md border bg-muted/30 px-3 py-2 font-medium">
-              {t('pageCount', { count: imageCount })}
+              {imageCountLabel}
             </div>
           </div>
           {createdAt ? (

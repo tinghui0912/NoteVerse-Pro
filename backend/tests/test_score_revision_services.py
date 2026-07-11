@@ -55,6 +55,7 @@ from app.modules.artifacts.render_outbox_service import RenderOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
+from app.modules.scores.service import ScoreService
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
@@ -497,6 +498,11 @@ async def test_review_confirm_creates_active_score_once(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, storage = score_service_session
+    stored_thumbnail = storage.put_bytes(
+        key="jobs/job-confirm-review/result_thumbnail/001-result.svg",
+        content=b"<svg />",
+        content_type="image/svg+xml",
+    )
     session.add(
         ImportJob(
             id=14,
@@ -517,6 +523,21 @@ async def test_review_confirm_creates_active_score_once(
             score_id=None,
             title="Processing complete",
             data={"job_id": "job-confirm-review", "job_title": "Confirmed Score"},
+        )
+    )
+    session.commit()
+    session.add(
+        ImportArtifact(
+            job_id=14,
+            artifact_uuid="confirm-review-thumbnail",
+            kind=FileKind.RESULT_THUMBNAIL.value,
+            storage_backend="local",
+            storage_key=stored_thumbnail.storage_key,
+            filename=stored_thumbnail.filename,
+            mime_type="image/svg+xml",
+            size_bytes=stored_thumbnail.size_bytes,
+            page_number=1,
+            sha256="thumbnail",
         )
     )
     session.commit()
@@ -570,11 +591,105 @@ async def test_review_confirm_creates_active_score_once(
             revision_id=revision.id,
             kind=ArtifactKind.MUSICXML,
         )
+            .one()
+    )
+    copied_thumbnail = (
+        session.query(ScoreArtifact)
+        .filter_by(
+            revision_id=revision.id,
+            kind=ArtifactKind.RENDERED_PAGE,
+            render_profile="default",
+            page_number=1,
+        )
         .one()
     )
+    assert copied_thumbnail.generator == "review-thumbnail"
+    assert storage.read_bytes(copied_thumbnail.storage_key) == b"<svg />"
     render_outbox = session.query(RenderOutbox).one()
     assert render_outbox.revision_id == revision.id
     assert render_outbox.status == RenderOutboxStatus.PENDING
+
+
+@pytest.mark.asyncio
+async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    stored_thumbnail = storage.put_bytes(
+        key="scores/score-fallback/revisions/revision-old/renders/default/001-old.svg",
+        content=b"<svg>old</svg>",
+        content_type="image/svg+xml",
+    )
+    score = Score(
+        id=20,
+        score_uuid="score-fallback",
+        owner_user_id=1,
+        title="Fallback Score",
+    )
+    old_revision = ScoreRevision(
+        id=21,
+        revision_uuid="revision-old",
+        score_id=20,
+        revision_number=1,
+        content_hash="1" * 64,
+        origin=RevisionOrigin.IMPORT,
+    )
+    new_revision = ScoreRevision(
+        id=22,
+        revision_uuid="revision-new",
+        score_id=20,
+        revision_number=2,
+        content_hash="2" * 64,
+        origin=RevisionOrigin.EDIT,
+        parent_revision_id=21,
+        base_revision_id=21,
+    )
+    session.add_all([score, old_revision, new_revision])
+    session.commit()
+    score.head_revision_id = 22
+    session.add_all(
+        [
+            ScoreArtifact(
+                artifact_uuid="old-thumbnail",
+                revision_id=21,
+                kind=ArtifactKind.RENDERED_PAGE,
+                storage_backend="local",
+                storage_key=stored_thumbnail.storage_key,
+                filename=stored_thumbnail.filename,
+                mime_type="image/svg+xml",
+                size_bytes=stored_thumbnail.size_bytes,
+                sha256="3" * 64,
+                page_number=1,
+                render_profile="default",
+                generator="test",
+                generator_version="1",
+            ),
+            RenderOutbox(
+                outbox_uuid="render-new",
+                target_type=RenderTargetType.SCORE_REVISION,
+                score_id=20,
+                revision_id=22,
+                requested_by_user_id=1,
+                source_fingerprint="2" * 64,
+                render_profile="default",
+                status=RenderOutboxStatus.PENDING,
+            ),
+        ]
+    )
+    session.commit()
+
+    detail = await ScoreService(storage=storage).get(
+        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+        "score-fallback",
+        1,
+    )
+
+    assert detail.head_revision_id == "revision-new"
+    assert detail.derived_assets.preview.artifact_id == "old-thumbnail"
+    assert detail.derived_assets.preview.revision_id == "revision-old"
+    assert detail.derived_assets.preview.is_fallback is True
+    assert detail.derived_assets.preview.status == "processing"
+    assert detail.derived_assets.audio.status == "pending"
 
 
 @pytest.mark.asyncio
@@ -637,10 +752,20 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
         1,
         RevisionCreateRequest(content=MUSICXML_2, base_revision_id=created.revision_id),
     )
+    reverted = await service.create(
+        async_db,  # type: ignore[arg-type]
+        "score-1",
+        1,
+        RevisionCreateRequest(
+            content=MUSICXML_1.decode("utf-8"),
+            base_revision_id=created.revision_id,
+        ),
+    )
 
     assert duplicate.revision_id == created.revision_id
-    assert session.query(ScoreRevision).count() == 2
-    assert session.query(RenderOutbox).count() == 1
+    assert reverted.revision_id not in {"revision-1", created.revision_id}
+    assert session.query(ScoreRevision).count() == 3
+    assert session.query(RenderOutbox).count() == 2
 
     with pytest.raises(ConflictException) as conflict:
         await service.create(

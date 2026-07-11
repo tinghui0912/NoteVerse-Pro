@@ -64,6 +64,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   }
 
   const score = resources.score;
+  const previewAsset = score.derived_assets.preview;
   const loadPlaybackXml = async () => {
     if (!score.head_revision_id) return null;
     const response = await scoresApi.revisionContent(score.score_id, score.head_revision_id);
@@ -77,7 +78,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
           <ScoreBreadcrumbs scoreTitle={scoreTitle} source={source} />
           <ScoreDetailHero
             title={scoreTitle}
-            thumbnailUrl={scoreThumbnailUrl(score.thumbnail_artifact_id)}
+            thumbnailUrl={scoreThumbnailUrl(previewAsset.artifact_id)}
             loadPlaybackXml={loadPlaybackXml}
             playbackEnabled={Boolean(score.head_revision_id)}
             status={score.publication?.status === 'PUBLISHED' ? (
@@ -110,6 +111,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
                     canEditTitle
                     createdAt={score.created_at}
                     imageCount={resources.imageCount}
+                    imageCountStatus={previewAsset.status}
                     metadata={score.metadata}
                     scoreId={score.score_id}
                     taxonomyTags={score.taxonomy_tags}

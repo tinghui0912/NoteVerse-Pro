@@ -75,9 +75,14 @@ export function useAutoSave(
   }, []);
 
   const clearDraft = useCallback(async () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    pendingXmlRef.current = null;
     await deleteDraft(scoreId, baseRevisionId);
-    lastSavedXmlRef.current = null;
-  }, [baseRevisionId, scoreId]);
+    lastSavedXmlRef.current = xml;
+  }, [baseRevisionId, scoreId, xml]);
 
   return { clearDraft, isSaving };
 }

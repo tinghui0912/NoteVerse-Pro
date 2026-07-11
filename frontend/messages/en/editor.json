@@ -112,6 +112,8 @@
   "mustAdjacentNotes": "Tie must connect adjacent notes",
   "saveFailed": "Save Failed",
   "saveFailedDesc": "Unable to save score",
+  "noChangesTitle": "No new changes",
+  "noChangesDesc": "The score content matches the current version, so no new version was created.",
   "draftRecovered": "Draft Recovered",
   "draftRecoveredDesc": "Restored previous edits",
   "draftDiscarded": "Draft Discarded",

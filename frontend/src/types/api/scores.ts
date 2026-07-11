@@ -44,13 +44,27 @@ export interface ScorePublicationSummary {
   status: 'PUBLISHED' | 'UNPUBLISHED';
 }
 
+export type DerivedAssetStatus = 'pending' | 'processing' | 'ready' | 'failed';
+
+export interface ScoreDerivedAsset {
+  status: DerivedAssetStatus;
+  artifact_id: string | null;
+  revision_id: string | null;
+  is_fallback: boolean;
+}
+
+export interface ScoreDerivedAssets {
+  preview: ScoreDerivedAsset;
+  audio: ScoreDerivedAsset;
+}
+
 export interface ScoreDetail {
   score_id: string;
   title: string;
   taxonomy_tags: ScoreTaxonomyTag[];
   version: number;
   head_revision_id: string | null;
-  thumbnail_artifact_id: string | null;
+  derived_assets: ScoreDerivedAssets;
   publication: ScorePublicationSummary | null;
   originating_job_id: string | null;
   metadata: ScoreMetadata | null;

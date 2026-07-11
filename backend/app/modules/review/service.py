@@ -222,6 +222,13 @@ class ReviewService:
                     created_at=now,
                 )
             )
+            await self._copy_review_thumbnail_to_score_revision(
+                db,
+                job_id=require_persisted_id(job.id, entity="import job"),
+                score_uuid=score_uuid,
+                revision_uuid=revision_uuid,
+                revision_id=revision_id,
+            )
             db.add(
                 ScoreRevisionMetadata(
                     revision_id=revision_id,
@@ -271,6 +278,57 @@ class ReviewService:
             storage=self.storage,
         )
         return ReviewConfirmRead(score_id=score_uuid)
+
+    async def _copy_review_thumbnail_to_score_revision(
+        self,
+        db: AsyncSession,
+        *,
+        job_id: int,
+        score_uuid: str,
+        revision_uuid: str,
+        revision_id: int,
+    ) -> None:
+        thumbnail = (
+            await db.execute(
+                select(ImportArtifact)
+                .where(
+                    ImportArtifact.job_id == job_id,
+                    ImportArtifact.kind == FileKind.RESULT_THUMBNAIL.value,
+                )
+                .order_by(ImportArtifact.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if thumbnail is None:
+            return
+        content = self.storage.read_bytes(thumbnail.storage_key)
+        artifact_uuid = str(uuid.uuid4())
+        extension = "." + thumbnail.filename.rsplit(".", 1)[-1] if "." in thumbnail.filename else ".svg"
+        stored = self.storage.put_bytes(
+            key=(
+                f"scores/{score_uuid}/revisions/{revision_uuid}/renders/"
+                f"default/001-{artifact_uuid}{extension}"
+            ),
+            content=content,
+            content_type=thumbnail.mime_type or "image/svg+xml",
+        )
+        db.add(
+            ScoreArtifact(
+                artifact_uuid=artifact_uuid,
+                revision_id=revision_id,
+                kind=ArtifactKind.RENDERED_PAGE,
+                storage_backend=self.storage.backend_name,
+                storage_key=stored.storage_key,
+                filename=stored.filename,
+                mime_type=thumbnail.mime_type or "image/svg+xml",
+                size_bytes=stored.size_bytes,
+                sha256=hashlib.sha256(content).hexdigest(),
+                page_number=1,
+                render_profile="default",
+                generator="review-thumbnail",
+                generator_version="1",
+            )
+        )
 
     async def update(
         self,
