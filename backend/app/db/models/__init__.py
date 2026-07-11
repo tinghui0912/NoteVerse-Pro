@@ -47,6 +47,12 @@ from .score_access import (
 )
 from .render_outbox import RenderOutbox, RenderOutboxStatus, RenderTargetType
 from .mail_outbox import MailOutbox, MailOutboxStatus
+from .playback import (
+    PlaybackAssetKind,
+    PlaybackOutbox,
+    PlaybackOutboxStatus,
+    ScorePlaybackAsset,
+)
 
 __all__ = [
     "User",
@@ -95,4 +101,8 @@ __all__ = [
     "RenderOutbox",
     "MailOutbox",
     "MailOutboxStatus",
+    "PlaybackAssetKind",
+    "PlaybackOutbox",
+    "PlaybackOutboxStatus",
+    "ScorePlaybackAsset",
 ]

@@ -14,6 +14,8 @@ from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.modules.import_jobs.schemas import PipelineExecutionSuccessResult
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.notifications.maintenance_service import notification_maintenance_service
+from app.modules.playback.outbox_service import playback_outbox_service
+from app.modules.playback.service import PlaybackService
 from app.modules.review.thumbnail_service import review_thumbnail_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
@@ -138,6 +140,36 @@ def render_outbox_task(outbox_uuid: str) -> dict[str, str | None]:
     return {"status": "rendered", "outbox_uuid": outbox_uuid, "artifact_id": artifact_id}
 
 
+@celery_app.task(name="app.worker.tasks.playback_outbox_task", ignore_result=True)
+def playback_outbox_task(outbox_uuid: str) -> dict[str, str]:
+    """Generate one durable score playback asset."""
+
+    with get_worker_db() as db:
+        payload = playback_outbox_service.claim(db, outbox_uuid)
+    if payload is None:
+        return {"status": "ignored", "outbox_uuid": outbox_uuid}
+
+    try:
+        with get_worker_db() as db:
+            PlaybackService().render_sync(
+                db,
+                payload.score_uuid,
+                payload.revision_uuid,
+                source_fingerprint=payload.source_fingerprint,
+                asset_kind=payload.asset_kind,
+            )
+    except Exception as exc:
+        with get_worker_db() as db:
+            playback_outbox_service.fail(db, outbox_uuid, str(exc))
+        logger.exception("Playback generation failed for outbox %s", outbox_uuid)
+        return {"status": "failed", "outbox_uuid": outbox_uuid}
+
+    with get_worker_db() as db:
+        playback_outbox_service.complete(db, outbox_uuid)
+    logger.info("Generated playback asset for outbox %s", outbox_uuid)
+    return {"status": "generated", "outbox_uuid": outbox_uuid}
+
+
 @celery_app.task(name="app.worker.tasks.run_job_maintenance")
 def run_job_maintenance() -> dict[str, int]:
     """Run periodic import-job/upload maintenance."""
@@ -185,6 +217,19 @@ def run_render_outbox_maintenance() -> dict[str, int]:
     from app.shared.render_dispatcher import dispatch_render_outbox
 
     dispatched = sum(1 for outbox_uuid in due if dispatch_render_outbox(outbox_uuid))
+    return {"due": len(due), "dispatched": dispatched}
+
+
+@celery_app.task(name="app.worker.tasks.run_playback_outbox_maintenance")
+def run_playback_outbox_maintenance() -> dict[str, int]:
+    """Recover stale playback deliveries and dispatch all due outbox records."""
+
+    with get_worker_db() as db:
+        due = playback_outbox_service.recover_and_list_due(db)
+
+    from app.shared.playback_dispatcher import dispatch_playback_outbox
+
+    dispatched = sum(1 for outbox_uuid in due if dispatch_playback_outbox(outbox_uuid))
     return {"due": len(due), "dispatched": dispatched}
 
 

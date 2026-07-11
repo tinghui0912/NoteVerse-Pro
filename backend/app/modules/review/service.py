@@ -30,10 +30,9 @@ from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
 from app.modules.library.service import LibraryService
 from app.modules.artifacts.render_outbox_service import (
     create_review_thumbnail_render_outbox,
-    create_revision_render_outbox,
 )
-from app.modules.metadata.service import MetadataProjectionService
 from app.modules.notifications.service import NotificationTypes
+from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.review.schemas import (
     ImportJobReviewRead,
     ReviewArtifactRead,
@@ -56,12 +55,10 @@ class ReviewService:
         storage: FileStorage | None = None,
         score_repository: ScoreRepository | None = None,
         library_service: LibraryService | None = None,
-        metadata_service: MetadataProjectionService | None = None,
     ) -> None:
         self.storage = storage or file_storage
         self.score_repository = score_repository or ScoreRepository()
         self.library_service = library_service or LibraryService()
-        self.metadata_service = metadata_service or MetadataProjectionService(storage=self.storage)
 
     async def detail(
         self,
@@ -232,7 +229,7 @@ class ReviewService:
                     extractor_version="pending",
                 )
             )
-            await create_revision_render_outbox(
+            await revision_derivative_service.enqueue(
                 db,
                 score_id=score_id,
                 revision_id=revision_id,
@@ -266,10 +263,13 @@ class ReviewService:
                 pass
             raise
 
-        try:
-            await self.metadata_service.rebuild(db, score_uuid, revision_uuid, user_id)
-        except Exception:
-            await db.rollback()
+        await revision_derivative_service.rebuild_metadata_best_effort(
+            db,
+            score_uuid=score_uuid,
+            revision_uuid=revision_uuid,
+            user_id=user_id,
+            storage=self.storage,
+        )
         return ReviewConfirmRead(score_id=score_uuid)
 
     async def update(

@@ -1,6 +1,6 @@
 'use client';
 
-import { Bookmark, ChevronDown, Download, ExternalLink, FileImage, FileMusic, Gamepad2 } from 'lucide-react';
+import { Bookmark, ChevronDown, Download, ExternalLink, FileImage, FileMusic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,6 @@ interface ExternalScoreActionsProps {
   canSave?: boolean;
   isSaving?: boolean;
   openAppHref?: string;
-  practiceHref?: string;
   onDownloadImage?: () => void;
   onDownloadXml?: () => void;
   onSave?: () => void;
@@ -31,12 +30,10 @@ export function ExternalScoreActions({
   onDownloadXml,
   onSave,
   openAppHref,
-  practiceHref,
   saveHref,
 }: ExternalScoreActionsProps) {
   const common = useTranslations('common');
   const score = useTranslations('score');
-  const practice = useTranslations('practice');
   const share = useTranslations('share');
   const { capabilities } = useScoreCapabilities();
   const downloadAvailable = capabilities.can_download && (onDownloadImage || onDownloadXml);
@@ -82,14 +79,6 @@ export function ExternalScoreActions({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : null}
-      {practiceHref && capabilities.can_practice ? (
-        <Button asChild>
-          <Link href={practiceHref}>
-            <Gamepad2 className="mr-2 h-4 w-4" />
-            {practice('mode')}
-          </Link>
-        </Button>
       ) : null}
       {canSave && onSave ? (
         <Button variant="outline" className="bg-white" onClick={onSave} disabled={isSaving}>

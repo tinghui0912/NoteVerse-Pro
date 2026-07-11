@@ -72,16 +72,12 @@ function PublicScoreContent({ slug }: { slug: string }) {
             subtitle={scoreText('publicScore')}
             thumbnailUrl={publicThumbnailUrl(slug, data.artifacts)}
             playbackEnabled={capabilities.can_practice}
-            loadPlaybackXml={async () => {
-              const response = await publicationsApi.content(slug);
-              return response.data?.content ?? null;
-            }}
+            playbackAudioSrc={publicationsApi.playbackUrl(slug)}
             actions={(
               <ExternalScoreActions
                 openAppHref={isAuthenticated ? `/score/${scoreId}` : undefined}
                 onDownloadImage={() => void download('RENDERED_PAGE')}
                 onDownloadXml={() => void download('MUSICXML')}
-                practiceHref={`/score/${scoreId}/practice?publicSlug=${slug}`}
               />
             )}
             meta={(

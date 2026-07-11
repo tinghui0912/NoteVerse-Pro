@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/api-client';
+import { apiClient, apiUrl } from '@/lib/api-client';
 import type {
   ApiResponse,
   CreatedScoreGrant,
@@ -35,6 +35,7 @@ export const scoreSharingApi = {
       signal,
       suppressAuthRedirect: true,
     }),
+  playbackUrl: (token: string) => apiUrl(`/score-grants/${token}/playback`),
   downloadArtifact: (token: string, artifactId: string) =>
     apiClient.download(`/score-grants/${token}/artifacts/${artifactId}/download`, {
       suppressAuthRedirect: true,

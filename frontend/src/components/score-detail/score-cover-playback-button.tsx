@@ -1,18 +1,22 @@
 'use client';
 
 import { Loader2, Pause, Play } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useScorePreviewPlayback } from '@/hooks/score/use-score-preview-playback';
 import { cn } from '@/lib/utils';
 
 interface ScoreCoverPlaybackButtonProps {
-  loadXml: () => Promise<string | null>;
+  audioSrc?: string;
+  loadXml?: () => Promise<string | null>;
   className?: string;
 }
 
-export function ScoreCoverPlaybackButton({ loadXml, className }: ScoreCoverPlaybackButtonProps) {
+export function ScoreCoverPlaybackButton({ audioSrc, loadXml, className }: ScoreCoverPlaybackButtonProps) {
   const t = useTranslations('score');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioBusy, setAudioBusy] = useState(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
   const [xml, setXml] = useState<string | null>(null);
   const [loadingXml, setLoadingXml] = useState(false);
   const [playWhenReady, setPlayWhenReady] = useState(false);
@@ -22,9 +26,37 @@ export function ScoreCoverPlaybackButton({ loadXml, className }: ScoreCoverPlayb
     followViewport: 'container',
     suspendFollowOnManualScroll: false,
   });
-  const busy = loadingXml || Boolean(xml && playback.isLoading);
+  const isPlaying = audioSrc ? audioPlaying : playback.isPlaying;
+  const busy = audioBusy || loadingXml || Boolean(xml && playback.isLoading);
 
   const togglePlayback = async () => {
+    if (audioSrc) {
+      let audio = audioRef.current;
+      if (!audio) {
+        audio = new Audio(audioSrc);
+        audio.preload = 'metadata';
+        audio.addEventListener('ended', () => setAudioPlaying(false));
+        audio.addEventListener('pause', () => setAudioPlaying(false));
+        audio.addEventListener('play', () => setAudioPlaying(true));
+        audioRef.current = audio;
+      }
+      if (audioPlaying) {
+        audio.pause();
+        return;
+      }
+      setAudioBusy(true);
+      try {
+        await audio.play();
+      } catch {
+        audioRef.current = null;
+        setAudioPlaying(false);
+      } finally {
+        setAudioBusy(false);
+      }
+      return;
+    }
+
+    if (!loadXml) return;
     if (!xml) {
       setLoadingXml(true);
       try {
@@ -47,11 +79,16 @@ export function ScoreCoverPlaybackButton({ loadXml, className }: ScoreCoverPlayb
     void playback.playPause();
   }, [playWhenReady, playback, xml]);
 
+  useEffect(() => () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+  }, []);
+
   return (
     <>
       <button
         type="button"
-        aria-label={playback.isPlaying ? t('pauseScore') : t('playScore')}
+        aria-label={isPlaying ? t('pauseScore') : t('playScore')}
         className={cn(
           'inline-flex h-11 w-11 items-center justify-center rounded-xl bg-black/60 text-white shadow-lg backdrop-blur transition hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-70',
           className
@@ -61,7 +98,7 @@ export function ScoreCoverPlaybackButton({ loadXml, className }: ScoreCoverPlayb
       >
         {busy ? (
           <Loader2 className="h-5 w-5 animate-spin" />
-        ) : playback.isPlaying ? (
+        ) : isPlaying ? (
           <Pause className="h-5 w-5 fill-current" />
         ) : (
           <Play className="ml-0.5 h-5 w-5 fill-current" />

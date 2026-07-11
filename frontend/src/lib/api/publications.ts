@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/api-client';
+import { apiClient, apiUrl } from '@/lib/api-client';
 import type { ApiResponse, Publication, PublicScore, PublicScoreContent } from '@/types/api';
 
 export const publicationsApi = {
@@ -25,6 +25,7 @@ export const publicationsApi = {
       signal,
       suppressAuthRedirect: true,
     }),
+  playbackUrl: (slug: string) => apiUrl(`/publications/${slug}/playback`),
   downloadArtifact: (slug: string, artifactId: string) =>
     apiClient.download(`/publications/${slug}/artifacts/${artifactId}/download`, {
       suppressAuthRedirect: true,

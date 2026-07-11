@@ -6,6 +6,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
 const CSRF_COOKIE_NAME = process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME || 'noteverse_csrf';
 const CSRF_HEADER_NAME = process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || 'x-csrf-token';
 
+export function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 interface RequestOptions {
   headers?: HeadersInit;
   suppressAuthRedirect?: boolean;

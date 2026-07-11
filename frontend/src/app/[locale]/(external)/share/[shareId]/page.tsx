@@ -110,10 +110,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
             subtitle={t('sharedScore')}
             thumbnailUrl={shareThumbnailUrl(shareId, data.artifacts)}
             playbackEnabled={data.capabilities.can_practice}
-            loadPlaybackXml={async () => {
-              const response = await scoreSharingApi.content(shareId);
-              return response.data?.content ?? null;
-            }}
+            playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}
             actions={(
               <ExternalScoreActions
                 canSave={page.isAuthenticated}
@@ -121,7 +118,6 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                 onDownloadImage={() => void handleDownload('image')}
                 onDownloadXml={() => void handleDownload('xml')}
                 onSave={page.isAuthenticated ? save : undefined}
-                practiceHref={`/score/${data.score_id}/practice?shareToken=${shareId}`}
                 saveHref={page.isAuthenticated ? undefined : loginHref}
               />
             )}
