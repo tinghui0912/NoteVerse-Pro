@@ -63,14 +63,6 @@ export function LibrarySidebar({
 }: LibrarySidebarProps) {
   return (
     <aside className="space-y-3">
-      {foldersError ? (
-        <SectionErrorState
-          title={t('foldersLoadFailed')}
-          description={errorMessage(foldersError)}
-          retryLabel={t('retry')}
-          onRetry={onRetryFolders}
-        />
-      ) : null}
       <Card className="rounded-2xl">
         <CardContent className="space-y-4 p-3">
           <SidebarNodeGroup
@@ -104,7 +96,15 @@ export function LibrarySidebar({
               {t('newFolder')}
             </Button>
           </div>
-          {foldersLoading ? (
+          {foldersError ? (
+            <SectionErrorState
+              title={t('foldersLoadFailed')}
+              description={errorMessage(foldersError)}
+              retryLabel={t('retry')}
+              onRetry={onRetryFolders}
+              className="mt-3"
+            />
+          ) : foldersLoading ? (
             <SectionLoading label={t('loadingFolders')} className="min-h-24" />
           ) : (
             <div className="space-y-1">

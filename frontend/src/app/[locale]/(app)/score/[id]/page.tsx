@@ -25,8 +25,8 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   const resources = useScoreDetailResources(id);
   const error = resources.scoreError instanceof ApiError && resources.scoreError.code
     ? translateErrorCode(errors, resources.scoreError.code)
-    : resources.scoreError instanceof Error
-      ? resources.scoreError.message
+    : resources.scoreError
+      ? common('loadFailed')
       : null;
   const scoreTitle = resources.score?.title || resources.parsedTitle || t('scoreFallbackTitle', {
     id: id.slice(0, 8),

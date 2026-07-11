@@ -148,6 +148,7 @@ describe('VerovioScoreViewer', () => {
         adapterFactory={adapterFactory}
         loadingContent={<p>Loading score</p>}
         emptyContent={<p>No score</p>}
+        errorMessage="Unable to render score"
         renderError={(message) => <p>{message}</p>}
       />
     );
@@ -164,6 +165,7 @@ describe('VerovioScoreViewer', () => {
         xmlContent={null}
         loadingContent={<p>Loading score</p>}
         emptyContent={<p>No score</p>}
+        errorMessage="Unable to render score"
         renderError={(message) => <p>{message}</p>}
       />
     );
@@ -182,12 +184,13 @@ describe('VerovioScoreViewer', () => {
         adapterFactory={() => new VerovioScoreAdapter(async () => toolkit)}
         loadingContent={<p>Loading score</p>}
         emptyContent={<p>No score</p>}
+        errorMessage="Unable to render score"
         renderError={(message) => <p role="alert">Could not render: {message}</p>}
       />
     );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not render: Verovio failed to load the score.'
+      'Could not render: Unable to render score'
     );
   });
 });

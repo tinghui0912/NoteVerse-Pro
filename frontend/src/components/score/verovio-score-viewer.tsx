@@ -25,6 +25,7 @@ type VerovioScoreViewerProps = {
   pageDataAttribute?: `data-${string}`;
   loadingContent: React.ReactNode;
   emptyContent: React.ReactNode;
+  errorMessage?: string;
   renderError: (message: string) => React.ReactNode;
   onRendered?: (
     adapter: VerovioScoreAdapter,
@@ -44,6 +45,7 @@ export function VerovioScoreViewer({
   pageDataAttribute = 'data-score-page',
   loadingContent,
   emptyContent,
+  errorMessage = 'Unable to render score.',
   renderError,
   onRendered,
 }: VerovioScoreViewerProps) {
@@ -72,12 +74,12 @@ export function VerovioScoreViewer({
           setResult({ xml: xmlContent, pages: adapter.renderAllPages(), error: null });
         }
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (!cancelled) {
           setResult({
             xml: xmlContent,
             pages: [],
-            error: error instanceof Error ? error.message : 'Verovio failed to render the score.',
+            error: errorMessage,
           });
         }
       });
@@ -85,7 +87,7 @@ export function VerovioScoreViewer({
     return () => {
       cancelled = true;
     };
-  }, [adapter, xmlContent]);
+  }, [adapter, errorMessage, xmlContent]);
 
   useEffect(() => () => adapter.dispose(), [adapter]);
 
@@ -127,11 +129,11 @@ export function VerovioScoreViewer({
         try {
           const pages = adapter.relayout({ pageWidth: Math.max(900, Math.round(nextWidth * 2.25)) });
           setResult({ xml: visibleResult.xml, pages, error: null });
-        } catch (error) {
+        } catch {
           setResult({
             xml: visibleResult.xml,
             pages: [],
-            error: error instanceof Error ? error.message : 'Verovio failed to resize the score.',
+            error: errorMessage,
           });
         }
       });
@@ -142,7 +144,7 @@ export function VerovioScoreViewer({
       observer.disconnect();
       window.cancelAnimationFrame(frame);
     };
-  }, [adapter, visibleResult]);
+  }, [adapter, errorMessage, visibleResult]);
 
   const showLoading = isLoading || Boolean(xmlContent && !visibleResult);
   const showEmpty = !showLoading && !xmlContent;

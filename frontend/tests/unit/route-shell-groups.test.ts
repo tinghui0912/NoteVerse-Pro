@@ -166,6 +166,7 @@ describe('route shell groups', () => {
     const reviewScoreComparison = readSource('src/components/review/review-score-comparison.tsx');
     const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
     const sessionsPanel = readSource('src/components/settings/sessions-settings-panel.tsx');
+    const alert = readSource('src/components/ui/alert.tsx');
 
     expect(resourceLoadError).toContain('function ResourceLoadError');
     expect(resourceLoadError).toContain('ErrorState');
@@ -187,6 +188,15 @@ describe('route shell groups', () => {
     expect(reviewScoreComparison).toContain('EmptyState');
     expect(myScoresPage).toContain('SectionErrorState');
     expect(libraryPage).toContain('SectionErrorState');
+    expect(libraryPage).toContain('userFacingErrorMessage');
+    expect(libraryPage).toContain('retryEntries');
+    expect(libraryPage).toContain('void entriesQuery.refetch()');
+    expect(libraryPage).toContain('void foldersQuery.refetch()');
+    expect(libraryPage).toContain("t('loadFailedDescription')");
+    expect(libraryPage).not.toContain('error instanceof Error ? error.message');
+    expect(myScoresPage).not.toContain('loadError instanceof Error ? loadError.message');
+    expect(scorePage).not.toContain('resources.scoreError.message');
+    expect(alert).toContain('bg-destructive/5');
     expect(notificationDialog).toContain('SectionErrorState');
     expect(notificationDialog).not.toContain('function ErrorState');
     expect(securityPanel).toContain('SectionErrorState');

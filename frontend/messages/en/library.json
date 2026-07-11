@@ -49,6 +49,8 @@
   "unavailable": "Access unavailable",
   "foldersLoadFailed": "Folders failed to load",
   "entriesLoadFailed": "Score list failed to load",
+  "loadFailedDescription": "Unable to load data right now. Please try again later.",
+  "operationFailedDescription": "The operation could not be completed. Please try again later.",
   "loadingFolders": "Loading folders...",
   "loadingEntries": "Loading scores...",
   "operationFailed": "Operation failed",

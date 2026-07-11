@@ -52,6 +52,8 @@ import {
   normalizeLibrarySort,
   normalizePage,
 } from '@/lib/library/state';
+import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { FolderDeleteMode, LibraryEntry, LibraryFolder, LibraryPracticeState, LibraryView, UserSettableLibraryPracticeState } from '@/types/api';
 
 const ROOT_FOLDER_VALUE = '__root__';
@@ -66,10 +68,6 @@ type EntryActionState =
   | { type: 'delete'; entry: LibraryEntry | null }
   | null;
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 export default function LibraryPage({
   searchParams,
 }: {
@@ -83,6 +81,7 @@ export default function LibraryPage({
 }) {
   const params = React.use(searchParams);
   const t = useTranslations('library');
+  const errors = useTranslations('errors');
   const router = useRouter();
   const [batchMode, setBatchMode] = useState(false);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
@@ -335,8 +334,14 @@ export default function LibraryPage({
       IN_PROGRESS: t('practiceStateInProgress'),
       MASTERED: t('practiceStateMastered'),
     })[practiceState];
-  const retryLibraryData = () => {
-    void foldersQuery.refetch();
+  const userFacingErrorMessage = (
+    error: unknown,
+    fallback = t('loadFailedDescription')
+  ) =>
+    error instanceof ApiError
+      ? translateErrorCode(errors, error.code, fallback)
+      : fallback;
+  const retryEntries = () => {
     void entriesQuery.refetch();
   };
   const emptyMessages: Partial<Record<LibraryView, string>> = {
@@ -380,7 +385,7 @@ export default function LibraryPage({
             onNavigateFolder={(nextFolderId) => navigate({ folder: nextFolderId })}
             onEditFolder={openEditFolderDialog}
             onDeleteFolder={setDeleteTarget}
-            errorMessage={errorMessage}
+            errorMessage={(error) => userFacingErrorMessage(error)}
             t={t}
           />
           <section>
@@ -427,7 +432,7 @@ export default function LibraryPage({
             {mutationError ? (
               <SectionErrorState
                 title={t('operationFailed')}
-                description={errorMessage(mutationError)}
+                description={userFacingErrorMessage(mutationError, t('operationFailedDescription'))}
                 className="mb-5"
               />
             ) : null}
@@ -452,9 +457,9 @@ export default function LibraryPage({
             ) : entriesQuery.isError ? (
               <SectionErrorState
                 title={t('entriesLoadFailed')}
-                description={errorMessage(entriesQuery.error)}
+                description={userFacingErrorMessage(entriesQuery.error)}
                 retryLabel={t('retry')}
-                onRetry={retryLibraryData}
+                onRetry={retryEntries}
               />
             ) : entries.length ? (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

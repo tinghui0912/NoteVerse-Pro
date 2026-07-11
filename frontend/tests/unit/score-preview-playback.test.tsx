@@ -98,7 +98,7 @@ describe('score preview playback ownership', () => {
     );
 
     act(() => result.current.scoreContainerRef(document.createElement('div')));
-    await waitFor(() => expect(result.current.loadError).toBe('Invalid score'));
+    await waitFor(() => expect(result.current.loadError).toBe('Load failed'));
     expect(controller.dispose).toHaveBeenCalledTimes(1);
   });
 

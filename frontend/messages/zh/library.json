@@ -49,6 +49,8 @@
   "unavailable": "访问不可用",
   "foldersLoadFailed": "目录加载失败",
   "entriesLoadFailed": "乐谱列表加载失败",
+  "loadFailedDescription": "暂时无法加载数据，请稍后重试。",
+  "operationFailedDescription": "操作未完成，请稍后重试。",
   "loadingFolders": "正在加载目录...",
   "loadingEntries": "正在加载乐谱...",
   "operationFailed": "操作失败",

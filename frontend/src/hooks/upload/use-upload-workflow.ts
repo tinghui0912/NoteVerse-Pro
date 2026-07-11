@@ -265,9 +265,7 @@ export function useUploadWorkflow() {
     } catch (error) {
       const message = error instanceof ApiError
         ? translateErrorCode(errors, error.code, t('processingFailed'))
-        : error instanceof Error && error.message
-          ? error.message
-          : t('processingFailed');
+        : t('processingFailed');
       toast({ title: t('submitFailed'), description: message, variant: 'destructive' });
       setIsUploading(false);
       setIsSubmitting(false);

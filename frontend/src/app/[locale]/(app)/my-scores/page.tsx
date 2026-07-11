@@ -35,6 +35,8 @@ import {
   scoreBackedView,
   visibleMyScoreJobs,
 } from '@/lib/my-scores/state';
+import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { MyScoresPageView, MyScoresSort } from '@/types/api';
 
 export default function MyScoresPage({
@@ -49,6 +51,7 @@ export default function MyScoresPage({
 }) {
   const params = React.use(searchParams);
   const t = useTranslations('myScores');
+  const errors = useTranslations('errors');
   const router = useRouter();
   const view = normalizeMyScoresView(params.view);
   const sort: MyScoresSort = normalizeMyScoresSort(params.sort);
@@ -179,6 +182,9 @@ export default function MyScoresPage({
   const isLoading = (showScores && scoresQuery.isLoading) || jobsQuery.isLoading;
   const isError = (showScores && scoresQuery.isError) || jobsQuery.isError;
   const loadError = scoresQuery.error ?? jobsQuery.error;
+  const loadErrorMessage = loadError instanceof ApiError
+    ? translateErrorCode(errors, loadError.code, t('loadFailedDesc'))
+    : t('loadFailedDesc');
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -257,7 +263,7 @@ export default function MyScoresPage({
           ) : isError ? (
             <SectionErrorState
               title={t('loadFailed')}
-              description={loadError instanceof Error ? loadError.message : t('loadFailedDesc')}
+              description={loadErrorMessage}
             />
           ) : visibleJobs.length || scores.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

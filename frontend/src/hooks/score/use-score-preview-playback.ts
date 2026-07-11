@@ -178,13 +178,13 @@ export function useScorePreviewPlayback({
       setHasRenderedScore(true);
       setTotalTime(duration > 0 ? duration : 0);
       setIsLoading(false);
-    } catch (error) {
+    } catch {
       if (controller && controllerRef.current === controller) {
         controllerRef.current = null;
         controller.dispose();
       }
       if (generation === loadGenerationRef.current) {
-        setLoadError(error instanceof Error ? error.message : t('errorBoundaryDesc'));
+        setLoadError(t('errorBoundaryDesc'));
         setIsLoading(false);
       }
     }
@@ -216,9 +216,9 @@ export function useScorePreviewPlayback({
         setTotalTime(duration > 0 ? duration : 0);
         setHasRenderedScore(true);
         setIsLoading(false);
-      }).catch((error) => {
+      }).catch(() => {
         if (cancelled || generation !== loadGenerationRef.current || controllerRef.current !== controller) return;
-        setLoadError(error instanceof Error ? error.message : t('errorBoundaryDesc'));
+        setLoadError(t('errorBoundaryDesc'));
         setIsLoading(false);
       });
     });

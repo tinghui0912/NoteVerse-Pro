@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/page';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { practiceApi } from '@/lib/api';
+import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { PracticeReportPayload } from '@/types/api';
 
 const ReportCard = ({
@@ -38,6 +40,7 @@ const ReportCard = ({
 
 export default function PracticePerformancePage() {
   const t = useTranslations('practice');
+  const errors = useTranslations('errors');
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId');
@@ -69,7 +72,11 @@ export default function PracticePerformancePage() {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : t('analysisFailedDesc'));
+          setError(
+            loadError instanceof ApiError
+              ? translateErrorCode(errors, loadError.code, t('analysisFailedDesc'))
+              : t('analysisFailedDesc')
+          );
         }
       } finally {
         if (!cancelled) {
@@ -83,7 +90,7 @@ export default function PracticePerformancePage() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, t]);
+  }, [errors, sessionId, t]);
 
   const recommendations = report?.recommendations.join('\n') || '';
   const metricsContent = report
