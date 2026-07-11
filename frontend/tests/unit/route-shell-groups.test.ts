@@ -101,8 +101,8 @@ describe('route shell groups', () => {
 
   it('keeps external viewer components in the external component directory', () => {
     expect(existsSync(projectPath('src/components/external/public-score-page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/components/external/share-info-sidebar.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/components/external/share-score-player.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/score-detail/score-detail-hero.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/components/score-detail/external-score-actions.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/components/public'))).toBe(false);
     expect(existsSync(projectPath('src/components/share'))).toBe(false);
 
@@ -110,8 +110,8 @@ describe('route shell groups', () => {
     const shareEntry = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
 
     expect(publicEntry).toContain('@/components/external/public-score-page');
-    expect(shareEntry).toContain('@/components/external/share-info-sidebar');
-    expect(shareEntry).toContain('@/components/external/share-score-player');
+    expect(shareEntry).toContain('@/components/score-detail/score-detail-hero');
+    expect(shareEntry).toContain('@/components/score-detail/external-score-actions');
   });
 
   it('uses one authenticated nav action pattern across public, external, and workspace shells', () => {
@@ -206,7 +206,7 @@ describe('route shell groups', () => {
       expect(source).toContain('ResourceLoadError');
     }
 
-    expect(publicScorePage).toContain('publication.error ?? content.error');
+    expect(publicScorePage).toContain('publication.error');
     expect(publicScorePage).toContain('translateErrorCode');
     expect(publicScorePage).not.toContain("text-muted-foreground\">\n          {common('loadFailed')}");
 

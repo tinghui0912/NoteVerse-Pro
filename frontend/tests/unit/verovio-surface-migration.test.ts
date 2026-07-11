@@ -7,18 +7,19 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 const projectPath = (path: string) => resolve(process.cwd(), path);
 
 describe('Verovio listen surfaces', () => {
-  it('renders share access through the external score surface and shared player', () => {
+  it('renders share access through the external score surface and lightweight detail hero', () => {
     const page = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-    const player = readSource('src/components/external/share-score-player.tsx');
-    const sidebar = readSource('src/components/external/share-info-sidebar.tsx');
+    const hero = readSource('src/components/score-detail/score-detail-hero.tsx');
+    const playback = readSource('src/components/score-detail/score-cover-playback-button.tsx');
 
     expect(page).toContain('<ScoreSurface');
     expect(page).toContain('<ScoreCapabilityProvider');
-    expect(page).toContain('<ShareScorePlayer');
+    expect(page).toContain('<ScoreDetailHero');
+    expect(page).toContain('<ScoreDetailTabs');
     expect(page).not.toContain('<Footer');
-    expect(player).toContain('<ScorePreviewViewport');
-    expect(player).toContain('<ScorePlaybackDock');
-    expect(sidebar).toContain('useScoreCapabilities');
+    expect(hero).toContain('<ScoreCoverPlaybackButton');
+    expect(playback).toContain('useScorePreviewPlayback');
+    expect(playback).not.toContain('ScorePlaybackDock');
   });
 
   it('renders public score access through the external score surface and capability model', () => {
@@ -26,7 +27,8 @@ describe('Verovio listen surfaces', () => {
 
     expect(page).toContain('<ScoreSurface');
     expect(page).toContain('<ScoreCapabilityProvider');
-    expect(page).toContain('<ScorePlayer');
+    expect(page).toContain('<ScoreDetailHero');
+    expect(page).toContain('<ScoreDetailTabs');
     expect(page).toContain('resolveScoreCapabilities');
     expect(page).toContain('publicSlug');
     expect(page).not.toContain('<Footer');
@@ -35,30 +37,31 @@ describe('Verovio listen surfaces', () => {
   it('removes the old listen modal preview path', () => {
     expect(existsSync(projectPath('src/components/score/listen-modal.tsx'))).toBe(false);
     const source = readSource('src/components/editor/editor-page-modals.tsx');
-    const actions = readSource('src/components/score-detail/score-actions.tsx');
+    const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
 
     expect(source).not.toContain('ListenModal');
     expect(source).not.toContain('ScorePreview');
     expect(actions).not.toContain('ListenModal');
   });
 
-  it('renders score detail with a shared viewport and persistent playback dock', () => {
+  it('renders score detail as a lightweight details page with cover playback', () => {
     const page = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
-    const actions = readSource('src/components/score-detail/score-actions.tsx');
-    const player = readSource('src/components/score-detail/score-player.tsx');
-    expect(page).toContain('<ScorePlayer');
+    const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
+    const playback = readSource('src/components/score-detail/score-cover-playback-button.tsx');
+    expect(page).toContain('<ScoreDetailHero');
+    expect(page).toContain('<ScoreDetailTabs');
     expect(page).toContain('<ScoreBreadcrumbs');
+    expect(page).not.toContain('<ScorePlayer');
     expect(page).not.toContain('<ScorePreviewPanel');
     expect(actions).not.toContain('ListenModal');
-    expect(player).toContain('<ScorePreviewViewport');
-    expect(player).toContain('<ScorePlaybackDock');
-    expect(player).toContain("followViewport: 'window'");
-    expect(player).not.toContain('<ScorePreviewPanel');
-    expect(player).not.toContain('<CardTitle');
+    expect(playback).toContain('useScorePreviewPlayback');
+    expect(playback).toContain("followViewport: 'container'");
+    expect(playback).not.toContain('<ScorePreviewPanel');
+    expect(playback).not.toContain('<ScorePlaybackDock');
   });
 
   it('keeps fingering generation as an editor action instead of a score detail action', () => {
-    const scoreActions = readSource('src/components/score-detail/score-actions.tsx');
+    const scoreActions = readSource('src/components/score-detail/score-hero-actions.tsx');
     const editorSidebar = readSource('src/components/editor/editor-sidebar.tsx');
     const editorDocument = readSource('src/hooks/editor/use-editor-document.ts');
     const scoreApi = readSource('src/lib/api/scores.ts');

@@ -1,21 +1,51 @@
 'use client';
 
-import React from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Ban, CircleAlert, Clock3, SearchX } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { ResourceLoadError } from '@/components/states';
+import React from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResourceLoading } from '@/components/loading';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreSurface } from '@/components/score/score-surface';
-import { ShareInfoSidebar } from '@/components/external/share-info-sidebar';
-import { ShareScorePlayer } from '@/components/external/share-score-player';
+import { ExternalScoreActions } from '@/components/score-detail/external-score-actions';
+import { ScoreDetailHero } from '@/components/score-detail/score-detail-hero';
+import { ScoreDetailTabs } from '@/components/score-detail/score-detail-tabs';
+import { ScoreInfoPanel } from '@/components/score-detail/score-info-panel';
+import { ResourceLoadError } from '@/components/states';
+import { routing } from '@/i18n/routing';
 import { useSharePageData } from '@/hooks/share/use-share-page-data';
+import { useDownload } from '@/hooks/use-download';
+import { useToast } from '@/hooks/use-toast';
+import { scoreSharingApi } from '@/lib/api';
+import { ApiError } from '@/lib/api-client';
+import { formatApiDateTime } from '@/lib/date-time';
+import { translateErrorCode } from '@/lib/i18n/error-message';
+import { shareThumbnailUrl } from '@/lib/score-detail/thumbnail';
+
+function fallbackInitial(name: string) {
+  return name.trim().slice(0, 1).toUpperCase() || 'U';
+}
 
 export default function SharePage({ params }: { params: Promise<{ shareId: string }> }) {
   const { shareId } = React.use(params);
   const t = useTranslations('share');
+  const scoreText = useTranslations('score');
   const common = useTranslations('common');
+  const errors = useTranslations('errors');
+  const locale = useLocale();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
   const page = useSharePageData(shareId);
+  const { handleDownload } = useDownload({
+    mode: 'grant',
+    id: shareId,
+    artifacts: page.shareData?.artifacts ?? [],
+  });
+  const bookmark = useMutation({ mutationFn: () => scoreSharingApi.bookmark(shareId) });
 
   if (page.authLoading || page.loading) {
     return (
@@ -24,31 +54,16 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
       </ScoreSurface>
     );
   }
+
   if (page.error || !page.shareData) {
     const type = page.error?.type ?? 'unknown';
     const config = type === 'not_found'
-      ? {
-        icon: SearchX,
-        title: t('errorNotFoundTitle'),
-        description: t('errorNotFoundDesc'),
-      }
+      ? { icon: SearchX, title: t('errorNotFoundTitle'), description: t('errorNotFoundDesc') }
       : type === 'revoked'
-        ? {
-          icon: Ban,
-          title: t('errorRevokedTitle'),
-          description: t('errorRevokedDesc'),
-        }
+        ? { icon: Ban, title: t('errorRevokedTitle'), description: t('errorRevokedDesc') }
         : type === 'expired'
-          ? {
-            icon: Clock3,
-            title: t('errorExpiredTitle'),
-            description: t('errorExpiredDesc'),
-          }
-          : {
-            icon: CircleAlert,
-            title: t('loadFailed'),
-            description: t('loadFailed'),
-          };
+          ? { icon: Clock3, title: t('errorExpiredTitle'), description: t('errorExpiredDesc') }
+          : { icon: CircleAlert, title: t('loadFailed'), description: t('loadFailed') };
     return (
       <ScoreSurface>
         <ResourceLoadError
@@ -65,35 +80,96 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
 
   const data = page.shareData;
   const pageCount = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE').length;
+  const query = searchParams.toString();
+  const localizedSharePath = locale === routing.defaultLocale
+    ? `/share/${shareId}`
+    : `/${locale}/share/${shareId}`;
+  const returnPath = `${pathname || localizedSharePath}${query ? `?${query}` : ''}`;
+  const loginHref = `/auth/login?returnUrl=${encodeURIComponent(returnPath)}`;
+  const sharedByName = data.shared_by?.display_name || t('anonymousUser');
+  const save = () => bookmark.mutate(undefined, {
+    onSuccess: () => toast({
+      title: t('saveSuccessTitle'),
+      description: t('saveSuccessDesc', { scoreName: data.title }),
+    }),
+    onError: (error) => toast({
+      title: t('saveFailed'),
+      description: error instanceof ApiError
+        ? translateErrorCode(errors, error.code, t('saveFailedDesc'))
+        : t('saveFailedDesc'),
+      variant: 'destructive',
+    }),
+  });
 
   return (
     <ScoreCapabilityProvider capabilities={data.capabilities} scoreId={data.score_id} workspace="share">
       <ScoreSurface>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mb-8">
-            <p className="text-sm font-medium text-orange-600">{t('sharedScore')}</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
-              {data.title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm text-gray-600 sm:text-base">
-              {t('sharedScoreSubtitle')}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
-              {page.rawXml ? <ShareScorePlayer rawXml={page.rawXml} /> : null}
-            </div>
-            <ShareInfoSidebar
-              artifacts={data.artifacts}
-              imageCount={pageCount}
-              isAuthenticated={page.isAuthenticated}
-              scoreId={data.score_id}
-              scoreTitle={data.title}
-              shareData={data}
-              shareId={shareId}
-              taxonomyTags={data.taxonomy_tags}
-            />
-          </div>
+          <ScoreDetailHero
+            title={data.title}
+            subtitle={t('sharedScore')}
+            thumbnailUrl={shareThumbnailUrl(shareId, data.artifacts)}
+            playbackEnabled={data.capabilities.can_practice}
+            loadPlaybackXml={async () => {
+              const response = await scoreSharingApi.content(shareId);
+              return response.data?.content ?? null;
+            }}
+            actions={(
+              <ExternalScoreActions
+                canSave={page.isAuthenticated}
+                isSaving={bookmark.isPending}
+                onDownloadImage={() => void handleDownload('image')}
+                onDownloadXml={() => void handleDownload('xml')}
+                onSave={page.isAuthenticated ? save : undefined}
+                practiceHref={`/score/${data.score_id}/practice?shareToken=${shareId}`}
+                saveHref={page.isAuthenticated ? undefined : loginHref}
+              />
+            )}
+            meta={(
+              <>
+                <span>{t('sharedAt', { date: formatApiDateTime(data.shared_at, locale) })}</span>
+              </>
+            )}
+          />
+          <ScoreDetailTabs
+            tabs={[
+              {
+                value: 'info',
+                label: scoreText('scoreInfo'),
+                content: (
+                  <ScoreInfoPanel
+                    imageCount={pageCount}
+                    metadata={data.metadata}
+                    taxonomyTags={data.taxonomy_tags}
+                    title={data.title}
+                  />
+                ),
+              },
+              {
+                value: 'share',
+                label: scoreText('sharedInfo'),
+                content: (
+                  <Card className="rounded-2xl bg-white shadow-sm">
+                    <CardHeader>
+                      <CardTitle>{scoreText('sharedBy')}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={data.shared_by?.avatar_url ?? undefined} alt={sharedByName} />
+                        <AvatarFallback>{fallbackInitial(sharedByName)}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{sharedByName}</p>
+                        <time className="text-sm text-muted-foreground" dateTime={data.shared_at}>
+                          {t('sharedAt', { date: formatApiDateTime(data.shared_at, locale) })}
+                        </time>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ),
+              },
+            ]}
+          />
         </div>
       </ScoreSurface>
     </ScoreCapabilityProvider>

@@ -4,6 +4,7 @@
   "subtitle": "现在你可以播放、练习、分享、下载或继续编辑你的作品。",
   "scoreFallbackTitle": "乐谱 {id}",
   "playScore": "播放乐谱",
+  "pauseScore": "暂停播放",
   "noImageAvailable": "暂无预览",
   "scoreInfo": "乐谱信息",
   "scoreName": "名称",
@@ -34,5 +35,13 @@
   "nameEmptyTitle": "名称不能为空",
   "nameEmptyDesc": "乐谱名称不能为空。",
   "scoreInfoUpdated": "乐谱信息已更新。",
-  "backToLibrary": "返回我的乐谱库"
+  "backToLibrary": "返回我的乐谱库",
+  "publishedStatus": "已发布",
+  "versionLabel": "版本 v{version}",
+  "sharedInfo": "分享信息",
+  "publicInfo": "公开信息",
+  "sharedBy": "分享者",
+  "publishedAt": "发布时间",
+  "allowed": "允许",
+  "notAllowed": "不允许"
 }

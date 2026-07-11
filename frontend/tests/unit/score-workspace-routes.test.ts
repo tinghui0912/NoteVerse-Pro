@@ -35,7 +35,7 @@ describe('score workspace routes', () => {
   });
 
   it('routes score detail actions into score workspaces', () => {
-    const actions = readSource('src/components/score-detail/score-actions.tsx');
+    const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
     const upload = readSource('src/lib/upload/upload-workflow.ts');
     const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
     const scoreEditor = readSource('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx');
@@ -53,13 +53,12 @@ describe('score workspace routes', () => {
 
   it('keeps share and public routes as score access entries', () => {
     const sharePage = readSource('src/app/[locale]/(external)/share/[shareId]/page.tsx');
-    const shareSidebar = readSource('src/components/external/share-info-sidebar.tsx');
     const publicPage = readSource('src/components/external/public-score-page.tsx');
 
     expect(sharePage).toContain('<ScoreSurface');
     expect(sharePage).toContain('<ScoreCapabilityProvider');
     expect(sharePage).toContain('capabilities={data.capabilities}');
-    expect(shareSidebar).toContain('/score/${props.scoreId}/practice?shareToken=${props.shareId}');
+    expect(sharePage).toContain('/score/${data.score_id}/practice?shareToken=${shareId}');
     expect(publicPage).toContain('<ScoreSurface');
     expect(publicPage).toContain('<ScoreCapabilityProvider');
     expect(publicPage).toContain('capabilities={capabilities}');
@@ -69,10 +68,9 @@ describe('score workspace routes', () => {
   it('centralizes view/share capabilities without a score shell wrapper', () => {
     const surface = readSource('src/components/score/score-surface.tsx');
     const capabilityContext = readSource('src/components/score/score-capability-context.tsx');
-    const actions = readSource('src/components/score-detail/score-actions.tsx');
-    const metadata = readSource('src/components/score-detail/score-metadata-editor.tsx');
-    const styleTags = readSource('src/components/score-detail/score-style-tags-editor.tsx');
-    const shareSidebar = readSource('src/components/external/share-info-sidebar.tsx');
+    const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
+    const metadata = readSource('src/components/score-detail/score-info-panel.tsx');
+    const externalActions = readSource('src/components/score-detail/external-score-actions.tsx');
 
     expect(existsSync(projectPath('src/components/score-shell'))).toBe(false);
     expect(surface).toContain('ScoreSurface');
@@ -81,9 +79,8 @@ describe('score workspace routes', () => {
     expect(capabilityContext).toContain('useScoreCapabilities');
     expect(actions).toContain('useScoreCapabilities');
     expect(metadata).toContain('useScoreCapabilities');
-    expect(styleTags).toContain('useScoreCapabilities');
-    expect(shareSidebar).toContain('useScoreCapabilities');
+    expect(externalActions).toContain('useScoreCapabilities');
     expect(actions).not.toContain('capabilities?:');
-    expect(shareSidebar).not.toContain('capabilities?:');
+    expect(externalActions).not.toContain('capabilities?:');
   });
 });

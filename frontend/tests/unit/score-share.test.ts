@@ -45,12 +45,12 @@ describe('score share helpers', () => {
   });
 
   it('keeps score share creation view-only', () => {
-    const dialog = readSource('src/components/score-detail/score-share-dialog.tsx');
+    const panel = readSource('src/components/score-detail/score-share-panel.tsx');
     const api = readSource('src/lib/api/score-sharing.ts');
 
-    expect(dialog).not.toContain('scope');
-    expect(dialog).not.toContain("permission === 'edit'");
-    expect(dialog).not.toContain('generateEditable');
+    expect(panel).not.toContain('scope');
+    expect(panel).not.toContain("permission === 'edit'");
+    expect(panel).not.toContain('generateEditable');
     expect(api).not.toContain('scope:');
   });
 });

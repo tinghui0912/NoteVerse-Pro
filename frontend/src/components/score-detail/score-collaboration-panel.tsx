@@ -8,15 +8,6 @@ import { InlineLoading } from '@/components/loading';
 import { SectionLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,14 +37,10 @@ function isEmailLike(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-export function ScoreCollaborationDialog({
-  onOpenChange,
-  open,
+export function ScoreCollaborationPanel({
   scoreTitle,
   scoreId,
 }: {
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
   scoreTitle: string;
   scoreId: string;
 }) {
@@ -65,8 +52,8 @@ export function ScoreCollaborationDialog({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<MembershipRole>('EDITOR');
   const [createdTokens, setCreatedTokens] = useState<Record<string, string>>({});
-  const invitesQuery = useScoreInvites(scoreId, open);
-  const membersQuery = useScoreMembers(scoreId, open);
+  const invitesQuery = useScoreInvites(scoreId);
+  const membersQuery = useScoreMembers(scoreId);
   const createInvite = useCreateScoreInvite(scoreId);
   const revokeInvite = useRevokeScoreInvite(scoreId);
   const deleteInvite = useDeleteScoreInvite(scoreId);
@@ -143,13 +130,11 @@ export function ScoreCollaborationDialog({
     removeMember.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl overflow-hidden rounded-2xl p-0">
-        <div className="max-h-[90vh] space-y-6 overflow-y-auto p-6 sm:p-8">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">{t('title')}</DialogTitle>
-            <DialogDescription>{t('scoreName', { name: scoreTitle })}</DialogDescription>
-          </DialogHeader>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">{t('title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('scoreName', { name: scoreTitle })}</p>
+      </div>
 
           <section className="space-y-3">
             <h3 className="font-semibold">{t('inviteSection')}</h3>
@@ -278,13 +263,6 @@ export function ScoreCollaborationDialog({
             )}
           </section>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">{t('close')}</Button>
-            </DialogClose>
-          </DialogFooter>
-        </div>
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }

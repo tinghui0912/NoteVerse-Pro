@@ -18,20 +18,10 @@ import { InlineLoading } from '@/components/loading';
 import { SectionLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import {
   useCreateScoreGrant,
@@ -52,14 +42,10 @@ function absoluteShareUrl(token: string, locale: string) {
   return `${window.location.origin}${path}`;
 }
 
-export function ScoreShareDialog({
-  onOpenChange,
-  open,
+export function ScoreSharePanel({
   scoreTitle,
   scoreId,
 }: {
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
   scoreTitle: string;
   scoreId: string;
 }) {
@@ -78,7 +64,7 @@ export function ScoreShareDialog({
   const [minimumCustomDate] = useState(
     () => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
   );
-  const grantsQuery = useScoreGrants(scoreId, open);
+  const grantsQuery = useScoreGrants(scoreId);
   const createGrant = useCreateScoreGrant(scoreId);
   const revokeGrant = useRevokeScoreGrant(scoreId);
   const restoreGrant = useRestoreScoreGrant(scoreId);
@@ -217,13 +203,11 @@ export function ScoreShareDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl overflow-hidden rounded-2xl p-0">
-        <div className="max-h-[90vh] space-y-6 overflow-y-auto p-6 sm:p-8">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">{t('title')}</DialogTitle>
-            <DialogDescription>{t('scoreName', { name: scoreTitle })}</DialogDescription>
-          </DialogHeader>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">{t('title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('scoreName', { name: scoreTitle })}</p>
+      </div>
           <div className="rounded-lg border bg-muted/60 p-4 text-sm">
             <div className="mb-2 flex items-center gap-2 font-medium text-foreground">
               <LockKeyhole className="h-4 w-4" />
@@ -425,14 +409,6 @@ export function ScoreShareDialog({
               <EmptyState title={t('noLinks')} className="min-h-0 rounded-lg border border-dashed p-5" />
             )}
           </div>
-          <Separator />
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">{t('close')}</Button>
-            </DialogClose>
-          </DialogFooter>
-        </div>
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }

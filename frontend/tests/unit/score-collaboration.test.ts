@@ -19,37 +19,37 @@ describe('score collaboration invite architecture', () => {
   });
 
   it('uses invite/member APIs for collaboration instead of share grant APIs', () => {
-    const dialog = readSource('src/components/score-detail/score-collaboration-dialog.tsx');
+    const panel = readSource('src/components/score-detail/score-collaboration-panel.tsx');
     const api = readSource('src/lib/api/score-invites.ts');
-    const actions = readSource('src/components/score-detail/score-actions.tsx');
+    const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
 
-    expect(dialog).toContain('useScoreInvites');
-    expect(dialog).toContain('useScoreMembers');
-    expect(dialog).toContain('useCreateScoreInvite');
-    expect(dialog).toContain('useUpdateScoreMember');
-    expect(dialog).not.toContain('useScoreGrants');
-    expect(dialog).not.toContain('scoreSharingApi');
+    expect(panel).toContain('useScoreInvites');
+    expect(panel).toContain('useScoreMembers');
+    expect(panel).toContain('useCreateScoreInvite');
+    expect(panel).toContain('useUpdateScoreMember');
+    expect(panel).not.toContain('useScoreGrants');
+    expect(panel).not.toContain('scoreSharingApi');
 
     expect(api).toContain('/scores/${scoreId}/invites');
     expect(api).toContain('/scores/${scoreId}/members');
     expect(api).toContain('/invites/${token}');
     expect(api).toContain('suppressAuthRedirect: true');
 
-    expect(actions).toContain('capabilities.can_manage_members');
-    expect(actions).toContain('ScoreCollaborationDialog');
+    expect(scorePage).toContain('score.capabilities.can_manage_members');
+    expect(scorePage).toContain('ScoreCollaborationPanel');
   });
 
   it('keeps share and invite semantics separate', () => {
-    const shareDialog = readSource('src/components/score-detail/score-share-dialog.tsx');
-    const collaborationDialog = readSource('src/components/score-detail/score-collaboration-dialog.tsx');
+    const sharePanel = readSource('src/components/score-detail/score-share-panel.tsx');
+    const collaborationPanel = readSource('src/components/score-detail/score-collaboration-panel.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
 
-    expect(shareDialog).not.toContain('MembershipRole');
-    expect(shareDialog).not.toContain('EDITOR');
-    expect(shareDialog).not.toContain('VIEWER');
-    expect(collaborationDialog).toContain('MembershipRole');
-    expect(collaborationDialog).toContain('EDITOR');
-    expect(collaborationDialog).toContain('VIEWER');
+    expect(sharePanel).not.toContain('MembershipRole');
+    expect(sharePanel).not.toContain('EDITOR');
+    expect(sharePanel).not.toContain('VIEWER');
+    expect(collaborationPanel).toContain('MembershipRole');
+    expect(collaborationPanel).toContain('EDITOR');
+    expect(collaborationPanel).toContain('VIEWER');
     expect(invitePage).toContain("searchParams.get('accept') === '1'");
     expect(invitePage).toContain('acceptInvite.mutate');
     expect(invitePage).toContain("router.push(`/score/${scoreId}`)");

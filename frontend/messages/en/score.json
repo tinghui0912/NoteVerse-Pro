@@ -4,6 +4,7 @@
   "subtitle": "You can now listen, practice, share, download, or continue editing your work.",
   "scoreFallbackTitle": "Score {id}",
   "playScore": "Play Score",
+  "pauseScore": "Pause Score",
   "noImageAvailable": "No preview available",
   "scoreInfo": "Score Information",
   "scoreName": "Name",
@@ -34,5 +35,13 @@
   "nameEmptyTitle": "Name cannot be empty",
   "nameEmptyDesc": "The score name cannot be empty.",
   "scoreInfoUpdated": "Score info has been updated.",
-  "backToLibrary": "Back to My Library"
+  "backToLibrary": "Back to My Library",
+  "publishedStatus": "Published",
+  "versionLabel": "Version v{version}",
+  "sharedInfo": "Share Info",
+  "publicInfo": "Public Info",
+  "sharedBy": "Shared by",
+  "publishedAt": "Published",
+  "allowed": "Allowed",
+  "notAllowed": "Not allowed"
 }
