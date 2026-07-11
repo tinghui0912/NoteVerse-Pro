@@ -7,7 +7,7 @@ import zipfile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import FileException, ResourceNotFoundException
+from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreArtifact, ScoreRevision
 from app.db.models.score import ArtifactKind
@@ -89,6 +89,12 @@ class ArtifactService:
             share_token=share_token,
             public_slug=public_slug,
         )
+        if (
+            action == ScoreAction.VIEW
+            and artifact.kind == ArtifactKind.MUSICXML
+            and (share_token or public_slug)
+        ):
+            raise UnauthorizedException(ErrorCode.NO_DOWNLOAD_ACCESS)
         self._require_object(artifact)
         if self.storage.backend_name != "local":
             url = self.storage.download_url(

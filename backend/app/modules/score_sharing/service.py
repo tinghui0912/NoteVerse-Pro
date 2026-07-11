@@ -19,6 +19,7 @@ from app.db.models import (
     ShareGrantRedemption,
     User,
 )
+from app.db.models.score import ArtifactKind
 from app.modules.score_access.policy import (
     ScoreAccessPolicy,
     ScoreAction,
@@ -26,6 +27,7 @@ from app.modules.score_access.policy import (
 )
 from app.modules.artifacts.service import ArtifactDelivery, ArtifactService
 from app.modules.metadata.service import MetadataProjectionService
+from app.modules.scores.derived_assets import score_derived_assets
 from app.modules.scores.repository import ScoreRepository
 from app.storage import FileStorage, file_storage
 from app.db.models import ScoreRevisionMetadata
@@ -186,6 +188,18 @@ class ScoreSharingService:
             revision_uuid=access.revision.revision_uuid,
             share_token=token,
         )
+        artifacts = [
+            artifact
+            for artifact in artifacts
+            if artifact.kind != ArtifactKind.MUSICXML or grant.allow_download
+        ]
+        score_id = require_persisted_id(score.id, entity="score")
+        derived_assets = await score_derived_assets(
+            db,
+            self.score_repository,
+            score_id=score_id,
+            revision=access.revision,
+        )
         shared_by = await db.get(User, grant.created_by_user_id)
         return GrantAccessRead(
             score_id=score.score_uuid,
@@ -199,7 +213,7 @@ class ScoreSharingService:
                     confidence=confidence,
                 )
                 for category, code, source, confidence in await self.score_repository.taxonomy_tags(
-                    db, require_persisted_id(score.id, entity="score")
+                    db, score_id
                 )
             ],
             shared_by=(
@@ -217,6 +231,7 @@ class ScoreSharingService:
                 if projection
                 else None
             ),
+            derived_assets=derived_assets,
             artifacts=artifacts,
         )
 

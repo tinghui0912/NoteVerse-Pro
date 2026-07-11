@@ -21,8 +21,10 @@ from app.db.models import (
     MailOutbox,
     MailOutboxStatus,
     NotificationEvent,
+    PlaybackAssetKind,
     Score,
     ScoreArtifact,
+    ScorePlaybackAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreLibraryEntry,
@@ -56,6 +58,7 @@ from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
 from app.modules.scores.service import ScoreService
+from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
@@ -68,6 +71,7 @@ from app.modules.notifications.maintenance_service import NotificationMaintenanc
 from app.modules.notifications.service import NotificationService, NotificationTypes
 from app.modules.publications.schemas import PublicationUpsertRequest
 from app.modules.publications.service import PublicationService
+from app.modules.playback.service import PlaybackService
 from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
 from app.storage import LocalFileStorage
@@ -1526,6 +1530,133 @@ async def test_create_grant_normalizes_aware_expiration_to_naive_utc(
 
 
 @pytest.mark.asyncio
+async def test_share_detail_exposes_display_assets_without_musicxml_when_download_blocked(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    score = Score(
+        id=210,
+        score_uuid="share-derived-score",
+        owner_user_id=1,
+        title="Share Derived Score",
+    )
+    old_revision = ScoreRevision(
+        id=211,
+        revision_uuid="share-derived-revision-1",
+        score_id=210,
+        revision_number=1,
+        content_hash="b1" * 32,
+        origin=RevisionOrigin.IMPORT,
+    )
+    new_revision = ScoreRevision(
+        id=212,
+        revision_uuid="share-derived-revision-2",
+        score_id=210,
+        revision_number=2,
+        content_hash="b2" * 32,
+        origin=RevisionOrigin.EDIT,
+        parent_revision_id=211,
+        base_revision_id=211,
+    )
+    session.add_all([score, old_revision, new_revision])
+    session.commit()
+    score.head_revision_id = 212
+    old_thumbnail = storage.put_bytes(
+        key="scores/share-derived/revisions/old/render.svg",
+        content=b"<svg />",
+        content_type="image/svg+xml",
+    )
+    old_audio = storage.put_bytes(
+        key="scores/share-derived/revisions/old/playback.wav",
+        content=b"RIFF....WAVE",
+        content_type="audio/wav",
+    )
+    new_xml = storage.put_bytes(
+        key="scores/share-derived/revisions/new/score.musicxml",
+        content=MUSICXML_2.encode("utf-8"),
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    session.add_all(
+        [
+            ScoreArtifact(
+                artifact_uuid="share-old-preview",
+                revision_id=211,
+                kind=ArtifactKind.RENDERED_PAGE,
+                storage_backend="local",
+                storage_key=old_thumbnail.storage_key,
+                filename=old_thumbnail.filename,
+                mime_type="image/svg+xml",
+                size_bytes=old_thumbnail.size_bytes,
+                sha256="b" * 64,
+                page_number=1,
+                render_profile="default",
+                generator="test",
+                generator_version="1",
+            ),
+            ScorePlaybackAsset(
+                asset_uuid="share-old-audio",
+                revision_id=211,
+                kind=PlaybackAssetKind.AUDIO,
+                storage_backend="local",
+                storage_key=old_audio.storage_key,
+                filename=old_audio.filename,
+                mime_type="audio/wav",
+                size_bytes=old_audio.size_bytes,
+                sha256="c" * 64,
+                duration_ms=1000,
+                source_fingerprint="b1" * 32,
+                generator="test",
+                generator_version="1",
+            ),
+            ScoreArtifact(
+                artifact_uuid="share-new-musicxml",
+                revision_id=212,
+                kind=ArtifactKind.MUSICXML,
+                storage_backend="local",
+                storage_key=new_xml.storage_key,
+                filename=new_xml.filename,
+                mime_type="application/vnd.recordare.musicxml+xml",
+                size_bytes=new_xml.size_bytes,
+                sha256="d" * 64,
+                generator="test",
+                generator_version="1",
+            ),
+        ]
+    )
+    session.commit()
+
+    db = AsyncSessionAdapter(session)
+    sharing_service = ScoreSharingService()
+    created = await sharing_service.create_grant(
+        db,  # type: ignore[arg-type]
+        "share-derived-score",
+        1,
+        GrantCreateRequest(allow_download=False, allow_practice=True),
+    )
+
+    detail = await sharing_service.access_grant(db, created.token, None)  # type: ignore[arg-type]
+    assert detail.artifacts == []
+    assert detail.derived_assets.preview.artifact_id == "share-old-preview"
+    assert detail.derived_assets.preview.is_fallback is True
+    assert detail.derived_assets.audio.artifact_id == "share-old-audio"
+    assert detail.derived_assets.audio.is_fallback is True
+
+    playback = await PlaybackService(storage=storage).grant_delivery(
+        db, created.token, None  # type: ignore[arg-type]
+    )
+    assert playback.path == storage.local_path(old_audio.storage_key)
+
+    with pytest.raises(UnauthorizedException):
+        await sharing_service.grant_artifact_delivery(
+            db,  # type: ignore[arg-type]
+            created.token,
+            "share-new-musicxml",
+            None,
+            download=False,
+        )
+
+
+@pytest.mark.asyncio
 async def test_invite_acceptance_creates_editable_membership(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
@@ -1960,3 +2091,110 @@ async def test_publication_pins_revision_until_explicit_republish(
     await service.unpublish(db, "publication-score", 1)  # type: ignore[arg-type]
     with pytest.raises(ResourceNotFoundException):
         await service.public_detail(db, published.public_slug)  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_public_detail_exposes_derived_fallback_without_musicxml_when_download_blocked(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    score = Score(
+        id=220,
+        score_uuid="public-derived-score",
+        owner_user_id=1,
+        title="Public Derived Score",
+    )
+    old_revision = ScoreRevision(
+        id=221,
+        revision_uuid="public-derived-revision-1",
+        score_id=220,
+        revision_number=1,
+        content_hash="e1" * 32,
+        origin=RevisionOrigin.IMPORT,
+    )
+    new_revision = ScoreRevision(
+        id=222,
+        revision_uuid="public-derived-revision-2",
+        score_id=220,
+        revision_number=2,
+        content_hash="e2" * 32,
+        origin=RevisionOrigin.EDIT,
+        parent_revision_id=221,
+        base_revision_id=221,
+    )
+    session.add_all([score, old_revision, new_revision])
+    session.commit()
+    score.head_revision_id = 222
+    old_thumbnail = storage.put_bytes(
+        key="scores/public-derived/revisions/old/render.svg",
+        content=b"<svg />",
+        content_type="image/svg+xml",
+    )
+    new_xml = storage.put_bytes(
+        key="scores/public-derived/revisions/new/score.musicxml",
+        content=MUSICXML_2.encode("utf-8"),
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    session.add_all(
+        [
+            ScoreArtifact(
+                artifact_uuid="public-old-preview",
+                revision_id=221,
+                kind=ArtifactKind.RENDERED_PAGE,
+                storage_backend="local",
+                storage_key=old_thumbnail.storage_key,
+                filename=old_thumbnail.filename,
+                mime_type="image/svg+xml",
+                size_bytes=old_thumbnail.size_bytes,
+                sha256="e" * 64,
+                page_number=1,
+                render_profile="default",
+                generator="test",
+                generator_version="1",
+            ),
+            ScoreArtifact(
+                artifact_uuid="public-new-musicxml",
+                revision_id=222,
+                kind=ArtifactKind.MUSICXML,
+                storage_backend="local",
+                storage_key=new_xml.storage_key,
+                filename=new_xml.filename,
+                mime_type="application/vnd.recordare.musicxml+xml",
+                size_bytes=new_xml.size_bytes,
+                sha256="f" * 64,
+                generator="test",
+                generator_version="1",
+            ),
+        ]
+    )
+    session.commit()
+
+    db = AsyncSessionAdapter(session)
+    service = PublicationService(
+        artifact_service=ArtifactService(storage=storage),
+        score_repository=ScoreRepository(),
+    )
+    published = await service.publish(
+        db,  # type: ignore[arg-type]
+        "public-derived-score",
+        1,
+        PublicationUpsertRequest(
+            revision_id="public-derived-revision-2",
+            public_slug="public-derived-score",
+            allow_download=False,
+            allow_practice=True,
+        ),
+    )
+
+    detail = await service.public_detail(db, published.public_slug)  # type: ignore[arg-type]
+    assert detail.artifacts == []
+    assert detail.derived_assets.preview.artifact_id == "public-old-preview"
+    assert detail.derived_assets.preview.is_fallback is True
+
+    with pytest.raises(UnauthorizedException):
+        await service.public_artifact_delivery(
+            db,  # type: ignore[arg-type]
+            published.public_slug,
+            "public-new-musicxml",
+            download=False,
+        )

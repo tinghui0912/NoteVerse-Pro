@@ -16,7 +16,7 @@ from app.db.models import (
     ScoreRevisionMetadata,
 )
 from app.modules.scores.repository import ScoreRepository
-from app.modules.scores.derived_assets import derived_asset_status
+from app.modules.scores.derived_assets import score_derived_assets
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.schemas import (
     ScoreDerivedAssetRead,
@@ -169,59 +169,16 @@ class ScoreService:
             if score.head_revision_id
             else None
         )
-        thumbnail = (
-            await self.repository.first_rendered_page_artifact(db, score.head_revision_id)
-            if score.head_revision_id
-            else None
-        )
         score_id = require_persisted_id(score.id, entity="score")
-        fallback_thumbnail = None
-        fallback_revision = None
-        if score.head_revision_id and thumbnail is None:
-            fallback = await self.repository.fallback_rendered_page_artifact(
-                db, score_id, score.head_revision_id
+        derived_assets = (
+            await score_derived_assets(
+                db, self.repository, score_id=score_id, revision=head
             )
-            if fallback:
-                fallback_thumbnail, fallback_revision = fallback
-        render_outbox = (
-            await self.repository.latest_render_outbox(db, score.head_revision_id)
-            if score.head_revision_id
-            else None
-        )
-        preview_status = derived_asset_status(
-            has_current_asset=thumbnail is not None,
-            outbox_status=render_outbox.status if render_outbox else None,
-        )
-        audio_asset = (
-            await self.repository.playback_asset(db, score.head_revision_id)
-            if score.head_revision_id
-            else None
-        )
-        playback_outbox = (
-            await self.repository.latest_playback_outbox(db, score.head_revision_id)
-            if score.head_revision_id
-            else None
-        )
-        audio_status = derived_asset_status(
-            has_current_asset=audio_asset is not None,
-            outbox_status=playback_outbox.status if playback_outbox else None,
-        )
-        displayed_thumbnail = thumbnail or fallback_thumbnail
-        displayed_thumbnail_revision = head if thumbnail else fallback_revision
-        preview_asset = ScoreDerivedAssetRead(
-            status=preview_status,
-            artifact_id=displayed_thumbnail.artifact_uuid if displayed_thumbnail else None,
-            revision_id=(
-                displayed_thumbnail_revision.revision_uuid
-                if displayed_thumbnail_revision
-                else None
-            ),
-            is_fallback=thumbnail is None and fallback_thumbnail is not None,
-        )
-        audio_asset_read = ScoreDerivedAssetRead(
-            status=audio_status,
-            artifact_id=audio_asset.asset_uuid if audio_asset else None,
-            revision_id=head.revision_uuid if head and audio_asset else None,
+            if head
+            else ScoreDerivedAssetsRead(
+                preview=ScoreDerivedAssetRead(),
+                audio=ScoreDerivedAssetRead(),
+            )
         )
         publication = await self.repository.publication(db, score_id)
         published_revision = (
@@ -243,10 +200,7 @@ class ScoreService:
             ],
             version=score.version,
             head_revision_id=head.revision_uuid if head else None,
-            derived_assets=ScoreDerivedAssetsRead(
-                preview=preview_asset,
-                audio=audio_asset_read,
-            ),
+            derived_assets=derived_assets,
             publication=(
                 ScorePublicationSummaryRead(
                     public_slug=publication.public_slug,

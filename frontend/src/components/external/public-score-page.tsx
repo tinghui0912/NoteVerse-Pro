@@ -17,7 +17,7 @@ import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import { resolveScoreCapabilities } from '@/lib/score/capabilities';
-import { publicThumbnailUrl } from '@/lib/score-detail/thumbnail';
+import { publicDerivedThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
 function PublicScoreContent({ slug }: { slug: string }) {
   const common = useTranslations('common');
@@ -70,7 +70,10 @@ function PublicScoreContent({ slug }: { slug: string }) {
           <ScoreDetailHero
             title={data.title}
             subtitle={scoreText('publicScore')}
-            thumbnailUrl={publicThumbnailUrl(slug, data.artifacts)}
+            thumbnailUrl={publicDerivedThumbnailUrl(
+              slug,
+              data.derived_assets.preview.artifact_id
+            )}
             playbackEnabled={capabilities.can_practice}
             playbackAudioSrc={publicationsApi.playbackUrl(slug)}
             actions={(

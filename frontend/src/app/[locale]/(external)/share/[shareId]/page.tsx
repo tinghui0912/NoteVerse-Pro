@@ -23,7 +23,7 @@ import { scoreSharingApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
 import { translateErrorCode } from '@/lib/i18n/error-message';
-import { shareThumbnailUrl } from '@/lib/score-detail/thumbnail';
+import { shareDerivedThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
 function fallbackInitial(name: string) {
   return name.trim().slice(0, 1).toUpperCase() || 'U';
@@ -108,7 +108,10 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
           <ScoreDetailHero
             title={data.title}
             subtitle={t('sharedScore')}
-            thumbnailUrl={shareThumbnailUrl(shareId, data.artifacts)}
+            thumbnailUrl={shareDerivedThumbnailUrl(
+              shareId,
+              data.derived_assets.preview.artifact_id
+            )}
             playbackEnabled={data.capabilities.can_practice}
             playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}
             actions={(

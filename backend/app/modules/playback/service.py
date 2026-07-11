@@ -190,7 +190,9 @@ class PlaybackService:
             share_token=token,
         )
         return await self._delivery_for_revision(
-            db, require_persisted_id(access.revision.id, entity="score revision")
+            db,
+            require_persisted_id(access.revision.id, entity="score revision"),
+            score_id=require_persisted_id(score.id, entity="score"),
         )
 
     async def public_delivery(
@@ -213,11 +215,17 @@ class PlaybackService:
             public_slug=slug,
         )
         return await self._delivery_for_revision(
-            db, require_persisted_id(access.revision.id, entity="score revision")
+            db,
+            require_persisted_id(access.revision.id, entity="score revision"),
+            score_id=require_persisted_id(score.id, entity="score"),
         )
 
     async def _delivery_for_revision(
-        self, db: AsyncSession, revision_id: int
+        self,
+        db: AsyncSession,
+        revision_id: int,
+        *,
+        score_id: int | None = None,
     ) -> PlaybackDelivery:
         asset = (
             await db.execute(
@@ -227,6 +235,25 @@ class PlaybackService:
                 )
             )
         ).scalar_one_or_none()
+        if (asset is None or not self.storage.exists(asset.storage_key)) and score_id is not None:
+            fallback = (
+                await db.execute(
+                    select(ScorePlaybackAsset)
+                    .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
+                    .where(
+                        ScoreRevision.score_id == score_id,
+                        ScoreRevision.id != revision_id,
+                        ScorePlaybackAsset.kind == PlaybackAssetKind.AUDIO,
+                    )
+                    .order_by(
+                        ScoreRevision.revision_number.desc(),
+                        ScorePlaybackAsset.created_at.asc(),
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if fallback is not None and self.storage.exists(fallback.storage_key):
+                asset = fallback
         if asset is None or not self.storage.exists(asset.storage_key):
             raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
         if self.storage.backend_name != "local":

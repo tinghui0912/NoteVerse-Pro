@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.artifacts.schemas import ArtifactRead
 from app.modules.metadata.schemas import MetadataRead
-from app.modules.scores.schemas import ScoreTaxonomyTagRead
+from app.modules.scores.schemas import ScoreDerivedAssetsRead, ScoreTaxonomyTagRead
 
 
 class GrantCreateRequest(BaseModel):
@@ -49,6 +49,7 @@ class GrantAccessRead(BaseModel):
     shared_at: datetime
     capabilities: ScoreCapabilities
     metadata: MetadataRead | None
+    derived_assets: ScoreDerivedAssetsRead
     artifacts: list[ArtifactRead]
 
 

@@ -12,6 +12,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
 )
+from app.db.models.score import ArtifactKind
 from app.db.models.score_access import PublicationStatus
 from app.modules.artifacts.service import ArtifactService
 from app.modules.metadata.service import MetadataProjectionService
@@ -22,6 +23,7 @@ from app.modules.publications.schemas import (
     PublicScoreRead,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.scores.derived_assets import score_derived_assets
 from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
 from app.shared.constants import ErrorCode
@@ -155,6 +157,18 @@ class PublicationService:
             revision_uuid=access.revision.revision_uuid,
             public_slug=slug,
         )
+        artifacts = [
+            artifact
+            for artifact in artifacts
+            if artifact.kind != ArtifactKind.MUSICXML or publication.allow_download
+        ]
+        score_id = require_persisted_id(score.id, entity="score")
+        derived_assets = await score_derived_assets(
+            db,
+            self.score_repository,
+            score_id=score_id,
+            revision=access.revision,
+        )
         projection = await db.get(
             ScoreRevisionMetadata,
             require_persisted_id(access.revision.id, entity="score revision"),
@@ -172,7 +186,7 @@ class PublicationService:
                     confidence=confidence,
                 )
                 for category, code, source, confidence in await self.score_repository.taxonomy_tags(
-                    db, require_persisted_id(score.id, entity="score")
+                    db, score_id
                 )
             ],
             metadata=(
@@ -180,6 +194,7 @@ class PublicationService:
                 if projection
                 else None
             ),
+            derived_assets=derived_assets,
             artifacts=artifacts,
             capabilities=access.capabilities,
         )

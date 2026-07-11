@@ -134,6 +134,7 @@ export interface ScoreGrantAccess {
   shared_at: string;
   capabilities: ScoreCapabilities;
   metadata: ScoreMetadata | null;
+  derived_assets: ScoreDerivedAssets;
   artifacts: ScoreArtifact[];
 }
 
@@ -255,6 +256,7 @@ export interface PublicScore {
   title: string;
   taxonomy_tags: ScoreTaxonomyTag[];
   metadata: ScoreMetadata | null;
+  derived_assets: ScoreDerivedAssets;
   artifacts: ScoreArtifact[];
   capabilities: ScoreCapabilities;
 }

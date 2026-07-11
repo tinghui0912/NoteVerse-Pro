@@ -190,6 +190,32 @@ class ScoreRepository:
         ).first()
         return (row[0], row[1]) if row else None
 
+    async def fallback_playback_asset(
+        self,
+        db: AsyncSession,
+        score_id: int,
+        head_revision_id: int,
+        *,
+        kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
+    ) -> tuple[ScorePlaybackAsset, ScoreRevision] | None:
+        row = (
+            await db.execute(
+                select(ScorePlaybackAsset, ScoreRevision)
+                .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
+                .where(
+                    ScoreRevision.score_id == score_id,
+                    ScoreRevision.id != head_revision_id,
+                    ScorePlaybackAsset.kind == kind,
+                )
+                .order_by(
+                    ScoreRevision.revision_number.desc(),
+                    ScorePlaybackAsset.created_at.asc(),
+                )
+                .limit(1)
+            )
+        ).first()
+        return (row[0], row[1]) if row else None
+
     async def originating_job(
         self, db: AsyncSession, job_id: int | None
     ) -> ImportJob | None:
