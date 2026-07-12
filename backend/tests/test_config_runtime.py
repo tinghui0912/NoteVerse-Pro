@@ -35,9 +35,22 @@ def test_practice_audio_min_active_frames_uses_stable_floor() -> None:
 
 
 def test_practice_soundfont_path_expands_user_home() -> None:
-    settings = Settings(PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2")
+    settings = Settings(
+        PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2",
+        PLAYBACK_SOUNDFONT_PATH=None,
+    )
 
     assert settings.PRACTICE_SOUNDFONT_PATH == str(Path("~/sounds/default.sf2").expanduser())
+    assert settings.PLAYBACK_SOUNDFONT_PATH == str(Path("~/sounds/default.sf2").expanduser())
+
+
+def test_playback_soundfont_path_can_be_configured_independently() -> None:
+    settings = Settings(
+        PRACTICE_SOUNDFONT_PATH="~/sounds/practice.sf2",
+        PLAYBACK_SOUNDFONT_PATH="~/sounds/playback.sf2",
+    )
+
+    assert settings.PLAYBACK_SOUNDFONT_PATH == str(Path("~/sounds/playback.sf2").expanduser())
 
 
 def test_offline_model_paths_expand_user_home() -> None:

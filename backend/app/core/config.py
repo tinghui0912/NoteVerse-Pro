@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     PRACTICE_AUDIO_ONSET_HOLD_FRAMES: int = 45
     PRACTICE_AUDIO_DIAGNOSTICS: bool = False
     PRACTICE_SOUNDFONT_PATH: Optional[str] = None
+    PLAYBACK_SOUNDFONT_PATH: Optional[str] = None
+    PLAYBACK_SAMPLE_RATE: int = 44100
+    PLAYBACK_MAX_DURATION_SECONDS: float = 180.0
     MODEL_ROOT: Optional[str] = None
     HF_HOME: Optional[str] = None
     HF_HUB_OFFLINE: bool = False
@@ -91,6 +94,7 @@ class Settings(BaseSettings):
     @field_validator(
         "LOG_DIR",
         "PRACTICE_SOUNDFONT_PATH",
+        "PLAYBACK_SOUNDFONT_PATH",
         "MODEL_ROOT",
         "HF_HOME",
         "PADDLEOCR_MODEL_ROOT",
@@ -125,6 +129,7 @@ class Settings(BaseSettings):
         "PLAYBACK_OUTBOX_RETRY_BASE_SECONDS",
         "PLAYBACK_OUTBOX_MAX_ATTEMPTS",
         "PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE",
+        "PLAYBACK_SAMPLE_RATE",
         "MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS",
         "MAIL_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
         "MAIL_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
@@ -141,6 +146,13 @@ class Settings(BaseSettings):
     def validate_positive_reliability_setting(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("task timing settings must be positive integers")
+        return v
+
+    @field_validator("PLAYBACK_MAX_DURATION_SECONDS")
+    @classmethod
+    def validate_playback_max_duration(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("PLAYBACK_MAX_DURATION_SECONDS must be positive")
         return v
 
     # Database
@@ -251,6 +263,12 @@ class Settings(BaseSettings):
             object.__setattr__(self, "CELERY_BROKER_URL", self.REDIS_URL)
         if self.CELERY_RESULT_BACKEND is None:
             object.__setattr__(self, "CELERY_RESULT_BACKEND", self.REDIS_URL)
+        if self.PLAYBACK_SOUNDFONT_PATH is None:
+            object.__setattr__(
+                self,
+                "PLAYBACK_SOUNDFONT_PATH",
+                self.PRACTICE_SOUNDFONT_PATH,
+            )
         return self
 
     @model_validator(mode="after")

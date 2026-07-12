@@ -79,7 +79,9 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   }
 
   const data = page.shareData;
-  const pageCount = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE').length;
+  const renderedPages = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE');
+  const musicXml = data.artifacts.find((artifact) => artifact.kind === 'MUSICXML');
+  const pageCount = renderedPages.length;
   const query = searchParams.toString();
   const localizedSharePath = locale === routing.defaultLocale
     ? `/share/${shareId}`
@@ -112,14 +114,14 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
               shareId,
               data.derived_assets.preview.artifact_id
             )}
-            playbackEnabled={data.capabilities.can_practice}
+            playbackEnabled={data.capabilities.can_practice && Boolean(data.derived_assets.audio.revision_id)}
             playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}
             actions={(
               <ExternalScoreActions
                 canSave={page.isAuthenticated}
                 isSaving={bookmark.isPending}
-                onDownloadImage={() => void handleDownload('image')}
-                onDownloadXml={() => void handleDownload('xml')}
+                onDownloadImage={renderedPages.length ? () => void handleDownload('image') : undefined}
+                onDownloadXml={musicXml ? () => void handleDownload('xml') : undefined}
                 onSave={page.isAuthenticated ? save : undefined}
                 saveHref={page.isAuthenticated ? undefined : loginHref}
               />

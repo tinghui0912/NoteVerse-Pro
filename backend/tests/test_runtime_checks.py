@@ -19,6 +19,7 @@ def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     assert "celery_tasks" in checks
     assert "omr_engine" in checks
     assert "render_engine" in checks
+    assert "playback_renderer" in checks
     assert "paddleocr_models" in checks
     assert "huggingface_models" in checks
     assert "database" not in checks

@@ -44,6 +44,8 @@ export function ScoreDetailHero({
               src={thumbnailUrl}
               alt={title}
               fill
+              priority
+              loading="eager"
               sizes="(min-width: 768px) 180px, 100vw"
               className="object-contain p-2"
               unoptimized

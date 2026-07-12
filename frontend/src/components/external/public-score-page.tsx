@@ -53,7 +53,9 @@ function PublicScoreContent({ slug }: { slug: string }) {
   }
 
   const capabilities = resolveScoreCapabilities(data.capabilities);
-  const pageCount = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE').length;
+  const renderedPages = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE');
+  const musicXml = data.artifacts.find((artifact) => artifact.kind === 'MUSICXML');
+  const pageCount = renderedPages.length;
   const scoreId = data.publication.score_id;
   const download = async (kind: 'MUSICXML' | 'RENDERED_PAGE') => {
     const artifacts = data.artifacts.filter((artifact) => artifact.kind === kind);
@@ -74,13 +76,13 @@ function PublicScoreContent({ slug }: { slug: string }) {
               slug,
               data.derived_assets.preview.artifact_id
             )}
-            playbackEnabled={capabilities.can_practice}
+            playbackEnabled={capabilities.can_practice && Boolean(data.derived_assets.audio.revision_id)}
             playbackAudioSrc={publicationsApi.playbackUrl(slug)}
             actions={(
               <ExternalScoreActions
                 openAppHref={isAuthenticated ? `/score/${scoreId}` : undefined}
-                onDownloadImage={() => void download('RENDERED_PAGE')}
-                onDownloadXml={() => void download('MUSICXML')}
+                onDownloadImage={renderedPages.length ? () => void download('RENDERED_PAGE') : undefined}
+                onDownloadXml={musicXml ? () => void download('MUSICXML') : undefined}
               />
             )}
             meta={(

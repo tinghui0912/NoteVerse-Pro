@@ -65,11 +65,10 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
 
   const score = resources.score;
   const previewAsset = score.derived_assets.preview;
-  const loadPlaybackXml = async () => {
-    if (!score.head_revision_id) return null;
-    const response = await scoresApi.revisionContent(score.score_id, score.head_revision_id);
-    return response.data?.content ?? null;
-  };
+  const audioAsset = score.derived_assets.audio;
+  const playbackAudioSrc = audioAsset.revision_id
+    ? scoresApi.playbackUrl(score.score_id, audioAsset.revision_id)
+    : undefined;
 
   return (
     <ScoreCapabilityProvider capabilities={capabilities} scoreId={id} workspace="view">
@@ -79,8 +78,8 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
           <ScoreDetailHero
             title={scoreTitle}
             thumbnailUrl={scoreThumbnailUrl(previewAsset.artifact_id)}
-            loadPlaybackXml={loadPlaybackXml}
-            playbackEnabled={Boolean(score.head_revision_id)}
+            playbackAudioSrc={playbackAudioSrc}
+            playbackEnabled={Boolean(playbackAudioSrc)}
             status={score.publication?.status === 'PUBLISHED' ? (
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
                 {t('publishedStatus')}

@@ -206,6 +206,8 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
             "app.worker.tasks.run_import_dispatch_maintenance",
             "app.worker.tasks.render_outbox_task",
             "app.worker.tasks.run_render_outbox_maintenance",
+            "app.worker.tasks.playback_outbox_task",
+            "app.worker.tasks.run_playback_outbox_maintenance",
             "app.worker.tasks.run_job_maintenance",
             "app.worker.tasks.send_mail_outbox_task",
             "app.worker.tasks.run_mail_outbox_maintenance",
@@ -334,6 +336,32 @@ def check_practice_alignment(_: bool = False) -> CheckResult:
     return _result("practice_alignment", True, f"practice alignment ready; fluidsynth={fluidsynth}")
 
 
+def check_playback_renderer(_: bool = False) -> CheckResult:
+    if not settings.PLAYBACK_SOUNDFONT_PATH:
+        return _result("playback_renderer", False, "PLAYBACK_SOUNDFONT_PATH is not configured")
+    path = Path(settings.PLAYBACK_SOUNDFONT_PATH)
+    if not path.is_file():
+        return _result("playback_renderer", False, f"playback soundfont does not exist: {path}")
+    ensure_partitura_default_soundfont(str(path))
+    try:
+        import numpy  # noqa: F401
+        import partitura  # noqa: F401
+    except Exception as exc:
+        return _result(
+            "playback_renderer",
+            False,
+            f"playback imports failed: {type(exc).__name__}: {exc}",
+        )
+    fluidsynth = shutil.which("fluidsynth")
+    if not fluidsynth:
+        return _result("playback_renderer", False, "fluidsynth executable not found on PATH")
+    return _result(
+        "playback_renderer",
+        True,
+        f"playback renderer ready; soundfont={path}; fluidsynth={fluidsynth}",
+    )
+
+
 ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.API: ("settings", "database", "redis", "storage", "soundfont", "practice_alignment"),
     RuntimeRole.WORKER: (
@@ -344,6 +372,7 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
         "celery_tasks",
         "omr_engine",
         "render_engine",
+        "playback_renderer",
         "paddleocr_models",
         "huggingface_models",
     ),
@@ -361,6 +390,7 @@ CHECKS: dict[str, CheckSpec] = {
     "storage": CheckSpec("storage", check_api_storage),
     "soundfont": CheckSpec("soundfont", check_soundfont),
     "practice_alignment": CheckSpec("practice_alignment", check_practice_alignment),
+    "playback_renderer": CheckSpec("playback_renderer", check_playback_renderer),
     "work_root": CheckSpec("work_root", check_work_root),
     "celery_tasks": CheckSpec("celery_tasks", check_celery_tasks),
     "omr_engine": CheckSpec("omr_engine", check_omr_engine),

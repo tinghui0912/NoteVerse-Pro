@@ -22,6 +22,7 @@ const namespaces = [
   'metadata',
   'scoreStyles',
   'settings',
+  'download',
 ] as const;
 
 export default getRequestConfig(async ({ requestLocale }) => {

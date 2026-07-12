@@ -19,7 +19,7 @@ from app.db.models import (
 )
 from app.db.models.score import ArtifactKind
 from app.db.models.score_access import PublicationStatus
-from app.modules.playback.audio_renderer import MusicXmlAudioRenderer
+from app.modules.playback.audio_renderer import FluidSynthAudioRenderer
 from app.modules.publications.repository import PublicationRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_sharing.repository import ScoreSharingRepository
@@ -40,13 +40,13 @@ class PlaybackService:
         self,
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        renderer: MusicXmlAudioRenderer | None = None,
+        renderer: FluidSynthAudioRenderer | None = None,
         sharing_repository: ScoreSharingRepository | None = None,
         publication_repository: PublicationRepository | None = None,
     ) -> None:
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.renderer = renderer or MusicXmlAudioRenderer()
+        self.renderer = renderer or FluidSynthAudioRenderer()
         self.sharing_repository = sharing_repository or ScoreSharingRepository()
         self.publication_repository = publication_repository or PublicationRepository()
 

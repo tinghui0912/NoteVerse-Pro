@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/api-client';
+import { apiClient, apiUrl } from '@/lib/api-client';
 import type {
   ApiResponse,
   FingeringHandSize,
@@ -48,4 +48,6 @@ export const scoresApi = {
     apiClient.download(
       `/scores/${scoreId}/artifact-archive?revision_id=${encodeURIComponent(revisionId)}&kind=${encodeURIComponent(kind)}`
     ),
+  playbackUrl: (scoreId: string, revisionId: string) =>
+    apiUrl(`/scores/${scoreId}/revisions/${revisionId}/playback`),
 };

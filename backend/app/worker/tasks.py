@@ -1,9 +1,7 @@
 """Celery task entrypoints for score import jobs."""
 
-import asyncio
 from celery.utils.log import get_task_logger
 
-from app.db.session import AsyncSessionLocal
 from app.db.models import RenderTargetType
 from app.db.worker_session import get_worker_db
 from app.modules.artifacts.render_service import RevisionRenderService
@@ -106,17 +104,14 @@ def render_outbox_task(outbox_uuid: str) -> dict[str, str | None]:
             if score_uuid is None or revision_uuid is None or user_id is None:
                 raise ValueError("Revision render payload is incomplete")
 
-            async def _run_revision() -> None:
-                async with AsyncSessionLocal() as db:
-                    await RevisionRenderService().render(
-                        db,
-                        score_uuid,
-                        revision_uuid,
-                        user_id,
-                        profile=payload.render_profile,
-                    )
-
-            asyncio.run(_run_revision())
+            with get_worker_db() as db:
+                RevisionRenderService().render_sync(
+                    db,
+                    score_uuid,
+                    revision_uuid,
+                    user_id,
+                    profile=payload.render_profile,
+                )
         elif payload.target_type == RenderTargetType.REVIEW_THUMBNAIL:
             if payload.job_uuid is None:
                 raise ValueError("Review thumbnail render payload is incomplete")
