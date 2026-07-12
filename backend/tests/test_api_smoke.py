@@ -272,6 +272,17 @@ def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClien
         client.cookies.delete(settings.REFRESH_COOKIE_NAME)
 
 
+def test_cors_origin_header_is_emitted_for_configured_frontend(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/me/profile",
+        headers={"origin": "http://localhost:9002"},
+    )
+
+    assert response.status_code == 401
+    assert response.headers["access-control-allow-origin"] == "http://localhost:9002"
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+
 def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient) -> None:
     client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
 

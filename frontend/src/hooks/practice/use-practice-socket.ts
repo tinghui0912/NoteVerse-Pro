@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { API_BASE_URL } from '@/lib/api-client';
 import type { PracticeServerMessage } from '@/types/api';
 
 function buildPracticeWebSocketUrl(path: string) {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
   const pageUrl = new URL(window.location.href);
-  const normalizedBase = apiBaseUrl.startsWith('http')
-    ? apiBaseUrl
-    : `${pageUrl.origin}${apiBaseUrl.startsWith('/') ? apiBaseUrl : `/${apiBaseUrl}`}`;
+  const normalizedBase = API_BASE_URL.startsWith('http')
+    ? API_BASE_URL
+    : `${pageUrl.origin}${API_BASE_URL.startsWith('/') ? API_BASE_URL : `/${API_BASE_URL}`}`;
   const wsBase = normalizedBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
   return new URL(path, `${wsBase.endsWith('/') ? wsBase : `${wsBase}/`}`).toString();
 }

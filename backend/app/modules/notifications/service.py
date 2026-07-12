@@ -18,6 +18,7 @@ from app.modules.notifications.schemas import (
     NotificationUnreadCountRead,
 )
 from app.shared.constants import ErrorCode
+from app.modules.realtime.publisher import RealtimeEventTypes, publish_event_best_effort
 from app.utils.timezone import utc_now_naive
 
 logger = logging.getLogger(__name__)
@@ -82,7 +83,17 @@ class NotificationService:
                     return await self._event_read(db, existing)
             raise
         await db.refresh(event)
-        return await self._event_read(db, event)
+        event_read = await self._event_read(db, event)
+        await publish_event_best_effort(
+            db,
+            recipient_user_id=recipient_user_id,
+            type=RealtimeEventTypes.NOTIFICATION_CREATED,
+            resource_type="notification",
+            resource_id=event.notification_uuid,
+            score_id=score_id,
+            payload=event_read.model_dump(mode="json"),
+        )
+        return event_read
 
     async def create_event_best_effort(
         self,

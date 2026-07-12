@@ -16,6 +16,7 @@ from app.modules.my_scores.router import router as my_scores
 from app.modules.notifications.router import router as notifications
 from app.modules.playback.router import router as playback
 from app.modules.practice.router import router as practice
+from app.modules.realtime.router import router as realtime
 from app.modules.publications.router import public_router as publications
 from app.modules.publications.router import score_router as score_publications
 from app.modules.review.router import router as review
@@ -52,4 +53,5 @@ api_router.include_router(publications, prefix="/publications", tags=["Publicati
 api_router.include_router(playback, tags=["Playback"])
 api_router.include_router(score_artifact_router, prefix="/scores", tags=["Score Artifacts"])
 api_router.include_router(practice, prefix="/practice", tags=["Practice"])
+api_router.include_router(realtime, prefix="/realtime", tags=["Realtime"])
 api_router.include_router(review, prefix="/review", tags=["Review"])

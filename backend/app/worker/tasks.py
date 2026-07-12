@@ -14,6 +14,10 @@ from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.notifications.maintenance_service import notification_maintenance_service
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.playback.service import PlaybackService
+from app.modules.realtime.publisher import (
+    RealtimeEventTypes,
+    publish_score_event_sync_best_effort,
+)
 from app.modules.review.thumbnail_service import review_thumbnail_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
@@ -126,11 +130,45 @@ def render_outbox_task(outbox_uuid: str) -> dict[str, str | None]:
     except Exception as exc:
         with get_worker_db() as db:
             render_outbox_service.fail(db, outbox_uuid, str(exc))
+            if (
+                payload.target_type == RenderTargetType.SCORE_REVISION
+                and payload.score_uuid
+                and payload.revision_uuid
+            ):
+                publish_score_event_sync_best_effort(
+                    db,
+                    score_id=payload.score_uuid,
+                    revision_id=payload.revision_uuid,
+                    type=RealtimeEventTypes.SCORE_DERIVED_ASSET_UPDATED,
+                    payload={
+                        "score_id": payload.score_uuid,
+                        "revision_id": payload.revision_uuid,
+                        "asset": "preview",
+                        "status": "failed",
+                    },
+                )
         logger.exception("Render failed for outbox %s", outbox_uuid)
         return {"status": "failed", "outbox_uuid": outbox_uuid}
 
     with get_worker_db() as db:
         render_outbox_service.complete(db, outbox_uuid)
+        if (
+            payload.target_type == RenderTargetType.SCORE_REVISION
+            and payload.score_uuid
+            and payload.revision_uuid
+        ):
+            publish_score_event_sync_best_effort(
+                db,
+                score_id=payload.score_uuid,
+                revision_id=payload.revision_uuid,
+                type=RealtimeEventTypes.SCORE_DERIVED_ASSET_UPDATED,
+                payload={
+                    "score_id": payload.score_uuid,
+                    "revision_id": payload.revision_uuid,
+                    "asset": "preview",
+                    "status": "ready",
+                },
+            )
     logger.info("Rendered %s for outbox %s", payload.target_type.value, outbox_uuid)
     return {"status": "rendered", "outbox_uuid": outbox_uuid, "artifact_id": artifact_id}
 
@@ -156,11 +194,35 @@ def playback_outbox_task(outbox_uuid: str) -> dict[str, str]:
     except Exception as exc:
         with get_worker_db() as db:
             playback_outbox_service.fail(db, outbox_uuid, str(exc))
+            publish_score_event_sync_best_effort(
+                db,
+                score_id=payload.score_uuid,
+                revision_id=payload.revision_uuid,
+                type=RealtimeEventTypes.SCORE_DERIVED_ASSET_UPDATED,
+                payload={
+                    "score_id": payload.score_uuid,
+                    "revision_id": payload.revision_uuid,
+                    "asset": "audio",
+                    "status": "failed",
+                },
+            )
         logger.exception("Playback generation failed for outbox %s", outbox_uuid)
         return {"status": "failed", "outbox_uuid": outbox_uuid}
 
     with get_worker_db() as db:
         playback_outbox_service.complete(db, outbox_uuid)
+        publish_score_event_sync_best_effort(
+            db,
+            score_id=payload.score_uuid,
+            revision_id=payload.revision_uuid,
+            type=RealtimeEventTypes.SCORE_DERIVED_ASSET_UPDATED,
+            payload={
+                "score_id": payload.score_uuid,
+                "revision_id": payload.revision_uuid,
+                "asset": "audio",
+                "status": "ready",
+            },
+        )
     logger.info("Generated playback asset for outbox %s", outbox_uuid)
     return {"status": "generated", "outbox_uuid": outbox_uuid}
 

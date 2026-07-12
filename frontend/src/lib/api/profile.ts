@@ -1,7 +1,7 @@
 /**
  * 个人资料相关 API
  */
-import { apiClient, ApiResponse } from '../api-client';
+import { API_BASE_URL, apiClient, ApiResponse } from '../api-client';
 import type {
     AccountSecurityResponse,
     AccountSessionsResponse,
@@ -93,8 +93,7 @@ export function getAvatarUrl(avatarUrl?: string): string {
     }
 
     // 否则拼接 API 基础 URL
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
-    return `${baseUrl}${avatarUrl}`;
+    return `${API_BASE_URL}${avatarUrl}`;
 }
 
 export const profileApi = {

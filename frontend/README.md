@@ -30,6 +30,31 @@ http://host.docker.internal:8000
 This points to the backend API running on the Windows host or in the backend
 Docker profile published to port `8000`.
 
+Realtime events use `NEXT_PUBLIC_REALTIME_API_BASE_URL` because EventSource
+connections must not pass through proxies that buffer streaming responses. The
+value must be browser-reachable and include the API base path, for example:
+
+```text
+http://localhost:8000/api/v1
+```
+
+Use the same hostname in the browser and realtime API URL so HttpOnly auth
+cookies are sent consistently. For example, open `http://localhost:9002` with
+`NEXT_PUBLIC_REALTIME_API_BASE_URL=http://localhost:8000/api/v1`; if you open
+`http://127.0.0.1:9002`, configure the realtime URL with `127.0.0.1` too.
+
+For LAN device testing, configure the frontend dev server with the LAN host:
+
+```powershell
+$env:NEXT_BACKEND_ORIGIN='http://localhost:8000'
+$env:NEXT_ALLOWED_DEV_ORIGINS='192.168.31.59'
+$env:NEXT_PUBLIC_REALTIME_API_BASE_URL='http://192.168.31.59:8000/api/v1'
+npm run dev
+```
+
+The backend `BACKEND_CORS_ORIGINS` must include the matching frontend origin,
+for example `http://192.168.31.59:9002`.
+
 ## Environment
 
 Copy the example if local overrides are needed:

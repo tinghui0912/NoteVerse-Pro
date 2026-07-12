@@ -1,5 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required.`);
+  }
+  return value;
+}
+
 const port = 9002;
 const host = 'localhost';
 const baseURL = `http://${host}:${port}`;
@@ -33,8 +41,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ...inheritedEnvironment,
-      NEXT_BACKEND_ORIGIN:
-        process.env.NEXT_BACKEND_ORIGIN ?? 'http://127.0.0.1:8000',
+      NEXT_BACKEND_ORIGIN: requiredEnv('NEXT_BACKEND_ORIGIN'),
     },
   },
   projects: [

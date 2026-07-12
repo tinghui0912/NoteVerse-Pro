@@ -18,6 +18,10 @@ from app.core.middleware import CsrfProtectionMiddleware, LoggingMiddleware
 configure_uvicorn_logging()
 
 
+def _cors_origins() -> list[str]:
+    return [str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS]
+
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
 
@@ -35,7 +39,7 @@ def create_app() -> FastAPI:
     app.add_middleware(CsrfProtectionMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.BACKEND_CORS_ORIGINS,
+        allow_origins=_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

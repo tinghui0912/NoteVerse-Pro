@@ -1,0 +1,45 @@
+export type RealtimeEventType =
+  | 'notification.created'
+  | 'score.revision.created'
+  | 'score.derived_asset.updated'
+  | 'score.metadata.updated'
+  | 'import_job.completed'
+  | 'import_job.failed';
+
+export interface RealtimeEventEnvelope<TPayload = Record<string, unknown>> {
+  event_id: string;
+  sequence: number;
+  type: RealtimeEventType;
+  resource_type: string | null;
+  resource_id: string | null;
+  score_id: string | null;
+  revision_id: string | null;
+  payload: TPayload;
+  created_at: string;
+}
+
+export function parseRealtimeEvent(data: string): RealtimeEventEnvelope | null {
+  try {
+    const parsed = JSON.parse(data) as Partial<RealtimeEventEnvelope>;
+    if (
+      typeof parsed.event_id !== 'string' ||
+      typeof parsed.sequence !== 'number' ||
+      typeof parsed.type !== 'string'
+    ) {
+      return null;
+    }
+    return {
+      event_id: parsed.event_id,
+      sequence: parsed.sequence,
+      type: parsed.type as RealtimeEventType,
+      resource_type: parsed.resource_type ?? null,
+      resource_id: parsed.resource_id ?? null,
+      score_id: parsed.score_id ?? null,
+      revision_id: parsed.revision_id ?? null,
+      payload: typeof parsed.payload === 'object' && parsed.payload !== null ? parsed.payload : {},
+      created_at: typeof parsed.created_at === 'string' ? parsed.created_at : '',
+    };
+  } catch {
+    return null;
+  }
+}

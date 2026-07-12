@@ -9,6 +9,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreArtifact, ScoreRevision, ScoreRevisionMetadata
 from app.db.models.score import ArtifactKind, MetadataStatus
 from app.modules.metadata.schemas import MetadataRead
+from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
 from app.modules.scores.repository import ScoreRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.processing.musicxml import (
@@ -85,7 +86,15 @@ class MetadataProjectionService:
             self._compute_into(projection, content)
         await db.commit()
         await db.refresh(projection)
-        return self.to_read(revision, projection)
+        result = self.to_read(revision, projection)
+        await publish_score_event_best_effort(
+            db,
+            score_id=score_uuid,
+            revision_id=revision_uuid,
+            type=RealtimeEventTypes.SCORE_METADATA_UPDATED,
+            payload=result.model_dump(mode="json"),
+        )
+        return result
 
     @staticmethod
     def _compute_into(projection: ScoreRevisionMetadata, content: bytes) -> None:

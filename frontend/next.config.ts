@@ -8,9 +8,16 @@ if (!process.env.NEXT_BACKEND_ORIGIN) {
 }
 
 const backendOrigin = process.env.NEXT_BACKEND_ORIGIN.replace(/\/$/, '');
+const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
+  ? process.env.NEXT_ALLOWED_DEV_ORIGINS
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  : [];
 
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: false },
+  ...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
   webpack(config, { isServer, webpack }) {
     if (!isServer) {
       // Verovio's Emscripten bundle contains a Node-only dynamic import in a

@@ -24,6 +24,7 @@ from app.modules.revisions.schemas import (
 )
 from app.modules.revisions.fingering_service import XMLFingeringService
 from app.modules.notifications.service import NotificationService
+from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
 from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.scores.repository import ScoreRepository
@@ -179,6 +180,18 @@ class RevisionService:
                     revision=revision,
                     actor=actor,
                 )
+            await publish_score_event_best_effort(
+                db,
+                score_id=score.score_uuid,
+                revision_id=revision.revision_uuid,
+                type=RealtimeEventTypes.SCORE_REVISION_CREATED,
+                payload={
+                    "score_id": score.score_uuid,
+                    "revision_id": revision.revision_uuid,
+                    "revision_number": revision.revision_number,
+                    "origin": revision.origin.value,
+                },
+            )
             await revision_derivative_service.rebuild_metadata_best_effort(
                 db,
                 score_uuid=score_uuid,

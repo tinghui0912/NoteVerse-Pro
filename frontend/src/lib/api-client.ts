@@ -1,10 +1,11 @@
 'use client';
 
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
+import { requiredEnv } from '@/lib/env';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1';
-const CSRF_COOKIE_NAME = process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME || 'noteverse_csrf';
-const CSRF_HEADER_NAME = process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || 'x-csrf-token';
+export const API_BASE_URL = requiredEnv('NEXT_PUBLIC_API_BASE_URL');
+const CSRF_COOKIE_NAME = requiredEnv('NEXT_PUBLIC_CSRF_COOKIE_NAME');
+const CSRF_HEADER_NAME = requiredEnv('NEXT_PUBLIC_CSRF_HEADER_NAME');
 
 export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path}`;

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import NotificationEvent
 from app.modules.notifications.service import NotificationTypes
+from app.modules.realtime.publisher import RealtimeEventTypes, publish_event_sync
 from app.utils.timezone import utc_now_naive
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,31 @@ class SyncNotificationService:
                 return self.by_dedupe_key(db, dedupe_key)
             raise
         db.refresh(event)
+        try:
+            publish_event_sync(
+                db,
+                recipient_user_id=recipient_user_id,
+                type=RealtimeEventTypes.NOTIFICATION_CREATED,
+                resource_type="notification",
+                resource_id=event.notification_uuid,
+                score_id=score_id,
+                payload={
+                    "notification_id": event.notification_uuid,
+                    "type": event.type,
+                    "resource_type": event.resource_type,
+                    "resource_id": event.resource_id,
+                    "score_id": event.score_id,
+                    "title": event.title,
+                    "body": event.body,
+                    "data": event.data,
+                    "read_at": event.read_at.isoformat() if event.read_at else None,
+                    "created_at": event.created_at.isoformat(),
+                },
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("Failed to publish notification realtime event", extra={"type": type})
         return event
 
     def create_event_best_effort(self, db: Session, **kwargs) -> NotificationEvent | None:
@@ -65,7 +91,10 @@ class SyncNotificationService:
             return self.create_event(db, **kwargs)
         except Exception:
             db.rollback()
-            logger.exception("Failed to create notification event", extra={"type": kwargs.get("type")})
+            logger.exception(
+                "Failed to create notification event",
+                extra={"type": kwargs.get("type")},
+            )
             return None
 
     @staticmethod
@@ -81,7 +110,7 @@ class SyncNotificationService:
         title: str | None,
     ) -> None:
         display_title = title or "Your score"
-        self.create_event_best_effort(
+        event = self.create_event_best_effort(
             db,
             recipient_user_id=recipient_user_id,
             actor_user_id=None,
@@ -97,6 +126,24 @@ class SyncNotificationService:
                 "job_title": title,
             },
         )
+        if event is not None:
+            try:
+                publish_event_sync(
+                    db,
+                    recipient_user_id=recipient_user_id,
+                    type=RealtimeEventTypes.IMPORT_JOB_COMPLETED,
+                    resource_type="job",
+                    resource_id=job_uuid,
+                    payload={
+                        "job_id": job_uuid,
+                        "job_title": title,
+                        "notification_id": event.notification_uuid,
+                    },
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+                logger.exception("Failed to publish import completion realtime event")
 
     def notify_import_failed_best_effort(
         self,
@@ -107,7 +154,7 @@ class SyncNotificationService:
         code: str | None,
         error_type: str | None,
     ) -> None:
-        self.create_event_best_effort(
+        event = self.create_event_best_effort(
             db,
             recipient_user_id=recipient_user_id,
             actor_user_id=None,
@@ -123,6 +170,25 @@ class SyncNotificationService:
                 "error_type": error_type,
             },
         )
+        if event is not None:
+            try:
+                publish_event_sync(
+                    db,
+                    recipient_user_id=recipient_user_id,
+                    type=RealtimeEventTypes.IMPORT_JOB_FAILED,
+                    resource_type="job",
+                    resource_id=job_uuid,
+                    payload={
+                        "job_id": job_uuid,
+                        "code": code,
+                        "error_type": error_type,
+                        "notification_id": event.notification_uuid,
+                    },
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+                logger.exception("Failed to publish import failure realtime event")
 
 
 sync_notification_service = SyncNotificationService()

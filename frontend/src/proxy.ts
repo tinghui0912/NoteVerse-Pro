@@ -1,10 +1,11 @@
 import createMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
+import { requiredEnv } from './lib/env';
 
 const intlMiddleware = createMiddleware(routing);
-const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'noteverse_session';
-const REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || 'noteverse_refresh';
+const AUTH_COOKIE_NAME = requiredEnv('AUTH_COOKIE_NAME');
+const REFRESH_COOKIE_NAME = requiredEnv('REFRESH_COOKIE_NAME');
 
 const PROTECTED_PATH_PREFIXES = [
   '/upload',

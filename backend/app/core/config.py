@@ -17,14 +17,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    AUTH_COOKIE_NAME: str = "noteverse_session"
-    REFRESH_COOKIE_NAME: str = "noteverse_refresh"
-    CSRF_COOKIE_NAME: str = "noteverse_csrf"
-    CSRF_HEADER_NAME: str = "x-csrf-token"
-    AUTH_COOKIE_SECURE: bool = False
-    AUTH_COOKIE_SAMESITE: str = "lax"
+    AUTH_COOKIE_NAME: str
+    REFRESH_COOKIE_NAME: str
+    CSRF_COOKIE_NAME: str
+    CSRF_HEADER_NAME: str
+    AUTH_COOKIE_SECURE: bool
+    AUTH_COOKIE_SAMESITE: str
     DEBUG: bool = False
-    FRONTEND_BASE_URL: str = "http://localhost:9002"
+    FRONTEND_BASE_URL: str
     PRACTICE_MATCHMAKER_FRAME_RATE: int = 30
     PRACTICE_AUDIO_RMS_GATE: float = 0.015
     PRACTICE_AUDIO_PEAK_GATE: float = 0.06
@@ -41,10 +41,13 @@ class Settings(BaseSettings):
     PRACTICE_AUDIO_ONSET_FLUX_GATE: float = 0.35
     PRACTICE_AUDIO_ONSET_HOLD_FRAMES: int = 45
     PRACTICE_AUDIO_DIAGNOSTICS: bool = False
-    PRACTICE_SOUNDFONT_PATH: Optional[str] = None
-    PLAYBACK_SOUNDFONT_PATH: Optional[str] = None
+    PRACTICE_SOUNDFONT_PATH: str
+    PLAYBACK_SOUNDFONT_PATH: str
     PLAYBACK_SAMPLE_RATE: int = 44100
     PLAYBACK_MAX_DURATION_SECONDS: float = 180.0
+    REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS: int = 2
+    REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS: int = 15
+    REALTIME_EVENT_BATCH_SIZE: int = 100
     MODEL_ROOT: Optional[str] = None
     HF_HOME: Optional[str] = None
     HF_HUB_OFFLINE: bool = False
@@ -56,7 +59,7 @@ class Settings(BaseSettings):
     LOG_DIR: str = str(BASE_DIR / "logs")
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
@@ -130,6 +133,9 @@ class Settings(BaseSettings):
         "PLAYBACK_OUTBOX_MAX_ATTEMPTS",
         "PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE",
         "PLAYBACK_SAMPLE_RATE",
+        "REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS",
+        "REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS",
+        "REALTIME_EVENT_BATCH_SIZE",
         "MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS",
         "MAIL_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
         "MAIL_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
@@ -162,9 +168,8 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str
 
-    # Celery defaults to REDIS_URL unless explicitly overridden.
-    CELERY_BROKER_URL: Optional[str] = None
-    CELERY_RESULT_BACKEND: Optional[str] = None
+    CELERY_BROKER_URL: str
+    CELERY_RESULT_BACKEND: str
     IMPORT_DISPATCH_INTERVAL_SECONDS: int = 30
     IMPORT_DISPATCH_TIMEOUT_SECONDS: int = 300
     IMPORT_PROCESSING_TIMEOUT_SECONDS: int = 1200
@@ -254,22 +259,6 @@ class Settings(BaseSettings):
     # Auth email links
     EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS: int = 300
     EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS: int = 900
-
-    @model_validator(mode="after")
-    def set_default_values(self) -> "Settings":
-        """Resolve optional settings from primary configuration values."""
-
-        if self.CELERY_BROKER_URL is None:
-            object.__setattr__(self, "CELERY_BROKER_URL", self.REDIS_URL)
-        if self.CELERY_RESULT_BACKEND is None:
-            object.__setattr__(self, "CELERY_RESULT_BACKEND", self.REDIS_URL)
-        if self.PLAYBACK_SOUNDFONT_PATH is None:
-            object.__setattr__(
-                self,
-                "PLAYBACK_SOUNDFONT_PATH",
-                self.PRACTICE_SOUNDFONT_PATH,
-            )
-        return self
 
     @model_validator(mode="after")
     def validate_task_time_limits(self) -> "Settings":

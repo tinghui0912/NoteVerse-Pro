@@ -18,7 +18,7 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(f"Starting {settings.PROJECT_NAME}")
     logger.info("Version: 2.0.0")
     logger.info(f"Environment: {'development' if settings.DEBUG else 'production'}")
-    logger.info("API docs: http://localhost:8000/docs")
+    logger.info("API docs path: /docs")
     logger.info("=" * 60)
     ensure_runtime_directories()
     log_external_tool_status()
