@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/navigation';
+import { BrandLogo } from '@/components/brand';
 import { cn } from '@/lib/utils';
 
 const primaryNavItems = [
@@ -53,12 +54,7 @@ function AppSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col border-r border-gray-200 bg-white">
-      <Link href="/upload" className="flex h-16 items-center gap-2 border-b border-gray-200 px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-orange-500 text-white">
-          <Music2 className="h-5 w-5" />
-        </div>
-        <span className="font-semibold tracking-tight text-gray-950">NoteVerse Pro</span>
-      </Link>
+      <BrandLogo href="/upload" className="flex h-16 border-b border-gray-200 px-5" />
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {primaryNavItems.map(renderItem)}

@@ -16,13 +16,11 @@ interface ScoreDetailHeroProps {
   meta?: ReactNode;
   actions?: ReactNode;
   playbackAudioSrc?: string;
-  loadPlaybackXml?: () => Promise<string | null>;
   playbackEnabled?: boolean;
 }
 
 export function ScoreDetailHero({
   actions,
-  loadPlaybackXml,
   meta,
   playbackAudioSrc,
   playbackEnabled = true,
@@ -56,10 +54,9 @@ export function ScoreDetailHero({
               <Music className="h-12 w-12" />
             </div>
           )}
-          {playbackEnabled ? (
+          {playbackEnabled && playbackAudioSrc ? (
             <ScoreCoverPlaybackButton
               audioSrc={playbackAudioSrc}
-              loadXml={loadPlaybackXml}
               className="absolute bottom-3 left-3"
             />
           ) : null}

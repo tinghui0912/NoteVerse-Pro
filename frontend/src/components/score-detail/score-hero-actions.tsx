@@ -18,6 +18,7 @@ import {
   useUnpublishScore,
 } from '@/hooks/queries/use-score-queries';
 import { useDownload } from '@/hooks/use-download';
+import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
 import type { ScoreArtifact } from '@/types/api';
 
 interface ScoreHeroActionsProps {
@@ -37,11 +38,10 @@ export function ScoreHeroActions({ artifacts, revisionId, scoreId }: ScoreHeroAc
   const unpublish = useUnpublishScore(scoreId);
   const isPublished = publication.data?.data?.status === 'PUBLISHED';
   const publishBusy = publish.isPending || unpublish.isPending;
-  const renderedPages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
-  const musicXml = artifacts.find((item) => item.kind === 'MUSICXML');
-  const canDownloadImage = renderedPages.length > 0;
-  const canDownloadXml = Boolean(musicXml);
-  const downloadAvailable = capabilities.can_download && (canDownloadImage || canDownloadXml);
+  const downloads = scoreDownloadAvailability(artifacts);
+  const downloadAvailable = capabilities.can_download && (
+    downloads.canDownloadImage || downloads.canDownloadXml
+  );
 
   return (
     <>
@@ -55,13 +55,13 @@ export function ScoreHeroActions({ artifacts, revisionId, scoreId }: ScoreHeroAc
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            {canDownloadImage ? (
+            {downloads.canDownloadImage ? (
               <DropdownMenuItem onClick={() => handleDownload('image')}>
                 <FileImage className="mr-2 h-4 w-4" />
                 {t('downloadImage')}
               </DropdownMenuItem>
             ) : null}
-            {canDownloadXml ? (
+            {downloads.canDownloadXml ? (
               <DropdownMenuItem onClick={() => handleDownload('xml')}>
                 <FileMusic className="mr-2 h-4 w-4" />
                 {t('downloadMusicXML')}

@@ -1,8 +1,9 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ArrowRight, Music2 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
+import { BrandLogo } from '@/components/brand';
 import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
@@ -30,12 +31,7 @@ export function MarketingFooter() {
         </div>
         <div className="border-t border-gray-200 pt-8">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-orange-500 text-white">
-                <Music2 className="h-5 w-5" />
-              </span>
-              <span className="font-headline text-xl font-semibold tracking-tight">NoteVerse Pro</span>
-            </div>
+            <BrandLogo markClassName="h-8 w-8" textClassName="font-headline text-xl" />
             <p className="text-sm text-gray-500">
               © {new Date().getFullYear()} NoteVerse Pro. {tCommon('allRightsReserved')}
             </p>

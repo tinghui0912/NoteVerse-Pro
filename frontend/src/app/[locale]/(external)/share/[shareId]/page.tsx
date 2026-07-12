@@ -23,6 +23,8 @@ import { scoreSharingApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
 import { translateErrorCode } from '@/lib/i18n/error-message';
+import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
+import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
 import { shareDerivedThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
 function fallbackInitial(name: string) {
@@ -79,9 +81,11 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   }
 
   const data = page.shareData;
-  const renderedPages = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE');
-  const musicXml = data.artifacts.find((artifact) => artifact.kind === 'MUSICXML');
-  const pageCount = renderedPages.length;
+  const downloads = scoreDownloadAvailability(data.artifacts);
+  const audioRevisionId = playableAudioRevisionId(
+    data.derived_assets,
+    data.capabilities.can_practice
+  );
   const query = searchParams.toString();
   const localizedSharePath = locale === routing.defaultLocale
     ? `/share/${shareId}`
@@ -114,14 +118,14 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
               shareId,
               data.derived_assets.preview.artifact_id
             )}
-            playbackEnabled={data.capabilities.can_practice && Boolean(data.derived_assets.audio.revision_id)}
+            playbackEnabled={Boolean(audioRevisionId)}
             playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}
             actions={(
               <ExternalScoreActions
                 canSave={page.isAuthenticated}
                 isSaving={bookmark.isPending}
-                onDownloadImage={renderedPages.length ? () => void handleDownload('image') : undefined}
-                onDownloadXml={musicXml ? () => void handleDownload('xml') : undefined}
+                onDownloadImage={downloads.canDownloadImage ? () => void handleDownload('image') : undefined}
+                onDownloadXml={downloads.canDownloadXml ? () => void handleDownload('xml') : undefined}
                 onSave={page.isAuthenticated ? save : undefined}
                 saveHref={page.isAuthenticated ? undefined : loginHref}
               />
@@ -139,7 +143,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
                 label: scoreText('scoreInfo'),
                 content: (
                   <ScoreInfoPanel
-                    imageCount={pageCount}
+                    imageCount={downloads.imageCount}
                     metadata={data.metadata}
                     taxonomyTags={data.taxonomy_tags}
                     title={data.title}

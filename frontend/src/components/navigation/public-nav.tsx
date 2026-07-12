@@ -6,11 +6,11 @@ import { usePathname, Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import {
   Menu,
-  Music2,
   X,
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { BrandLogo } from '@/components/brand';
 import { ClientOnly } from '@/components/client-only';
 import { AuthenticatedNavActions, LanguageSwitcher } from './nav-actions';
 
@@ -29,13 +29,7 @@ export function PublicNav() {
   return (
     <header className="sticky left-0 right-0 top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Logo */}
-        <Link href='/' className="flex items-center space-x-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-orange-500 text-white">
-            <Music2 className="h-5 w-5" />
-          </div>
-          <span className="hidden text-lg font-semibold tracking-tight text-gray-950 sm:block">NoteVerse Pro</span>
-        </Link>
+        <BrandLogo textClassName="hidden text-lg sm:block" />
 
         <ClientOnly>
           <>

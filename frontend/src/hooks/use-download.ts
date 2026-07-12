@@ -1,14 +1,14 @@
 ﻿'use client';
 
 import { useCallback } from 'react';
-import { filesApi, scoresApi, scoreSharingApi } from '@/lib/api';
+import { filesApi, publicationsApi, scoresApi, scoreSharingApi } from '@/lib/api';
 import type { ScoreArtifact } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 
 interface UseDownloadOptions {
-    mode: 'score' | 'grant';
+    mode: 'score' | 'grant' | 'publication';
     id: string;
     artifacts?: ScoreArtifact[];
 }
@@ -49,6 +49,13 @@ export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): U
                     filesApi.triggerDownload(blob, `score_${id}.musicxml`);
                     return;
                 }
+                if (mode === 'publication') {
+                    const artifact = artifacts.find((item) => item.kind === 'MUSICXML');
+                    if (!artifact) throw new Error('FILE_NOT_FOUND');
+                    const blob = await publicationsApi.downloadArtifact(id, artifact.artifact_id);
+                    filesApi.triggerDownload(blob, artifact.filename);
+                    return;
+                }
             } else {
                 if (mode === 'grant') {
                     const pages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
@@ -69,6 +76,15 @@ export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): U
                         blob,
                         pages.length === 1 ? `score_${id}.${extensionFromBlob(blob)}` : `score_${id}.zip`
                     );
+                    return;
+                }
+                if (mode === 'publication') {
+                    const pages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
+                    if (!pages.length) throw new Error('FILE_NOT_FOUND');
+                    for (const page of pages) {
+                        const blob = await publicationsApi.downloadArtifact(id, page.artifact_id);
+                        filesApi.triggerDownload(blob, page.filename);
+                    }
                     return;
                 }
             }

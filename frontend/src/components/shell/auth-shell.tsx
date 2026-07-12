@@ -1,8 +1,8 @@
 'use client';
 
-import { Music2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { BrandLogo } from '@/components/brand';
 import { LanguageSwitcher } from '@/components/navigation';
 import { Link } from '@/i18n/routing';
 
@@ -13,12 +13,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-950">
       <header className="border-b border-gray-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-base font-bold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-orange-500 text-white">
-              <Music2 className="h-5 w-5" />
-            </span>
-            <span>NoteVerse Pro</span>
-          </Link>
+          <BrandLogo className="text-base font-bold" />
           <div className="flex items-center gap-2">
             <Link
               href="/"

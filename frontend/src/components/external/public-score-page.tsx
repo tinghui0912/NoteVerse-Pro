@@ -12,11 +12,14 @@ import { ScoreInfoPanel } from '@/components/score-detail/score-info-panel';
 import { ResourceLoadError } from '@/components/states';
 import { useAuth } from '@/contexts/auth-context';
 import { usePublicScore } from '@/hooks/queries/use-score-queries';
-import { filesApi, publicationsApi } from '@/lib/api';
+import { useDownload } from '@/hooks/use-download';
+import { publicationsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import { resolveScoreCapabilities } from '@/lib/score/capabilities';
+import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
+import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
 import { publicDerivedThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
 function PublicScoreContent({ slug }: { slug: string }) {
@@ -26,6 +29,11 @@ function PublicScoreContent({ slug }: { slug: string }) {
   const { isAuthenticated } = useAuth();
   const publication = usePublicScore(slug);
   const data = publication.data?.data;
+  const { handleDownload } = useDownload({
+    mode: 'publication',
+    id: slug,
+    artifacts: data?.artifacts ?? [],
+  });
 
   if (publication.isLoading) {
     return (
@@ -53,17 +61,9 @@ function PublicScoreContent({ slug }: { slug: string }) {
   }
 
   const capabilities = resolveScoreCapabilities(data.capabilities);
-  const renderedPages = data.artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE');
-  const musicXml = data.artifacts.find((artifact) => artifact.kind === 'MUSICXML');
-  const pageCount = renderedPages.length;
+  const downloads = scoreDownloadAvailability(data.artifacts);
+  const audioRevisionId = playableAudioRevisionId(data.derived_assets, capabilities.can_practice);
   const scoreId = data.publication.score_id;
-  const download = async (kind: 'MUSICXML' | 'RENDERED_PAGE') => {
-    const artifacts = data.artifacts.filter((artifact) => artifact.kind === kind);
-    for (const artifact of artifacts) {
-      const blob = await publicationsApi.downloadArtifact(slug, artifact.artifact_id);
-      filesApi.triggerDownload(blob, artifact.filename);
-    }
-  };
 
   return (
     <ScoreCapabilityProvider capabilities={capabilities} scoreId={scoreId} workspace="public">
@@ -76,13 +76,13 @@ function PublicScoreContent({ slug }: { slug: string }) {
               slug,
               data.derived_assets.preview.artifact_id
             )}
-            playbackEnabled={capabilities.can_practice && Boolean(data.derived_assets.audio.revision_id)}
+            playbackEnabled={Boolean(audioRevisionId)}
             playbackAudioSrc={publicationsApi.playbackUrl(slug)}
             actions={(
               <ExternalScoreActions
                 openAppHref={isAuthenticated ? `/score/${scoreId}` : undefined}
-                onDownloadImage={renderedPages.length ? () => void download('RENDERED_PAGE') : undefined}
-                onDownloadXml={musicXml ? () => void download('MUSICXML') : undefined}
+                onDownloadImage={downloads.canDownloadImage ? () => void handleDownload('image') : undefined}
+                onDownloadXml={downloads.canDownloadXml ? () => void handleDownload('xml') : undefined}
               />
             )}
             meta={(
@@ -96,7 +96,7 @@ function PublicScoreContent({ slug }: { slug: string }) {
                 label: scoreText('scoreInfo'),
                 content: (
                   <ScoreInfoPanel
-                    imageCount={pageCount}
+                    imageCount={downloads.imageCount}
                     metadata={data.metadata}
                     taxonomyTags={data.taxonomy_tags}
                     title={data.title}

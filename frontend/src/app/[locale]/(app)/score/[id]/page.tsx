@@ -20,6 +20,7 @@ import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
+import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
 import { scoreThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
 function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-scores' | null }) {
@@ -65,9 +66,12 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
 
   const score = resources.score;
   const previewAsset = score.derived_assets.preview;
-  const audioAsset = score.derived_assets.audio;
-  const playbackAudioSrc = audioAsset.revision_id
-    ? scoresApi.playbackUrl(score.score_id, audioAsset.revision_id)
+  const audioRevisionId = playableAudioRevisionId(
+    score.derived_assets,
+    score.capabilities.can_practice
+  );
+  const playbackAudioSrc = audioRevisionId
+    ? scoresApi.playbackUrl(score.score_id, audioRevisionId)
     : undefined;
 
   return (
