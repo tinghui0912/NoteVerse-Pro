@@ -18,6 +18,7 @@ from app.modules.realtime.publisher import (
     RealtimeEventTypes,
     publish_score_event_sync_best_effort,
 )
+from app.modules.realtime.maintenance_service import realtime_maintenance_service
 from app.modules.review.thumbnail_service import review_thumbnail_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
@@ -261,6 +262,18 @@ def run_notification_maintenance() -> dict[str, int]:
 
     return {
         "expired_notifications_deleted": result.expired_notifications_deleted,
+    }
+
+
+@celery_app.task(name="app.worker.tasks.run_realtime_maintenance")
+def run_realtime_maintenance() -> dict[str, int]:
+    """Run periodic realtime-event cleanup."""
+
+    with get_worker_db() as db:
+        result = realtime_maintenance_service.run(db)
+
+    return {
+        "expired_events_deleted": result.expired_events_deleted,
     }
 
 

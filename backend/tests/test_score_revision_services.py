@@ -22,6 +22,7 @@ from app.db.models import (
     MailOutboxStatus,
     NotificationEvent,
     PlaybackAssetKind,
+    RealtimeEvent,
     Score,
     ScoreArtifact,
     ScorePlaybackAsset,
@@ -69,6 +70,7 @@ from app.modules.score_invites.schemas import InviteCreateRequest
 from app.modules.score_invites.service import ScoreInviteService, hash_invite_token
 from app.modules.notifications.maintenance_service import NotificationMaintenanceService
 from app.modules.notifications.service import NotificationService, NotificationTypes
+from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 from app.modules.publications.schemas import PublicationUpsertRequest
 from app.modules.publications.service import PublicationService
 from app.modules.playback.service import PlaybackService
@@ -2026,6 +2028,54 @@ def test_notification_maintenance_removes_events_older_than_retention(
     assert result.expired_notifications_deleted == 1
     remaining = session.query(NotificationEvent).all()
     assert [event.resource_id for event in remaining] == ["fresh-score"]
+
+
+def test_realtime_maintenance_removes_events_older_than_retention(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    service = RealtimeMaintenanceService()
+    now = utc_now_naive()
+
+    session.add(
+        RealtimeEvent(
+            recipient_user_id=1,
+            type="score.derived_asset.updated",
+            resource_type="score",
+            resource_id="old-score",
+            score_id="old-score",
+            payload={"status": "ready"},
+            created_at=now - timedelta(days=8),
+        )
+    )
+    session.add(
+        RealtimeEvent(
+            recipient_user_id=1,
+            type="score.derived_asset.updated",
+            resource_type="score",
+            resource_id="fresh-score",
+            score_id="fresh-score",
+            payload={"status": "ready"},
+            created_at=now - timedelta(days=2),
+        )
+    )
+    session.commit()
+
+    result = service.run(session)
+
+    assert result.expired_events_deleted == 1
+    remaining = session.query(RealtimeEvent).all()
+    assert [event.resource_id for event in remaining] == ["fresh-score"]
+
+
+def test_realtime_maintenance_rejects_non_positive_retention(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    service = RealtimeMaintenanceService()
+
+    with pytest.raises(ValueError, match="realtime event retention days must be positive"):
+        service.cleanup_expired_events(session, retention_days=0)
 
 
 @pytest.mark.asyncio

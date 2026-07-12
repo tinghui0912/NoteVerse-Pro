@@ -18,3 +18,10 @@ def test_notification_maintenance_is_scheduled() -> None:
 
     assert schedule["task"] == "app.worker.tasks.run_notification_maintenance"
     assert schedule["schedule"] == float(settings.NOTIFICATION_CLEANUP_INTERVAL_SECONDS)
+
+
+def test_realtime_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["realtime-maintenance"]
+
+    assert schedule["task"] == "app.worker.tasks.run_realtime_maintenance"
+    assert schedule["schedule"] == float(settings.REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS)

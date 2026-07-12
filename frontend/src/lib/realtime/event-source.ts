@@ -1,6 +1,9 @@
-import { requiredEnv } from '@/lib/env';
+import { requiredEnvValue } from '@/lib/env';
 
-const REALTIME_API_BASE_URL = requiredEnv('NEXT_PUBLIC_REALTIME_API_BASE_URL');
+const REALTIME_API_BASE_URL = requiredEnvValue(
+  process.env.NEXT_PUBLIC_REALTIME_API_BASE_URL,
+  'NEXT_PUBLIC_REALTIME_API_BASE_URL'
+);
 
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/$/, '');

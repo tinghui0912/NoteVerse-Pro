@@ -9,6 +9,7 @@ from typing import Any, AsyncIterator
 import asyncpg
 from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy import select
+from sqlalchemy.sql import Select
 from starlette.responses import StreamingResponse
 
 from app.api.deps import get_current_user
@@ -65,18 +66,22 @@ def _asyncpg_dsn() -> str:
     return settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
 
 
+def _pending_events_statement(user_id: int, last_sequence: int) -> Select[tuple[RealtimeEvent]]:
+    return (
+        select(RealtimeEvent)
+        .where(
+            RealtimeEvent.recipient_user_id == user_id,
+            RealtimeEvent.id > last_sequence,
+        )
+        .order_by(RealtimeEvent.id.asc())
+        .limit(EVENT_BATCH_SIZE)
+    )
+
+
 async def _fetch_pending_events(user_id: int, last_sequence: int) -> list[RealtimeEvent]:
     async with AsyncSessionLocal() as db:
         return (
-            await db.execute(
-                select(RealtimeEvent)
-                .where(
-                    RealtimeEvent.recipient_user_id == user_id,
-                    RealtimeEvent.id > last_sequence,
-                )
-                .order_by(RealtimeEvent.id.asc())
-                .limit(EVENT_BATCH_SIZE)
-            )
+            await db.execute(_pending_events_statement(user_id, last_sequence))
         ).scalars().all()
 
 

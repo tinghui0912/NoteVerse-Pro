@@ -6,7 +6,10 @@ export type RealtimeEventType =
   | 'import_job.completed'
   | 'import_job.failed';
 
+export const REALTIME_EVENT_SCHEMA_VERSION = 1;
+
 export interface RealtimeEventEnvelope<TPayload = Record<string, unknown>> {
+  schema_version: typeof REALTIME_EVENT_SCHEMA_VERSION;
   event_id: string;
   sequence: number;
   type: RealtimeEventType;
@@ -22,6 +25,7 @@ export function parseRealtimeEvent(data: string): RealtimeEventEnvelope | null {
   try {
     const parsed = JSON.parse(data) as Partial<RealtimeEventEnvelope>;
     if (
+      parsed.schema_version !== REALTIME_EVENT_SCHEMA_VERSION ||
       typeof parsed.event_id !== 'string' ||
       typeof parsed.sequence !== 'number' ||
       typeof parsed.type !== 'string'
@@ -29,6 +33,7 @@ export function parseRealtimeEvent(data: string): RealtimeEventEnvelope | null {
       return null;
     }
     return {
+      schema_version: REALTIME_EVENT_SCHEMA_VERSION,
       event_id: parsed.event_id,
       sequence: parsed.sequence,
       type: parsed.type as RealtimeEventType,

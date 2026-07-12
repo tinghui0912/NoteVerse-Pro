@@ -61,6 +61,10 @@ celery_app.conf.update(
             "task": "app.worker.tasks.run_notification_maintenance",
             "schedule": float(settings.NOTIFICATION_CLEANUP_INTERVAL_SECONDS),
         },
+        "realtime-maintenance": {
+            "task": "app.worker.tasks.run_realtime_maintenance",
+            "schedule": float(settings.REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS),
+        },
         "render-outbox-maintenance": {
             "task": "app.worker.tasks.run_render_outbox_maintenance",
             "schedule": float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS),
