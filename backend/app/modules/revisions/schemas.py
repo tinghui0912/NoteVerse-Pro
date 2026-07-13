@@ -15,6 +15,34 @@ class RevisionCreateRequest(BaseModel):
     origin: RevisionOrigin = RevisionOrigin.EDIT
 
 
+class RevisionActorRead(BaseModel):
+    display_name: str | None
+    email: str
+    avatar_url: str | None
+
+
+class RevisionRestoreRequest(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+
+
+class RevisionRestoreRead(BaseModel):
+    restored_from_revision_id: str | None
+    restored_from_revision_number: int | None
+    note: str | None
+    actor: RevisionActorRead | None
+    created_at: datetime
+
+
+class RevisionNoteUpdateRequest(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+
+
+class RevisionNoteRead(BaseModel):
+    note: str
+    author: RevisionActorRead | None
+    updated_at: datetime
+
+
 class RevisionRead(BaseModel):
     revision_id: str
     revision_number: int
@@ -23,6 +51,14 @@ class RevisionRead(BaseModel):
     content_hash: str
     origin: RevisionOrigin
     created_at: datetime
+    created_by: RevisionActorRead | None
+    restore: RevisionRestoreRead | None
+    note: RevisionNoteRead | None
+
+
+class RevisionListRead(BaseModel):
+    items: list[RevisionRead]
+    next_cursor: int | None
 
 
 class RevisionContentRead(RevisionRead):

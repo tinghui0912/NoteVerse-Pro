@@ -89,6 +89,39 @@ class ScoreRepository:
             )
         ).scalar_one_or_none()
 
+    async def revisions(
+        self,
+        db: AsyncSession,
+        score_id: int,
+        *,
+        limit: int,
+        cursor: int | None = None,
+    ) -> tuple[list[ScoreRevision], int | None]:
+        statement = select(ScoreRevision).where(ScoreRevision.score_id == score_id)
+        if cursor is not None:
+            statement = statement.where(ScoreRevision.revision_number < cursor)
+        rows = list(
+            (
+                await db.execute(
+                    statement.order_by(ScoreRevision.revision_number.desc()).limit(limit + 1)
+                )
+            ).scalars().all()
+        )
+        items = rows[:limit]
+        next_cursor = items[-1].revision_number if len(rows) > limit and items else None
+        return items, next_cursor
+
+    async def all_revisions(self, db: AsyncSession, score_id: int) -> list[ScoreRevision]:
+        return list(
+            (
+                await db.execute(
+                    select(ScoreRevision)
+                    .where(ScoreRevision.score_id == score_id)
+                    .order_by(ScoreRevision.revision_number.desc())
+                )
+            ).scalars().all()
+        )
+
     async def canonical_artifact(
         self, db: AsyncSession, revision_id: int
     ) -> ScoreArtifact | None:

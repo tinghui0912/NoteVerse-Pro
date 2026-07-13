@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -9,7 +9,10 @@ from app.modules.revisions.schemas import (
     FingeringResultRead,
     RevisionContentRead,
     RevisionCreateRequest,
+    RevisionListRead,
+    RevisionNoteUpdateRequest,
     RevisionRead,
+    RevisionRestoreRequest,
 )
 from app.modules.revisions.service import RevisionService
 from app.modules.scores.dependencies import get_revision_service, get_score_service
@@ -74,6 +77,48 @@ async def create_revision(
     return success_response(data=result, message=SuccessCode.SAVE_SUCCESS)
 
 
+@router.get("/{score_id}/revisions", response_model=APIResponse[RevisionListRead])
+async def list_revisions(
+    score_id: str,
+    limit: int = Query(default=20, ge=1, le=50),
+    cursor: int | None = Query(default=None, ge=1),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: RevisionService = Depends(get_revision_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.list(db, score_id, user_id, limit=limit, cursor=cursor)
+    return success_response(data=result)
+
+
+@router.post("/{score_id}/revisions/{revision_id}/rollback", response_model=APIResponse[RevisionRead])
+async def rollback_revision(
+    score_id: str,
+    revision_id: str,
+    request: RevisionRestoreRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: RevisionService = Depends(get_revision_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.rollback(db, score_id, revision_id, user_id, request)
+    return success_response(data=result, message=SuccessCode.SAVE_SUCCESS)
+
+
+@router.patch("/{score_id}/revisions/{revision_id}/note", response_model=APIResponse[RevisionRead])
+async def update_revision_note(
+    score_id: str,
+    revision_id: str,
+    request: RevisionNoteUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: RevisionService = Depends(get_revision_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.update_note(db, score_id, revision_id, user_id, request)
+    return success_response(data=result, message=SuccessCode.UPDATE_SUCCESS)
+
+
 @router.get("/{score_id}/revisions/{revision_id}/content", response_model=APIResponse[RevisionContentRead])
 async def get_revision_content(
     score_id: str,
@@ -98,6 +143,3 @@ async def generate_score_fingering(
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.generate_fingering(db, score_id, user_id, request)
     return success_response(data=result, message=SuccessCode.FINGERING_GENERATED)
-
-
-

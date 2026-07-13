@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { publicationsApi, scoreInvitesApi, scoreSharingApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { FingeringHandSize } from '@/types/api';
@@ -18,6 +18,17 @@ export function useRevisionContent(scoreId: string, revisionId?: string | null) 
     queryKey: queryKeys.scores.revision(scoreId, revisionId ?? ''),
     queryFn: ({ signal }) => scoresApi.revisionContent(scoreId, revisionId ?? '', signal),
     enabled: Boolean(scoreId && revisionId),
+  });
+}
+
+export function useScoreRevisions(scoreId: string, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.scores.revisions(scoreId),
+    queryFn: ({ pageParam, signal }) =>
+      scoresApi.revisions(scoreId, { limit: 20, cursor: pageParam }, signal),
+    initialPageParam: null as number | null,
+    getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
+    enabled: enabled && Boolean(scoreId),
   });
 }
 
@@ -65,6 +76,39 @@ export function useCreateRevision() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.artifacts(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+    },
+  });
+}
+
+export function useRollbackRevision() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ scoreId, revisionId, note }: { scoreId: string; revisionId: string; note?: string | null }) =>
+      scoresApi.rollbackRevision(scoreId, revisionId, { note }),
+    onSuccess: (_response, variables) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.artifacts(variables.scoreId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+    },
+  });
+}
+
+export function useUpdateRevisionNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      scoreId,
+      revisionId,
+      note,
+    }: {
+      scoreId: string;
+      revisionId: string;
+      note?: string | null;
+    }) => scoresApi.updateRevisionNote(scoreId, revisionId, { note }),
+    onSuccess: (_response, variables) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
     },
   });
 }

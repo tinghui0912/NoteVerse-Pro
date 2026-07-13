@@ -9,12 +9,25 @@ export interface ScoreDetailTabItem {
   content: ReactNode;
 }
 
-export function ScoreDetailTabs({ tabs }: { tabs: ScoreDetailTabItem[] }) {
+export function ScoreDetailTabs({
+  tabs,
+  value,
+  onValueChange,
+}: {
+  tabs: ScoreDetailTabItem[];
+  value?: string;
+  onValueChange?: (value: string) => void;
+}) {
   const first = tabs[0]?.value;
   if (!first) return null;
 
   return (
-    <Tabs defaultValue={first} className="mt-6">
+    <Tabs
+      defaultValue={first}
+      value={value}
+      onValueChange={onValueChange}
+      className="mt-6"
+    >
       <TabsList className="h-auto flex-wrap justify-start bg-transparent p-0">
         {tabs.map((tab) => (
           <TabsTrigger

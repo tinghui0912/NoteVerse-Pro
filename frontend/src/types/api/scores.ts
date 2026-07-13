@@ -81,6 +81,24 @@ export interface ScoreRevision {
   content_hash: string;
   origin: RevisionOrigin;
   created_at: string;
+  created_by: InviteActor | null;
+  restore: {
+    restored_from_revision_id: string | null;
+    restored_from_revision_number: number | null;
+    note: string | null;
+    actor: InviteActor | null;
+    created_at: string;
+  } | null;
+  note: {
+    note: string;
+    author: InviteActor | null;
+    updated_at: string;
+  } | null;
+}
+
+export interface ScoreRevisionList {
+  items: ScoreRevision[];
+  next_cursor: number | null;
 }
 
 export interface ScoreRevisionContent extends ScoreRevision {

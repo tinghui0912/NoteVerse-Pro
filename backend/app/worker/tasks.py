@@ -19,6 +19,9 @@ from app.modules.realtime.publisher import (
     publish_score_event_sync_best_effort,
 )
 from app.modules.realtime.maintenance_service import realtime_maintenance_service
+from app.modules.revisions.derived_asset_retention_service import (
+    derived_asset_retention_service,
+)
 from app.modules.review.thumbnail_service import review_thumbnail_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
@@ -274,6 +277,20 @@ def run_realtime_maintenance() -> dict[str, int]:
 
     return {
         "expired_events_deleted": result.expired_events_deleted,
+    }
+
+
+@celery_app.task(name="app.worker.tasks.run_derived_asset_cleanup")
+def run_derived_asset_cleanup() -> dict[str, int]:
+    """Remove derived preview/audio assets outside the retention window."""
+
+    with get_worker_db() as db:
+        result = derived_asset_retention_service.cleanup_due_scores(db)
+
+    return {
+        "rendered_pages_deleted": result.rendered_pages_deleted,
+        "playback_assets_deleted": result.playback_assets_deleted,
+        "storage_objects_deleted": result.storage_objects_deleted,
     }
 
 

@@ -6,6 +6,7 @@ import type {
   ScoreDetail,
   FingeringResult,
   ScoreRevision,
+  ScoreRevisionList,
   ScoreRevisionContent,
 } from '@/types/api';
 
@@ -29,10 +30,29 @@ export const scoresApi = {
       undefined,
       { signal }
     ),
+  revisions: (scoreId: string, params?: { limit?: number; cursor?: number | null }, signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<ScoreRevisionList>>(
+      `/scores/${scoreId}/revisions`,
+      {
+        limit: params?.limit,
+        cursor: params?.cursor ?? undefined,
+      },
+      { signal }
+    ),
   createRevision: (
     scoreId: string,
     input: { content: string; base_revision_id: string; idempotency_key?: string; origin?: string }
   ) => apiClient.post<ApiResponse<ScoreRevision>>(`/scores/${scoreId}/revisions`, input),
+  rollbackRevision: (scoreId: string, revisionId: string, input?: { note?: string | null }) =>
+    apiClient.post<ApiResponse<ScoreRevision>>(
+      `/scores/${scoreId}/revisions/${revisionId}/rollback`,
+      input ?? {}
+    ),
+  updateRevisionNote: (scoreId: string, revisionId: string, input: { note?: string | null }) =>
+    apiClient.patch<ApiResponse<ScoreRevision>>(
+      `/scores/${scoreId}/revisions/${revisionId}/note`,
+      input
+    ),
   generateFingering: (
     scoreId: string,
     input: { content: string; hand_size?: FingeringHandSize }

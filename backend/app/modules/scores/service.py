@@ -12,6 +12,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
     ScoreArtifact,
+    ScorePlaybackAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
 )
@@ -141,6 +142,15 @@ class ScoreService:
                 await db.execute(
                     select(ScoreArtifact.storage_key)
                     .join(ScoreRevision, ScoreArtifact.revision_id == ScoreRevision.id)
+                    .where(ScoreRevision.score_id == score_id)
+                )
+            ).scalars().all()
+        )
+        keys.extend(
+            (
+                await db.execute(
+                    select(ScorePlaybackAsset.storage_key)
+                    .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
                     .where(ScoreRevision.score_id == score_id)
                 )
             ).scalars().all()

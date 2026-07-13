@@ -2,6 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ResourceLoading } from '@/components/loading';
 import { PageHeader } from '@/components/page';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
@@ -13,6 +14,7 @@ import { ScoreDetailTabs } from '@/components/score-detail/score-detail-tabs';
 import { ScoreHeroActions } from '@/components/score-detail/score-hero-actions';
 import { ScoreInfoPanel } from '@/components/score-detail/score-info-panel';
 import { ScoreSharePanel } from '@/components/score-detail/score-share-panel';
+import { ScoreVersionsPanel } from '@/components/score-detail/score-versions-panel';
 import { ResourceLoadError } from '@/components/states';
 import { useScoreDetailSummary } from '@/hooks/score-detail/use-score-detail-summary';
 import { scoresApi } from '@/lib/api';
@@ -27,6 +29,9 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   const t = useTranslations('score');
   const common = useTranslations('common');
   const errors = useTranslations('errors');
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const resources = useScoreDetailSummary(id);
   const error = resources.scoreError instanceof ApiError && resources.scoreError.code
     ? translateErrorCode(errors, resources.scoreError.code)
@@ -73,6 +78,64 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   const playbackAudioSrc = audioRevisionId
     ? scoresApi.playbackUrl(score.score_id, audioRevisionId)
     : undefined;
+  const tabs = [
+    {
+      value: 'info',
+      label: t('scoreInfo'),
+      content: (
+        <ScoreInfoPanel
+          canEditTitle
+          createdAt={score.created_at}
+          imageCount={resources.imageCount}
+          imageCountStatus={previewAsset.status}
+          metadata={score.metadata}
+          scoreId={score.score_id}
+          taxonomyTags={score.taxonomy_tags}
+          title={scoreTitle}
+          updatedAt={score.updated_at}
+          version={score.version}
+        />
+      ),
+    },
+    {
+      value: 'versions',
+      label: t('versionsAction'),
+      content: (
+        <ScoreVersionsPanel
+          canRollback={score.capabilities.can_edit}
+          headRevisionId={score.head_revision_id}
+          scoreId={score.score_id}
+        />
+      ),
+    },
+    score.capabilities.can_manage_sharing ? {
+      value: 'share',
+      label: t('createShareAction'),
+      content: (
+        <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+          <ScoreSharePanel scoreId={score.score_id} scoreTitle={scoreTitle} />
+        </div>
+      ),
+    } : null,
+    score.capabilities.can_manage_members ? {
+      value: 'collaboration',
+      label: t('collaborationAction'),
+      content: (
+        <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+          <ScoreCollaborationPanel scoreId={score.score_id} scoreTitle={scoreTitle} />
+        </div>
+      ),
+    } : null,
+  ].filter((tab): tab is NonNullable<typeof tab> => Boolean(tab));
+  const requestedTab = searchParams.get('tab');
+  const activeTab = tabs.some((tab) => tab.value === requestedTab)
+    ? requestedTab ?? tabs[0].value
+    : tabs[0].value;
+  const handleTabChange = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set('tab', value);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  };
 
   return (
     <ScoreCapabilityProvider capabilities={capabilities} scoreId={id} workspace="view">
@@ -105,44 +168,9 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             )}
           />
           <ScoreDetailTabs
-            tabs={[
-              {
-                value: 'info',
-                label: t('scoreInfo'),
-                content: (
-                  <ScoreInfoPanel
-                    canEditTitle
-                    createdAt={score.created_at}
-                    imageCount={resources.imageCount}
-                    imageCountStatus={previewAsset.status}
-                    metadata={score.metadata}
-                    scoreId={score.score_id}
-                    taxonomyTags={score.taxonomy_tags}
-                    title={scoreTitle}
-                    updatedAt={score.updated_at}
-                    version={score.version}
-                  />
-                ),
-              },
-              score.capabilities.can_manage_sharing ? {
-                value: 'share',
-                label: t('createShareAction'),
-                content: (
-                  <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
-                    <ScoreSharePanel scoreId={score.score_id} scoreTitle={scoreTitle} />
-                  </div>
-                ),
-              } : null,
-              score.capabilities.can_manage_members ? {
-                value: 'collaboration',
-                label: t('collaborationAction'),
-                content: (
-                  <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
-                    <ScoreCollaborationPanel scoreId={score.score_id} scoreTitle={scoreTitle} />
-                  </div>
-                ),
-              } : null,
-            ].filter((tab): tab is NonNullable<typeof tab> => Boolean(tab))}
+            tabs={tabs}
+            value={activeTab}
+            onValueChange={handleTabChange}
           />
         </div>
       </ScoreSurface>

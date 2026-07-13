@@ -3,6 +3,8 @@ from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshTok
 from .file import Upload
 from .notification import NotificationEvent
 from .realtime import RealtimeEvent
+from .revision_event import ScoreRevisionEvent
+from .revision_note import ScoreRevisionNote
 from .practice import (
     PracticeReportStatus,
     PracticeSession,
@@ -65,6 +67,8 @@ __all__ = [
     "Upload",
     "NotificationEvent",
     "RealtimeEvent",
+    "ScoreRevisionEvent",
+    "ScoreRevisionNote",
     "PracticeSession",
     "PracticeSessionState",
     "PracticeReportStatus",

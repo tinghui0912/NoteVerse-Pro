@@ -147,6 +147,7 @@ class Settings(BaseSettings):
         "MAIL_OUTBOX_MAX_ATTEMPTS",
         "MAIL_OUTBOX_DISPATCH_BATCH_SIZE",
         "MAIL_OUTBOX_RETENTION_DAYS",
+        "DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS",
         "MAX_PROCESSING_TIME",
         "PADDLEOCR_TIMEOUT_SECONDS",
         "CELERY_TASK_SOFT_TIME_LIMIT",
@@ -163,6 +164,13 @@ class Settings(BaseSettings):
     def validate_playback_max_duration(cls, v: float) -> float:
         if v <= 0:
             raise ValueError("PLAYBACK_MAX_DURATION_SECONDS must be positive")
+        return v
+
+    @field_validator("DERIVED_ASSET_RETAIN_RECENT_REVISIONS")
+    @classmethod
+    def validate_derived_asset_retention_count(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("DERIVED_ASSET_RETAIN_RECENT_REVISIONS must be non-negative")
         return v
 
     # Database
@@ -201,6 +209,8 @@ class Settings(BaseSettings):
     MAIL_OUTBOX_MAX_ATTEMPTS: int = 5
     MAIL_OUTBOX_DISPATCH_BATCH_SIZE: int = 50
     MAIL_OUTBOX_RETENTION_DAYS: int = 7
+    DERIVED_ASSET_RETAIN_RECENT_REVISIONS: int = 10
+    DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS: int = 86400
 
     # File storage
     FILE_STORAGE_BACKEND: str = "local"
