@@ -61,6 +61,7 @@ class LocalFileStorage:
         if not os.path.exists(path):
             return False
         os.remove(path)
+        self._remove_empty_parents(os.path.dirname(path))
         return True
 
     def local_path(self, key: str) -> str:
@@ -190,6 +191,16 @@ class LocalFileStorage:
         if not normalized or normalized.startswith("../") or "/../" in normalized:
             raise ValueError(f"Invalid storage key: {key}")
         return normalized
+
+    def _remove_empty_parents(self, start_dir: str) -> None:
+        root = os.path.abspath(self.storage_root)
+        current = os.path.abspath(start_dir)
+        while os.path.commonpath([root, current]) == root and current != root:
+            try:
+                os.rmdir(current)
+            except OSError:
+                return
+            current = os.path.dirname(current)
 
 
 file_storage = LocalFileStorage()

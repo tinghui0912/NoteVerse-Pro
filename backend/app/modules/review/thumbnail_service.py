@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportArtifact
+from app.db.models import ImportArtifact, StorageUsageCategory
 from app.modules.import_jobs.repository import SyncImportJobRepository
+from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
 from app.shared.file_kinds import FileKind
 from app.storage import FileStorage, file_storage
@@ -54,6 +55,10 @@ class ReviewThumbnailService:
             .filter_by(job_id=job_id, kind=FileKind.RESULT_THUMBNAIL.value)
             .all()
         )
+        previous_usage = [
+            (item.artifact_uuid, item.storage_key, item.size_bytes or 0)
+            for item in previous
+        ]
         uploaded_key: str | None = None
         os.makedirs(settings.WORK_ROOT, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
@@ -108,6 +113,28 @@ class ReviewThumbnailService:
                 except Exception:
                     pass
             raise
+
+        for artifact_uuid, storage_key, size_bytes in previous_usage:
+            storage_usage_service.record_release_sync(
+                db,
+                user_id=job.user_id,
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=size_bytes,
+                reason="review_thumbnail_replaced",
+                object_type="import_artifact",
+                object_id=artifact_uuid,
+                storage_key=storage_key,
+            )
+        storage_usage_service.record_allocation_sync(
+            db,
+            user_id=job.user_id,
+            category=StorageUsageCategory.TEMP_IMPORT,
+            bytes_count=thumbnail.size_bytes or 0,
+            reason="review_thumbnail_created",
+            object_type="import_artifact",
+            object_id=thumbnail.artifact_uuid,
+            storage_key=thumbnail.storage_key,
+        )
 
         for item in previous:
             try:

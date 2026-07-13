@@ -252,11 +252,7 @@ class SyncImportJobService:
             items = artifacts.get(kind)
             return items[0] if items else None
 
-        thumbnail = (
-            first_artifact(FileKind.RESULT_THUMBNAIL.value)
-            or first_artifact(FileKind.PREVIEW_IMAGE.value)
-            or first_artifact(FileKind.ORIGINAL_IMAGE.value)
-        )
+        thumbnail = first_artifact(FileKind.RESULT_THUMBNAIL.value)
         return {
             "job_id": job.job_uuid,
             "score_id": self.repository.get_score_uuid(db, job.score_id),

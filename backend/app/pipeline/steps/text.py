@@ -126,7 +126,6 @@ class TextOcrStep(Step):
 
             ctx.main_xml = enhanced_path
             logger.info(f"[{ctx.job_id}] Text integration completed: {enhanced_path}")
-            self._record_enhanced_xml(ctx, enhanced_path)
         except Exception as exc:
             logger.warning(f"[{ctx.job_id}] Text integration error: {exc}")
 
@@ -141,18 +140,6 @@ class TextOcrStep(Step):
             return enhanced_path
 
         return None
-
-    def _record_enhanced_xml(self, ctx: JobContext, enhanced_path: str) -> None:
-        """Persist the enhanced XML artifact in the pipeline file registry."""
-        from app.pipeline.files_recorder import replace_files
-        from app.shared.file_kinds import FileKind
-
-        replace_files(
-            ctx.job_id,
-            FileKind.ENHANCED_XML,
-            [os.path.abspath(enhanced_path)],
-        )
-        logger.info(f"[{ctx.job_id}] Recorded enhanced_xml")
 
     def _summarize_classified_texts(self, text_info: "ClassifiedTexts") -> str:
         """Return a compact, useful OCR classification summary for worker logs."""

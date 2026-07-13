@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import event
@@ -34,6 +35,8 @@ from app.db.models import (
     ScoreRevisionNote,
     ScoreRevisionSource,
     StorageQuotaPolicy,
+    StorageUsageCounter,
+    StorageUsageCategory,
     ScoreLibraryEntry,
     ScoreInvite,
     ScoreMembership,
@@ -72,6 +75,7 @@ from app.modules.score_assets.render_outbox_service import RenderOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
+from app.modules.review.thumbnail_service import ReviewThumbnailService
 from app.modules.scores.service import ScoreService
 from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
@@ -377,6 +381,11 @@ async def test_review_detail_reads_pending_job_artifacts(
         content=MUSICXML_1,
         content_type="application/vnd.recordare.musicxml+xml",
     )
+    uploaded_image = storage.put_bytes(
+        key="uploads/original/page-1.png",
+        content=b"image",
+        content_type="image/png",
+    )
     session.add(
         ImportJob(
             id=13,
@@ -390,19 +399,33 @@ async def test_review_detail_reads_pending_job_artifacts(
         )
     )
     session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=13,
-            artifact_uuid="review-musicxml-artifact",
-            kind=FileKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
-            storage_key=stored_xml.storage_key,
-            filename=stored_xml.filename,
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored_xml.size_bytes,
-            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
-            page_number=1,
-        )
+    session.add_all(
+        [
+            ImportArtifact(
+                job_id=13,
+                artifact_uuid="review-musicxml-artifact",
+                kind=FileKind.REVIEW_MUSICXML.value,
+                storage_backend="local",
+                storage_key=stored_xml.storage_key,
+                filename=stored_xml.filename,
+                mime_type="application/vnd.recordare.musicxml+xml",
+                size_bytes=stored_xml.size_bytes,
+                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+                page_number=1,
+            ),
+            Upload(
+                id=130,
+                sha256="upload-sha",
+                storage_backend="local",
+                storage_key=uploaded_image.storage_key,
+                filename=uploaded_image.filename,
+                original_filename="page-1.png",
+                size_bytes=uploaded_image.size_bytes,
+                mime_type="image/png",
+                uploader_user_id=1,
+            ),
+            ImportJobUpload(job_id=13, upload_id=130),
+        ]
     )
     session.commit()
     service = ReviewService(storage=storage)
@@ -418,9 +441,11 @@ async def test_review_detail_reads_pending_job_artifacts(
     assert detail.taxonomy_tags == [{"category": "level", "code": "beginner"}]
     assert detail.musicxml.artifact_id == "review-musicxml-artifact"
     assert detail.musicxml.content == MUSICXML_1.decode("utf-8")
+    assert detail.original_images[0].artifact_id == "upload:130"
+    assert detail.original_images[0].filename == "page-1.png"
 
 
-def test_job_detail_prefers_result_thumbnail_over_initial_preview(
+def test_job_detail_uses_result_thumbnail_only(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, _ = score_service_session
@@ -435,16 +460,6 @@ def test_job_detail_prefers_result_thumbnail_over_initial_preview(
     session.commit()
     session.add_all(
         [
-            ImportArtifact(
-                job_id=16,
-                artifact_uuid="initial-preview-artifact",
-                kind=FileKind.PREVIEW_IMAGE.value,
-                storage_backend="local",
-                storage_key="jobs/job-thumbnail/preview_image/001-preview.svg",
-                filename="001-preview.svg",
-                mime_type="image/svg+xml",
-                page_number=1,
-            ),
             ImportArtifact(
                 job_id=16,
                 artifact_uuid="result-thumbnail-artifact",
@@ -462,6 +477,77 @@ def test_job_detail_prefers_result_thumbnail_over_initial_preview(
     detail = SyncImportJobService().get_detail(session, "job-thumbnail")
 
     assert detail["thumbnail_artifact_id"] == "result-thumbnail-artifact"
+
+
+def test_review_thumbnail_records_temp_import_usage(
+    score_service_session: tuple[Session, LocalFileStorage], tmp_path
+) -> None:
+    session, storage = score_service_session
+    stored_xml = storage.put_bytes(
+        key="jobs/job-thumbnail-usage/review_musicxml/001-score.musicxml",
+        content=MUSICXML_1,
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    session.add(
+        ImportJob(
+            id=17,
+            job_uuid="job-thumbnail-usage",
+            user_id=1,
+            state=ImportJobState.PENDING_REVIEW,
+        )
+    )
+    session.commit()
+    session.add(
+        ImportArtifact(
+            job_id=17,
+            artifact_uuid="thumbnail-usage-review-xml",
+            kind=FileKind.REVIEW_MUSICXML.value,
+            storage_backend="local",
+            storage_key=stored_xml.storage_key,
+            filename=stored_xml.filename,
+            mime_type="application/vnd.recordare.musicxml+xml",
+            size_bytes=stored_xml.size_bytes,
+            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+        )
+    )
+    session.commit()
+
+    class FakeEngine:
+        def __init__(self, output_folder: str) -> None:
+            self.output_folder = output_folder
+
+        def render_score(self, *, xml_path: str, output_name: str):
+            output = tmp_path / "thumbnail.svg"
+            output.write_bytes(b"<svg />")
+            return {
+                "success": True,
+                "engine": "fake-renderer",
+                "files": [
+                    {
+                        "path": str(output),
+                        "page": 1,
+                        "mime_type": "image/svg+xml",
+                    }
+                ],
+            }
+
+    with patch(
+        "app.modules.review.thumbnail_service.create_score_render_engine",
+        side_effect=lambda output_folder: FakeEngine(output_folder),
+    ):
+        artifact_id = ReviewThumbnailService(storage=storage).render(
+            session,
+            "job-thumbnail-usage",
+            expected_source_fingerprint="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+        )
+
+    assert artifact_id is not None
+    counter = (
+        session.query(StorageUsageCounter)
+        .filter_by(user_id=1, category=StorageUsageCategory.TEMP_IMPORT)
+        .one()
+    )
+    assert counter.used_bytes == len(b"<svg />")
 
 
 @pytest.mark.asyncio

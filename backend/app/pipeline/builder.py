@@ -27,9 +27,7 @@ class PipelineBuilder:
         from .steps import (
             CopyImageStep,
             ExtractXmlStep,
-            FinalizeStep,
             OmrStep,
-            PreviewGenerationStep,
             TextOcrStep,
             XmlNormalizeStep,
         )
@@ -41,8 +39,6 @@ class PipelineBuilder:
                 ExtractXmlStep(),
                 TextOcrStep(),
                 XmlNormalizeStep(),
-                PreviewGenerationStep(),
-                FinalizeStep(),
             ]
         )
 
@@ -54,9 +50,7 @@ class PipelineBuilder:
         from .steps import (
             CopyImagesStep,
             ExtractXmlStep,
-            FinalizeStep,
             OmrStep,
-            PreviewGenerationStep,
             TextOcrStep,
             XmlNormalizeStep,
         )
@@ -68,7 +62,5 @@ class PipelineBuilder:
                 ExtractXmlStep(),
                 TextOcrStep(),
                 XmlNormalizeStep(),
-                PreviewGenerationStep(),
-                FinalizeStep(),
             ]
         )

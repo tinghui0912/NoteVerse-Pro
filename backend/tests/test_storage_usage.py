@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -14,6 +15,9 @@ from app.api.deps import get_current_user, get_db
 from app.main import app
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import (
+    ImportArtifact,
+    ImportJob,
+    ImportJobUpload,
     Score,
     ScoreRevision,
     ScoreRevisionSource,
@@ -26,15 +30,18 @@ from app.db.models import (
     Upload,
     User,
 )
+from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.db.models.user import UserRole
 from app.modules.files.service import FilesService
 from app.modules.files.dependencies import get_files_service
+from app.modules.import_jobs.service import ImportJobService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.revisions.service import RevisionService
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
+from app.shared.file_kinds import FileKind
 from app.storage import LocalFileStorage
 from app.utils.timezone import utc_now_naive
 
@@ -522,3 +529,186 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     assert account.used_bytes == 0
     assert counter.used_bytes == 0
     assert not storage.exists(source_storage_key)
+
+
+@pytest.mark.asyncio
+async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
+    storage_usage_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = storage_usage_session
+    job_uuid = "job-delete-owned-storage"
+    upload = storage.put_bytes(
+        key="scores/delete-owned-upload.png",
+        content=b"uploaded image",
+        content_type="image/png",
+    )
+    review_source = storage.put_bytes(
+        key=f"jobs/{job_uuid}/review_musicxml/review.musicxml",
+        content=b"<score-partwise />",
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    thumbnail = storage.put_bytes(
+        key=f"jobs/{job_uuid}/result_thumbnail/page-1.png",
+        content=b"thumbnail",
+        content_type="image/png",
+    )
+    job = ImportJob(
+        id=1001,
+        job_uuid=job_uuid,
+        user_id=1,
+        state=ImportJobState.PENDING_REVIEW,
+        progress=100,
+    )
+    session.add(job)
+    session.add(
+        Upload(
+            id=1002,
+            sha256="delete-owned-upload-sha",
+            storage_backend=storage.backend_name,
+            storage_key=upload.storage_key,
+            filename=upload.filename,
+            original_filename="upload.png",
+            size_bytes=upload.size_bytes,
+            mime_type="image/png",
+            uploader_user_id=1,
+        )
+    )
+    session.commit()
+    session.add(ImportJobUpload(job_id=1001, upload_id=1002))
+    session.add(
+        ImportArtifact(
+            artifact_uuid="delete-owned-review-source",
+            job_id=1001,
+            kind=FileKind.REVIEW_MUSICXML.value,
+            storage_backend=storage.backend_name,
+            storage_key=review_source.storage_key,
+            filename=review_source.filename,
+            mime_type="application/vnd.recordare.musicxml+xml",
+            size_bytes=review_source.size_bytes,
+        )
+    )
+    session.add(
+        ImportArtifact(
+            artifact_uuid="delete-owned-thumbnail",
+            job_id=1001,
+            kind=FileKind.RESULT_THUMBNAIL.value,
+            storage_backend=storage.backend_name,
+            storage_key=thumbnail.storage_key,
+            filename=thumbnail.filename,
+            mime_type="image/png",
+            size_bytes=thumbnail.size_bytes,
+        )
+    )
+    session.commit()
+    storage_usage_service.record_allocation_sync(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.UPLOAD,
+        bytes_count=upload.size_bytes,
+        reason="seed_upload",
+        object_type="upload",
+        object_id="delete-owned-upload-sha",
+        storage_key=upload.storage_key,
+    )
+    storage_usage_service.record_allocation_sync(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.TEMP_IMPORT,
+        bytes_count=review_source.size_bytes + thumbnail.size_bytes,
+        reason="seed_import_artifact",
+        object_type="import_artifact",
+        object_id=job_uuid,
+    )
+
+    await ImportJobService(storage=storage).delete(AsyncSessionAdapter(session), job_uuid, 1)
+
+    assert session.get(ImportJob, 1001) is None
+    assert session.get(Upload, 1002) is None
+    assert not storage.exists(upload.storage_key)
+    assert not storage.exists(review_source.storage_key)
+    assert not storage.exists(thumbnail.storage_key)
+    assert not os.path.exists(storage.local_path(f"jobs/{job_uuid}"))
+    account = session.get(StorageUsageAccount, 1)
+    assert account is not None
+    assert account.used_bytes == 0
+    counters = {
+        counter.category: counter.used_bytes
+        for counter in session.execute(
+            select(StorageUsageCounter).where(StorageUsageCounter.user_id == 1)
+        ).scalars()
+    }
+    assert counters[StorageUsageCategory.UPLOAD] == 0
+    assert counters[StorageUsageCategory.TEMP_IMPORT] == 0
+
+
+@pytest.mark.asyncio
+async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
+    storage_usage_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = storage_usage_session
+    upload = storage.put_bytes(
+        key="scores/shared-upload.png",
+        content=b"shared upload",
+        content_type="image/png",
+    )
+    session.add_all(
+        [
+            ImportJob(
+                id=1101,
+                job_uuid="job-delete-shared-a",
+                user_id=1,
+                state=ImportJobState.PENDING_REVIEW,
+                progress=100,
+            ),
+            ImportJob(
+                id=1102,
+                job_uuid="job-delete-shared-b",
+                user_id=1,
+                state=ImportJobState.PENDING_REVIEW,
+                progress=100,
+            ),
+            Upload(
+                id=1103,
+                sha256="shared-upload-sha",
+                storage_backend=storage.backend_name,
+                storage_key=upload.storage_key,
+                filename=upload.filename,
+                original_filename="shared.png",
+                size_bytes=upload.size_bytes,
+                mime_type="image/png",
+                uploader_user_id=1,
+            ),
+        ]
+    )
+    session.commit()
+    session.add_all(
+        [
+            ImportJobUpload(job_id=1101, upload_id=1103),
+            ImportJobUpload(job_id=1102, upload_id=1103),
+        ]
+    )
+    session.commit()
+    storage_usage_service.record_allocation_sync(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.UPLOAD,
+        bytes_count=upload.size_bytes,
+        reason="seed_upload",
+        object_type="upload",
+        object_id="shared-upload-sha",
+        storage_key=upload.storage_key,
+    )
+
+    await ImportJobService(storage=storage).delete(
+        AsyncSessionAdapter(session),
+        "job-delete-shared-a",
+        1,
+    )
+
+    assert session.get(ImportJob, 1101) is None
+    assert session.get(ImportJob, 1102) is not None
+    assert session.get(Upload, 1103) is not None
+    assert storage.exists(upload.storage_key)
+    account = session.get(StorageUsageAccount, 1)
+    assert account is not None
+    assert account.used_bytes == upload.size_bytes

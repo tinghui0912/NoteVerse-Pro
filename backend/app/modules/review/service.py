@@ -19,6 +19,7 @@ from app.db.models import (
     LibraryEntrySourceType,
     ImportArtifact,
     ImportJob,
+    ImportJobUpload,
     NotificationEvent,
     Score,
     ScoreRenderAsset,
@@ -26,6 +27,7 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionSource,
     StorageUsageCategory,
+    Upload,
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import (
@@ -129,6 +131,7 @@ class ReviewService:
         options = job.requested_options if isinstance(job.requested_options, dict) else {}
         title = options.get("title")
         taxonomy_tags = options.get("taxonomy_tags")
+        original_images = await self._upload_reads(db, job_id)
         return ImportJobReviewRead(
             job_id=job.job_uuid,
             state=job.state,
@@ -140,7 +143,7 @@ class ReviewService:
                 mime_type=musicxml_artifact.mime_type,
                 sha256=musicxml_artifact.sha256,
             ),
-            original_images=self._artifact_reads(artifacts, FileKind.ORIGINAL_IMAGE.value),
+            original_images=original_images,
             created_at=job.created_at,
             updated_at=job.updated_at,
         )
@@ -412,6 +415,7 @@ class ReviewService:
             content=content,
             content_type="application/vnd.recordare.musicxml+xml",
         )
+        business_committed = False
         try:
             artifact.storage_backend = self.storage.backend_name
             artifact.storage_key = stored.storage_key
@@ -495,22 +499,25 @@ class ReviewService:
         event.score_id = score_uuid
         event.data = data
 
-    @staticmethod
-    def _artifact_reads(
-        artifacts: list[ImportArtifact],
-        kind: str,
-    ) -> list[ReviewArtifactRead]:
+    async def _upload_reads(self, db: AsyncSession, job_id: int) -> list[ReviewArtifactRead]:
+        rows = (
+            await db.execute(
+                select(Upload)
+                .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
+                .where(ImportJobUpload.job_id == job_id)
+                .order_by(ImportJobUpload.id.asc())
+            )
+        ).scalars().all()
         return [
             ReviewArtifactRead(
-                artifact_id=artifact.artifact_uuid,
-                filename=artifact.filename,
-                mime_type=artifact.mime_type,
-                size=artifact.size_bytes,
-                sha256=artifact.sha256,
-                page_number=artifact.page_number,
+                artifact_id=f"upload:{require_persisted_id(upload.id, entity='upload')}",
+                filename=upload.original_filename or upload.filename,
+                mime_type=upload.mime_type,
+                size=upload.size_bytes,
+                sha256=upload.sha256,
+                page_number=index + 1,
             )
-            for artifact in artifacts
-            if artifact.kind == kind
+            for index, upload in enumerate(rows)
         ]
 
     @staticmethod

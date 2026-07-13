@@ -44,11 +44,6 @@ class CopyImageStep(Step):
 
         ctx.raw_paths = [dst]
 
-        from app.shared.file_kinds import FileKind
-        from app.pipeline.files_recorder import replace_files
-
-        replace_files(ctx.job_id, FileKind.ORIGINAL_IMAGE, [os.path.abspath(dst)])
-
         logger.info(f"[{ctx.job_id}] Input copy completed: {dst}")
 
 
@@ -83,14 +78,5 @@ class CopyImagesStep(Step):
             raw_paths.append(dst)
 
         ctx.raw_paths = raw_paths
-
-        from app.shared.file_kinds import FileKind
-        from app.pipeline.files_recorder import replace_files
-
-        replace_files(
-            ctx.job_id,
-            FileKind.ORIGINAL_IMAGE,
-            [os.path.abspath(path) for path in raw_paths],
-        )
 
         logger.info(f"[{ctx.job_id}] Input copy completed: {len(raw_paths)} images")

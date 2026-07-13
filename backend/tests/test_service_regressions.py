@@ -237,12 +237,12 @@ def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
         with patch("app.pipeline.files_recorder.file_storage", storage):
             item = _build_file_item(
                 "task-1",
-                FileKind.ORIGINAL_IMAGE,
+                FileKind.REVIEW_MUSICXML,
                 output_path,
                 page=1,
             )
 
-        assert item["storage_key"] == "jobs/task-1/original_image/001-input.jpg"
+        assert item["storage_key"] == "jobs/task-1/review_musicxml/001-input.jpg"
         assert "FileKind" not in item["storage_key"]
 
 
@@ -370,6 +370,9 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
 
     upload = SimpleNamespace(
         storage_key="scores/orphan.png",
+        sha256="orphan-sha",
+        size_bytes=123,
+        uploader_user_id=7,
         created_at=utc_now_naive() - timedelta(days=2),
     )
     repository.list_orphan_uploads.return_value = [upload]
@@ -377,11 +380,17 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
     with patch(
         "app.modules.import_jobs.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
         86400,
-    ):
+    ), patch(
+        "app.modules.import_jobs.maintenance_service.storage_usage_service.record_release_sync"
+    ) as release_usage:
         deleted = service.cleanup_orphan_uploads(db)
 
     assert deleted == 1
     storage.delete.assert_called_once_with("scores/orphan.png")
+    release_usage.assert_called_once()
+    assert release_usage.call_args.kwargs["user_id"] == 7
+    assert release_usage.call_args.kwargs["bytes_count"] == 123
+    assert release_usage.call_args.kwargs["storage_key"] == "scores/orphan.png"
     db.delete.assert_called_once_with(upload)
     db.commit.assert_called_once()
 

@@ -14,7 +14,6 @@ from app.pipeline import PipelineBuilder
 from app.pipeline.steps.input import CopyImageStep
 from app.pipeline.steps.normalize import XmlNormalizeStep
 from app.pipeline.steps.omr import OmrStep
-from app.pipeline.steps.preview import PreviewGenerationStep
 from app.processing.engines.omr.factory import create_omr_engine
 from app.processing.engines.omr.legato import LegatoOmrEngine
 from app.processing.engines.render.factory import create_score_render_engine
@@ -39,74 +38,12 @@ def test_copy_image_step_copies_input_and_updates_context() -> None:
             create_dirs=lambda: os.makedirs(raw_dir, exist_ok=True),
         )
 
-        with patch("app.pipeline.files_recorder.replace_files") as replace_files_mock:
-            step.run(ctx)
+        step.run(ctx)
 
         assert len(ctx.raw_paths) == 1
         assert os.path.exists(ctx.raw_paths[0])
         with open(ctx.raw_paths[0], "rb") as file_handle:
             assert file_handle.read() == b"image-bytes"
-        replace_files_mock.assert_called_once()
-
-
-def test_preview_generation_step_renders_and_records_preview_images() -> None:
-    step = PreviewGenerationStep()
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        main_xml = os.path.join(temp_dir, "main.xml")
-        preview_dir = os.path.join(temp_dir, "preview")
-        os.makedirs(preview_dir, exist_ok=True)
-
-        with open(main_xml, "w", encoding="utf-8") as file_handle:
-            file_handle.write("<score-partwise />")
-
-        preview_output = os.path.join(preview_dir, "preview.png")
-
-        class FakeEngine:
-            engine_name = "test-renderer"
-            default_output_format = "png"
-
-            def render_score(
-                self,
-                *,
-                xml_path: str,
-                output_name: str,
-                output_format: str | None = None,
-            ):
-                selected_format = output_format or self.default_output_format
-                with open(preview_output, "wb") as file_handle:
-                    file_handle.write(b"png")
-                return {
-                    "success": True,
-                    "engine": self.engine_name,
-                    "files": [
-                        {
-                            "path": preview_output,
-                            "page": 1,
-                            "format": selected_format,
-                            "mime_type": "image/png",
-                        }
-                    ],
-                    "stdout": "",
-                    "stderr": "",
-                }
-
-        ctx = SimpleNamespace(
-            job_id="job-2",
-            main_xml=main_xml,
-            preview_dir=preview_dir,
-            remaining=lambda: 120,
-        )
-
-        with patch("app.processing.engines.render.create_score_render_engine", return_value=FakeEngine()):
-            with patch("app.pipeline.files_recorder.replace_files") as replace_files_mock:
-                step.run(ctx)
-
-        replace_files_mock.assert_called_once()
-        args, kwargs = replace_files_mock.call_args
-        assert args[0] == "job-2"
-        assert args[2]
-        assert os.path.exists(args[2][0])
 
 
 def test_job_context_complete_records_review_musicxml_without_creating_score() -> None:
