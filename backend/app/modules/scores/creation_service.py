@@ -10,18 +10,14 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import (
     ImportJob,
     Score,
-    ScoreArtifact,
     ScoreRevision,
     ScoreRevisionMetadata,
+    ScoreRevisionSource,
     ScoreTaxonomyTag,
     TaxonomyCategory,
     TaxonomyTag,
 )
-from app.db.models.score import (
-    ArtifactKind,
-    MetadataStatus,
-    RevisionOrigin,
-)
+from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
 from app.storage import FileStorage, file_storage
 from app.modules.metadata.service import rebuild_metadata_sync
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER, ordered_unique_pairs
@@ -129,10 +125,10 @@ class SyncConfirmedScoreCreationService:
             db.flush()
             revision_id = require_persisted_id(revision.id, entity="score revision")
             db.add(
-                ScoreArtifact(
-                    artifact_uuid=str(uuid.uuid4()),
+                ScoreRevisionSource(
+                    source_uuid=str(uuid.uuid4()),
                     revision_id=revision_id,
-                    kind=ArtifactKind.MUSICXML,
+                    format=RevisionSourceFormat.MUSICXML,
                     storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,

@@ -13,11 +13,11 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import (
     PlaybackAssetKind,
     Score,
-    ScoreArtifact,
     ScorePlaybackAsset,
     ScoreRevision,
+    ScoreRevisionSource,
 )
-from app.db.models.score import ArtifactKind
+from app.db.models.score import RevisionSourceFormat
 from app.db.models.score_access import PublicationStatus
 from app.modules.playback.audio_renderer import FluidSynthAudioRenderer
 from app.modules.publications.repository import PublicationRepository
@@ -83,9 +83,9 @@ class PlaybackService:
 
         artifact = (
             await db.execute(
-                select(ScoreArtifact).where(
-                    ScoreArtifact.revision_id == revision_id,
-                    ScoreArtifact.kind == ArtifactKind.MUSICXML,
+                select(ScoreRevisionSource).where(
+                    ScoreRevisionSource.revision_id == revision_id,
+                    ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
                 )
             )
         ).scalar_one_or_none()
@@ -304,9 +304,9 @@ class PlaybackService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_fingerprint")
 
         artifact = db.execute(
-            select(ScoreArtifact).where(
-                ScoreArtifact.revision_id == revision_id,
-                ScoreArtifact.kind == ArtifactKind.MUSICXML,
+            select(ScoreRevisionSource).where(
+                ScoreRevisionSource.revision_id == revision_id,
+                ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
             )
         ).scalar_one_or_none()
         if artifact is None:

@@ -26,12 +26,13 @@ from app.db.models import (
     PlaybackOutbox,
     RealtimeEvent,
     Score,
-    ScoreArtifact,
     ScorePlaybackAsset,
+    ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionEvent,
     ScoreRevisionMetadata,
     ScoreRevisionNote,
+    ScoreRevisionSource,
     ScoreLibraryEntry,
     ScoreInvite,
     ScoreMembership,
@@ -46,7 +47,7 @@ from app.db.models import (
 )
 from app.db.models.library import LibraryEntrySourceType
 from app.db.models.import_job import ImportJobState
-from app.db.models.score import ArtifactKind, RevisionOrigin
+from app.db.models.score import RenderAssetKind, RevisionOrigin, RevisionSourceFormat
 from app.db.models.score import MetadataStatus
 from app.db.models.score_access import (
     InviteStatus,
@@ -245,10 +246,10 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
     assert session.query(Score).count() == 1
     score = session.query(Score).one()
     revision = session.query(ScoreRevision).one()
-    artifact = session.query(ScoreArtifact).one()
+    artifact = session.query(ScoreRevisionSource).one()
     metadata = session.get(ScoreRevisionMetadata, revision.id)
     assert score.head_revision_id == revision.id
-    assert artifact.kind == ArtifactKind.MUSICXML
+    assert artifact.format == RevisionSourceFormat.MUSICXML
     assert storage.exists(artifact.storage_key)
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
@@ -604,18 +605,18 @@ async def test_review_confirm_creates_active_score_once(
     assert detail_after_confirm.score_id == score.score_uuid
     assert detail_after_confirm.musicxml is None
     assert (
-        session.query(ScoreArtifact)
+        session.query(ScoreRevisionSource)
         .filter_by(
             revision_id=revision.id,
-            kind=ArtifactKind.MUSICXML,
+            format=RevisionSourceFormat.MUSICXML,
         )
             .one()
     )
     copied_thumbnail = (
-        session.query(ScoreArtifact)
+        session.query(ScoreRenderAsset)
         .filter_by(
             revision_id=revision.id,
-            kind=ArtifactKind.RENDERED_PAGE,
+            kind=RenderAssetKind.RENDERED_PAGE,
             render_profile="default",
             page_number=1,
         )
@@ -667,10 +668,10 @@ async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending
     score.head_revision_id = 22
     session.add_all(
         [
-            ScoreArtifact(
-                artifact_uuid="old-thumbnail",
+            ScoreRenderAsset(
+                asset_uuid="old-thumbnail",
                 revision_id=21,
-                kind=ArtifactKind.RENDERED_PAGE,
+                kind=RenderAssetKind.RENDERED_PAGE,
                 storage_backend="local",
                 storage_key=stored_thumbnail.storage_key,
                 filename=stored_thumbnail.filename,
@@ -740,11 +741,11 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
     session.commit()
     score.head_revision_id = 40
     session.add(
-        ScoreArtifact(
+        ScoreRevisionSource(
             id=50,
-            artifact_uuid="artifact-1",
+            source_uuid="artifact-1",
             revision_id=40,
-            kind=ArtifactKind.MUSICXML,
+            format=RevisionSourceFormat.MUSICXML,
             storage_backend="local",
             storage_key=initial.storage_key,
             filename=initial.filename,
@@ -799,25 +800,25 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
 
 
 @pytest.mark.asyncio
-async def test_revision_rollback_creates_new_head_from_target_revision(
+async def test_revision_restore_creates_new_head_from_target_revision(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, storage = score_service_session
     first = storage.put_bytes(
-        key="scores/score-rollback/revisions/revision-1/score.musicxml",
+        key="scores/score-restore/revisions/revision-1/score.musicxml",
         content=MUSICXML_1,
         content_type="application/vnd.recordare.musicxml+xml",
     )
     second = storage.put_bytes(
-        key="scores/score-rollback/revisions/revision-2/score.musicxml",
+        key="scores/score-restore/revisions/revision-2/score.musicxml",
         content=MUSICXML_2.encode("utf-8"),
         content_type="application/vnd.recordare.musicxml+xml",
     )
     score = Score(
         id=31,
-        score_uuid="score-rollback",
+        score_uuid="score-restore",
         owner_user_id=1,
-        title="Rollback Score",
+        title="Restore Score",
         version=2,
     )
     revision_1 = ScoreRevision(
@@ -843,10 +844,10 @@ async def test_revision_rollback_creates_new_head_from_target_revision(
     score.head_revision_id = 42
     session.add_all(
         [
-            ScoreArtifact(
-                artifact_uuid="rollback-artifact-1",
+            ScoreRevisionSource(
+                source_uuid="restore-source-1",
                 revision_id=41,
-                kind=ArtifactKind.MUSICXML,
+                format=RevisionSourceFormat.MUSICXML,
                 storage_backend="local",
                 storage_key=first.storage_key,
                 filename=first.filename,
@@ -855,10 +856,10 @@ async def test_revision_rollback_creates_new_head_from_target_revision(
                 generator="test",
                 generator_version="1",
             ),
-            ScoreArtifact(
-                artifact_uuid="rollback-artifact-2",
+            ScoreRevisionSource(
+                source_uuid="restore-source-2",
                 revision_id=42,
-                kind=ArtifactKind.MUSICXML,
+                format=RevisionSourceFormat.MUSICXML,
                 storage_backend="local",
                 storage_key=second.storage_key,
                 filename=second.filename,
@@ -873,9 +874,9 @@ async def test_revision_rollback_creates_new_head_from_target_revision(
     async_db = AsyncSessionAdapter(session)
     service = RevisionService(storage=storage)
 
-    restored = await service.rollback(  # type: ignore[arg-type]
+    restored = await service.restore(  # type: ignore[arg-type]
         async_db,
-        "score-rollback",
+        "score-restore",
         "revision-1",
         1,
         RevisionRestoreRequest(note="Return to the imported baseline"),
@@ -888,8 +889,8 @@ async def test_revision_rollback_creates_new_head_from_target_revision(
         .one()
     )
     new_artifact = (
-        session.query(ScoreArtifact)
-        .filter(ScoreArtifact.revision_id == new_revision.id)
+        session.query(ScoreRevisionSource)
+        .filter(ScoreRevisionSource.revision_id == new_revision.id)
         .one()
     )
     metadata = session.get(ScoreRevisionMetadata, new_revision.id)
@@ -1014,10 +1015,10 @@ async def test_derived_asset_retention_keeps_current_and_recent_history(
         stored_keys[f"xml-{revision.revision_number}"] = musicxml.storage_key
         session.add_all(
             [
-                ScoreArtifact(
-                    artifact_uuid=f"retention-render-{revision.revision_number}",
+                ScoreRenderAsset(
+                    asset_uuid=f"retention-render-{revision.revision_number}",
                     revision_id=revision_id,
-                    kind=ArtifactKind.RENDERED_PAGE,
+                    kind=RenderAssetKind.RENDERED_PAGE,
                     storage_backend="local",
                     storage_key=rendered.storage_key,
                     filename=rendered.filename,
@@ -1029,10 +1030,10 @@ async def test_derived_asset_retention_keeps_current_and_recent_history(
                     generator="test",
                     generator_version="1",
                 ),
-                ScoreArtifact(
-                    artifact_uuid=f"retention-xml-{revision.revision_number}",
+                ScoreRevisionSource(
+                    source_uuid=f"retention-xml-{revision.revision_number}",
                     revision_id=revision_id,
-                    kind=ArtifactKind.MUSICXML,
+                    format=RevisionSourceFormat.MUSICXML,
                     storage_backend="local",
                     storage_key=musicxml.storage_key,
                     filename=musicxml.filename,
@@ -1070,9 +1071,9 @@ async def test_derived_asset_retention_keeps_current_and_recent_history(
 
     assert result.rendered_pages_deleted == 2
     assert result.playback_assets_deleted == 2
-    assert session.query(ScoreArtifact).filter_by(kind=ArtifactKind.RENDERED_PAGE).count() == 3
+    assert session.query(ScoreRenderAsset).filter_by(kind=RenderAssetKind.RENDERED_PAGE).count() == 3
     assert session.query(ScorePlaybackAsset).count() == 3
-    assert session.query(ScoreArtifact).filter_by(kind=ArtifactKind.MUSICXML).count() == 5
+    assert session.query(ScoreRevisionSource).filter_by(format=RevisionSourceFormat.MUSICXML).count() == 5
     for number in (1, 2):
         assert not storage.exists(stored_keys[f"render-{number}"])
         assert not storage.exists(stored_keys[f"audio-{number}"])
@@ -1530,7 +1531,7 @@ async def test_generate_fingering_returns_xml_without_creating_revision(
     fingering_service = FakeFingeringService()
     service = RevisionService(storage=storage, fingering_service=fingering_service)
     revision_count = session.query(ScoreRevision).count()
-    artifact_count = session.query(ScoreArtifact).count()
+    source_count = session.query(ScoreRevisionSource).count()
 
     result = await service.generate_fingering(
         AsyncSessionAdapter(session),  # type: ignore[arg-type]
@@ -1548,7 +1549,7 @@ async def test_generate_fingering_returns_xml_without_creating_revision(
         }
     ]
     assert session.query(ScoreRevision).count() == revision_count
-    assert session.query(ScoreArtifact).count() == artifact_count
+    assert session.query(ScoreRevisionSource).count() == source_count
 
 
 @pytest.mark.asyncio
@@ -1634,13 +1635,13 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
     )
     score = session.query(Score).filter_by(score_uuid=score_uuid).one()
     revision = session.get(ScoreRevision, score.head_revision_id)
-    artifact = session.query(ScoreArtifact).filter_by(revision_id=revision.id).one()
+    artifact = session.query(ScoreRevisionSource).filter_by(revision_id=revision.id).one()
     service = ArtifactService(storage=storage)
     async_db = AsyncSessionAdapter(session)
 
     delivery = await service.delivery(
         async_db,
-        artifact.artifact_uuid,
+        artifact.source_uuid,
         1,  # type: ignore[arg-type]
     )
     assert delivery.path is not None
@@ -1648,7 +1649,7 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
     with pytest.raises(UnauthorizedException):
         await service.delivery(
             async_db,
-            artifact.artifact_uuid,
+            artifact.source_uuid,
             2,  # type: ignore[arg-type]
         )
 
@@ -1659,7 +1660,7 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
         revision.revision_uuid,
         1,
     )
-    assert diagnostics.missing_artifact_ids == [artifact.artifact_uuid]
+    assert diagnostics.missing_artifact_ids == [artifact.source_uuid]
 
 
 @pytest.mark.asyncio
@@ -1932,10 +1933,10 @@ async def test_share_detail_exposes_display_assets_without_musicxml_when_downloa
     )
     session.add_all(
         [
-            ScoreArtifact(
-                artifact_uuid="share-old-preview",
+            ScoreRenderAsset(
+                asset_uuid="share-old-preview",
                 revision_id=211,
-                kind=ArtifactKind.RENDERED_PAGE,
+                kind=RenderAssetKind.RENDERED_PAGE,
                 storage_backend="local",
                 storage_key=old_thumbnail.storage_key,
                 filename=old_thumbnail.filename,
@@ -1962,10 +1963,10 @@ async def test_share_detail_exposes_display_assets_without_musicxml_when_downloa
                 generator="test",
                 generator_version="1",
             ),
-            ScoreArtifact(
-                artifact_uuid="share-new-musicxml",
+            ScoreRevisionSource(
+                source_uuid="share-new-musicxml",
                 revision_id=212,
-                kind=ArtifactKind.MUSICXML,
+                format=RevisionSourceFormat.MUSICXML,
                 storage_backend="local",
                 storage_key=new_xml.storage_key,
                 filename=new_xml.filename,
@@ -2539,10 +2540,10 @@ async def test_public_detail_exposes_derived_fallback_without_musicxml_when_down
     )
     session.add_all(
         [
-            ScoreArtifact(
-                artifact_uuid="public-old-preview",
+            ScoreRenderAsset(
+                asset_uuid="public-old-preview",
                 revision_id=221,
-                kind=ArtifactKind.RENDERED_PAGE,
+                kind=RenderAssetKind.RENDERED_PAGE,
                 storage_backend="local",
                 storage_key=old_thumbnail.storage_key,
                 filename=old_thumbnail.filename,
@@ -2554,10 +2555,10 @@ async def test_public_detail_exposes_derived_fallback_without_musicxml_when_down
                 generator="test",
                 generator_version="1",
             ),
-            ScoreArtifact(
-                artifact_uuid="public-new-musicxml",
+            ScoreRevisionSource(
+                source_uuid="public-new-musicxml",
                 revision_id=222,
-                kind=ArtifactKind.MUSICXML,
+                format=RevisionSourceFormat.MUSICXML,
                 storage_backend="local",
                 storage_key=new_xml.storage_key,
                 filename=new_xml.filename,

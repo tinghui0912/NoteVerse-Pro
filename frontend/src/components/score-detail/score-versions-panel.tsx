@@ -34,7 +34,7 @@ import { ResourceLoading } from '@/components/loading';
 import { ResourceLoadError } from '@/components/states';
 import { useToast } from '@/hooks/use-toast';
 import {
-  useRollbackRevision,
+  useRestoreRevision,
   useScoreRevisions,
   useUpdateRevisionNote,
 } from '@/hooks/queries/use-score-queries';
@@ -47,7 +47,7 @@ import type { ScoreRevision } from '@/types/api';
 interface ScoreVersionsPanelProps {
   scoreId: string;
   headRevisionId: string | null;
-  canRollback: boolean;
+  canRestore: boolean;
 }
 
 const originLabels: Record<string, string> = {
@@ -59,7 +59,7 @@ const originLabels: Record<string, string> = {
 export function ScoreVersionsPanel({
   scoreId,
   headRevisionId,
-  canRollback,
+  canRestore,
 }: ScoreVersionsPanelProps) {
   const t = useTranslations('score');
   const common = useTranslations('common');
@@ -71,7 +71,7 @@ export function ScoreVersionsPanel({
   const [noteTargetId, setNoteTargetId] = useState<string | null>(null);
   const [expandedRevisionId, setExpandedRevisionId] = useState<string | null>(null);
   const revisions = useScoreRevisions(scoreId);
-  const rollback = useRollbackRevision();
+  const restoreRevision = useRestoreRevision();
   const updateNote = useUpdateRevisionNote();
   const error = revisions.error instanceof ApiError && revisions.error.code
     ? translateErrorCode(errors, revisions.error.code, common('loadFailed'))
@@ -86,10 +86,10 @@ export function ScoreVersionsPanel({
   const restoreTarget = items.find((revision) => revision.revision_id === restoreTargetId) ?? null;
   const noteTarget = items.find((revision) => revision.revision_id === noteTargetId) ?? null;
 
-  const handleRollback = () => {
+  const handleRestore = () => {
     if (!restoreTarget) return;
     const note = restoreNote.trim();
-    rollback.mutate(
+    restoreRevision.mutate(
       { scoreId, revisionId: restoreTarget.revision_id, note: note || null },
       {
         onSuccess: () => {
@@ -177,7 +177,7 @@ export function ScoreVersionsPanel({
             key={revision.revision_id}
             revision={revision}
             isCurrent={revision.revision_id === headRevisionId}
-            canRestore={canRollback && revision.revision_id !== headRevisionId}
+            canRestore={canRestore && revision.revision_id !== headRevisionId}
             isExpanded={expandedRevisionId === revision.revision_id}
             onToggleDetails={() =>
               setExpandedRevisionId(
@@ -234,7 +234,7 @@ export function ScoreVersionsPanel({
           />
           <AlertDialogFooter>
             <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
-            <AlertDialogAction disabled={rollback.isPending} onClick={handleRollback}>
+            <AlertDialogAction disabled={restoreRevision.isPending} onClick={handleRestore}>
               {t('restoreRevision')}
             </AlertDialogAction>
           </AlertDialogFooter>

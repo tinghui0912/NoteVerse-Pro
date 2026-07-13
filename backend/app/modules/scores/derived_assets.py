@@ -76,7 +76,7 @@ async def score_derived_assets(
     return ScoreDerivedAssetsRead(
         preview=ScoreDerivedAssetRead(
             status=preview_status,
-            artifact_id=displayed_thumbnail.artifact_uuid if displayed_thumbnail else None,
+            artifact_id=displayed_thumbnail.asset_uuid if displayed_thumbnail else None,
             revision_id=(
                 displayed_thumbnail_revision.revision_uuid
                 if displayed_thumbnail_revision

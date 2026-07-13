@@ -1,17 +1,30 @@
 from __future__ import annotations
 
+from typing import TypeAlias
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ScoreArtifact, ScoreRevision
+from app.db.models import ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
 from app.db.models.score import ArtifactKind
+
+ArtifactRecord: TypeAlias = ScoreRevisionSource | ScoreRenderAsset
 
 
 class ArtifactRepository:
-    async def get(self, db: AsyncSession, artifact_uuid: str) -> ScoreArtifact | None:
+    async def get(self, db: AsyncSession, artifact_uuid: str) -> ArtifactRecord | None:
+        source = (
+            await db.execute(
+                select(ScoreRevisionSource).where(
+                    ScoreRevisionSource.source_uuid == artifact_uuid
+                )
+            )
+        ).scalar_one_or_none()
+        if source is not None:
+            return source
         return (
             await db.execute(
-                select(ScoreArtifact).where(ScoreArtifact.artifact_uuid == artifact_uuid)
+                select(ScoreRenderAsset).where(ScoreRenderAsset.asset_uuid == artifact_uuid)
             )
         ).scalar_one_or_none()
 
@@ -20,14 +33,29 @@ class ArtifactRepository:
         db: AsyncSession,
         revision_id: int,
         kind: ArtifactKind | None = None,
-    ) -> list[ScoreArtifact]:
-        statement = select(ScoreArtifact).where(ScoreArtifact.revision_id == revision_id)
-        if kind is not None:
-            statement = statement.where(ScoreArtifact.kind == kind)
-        statement = statement.order_by(ScoreArtifact.kind, ScoreArtifact.page_number)
-        return list((await db.execute(statement)).scalars().all())
+    ) -> list[ArtifactRecord]:
+        items: list[ArtifactRecord] = []
+        if kind in {None, ArtifactKind.MUSICXML}:
+            sources = (
+                await db.execute(
+                    select(ScoreRevisionSource).where(
+                        ScoreRevisionSource.revision_id == revision_id
+                    )
+                )
+            ).scalars().all()
+            items.extend(sources)
+        if kind in {None, ArtifactKind.RENDERED_PAGE}:
+            renders = (
+                await db.execute(
+                    select(ScoreRenderAsset)
+                    .where(ScoreRenderAsset.revision_id == revision_id)
+                    .order_by(ScoreRenderAsset.kind, ScoreRenderAsset.page_number)
+                )
+            ).scalars().all()
+            items.extend(renders)
+        return items
 
     async def revision_for_artifact(
-        self, db: AsyncSession, artifact: ScoreArtifact
+        self, db: AsyncSession, artifact: ArtifactRecord
     ) -> ScoreRevision | None:
         return await db.get(ScoreRevision, artifact.revision_id)

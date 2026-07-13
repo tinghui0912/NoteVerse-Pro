@@ -8,13 +8,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.db.models.score import (
-    ArtifactKind,
     MetadataStatus,
+    RenderAssetKind,
     RevisionOrigin,
+    RevisionSourceFormat,
     Score,
-    ScoreArtifact,
+    ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
+    ScoreRevisionSource,
 )
 from app.db.models.score_access import (
     MembershipRole,
@@ -107,17 +109,33 @@ def assert_commit_rejected(session: Session, instance: SQLModel) -> None:
     session.rollback()
 
 
-def artifact(*, artifact_id: int, key: str, kind: ArtifactKind) -> ScoreArtifact:
-    return ScoreArtifact(
-        id=artifact_id,
-        artifact_uuid=f"artifact-{artifact_id}",
+def revision_source(*, source_id: int, key: str) -> ScoreRevisionSource:
+    return ScoreRevisionSource(
+        id=source_id,
+        source_uuid=f"source-{source_id}",
         revision_id=100,
-        kind=kind,
+        format=RevisionSourceFormat.MUSICXML,
         storage_backend="local",
         storage_key=key,
         filename="score.musicxml",
         mime_type="application/vnd.recordare.musicxml+xml",
-        sha256=str(artifact_id).zfill(64),
+        sha256=str(source_id).zfill(64),
+        generator="noteverse",
+        generator_version="1",
+    )
+
+
+def render_asset(*, asset_id: int, key: str) -> ScoreRenderAsset:
+    return ScoreRenderAsset(
+        id=asset_id,
+        asset_uuid=f"asset-{asset_id}",
+        revision_id=100,
+        kind=RenderAssetKind.RENDERED_PAGE,
+        storage_backend="local",
+        storage_key=key,
+        filename="page.svg",
+        mime_type="image/svg+xml",
+        sha256=str(asset_id).zfill(64),
         generator="noteverse",
         generator_version="1",
     )
@@ -132,17 +150,6 @@ def test_revision_order_content_and_lineage_are_constrained(score_session: Sessi
             score_id=10,
             revision_number=1,
             content_hash="c" * 64,
-            origin=RevisionOrigin.EDIT,
-        ),
-    )
-    assert_commit_rejected(
-        score_session,
-        ScoreRevision(
-            id=103,
-            revision_uuid="duplicate-content",
-            score_id=10,
-            revision_number=2,
-            content_hash="a" * 64,
             origin=RevisionOrigin.EDIT,
         ),
     )
@@ -172,23 +179,23 @@ def test_score_revision_pointer_cannot_cross_scores(score_session: Session) -> N
 def test_artifact_constraints_protect_canonical_and_rendered_payloads(
     score_session: Session,
 ) -> None:
-    score_session.add(artifact(artifact_id=200, key="scores/10/revisions/100/musicxml.xml", kind=ArtifactKind.MUSICXML))
+    score_session.add(
+        revision_source(source_id=200, key="scores/10/revisions/100/musicxml.xml")
+    )
     score_session.commit()
 
     assert_commit_rejected(
         score_session,
-        artifact(
-            artifact_id=201,
+        revision_source(
+            source_id=201,
             key="scores/10/revisions/100/duplicate.musicxml",
-            kind=ArtifactKind.MUSICXML,
         ),
     )
     assert_commit_rejected(
         score_session,
-        artifact(
-            artifact_id=202,
+        render_asset(
+            asset_id=202,
             key="scores/10/revisions/100/page.svg",
-            kind=ArtifactKind.RENDERED_PAGE,
         ),
     )
 

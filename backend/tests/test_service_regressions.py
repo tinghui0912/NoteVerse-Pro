@@ -589,7 +589,6 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
-        share_token="share-1",
     )
 
     assert result == {

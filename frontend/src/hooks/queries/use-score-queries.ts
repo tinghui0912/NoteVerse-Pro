@@ -80,11 +80,11 @@ export function useCreateRevision() {
   });
 }
 
-export function useRollbackRevision() {
+export function useRestoreRevision() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ scoreId, revisionId, note }: { scoreId: string; revisionId: string; note?: string | null }) =>
-      scoresApi.rollbackRevision(scoreId, revisionId, { note }),
+      scoresApi.restoreRevision(scoreId, revisionId, { note }),
     onSuccess: (_response, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });

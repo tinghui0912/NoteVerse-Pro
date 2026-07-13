@@ -14,14 +14,14 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    ScoreArtifact,
     ScoreRevision,
     ScoreRevisionEvent,
     ScoreRevisionMetadata,
     ScoreRevisionNote,
+    ScoreRevisionSource,
     User,
 )
-from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
+from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
 from app.modules.revisions.schemas import (
     FingeringRequest,
     FingeringResultRead,
@@ -155,10 +155,10 @@ class RevisionService:
             await db.flush()
             revision_id = require_persisted_id(revision.id, entity="score revision")
             db.add(
-                ScoreArtifact(
-                    artifact_uuid=str(uuid.uuid4()),
+                ScoreRevisionSource(
+                    source_uuid=str(uuid.uuid4()),
                     revision_id=revision_id,
-                    kind=ArtifactKind.MUSICXML,
+                    format=RevisionSourceFormat.MUSICXML,
                     storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
@@ -250,7 +250,7 @@ class RevisionService:
             next_cursor=next_cursor,
         )
 
-    async def rollback(
+    async def restore(
         self,
         db: AsyncSession,
         score_uuid: str,
@@ -314,17 +314,17 @@ class RevisionService:
             await db.flush()
             revision_id = require_persisted_id(revision.id, entity="score revision")
             db.add(
-                ScoreArtifact(
-                    artifact_uuid=str(uuid.uuid4()),
+                ScoreRevisionSource(
+                    source_uuid=str(uuid.uuid4()),
                     revision_id=revision_id,
-                    kind=ArtifactKind.MUSICXML,
+                    format=RevisionSourceFormat.MUSICXML,
                     storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
                     mime_type=artifact.mime_type,
                     size_bytes=stored.size_bytes,
                     sha256=content_hash,
-                    generator="rollback",
+                    generator="restore",
                     generator_version="1",
                 )
             )

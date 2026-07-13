@@ -91,8 +91,8 @@ async def list_revisions(
     return success_response(data=result)
 
 
-@router.post("/{score_id}/revisions/{revision_id}/rollback", response_model=APIResponse[RevisionRead])
-async def rollback_revision(
+@router.post("/{score_id}/revisions/{revision_id}/restore", response_model=APIResponse[RevisionRead])
+async def restore_revision(
     score_id: str,
     revision_id: str,
     request: RevisionRestoreRequest | None = None,
@@ -101,7 +101,7 @@ async def rollback_revision(
     service: RevisionService = Depends(get_revision_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.rollback(db, score_id, revision_id, user_id, request)
+    result = await service.restore(db, score_id, revision_id, user_id, request)
     return success_response(data=result, message=SuccessCode.SAVE_SUCCESS)
 
 

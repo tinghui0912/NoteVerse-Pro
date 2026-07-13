@@ -11,10 +11,11 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
-    ScoreArtifact,
     ScorePlaybackAsset,
+    ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
+    ScoreRevisionSource,
 )
 from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.derived_assets import score_derived_assets
@@ -140,8 +141,20 @@ class ScoreService:
         keys = list(
             (
                 await db.execute(
-                    select(ScoreArtifact.storage_key)
-                    .join(ScoreRevision, ScoreArtifact.revision_id == ScoreRevision.id)
+                    select(ScoreRevisionSource.storage_key)
+                    .join(
+                        ScoreRevision,
+                        ScoreRevisionSource.revision_id == ScoreRevision.id,
+                    )
+                    .where(ScoreRevision.score_id == score_id)
+                )
+            ).scalars().all()
+        )
+        keys.extend(
+            (
+                await db.execute(
+                    select(ScoreRenderAsset.storage_key)
+                    .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
                     .where(ScoreRevision.score_id == score_id)
                 )
             ).scalars().all()

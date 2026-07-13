@@ -102,7 +102,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
       label: t('versionsAction'),
       content: (
         <ScoreVersionsPanel
-          canRollback={score.capabilities.can_edit}
+          canRestore={score.capabilities.can_edit}
           headRevisionId={score.head_revision_id}
           scoreId={score.score_id}
         />

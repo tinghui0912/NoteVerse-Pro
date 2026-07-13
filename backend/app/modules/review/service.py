@@ -21,12 +21,18 @@ from app.db.models import (
     ImportJob,
     NotificationEvent,
     Score,
-    ScoreArtifact,
+    ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
+    ScoreRevisionSource,
 )
 from app.db.models.import_job import ImportJobState
-from app.db.models.score import ArtifactKind, MetadataStatus, RevisionOrigin
+from app.db.models.score import (
+    MetadataStatus,
+    RenderAssetKind,
+    RevisionOrigin,
+    RevisionSourceFormat,
+)
 from app.modules.library.service import LibraryService
 from app.modules.artifacts.render_outbox_service import (
     create_review_thumbnail_render_outbox,
@@ -207,10 +213,10 @@ class ReviewService:
             await db.flush()
             revision_id = require_persisted_id(revision.id, entity="score revision")
             db.add(
-                ScoreArtifact(
-                    artifact_uuid=str(uuid.uuid4()),
+                ScoreRevisionSource(
+                    source_uuid=str(uuid.uuid4()),
                     revision_id=revision_id,
-                    kind=ArtifactKind.MUSICXML,
+                    format=RevisionSourceFormat.MUSICXML,
                     storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
@@ -313,10 +319,10 @@ class ReviewService:
             content_type=thumbnail.mime_type or "image/svg+xml",
         )
         db.add(
-            ScoreArtifact(
-                artifact_uuid=artifact_uuid,
+            ScoreRenderAsset(
+                asset_uuid=artifact_uuid,
                 revision_id=revision_id,
-                kind=ArtifactKind.RENDERED_PAGE,
+                kind=RenderAssetKind.RENDERED_PAGE,
                 storage_backend=self.storage.backend_name,
                 storage_key=stored.storage_key,
                 filename=stored.filename,

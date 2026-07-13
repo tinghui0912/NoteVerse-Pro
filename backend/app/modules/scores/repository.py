@@ -9,21 +9,24 @@ from app.db.models import (
     PlaybackOutbox,
     RenderOutbox,
     Score,
-    ScoreArtifact,
     ScorePlaybackAsset,
     ScorePublication,
+    ScoreRenderAsset,
     ScoreRevision,
+    ScoreRevisionSource,
     ScoreTaxonomyTag,
     TaxonomyCategory,
     TaxonomyTag,
 )
 from app.db.models.score_access import PublicationStatus
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
-from app.db.models.score import ArtifactKind
+from app.db.models.score import RenderAssetKind, RevisionSourceFormat
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
 score_title_col = Score.__table__.c.title
 score_updated_col = Score.__table__.c.updated_at
+
+
 class ScoreRepository:
     async def list_owned(
         self,
@@ -124,27 +127,27 @@ class ScoreRepository:
 
     async def canonical_artifact(
         self, db: AsyncSession, revision_id: int
-    ) -> ScoreArtifact | None:
+    ) -> ScoreRevisionSource | None:
         return (
             await db.execute(
-                select(ScoreArtifact).where(
-                    ScoreArtifact.revision_id == revision_id,
-                    ScoreArtifact.kind == ArtifactKind.MUSICXML,
+                select(ScoreRevisionSource).where(
+                    ScoreRevisionSource.revision_id == revision_id,
+                    ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
                 )
             )
         ).scalar_one_or_none()
 
     async def first_rendered_page_artifact(
         self, db: AsyncSession, revision_id: int
-    ) -> ScoreArtifact | None:
+    ) -> ScoreRenderAsset | None:
         return (
             await db.execute(
-                select(ScoreArtifact)
+                select(ScoreRenderAsset)
                 .where(
-                    ScoreArtifact.revision_id == revision_id,
-                    ScoreArtifact.kind == ArtifactKind.RENDERED_PAGE,
+                    ScoreRenderAsset.revision_id == revision_id,
+                    ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
                 )
-                .order_by(ScoreArtifact.page_number.asc(), ScoreArtifact.created_at.asc())
+                .order_by(ScoreRenderAsset.page_number.asc(), ScoreRenderAsset.created_at.asc())
                 .limit(1)
             )
         ).scalar_one_or_none()
@@ -203,20 +206,20 @@ class ScoreRepository:
 
     async def fallback_rendered_page_artifact(
         self, db: AsyncSession, score_id: int, head_revision_id: int
-    ) -> tuple[ScoreArtifact, ScoreRevision] | None:
+    ) -> tuple[ScoreRenderAsset, ScoreRevision] | None:
         row = (
             await db.execute(
-                select(ScoreArtifact, ScoreRevision)
-                .join(ScoreRevision, ScoreArtifact.revision_id == ScoreRevision.id)
+                select(ScoreRenderAsset, ScoreRevision)
+                .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
                 .where(
                     ScoreRevision.score_id == score_id,
                     ScoreRevision.id != head_revision_id,
-                    ScoreArtifact.kind == ArtifactKind.RENDERED_PAGE,
+                    ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
                 )
                 .order_by(
                     ScoreRevision.revision_number.desc(),
-                    ScoreArtifact.page_number.asc(),
-                    ScoreArtifact.created_at.asc(),
+                    ScoreRenderAsset.page_number.asc(),
+                    ScoreRenderAsset.created_at.asc(),
                 )
                 .limit(1)
             )

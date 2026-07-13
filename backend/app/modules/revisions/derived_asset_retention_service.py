@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import Score, ScoreArtifact, ScorePlaybackAsset, ScoreRevision
-from app.db.models.score import ArtifactKind
+from app.db.models import Score, ScorePlaybackAsset, ScoreRenderAsset, ScoreRevision
+from app.db.models.score import RenderAssetKind
 from app.storage import FileStorage, file_storage
 
 logger = logging.getLogger(__name__)
@@ -208,15 +208,15 @@ class DerivedAssetRetentionService:
     @staticmethod
     def _stale_rendered_pages_statement(*, score_id: int, keep_ids: set[int]):
         statement = (
-            select(ScoreArtifact)
-            .join(ScoreRevision, ScoreArtifact.revision_id == ScoreRevision.id)
+            select(ScoreRenderAsset)
+            .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
             .where(
                 ScoreRevision.score_id == score_id,
-                ScoreArtifact.kind == ArtifactKind.RENDERED_PAGE,
+                ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
             )
         )
         if keep_ids:
-            statement = statement.where(ScoreArtifact.revision_id.not_in(keep_ids))
+            statement = statement.where(ScoreRenderAsset.revision_id.not_in(keep_ids))
         return statement
 
     @staticmethod

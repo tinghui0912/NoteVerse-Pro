@@ -19,7 +19,6 @@ from sqlalchemy import (
     JSON,
     String,
     UniqueConstraint,
-    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
@@ -35,6 +34,14 @@ class RevisionOrigin(str, enum.Enum):
 
 class ArtifactKind(str, enum.Enum):
     MUSICXML = "MUSICXML"
+    RENDERED_PAGE = "RENDERED_PAGE"
+
+
+class RevisionSourceFormat(str, enum.Enum):
+    MUSICXML = "MUSICXML"
+
+
+class RenderAssetKind(str, enum.Enum):
     RENDERED_PAGE = "RENDERED_PAGE"
 
 
@@ -250,36 +257,19 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
     )
 
 
-class ScoreArtifact(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "score_artifacts"
+class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_revision_sources"
     __table_args__ = (
-        CheckConstraint(
-            "kind != 'RENDERED_PAGE' OR (render_profile IS NOT NULL AND page_number IS NOT NULL)",
-            name="ck_score_artifacts_rendered_page_fields",
-        ),
-        UniqueConstraint("storage_key", name="uq_score_artifacts_storage_key"),
-        UniqueConstraint(
-            "revision_id",
-            "kind",
-            "render_profile",
-            "page_number",
-            name="uq_score_artifacts_rendered_variant",
-        ),
-        Index(
-            "uq_score_artifacts_canonical_musicxml",
-            "revision_id",
-            unique=True,
-            postgresql_where=text("kind = 'MUSICXML'"),
-            sqlite_where=text("kind = 'MUSICXML'"),
-        ),
-        Index("idx_score_artifacts_revision_kind", "revision_id", "kind"),
+        UniqueConstraint("revision_id", "format", name="uq_score_revision_sources_revision_format"),
+        UniqueConstraint("storage_key", name="uq_score_revision_sources_storage_key"),
+        Index("idx_score_revision_sources_revision_format", "revision_id", "format"),
     )
 
     id: Optional[int] = Field(
         default=None,
         sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
     )
-    artifact_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
+    source_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     revision_id: int = Field(
         sa_column=Column(
             BigInteger,
@@ -287,8 +277,55 @@ class ScoreArtifact(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    kind: ArtifactKind = Field(
-        sa_column=Column(SAEnum(ArtifactKind, name="artifactkind"), nullable=False)
+    format: RevisionSourceFormat = Field(
+        sa_column=Column(SAEnum(RevisionSourceFormat, name="revisionsourceformat"), nullable=False)
+    )
+    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+    storage_key: str = Field(sa_column=Column(String(768), nullable=False))
+    filename: str = Field(sa_column=Column(String(255), nullable=False))
+    mime_type: str = Field(sa_column=Column(String(128), nullable=False))
+    size_bytes: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
+    sha256: str = Field(sa_column=Column(String(64), nullable=False))
+    generator: str = Field(sa_column=Column(String(64), nullable=False))
+    generator_version: str = Field(sa_column=Column(String(64), nullable=False))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_render_assets"
+    __table_args__ = (
+        CheckConstraint(
+            "kind != 'RENDERED_PAGE' OR (render_profile IS NOT NULL AND page_number IS NOT NULL)",
+            name="ck_score_render_assets_rendered_page_fields",
+        ),
+        UniqueConstraint("storage_key", name="uq_score_render_assets_storage_key"),
+        UniqueConstraint(
+            "revision_id",
+            "kind",
+            "render_profile",
+            "page_number",
+            name="uq_score_render_assets_rendered_variant",
+        ),
+        Index("idx_score_render_assets_revision_kind", "revision_id", "kind"),
+    )
+
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
+    asset_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
+    revision_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("score_revisions.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    kind: RenderAssetKind = Field(
+        sa_column=Column(SAEnum(RenderAssetKind, name="renderassetkind"), nullable=False)
     )
     storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
     storage_key: str = Field(sa_column=Column(String(768), nullable=False))

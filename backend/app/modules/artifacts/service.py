@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException
 from app.db.model_utils import require_persisted_id
-from app.db.models import Score, ScoreArtifact, ScoreRevision
+from app.db.models import Score, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
 from app.db.models.score import ArtifactKind
-from app.modules.artifacts.repository import ArtifactRepository
+from app.modules.artifacts.repository import ArtifactRecord, ArtifactRepository
 from app.modules.artifacts.schemas import (
     ArtifactAccessRead,
     ArtifactDiagnosticsRead,
@@ -91,7 +91,7 @@ class ArtifactService:
         )
         if (
             action == ScoreAction.VIEW
-            and artifact.kind == ArtifactKind.MUSICXML
+            and self._kind(artifact) == ArtifactKind.MUSICXML
             and (share_token or public_slug)
         ):
             raise UnauthorizedException(ErrorCode.NO_DOWNLOAD_ACCESS)
@@ -146,7 +146,7 @@ class ArtifactService:
             url = signed
             expires = settings.S3_PRESIGN_EXPIRE_SECONDS
         return ArtifactAccessRead(
-            artifact_id=artifact.artifact_uuid,
+            artifact_id=self._uuid(artifact),
             url=url,
             filename=artifact.filename,
             mime_type=artifact.mime_type,
@@ -171,7 +171,7 @@ class ArtifactService:
         items = await self.repository.list_for_revision(
             db, require_persisted_id(revision.id, entity="score revision")
         )
-        missing = [item.artifact_uuid for item in items if not self.storage.exists(item.storage_key)]
+        missing = [self._uuid(item) for item in items if not self.storage.exists(item.storage_key)]
         return ArtifactDiagnosticsRead(
             revision_id=revision.revision_uuid,
             artifact_count=len(items),
@@ -198,7 +198,7 @@ class ArtifactService:
         )
         removed = 0
         for item in items:
-            if item.kind == ArtifactKind.MUSICXML or self.storage.exists(item.storage_key):
+            if self._kind(item) == ArtifactKind.MUSICXML or self.storage.exists(item.storage_key):
                 continue
             await db.delete(item)
             removed += 1
@@ -249,7 +249,7 @@ class ArtifactService:
         *,
         share_token: str | None = None,
         public_slug: str | None = None,
-    ) -> tuple[ScoreArtifact, ScoreRevision]:
+    ) -> tuple[ArtifactRecord, ScoreRevision]:
         artifact = await self.repository.get(db, artifact_uuid)
         if not artifact:
             raise ResourceNotFoundException("artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND)
@@ -270,23 +270,36 @@ class ArtifactService:
         )
         return artifact, revision
 
-    def _require_object(self, artifact: ScoreArtifact) -> None:
+    def _require_object(self, artifact: ArtifactRecord) -> None:
         if not self.storage.exists(artifact.storage_key):
             raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.storage_key)
 
-    def _read(self, artifact: ScoreArtifact, revision: ScoreRevision) -> ArtifactRead:
+    def _read(self, artifact: ArtifactRecord, revision: ScoreRevision) -> ArtifactRead:
+        kind = self._kind(artifact)
         return ArtifactRead(
-            artifact_id=artifact.artifact_uuid,
+            artifact_id=self._uuid(artifact),
             revision_id=revision.revision_uuid,
-            kind=artifact.kind,
+            kind=kind,
             filename=artifact.filename,
             mime_type=artifact.mime_type,
             size_bytes=artifact.size_bytes,
             sha256=artifact.sha256,
-            page_number=artifact.page_number,
-            render_profile=artifact.render_profile,
+            page_number=artifact.page_number if isinstance(artifact, ScoreRenderAsset) else None,
+            render_profile=artifact.render_profile if isinstance(artifact, ScoreRenderAsset) else None,
             generator=artifact.generator,
             generator_version=artifact.generator_version,
             created_at=artifact.created_at,
             available=self.storage.exists(artifact.storage_key),
         )
+
+    @staticmethod
+    def _kind(artifact: ArtifactRecord) -> ArtifactKind:
+        if isinstance(artifact, ScoreRevisionSource):
+            return ArtifactKind.MUSICXML
+        return ArtifactKind.RENDERED_PAGE
+
+    @staticmethod
+    def _uuid(artifact: ArtifactRecord) -> str:
+        if isinstance(artifact, ScoreRevisionSource):
+            return artifact.source_uuid
+        return artifact.asset_uuid

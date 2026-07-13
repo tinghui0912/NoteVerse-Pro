@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
-from app.db.models import ScoreArtifact, ScoreRevision, ScoreRevisionMetadata
-from app.db.models.score import ArtifactKind, MetadataStatus
+from app.db.models import ScoreRevision, ScoreRevisionMetadata, ScoreRevisionSource
+from app.db.models.score import MetadataStatus, RevisionSourceFormat
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
 from app.modules.scores.repository import ScoreRepository
@@ -182,9 +182,9 @@ def rebuild_metadata_sync(
         )
         db.add(projection)
     artifact = db.execute(
-        select(ScoreArtifact).where(
-            ScoreArtifact.revision_id == revision_id,
-            ScoreArtifact.kind == ArtifactKind.MUSICXML,
+        select(ScoreRevisionSource).where(
+            ScoreRevisionSource.revision_id == revision_id,
+            ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
         )
     ).scalar_one_or_none()
     if not artifact:

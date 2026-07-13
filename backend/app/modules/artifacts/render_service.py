@@ -16,8 +16,14 @@ from app.core.exceptions import (
     UnauthorizedException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import Score, ScoreArtifact, ScoreMembership, ScoreRevision
-from app.db.models.score import ArtifactKind
+from app.db.models import (
+    Score,
+    ScoreMembership,
+    ScoreRenderAsset,
+    ScoreRevision,
+    ScoreRevisionSource,
+)
+from app.db.models.score import ArtifactKind, RenderAssetKind, RevisionSourceFormat
 from app.db.models.score_access import MembershipRole
 from app.modules.artifacts.repository import ArtifactRepository
 from app.modules.artifacts.schemas import ArtifactRead
@@ -94,7 +100,7 @@ class RevisionRenderService:
             for item in await self.repository.list_for_revision(
                 db, revision_id, ArtifactKind.RENDERED_PAGE
             )
-            if item.render_profile == profile
+            if isinstance(item, ScoreRenderAsset) and item.render_profile == profile
         ]
         try:
             for item in previous:
@@ -126,7 +132,7 @@ class RevisionRenderService:
         user_id: int,
         *,
         profile: str = "default",
-    ) -> list[ScoreArtifact]:
+    ) -> list[ScoreRenderAsset]:
         score, revision = self._authorized_revision_sync(
             db,
             score_uuid=score_uuid,
@@ -135,9 +141,9 @@ class RevisionRenderService:
         )
         revision_id = require_persisted_id(revision.id, entity="score revision")
         canonical = db.execute(
-            select(ScoreArtifact).where(
-                ScoreArtifact.revision_id == revision_id,
-                ScoreArtifact.kind == ArtifactKind.MUSICXML,
+            select(ScoreRevisionSource).where(
+                ScoreRevisionSource.revision_id == revision_id,
+                ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
             )
         ).scalar_one_or_none()
         if not canonical:
@@ -154,10 +160,10 @@ class RevisionRenderService:
         )
         previous = list(
             db.execute(
-                select(ScoreArtifact).where(
-                    ScoreArtifact.revision_id == revision_id,
-                    ScoreArtifact.kind == ArtifactKind.RENDERED_PAGE,
-                    ScoreArtifact.render_profile == profile,
+                select(ScoreRenderAsset).where(
+                    ScoreRenderAsset.revision_id == revision_id,
+                    ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
+                    ScoreRenderAsset.render_profile == profile,
                 )
             ).scalars()
         )
@@ -229,8 +235,8 @@ class RevisionRenderService:
         canonical_storage_key: str,
         profile: str,
         uploaded_keys: list[str],
-    ) -> list[ScoreArtifact]:
-        new_records: list[ScoreArtifact] = []
+    ) -> list[ScoreRenderAsset]:
+        new_records: list[ScoreRenderAsset] = []
         os.makedirs(settings.WORK_ROOT, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
             xml_path = os.path.join(work_dir, "score.musicxml")
@@ -262,10 +268,10 @@ class RevisionRenderService:
                 )
                 uploaded_keys.append(stored.storage_key)
                 new_records.append(
-                    ScoreArtifact(
-                        artifact_uuid=artifact_uuid,
+                    ScoreRenderAsset(
+                        asset_uuid=artifact_uuid,
                         revision_id=revision_id,
-                        kind=ArtifactKind.RENDERED_PAGE,
+                        kind=RenderAssetKind.RENDERED_PAGE,
                         storage_backend=self.storage.backend_name,
                         storage_key=stored.storage_key,
                         filename=stored.filename,

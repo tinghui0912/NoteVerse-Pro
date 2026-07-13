@@ -43,9 +43,9 @@ export const scoresApi = {
     scoreId: string,
     input: { content: string; base_revision_id: string; idempotency_key?: string; origin?: string }
   ) => apiClient.post<ApiResponse<ScoreRevision>>(`/scores/${scoreId}/revisions`, input),
-  rollbackRevision: (scoreId: string, revisionId: string, input?: { note?: string | null }) =>
+  restoreRevision: (scoreId: string, revisionId: string, input?: { note?: string | null }) =>
     apiClient.post<ApiResponse<ScoreRevision>>(
-      `/scores/${scoreId}/revisions/${revisionId}/rollback`,
+      `/scores/${scoreId}/revisions/${revisionId}/restore`,
       input ?? {}
     ),
   updateRevisionNote: (scoreId: string, revisionId: string, input: { note?: string | null }) =>
