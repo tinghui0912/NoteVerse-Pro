@@ -76,7 +76,7 @@ async def score_derived_assets(
     return ScoreDerivedAssetsRead(
         preview=ScoreDerivedAssetRead(
             status=preview_status,
-            artifact_id=displayed_thumbnail.asset_uuid if displayed_thumbnail else None,
+            asset_id=displayed_thumbnail.asset_uuid if displayed_thumbnail else None,
             revision_id=(
                 displayed_thumbnail_revision.revision_uuid
                 if displayed_thumbnail_revision
@@ -86,7 +86,7 @@ async def score_derived_assets(
         ),
         audio=ScoreDerivedAssetRead(
             status=audio_status,
-            artifact_id=displayed_audio.asset_uuid if displayed_audio else None,
+            asset_id=displayed_audio.asset_uuid if displayed_audio else None,
             revision_id=(
                 displayed_audio_revision.revision_uuid
                 if displayed_audio_revision

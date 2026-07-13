@@ -7,19 +7,19 @@ import { cn } from '@/lib/utils';
 
 interface ScoreThumbnailProps {
   title: string;
-  thumbnailArtifactId?: string | null;
+  thumbnailRenderAssetId?: string | null;
   className?: string;
 }
 
 export function ScoreThumbnail({
   title,
-  thumbnailArtifactId,
+  thumbnailRenderAssetId,
   className,
 }: ScoreThumbnailProps) {
   const [failed, setFailed] = useState(false);
   const src =
-    thumbnailArtifactId && !failed
-      ? `/api/v1/artifacts/${encodeURIComponent(thumbnailArtifactId)}/download`
+    thumbnailRenderAssetId && !failed
+      ? `/api/v1/render-assets/${encodeURIComponent(thumbnailRenderAssetId)}/download`
       : null;
 
   return (

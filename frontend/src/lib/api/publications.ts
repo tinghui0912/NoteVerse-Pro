@@ -21,8 +21,12 @@ export const publicationsApi = {
       suppressAuthRedirect: true,
     }),
   playbackUrl: (slug: string) => apiUrl(`/publications/${slug}/playback`),
-  downloadArtifact: (slug: string, artifactId: string) =>
-    apiClient.download(`/publications/${slug}/artifacts/${artifactId}/download`, {
+  downloadRevisionSource: (slug: string, sourceId: string) =>
+    apiClient.download(`/publications/${slug}/revision-sources/${sourceId}/download`, {
+      suppressAuthRedirect: true,
+    }),
+  downloadRenderAsset: (slug: string, renderAssetId: string) =>
+    apiClient.download(`/publications/${slug}/render-assets/${renderAssetId}/download`, {
       suppressAuthRedirect: true,
     }),
 };

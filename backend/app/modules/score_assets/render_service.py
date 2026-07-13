@@ -23,11 +23,11 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionSource,
 )
-from app.db.models.score import ArtifactKind, RenderAssetKind, RevisionSourceFormat
+from app.db.models.score import RenderAssetKind, RevisionSourceFormat
 from app.db.models.score_access import MembershipRole
-from app.modules.artifacts.repository import ArtifactRepository
-from app.modules.artifacts.schemas import ArtifactRead
-from app.modules.artifacts.service import ArtifactService
+from app.modules.score_assets.repository import ScoreAssetRepository
+from app.modules.score_assets.schemas import RenderAssetRead
+from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.repository import ScoreRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.processing.engines.render import create_score_render_engine
@@ -40,16 +40,16 @@ class RevisionRenderService:
 
     def __init__(
         self,
-        repository: ArtifactRepository | None = None,
+        repository: ScoreAssetRepository | None = None,
         score_repository: ScoreRepository | None = None,
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
-        self.repository = repository or ArtifactRepository()
+        self.repository = repository or ScoreAssetRepository()
         self.score_repository = score_repository or ScoreRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.artifact_service = ArtifactService(
+        self.asset_service = ScoreAssetService(
             self.repository,
             self.score_repository,
             self.storage,
@@ -64,7 +64,7 @@ class RevisionRenderService:
         user_id: int,
         *,
         profile: str = "default",
-    ) -> list[ArtifactRead]:
+    ) -> list[RenderAssetRead]:
         access = await self.access_policy.authorize(
             db,
             score_uuid,
@@ -74,14 +74,7 @@ class RevisionRenderService:
         )
         revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
-        canonical = next(
-            iter(
-                await self.repository.list_for_revision(
-                    db, revision_id, ArtifactKind.MUSICXML
-                )
-            ),
-            None,
-        )
+        canonical = next(iter(await self.repository.list_sources(db, revision_id)), None)
         if not canonical:
             raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
@@ -97,9 +90,7 @@ class RevisionRenderService:
 
         previous = [
             item
-            for item in await self.repository.list_for_revision(
-                db, revision_id, ArtifactKind.RENDERED_PAGE
-            )
+            for item in await self.repository.list_render_assets(db, revision_id)
             if isinstance(item, ScoreRenderAsset) and item.render_profile == profile
         ]
         try:
@@ -122,7 +113,7 @@ class RevisionRenderService:
                 self.storage.delete(item.storage_key)
             except Exception:
                 pass
-        return [self.artifact_service._read(item, revision) for item in new_records]
+        return [self.asset_service.render_asset_read(item, revision) for item in new_records]
 
     def render_sync(
         self,

@@ -125,7 +125,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
               if (nextRevision) setBaseRevisionId(nextRevision);
               await Promise.all([
                 queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(scoreId) }),
-                queryClient.invalidateQueries({ queryKey: queryKeys.scores.artifacts(scoreId) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(scoreId) }),
                 queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(scoreId) }),
               ]);
             },

@@ -1,8 +1,7 @@
 export type RevisionOrigin = 'OMR' | 'EDIT' | 'IMPORT';
 export type FingeringHandSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
-export type ArtifactKind =
-  | 'MUSICXML'
-  | 'RENDERED_PAGE';
+export type RevisionSourceFormat = 'MUSICXML';
+export type RenderAssetKind = 'RENDERED_PAGE';
 
 export interface ScoreCapabilities {
   can_view: boolean;
@@ -48,7 +47,7 @@ export type DerivedAssetStatus = 'pending' | 'processing' | 'ready' | 'failed';
 
 export interface ScoreDerivedAsset {
   status: DerivedAssetStatus;
-  artifact_id: string | null;
+  asset_id: string | null;
   revision_id: string | null;
   is_fallback: boolean;
 }
@@ -110,10 +109,24 @@ export interface FingeringResult {
   content: string;
 }
 
-export interface ScoreArtifact {
-  artifact_id: string;
+export interface RevisionSource {
+  source_id: string;
   revision_id: string;
-  kind: ArtifactKind;
+  format: RevisionSourceFormat;
+  filename: string;
+  mime_type: string;
+  size_bytes: number | null;
+  sha256: string;
+  generator: string;
+  generator_version: string;
+  created_at: string;
+  available: boolean;
+}
+
+export interface RenderAsset {
+  render_asset_id: string;
+  revision_id: string;
+  kind: RenderAssetKind;
   filename: string;
   mime_type: string;
   size_bytes: number | null;
@@ -124,6 +137,11 @@ export interface ScoreArtifact {
   generator_version: string;
   created_at: string;
   available: boolean;
+}
+
+export interface ScoreRevisionAssets {
+  revision_sources: RevisionSource[];
+  render_assets: RenderAsset[];
 }
 
 export interface ScoreGrant {
@@ -153,7 +171,7 @@ export interface ScoreGrantAccess {
   capabilities: ScoreCapabilities;
   metadata: ScoreMetadata | null;
   derived_assets: ScoreDerivedAssets;
-  artifacts: ScoreArtifact[];
+  revision_assets: ScoreRevisionAssets;
 }
 
 export interface ScoreGrantBookmark {
@@ -275,6 +293,6 @@ export interface PublicScore {
   taxonomy_tags: ScoreTaxonomyTag[];
   metadata: ScoreMetadata | null;
   derived_assets: ScoreDerivedAssets;
-  artifacts: ScoreArtifact[];
+  revision_assets: ScoreRevisionAssets;
   capabilities: ScoreCapabilities;
 }

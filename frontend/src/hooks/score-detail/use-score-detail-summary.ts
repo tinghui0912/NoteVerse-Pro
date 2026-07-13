@@ -1,22 +1,22 @@
 'use client';
 
-import { useScoreArtifacts, useScoreDetail } from '@/hooks/queries/use-score-queries';
+import { useScoreDetail, useScoreRevisionAssets } from '@/hooks/queries/use-score-queries';
 
 export function useScoreDetailSummary(scoreId: string) {
   const scoreQuery = useScoreDetail(scoreId);
   const score = scoreQuery.data?.data;
   const revisionId = score?.head_revision_id;
-  const artifactQuery = useScoreArtifacts(scoreId, {
+  const assetsQuery = useScoreRevisionAssets(scoreId, {
     revisionId: revisionId ?? undefined,
     enabled: Boolean(revisionId),
   });
-  const artifacts = artifactQuery.data?.data ?? [];
+  const revisionAssets = assetsQuery.data?.data ?? { revision_sources: [], render_assets: [] };
 
   return {
-    artifacts,
-    imageCount: artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE').length,
+    revisionAssets,
+    imageCount: revisionAssets.render_assets.filter((asset) => asset.kind === 'RENDERED_PAGE').length,
     score,
-    scoreError: scoreQuery.error ?? artifactQuery.error,
-    scoreLoading: scoreQuery.isLoading || artifactQuery.isLoading,
+    scoreError: scoreQuery.error ?? assetsQuery.error,
+    scoreLoading: scoreQuery.isLoading || assetsQuery.isLoading,
   };
 }

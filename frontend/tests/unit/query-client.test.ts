@@ -47,10 +47,10 @@ describe('queryKeys', () => {
       'revision',
       { scoreId: 'score-1', revisionId: 'revision-1' },
     ]);
-    expect(queryKeys.scores.artifacts('score-1', 'revision-1', 'MUSICXML')).toEqual([
+    expect(queryKeys.scores.revisionAssets('score-1', 'revision-1')).toEqual([
       'scores',
-      'artifact',
-      { scoreId: 'score-1', revisionId: 'revision-1', kind: 'MUSICXML' },
+      'revision-assets',
+      { scoreId: 'score-1', revisionId: 'revision-1' },
     ]);
     expect(queryKeys.scores.grants('score-1')).toEqual([
       'scores',

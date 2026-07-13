@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.artifacts.render_outbox_service import create_revision_render_outbox
+from app.modules.score_assets.render_outbox_service import create_revision_render_outbox
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.playback.outbox_service import create_playback_outbox
 from app.storage import FileStorage, file_storage

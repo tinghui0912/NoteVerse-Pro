@@ -4,8 +4,8 @@ from celery.utils.log import get_task_logger
 
 from app.db.models import RenderTargetType
 from app.db.worker_session import get_worker_db
-from app.modules.artifacts.render_service import RevisionRenderService
-from app.modules.artifacts.render_outbox_service import render_outbox_service
+from app.modules.score_assets.render_service import RevisionRenderService
+from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.import_jobs.execution_service import job_execution_service
 from app.modules.import_jobs.maintenance_service import job_maintenance_service
 from app.modules.import_jobs.dispatch_service import import_dispatch_service

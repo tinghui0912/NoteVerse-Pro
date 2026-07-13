@@ -144,7 +144,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
           <ScoreBreadcrumbs scoreTitle={scoreTitle} source={source} />
           <ScoreDetailHero
             title={scoreTitle}
-            thumbnailUrl={scoreThumbnailUrl(previewAsset.artifact_id)}
+            thumbnailUrl={scoreThumbnailUrl(previewAsset.asset_id)}
             playbackAudioSrc={playbackAudioSrc}
             playbackEnabled={Boolean(playbackAudioSrc)}
             status={score.publication?.status === 'PUBLISHED' ? (
@@ -154,7 +154,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             ) : null}
             actions={(
               <ScoreHeroActions
-                artifacts={resources.artifacts}
+                revisionAssets={resources.revisionAssets}
                 revisionId={score.head_revision_id}
                 scoreId={score.score_id}
               />

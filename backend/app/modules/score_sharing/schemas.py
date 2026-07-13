@@ -4,9 +4,9 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.modules.score_access.schemas import ScoreCapabilities
-from app.modules.artifacts.schemas import ArtifactRead
 from app.modules.metadata.schemas import MetadataRead
+from app.modules.score_access.schemas import ScoreCapabilities
+from app.modules.score_assets.schemas import ScoreRevisionAssetsRead
 from app.modules.scores.schemas import ScoreDerivedAssetsRead, ScoreTaxonomyTagRead
 
 
@@ -50,7 +50,7 @@ class GrantAccessRead(BaseModel):
     capabilities: ScoreCapabilities
     metadata: MetadataRead | None
     derived_assets: ScoreDerivedAssetsRead
-    artifacts: list[ArtifactRead]
+    revision_assets: ScoreRevisionAssetsRead
 
 
 class GrantBookmarkRead(BaseModel):

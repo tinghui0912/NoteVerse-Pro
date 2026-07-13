@@ -68,7 +68,7 @@ DerivedAssetStatus = Literal["pending", "processing", "ready", "failed"]
 
 class ScoreDerivedAssetRead(BaseModel):
     status: DerivedAssetStatus = "pending"
-    artifact_id: str | None = None
+    asset_id: str | None = None
     revision_id: str | None = None
     is_fallback: bool = False
 

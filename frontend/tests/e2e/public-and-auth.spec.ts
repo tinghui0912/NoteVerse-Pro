@@ -16,7 +16,13 @@ test('protected routes preserve return URL while share grants stay anonymous', a
       score_id: 'score-public', revision_id: 'revision-public', title: 'Public Score', taxonomy_tags: [],
       shared_by: { display_name: 'Sharer', avatar_url: null },
       shared_at: '2026-06-23T00:00:00Z',
-      metadata: null, artifacts: [], capabilities: {
+      metadata: null,
+      derived_assets: {
+        preview: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
+        audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
+      },
+      revision_assets: { revision_sources: [], render_assets: [] },
+      capabilities: {
         can_view: true, can_edit: false, can_delete: false, can_manage_sharing: false,
         can_download: false, can_practice: true, can_publish: false,
       },

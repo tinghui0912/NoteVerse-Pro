@@ -57,7 +57,7 @@ current route inventory. Current active structure is documented in
 - `components/score/listen-modal.tsx` composes the dialog; `hooks/score/use-score-preview-playback.ts` consumes score contracts and dynamically loads the Verovio preview controller.
 - `lib/score/verovio-score-preview-controller.ts` owns interactive SVG rendering, playback, cursor synchronization, relayout, and cleanup.
 - Editor, score detail, and share reuse the same `ListenModal` and have no renderer-specific page logic.
-- Review uses authenticated original artifacts plus current MusicXML rendering. Score detail and share may also display backend-rendered image artifacts; those remain valid product assets outside the browser renderer.
+- Review uses authenticated original import artifacts plus current MusicXML rendering. Score detail, share, and public pages may also display backend-rendered render assets; those remain valid product assets outside the browser renderer.
 - The stale placeholder `score-viewer.tsx` was deleted after its zero-reference audit.
 
 ### 2.4 React Query
@@ -73,7 +73,7 @@ current route inventory. Current active structure is documented in
 - Practice, score detail, share, and editor use shared Verovio rendering boundaries.
 - Interactive playback uses Verovio MIDI/timemap data and an owned Web Audio soundfont engine.
 - UI code remains renderer-agnostic and consumes score contracts.
-- Backend-rendered image artifacts remain supported independently of interactive rendering.
+- Backend-rendered render assets remain supported independently of interactive rendering.
 
 ## 3. Priority Model
 
@@ -548,7 +548,7 @@ This plan is complete when:
 - MusicXML code has one domain package;
 - heavy root components have explicit owners;
 - route pages primarily compose sections and lifecycle hooks;
-- all browser-side MusicXML renderers and interactive score surfaces use shared Verovio abstractions, while durable backend image artifacts remain supported;
+- all browser-side MusicXML renderers and interactive score surfaces use shared Verovio abstractions, while durable backend render assets remain supported;
 - playback and cursor behavior no longer depend on OSMD;
 - OSMD dependencies, patches, constants, and compatibility code are removed;
 - lint, typecheck, tests, build, and critical behavior checks pass;

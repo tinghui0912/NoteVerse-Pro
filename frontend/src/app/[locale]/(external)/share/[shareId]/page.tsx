@@ -45,7 +45,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   const { handleDownload } = useDownload({
     mode: 'grant',
     id: shareId,
-    artifacts: page.shareData?.artifacts ?? [],
+    assets: page.shareData?.revision_assets,
   });
   const bookmark = useMutation({ mutationFn: () => scoreSharingApi.bookmark(shareId) });
 
@@ -81,7 +81,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   }
 
   const data = page.shareData;
-  const downloads = scoreDownloadAvailability(data.artifacts);
+  const downloads = scoreDownloadAvailability(data.revision_assets);
   const audioRevisionId = playableAudioRevisionId(
     data.derived_assets,
     data.capabilities.can_practice
@@ -116,7 +116,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
             subtitle={t('sharedScore')}
             thumbnailUrl={shareDerivedThumbnailUrl(
               shareId,
-              data.derived_assets.preview.artifact_id
+              data.derived_assets.preview.asset_id
             )}
             playbackEnabled={Boolean(audioRevisionId)}
             playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}

@@ -5,9 +5,9 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.db.models.score_access import PublicationStatus
-from app.modules.artifacts.schemas import ArtifactRead
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
+from app.modules.score_assets.schemas import ScoreRevisionAssetsRead
 from app.modules.scores.schemas import ScoreDerivedAssetsRead, ScoreTaxonomyTagRead
 
 
@@ -37,5 +37,5 @@ class PublicScoreRead(BaseModel):
     taxonomy_tags: list[ScoreTaxonomyTagRead]
     metadata: MetadataRead | None
     derived_assets: ScoreDerivedAssetsRead
-    artifacts: list[ArtifactRead]
+    revision_assets: ScoreRevisionAssetsRead
     capabilities: ScoreCapabilities

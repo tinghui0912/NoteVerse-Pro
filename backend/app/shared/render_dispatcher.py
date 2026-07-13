@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.core.logger import logger
 from app.db.worker_session import get_worker_db
-from app.modules.artifacts.render_outbox_service import render_outbox_service
+from app.modules.score_assets.render_outbox_service import render_outbox_service
 
 
 def dispatch_render_outbox(outbox_uuid: str) -> bool:

@@ -34,7 +34,7 @@ from app.db.models.score import (
     RevisionSourceFormat,
 )
 from app.modules.library.service import LibraryService
-from app.modules.artifacts.render_outbox_service import (
+from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
 )
 from app.modules.notifications.service import NotificationTypes

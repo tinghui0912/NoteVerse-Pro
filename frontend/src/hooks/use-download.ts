@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { filesApi, publicationsApi, scoresApi, scoreSharingApi } from '@/lib/api';
-import type { ScoreArtifact } from '@/types/api';
+import type { ScoreRevisionAssets } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 import { translateErrorCode } from '@/lib/i18n/error-message';
@@ -10,7 +10,7 @@ import { translateErrorCode } from '@/lib/i18n/error-message';
 interface UseDownloadOptions {
     mode: 'score' | 'grant' | 'publication';
     id: string;
-    artifacts?: ScoreArtifact[];
+    assets?: ScoreRevisionAssets;
 }
 
 interface UseDownloadReturn {
@@ -27,7 +27,9 @@ function extensionFromBlob(blob: Blob): string {
     return mimeExtensions[blob.type] ?? 'bin';
 }
 
-export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): UseDownloadReturn {
+const emptyAssets: ScoreRevisionAssets = { revision_sources: [], render_assets: [] };
+
+export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptions): UseDownloadReturn {
     const { toast } = useToast();
     const t = useTranslations('download');
     const tErrors = useTranslations('errors');
@@ -36,42 +38,42 @@ export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): U
         try {
             if (type === 'xml') {
                 if (mode === 'grant') {
-                    const artifact = artifacts.find((item) => item.kind === 'MUSICXML');
-                    if (!artifact) throw new Error('FILE_NOT_FOUND');
-                    const blob = await scoreSharingApi.downloadArtifact(id, artifact.artifact_id);
-                    filesApi.triggerDownload(blob, `score_${artifact.revision_id}.musicxml`);
+                    const source = assets.revision_sources.find((item) => item.format === 'MUSICXML');
+                    if (!source) throw new Error('FILE_NOT_FOUND');
+                    const blob = await scoreSharingApi.downloadRevisionSource(id, source.source_id);
+                    filesApi.triggerDownload(blob, `score_${source.revision_id}.musicxml`);
                     return;
                 }
                 if (mode === 'score') {
-                    const artifact = artifacts.find((item) => item.kind === 'MUSICXML');
-                    if (!artifact) throw new Error('FILE_NOT_FOUND');
-                    const blob = await scoresApi.downloadArtifact(artifact.artifact_id);
+                    const source = assets.revision_sources.find((item) => item.format === 'MUSICXML');
+                    if (!source) throw new Error('FILE_NOT_FOUND');
+                    const blob = await scoresApi.downloadRevisionSource(source.source_id);
                     filesApi.triggerDownload(blob, `score_${id}.musicxml`);
                     return;
                 }
                 if (mode === 'publication') {
-                    const artifact = artifacts.find((item) => item.kind === 'MUSICXML');
-                    if (!artifact) throw new Error('FILE_NOT_FOUND');
-                    const blob = await publicationsApi.downloadArtifact(id, artifact.artifact_id);
-                    filesApi.triggerDownload(blob, artifact.filename);
+                    const source = assets.revision_sources.find((item) => item.format === 'MUSICXML');
+                    if (!source) throw new Error('FILE_NOT_FOUND');
+                    const blob = await publicationsApi.downloadRevisionSource(id, source.source_id);
+                    filesApi.triggerDownload(blob, source.filename);
                     return;
                 }
             } else {
                 if (mode === 'grant') {
-                    const pages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
+                    const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
                     if (!pages.length) throw new Error('FILE_NOT_FOUND');
                     for (const page of pages) {
-                        const blob = await scoreSharingApi.downloadArtifact(id, page.artifact_id);
+                        const blob = await scoreSharingApi.downloadRenderAsset(id, page.render_asset_id);
                         filesApi.triggerDownload(blob, page.filename);
                     }
                     return;
                 }
                 if (mode === 'score') {
-                    const pages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
+                    const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
                     if (!pages.length) throw new Error('FILE_NOT_FOUND');
                     const blob = pages.length === 1
-                        ? await scoresApi.downloadArtifact(pages[0].artifact_id)
-                        : await scoresApi.downloadArtifactArchive(id, pages[0].revision_id, 'RENDERED_PAGE');
+                        ? await scoresApi.downloadRenderAsset(pages[0].render_asset_id)
+                        : await scoresApi.downloadRenderAssetArchive(id, pages[0].revision_id, 'RENDERED_PAGE');
                     filesApi.triggerDownload(
                         blob,
                         pages.length === 1 ? `score_${id}.${extensionFromBlob(blob)}` : `score_${id}.zip`
@@ -79,10 +81,10 @@ export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): U
                     return;
                 }
                 if (mode === 'publication') {
-                    const pages = artifacts.filter((item) => item.kind === 'RENDERED_PAGE');
+                    const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
                     if (!pages.length) throw new Error('FILE_NOT_FOUND');
                     for (const page of pages) {
-                        const blob = await publicationsApi.downloadArtifact(id, page.artifact_id);
+                        const blob = await publicationsApi.downloadRenderAsset(id, page.render_asset_id);
                         filesApi.triggerDownload(blob, page.filename);
                     }
                     return;
@@ -98,7 +100,7 @@ export function useDownload({ mode, id, artifacts = [] }: UseDownloadOptions): U
                 variant: 'destructive',
             });
         }
-    }, [mode, id, artifacts, toast, t, tErrors]);
+    }, [mode, id, assets, toast, t, tErrors]);
 
     return { handleDownload };
 }

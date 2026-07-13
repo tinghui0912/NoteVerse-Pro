@@ -32,7 +32,7 @@ function PublicScoreContent({ slug }: { slug: string }) {
   const { handleDownload } = useDownload({
     mode: 'publication',
     id: slug,
-    artifacts: data?.artifacts ?? [],
+    assets: data?.revision_assets,
   });
 
   if (publication.isLoading) {
@@ -61,7 +61,7 @@ function PublicScoreContent({ slug }: { slug: string }) {
   }
 
   const capabilities = resolveScoreCapabilities(data.capabilities);
-  const downloads = scoreDownloadAvailability(data.artifacts);
+  const downloads = scoreDownloadAvailability(data.revision_assets);
   const audioRevisionId = playableAudioRevisionId(data.derived_assets, capabilities.can_practice);
   const scoreId = data.publication.score_id;
 
@@ -74,7 +74,7 @@ function PublicScoreContent({ slug }: { slug: string }) {
             subtitle={scoreText('publicScore')}
             thumbnailUrl={publicDerivedThumbnailUrl(
               slug,
-              data.derived_assets.preview.artifact_id
+              data.derived_assets.preview.asset_id
             )}
             playbackEnabled={Boolean(audioRevisionId)}
             playbackAudioSrc={publicationsApi.playbackUrl(slug)}

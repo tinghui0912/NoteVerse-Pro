@@ -67,17 +67,17 @@ async def get_public_score(
     return success_response(data=result)
 
 
-@public_router.get("/{slug}/artifacts/{artifact_id}/download")
-async def download_public_artifact(
+@public_router.get("/{slug}/revision-sources/{source_id}/download")
+async def download_public_revision_source(
     slug: str,
-    artifact_id: str,
+    source_id: str,
     current_user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
     service: PublicationService = Depends(get_publication_service),
 ):
     user_id = current_user.id if current_user else None
-    delivery = await service.public_artifact_delivery(
-        db, slug, artifact_id, user_id
+    delivery = await service.public_revision_source_delivery(
+        db, slug, source_id, user_id
     )
     if delivery.redirect_url:
         return RedirectResponse(delivery.redirect_url, status_code=302)
@@ -88,17 +88,38 @@ async def download_public_artifact(
     )
 
 
-@public_router.get("/{slug}/artifacts/{artifact_id}/view")
-async def view_public_artifact(
+@public_router.get("/{slug}/render-assets/{render_asset_id}/download")
+async def download_public_render_asset(
     slug: str,
-    artifact_id: str,
+    render_asset_id: str,
     current_user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
     service: PublicationService = Depends(get_publication_service),
 ):
     user_id = current_user.id if current_user else None
-    delivery = await service.public_artifact_delivery(
-        db, slug, artifact_id, user_id, download=False
+    delivery = await service.public_render_asset_delivery(
+        db, slug, render_asset_id, user_id
+    )
+    if delivery.redirect_url:
+        return RedirectResponse(delivery.redirect_url, status_code=302)
+    return FileResponse(
+        delivery.path or "",
+        filename=delivery.filename,
+        media_type=delivery.media_type,
+    )
+
+
+@public_router.get("/{slug}/render-assets/{render_asset_id}/view")
+async def view_public_render_asset(
+    slug: str,
+    render_asset_id: str,
+    current_user: User | None = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: PublicationService = Depends(get_publication_service),
+):
+    user_id = current_user.id if current_user else None
+    delivery = await service.public_render_asset_delivery(
+        db, slug, render_asset_id, user_id, download=False
     )
     if delivery.redirect_url:
         return RedirectResponse(delivery.redirect_url, status_code=302)

@@ -31,7 +31,7 @@ from app.modules.scores.schemas import (
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
-from app.modules.artifacts.render_service import RevisionRenderService
+from app.modules.score_assets.render_service import RevisionRenderService
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive

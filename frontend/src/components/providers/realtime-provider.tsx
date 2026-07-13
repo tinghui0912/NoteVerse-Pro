@@ -9,9 +9,9 @@ import { createRealtimeEventSource } from '@/lib/realtime/event-source';
 import { parseRealtimeEvent, type RealtimeEventEnvelope } from '@/lib/realtime/events';
 import { queryKeys } from '@/lib/query-client';
 
-function isScoreArtifactQuery(query: Query, scoreId: string, revisionId?: string | null) {
+function isScoreRevisionAssetsQuery(query: Query, scoreId: string, revisionId?: string | null) {
   const key = query.queryKey;
-  if (key[0] !== 'scores' || key[1] !== 'artifact') {
+  if (key[0] !== 'scores' || key[1] !== 'revision-assets') {
     return false;
   }
   const identity = key[2];
@@ -25,13 +25,13 @@ function isScoreArtifactQuery(query: Query, scoreId: string, revisionId?: string
   );
 }
 
-function invalidateScoreArtifacts(
+function invalidateScoreRevisionAssets(
   queryClient: ReturnType<typeof useQueryClient>,
   scoreId: string,
   revisionId?: string | null
 ) {
   void queryClient.invalidateQueries({
-    predicate: (query) => isScoreArtifactQuery(query, scoreId, revisionId),
+    predicate: (query) => isScoreRevisionAssetsQuery(query, scoreId, revisionId),
   });
 }
 
@@ -50,7 +50,7 @@ function handleRealtimeEvent(
     if (!event.score_id) return;
     void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(event.score_id) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(event.score_id) });
-    invalidateScoreArtifacts(queryClient, event.score_id);
+    invalidateScoreRevisionAssets(queryClient, event.score_id);
     void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
     void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
     return;
@@ -59,7 +59,7 @@ function handleRealtimeEvent(
   if (event.type === 'score.derived_asset.updated') {
     if (!event.score_id) return;
     void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(event.score_id) });
-    invalidateScoreArtifacts(queryClient, event.score_id, event.revision_id);
+    invalidateScoreRevisionAssets(queryClient, event.score_id, event.revision_id);
     void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
     void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
     return;

@@ -12,9 +12,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
 )
-from app.db.models.score import ArtifactKind
 from app.db.models.score_access import PublicationStatus
-from app.modules.artifacts.service import ArtifactService
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.publications.repository import PublicationRepository
 from app.modules.publications.schemas import (
@@ -23,6 +21,7 @@ from app.modules.publications.schemas import (
     PublicScoreRead,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.derived_assets import score_derived_assets
 from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
@@ -35,13 +34,13 @@ class PublicationService:
         self,
         repository: PublicationRepository | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        artifact_service: ArtifactService | None = None,
+        asset_service: ScoreAssetService | None = None,
         score_repository: ScoreRepository | None = None,
     ) -> None:
         self.repository = repository or PublicationRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.score_repository = score_repository or ScoreRepository()
-        self.artifact_service = artifact_service or ArtifactService(
+        self.asset_service = asset_service or ScoreAssetService(
             access_policy=self.access_policy
         )
 
@@ -150,18 +149,14 @@ class PublicationService:
             user_id=user_id,
             public_slug=slug,
         )
-        artifacts = await self.artifact_service.list(
+        revision_assets = await self.asset_service.list_revision_assets(
             db,
             score.score_uuid,
             user_id,
             revision_uuid=access.revision.revision_uuid,
+            include_sources=publication.allow_download,
             public_slug=slug,
         )
-        artifacts = [
-            artifact
-            for artifact in artifacts
-            if artifact.kind != ArtifactKind.MUSICXML or publication.allow_download
-        ]
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = await score_derived_assets(
             db,
@@ -195,15 +190,34 @@ class PublicationService:
                 else None
             ),
             derived_assets=derived_assets,
-            artifacts=artifacts,
+            revision_assets=revision_assets,
             capabilities=access.capabilities,
         )
 
-    async def public_artifact_delivery(
+    async def public_revision_source_delivery(
         self,
         db: AsyncSession,
         slug: str,
-        artifact_uuid: str,
+        source_uuid: str,
+        user_id: int | None = None,
+    ):
+        publication = await self.repository.by_slug(db, slug)
+        if not publication or publication.status != PublicationStatus.PUBLISHED:
+            raise ResourceNotFoundException(
+                "publication", slug, ErrorCode.RESOURCE_NOT_FOUND
+            )
+        return await self.asset_service.source_delivery(
+            db,
+            source_uuid,
+            user_id,
+            public_slug=slug,
+        )
+
+    async def public_render_asset_delivery(
+        self,
+        db: AsyncSession,
+        slug: str,
+        render_asset_uuid: str,
         user_id: int | None = None,
         *,
         download: bool = True,
@@ -213,12 +227,12 @@ class PublicationService:
             raise ResourceNotFoundException(
                 "publication", slug, ErrorCode.RESOURCE_NOT_FOUND
             )
-        return await self.artifact_service.delivery(
+        return await self.asset_service.render_asset_delivery(
             db,
-            artifact_uuid,
+            render_asset_uuid,
             user_id,
             public_slug=slug,
-            action=ScoreAction.DOWNLOAD if download else ScoreAction.VIEW,
+            download=download,
         )
 
     @staticmethod

@@ -30,8 +30,12 @@ export const scoreSharingApi = {
       suppressAuthRedirect: true,
     }),
   playbackUrl: (token: string) => apiUrl(`/score-grants/${token}/playback`),
-  downloadArtifact: (token: string, artifactId: string) =>
-    apiClient.download(`/score-grants/${token}/artifacts/${artifactId}/download`, {
+  downloadRevisionSource: (token: string, sourceId: string) =>
+    apiClient.download(`/score-grants/${token}/revision-sources/${sourceId}/download`, {
+      suppressAuthRedirect: true,
+    }),
+  downloadRenderAsset: (token: string, renderAssetId: string) =>
+    apiClient.download(`/score-grants/${token}/render-assets/${renderAssetId}/download`, {
       suppressAuthRedirect: true,
     }),
   bookmark: (token: string) =>

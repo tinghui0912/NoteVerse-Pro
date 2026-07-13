@@ -26,7 +26,6 @@ from .import_job import (
     ImportJobUpload,
 )
 from .score import (
-    ArtifactKind,
     MetadataStatus,
     RenderAssetKind,
     RevisionOrigin,
@@ -86,7 +85,6 @@ __all__ = [
     "ImportJobStep",
     "ImportJobStepStatus",
     "ImportJobUpload",
-    "ArtifactKind",
     "MetadataStatus",
     "RenderAssetKind",
     "RevisionOrigin",

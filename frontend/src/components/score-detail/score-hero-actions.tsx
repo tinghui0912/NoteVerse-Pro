@@ -19,26 +19,26 @@ import {
 } from '@/hooks/queries/use-score-queries';
 import { useDownload } from '@/hooks/use-download';
 import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
-import type { ScoreArtifact } from '@/types/api';
+import type { ScoreRevisionAssets } from '@/types/api';
 
 interface ScoreHeroActionsProps {
-  artifacts: ScoreArtifact[];
+  revisionAssets: ScoreRevisionAssets;
   revisionId?: string | null;
   scoreId: string;
 }
 
-export function ScoreHeroActions({ artifacts, revisionId, scoreId }: ScoreHeroActionsProps) {
+export function ScoreHeroActions({ revisionAssets, revisionId, scoreId }: ScoreHeroActionsProps) {
   const t = useTranslations('score');
   const common = useTranslations('common');
   const practice = useTranslations('practice');
   const { capabilities } = useScoreCapabilities();
-  const { handleDownload } = useDownload({ mode: 'score', id: scoreId, artifacts });
+  const { handleDownload } = useDownload({ mode: 'score', id: scoreId, assets: revisionAssets });
   const publication = useScorePublication(scoreId);
   const publish = usePublishScore(scoreId);
   const unpublish = useUnpublishScore(scoreId);
   const isPublished = publication.data?.data?.status === 'PUBLISHED';
   const publishBusy = publish.isPending || unpublish.isPending;
-  const downloads = scoreDownloadAvailability(artifacts);
+  const downloads = scoreDownloadAvailability(revisionAssets);
   const downloadAvailable = capabilities.can_download && (
     downloads.canDownloadImage || downloads.canDownloadXml
   );

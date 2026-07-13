@@ -1,4 +1,4 @@
-"""Rebuild revision metadata projections from canonical MusicXML artifacts."""
+"""Rebuild revision metadata projections from canonical MusicXML revision sources."""
 
 from __future__ import annotations
 

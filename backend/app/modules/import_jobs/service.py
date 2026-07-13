@@ -13,9 +13,16 @@ from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobDetail, ImportJobProcessingOptions, ImportJobStatusEntry, ImportJobSubmitRequestLike, ImportJobSubmitResult
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.worker_service import sync_import_job_service
-from app.modules.artifacts.service import ArtifactDelivery
 from app.storage import FileStorage, file_storage
 from app.shared.constants import ErrorCode
+
+
+@dataclass(frozen=True)
+class ImportArtifactDelivery:
+    filename: str
+    media_type: str
+    path: str | None = None
+    redirect_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -146,7 +153,7 @@ class ImportJobService:
         job_uuid: str,
         artifact_uuid: str,
         user_id: int,
-    ) -> ArtifactDelivery:
+    ) -> ImportArtifactDelivery:
         job = await self.get_owned_job(db, job_uuid, user_id)
         artifact = await self.repository.artifact_by_uuid(db, artifact_uuid)
         if not artifact or artifact.job_id != job.id:
@@ -164,12 +171,12 @@ class ImportJobService:
             )
             if not url:
                 raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.storage_key)
-            return ArtifactDelivery(
+            return ImportArtifactDelivery(
                 filename=artifact.filename,
                 media_type=media_type,
                 redirect_url=url,
             )
-        return ArtifactDelivery(
+        return ImportArtifactDelivery(
             filename=artifact.filename,
             media_type=media_type,
             path=self.storage.materialize_to_local(

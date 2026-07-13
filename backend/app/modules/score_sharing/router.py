@@ -93,17 +93,17 @@ async def access_score_grant(
     return success_response(data=result)
 
 
-@grant_router.get("/{token}/artifacts/{artifact_id}/download")
-async def download_score_grant_artifact(
+@grant_router.get("/{token}/revision-sources/{source_id}/download")
+async def download_score_grant_revision_source(
     token: str,
-    artifact_id: str,
+    source_id: str,
     current_user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
     service: ScoreSharingService = Depends(get_score_sharing_service),
 ):
     user_id = current_user.id if current_user else None
-    delivery = await service.grant_artifact_delivery(
-        db, token, artifact_id, user_id
+    delivery = await service.grant_revision_source_delivery(
+        db, token, source_id, user_id
     )
     if delivery.redirect_url:
         return RedirectResponse(delivery.redirect_url, status_code=302)
@@ -114,17 +114,38 @@ async def download_score_grant_artifact(
     )
 
 
-@grant_router.get("/{token}/artifacts/{artifact_id}/view")
-async def view_score_grant_artifact(
+@grant_router.get("/{token}/render-assets/{render_asset_id}/download")
+async def download_score_grant_render_asset(
     token: str,
-    artifact_id: str,
+    render_asset_id: str,
     current_user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
     service: ScoreSharingService = Depends(get_score_sharing_service),
 ):
     user_id = current_user.id if current_user else None
-    delivery = await service.grant_artifact_delivery(
-        db, token, artifact_id, user_id, download=False
+    delivery = await service.grant_render_asset_delivery(
+        db, token, render_asset_id, user_id
+    )
+    if delivery.redirect_url:
+        return RedirectResponse(delivery.redirect_url, status_code=302)
+    return FileResponse(
+        delivery.path or "",
+        filename=delivery.filename,
+        media_type=delivery.media_type,
+    )
+
+
+@grant_router.get("/{token}/render-assets/{render_asset_id}/view")
+async def view_score_grant_render_asset(
+    token: str,
+    render_asset_id: str,
+    current_user: User | None = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreSharingService = Depends(get_score_sharing_service),
+):
+    user_id = current_user.id if current_user else None
+    delivery = await service.grant_render_asset_delivery(
+        db, token, render_asset_id, user_id, download=False
     )
     if delivery.redirect_url:
         return RedirectResponse(delivery.redirect_url, status_code=302)

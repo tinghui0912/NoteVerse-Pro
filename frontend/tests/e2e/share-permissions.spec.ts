@@ -12,7 +12,12 @@ test('anonymous grant UI follows backend capabilities', async ({ page }) => {
       score_id: 'score-1', revision_id: 'revision-1', title: 'Shared Score', taxonomy_tags: [],
       shared_by: { display_name: 'Sharer', avatar_url: null },
       shared_at: '2026-06-23T00:00:00Z',
-      capabilities: capabilities(false, false), metadata: null, artifacts: [],
+      capabilities: capabilities(false, false), metadata: null,
+      derived_assets: {
+        preview: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
+        audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
+      },
+      revision_assets: { revision_sources: [], render_assets: [] },
     } }),
   }));
   await page.route('**/api/v1/score-grants/view-token/content', (route) => route.fulfill({

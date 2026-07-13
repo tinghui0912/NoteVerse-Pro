@@ -66,8 +66,8 @@ from app.modules.revisions.derived_asset_retention_service import (
 )
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.fingering_service import strip_existing_fingerings
-from app.modules.artifacts.service import ArtifactService
-from app.modules.artifacts.render_outbox_service import RenderOutboxService
+from app.modules.score_assets.service import ScoreAssetService
+from app.modules.score_assets.render_outbox_service import RenderOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
@@ -704,7 +704,7 @@ async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending
     )
 
     assert detail.head_revision_id == "revision-new"
-    assert detail.derived_assets.preview.artifact_id == "old-thumbnail"
+    assert detail.derived_assets.preview.asset_id == "old-thumbnail"
     assert detail.derived_assets.preview.revision_id == "revision-old"
     assert detail.derived_assets.preview.is_fallback is True
     assert detail.derived_assets.preview.status == "processing"
@@ -1636,10 +1636,10 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
     score = session.query(Score).filter_by(score_uuid=score_uuid).one()
     revision = session.get(ScoreRevision, score.head_revision_id)
     artifact = session.query(ScoreRevisionSource).filter_by(revision_id=revision.id).one()
-    service = ArtifactService(storage=storage)
+    service = ScoreAssetService(storage=storage)
     async_db = AsyncSessionAdapter(session)
 
-    delivery = await service.delivery(
+    delivery = await service.source_delivery(
         async_db,
         artifact.source_uuid,
         1,  # type: ignore[arg-type]
@@ -1647,7 +1647,7 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
     assert delivery.path is not None
 
     with pytest.raises(UnauthorizedException):
-        await service.delivery(
+        await service.source_delivery(
             async_db,
             artifact.source_uuid,
             2,  # type: ignore[arg-type]
@@ -1660,7 +1660,7 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
         revision.revision_uuid,
         1,
     )
-    assert diagnostics.missing_artifact_ids == [artifact.source_uuid]
+    assert diagnostics.missing_render_asset_ids == []
 
 
 @pytest.mark.asyncio
@@ -1990,10 +1990,10 @@ async def test_share_detail_exposes_display_assets_without_musicxml_when_downloa
     )
 
     detail = await sharing_service.access_grant(db, created.token, None)  # type: ignore[arg-type]
-    assert detail.artifacts == []
-    assert detail.derived_assets.preview.artifact_id == "share-old-preview"
+    assert detail.revision_assets.revision_sources == []
+    assert detail.derived_assets.preview.asset_id == "share-old-preview"
     assert detail.derived_assets.preview.is_fallback is True
-    assert detail.derived_assets.audio.artifact_id == "share-old-audio"
+    assert detail.derived_assets.audio.asset_id == "share-old-audio"
     assert detail.derived_assets.audio.is_fallback is True
 
     playback = await PlaybackService(storage=storage).grant_delivery(
@@ -2002,12 +2002,11 @@ async def test_share_detail_exposes_display_assets_without_musicxml_when_downloa
     assert playback.path == storage.local_path(old_audio.storage_key)
 
     with pytest.raises(UnauthorizedException):
-        await sharing_service.grant_artifact_delivery(
+        await sharing_service.grant_revision_source_delivery(
             db,  # type: ignore[arg-type]
             created.token,
             "share-new-musicxml",
             None,
-            download=False,
         )
 
 
@@ -2468,8 +2467,8 @@ async def test_publication_pins_revision_until_explicit_republish(
     session.commit()
     db = AsyncSessionAdapter(session)
     policy = ScoreAccessPolicy()
-    artifact_service = ArtifactService(storage=storage, access_policy=policy)
-    service = PublicationService(access_policy=policy, artifact_service=artifact_service)
+    asset_service = ScoreAssetService(storage=storage, access_policy=policy)
+    service = PublicationService(access_policy=policy, asset_service=asset_service)
 
     published = await service.publish(
         db,  # type: ignore[arg-type]
@@ -2574,7 +2573,7 @@ async def test_public_detail_exposes_derived_fallback_without_musicxml_when_down
 
     db = AsyncSessionAdapter(session)
     service = PublicationService(
-        artifact_service=ArtifactService(storage=storage),
+        asset_service=ScoreAssetService(storage=storage),
         score_repository=ScoreRepository(),
     )
     published = await service.publish(
@@ -2590,14 +2589,13 @@ async def test_public_detail_exposes_derived_fallback_without_musicxml_when_down
     )
 
     detail = await service.public_detail(db, published.public_slug)  # type: ignore[arg-type]
-    assert detail.artifacts == []
-    assert detail.derived_assets.preview.artifact_id == "public-old-preview"
+    assert detail.revision_assets.revision_sources == []
+    assert detail.derived_assets.preview.asset_id == "public-old-preview"
     assert detail.derived_assets.preview.is_fallback is True
 
     with pytest.raises(UnauthorizedException):
-        await service.public_artifact_delivery(
+        await service.public_revision_source_delivery(
             db,  # type: ignore[arg-type]
             published.public_slug,
             "public-new-musicxml",
-            download=False,
         )

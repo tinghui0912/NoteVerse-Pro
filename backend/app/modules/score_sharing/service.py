@@ -19,13 +19,8 @@ from app.db.models import (
     ShareGrantRedemption,
     User,
 )
-from app.db.models.score import ArtifactKind
-from app.modules.score_access.policy import (
-    ScoreAccessPolicy,
-    ScoreAction,
-    hash_share_token,
-)
-from app.modules.artifacts.service import ArtifactDelivery, ArtifactService
+from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
+from app.modules.score_assets.service import ScoreAssetDelivery, ScoreAssetService
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.scores.derived_assets import score_derived_assets
 from app.modules.scores.repository import ScoreRepository
@@ -57,7 +52,7 @@ class ScoreSharingService:
         self,
         repository: ScoreSharingRepository | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        artifact_service: ArtifactService | None = None,
+        asset_service: ScoreAssetService | None = None,
         score_repository: ScoreRepository | None = None,
         storage: FileStorage | None = None,
     ) -> None:
@@ -65,7 +60,7 @@ class ScoreSharingService:
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.storage = storage or file_storage
         self.score_repository = score_repository or ScoreRepository()
-        self.artifact_service = artifact_service or ArtifactService(
+        self.asset_service = asset_service or ScoreAssetService(
             score_repository=self.score_repository,
             storage=self.storage,
             access_policy=self.access_policy,
@@ -181,18 +176,14 @@ class ScoreSharingService:
             ScoreRevisionMetadata,
             require_persisted_id(access.revision.id, entity="score revision"),
         )
-        artifacts = await self.artifact_service.list(
+        revision_assets = await self.asset_service.list_revision_assets(
             db,
             score.score_uuid,
             user_id,
             revision_uuid=access.revision.revision_uuid,
+            include_sources=grant.allow_download,
             share_token=token,
         )
-        artifacts = [
-            artifact
-            for artifact in artifacts
-            if artifact.kind != ArtifactKind.MUSICXML or grant.allow_download
-        ]
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = await score_derived_assets(
             db,
@@ -232,28 +223,46 @@ class ScoreSharingService:
                 else None
             ),
             derived_assets=derived_assets,
-            artifacts=artifacts,
+            revision_assets=revision_assets,
         )
 
-    async def grant_artifact_delivery(
+    async def grant_revision_source_delivery(
         self,
         db: AsyncSession,
         token: str,
-        artifact_uuid: str,
+        source_uuid: str,
         user_id: int | None,
-        *,
-        download: bool = True,
-    ) -> ArtifactDelivery:
+    ) -> ScoreAssetDelivery:
         grant = await self._grant_by_token(db, token)
         score = await db.get(Score, grant.score_id)
         if not score:
             raise ResourceNotFoundException("score", token, ErrorCode.SCORE_NOT_FOUND)
-        return await self.artifact_service.delivery(
+        return await self.asset_service.source_delivery(
             db,
-            artifact_uuid,
+            source_uuid,
             user_id,
             share_token=token,
-            action=ScoreAction.DOWNLOAD if download else ScoreAction.VIEW,
+        )
+
+    async def grant_render_asset_delivery(
+        self,
+        db: AsyncSession,
+        token: str,
+        render_asset_uuid: str,
+        user_id: int | None,
+        *,
+        download: bool = True,
+    ) -> ScoreAssetDelivery:
+        grant = await self._grant_by_token(db, token)
+        score = await db.get(Score, grant.score_id)
+        if not score:
+            raise ResourceNotFoundException("score", token, ErrorCode.SCORE_NOT_FOUND)
+        return await self.asset_service.render_asset_delivery(
+            db,
+            render_asset_uuid,
+            user_id,
+            share_token=token,
+            download=download,
         )
 
     async def bookmark_grant(

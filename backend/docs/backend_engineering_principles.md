@@ -32,17 +32,19 @@ Current feature modules:
 
 ```text
 app/modules/
-|-- artifacts
+|-- account
 |-- auth
 |-- files
-|-- jobs
+|-- import_jobs
 |-- metadata
+|-- playback
 |-- practice
-|-- profile
 |-- publications
 |-- revisions
 |-- review
 |-- score_access
+|-- score_assets
+|-- score_invites
 |-- score_sharing
 `-- scores
 ```
@@ -78,8 +80,9 @@ Score ---- ScoreMembership
   |
   v
 ScoreRevision ---- ScoreRevisionMetadata
-  |
-  `---- ScoreArtifact
+  |  \---- ScoreRevisionSource
+  |  \---- ScoreRenderAsset
+  |  `---- ScorePlaybackAsset
 
 PracticeSession ---- pinned ScoreRevision
 ```
@@ -92,7 +95,9 @@ Core rules:
   confirms it.
 - `Score` is the stable user-owned product resource.
 - `ScoreRevision` is immutable and linear.
-- `ScoreArtifact` stores revision-owned payloads such as canonical MusicXML and renders.
+- `ScoreRevisionSource` stores revision-owned canonical source payloads such as MusicXML.
+- `ScoreRenderAsset` stores rebuildable visual render outputs such as rendered pages.
+- `ScorePlaybackAsset` stores rebuildable playback outputs such as audio.
 - `ImportArtifact` stores job internals such as OMR output, enhanced XML, diagnostics,
   and other non-product pipeline artifacts.
 - `ScoreRevisionMetadata` is a rebuildable typed projection from canonical MusicXML.
@@ -176,17 +181,17 @@ Own stable score resources and immutable revision creation:
 
 Do not overwrite MusicXML in place. Do not model review approval as a file copy.
 
-### `modules/artifacts`
+### `modules/score_assets`
 
-Owns score artifact delivery and rendering:
+Owns score revision source and render asset delivery:
 
-- canonical MusicXML access;
-- artifact listing;
-- access URLs and downloads;
+- canonical revision source access;
+- revision source downloads;
+- render asset listing, viewing, access URLs, downloads, and archives;
 - renderer output attached to a revision and render profile;
-- storage-object diagnostics.
+- render storage-object diagnostics.
 
-Artifact IDs replace task ID plus file kind addressing.
+Revision source IDs and render asset IDs replace task ID plus file kind addressing.
 
 ### `modules/metadata`
 
@@ -261,12 +266,12 @@ Rules:
 - pass durable upload IDs or storage keys;
 - workers materialize inputs in their own `WORK_ROOT`;
 - business modules do not construct durable paths directly;
-- score-owned artifacts use score/revision/artifact identity;
+- score-owned source, render, and playback assets use score/revision/asset identity;
 - job-owned artifacts use job identity;
 - `enhanced_xml` is a processing artifact only;
 - missing canonical MusicXML should fail explicitly, never fall back to enhanced XML.
 
-New score artifacts should use score/revision-aware keys such as:
+New score source, render, and playback assets should use score/revision-aware keys such as:
 
 ```text
 scores/{score_uuid}/revisions/{revision_uuid}/...
@@ -351,7 +356,7 @@ Development cutover sequence:
 docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade head
 ```
 
-This project is still in development. Prefer clearing disposable local data over keeping legacy backfill scripts alive. Cleanup migrations should fail closed when score, revision, artifact, share, library, or practice mappings are incomplete.
+This project is still in development. Prefer clearing disposable local data over keeping legacy backfill scripts alive. Cleanup migrations should fail closed when score, revision, source, render asset, share, library, or practice mappings are incomplete.
 
 ## 9. Coding Standards
 
@@ -440,7 +445,7 @@ docker run --rm --env-file backend/.env.docker -v "${PWD}\backend:/app" -w /app 
 
 For score-domain changes, add focused coverage for the relevant behavior:
 
-- revision ordering, deduplication, conflict, approval, and immutable artifacts;
+- revision ordering, conflict, approval, immutable sources, and restore semantics;
 - metadata extraction, rebuild, and failure states;
 - authorization matrix for owner, member, share, public, and anonymous paths;
 - share token hashing, expiry, revocation, redemption, and bookmark separation;
@@ -482,7 +487,7 @@ Before finalizing backend work, check:
 - no task-as-score, current/final XML, saved-share authorization, or task-owned file
   contracts;
 - no job ID used as a score route identity after a score exists;
-- no canonical MusicXML mutation that overwrites an existing revision artifact;
+- no canonical MusicXML mutation that overwrites an existing revision source;
 - no endpoint reconstructs score permissions outside `modules/score_access`;
 - no raw share token persistence beyond one-time token return;
 - no public access follows mutable head revision without explicit republish;

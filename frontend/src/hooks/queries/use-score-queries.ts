@@ -32,16 +32,16 @@ export function useScoreRevisions(scoreId: string, enabled = true) {
   });
 }
 
-export function useScoreArtifacts(
+export function useScoreRevisionAssets(
   scoreId: string,
-  options?: { revisionId?: string; kind?: string; enabled?: boolean }
+  options?: { revisionId?: string; enabled?: boolean }
 ) {
   return useQuery({
-    queryKey: queryKeys.scores.artifacts(scoreId, options?.revisionId, options?.kind),
+    queryKey: queryKeys.scores.revisionAssets(scoreId, options?.revisionId),
     queryFn: ({ signal }) =>
-      scoresApi.artifacts(
+      scoresApi.revisionAssets(
         scoreId,
-        { revision_id: options?.revisionId, kind: options?.kind },
+        { revision_id: options?.revisionId },
         signal
       ),
     enabled: (options?.enabled ?? true) && Boolean(scoreId),
@@ -73,7 +73,7 @@ export function useCreateRevision() {
     onSuccess: (_response, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.artifacts(variables.scoreId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
     },
@@ -88,7 +88,7 @@ export function useRestoreRevision() {
     onSuccess: (_response, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.artifacts(variables.scoreId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
     },

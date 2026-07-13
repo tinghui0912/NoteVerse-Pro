@@ -32,11 +32,6 @@ class RevisionOrigin(str, enum.Enum):
     IMPORT = "IMPORT"
 
 
-class ArtifactKind(str, enum.Enum):
-    MUSICXML = "MUSICXML"
-    RENDERED_PAGE = "RENDERED_PAGE"
-
-
 class RevisionSourceFormat(str, enum.Enum):
     MUSICXML = "MUSICXML"
 

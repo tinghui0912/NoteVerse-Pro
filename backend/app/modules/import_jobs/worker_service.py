@@ -12,7 +12,7 @@ from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobArtifactItem, ImportJobDetail
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
 from app.shared.file_kinds import FileKind
-from app.modules.artifacts.render_outbox_service import create_review_thumbnail_render_outbox_sync
+from app.modules.score_assets.render_outbox_service import create_review_thumbnail_render_outbox_sync
 from app.utils.timezone import utc_now_naive
 
 

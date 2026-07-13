@@ -2,9 +2,9 @@ import { apiClient, apiUrl } from '@/lib/api-client';
 import type {
   ApiResponse,
   FingeringHandSize,
-  ScoreArtifact,
   ScoreDetail,
   FingeringResult,
+  ScoreRevisionAssets,
   ScoreRevision,
   ScoreRevisionList,
   ScoreRevisionContent,
@@ -57,16 +57,18 @@ export const scoresApi = {
     scoreId: string,
     input: { content: string; hand_size?: FingeringHandSize }
   ) => apiClient.post<ApiResponse<FingeringResult>>(`/scores/${scoreId}/fingering`, input),
-  artifacts: (
+  revisionAssets: (
     scoreId: string,
-    params?: { revision_id?: string; kind?: string },
+    params?: { revision_id?: string },
     signal?: AbortSignal
-  ) => apiClient.get<ApiResponse<ScoreArtifact[]>>(`/scores/${scoreId}/artifacts`, params, { signal }),
-  downloadArtifact: (artifactId: string) =>
-    apiClient.download(`/artifacts/${artifactId}/download`),
-  downloadArtifactArchive: (scoreId: string, revisionId: string, kind: string) =>
+  ) => apiClient.get<ApiResponse<ScoreRevisionAssets>>(`/scores/${scoreId}/revision-assets`, params, { signal }),
+  downloadRevisionSource: (sourceId: string) =>
+    apiClient.download(`/revision-sources/${sourceId}/download`),
+  downloadRenderAsset: (renderAssetId: string) =>
+    apiClient.download(`/render-assets/${renderAssetId}/download`),
+  downloadRenderAssetArchive: (scoreId: string, revisionId: string, kind: string) =>
     apiClient.download(
-      `/scores/${scoreId}/artifact-archive?revision_id=${encodeURIComponent(revisionId)}&kind=${encodeURIComponent(kind)}`
+      `/scores/${scoreId}/render-asset-archive?revision_id=${encodeURIComponent(revisionId)}&kind=${encodeURIComponent(kind)}`
     ),
   playbackUrl: (scoreId: string, revisionId: string) =>
     apiUrl(`/scores/${scoreId}/revisions/${revisionId}/playback`),

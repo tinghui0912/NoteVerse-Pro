@@ -1,8 +1,8 @@
-import type { ScoreArtifact } from '@/types/api';
+import type { ScoreRevisionAssets } from '@/types/api';
 
-export function scoreDownloadAvailability(artifacts: ScoreArtifact[]) {
-  const renderedPages = artifacts.filter((artifact) => artifact.kind === 'RENDERED_PAGE');
-  const musicXml = artifacts.find((artifact) => artifact.kind === 'MUSICXML') ?? null;
+export function scoreDownloadAvailability(assets: ScoreRevisionAssets) {
+  const renderedPages = assets.render_assets.filter((asset) => asset.kind === 'RENDERED_PAGE');
+  const musicXml = assets.revision_sources.find((source) => source.format === 'MUSICXML') ?? null;
 
   return {
     renderedPages,
