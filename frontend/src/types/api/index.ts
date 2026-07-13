@@ -6,3 +6,4 @@ export * from './practice';
 export * from './scores';
 export * from './library';
 export * from './my-scores';
+export * from './storage-usage';

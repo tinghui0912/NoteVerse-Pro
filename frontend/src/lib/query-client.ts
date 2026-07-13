@@ -84,5 +84,9 @@ export const queryKeys = {
         all: ['review'] as const,
         detail: (jobId: string) => ['review', 'detail', { jobId }] as const,
     },
+    storageUsage: {
+        all: ['storage-usage'] as const,
+        current: () => ['storage-usage', 'current'] as const,
+    },
 } as const;
 

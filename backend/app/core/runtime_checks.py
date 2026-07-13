@@ -16,6 +16,7 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.db.session import engine
 from app.db.worker_session import sync_engine
+from app.modules.storage_usage.service import DEFAULT_PLAN_CODE
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 
 
@@ -167,6 +168,41 @@ def check_worker_database(_: bool = False) -> CheckResult:
             False,
             f"sync worker database unreachable: {type(exc).__name__}: {exc}",
         )
+
+
+def check_storage_quota_policy(_: bool = False) -> CheckResult:
+    try:
+        with sync_engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    select quota_limit_bytes
+                    from storage_quota_policies
+                    where plan_code = :plan_code
+                    """
+                ),
+                {"plan_code": DEFAULT_PLAN_CODE},
+            ).first()
+    except Exception as exc:
+        return _result(
+            "storage_quota_policy",
+            False,
+            f"storage quota policy check failed: {type(exc).__name__}: {exc}",
+        )
+
+    if row is None:
+        return _result(
+            "storage_quota_policy",
+            False,
+            f"missing required storage quota policy: {DEFAULT_PLAN_CODE}",
+        )
+    if int(row.quota_limit_bytes) <= 0:
+        return _result(
+            "storage_quota_policy",
+            False,
+            f"storage quota policy has invalid limit: {DEFAULT_PLAN_CODE}",
+        )
+    return _result("storage_quota_policy", True, f"storage quota policy ready: {DEFAULT_PLAN_CODE}")
 
 
 def check_redis(_: bool = False) -> CheckResult:
@@ -365,10 +401,19 @@ def check_playback_renderer(_: bool = False) -> CheckResult:
 
 
 ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
-    RuntimeRole.API: ("settings", "database", "redis", "storage", "soundfont", "practice_alignment"),
+    RuntimeRole.API: (
+        "settings",
+        "database",
+        "storage_quota_policy",
+        "redis",
+        "storage",
+        "soundfont",
+        "practice_alignment",
+    ),
     RuntimeRole.WORKER: (
         "settings",
         "worker_database",
+        "storage_quota_policy",
         "redis",
         "work_root",
         "celery_tasks",
@@ -388,6 +433,7 @@ CHECKS: dict[str, CheckSpec] = {
     "settings": CheckSpec("settings", check_settings),
     "database": CheckSpec("database", check_api_database),
     "worker_database": CheckSpec("worker_database", check_worker_database),
+    "storage_quota_policy": CheckSpec("storage_quota_policy", check_storage_quota_policy),
     "redis": CheckSpec("redis", check_redis),
     "storage": CheckSpec("storage", check_api_storage),
     "soundfont": CheckSpec("soundfont", check_soundfont),
@@ -424,6 +470,17 @@ async def check_database_readiness(timeout_seconds: float = 2.0) -> bool:
 async def check_redis_readiness(timeout_seconds: float = 2.0) -> bool:
     try:
         result = await asyncio.wait_for(asyncio.to_thread(check_redis), timeout=timeout_seconds)
+        return result.ok
+    except TimeoutError:
+        return False
+
+
+async def check_storage_quota_policy_readiness(timeout_seconds: float = 2.0) -> bool:
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(check_storage_quota_policy),
+            timeout=timeout_seconds,
+        )
         return result.ok
     except TimeoutError:
         return False

@@ -8,8 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import Score, ScorePlaybackAsset, ScoreRenderAsset, ScoreRevision
+from app.db.models import (
+    Score,
+    ScorePlaybackAsset,
+    ScoreRenderAsset,
+    ScoreRevision,
+    StorageUsageCategory,
+)
 from app.db.models.score import RenderAssetKind
+from app.modules.storage_usage.service import storage_usage_service
 from app.storage import FileStorage, file_storage
 
 logger = logging.getLogger(__name__)
@@ -74,12 +81,45 @@ class DerivedAssetRetentionService:
                 )
             ).scalars()
         )
+        score = await db.get(Score, score_id)
+        owner_user_id = score.owner_user_id if score else None
+        render_usage = [
+            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
+            for asset in rendered_pages
+        ]
+        audio_usage = [
+            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
+            for asset in playback_assets
+        ]
         storage_keys = [asset.storage_key for asset in rendered_pages + playback_assets]
         for asset in rendered_pages:
             await db.delete(asset)
         for asset in playback_assets:
             await db.delete(asset)
         await db.commit()
+        if owner_user_id is not None:
+            for asset_uuid, storage_key, size_bytes in render_usage:
+                await storage_usage_service.record_release(
+                    db,
+                    user_id=owner_user_id,
+                    category=StorageUsageCategory.DERIVED_RENDER,
+                    bytes_count=size_bytes,
+                    reason="derived_asset_retention",
+                    object_type="score_render_asset",
+                    object_id=asset_uuid,
+                    storage_key=storage_key,
+                )
+            for asset_uuid, storage_key, size_bytes in audio_usage:
+                await storage_usage_service.record_release(
+                    db,
+                    user_id=owner_user_id,
+                    category=StorageUsageCategory.DERIVED_AUDIO,
+                    bytes_count=size_bytes,
+                    reason="derived_asset_retention",
+                    object_type="score_playback_asset",
+                    object_id=asset_uuid,
+                    storage_key=storage_key,
+                )
         deleted_objects = self._delete_storage_objects(storage_keys)
         return DerivedAssetRetentionResult(
             rendered_pages_deleted=len(rendered_pages),
@@ -127,12 +167,45 @@ class DerivedAssetRetentionService:
                 self._stale_playback_assets_statement(score_id=score_id, keep_ids=keep_ids)
             ).scalars()
         )
+        score = db.get(Score, score_id)
+        owner_user_id = score.owner_user_id if score else None
+        render_usage = [
+            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
+            for asset in rendered_pages
+        ]
+        audio_usage = [
+            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
+            for asset in playback_assets
+        ]
         storage_keys = [asset.storage_key for asset in rendered_pages + playback_assets]
         for asset in rendered_pages:
             db.delete(asset)
         for asset in playback_assets:
             db.delete(asset)
         db.commit()
+        if owner_user_id is not None:
+            for asset_uuid, storage_key, size_bytes in render_usage:
+                storage_usage_service.record_release_sync(
+                    db,
+                    user_id=owner_user_id,
+                    category=StorageUsageCategory.DERIVED_RENDER,
+                    bytes_count=size_bytes,
+                    reason="derived_asset_retention",
+                    object_type="score_render_asset",
+                    object_id=asset_uuid,
+                    storage_key=storage_key,
+                )
+            for asset_uuid, storage_key, size_bytes in audio_usage:
+                storage_usage_service.record_release_sync(
+                    db,
+                    user_id=owner_user_id,
+                    category=StorageUsageCategory.DERIVED_AUDIO,
+                    bytes_count=size_bytes,
+                    reason="derived_asset_retention",
+                    object_type="score_playback_asset",
+                    object_id=asset_uuid,
+                    storage_key=storage_key,
+                )
         deleted_objects = self._delete_storage_objects(storage_keys)
         return DerivedAssetRetentionResult(
             rendered_pages_deleted=len(rendered_pages),

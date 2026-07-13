@@ -16,6 +16,7 @@ from app.db.models import (
     ScorePlaybackAsset,
     ScoreRevision,
     ScoreRevisionSource,
+    StorageUsageCategory,
 )
 from app.db.models.score import RevisionSourceFormat
 from app.db.models.score_access import PublicationStatus
@@ -24,6 +25,7 @@ from app.modules.publications.repository import PublicationRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_sharing.repository import ScoreSharingRepository
+from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 
@@ -109,6 +111,11 @@ class PlaybackService:
             )
         ).scalar_one_or_none()
         old_key = previous.storage_key if previous else None
+        previous_usage = (
+            (previous.asset_uuid, previous.storage_key, previous.size_bytes)
+            if previous
+            else None
+        )
         try:
             if previous is not None:
                 await db.delete(previous)
@@ -139,6 +146,28 @@ class PlaybackService:
                 pass
             raise
 
+        await storage_usage_service.record_allocation(
+            db,
+            user_id=score.owner_user_id,
+            category=StorageUsageCategory.DERIVED_AUDIO,
+            bytes_count=asset.size_bytes,
+            reason="playback_asset_created",
+            object_type="score_playback_asset",
+            object_id=asset.asset_uuid,
+            storage_key=asset.storage_key,
+        )
+        if previous_usage is not None:
+            old_asset_uuid, old_storage_key, old_size_bytes = previous_usage
+            await storage_usage_service.record_release(
+                db,
+                user_id=score.owner_user_id,
+                category=StorageUsageCategory.DERIVED_AUDIO,
+                bytes_count=old_size_bytes,
+                reason="playback_asset_replaced",
+                object_type="score_playback_asset",
+                object_id=old_asset_uuid,
+                storage_key=old_storage_key,
+            )
         if old_key and old_key != stored.storage_key:
             try:
                 self.storage.delete(old_key)
@@ -347,6 +376,16 @@ class PlaybackService:
             )
         ).scalar_one_or_none()
         old_key = previous.storage_key if previous else None
+        score = db.execute(
+            select(Score)
+            .join(ScoreRevision, ScoreRevision.score_id == Score.id)
+            .where(ScoreRevision.id == revision_id)
+        ).scalar_one()
+        previous_usage = (
+            (previous.asset_uuid, previous.storage_key, previous.size_bytes)
+            if previous
+            else None
+        )
         try:
             if previous is not None:
                 db.delete(previous)
@@ -377,6 +416,28 @@ class PlaybackService:
                 pass
             raise
 
+        storage_usage_service.record_allocation_sync(
+            db,
+            user_id=score.owner_user_id,
+            category=StorageUsageCategory.DERIVED_AUDIO,
+            bytes_count=asset.size_bytes,
+            reason="playback_asset_created",
+            object_type="score_playback_asset",
+            object_id=asset.asset_uuid,
+            storage_key=asset.storage_key,
+        )
+        if previous_usage is not None:
+            old_asset_uuid, old_storage_key, old_size_bytes = previous_usage
+            storage_usage_service.record_release_sync(
+                db,
+                user_id=score.owner_user_id,
+                category=StorageUsageCategory.DERIVED_AUDIO,
+                bytes_count=old_size_bytes,
+                reason="playback_asset_replaced",
+                object_type="score_playback_asset",
+                object_id=old_asset_uuid,
+                storage_key=old_storage_key,
+            )
         if old_key and old_key != stored.storage_key:
             try:
                 self.storage.delete(old_key)

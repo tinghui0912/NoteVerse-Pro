@@ -41,6 +41,8 @@
   "revision_not_found": "The score revision does not exist or has been deleted.",
   "revision_conflict": "This score was updated elsewhere. Please refresh and try again.",
   "revision_content_invalid": "The score content is invalid. Please check the MusicXML and try again.",
+  "storage_quota_exceeded": "Storage space is full. Delete unused content or upgrade your plan.",
+  "storage_quota_policy_not_configured": "Storage service is temporarily unavailable. Please try again later.",
   "current_password_required": "Please enter your current password.",
   "current_password_wrong": "The current password is incorrect.",
   "password_too_short": "Password must be at least 6 characters.",

@@ -3,7 +3,11 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from app.core.runtime_checks import check_database_readiness, check_redis_readiness
+from app.core.runtime_checks import (
+    check_database_readiness,
+    check_redis_readiness,
+    check_storage_quota_policy_readiness,
+)
 
 router = APIRouter(prefix="/health", tags=["Health"])
 
@@ -19,13 +23,20 @@ async def readiness() -> JSONResponse:
     """Report API readiness without coupling it to optional feature dependencies."""
     database_ok = await check_database_readiness()
     redis_ok = await check_redis_readiness()
+    storage_quota_policy_ok = await check_storage_quota_policy_readiness() if database_ok else False
 
-    if not database_ok:
+    checks = {
+        "database": "ok" if database_ok else "failed",
+        "storage_quota_policy": "ok" if storage_quota_policy_ok else "failed",
+        "redis": "ok" if redis_ok else "degraded",
+    }
+
+    if not database_ok or not storage_quota_policy_ok:
         return JSONResponse(
             status_code=503,
             content={
                 "status": "not_ready",
-                "checks": {"database": "failed", "redis": "ok" if redis_ok else "degraded"},
+                "checks": checks,
             },
         )
 
@@ -33,6 +44,6 @@ async def readiness() -> JSONResponse:
         status_code=200,
         content={
             "status": "ok" if redis_ok else "degraded",
-            "checks": {"database": "ok", "redis": "ok" if redis_ok else "degraded"},
+            "checks": checks,
         },
     )

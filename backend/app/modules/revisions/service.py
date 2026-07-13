@@ -19,6 +19,7 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionNote,
     ScoreRevisionSource,
+    StorageUsageCategory,
     User,
 )
 from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
@@ -45,6 +46,7 @@ from app.modules.revisions.derived_asset_retention_service import (
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
+from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
@@ -136,12 +138,26 @@ class RevisionService:
 
         revision_uuid = str(uuid.uuid4())
         key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
-        stored = self.storage.put_bytes(
-            key=key,
-            content=content,
-            content_type="application/vnd.recordare.musicxml+xml",
+        reservation = await storage_usage_service.reserve(
+            db,
+            user_id=user_id,
+            category=StorageUsageCategory.SOURCE,
+            bytes_count=len(content),
+            reason="revision_create",
+            object_type="score_revision_source",
         )
+        business_committed = False
         try:
+            stored = self.storage.put_bytes(
+                key=key,
+                content=content,
+                content_type="application/vnd.recordare.musicxml+xml",
+            )
+        except Exception:
+            await storage_usage_service.release_reservation(db, reservation.reservation_id)
+            raise
+        try:
+            source_uuid = str(uuid.uuid4())
             revision = ScoreRevision(
                 revision_uuid=revision_uuid,
                 score_id=score_id,
@@ -159,7 +175,7 @@ class RevisionService:
             revision_id = require_persisted_id(revision.id, entity="score revision")
             db.add(
                 ScoreRevisionSource(
-                    source_uuid=str(uuid.uuid4()),
+                    source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
                     storage_backend=self.storage.backend_name,
@@ -190,6 +206,14 @@ class RevisionService:
             score.version += 1
             score.updated_at = utc_now_naive()
             await db.commit()
+            business_committed = True
+            await storage_usage_service.commit_reservation(
+                db,
+                reservation.reservation_id,
+                object_type="score_revision_source",
+                object_id=source_uuid,
+                storage_key=stored.storage_key,
+            )
             await db.refresh(revision)
             actor = await db.get(User, user_id)
             if actor is not None:
@@ -226,10 +250,12 @@ class RevisionService:
             return await self._read(db, revision)
         except Exception:
             await db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            if not business_committed:
+                try:
+                    self.storage.delete(stored.storage_key)
+                except Exception:
+                    pass
+                await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
     async def list(
@@ -296,12 +322,26 @@ class RevisionService:
         content_hash = hashlib.sha256(content).hexdigest()
         new_revision_uuid = str(uuid.uuid4())
         key = f"scores/{score_uuid}/revisions/{new_revision_uuid}/score.musicxml"
-        stored = self.storage.put_bytes(
-            key=key,
-            content=content,
-            content_type="application/vnd.recordare.musicxml+xml",
+        reservation = await storage_usage_service.reserve(
+            db,
+            user_id=user_id,
+            category=StorageUsageCategory.SOURCE,
+            bytes_count=len(content),
+            reason="revision_restore",
+            object_type="score_revision_source",
         )
+        business_committed = False
         try:
+            stored = self.storage.put_bytes(
+                key=key,
+                content=content,
+                content_type="application/vnd.recordare.musicxml+xml",
+            )
+        except Exception:
+            await storage_usage_service.release_reservation(db, reservation.reservation_id)
+            raise
+        try:
+            source_uuid = str(uuid.uuid4())
             revision = ScoreRevision(
                 revision_uuid=new_revision_uuid,
                 score_id=score_id,
@@ -318,7 +358,7 @@ class RevisionService:
             revision_id = require_persisted_id(revision.id, entity="score revision")
             db.add(
                 ScoreRevisionSource(
-                    source_uuid=str(uuid.uuid4()),
+                    source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
                     storage_backend=self.storage.backend_name,
@@ -361,6 +401,14 @@ class RevisionService:
             score.version += 1
             score.updated_at = utc_now_naive()
             await db.commit()
+            business_committed = True
+            await storage_usage_service.commit_reservation(
+                db,
+                reservation.reservation_id,
+                object_type="score_revision_source",
+                object_id=source_uuid,
+                storage_key=stored.storage_key,
+            )
             await db.refresh(revision)
             actor = await db.get(User, user_id)
             if actor is not None:
@@ -397,10 +445,12 @@ class RevisionService:
             return await self._read(db, revision)
         except Exception:
             await db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            if not business_committed:
+                try:
+                    self.storage.delete(stored.storage_key)
+                except Exception:
+                    pass
+                await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
     async def update_note(

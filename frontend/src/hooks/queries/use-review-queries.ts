@@ -11,9 +11,16 @@ export function useImportJobReview(jobId: string, enabled = true) {
 }
 
 export function useConfirmImportJobReview() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({ jobId, content, title }: { jobId: string; content: string; title?: string }) =>
       reviewApi.confirm(jobId, { content, title }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+    },
   });
 }
 

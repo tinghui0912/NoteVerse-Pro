@@ -76,6 +76,7 @@ export function useCreateRevision() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
     },
   });
 }
@@ -91,6 +92,7 @@ export function useRestoreRevision() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(variables.scoreId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
     },
   });
 }

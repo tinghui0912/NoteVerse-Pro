@@ -33,6 +33,7 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionNote,
     ScoreRevisionSource,
+    StorageQuotaPolicy,
     ScoreLibraryEntry,
     ScoreInvite,
     ScoreMembership,
@@ -208,6 +209,12 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
                     display_name="other",
                     password_hash="hash",
                     role=UserRole.user,
+                ),
+                StorageQuotaPolicy(
+                    plan_code="FREE",
+                    quota_limit_bytes=100 * 1024 * 1024,
+                    created_at=utc_now_naive(),
+                    updated_at=utc_now_naive(),
                 ),
             ]
         )

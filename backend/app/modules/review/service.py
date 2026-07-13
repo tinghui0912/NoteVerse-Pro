@@ -25,6 +25,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
+    StorageUsageCategory,
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import (
@@ -49,6 +50,7 @@ from app.modules.review.schemas import (
 )
 from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.taxonomy import ordered_unique_pairs
+from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
 from app.storage import FileStorage, file_storage
@@ -180,12 +182,26 @@ class ReviewService:
         title = self._confirmed_title(job, request)
         taxonomy_pairs = self._confirmed_taxonomy_pairs(job, request)
         key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
-        stored = self.storage.put_bytes(
-            key=key,
-            content=content,
-            content_type="application/vnd.recordare.musicxml+xml",
+        reservation = await storage_usage_service.reserve(
+            db,
+            user_id=user_id,
+            category=StorageUsageCategory.SOURCE,
+            bytes_count=len(content),
+            reason="review_confirm",
+            object_type="score_revision_source",
         )
+        business_committed = False
+        try:
+            stored = self.storage.put_bytes(
+                key=key,
+                content=content,
+                content_type="application/vnd.recordare.musicxml+xml",
+            )
+        except Exception:
+            await storage_usage_service.release_reservation(db, reservation.reservation_id)
+            raise
 
+        business_committed = False
         try:
             score = Score(
                 score_uuid=score_uuid,
@@ -212,9 +228,10 @@ class ReviewService:
             db.add(revision)
             await db.flush()
             revision_id = require_persisted_id(revision.id, entity="score revision")
+            source_uuid = str(uuid.uuid4())
             db.add(
                 ScoreRevisionSource(
-                    source_uuid=str(uuid.uuid4()),
+                    source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
                     storage_backend=self.storage.backend_name,
@@ -268,12 +285,22 @@ class ReviewService:
                 score_title=title,
             )
             await db.commit()
+            business_committed = True
+            await storage_usage_service.commit_reservation(
+                db,
+                reservation.reservation_id,
+                object_type="score_revision_source",
+                object_id=source_uuid,
+                storage_key=stored.storage_key,
+            )
         except Exception:
             await db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            if not business_committed:
+                try:
+                    self.storage.delete(stored.storage_key)
+                except Exception:
+                    pass
+                await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
         await revision_derivative_service.rebuild_metadata_best_effort(
@@ -377,7 +404,9 @@ class ReviewService:
         if artifact is None:
             raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
 
+        old_artifact_uuid = artifact.artifact_uuid
         old_storage_key = artifact.storage_key
+        old_size_bytes = artifact.size_bytes or 0
         stored = self.storage.put_bytes(
             key=f"jobs/{job_uuid}/{FileKind.REVIEW_MUSICXML.value}/{uuid.uuid4()}.musicxml",
             content=content,
@@ -397,12 +426,39 @@ class ReviewService:
                 source_fingerprint=content_hash,
             )
             await db.commit()
+            business_committed = True
         except Exception:
             await db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            if not business_committed:
+                try:
+                    self.storage.delete(stored.storage_key)
+                except Exception:
+                    pass
+            raise
+
+        try:
+            await storage_usage_service.record_release(
+                db,
+                user_id=user_id,
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=old_size_bytes,
+                reason="review_musicxml_replaced",
+                object_type="import_artifact",
+                object_id=old_artifact_uuid,
+                storage_key=old_storage_key,
+            )
+            await storage_usage_service.record_allocation(
+                db,
+                user_id=user_id,
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=stored.size_bytes,
+                reason="review_musicxml_updated",
+                object_type="import_artifact",
+                object_id=artifact.artifact_uuid,
+                storage_key=stored.storage_key,
+            )
+        except Exception:
+            await db.rollback()
             raise
 
         if old_storage_key != stored.storage_key:

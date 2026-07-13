@@ -5,6 +5,7 @@ def test_api_runtime_checks_cover_api_owned_dependencies() -> None:
     assert ROLE_CHECK_NAMES[RuntimeRole.API] == (
         "settings",
         "database",
+        "storage_quota_policy",
         "redis",
         "storage",
         "soundfont",
@@ -16,6 +17,7 @@ def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     checks = ROLE_CHECK_NAMES[RuntimeRole.WORKER]
 
     assert "worker_database" in checks
+    assert "storage_quota_policy" in checks
     assert "celery_tasks" in checks
     assert "omr_engine" in checks
     assert "render_engine" in checks

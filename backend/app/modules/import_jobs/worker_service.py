@@ -6,11 +6,12 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportArtifact, ImportJobStep
+from app.db.models import ImportArtifact, ImportJobStep, StorageUsageCategory
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobArtifactItem, ImportJobDetail
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
+from app.modules.storage_usage.service import storage_usage_service
 from app.shared.file_kinds import FileKind
 from app.modules.score_assets.render_outbox_service import create_review_thumbnail_render_outbox_sync
 from app.utils.timezone import utc_now_naive
@@ -181,9 +182,15 @@ class SyncImportJobService:
         if not job:
             raise ValueError(f"Job {job_uuid} not found")
         job_id = require_persisted_id(job.id, entity="import job")
+        previous = [
+            (artifact.artifact_uuid, artifact.storage_key, artifact.size_bytes or 0)
+            for artifact in self.repository.list_artifacts(db, job_id)
+            if artifact.kind == kind
+        ]
         self.repository.delete_artifacts_by_kind(db, job_id, kind)
+        created: list[ImportArtifact] = []
         for item in items:
-            db.add(ImportArtifact(
+            artifact = ImportArtifact(
                 job_id=job_id,
                 kind=kind,
                 storage_backend=item["storage_backend"],
@@ -193,8 +200,32 @@ class SyncImportJobService:
                 size_bytes=item["size"],
                 mime_type=item["mime_type"],
                 sha256=item["sha256"],
-            ))
+            )
+            db.add(artifact)
+            created.append(artifact)
         db.commit()
+        for artifact_uuid, storage_key, size_bytes in previous:
+            storage_usage_service.record_release_sync(
+                db,
+                user_id=job.user_id,
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=size_bytes,
+                reason="import_artifact_replaced",
+                object_type="import_artifact",
+                object_id=artifact_uuid,
+                storage_key=storage_key,
+            )
+        for artifact in created:
+            storage_usage_service.record_allocation_sync(
+                db,
+                user_id=job.user_id,
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=artifact.size_bytes or 0,
+                reason="import_artifact_created",
+                object_type="import_artifact",
+                object_id=artifact.artifact_uuid,
+                storage_key=artifact.storage_key,
+            )
 
     def get_detail(self, db: Session, job_uuid: str) -> ImportJobDetail:
         job = self.repository.get_by_uuid(db, job_uuid)

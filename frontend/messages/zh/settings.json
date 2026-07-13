@@ -73,7 +73,19 @@
   "billing": {
     "heading": "账单",
     "description": "你的账户账单、当前方案和订阅管理会放在这里。公开方案介绍仍保留在订阅页面。",
-    "viewPlans": "查看公开方案"
+    "viewPlans": "查看公开方案",
+    "storage": {
+      "title": "存储用量",
+      "description": "统计你的上传文件和乐谱版本源文件。缩略图和音频等系统派生产物会被内部追踪，但暂不计入用户配额。",
+      "refresh": "刷新",
+      "loadFailed": "无法加载存储用量",
+      "loadFailedDesc": "请稍后重试，或刷新页面。",
+      "usedOfLimit": "{used} / {limit}",
+      "nearLimit": "存储空间即将用尽，请删除不需要的内容或升级方案。",
+      "used": "已使用",
+      "reserved": "处理中",
+      "available": "可用"
+    }
   },
   "currentPassword": "当前密码",
   "newPassword": "新密码",

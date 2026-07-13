@@ -16,6 +16,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
+    StorageUsageCategory,
 )
 from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
@@ -32,6 +33,7 @@ from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.render_service import RevisionRenderService
+from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
@@ -140,41 +142,99 @@ class ScoreService:
         score = await self.repository.get(db, access.score.score_uuid, lock=True)
         assert score is not None
         score_id = require_persisted_id(score.id, entity="score")
+        owner_user_id = score.owner_user_id
+        usage_releases: list[tuple[StorageUsageCategory, int, str, str, str]] = []
         keys = list(
             (
                 await db.execute(
-                    select(ScoreRevisionSource.storage_key)
+                    select(
+                        ScoreRevisionSource.source_uuid,
+                        ScoreRevisionSource.storage_key,
+                        ScoreRevisionSource.size_bytes,
+                    )
                     .join(
                         ScoreRevision,
                         ScoreRevisionSource.revision_id == ScoreRevision.id,
                     )
                     .where(ScoreRevision.score_id == score_id)
                 )
-            ).scalars().all()
+            ).all()
         )
-        keys.extend(
+        usage_releases.extend(
+            (
+                StorageUsageCategory.SOURCE,
+                size_bytes,
+                "score_revision_source",
+                source_uuid,
+                storage_key,
+            )
+            for source_uuid, storage_key, size_bytes in keys
+        )
+        storage_keys = [storage_key for _, storage_key, _ in keys]
+        render_rows = list(
             (
                 await db.execute(
-                    select(ScoreRenderAsset.storage_key)
+                    select(
+                        ScoreRenderAsset.asset_uuid,
+                        ScoreRenderAsset.storage_key,
+                        ScoreRenderAsset.size_bytes,
+                    )
                     .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
                     .where(ScoreRevision.score_id == score_id)
                 )
-            ).scalars().all()
+            ).all()
         )
-        keys.extend(
+        usage_releases.extend(
+            (
+                StorageUsageCategory.DERIVED_RENDER,
+                size_bytes,
+                "score_render_asset",
+                asset_uuid,
+                storage_key,
+            )
+            for asset_uuid, storage_key, size_bytes in render_rows
+        )
+        storage_keys.extend(storage_key for _, storage_key, _ in render_rows)
+        audio_rows = list(
             (
                 await db.execute(
-                    select(ScorePlaybackAsset.storage_key)
+                    select(
+                        ScorePlaybackAsset.asset_uuid,
+                        ScorePlaybackAsset.storage_key,
+                        ScorePlaybackAsset.size_bytes,
+                    )
                     .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
                     .where(ScoreRevision.score_id == score_id)
                 )
-            ).scalars().all()
+            ).all()
         )
+        usage_releases.extend(
+            (
+                StorageUsageCategory.DERIVED_AUDIO,
+                size_bytes,
+                "score_playback_asset",
+                asset_uuid,
+                storage_key,
+            )
+            for asset_uuid, storage_key, size_bytes in audio_rows
+        )
+        storage_keys.extend(storage_key for _, storage_key, _ in audio_rows)
         score.head_revision_id = None
         await db.flush()
         await db.delete(score)
         await db.commit()
-        for key in keys:
+        for category, size_bytes, object_type, object_id, storage_key in usage_releases:
+            await storage_usage_service.record_release(
+                db,
+                user_id=owner_user_id,
+                category=category,
+                bytes_count=size_bytes,
+                reason="delete_score",
+                object_type=object_type,
+                object_id=object_id,
+                storage_key=storage_key,
+            )
+        for key in storage_keys:
             try:
                 self.storage.delete(key)
             except Exception:

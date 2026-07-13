@@ -58,6 +58,15 @@ from .playback import (
     PlaybackOutboxStatus,
     ScorePlaybackAsset,
 )
+from .storage_usage import (
+    StorageQuotaPolicy,
+    StorageUsageAccount,
+    StorageUsageCategory,
+    StorageUsageCounter,
+    StorageUsageEvent,
+    StorageUsageReservation,
+    StorageUsageReservationStatus,
+)
 
 __all__ = [
     "User",
@@ -115,4 +124,11 @@ __all__ = [
     "PlaybackOutbox",
     "PlaybackOutboxStatus",
     "ScorePlaybackAsset",
+    "StorageQuotaPolicy",
+    "StorageUsageAccount",
+    "StorageUsageCategory",
+    "StorageUsageCounter",
+    "StorageUsageEvent",
+    "StorageUsageReservation",
+    "StorageUsageReservationStatus",
 ]

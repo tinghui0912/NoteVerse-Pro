@@ -16,7 +16,14 @@ from app.core.exceptions import (
     UnauthorizedException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import Score, ScoreMembership, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
+from app.db.models import (
+    Score,
+    ScoreMembership,
+    ScoreRenderAsset,
+    ScoreRevision,
+    ScoreRevisionSource,
+    StorageUsageCategory,
+)
 from app.db.models.score import RenderAssetKind, RevisionSourceFormat
 from app.db.models.score_access import MembershipRole
 from app.modules.score_assets.repository import ScoreAssetRepository
@@ -24,6 +31,7 @@ from app.modules.score_assets.schemas import RenderAssetRead
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.repository import ScoreRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
@@ -87,6 +95,10 @@ class RevisionRenderService:
             for item in await self.repository.list_render_assets(db, revision_id)
             if isinstance(item, ScoreRenderAsset) and item.render_profile == profile
         ]
+        previous_usage = [
+            (item.asset_uuid, item.storage_key, item.size_bytes)
+            for item in previous
+        ]
         try:
             for item in previous:
                 await db.delete(item)
@@ -102,6 +114,28 @@ class RevisionRenderService:
                 except Exception:
                     pass
             raise
+        for item in new_records:
+            await storage_usage_service.record_allocation(
+                db,
+                user_id=access.score.owner_user_id,
+                category=StorageUsageCategory.DERIVED_RENDER,
+                bytes_count=item.size_bytes,
+                reason="render_asset_created",
+                object_type="score_render_asset",
+                object_id=item.asset_uuid,
+                storage_key=item.storage_key,
+            )
+        for asset_uuid, storage_key, size_bytes in previous_usage:
+            await storage_usage_service.record_release(
+                db,
+                user_id=access.score.owner_user_id,
+                category=StorageUsageCategory.DERIVED_RENDER,
+                bytes_count=size_bytes,
+                reason="render_asset_replaced",
+                object_type="score_render_asset",
+                object_id=asset_uuid,
+                storage_key=storage_key,
+            )
         for item in previous:
             try:
                 self.storage.delete(item.storage_key)
@@ -153,6 +187,10 @@ class RevisionRenderService:
             ).scalars()
         )
         old_keys = [item.storage_key for item in previous]
+        previous_usage = [
+            (item.asset_uuid, item.storage_key, item.size_bytes)
+            for item in previous
+        ]
         try:
             for item in previous:
                 db.delete(item)
@@ -168,6 +206,28 @@ class RevisionRenderService:
                 except Exception:
                     pass
             raise
+        for item in new_records:
+            storage_usage_service.record_allocation_sync(
+                db,
+                user_id=score.owner_user_id,
+                category=StorageUsageCategory.DERIVED_RENDER,
+                bytes_count=item.size_bytes,
+                reason="render_asset_created",
+                object_type="score_render_asset",
+                object_id=item.asset_uuid,
+                storage_key=item.storage_key,
+            )
+        for asset_uuid, storage_key, size_bytes in previous_usage:
+            storage_usage_service.record_release_sync(
+                db,
+                user_id=score.owner_user_id,
+                category=StorageUsageCategory.DERIVED_RENDER,
+                bytes_count=size_bytes,
+                reason="render_asset_replaced",
+                object_type="score_render_asset",
+                object_id=asset_uuid,
+                storage_key=storage_key,
+            )
         for key in old_keys:
             try:
                 self.storage.delete(key)

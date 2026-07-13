@@ -58,11 +58,13 @@ describe('score workspace routes', () => {
     expect(sharePage).toContain('<ScoreSurface');
     expect(sharePage).toContain('<ScoreCapabilityProvider');
     expect(sharePage).toContain('capabilities={data.capabilities}');
-    expect(sharePage).toContain('/score/${data.score_id}/practice?shareToken=${shareId}');
+    expect(sharePage).toContain('playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}');
+    expect(sharePage).not.toContain('/score/${data.score_id}/practice?shareToken=${shareId}');
     expect(publicPage).toContain('<ScoreSurface');
     expect(publicPage).toContain('<ScoreCapabilityProvider');
     expect(publicPage).toContain('capabilities={capabilities}');
-    expect(publicPage).toContain('/score/${scoreId}/practice?publicSlug=${slug}');
+    expect(publicPage).toContain('playbackAudioSrc={publicationsApi.playbackUrl(slug)}');
+    expect(publicPage).not.toContain('/score/${scoreId}/practice?publicSlug=${slug}');
   });
 
   it('centralizes view/share capabilities without a score shell wrapper', () => {

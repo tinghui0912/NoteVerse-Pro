@@ -13,6 +13,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
+    StorageUsageCategory,
     ScoreTaxonomyTag,
     TaxonomyCategory,
     TaxonomyTag,
@@ -21,6 +22,7 @@ from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFo
 from app.storage import FileStorage, file_storage
 from app.modules.metadata.service import rebuild_metadata_sync
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER, ordered_unique_pairs
+from app.modules.storage_usage.service import storage_usage_service
 from app.utils.timezone import utc_now_naive
 
 
@@ -62,12 +64,25 @@ class SyncConfirmedScoreCreationService:
             f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
         )
         content_hash = hashlib.sha256(content).hexdigest()
-        stored = self.storage.put_bytes(
-            key=storage_key,
-            content=content,
-            content_type="application/vnd.recordare.musicxml+xml",
+        reservation = storage_usage_service.reserve_sync(
+            db,
+            user_id=job.user_id,
+            category=StorageUsageCategory.SOURCE,
+            bytes_count=len(content),
+            reason="review_confirm_worker",
+            object_type="score_revision_source",
         )
+        try:
+            stored = self.storage.put_bytes(
+                key=storage_key,
+                content=content,
+                content_type="application/vnd.recordare.musicxml+xml",
+            )
+        except Exception:
+            storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
+            raise
 
+        business_committed = False
         try:
             now = utc_now_naive()
             score = Score(
@@ -124,9 +139,10 @@ class SyncConfirmedScoreCreationService:
             db.add(revision)
             db.flush()
             revision_id = require_persisted_id(revision.id, entity="score revision")
+            source_uuid = str(uuid.uuid4())
             db.add(
                 ScoreRevisionSource(
-                    source_uuid=str(uuid.uuid4()),
+                    source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
                     storage_backend=self.storage.backend_name,
@@ -151,6 +167,14 @@ class SyncConfirmedScoreCreationService:
             job.score_id = score_id
             job.updated_at = now
             db.commit()
+            business_committed = True
+            storage_usage_service.commit_reservation_sync(
+                db,
+                reservation.reservation_id,
+                object_type="score_revision_source",
+                object_id=source_uuid,
+                storage_key=stored.storage_key,
+            )
             try:
                 rebuild_metadata_sync(db, revision_id, self.storage)
             except Exception:
@@ -159,10 +183,12 @@ class SyncConfirmedScoreCreationService:
             return score_uuid
         except Exception:
             db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            if not business_committed:
+                try:
+                    self.storage.delete(stored.storage_key)
+                except Exception:
+                    pass
+                storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
             raise
 
 

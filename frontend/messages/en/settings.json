@@ -73,7 +73,19 @@
   "billing": {
     "heading": "Billing",
     "description": "Your account billing, current plan, and subscription management will live here. Public plan information remains on the subscriptions page.",
-    "viewPlans": "View public plans"
+    "viewPlans": "View public plans",
+    "storage": {
+      "title": "Storage usage",
+      "description": "Counts your uploads and score revision sources. System-derived previews and audio are tracked internally but do not count toward your user quota yet.",
+      "refresh": "Refresh",
+      "loadFailed": "Unable to load storage usage",
+      "loadFailedDesc": "Please try again later or refresh the page.",
+      "usedOfLimit": "{used} / {limit}",
+      "nearLimit": "Storage is almost full. Delete unused content or upgrade your plan.",
+      "used": "Used",
+      "reserved": "Processing",
+      "available": "Available"
+    }
   },
   "currentPassword": "Current password",
   "newPassword": "New password",

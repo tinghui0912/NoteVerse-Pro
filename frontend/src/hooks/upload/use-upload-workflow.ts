@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useQueryClient } from '@tanstack/react-query';
 import { useImportJobDetail, useSubmitImportJob } from '@/hooks/queries/use-import-job-queries';
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, importJobsApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { queryKeys } from '@/lib/query-client';
 import type { ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
+import { translateErrorCode } from '@/lib/i18n/error-message';
+import { uploadErrorMessage } from '@/lib/upload/upload-error-message';
 import { getCompletedJobRoute, type UploadableFile } from '@/lib/upload/upload-workflow';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
@@ -28,6 +31,7 @@ export function useUploadWorkflow() {
   const tCommon = useTranslations('common');
   const errors = useTranslations('errors');
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const submitJobMutation = useSubmitImportJob();
@@ -232,17 +236,18 @@ export function useUploadWorkflow() {
           const fileId = response.data?.file_id;
           if (!fileId) throw new Error(tCommon('operationFailed'));
           uploadedFileIds.push(fileId);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
           setTrackedFiles((current) => current.map((item, itemIndex) =>
             itemIndex === index ? { ...item, status: 'uploaded', fileId } : item
           ));
         } catch (error) {
           const message = error instanceof ApiError
-            ? translateErrorCode(errors, error.code, tCommon('operationFailed'))
+            ? uploadErrorMessage(errors, error.code, tCommon('operationFailed'))
             : tCommon('operationFailed');
           setTrackedFiles((current) => current.map((item, itemIndex) =>
             itemIndex === index ? { ...item, status: 'error', error: message } : item
           ));
-          throw new Error(t('uploadFailedFile', { name: currentFile.file.name }));
+          throw new Error(message);
         }
       }
 
@@ -265,12 +270,14 @@ export function useUploadWorkflow() {
     } catch (error) {
       const message = error instanceof ApiError
         ? translateErrorCode(errors, error.code, t('processingFailed'))
-        : t('processingFailed');
+        : error instanceof Error && error.message
+          ? error.message
+          : t('processingFailed');
       toast({ title: t('submitFailed'), description: message, variant: 'destructive' });
       setIsUploading(false);
       setIsSubmitting(false);
     }
-  }, [errors, scoreName, setTrackedFiles, submitJobMutation, t, taxonomyTags, tCommon, toast]);
+  }, [errors, queryClient, scoreName, setTrackedFiles, submitJobMutation, t, taxonomyTags, tCommon, toast]);
 
   return {
     appendFiles,

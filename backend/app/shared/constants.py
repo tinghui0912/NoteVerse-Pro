@@ -44,6 +44,8 @@ class ErrorCode:
     FILE_DELETE_FAILED = "file_delete_failed"
     FILE_TYPE_NOT_ALLOWED = "file_type_not_allowed"
     NO_FILE_SELECTED = "no_file_selected"
+    STORAGE_QUOTA_EXCEEDED = "storage_quota_exceeded"
+    STORAGE_QUOTA_POLICY_NOT_CONFIGURED = "storage_quota_policy_not_configured"
 
     XML_NOT_FOUND = "xml_not_found"
 
