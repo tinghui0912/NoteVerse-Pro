@@ -16,13 +16,7 @@ from app.core.exceptions import (
     UnauthorizedException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import (
-    Score,
-    ScoreMembership,
-    ScoreRenderAsset,
-    ScoreRevision,
-    ScoreRevisionSource,
-)
+from app.db.models import Score, ScoreMembership, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
 from app.db.models.score import RenderAssetKind, RevisionSourceFormat
 from app.db.models.score_access import MembershipRole
 from app.modules.score_assets.repository import ScoreAssetRepository
@@ -74,16 +68,16 @@ class RevisionRenderService:
         )
         revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
-        canonical = next(iter(await self.repository.list_sources(db, revision_id)), None)
-        if not canonical:
-            raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        source = await self.repository.canonical_source(db, revision_id)
+        if not source:
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
         uploaded_keys: list[str] = []
         new_records = self._render_records(
             score_uuid=score_uuid,
             revision_uuid=revision_uuid,
             revision_id=revision_id,
-            canonical_storage_key=canonical.storage_key,
+            canonical_storage_key=source.storage_key,
             profile=profile,
             uploaded_keys=uploaded_keys,
         )
@@ -131,21 +125,21 @@ class RevisionRenderService:
             user_id=user_id,
         )
         revision_id = require_persisted_id(revision.id, entity="score revision")
-        canonical = db.execute(
+        source = db.execute(
             select(ScoreRevisionSource).where(
                 ScoreRevisionSource.revision_id == revision_id,
                 ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
             )
         ).scalar_one_or_none()
-        if not canonical:
-            raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        if not source:
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
         uploaded_keys: list[str] = []
         new_records = self._render_records(
             score_uuid=score.score_uuid,
             revision_uuid=revision.revision_uuid,
             revision_id=revision_id,
-            canonical_storage_key=canonical.storage_key,
+            canonical_storage_key=source.storage_key,
             profile=profile,
             uploaded_keys=uploaded_keys,
         )

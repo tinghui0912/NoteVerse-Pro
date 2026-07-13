@@ -520,7 +520,7 @@ async def test_practice_service_create_session_rejects_missing_score() -> None:
 
 
 @pytest.mark.asyncio
-async def test_practice_service_rejects_missing_canonical_revision_artifact() -> None:
+async def test_practice_service_rejects_missing_canonical_revision_source() -> None:
     access_policy = Mock()
     access_policy.authorize = AsyncMock(return_value=SimpleNamespace(
         score=SimpleNamespace(id=101, score_uuid="score-1"),
@@ -528,11 +528,11 @@ async def test_practice_service_rejects_missing_canonical_revision_artifact() ->
         origin=AccessOrigin.OWNER,
         grant=None,
     ))
-    score_repository = Mock()
-    score_repository.canonical_artifact = AsyncMock(return_value=None)
+    asset_repository = Mock()
+    asset_repository.canonical_source = AsyncMock(return_value=None)
     service = PracticeService(
         access_policy=access_policy,
-        score_repository=score_repository,
+        asset_repository=asset_repository,
     )
 
     with pytest.raises(ResourceNotFoundException) as context:
@@ -566,8 +566,8 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
         origin=AccessOrigin.SHARE,
         grant=SimpleNamespace(id=301),
     ))
-    score_repository = Mock()
-    score_repository.canonical_artifact = AsyncMock(
+    asset_repository = Mock()
+    asset_repository.canonical_source = AsyncMock(
         return_value=SimpleNamespace(storage_key="scores/score-1/revisions/revision-1/score.musicxml")
     )
     storage = Mock()
@@ -577,7 +577,7 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
         repository=repository,
         runtime_registry=runtime_registry,
         access_policy=access_policy,
-        score_repository=score_repository,
+        asset_repository=asset_repository,
         storage=storage,
     )
 

@@ -7,8 +7,8 @@ from pydantic import BaseModel, Field
 from app.db.models.score_access import PublicationStatus
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
-from app.modules.score_assets.schemas import ScoreRevisionAssetsRead
-from app.modules.scores.schemas import ScoreDerivedAssetsRead, ScoreTaxonomyTagRead
+from app.modules.score_assets.schemas import ScoreDerivedAssetsRead, ScoreRevisionAssetsRead
+from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
 class PublicationUpsertRequest(BaseModel):

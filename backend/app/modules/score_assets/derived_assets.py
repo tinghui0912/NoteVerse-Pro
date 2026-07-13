@@ -3,8 +3,8 @@ from __future__ import annotations
 from app.db.models import PlaybackOutboxStatus, RenderOutboxStatus
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevision
-from app.modules.scores.repository import ScoreRepository
-from app.modules.scores.schemas import (
+from app.modules.score_assets.repository import ScoreAssetRepository
+from app.modules.score_assets.schemas import (
     DerivedAssetStatus,
     ScoreDerivedAssetRead,
     ScoreDerivedAssetsRead,
@@ -34,17 +34,17 @@ def derived_asset_status(
 
 async def score_derived_assets(
     db,
-    repository: ScoreRepository,
+    repository: ScoreAssetRepository,
     *,
     score_id: int,
     revision: ScoreRevision,
 ) -> ScoreDerivedAssetsRead:
     revision_id = require_persisted_id(revision.id, entity="score revision")
-    thumbnail = await repository.first_rendered_page_artifact(db, revision_id)
+    thumbnail = await repository.first_rendered_page_asset(db, revision_id)
     fallback_thumbnail = None
     fallback_thumbnail_revision = None
     if thumbnail is None:
-        fallback = await repository.fallback_rendered_page_artifact(
+        fallback = await repository.fallback_rendered_page_asset(
             db, score_id, revision_id
         )
         if fallback:

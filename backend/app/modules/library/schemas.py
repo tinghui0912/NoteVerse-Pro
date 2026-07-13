@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.db.models import LibraryEntrySourceType, LibraryPracticeState
 from app.modules.metadata.schemas import MetadataRead
-from app.modules.scores.schemas import ScoreDerivedAssetsRead, ScoreTaxonomyTagRead
+from app.modules.score_assets.schemas import ScoreDerivedAssetsRead
+from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
 class LibraryView(str, Enum):

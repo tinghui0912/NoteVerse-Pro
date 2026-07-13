@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.db.models.score_access import PublicationStatus
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
+from app.modules.score_assets.schemas import ScoreDerivedAssetsRead
 from app.modules.scores.taxonomy import ordered_unique_pairs, validate_taxonomy_pair
 
 
@@ -61,21 +61,6 @@ class ScorePublicationSummaryRead(BaseModel):
     public_slug: str
     revision_id: str
     status: PublicationStatus
-
-
-DerivedAssetStatus = Literal["pending", "processing", "ready", "failed"]
-
-
-class ScoreDerivedAssetRead(BaseModel):
-    status: DerivedAssetStatus = "pending"
-    asset_id: str | None = None
-    revision_id: str | None = None
-    is_fallback: bool = False
-
-
-class ScoreDerivedAssetsRead(BaseModel):
-    preview: ScoreDerivedAssetRead
-    audio: ScoreDerivedAssetRead
 
 
 class ScoreRead(BaseModel):

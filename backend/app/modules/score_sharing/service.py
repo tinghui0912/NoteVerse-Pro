@@ -20,9 +20,10 @@ from app.db.models import (
     User,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
+from app.modules.score_assets.derived_assets import score_derived_assets
+from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.service import ScoreAssetDelivery, ScoreAssetService
 from app.modules.metadata.service import MetadataProjectionService
-from app.modules.scores.derived_assets import score_derived_assets
 from app.modules.scores.repository import ScoreRepository
 from app.storage import FileStorage, file_storage
 from app.db.models import ScoreRevisionMetadata
@@ -54,12 +55,14 @@ class ScoreSharingService:
         access_policy: ScoreAccessPolicy | None = None,
         asset_service: ScoreAssetService | None = None,
         score_repository: ScoreRepository | None = None,
+        asset_repository: ScoreAssetRepository | None = None,
         storage: FileStorage | None = None,
     ) -> None:
         self.repository = repository or ScoreSharingRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.storage = storage or file_storage
         self.score_repository = score_repository or ScoreRepository()
+        self.asset_repository = asset_repository or ScoreAssetRepository()
         self.asset_service = asset_service or ScoreAssetService(
             score_repository=self.score_repository,
             storage=self.storage,
@@ -187,7 +190,7 @@ class ScoreSharingService:
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = await score_derived_assets(
             db,
-            self.score_repository,
+            self.asset_repository,
             score_id=score_id,
             revision=access.revision,
         )

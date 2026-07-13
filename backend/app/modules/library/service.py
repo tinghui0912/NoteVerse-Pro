@@ -37,13 +37,11 @@ from app.modules.library.schemas import (
 )
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.modules.scores.derived_assets import score_derived_assets
+from app.modules.score_assets.derived_assets import score_derived_assets
+from app.modules.score_assets.repository import ScoreAssetRepository
+from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
-from app.modules.scores.schemas import (
-    ScoreDerivedAssetRead,
-    ScoreDerivedAssetsRead,
-    ScoreTaxonomyTagRead,
-)
+from app.modules.scores.schemas import ScoreTaxonomyTagRead
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
@@ -55,10 +53,12 @@ class LibraryService:
         self,
         repository: LibraryRepository | None = None,
         score_repository: ScoreRepository | None = None,
+        asset_repository: ScoreAssetRepository | None = None,
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.repository = repository or LibraryRepository()
         self.score_repository = score_repository or ScoreRepository()
+        self.asset_repository = asset_repository or ScoreAssetRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
 
     async def ensure_entry(
@@ -377,7 +377,7 @@ class LibraryService:
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = (
             await score_derived_assets(
-                db, self.score_repository, score_id=score_id, revision=head
+                db, self.asset_repository, score_id=score_id, revision=head
             )
             if head
             else ScoreDerivedAssetsRead(

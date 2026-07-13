@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -40,6 +41,21 @@ class RenderAssetRead(BaseModel):
 class ScoreRevisionAssetsRead(BaseModel):
     revision_sources: list[RevisionSourceRead]
     render_assets: list[RenderAssetRead]
+
+
+DerivedAssetStatus = Literal["pending", "processing", "ready", "failed"]
+
+
+class ScoreDerivedAssetRead(BaseModel):
+    status: DerivedAssetStatus = "pending"
+    asset_id: str | None = None
+    revision_id: str | None = None
+    is_fallback: bool = False
+
+
+class ScoreDerivedAssetsRead(BaseModel):
+    preview: ScoreDerivedAssetRead
+    audio: ScoreDerivedAssetRead
 
 
 class AssetAccessRead(BaseModel):

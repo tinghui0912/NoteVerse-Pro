@@ -35,6 +35,7 @@ from app.modules.practice.schemas import (
     PracticeSessionDetailResult,
     PracticeSessionSummaryResult,
 )
+from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.scores.repository import ScoreRepository
 from app.modules.library.service import LibraryService
@@ -53,6 +54,7 @@ class PracticeService:
         report_builder: PracticeReportBuilder | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         score_repository: ScoreRepository | None = None,
+        asset_repository: ScoreAssetRepository | None = None,
         library_service: LibraryService | None = None,
         storage: FileStorage | None = None,
     ) -> None:
@@ -61,6 +63,7 @@ class PracticeService:
         self.report_builder = report_builder or practice_report_builder
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.score_repository = score_repository or ScoreRepository()
+        self.asset_repository = asset_repository or ScoreAssetRepository()
         self.library_service = library_service or LibraryService()
         self.storage = storage or file_storage
 
@@ -83,11 +86,11 @@ class PracticeService:
         )
         score_id = require_persisted_id(access.score.id, entity="score")
         revision_id = require_persisted_id(access.revision.id, entity="score revision")
-        artifact = await self.score_repository.canonical_artifact(db, revision_id)
-        if not artifact:
-            raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        source = await self.asset_repository.canonical_source(db, revision_id)
+        if not source:
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
         score_file_path = self.storage.materialize_to_local(
-            artifact.storage_key, self.storage.local_path(artifact.storage_key)
+            source.storage_key, self.storage.local_path(source.storage_key)
         )
 
         session = PracticeSession(

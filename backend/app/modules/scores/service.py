@@ -17,12 +17,12 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionSource,
 )
+from app.modules.score_assets.derived_assets import score_derived_assets
+from app.modules.score_assets.repository import ScoreAssetRepository
+from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
-from app.modules.scores.derived_assets import score_derived_assets
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.schemas import (
-    ScoreDerivedAssetRead,
-    ScoreDerivedAssetsRead,
     ScoreRead,
     ScorePublicationSummaryRead,
     ScoreTaxonomyTagRead,
@@ -44,8 +44,10 @@ class ScoreService:
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         render_service: RevisionRenderService | None = None,
+        asset_repository: ScoreAssetRepository | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
+        self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.render_service = render_service or RevisionRenderService(
@@ -195,7 +197,7 @@ class ScoreService:
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = (
             await score_derived_assets(
-                db, self.repository, score_id=score_id, revision=head
+                db, self.asset_repository, score_id=score_id, revision=head
             )
             if head
             else ScoreDerivedAssetsRead(

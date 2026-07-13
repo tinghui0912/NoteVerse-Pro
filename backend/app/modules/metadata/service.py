@@ -10,6 +10,7 @@ from app.db.models import ScoreRevision, ScoreRevisionMetadata, ScoreRevisionSou
 from app.db.models.score import MetadataStatus, RevisionSourceFormat
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
+from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.processing.musicxml import (
@@ -27,10 +28,12 @@ class MetadataProjectionService:
     def __init__(
         self,
         score_repository: ScoreRepository | None = None,
+        asset_repository: ScoreAssetRepository | None = None,
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.score_repository = score_repository or ScoreRepository()
+        self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
 
@@ -67,9 +70,9 @@ class MetadataProjectionService:
         )
         revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
-        artifact = await self.score_repository.canonical_artifact(db, revision_id)
-        if not artifact:
-            raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        source = await self.asset_repository.canonical_source(db, revision_id)
+        if not source:
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
         projection = await db.get(ScoreRevisionMetadata, revision_id)
         if not projection:
             projection = ScoreRevisionMetadata(
@@ -79,9 +82,9 @@ class MetadataProjectionService:
             )
             db.add(projection)
         try:
-            content = self.storage.read_bytes(artifact.storage_key)
+            content = self.storage.read_bytes(source.storage_key)
         except Exception:
-            self._mark_failed(projection, "artifact_read_failed")
+            self._mark_failed(projection, "source_read_failed")
         else:
             self._compute_into(projection, content)
         await db.commit()
@@ -181,22 +184,22 @@ def rebuild_metadata_sync(
             extractor_version=EXTRACTOR_VERSION,
         )
         db.add(projection)
-    artifact = db.execute(
+    source = db.execute(
         select(ScoreRevisionSource).where(
             ScoreRevisionSource.revision_id == revision_id,
             ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
         )
     ).scalar_one_or_none()
-    if not artifact:
+    if not source:
         MetadataProjectionService._mark_failed(
-            projection, "canonical_artifact_missing"
+            projection, "canonical_source_missing"
         )
     else:
         try:
-            content = storage.read_bytes(artifact.storage_key)
+            content = storage.read_bytes(source.storage_key)
         except Exception:
             MetadataProjectionService._mark_failed(
-                projection, "artifact_read_failed"
+                projection, "source_read_failed"
             )
         else:
             MetadataProjectionService._compute_into(projection, content)

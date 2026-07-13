@@ -180,17 +180,17 @@ class RenderOutboxService:
                 )
         elif outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL:
             job = db.get(ImportJob, outbox.import_job_id)
-            artifact = db.execute(
+            review_source = db.execute(
                 select(ImportArtifact).where(
                     ImportArtifact.job_id == outbox.import_job_id,
                     ImportArtifact.kind == FileKind.REVIEW_MUSICXML.value,
                 )
             ).scalar_one_or_none()
-            if job is not None and artifact is not None:
+            if job is not None and review_source is not None:
                 if job.state != ImportJobState.PENDING_REVIEW:
                     self.complete(db, outbox.outbox_uuid)
                     return None
-                if artifact.sha256 != outbox.source_fingerprint:
+                if review_source.sha256 != outbox.source_fingerprint:
                     self.complete(db, outbox.outbox_uuid)
                     return None
                 return RenderOutboxPayload(

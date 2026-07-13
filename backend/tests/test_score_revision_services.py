@@ -246,11 +246,11 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
     assert session.query(Score).count() == 1
     score = session.query(Score).one()
     revision = session.query(ScoreRevision).one()
-    artifact = session.query(ScoreRevisionSource).one()
+    revision_source = session.query(ScoreRevisionSource).one()
     metadata = session.get(ScoreRevisionMetadata, revision.id)
     assert score.head_revision_id == revision.id
-    assert artifact.format == RevisionSourceFormat.MUSICXML
-    assert storage.exists(artifact.storage_key)
+    assert revision_source.format == RevisionSourceFormat.MUSICXML
+    assert storage.exists(revision_source.storage_key)
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
     assert metadata.measure_count == 1
@@ -1613,7 +1613,7 @@ def test_strip_existing_fingerings_before_generation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_artifact_delivery_checks_score_access_and_reports_missing_objects(
+async def test_source_delivery_checks_score_access_and_reports_missing_objects(
     score_service_session: tuple[Session, LocalFileStorage], tmp_path
 ) -> None:
     session, storage = score_service_session
@@ -1623,7 +1623,7 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
         [
             ImportJob(
                 id=60,
-                job_uuid="job-artifact",
+                job_uuid="job-source",
                 user_id=1,
                 state=ImportJobState.RUNNING,
             ),
@@ -1631,17 +1631,17 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
     )
     session.commit()
     score_uuid = SyncConfirmedScoreCreationService(storage).create_confirmed_from_job(
-        session, "job-artifact", str(source), title="Artifact score"
+        session, "job-source", str(source), title="Source score"
     )
     score = session.query(Score).filter_by(score_uuid=score_uuid).one()
     revision = session.get(ScoreRevision, score.head_revision_id)
-    artifact = session.query(ScoreRevisionSource).filter_by(revision_id=revision.id).one()
+    revision_source = session.query(ScoreRevisionSource).filter_by(revision_id=revision.id).one()
     service = ScoreAssetService(storage=storage)
     async_db = AsyncSessionAdapter(session)
 
     delivery = await service.source_delivery(
         async_db,
-        artifact.source_uuid,
+        revision_source.source_uuid,
         1,  # type: ignore[arg-type]
     )
     assert delivery.path is not None
@@ -1649,11 +1649,11 @@ async def test_artifact_delivery_checks_score_access_and_reports_missing_objects
     with pytest.raises(UnauthorizedException):
         await service.source_delivery(
             async_db,
-            artifact.source_uuid,
+            revision_source.source_uuid,
             2,  # type: ignore[arg-type]
         )
 
-    storage.delete(artifact.storage_key)
+    storage.delete(revision_source.storage_key)
     diagnostics = await service.diagnostics(
         async_db,  # type: ignore[arg-type]
         score_uuid,

@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
-from app.modules.score_assets.schemas import ScoreRevisionAssetsRead
-from app.modules.scores.schemas import ScoreDerivedAssetsRead, ScoreTaxonomyTagRead
+from app.modules.score_assets.schemas import ScoreDerivedAssetsRead, ScoreRevisionAssetsRead
+from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
 class GrantCreateRequest(BaseModel):

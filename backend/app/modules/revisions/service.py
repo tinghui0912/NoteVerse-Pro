@@ -43,6 +43,7 @@ from app.modules.revisions.derived_asset_retention_service import (
     derived_asset_retention_service,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
@@ -53,12 +54,14 @@ class RevisionService:
     def __init__(
         self,
         repository: ScoreRepository | None = None,
+        asset_repository: ScoreAssetRepository | None = None,
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         fingering_service: XMLFingeringService | None = None,
         notification_service: NotificationService | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
+        self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.fingering_service = fingering_service or XMLFingeringService()
@@ -281,14 +284,14 @@ class RevisionService:
         if head.id == target.id:
             return await self._read(db, head)
 
-        artifact = await self.repository.canonical_artifact(
+        source = await self.asset_repository.canonical_source(
             db, require_persisted_id(target.id, entity="score revision")
         )
-        if not artifact:
+        if not source:
             raise ResourceNotFoundException(
-                "artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND
+                "source", revision_uuid, ErrorCode.FILE_NOT_FOUND
             )
-        content = self.storage.read_bytes(artifact.storage_key)
+        content = self.storage.read_bytes(source.storage_key)
         self._validate_musicxml(content)
         content_hash = hashlib.sha256(content).hexdigest()
         new_revision_uuid = str(uuid.uuid4())
@@ -321,7 +324,7 @@ class RevisionService:
                     storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
-                    mime_type=artifact.mime_type,
+                    mime_type=source.mime_type,
                     size_bytes=stored.size_bytes,
                     sha256=content_hash,
                     generator="restore",
@@ -464,14 +467,14 @@ class RevisionService:
         revision = await self.repository.revision(db, revision_uuid)
         if not revision or revision.score_id != score.id:
             raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
-        artifact = await self.repository.canonical_artifact(
+        source = await self.asset_repository.canonical_source(
             db, require_persisted_id(revision.id, entity="score revision")
         )
-        if not artifact:
-            raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
-        content = self.storage.read_bytes(artifact.storage_key).decode("utf-8")
+        if not source:
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        content = self.storage.read_bytes(source.storage_key).decode("utf-8")
         base = await self._read(db, revision)
-        return RevisionContentRead(**base.model_dump(), content=content, mime_type=artifact.mime_type)
+        return RevisionContentRead(**base.model_dump(), content=content, mime_type=source.mime_type)
 
     async def _read(self, db: AsyncSession, revision: ScoreRevision) -> RevisionRead:
         parent = await db.get(ScoreRevision, revision.parent_revision_id) if revision.parent_revision_id else None

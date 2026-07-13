@@ -22,6 +22,7 @@ from app.db.models.score_access import PublicationStatus
 from app.modules.playback.audio_renderer import FluidSynthAudioRenderer
 from app.modules.publications.repository import PublicationRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
+from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_sharing.repository import ScoreSharingRepository
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
@@ -41,12 +42,14 @@ class PlaybackService:
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         renderer: FluidSynthAudioRenderer | None = None,
+        asset_repository: ScoreAssetRepository | None = None,
         sharing_repository: ScoreSharingRepository | None = None,
         publication_repository: PublicationRepository | None = None,
     ) -> None:
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.renderer = renderer or FluidSynthAudioRenderer()
+        self.asset_repository = asset_repository or ScoreAssetRepository()
         self.sharing_repository = sharing_repository or ScoreSharingRepository()
         self.publication_repository = publication_repository or PublicationRepository()
 
@@ -81,19 +84,12 @@ class PlaybackService:
         if revision.content_hash != source_fingerprint:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_fingerprint")
 
-        artifact = (
-            await db.execute(
-                select(ScoreRevisionSource).where(
-                    ScoreRevisionSource.revision_id == revision_id,
-                    ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
-                )
-            )
-        ).scalar_one_or_none()
-        if artifact is None:
-            raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        source = await self.asset_repository.canonical_source(db, revision_id)
+        if source is None:
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
-        source = self.storage.read_bytes(artifact.storage_key)
-        audio = self.renderer.render(source)
+        source_content = self.storage.read_bytes(source.storage_key)
+        audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
         key = (
             f"scores/{score_uuid}/revisions/{revision_uuid}/playback/"
@@ -303,14 +299,14 @@ class PlaybackService:
         if revision.content_hash != source_fingerprint:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_fingerprint")
 
-        artifact = db.execute(
+        source = db.execute(
             select(ScoreRevisionSource).where(
                 ScoreRevisionSource.revision_id == revision_id,
                 ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
             )
         ).scalar_one_or_none()
-        if artifact is None:
-            raise ResourceNotFoundException("artifact", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        if source is None:
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
         return self._render_asset_sync(
             db,
@@ -319,7 +315,7 @@ class PlaybackService:
             revision_id=revision_id,
             source_fingerprint=source_fingerprint,
             asset_kind=asset_kind,
-            source=self.storage.read_bytes(artifact.storage_key),
+            source=self.storage.read_bytes(source.storage_key),
         )
 
     def _render_asset_sync(

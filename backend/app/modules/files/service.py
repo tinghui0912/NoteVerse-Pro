@@ -14,7 +14,7 @@ from app.storage import FileStorage, file_storage
 
 
 class FilesService:
-    """Own uploaded processing inputs; score delivery belongs to artifacts."""
+    """Own uploaded processing inputs; score source and derived delivery live elsewhere."""
 
     def __init__(self, repository: FilesRepository | None = None, storage: FileStorage | None = None) -> None:
         self.repository = repository or FilesRepository()
