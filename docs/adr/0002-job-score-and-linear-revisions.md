@@ -1,7 +1,7 @@
 # ADR 0002: Separate Import Jobs From Scores And Use Linear Revisions
 
-- Status: Accepted; review lifecycle details superseded by ADR 0005 and the later
-  score-state cleanup
+- Status: Accepted; review lifecycle details superseded by ADR 0005, and asset storage
+  details superseded by ADR 0003
 - Date: 2026-06-22
 - Scope: P0-1 score-domain contract
 
@@ -32,7 +32,9 @@ introduced before that cutover, the replacement contract moves to `/api/v2`.
 6. `Score.head_revision_id` identifies the current editable document.
 7. Saving requires `base_revision_id`. A stale base returns `revision_conflict` instead of
    silently overwriting the head.
-8. Identical content hashes and repeated idempotency keys are no-op successes.
+8. Saving unchanged content against the same base revision is a no-op success. Repeated
+   idempotency keys return the original save result. Returning to older content later still
+   creates a new revision.
 9. The product-facing `current|final` source vocabulary is retired after cutover. Review
     confirmation creates the first stable score/revision; there is no score approval route.
 
@@ -61,7 +63,8 @@ recorded `score_id`.
 
 - Upload and review can continue to expose processing diagnostics without polluting score
   APIs.
-- Editor autosave becomes append-only and requires conflict handling and hash deduplication.
+- Editor saves are append-only except for same-base unchanged-content no-ops and require
+  conflict handling.
 - Existing tasks with XML need a deterministic score/revision backfill.
 - Existing task UUIDs may be reused as score UUIDs only during backfill to preserve local
   links; newly created jobs and scores use independent UUIDs.

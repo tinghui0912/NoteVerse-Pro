@@ -3,7 +3,7 @@
 import {
   ScorePreviewControls,
   type ScorePreviewControlsProps,
-} from '@/components/score/score-preview-controls';
+} from '@/components/score-preview/score-preview-controls';
 
 type EditorBottomPlayerProps = Omit<ScorePreviewControlsProps, 'compact'>;
 

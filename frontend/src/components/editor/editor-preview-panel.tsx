@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { ScorePreviewViewport } from '@/components/score/score-preview-viewport';
+import { ScorePreviewViewport } from '@/components/score-preview/score-preview-viewport';
 import { Button } from '@/components/ui/button';
 import { useEditorState, useScoreData, useXmlUpdater } from '@/contexts/editor-provider';
-import { useScorePreviewPlayback } from '@/hooks/score/use-score-preview-playback';
+import { useScorePreviewPlayback } from '@/hooks/score-preview/use-score-preview-playback';
 import { useMeasureWarningOverlay } from '@/hooks/score/use-measure-warning-overlay';
 import { useEntityEditor } from '@/hooks/editor/use-entity-editor';
 import { useConnectionOperations } from '@/hooks/editor/use-connection-operations';

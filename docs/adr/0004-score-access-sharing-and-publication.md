@@ -40,7 +40,9 @@ make permissions difficult to audit.
 VIEW_SCORE
 VIEW_REVISION
 EDIT_SCORE
-DOWNLOAD_ARTIFACT
+DOWNLOAD_REVISION_SOURCE
+DOWNLOAD_RENDER_ASSET
+PLAY_AUDIO
 START_PRACTICE
 CREATE_SHARE
 MANAGE_MEMBERS
@@ -75,7 +77,8 @@ pinned revision, never a raw share token.
 
 ## Consequences
 
-- Share, file, XML, publication, and practice routes use one auditable policy source.
+- Share, revision source, render asset, playback, publication, and practice routes use one
+  auditable policy source.
 - Editable collaboration becomes attributable to an authenticated user and is not created by
   the public/share link UI.
 - Revoking a share grant removes grant-derived access without silently deleting bookmarks.

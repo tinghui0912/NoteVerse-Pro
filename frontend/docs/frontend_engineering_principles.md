@@ -9,20 +9,21 @@
 - 页面、组件、hooks、API、类型、practice 渲染逻辑应该放在哪里
 - 哪些用户可见行为必须和真实后端契约一致
 - 过去已经修过哪些工程问题，后续如何避免回退
-- practice 页为什么先采用 Verovio，以及后续如何把其他页面也渐进迁移到 Verovio
+- practice/editor 为什么保留浏览器端 Verovio，以及详情/外部页面为什么使用后端派生产物
 
 ## 当前方向更新
 
-浏览器端 MusicXML 渲染和交互式试听现已统一使用 Verovio。
+浏览器端 MusicXML 渲染只应存在于真正需要交互式乐谱的场景。详情、分享和公开页面已经从“乐谱播放器页”收敛为“乐谱详情页 + 封面轻量试听按钮”。
 
 当前维护方向是：
 
 - practice 页继续作为 Verovio 渲染和实时跟随的先行实现
-- score detail、share、editor 共用 Verovio `ListenModal`、独立播放控制器和本地 soundfont 引擎
+- editor 使用浏览器端 MusicXML/Verovio 能力服务编辑和校验
+- score detail、share、public 使用后端 render assets 和 playback audio assets
 - 不再新增第二套浏览器端乐谱 renderer 或 renderer-specific 页面逻辑
-- review/share 中用于展示原图或后端渲染结果的图片产物不属于浏览器 renderer 范围
+- review/share/public 中用于展示原图或后端渲染结果的图片产物不属于浏览器 renderer 范围
 
-这意味着后续新增乐谱渲染能力时，应设计在 Verovio adapter / score rendering abstraction 上。
+这意味着后续新增“交互式乐谱”能力时，应设计在 Verovio adapter / score rendering abstraction 上；新增“展示/试听/下载”能力时，优先使用后端 revision source、render asset、playback asset 边界。
 
 ## 一、已经完成或推进过的关键优化
 
@@ -89,7 +90,7 @@ frontend/
 
 - 核心业务页面已完成领域拆分；practice 仍是最大的编排页面，后续只在职责继续增长时拆分
 - `src/lib/musicxml/parser.ts` 的纯值解析和 connection target 已拆出；后续继续按实际职责而非行数治理
-- `components/score/listen-modal.tsx` 只负责弹窗组合，播放生命周期由 `hooks/score/use-score-preview-playback.ts` 管理
+- 交互式 score preview 组件位于 `components/score-preview`，播放生命周期由 `hooks/score-preview/use-score-preview-playback.ts` 管理
 - `hooks/queries` 已经存在，后续 server state 应继续向 query hooks 收口，而不是散在页面里
 
 这些不是必须一次性完成的重构，但后续触碰相关功能时应顺手收口。
@@ -132,13 +133,14 @@ frontend/
 | `components/media` | 可跨页面复用的图片和媒体查看器 |
 | `components/my-scores` | 用户拥有的 Score 与待审核 ImportJob 列表 |
 | `components/notifications` | 通知中心和系统事件投影 |
-| `components/score` | 共享 score renderer、播放 shell 和状态 UI |
+| `components/score` | Score 权限、缩略图和通用 Score surface |
+| `components/score-preview` | editor/review/practice 可复用的交互式 Verovio 预览 UI |
 | `components/score-detail` | 长期 Score 详情页的元数据、播放、分享和协作操作 |
 | `components/review` | pre-Score OCR review pipeline UI |
 | `components/share` | share token 入口和只读/受限访问 UI |
 | `components/practice` | 练习页专属 viewer、controls 和 overlay |
 
-组件根目录只保留真正跨领域的轻量入口。共享试听 UI 位于 `components/score/listen-modal.tsx`，只依赖 `lib/score` contracts；不要从 UI 读取 renderer 或音频播放器内部字段。
+组件根目录只保留真正跨领域的轻量入口。交互式预览 UI 位于 `components/score-preview`，只依赖 `lib/score-preview` contracts；不要从 UI 读取 renderer 或音频播放器内部字段。
 
 经验：大组件拆分不是为了追求文件数量，而是为了把状态、交互和渲染责任分开。编辑器组件、practice score viewer、overlay、card 子组件都应避免变成单个巨型文件。
 
@@ -364,9 +366,9 @@ React state 适合：
 
 满足任意几条，就应考虑放到 `components/<domain>`、`hooks`、`lib/<domain>` 或 `lib/api`。
 
-### 2. Verovio 迁移应覆盖浏览器端 MusicXML 渲染链路
+### 2. 浏览器端 Verovio 只服务交互式乐谱链路
 
-practice 页是第一阶段先行方案；score detail、share、editor 的 `ListenModal` 交互式播放链路也已完成 Verovio 迁移。
+practice 页是实时跟随和高亮的主要浏览器端 Verovio 场景；editor 使用浏览器端 MusicXML/Verovio 能力服务编辑体验。score detail、share、public 页面不再是完整播放器页，它们使用后端 render assets 和 playback audio assets。
 
 第一阶段选择 practice 先行的原因：
 
@@ -376,20 +378,20 @@ practice 页是第一阶段先行方案；score detail、share、editor 的 `Lis
 
 当前长期方向：
 
-- score detail、share、editor 复用 Verovio ListenModal 和独立播放控制器
-- 共享 score renderer abstraction，避免每个页面各自操作 Verovio
+- practice/editor 保持共享 renderer abstraction，避免每个页面各自操作 Verovio
+- score detail、share、public 不加载 MusicXML 做试听；封面播放使用后端音频资产
 - 页面只消费 renderer 输出和交互接口，不直接依赖 Verovio toolkit
-- review 的原图，以及 score detail/share 的 durable backend preview image，不属于浏览器 renderer 路径；除非产品需求改变，否则继续作为后端产物展示
+- review 的原图，以及 score detail/share/public 的 durable backend preview image，不属于浏览器 renderer 路径；除非产品需求改变，否则继续作为后端产物展示
 
-原则：最终统一的是浏览器端 MusicXML renderer 和交互式播放能力，不是为了“全量 Verovio”而替换合理的后端图片产物。迁移必须通过 adapter、共享组件、真实样本和功能对等验证渐进完成。
+原则：最终统一的是需要浏览器端 MusicXML 的交互式链路；展示、下载和外部试听不应为了复用前端播放器而暴露 MusicXML。
 
-Score preview 的当前边界：
+交互式 score preview 的当前边界：
 
 - `ScoreRenderer` 负责加载、适配容器和释放 renderer DOM/toolkit
 - `ScorePlaybackController` 负责 play、pause、stop、step seek、tempo、状态快照和播放事件
 - `ScoreCursorController` 负责 reset、step sync、visibility 和 auto-scroll
 - `VerovioScorePreviewController` 实现组合后的 `ScorePreviewController`
-- `ListenModal` 拥有 React UI 状态、requestAnimationFrame 和 ResizeObserver；controller 拥有 Verovio、AudioContext、调度器/计时器和渲染 DOM
+- `useScorePreviewPlayback` 拥有 React UI 状态、requestAnimationFrame 和 ResizeObserver；controller 拥有 Verovio、AudioContext、调度器/计时器和渲染 DOM
 - dispose 必须停止播放、关闭 AudioContext、阻止已释放实例继续分发事件并清空 renderer DOM
 
 ### 3. Practice 页要四层分离
@@ -603,19 +605,19 @@ npm run test
 
 反过来，如果一个改动需要解释“这个按钮现在只是假的”“这里先直接 fetch”“这个类型先 any”“这个页面先不做错误态”“这个资源暂时不用清理”，它很可能正在制造下一轮前端债。
 
-Share/review ownership update (2026-06-20): share authentication/access, canonical share XML, permission-gated actions, and cancellable images are composed outside the page; review task validation, confirmation, comparison images, and carousel presentation have explicit hook/component owners. Share links are view-only; `can_download` and practice capability must directly control the relevant UI actions.
+Share/review ownership update (2026-06-20): share authentication/access, permission-gated actions, allowed downloads, and cancellable images are composed outside the page; review task validation, confirmation, comparison images, and carousel presentation have explicit hook/component owners. Share links are view-only; `can_download` and practice capability must directly control the relevant UI actions.
 
-Anonymous share boundary update (2026-06-21): only `/share/[shareId]` is public. Share data, XML, and allowed downloads may load without a session after auth initialization. This note is historical; the current protected product surfaces include score detail, editor, practice, profile, upload, review, and my-scores.
+Anonymous share boundary update (2026-06-21): only `/share/[shareId]` is public. Share data and allowed presentation/download capabilities may load without a session after auth initialization. External MusicXML download is only allowed when the backend includes revision sources for that grant. This note is historical; the current protected product surfaces include score detail, editor, practice, profile, upload, review, and my-scores.
 
-Editor ownership update (2026-06-20): document queries, draft recovery, validation, source-aware save targets, autosave state, and original-image cleanup are composed by `use-editor-document`; page header/actions and all editor dialogs live under `components/editor`. Editor routes require explicit `current` or `final` sources, and the product XML API does not expose internal `enhanced_xml` artifacts. This note is historical; the current Score editor route is `/score/:id/edit`.
+Editor ownership update (2026-06-20): document queries, draft recovery, validation, base-revision save targets, autosave state, and original-image cleanup are composed by `use-editor-document`; page header/actions and all editor dialogs live under `components/editor`. The current Score editor route is `/score/:id/edit`; it reads canonical revision sources and saves new Score revisions.
 
-Results ownership update (2026-06-21): `use-results-resources` loads task metadata and final XML without fetching redundant rendered-image previews. The results page composes an inline Verovio player, explicit history-origin breadcrumbs, grouped actions, a standalone taxonomy style-tag editor, and a share dialog under `components/results`. The create-share contract creates view-only links with permanent or dated expiration; editable collaboration is not granted through public or share links and must use an authenticated invite/membership workflow. This note is historical; the current durable Score detail route is `/score/:id`.
+Results ownership update (2026-06-21): this note is historical. The old results route has been replaced by the durable Score detail route `/score/:id`; external sharing and collaboration are managed through Score APIs and authenticated invite/membership workflows.
 
-Score detail playback layout update (2026-06-22): score viewport presentation is reusable independently from playback controls, but `use-score-preview-playback` remains the only playback-state owner. The score detail page uses complete document-flow pages plus a viewport-fixed dock; only the hook decides whether cursor synchronization may scroll the window. Manual page navigation suspends automatic following without pausing audio, and the dock exposes the explicit return-to-playback action. Modal preview surfaces continue to use inline controls.
+Score detail playback layout update (2026-07-13): score detail, share, and public pages use a score hero, backend render assets, and a simple cover play/pause control backed by playback audio assets. They no longer render full document-flow score pages or a bottom playback dock.
 
 Processing-job client update (2026-06-22): upload submission and polling use the dedicated `jobs` API/types/query keys and consume `job_id`. Task clients no longer expose processing submission or batch-status methods. This note is historical; current review remains job-scoped, while confirmed score, edit, practice, share, and collaboration surfaces use Score identity.
 
-Review pipeline ownership update (2026-07-02): OCR review is a job-scoped pipeline surface, not a Score workspace. `/review/:jobId` loads review data through `use-review-page-data`; `/review/:jobId/edit` reuses the shared editor workspace UI but saves through the job review API and updates only the temporary review MusicXML artifact. It must not create Score revisions, use `ScoreShell`, or expose sharing, invites, publication, practice, or collaboration capabilities. Only after confirmation may the UI navigate to `/score/:scoreId`.
+Review pipeline ownership update (2026-07-02): OCR review is a job-scoped pipeline surface, not a Score workspace. `/review/:jobId` loads review data through `use-review-page-data`; `/review/:jobId/edit` reuses the shared editor workspace UI but saves through the job review API and updates only the temporary review MusicXML artifact. It must not create Score revisions, use Score detail tabs, or expose sharing, invites, publication, practice, or collaboration capabilities. Only after confirmation may the UI navigate to `/score/:scoreId`.
 
 Score workspace ownership update (2026-07-02): stable Score workspaces live under `/score/:id`, `/score/:id/edit`, and `/score/:id/practice`. `EditorWorkspacePage` is the shared editor shell; source-specific hooks such as `useEditorDocument` and `useReviewEditorDocument` must return the shared `EditorWorkspaceDocument` contract. Score editing saves revisions; review editing saves temporary job artifacts. Future editor sources should add a document hook behind the same workspace contract rather than duplicating page shells.
 
@@ -627,9 +629,9 @@ Verovio ownership update (2026-06-20): `lib/score/verovio` owns the shared WASM 
 
 Playback spike update (2026-06-20): Verovio base64 MIDI and XML-ID timemap data feed a NoteVerse-owned playback timeline/controller; `@tonejs/midi` is parser-only and `soundfont-player` is isolated behind `VerovioAudioEngine`. Playback code has a separate entry from renderer code. The shipped asset set currently guarantees acoustic piano only, so unsupported programs fall back to piano and the product must not claim full instrumentation fidelity.
 
-Interactive listen migration update (2026-06-21): score detail, share, and editor use the single shared Verovio preview path. `ListenModal` contains no toolkit internals; its score playback hook dynamically loads the controller, while the Verovio preview controller owns SVG pages, cursor DOM, playback, relayout, AudioContext, and cleanup. Backend-rendered comparison and preview images remain valid product artifacts. The previous renderer backend, compatibility patch, and dependencies have been removed.
+Interactive playback update (2026-07-13): detail/share/public cover playback uses backend playback audio assets. Browser-side Verovio playback remains reserved for interaction-heavy surfaces such as practice/editor, where the UI needs score structure, timing, cursor, or note-level feedback.
 
-Post-migration ownership update (2026-06-21): editor-only hooks live under `hooks/editor`, editor undo history is explicitly named, draft/score lookup utilities live under `lib/editor`, API contracts are domain modules behind `types/api/index.ts`, and score-preview playback state lives in a dedicated score hook. The frontend package is `noteverse-pro-frontend`; frontend CI runs lint, typecheck, 48 unit/component tests, build, and 7 deterministic Playwright tests.
+Post-migration ownership update (2026-07-13): editor-only hooks live under `hooks/editor`, editor undo history is explicitly named, draft/score lookup utilities live under `lib/editor`, API contracts are domain modules behind `types/api/index.ts`, and score-preview playback state lives in `hooks/score-preview`. The frontend package is `noteverse-pro-frontend`; frontend CI runs lint, typecheck, unit/component tests, build, and deterministic Playwright tests.
 
 ## Bottom Line
 
@@ -639,8 +641,8 @@ NoteVerse 前端后续维护最重要的原则是：用户看到的每一个控�
 
 - API、类型、i18n、错误状态收口
 - 页面编排和领域逻辑分离
-- 浏览器端 MusicXML 渲染和交互式播放统一使用 Verovio
-- 保留有明确产品用途的后端原图和预览图片产物
+- 浏览器端 MusicXML 渲染只用于需要交互式 score structure 的页面
+- 详情、分享和公开页使用后端 render/playback 派生产物
 - 高频渲染和资源生命周期显式管理
 - 不再关闭 type/lint/build 质量门禁
 

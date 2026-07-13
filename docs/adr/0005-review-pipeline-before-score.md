@@ -1,6 +1,6 @@
 # ADR 0005: Keep OCR Review In The Processing Pipeline Before Score Creation
 
-- Status: Accepted
+- Status: Accepted; score asset terminology updated by ADR 0003
 - Date: 2026-07-02
 - Scope: Review pipeline, score lifecycle, editor entry points
 
@@ -30,8 +30,8 @@ compatibility routes or fallback support for the older review-as-score model.
 8. Saving in `/review/:jobId/edit` updates the review artifact through `PATCH /review/:jobId`.
    It does not create a Score revision.
 9. Confirming review creates the first Score, its first revision, the canonical MusicXML
-   Score artifact, metadata projection, and a library entry. Rendered pages/thumbnails are
-   generated asynchronously as rebuildable artifacts.
+   revision source, metadata projection, and a library entry. Render assets and playback
+   assets are generated asynchronously as rebuildable derived outputs.
 10. Score routes and capabilities start after confirm:
     `/score/:scoreId`, `/score/:scoreId/edit`, `/score/:scoreId/practice`, sharing, invites,
     publication, and collaboration all require a confirmed Score.

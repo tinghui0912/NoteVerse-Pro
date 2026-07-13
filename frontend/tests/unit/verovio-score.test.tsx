@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { VerovioScoreViewer } from '@/components/score/verovio-score-viewer';
+import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import {
   sanitizeMusicXmlForVerovio,
   VerovioScoreAdapter,

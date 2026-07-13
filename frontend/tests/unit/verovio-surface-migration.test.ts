@@ -18,7 +18,8 @@ describe('Verovio listen surfaces', () => {
     expect(page).toContain('<ScoreDetailTabs');
     expect(page).not.toContain('<Footer');
     expect(hero).toContain('<ScoreCoverPlaybackButton');
-    expect(playback).toContain('useScorePreviewPlayback');
+    expect(playback).toContain('new Audio(audioSrc)');
+    expect(playback).not.toContain('useScorePreviewPlayback');
     expect(playback).not.toContain('ScorePlaybackDock');
   });
 
@@ -30,7 +31,7 @@ describe('Verovio listen surfaces', () => {
     expect(page).toContain('<ScoreDetailHero');
     expect(page).toContain('<ScoreDetailTabs');
     expect(page).toContain('resolveScoreCapabilities');
-    expect(page).toContain('publicSlug');
+    expect(page).toContain('playbackUrl(slug)');
     expect(page).not.toContain('<Footer');
   });
 
@@ -54,8 +55,8 @@ describe('Verovio listen surfaces', () => {
     expect(page).not.toContain('<ScorePlayer');
     expect(page).not.toContain('<ScorePreviewPanel');
     expect(actions).not.toContain('ListenModal');
-    expect(playback).toContain('useScorePreviewPlayback');
-    expect(playback).toContain("followViewport: 'container'");
+    expect(playback).toContain('new Audio(audioSrc)');
+    expect(playback).not.toContain('useScorePreviewPlayback');
     expect(playback).not.toContain('<ScorePreviewPanel');
     expect(playback).not.toContain('<ScorePlaybackDock');
   });
@@ -79,8 +80,8 @@ describe('Verovio listen surfaces', () => {
   });
 
   it('dynamically loads only the Verovio preview controller', () => {
-    const source = readSource('src/hooks/score/use-score-preview-playback.ts');
-    expect(source).toContain("'@/lib/score/verovio-score-preview-controller'");
+    const source = readSource('src/hooks/score-preview/use-score-preview-playback.ts');
+    expect(source).toContain("'@/lib/score-preview/verovio-score-preview-controller'");
   });
 
   it('wires editor preview score clicks to the event inspector mapping layer', () => {
@@ -153,7 +154,7 @@ describe('Verovio listen surfaces', () => {
   });
 
   it('highlights the currently selected Verovio entity', () => {
-    const viewport = readSource('src/components/score/score-preview-viewport.tsx');
+    const viewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const panel = readSource('src/components/editor/editor-preview-panel.tsx');
 
     expect(viewport).toContain('score-editor-selected');
@@ -163,7 +164,7 @@ describe('Verovio listen surfaces', () => {
   });
 
   it('projects hidden voice tracks onto the Verovio SVG surface', () => {
-    const viewport = readSource('src/components/score/score-preview-viewport.tsx');
+    const viewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const panel = readSource('src/components/editor/editor-preview-panel.tsx');
 
     expect(viewport).toContain('score-editor-hidden');
@@ -184,7 +185,7 @@ describe('Verovio listen surfaces', () => {
   });
 
   it('marks temporarily invalid measures without blocking score editing', () => {
-    const viewport = readSource('src/components/score/score-preview-viewport.tsx');
+    const viewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const panel = readSource('src/components/editor/editor-preview-panel.tsx');
     const measureStatus = readSource('src/lib/editor/measure-status.ts');
     const validator = readSource('src/lib/musicxml/validator.ts');

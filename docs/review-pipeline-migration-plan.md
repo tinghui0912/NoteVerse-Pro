@@ -4,6 +4,10 @@ Status: Completed
 Date: 2026-07-02
 Owner: Codex / NoteVerse Pro
 
+Current note: review remains job-scoped, but confirmed Score storage now uses the ADR 0003
+terminology: canonical `ScoreRevisionSource`, rebuildable `ScoreRenderAsset`, rebuildable
+`ScorePlaybackAsset`, and typed `ScoreRevisionMetadata`.
+
 ## Goal
 
 Migrate review from a Score workspace to a pre-Score pipeline step.
@@ -45,7 +49,7 @@ Non-goals:
 - `SyncScoreCreationService.create_from_job(...)` creates:
   - `Score(state=IN_REVIEW)`
   - initial `ScoreRevision(origin=OMR)`
-  - canonical `ScoreArtifact(kind=MUSICXML)`
+  - canonical `ScoreRevisionSource(format=MUSICXML)`
   - `ScoreRevisionMetadata(PENDING)`
   - `ImportJob.score_id`
 - `SyncImportJobService.finalize_success(...)` sets `ImportJob.state = PENDING_REVIEW` and sends a job-scoped `import.completed` notification.
@@ -174,7 +178,7 @@ Request shape:
 - Requires job owner.
 - Requires job state `PENDING_REVIEW`.
 - Reads the review MusicXML artifact.
-- Creates the Score, initial revision, canonical MusicXML artifact, metadata projection, and library entry in one transaction boundary where possible.
+- Creates the Score, initial revision, canonical MusicXML revision source, metadata projection, and library entry in one transaction boundary where possible.
 - Enqueues rendered-page/thumbnail generation asynchronously as a best-effort side effect.
 - Sets `ImportJob.score_id`.
 - Sets `ImportJob.state = CONFIRMED`.

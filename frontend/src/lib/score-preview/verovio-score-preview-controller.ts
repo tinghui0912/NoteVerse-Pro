@@ -7,13 +7,13 @@ import type {
   ScorePlaybackState,
   ScorePreviewController,
 } from './contracts';
-import { VerovioScoreAdapter } from './verovio';
+import { VerovioScoreAdapter } from '@/lib/score/verovio';
 import {
   SoundfontAudioEngine,
   VerovioPlaybackPrototype,
   type VerovioAudioEngine,
   type VerovioPlaybackCursorSnapshot,
-} from './verovio/playback';
+} from '@/lib/score/verovio/playback';
 
 type VerovioScorePreviewControllerOptions = {
   container: HTMLElement;

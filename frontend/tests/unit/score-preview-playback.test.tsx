@@ -4,9 +4,9 @@ import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
-import { formatPlaybackTime } from '@/components/score/score-preview-controls';
-import { useScorePreviewPlayback } from '@/hooks/score/use-score-preview-playback';
-import type { ScorePreviewController } from '@/lib/score/contracts';
+import { formatPlaybackTime } from '@/components/score-preview/score-preview-controls';
+import { useScorePreviewPlayback } from '@/hooks/score-preview/use-score-preview-playback';
+import type { ScorePreviewController } from '@/lib/score-preview/contracts';
 
 function createFakeController(loadError?: Error) {
   const controller: ScorePreviewController = {

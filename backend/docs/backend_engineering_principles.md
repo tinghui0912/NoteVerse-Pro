@@ -176,8 +176,8 @@ Own stable score resources and immutable revision creation:
 - score title, taxonomy tags, state, and version;
 - head and approved revision pointers;
 - first score creation after review confirmation yields canonical MusicXML;
-- revision append, content-hash deduplication, base-revision conflict checks, and
-  idempotent saves.
+- revision append, same-base no-op detection, base-revision conflict checks, and
+  idempotent save retries.
 
 Do not overwrite MusicXML in place. Do not model review approval as a file copy.
 

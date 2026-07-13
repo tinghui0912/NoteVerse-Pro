@@ -8,17 +8,17 @@ import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from '@/components/ui/carousel';
-import { ScorePreviewViewport } from '@/components/score/score-preview-viewport';
-import { useScorePreviewPlayback } from '@/hooks/score/use-score-preview-playback';
+import { ScorePreviewViewport } from '@/components/score-preview/score-preview-viewport';
+import { useScorePreviewPlayback } from '@/hooks/score-preview/use-score-preview-playback';
 import { useMeasureWarningOverlay } from '@/hooks/score/use-measure-warning-overlay';
 import type { ScoreValidationIssue } from '@/lib/musicxml/validator';
-import type { ScorePreviewControllerFactory } from '@/hooks/score/use-score-preview-playback';
+import type { ScorePreviewControllerFactory } from '@/hooks/score-preview/use-score-preview-playback';
 
 const A4_HEIGHT_TO_WIDTH_RATIO = 297 / 210;
 
 const createReviewScoreController: ScorePreviewControllerFactory = async (container, bpm) => {
   const { VerovioScorePreviewController } = await import(
-    '@/lib/score/verovio-score-preview-controller'
+    '@/lib/score-preview/verovio-score-preview-controller'
   );
   return new VerovioScorePreviewController({
     container,

@@ -7,7 +7,7 @@ import { Midi } from '@tonejs/midi';
 import { describe, expect, it, vi } from 'vitest';
 
 import { VerovioScoreAdapter } from '@/lib/score/verovio';
-import { VerovioScorePreviewController } from '@/lib/score/verovio-score-preview-controller';
+import { VerovioScorePreviewController } from '@/lib/score-preview/verovio-score-preview-controller';
 import {
   createVerovioPlaybackTimeline,
   VerovioPlaybackPrototype,

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { DEFAULT_TEMPO_BPM } from '@/lib/constants/audio';
 import { extractTempoBpm } from '@/lib/musicxml';
-import type { ScoreCursorScrollTarget, ScorePreviewController } from '@/lib/score/contracts';
+import type { ScoreCursorScrollTarget, ScorePreviewController } from '@/lib/score-preview/contracts';
 
 export type ScorePreviewControllerFactory = (
   container: HTMLDivElement,
@@ -13,7 +13,7 @@ export type ScorePreviewControllerFactory = (
 
 const createVerovioController: ScorePreviewControllerFactory = async (container, bpm) => {
   const { VerovioScorePreviewController } = await import(
-    '@/lib/score/verovio-score-preview-controller'
+    '@/lib/score-preview/verovio-score-preview-controller'
   );
   return new VerovioScorePreviewController({ container, bpm });
 };

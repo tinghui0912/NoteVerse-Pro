@@ -6,7 +6,7 @@ import { AlertTriangle, Maximize, Minimize } from 'lucide-react';
 
 import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
-import { VerovioScoreViewer } from '@/components/score/verovio-score-viewer';
+import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,

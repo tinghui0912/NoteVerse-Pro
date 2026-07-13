@@ -1,7 +1,8 @@
 # NoteVerse Score Domain Architecture Migration Plan
 
 > Status: Historical / completed baseline migration. Current review and score-state semantics
-> are governed by ADR 0005 and `docs/review-pipeline-migration-plan.md`.
+> are governed by ADR 0005 and `docs/review-pipeline-migration-plan.md`. Current source,
+> render, playback, and metadata storage semantics are governed by ADR 0003.
 > Baseline date: 2026-06-22  
 > Scope: import jobs, scores, revisions, artifacts, metadata, sharing,
 > publication, practice references, frontend contracts, and results playback layout.

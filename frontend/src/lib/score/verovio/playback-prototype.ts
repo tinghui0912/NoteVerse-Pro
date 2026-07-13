@@ -2,7 +2,7 @@ import type {
   ScorePlaybackController,
   ScorePlaybackSnapshot,
   ScorePlaybackState,
-} from '../contracts';
+} from '@/lib/score-preview/contracts';
 import { VerovioScoreAdapter } from './adapter';
 import {
   createVerovioPlaybackTimeline,

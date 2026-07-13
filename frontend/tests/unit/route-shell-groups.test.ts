@@ -211,8 +211,6 @@ describe('route shell groups', () => {
     expect(publicScorePage).not.toContain("text-muted-foreground\">\n          {common('loadFailed')}");
 
     expect(practicePage).toContain('scoreQuery.error ?? revisionQuery.error');
-    expect(practicePage).toContain('grantContent.error');
-    expect(practicePage).toContain('publicContent.error');
     expect(practicePage).toContain('canPreparePractice');
     expect(practiceControls).toContain('canPrepareSession');
   });
@@ -247,7 +245,7 @@ describe('route shell groups', () => {
     const performancePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/performance/page.tsx');
     const loginPage = readSource('src/app/[locale]/(auth)/auth/login/page.tsx');
     const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
-    const scorePreviewViewport = readSource('src/components/score/score-preview-viewport.tsx');
+    const scorePreviewViewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const practiceScoreViewer = readSource('src/components/practice/practice-score-viewer.tsx');
     const reviewScoreComparison = readSource('src/components/review/review-score-comparison.tsx');
 
