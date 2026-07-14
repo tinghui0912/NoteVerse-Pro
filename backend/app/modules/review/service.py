@@ -59,7 +59,7 @@ from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.taxonomy import ordered_unique_pairs
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
-from app.shared.file_kinds import FileKind
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
@@ -131,7 +131,7 @@ class ReviewService:
             (
                 artifact
                 for artifact in artifacts
-                if artifact.kind == FileKind.REVIEW_MUSICXML.value
+                if artifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value
             ),
             None,
         )
@@ -378,7 +378,7 @@ class ReviewService:
                 select(ImportArtifact)
                 .where(
                     ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == FileKind.RESULT_THUMBNAIL.value,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
                 )
                 .order_by(ImportArtifact.created_at.desc())
                 .limit(1)
@@ -487,7 +487,7 @@ class ReviewService:
                 select(ImportArtifact)
                 .where(
                     ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == FileKind.REVIEW_MUSICXML.value,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
                 )
                 .with_for_update()
             )
@@ -499,7 +499,7 @@ class ReviewService:
         old_storage_key = artifact.storage_key
         old_size_bytes = artifact.size_bytes or 0
         stored = self.storage.put_bytes(
-            key=f"jobs/{job_uuid}/{FileKind.REVIEW_MUSICXML.value}/{uuid.uuid4()}.musicxml",
+            key=f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_MUSICXML.value}/{uuid.uuid4()}.musicxml",
             content=content,
             content_type="application/vnd.recordare.musicxml+xml",
         )

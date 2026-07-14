@@ -48,7 +48,7 @@ def test_copy_image_step_copies_input_and_updates_context() -> None:
 
 def test_job_context_complete_records_review_musicxml_without_creating_score() -> None:
     from app.pipeline.context import JobContext
-    from app.shared.file_kinds import FileKind
+    from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 
     with tempfile.TemporaryDirectory() as temp_dir:
         main_xml = os.path.join(temp_dir, "score.musicxml")
@@ -73,7 +73,7 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
 
         replace_files_mock.assert_called_once_with(
             "job-review-boundary",
-            FileKind.REVIEW_MUSICXML,
+            ImportArtifactKind.REVIEW_MUSICXML,
             [main_xml],
         )
         finalize_success_mock.assert_called_once()

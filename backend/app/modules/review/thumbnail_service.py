@@ -13,7 +13,7 @@ from app.db.models import ImportArtifact, StorageUsageCategory
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
-from app.shared.file_kinds import FileKind
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import FileStorage, file_storage
 
 
@@ -39,7 +39,7 @@ class ReviewThumbnailService:
         job_id = require_persisted_id(job.id, entity="import job")
         review_xml = (
             db.query(ImportArtifact)
-            .filter_by(job_id=job_id, kind=FileKind.REVIEW_MUSICXML.value)
+            .filter_by(job_id=job_id, kind=ImportArtifactKind.REVIEW_MUSICXML.value)
             .one_or_none()
         )
         if review_xml is None:
@@ -52,7 +52,7 @@ class ReviewThumbnailService:
 
         previous = (
             db.query(ImportArtifact)
-            .filter_by(job_id=job_id, kind=FileKind.RESULT_THUMBNAIL.value)
+            .filter_by(job_id=job_id, kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value)
             .all()
         )
         previous_usage = [
@@ -77,7 +77,7 @@ class ReviewThumbnailService:
             extension = os.path.splitext(path)[1] or ".svg"
             artifact_uuid = str(uuid.uuid4())
             key = (
-                f"jobs/{job_uuid}/{FileKind.RESULT_THUMBNAIL.value}/"
+                f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value}/"
                 f"001-{artifact_uuid}{extension}"
             )
             stored = self.storage.put_bytes(
@@ -89,7 +89,7 @@ class ReviewThumbnailService:
             thumbnail = ImportArtifact(
                 artifact_uuid=artifact_uuid,
                 job_id=job_id,
-                kind=FileKind.RESULT_THUMBNAIL.value,
+                kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
                 storage_backend=self.storage.backend_name,
                 storage_key=stored.storage_key,
                 filename=stored.filename,

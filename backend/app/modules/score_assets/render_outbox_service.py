@@ -18,7 +18,7 @@ from app.db.models import (
     Score,
     ScoreRevision,
 )
-from app.shared.file_kinds import FileKind
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.db.models.import_job import ImportJobState
 from app.utils.timezone import utc_now_naive
 
@@ -183,7 +183,7 @@ class RenderOutboxService:
             review_source = db.execute(
                 select(ImportArtifact).where(
                     ImportArtifact.job_id == outbox.import_job_id,
-                    ImportArtifact.kind == FileKind.REVIEW_MUSICXML.value,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
                 )
             ).scalar_one_or_none()
             if job is not None and review_source is not None:

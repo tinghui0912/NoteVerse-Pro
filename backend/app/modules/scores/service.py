@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import delete as sa_delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -15,9 +15,10 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import (
     ImportJob,
     ImportJobUpload,
-    PracticeSession,
+    LibraryEntrySourceType,
     Score,
     ScoreInputAsset,
+    ScoreLibraryEntry,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -30,6 +31,7 @@ from app.db.models import (
 from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
+from app.modules.practice.cleanup_service import PracticeCleanupService, practice_cleanup_service
 from app.modules.scores.repository import ScoreRepository
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.schemas import (
@@ -66,6 +68,7 @@ class ScoreService:
         access_policy: ScoreAccessPolicy | None = None,
         render_service: RevisionRenderService | None = None,
         asset_repository: ScoreAssetRepository | None = None,
+        practice_cleanup: PracticeCleanupService | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
@@ -75,12 +78,13 @@ class ScoreService:
             access_policy=self.access_policy,
             storage=self.storage,
         )
+        self.practice_cleanup = practice_cleanup or practice_cleanup_service
 
     async def get(self, db: AsyncSession, score_uuid: str, user_id: int) -> ScoreRead:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.VIEW, user_id=user_id
         )
-        return await self._read(db, access.score, access.capabilities)
+        return await self._read(db, access.score, access.capabilities, user_id=user_id)
 
     async def list_owned(
         self,
@@ -102,12 +106,28 @@ class ScoreService:
             view=view,
             sort=sort,
         )
+        library_score_ids = await self.repository.active_library_score_ids(
+            db,
+            user_id,
+            [
+                require_persisted_id(score.id, entity="score")
+                for score in rows
+            ],
+        )
         result: list[ScoreRead] = []
         for score in rows:
             access = await self.access_policy.authorize(
                 db, score.score_uuid, ScoreAction.VIEW, user_id=user_id
             )
-            result.append(await self._read(db, score, access.capabilities))
+            score_id = require_persisted_id(score.id, entity="score")
+            result.append(
+                await self._read(
+                    db,
+                    score,
+                    access.capabilities,
+                    in_library=score_id in library_score_ids,
+                )
+            )
         return result, total
 
     async def batch_delete(
@@ -152,7 +172,7 @@ class ScoreService:
         score.updated_at = utc_now_naive()
         await db.commit()
         await db.refresh(score)
-        return await self._read(db, score, access.capabilities)
+        return await self._read(db, score, access.capabilities, user_id=user_id)
 
     async def delete(self, db: AsyncSession, score_uuid: str, user_id: int) -> None:
         access = await self.access_policy.authorize(
@@ -276,8 +296,7 @@ class ScoreService:
             for _asset_uuid, upload_id, blob_id, blob_uuid, storage_key, _size_bytes in input_rows
         }
         score.head_revision_id = None
-        await db.execute(sa_delete(PracticeSession).where(PracticeSession.score_id == score_id))
-        await db.flush()
+        practice_storage_keys = await self.practice_cleanup.cleanup_for_score(db, score_id)
         await db.delete(score)
         await db.flush()
         blobs_to_delete: dict[int, tuple[str, str]] = {}
@@ -328,6 +347,11 @@ class ScoreService:
         for _blob_uuid, blob_storage_key in blobs_to_delete.values():
             try:
                 self.storage.delete(blob_storage_key)
+            except Exception:
+                pass
+        for key in practice_storage_keys:
+            try:
+                self.storage.delete(key)
             except Exception:
                 pass
         if originating_job_uuid is not None:
@@ -414,6 +438,9 @@ class ScoreService:
         db: AsyncSession,
         score: Score,
         capabilities: ScoreCapabilities,
+        *,
+        user_id: int | None = None,
+        in_library: bool | None = None,
     ) -> ScoreRead:
         head = await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
         job = await self.repository.originating_job(db, score.originating_job_id)
@@ -434,6 +461,19 @@ class ScoreService:
             )
         )
         publication = await self.repository.publication(db, score_id)
+        if in_library is None:
+            in_library = False
+            if user_id is not None:
+                in_library = (
+                    await db.execute(
+                        select(ScoreLibraryEntry.id).where(
+                            ScoreLibraryEntry.user_id == user_id,
+                            ScoreLibraryEntry.score_id == score_id,
+                            ScoreLibraryEntry.source_type == LibraryEntrySourceType.SELF_ADDED,
+                            ScoreLibraryEntry.deleted_at.is_(None),
+                        )
+                    )
+                ).first() is not None
         input_asset_rows = (
             await db.execute(
                 select(ScoreInputAsset, Upload, StorageBlob)
@@ -484,6 +524,7 @@ class ScoreService:
                 else None
             ),
             originating_job_id=job.job_uuid if job else None,
+            in_library=in_library,
             metadata=(
                 MetadataProjectionService.to_read(head, projection)
                 if head and projection

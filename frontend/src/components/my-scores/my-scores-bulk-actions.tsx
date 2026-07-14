@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe2, Trash2 } from 'lucide-react';
+import { Globe2, Library, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -10,10 +10,13 @@ interface MyScoresBulkActionsProps {
   allSelected: boolean;
   publishPending: boolean;
   unpublishPending: boolean;
+  addToLibraryPending: boolean;
   deletePending: boolean;
+  addToLibraryCount: number;
   showPublishAction: boolean;
   showUnpublishAction: boolean;
   onToggleSelectAll: (checked: boolean) => void;
+  onAddToLibrarySelected: () => void;
   onPublishSelected: () => void;
   onUnpublishSelected: () => void;
   onDeleteSelected: () => void;
@@ -26,10 +29,13 @@ export function MyScoresBulkActions({
   allSelected,
   publishPending,
   unpublishPending,
+  addToLibraryPending,
   deletePending,
+  addToLibraryCount,
   showPublishAction,
   showUnpublishAction,
   onToggleSelectAll,
+  onAddToLibrarySelected,
   onPublishSelected,
   onUnpublishSelected,
   onDeleteSelected,
@@ -52,12 +58,24 @@ export function MyScoresBulkActions({
           {t('selectedCount', { count: totalSelected })}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="w-full sm:w-auto"
+          disabled={!addToLibraryCount || addToLibraryPending}
+          onClick={onAddToLibrarySelected}
+        >
+          <Library className="mr-2 h-4 w-4" />
+          {t('addToLibrary')}
+        </Button>
         {showPublishAction ? (
           <Button
             type="button"
             size="sm"
             variant="outline"
+            className="w-full sm:w-auto"
             disabled={!selectedCount || publishPending}
             onClick={onPublishSelected}
           >
@@ -70,6 +88,7 @@ export function MyScoresBulkActions({
             type="button"
             size="sm"
             variant="outline"
+            className="w-full sm:w-auto"
             disabled={!selectedCount || unpublishPending}
             onClick={onUnpublishSelected}
           >
@@ -81,6 +100,7 @@ export function MyScoresBulkActions({
           type="button"
           size="sm"
           variant="destructive"
+          className="w-full sm:w-auto"
           disabled={!totalSelected || deletePending}
           onClick={onDeleteSelected}
         >

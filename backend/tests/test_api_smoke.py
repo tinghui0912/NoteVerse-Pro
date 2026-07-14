@@ -172,6 +172,7 @@ def test_library_feature_routes_require_authentication(client: TestClient) -> No
         ("post", "/api/v1/library/entries/batch-move", {"entry_ids": ["entry-1"]}),
         ("post", "/api/v1/library/entries/batch-favorite", {"entry_ids": ["entry-1"]}),
         ("post", "/api/v1/library/entries/batch-trash", {"entry_ids": ["entry-1"]}),
+        ("post", "/api/v1/library/entries/batch-add-owned", {"score_ids": ["score-1"]}),
     ]
 
     for method, path, payload in protected_requests:

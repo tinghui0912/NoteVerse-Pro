@@ -32,6 +32,7 @@ from app.modules.library.schemas import (
     LibraryFolderRead,
     LibraryFolderTreeRead,
     LibraryFolderUpdateRequest,
+    LibraryOwnedScoreBatchRequest,
     LibrarySort,
     LibraryView,
 )
@@ -70,11 +71,16 @@ class LibraryService:
         source_type: LibraryEntrySourceType,
         favorite: bool = False,
     ) -> ScoreLibraryEntry:
-        entry = await self.repository.entry(db, user_id, score_id, source_type)
+        entry = await self.repository.entry_including_deleted(db, user_id, score_id, source_type)
         if entry:
+            if entry.deleted_at is not None:
+                entry.deleted_at = None
+                entry.folder_id = None
+                entry.practice_state = LibraryPracticeState.TO_PRACTICE
+                entry.last_practiced_at = None
             if favorite and not entry.is_favorite:
                 entry.is_favorite = True
-                entry.updated_at = utc_now_naive()
+            entry.updated_at = utc_now_naive()
             return entry
         now = utc_now_naive()
         entry = ScoreLibraryEntry(
@@ -309,6 +315,32 @@ class LibraryService:
             request.entry_ids,
             practice_state=request.practice_state,
         )
+
+    async def batch_add_owned_scores(
+        self, db: AsyncSession, user_id: int, request: LibraryOwnedScoreBatchRequest
+    ) -> int:
+        changed = 0
+        for score_uuid in request.score_ids:
+            score = await self.score_repository.get(db, score_uuid)
+            if not score or score.owner_user_id != user_id:
+                continue
+            score_id = require_persisted_id(score.id, entity="score")
+            active_entry = await self.repository.entry(
+                db,
+                user_id,
+                score_id,
+                LibraryEntrySourceType.SELF_ADDED,
+            )
+            await self.ensure_entry(
+                db,
+                user_id=user_id,
+                score_id=score_id,
+                source_type=LibraryEntrySourceType.SELF_ADDED,
+            )
+            if active_entry is None:
+                changed += 1
+        await db.commit()
+        return changed
 
     async def update_entry(
         self,

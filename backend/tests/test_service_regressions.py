@@ -35,7 +35,7 @@ from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.pipeline.files_recorder import _build_file_item
 from app.shared.constants import ErrorCode
-from app.shared.file_kinds import FileKind
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import LocalFileStorage
 from app.storage.s3 import S3CompatibleStorage
 from app.utils.timezone import utc_now_naive
@@ -238,13 +238,13 @@ def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
         with patch("app.pipeline.files_recorder.file_storage", storage):
             item = _build_file_item(
                 "task-1",
-                FileKind.REVIEW_MUSICXML,
+                ImportArtifactKind.REVIEW_MUSICXML,
                 output_path,
                 page=1,
             )
 
         assert item["storage_key"] == "jobs/task-1/review_musicxml/001-input.jpg"
-        assert "FileKind" not in item["storage_key"]
+        assert "ImportArtifactKind" not in item["storage_key"]
 
 
 def test_avatar_service_stores_processed_image_through_storage() -> None:

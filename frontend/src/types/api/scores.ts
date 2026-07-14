@@ -76,6 +76,7 @@ export interface ScoreDetail {
   input_assets: ScoreInputAsset[];
   publication: ScorePublicationSummary | null;
   originating_job_id: string | null;
+  in_library: boolean;
   metadata: ScoreMetadata | null;
   capabilities: ScoreCapabilities;
   created_at: string;

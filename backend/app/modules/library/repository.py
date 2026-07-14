@@ -84,6 +84,29 @@ class LibraryRepository:
             )
         ).scalar_one_or_none()
 
+    async def entry_including_deleted(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        score_id: int,
+        source_type: LibraryEntrySourceType,
+    ) -> ScoreLibraryEntry | None:
+        return (
+            await db.execute(
+                select(ScoreLibraryEntry)
+                .where(
+                    ScoreLibraryEntry.user_id == user_id,
+                    ScoreLibraryEntry.score_id == score_id,
+                    ScoreLibraryEntry.source_type == source_type,
+                )
+                .order_by(
+                    ScoreLibraryEntry.deleted_at.is_(None).desc(),
+                    ScoreLibraryEntry.updated_at.desc(),
+                    ScoreLibraryEntry.id.desc(),
+                )
+            )
+        ).scalar_one_or_none()
+
     async def counts(
         self, db: AsyncSession, user_id: int
     ) -> tuple[int, int, int, int, int, dict[int, int]]:

@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreVertical, Trash2 } from 'lucide-react';
+import { Library, MoreVertical, Trash2 } from 'lucide-react';
 import { ScoreThumbnail } from '@/components/score/score-thumbnail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,6 +27,7 @@ interface MyScoreCardProps {
   selected: boolean;
   onOpen: () => void;
   onToggleSelection: () => void;
+  onAddToLibrary: () => void;
   onDelete: () => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
@@ -38,6 +39,7 @@ export function MyScoreCard({
   selected,
   onOpen,
   onToggleSelection,
+  onAddToLibrary,
   onDelete,
   t,
 }: MyScoreCardProps) {
@@ -112,6 +114,12 @@ export function MyScoreCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {!score.in_library ? (
+                  <DropdownMenuItem onClick={onAddToLibrary}>
+                    <Library className="h-4 w-4" />
+                    {t('addToLibrary')}
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem className="text-destructive" onClick={onDelete}>
                   <Trash2 className="h-4 w-4" />
                   {t('delete')}

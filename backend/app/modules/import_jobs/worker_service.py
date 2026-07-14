@@ -12,7 +12,7 @@ from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobArtifactItem, ImportJobDetail
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
 from app.modules.storage_usage.service import storage_usage_service
-from app.shared.file_kinds import FileKind
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets.render_outbox_service import create_review_thumbnail_render_outbox_sync
 from app.utils.timezone import utc_now_naive
 
@@ -83,7 +83,7 @@ class SyncImportJobService:
             db.query(ImportArtifact)
             .filter_by(
                 job_id=job.id,
-                kind=FileKind.REVIEW_MUSICXML.value,
+                kind=ImportArtifactKind.REVIEW_MUSICXML.value,
             )
             .one_or_none()
         )
@@ -252,7 +252,7 @@ class SyncImportJobService:
             items = artifacts.get(kind)
             return items[0] if items else None
 
-        thumbnail = first_artifact(FileKind.RESULT_THUMBNAIL.value)
+        thumbnail = first_artifact(ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value)
         return {
             "job_id": job.job_uuid,
             "score_id": self.repository.get_score_uuid(db, job.score_id),

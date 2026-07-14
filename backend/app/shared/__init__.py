@@ -1,5 +1,4 @@
 from app.shared.constants import ErrorCode, SuccessCode
-from app.shared.file_kinds import FileKind
 from app.shared.responses import (
     APIResponse,
     EmptyResponse,
@@ -16,7 +15,6 @@ __all__ = [
     "success_response",
     "error_response",
     "paginated_response",
-    "FileKind",
     "ErrorCode",
     "SuccessCode",
 ]

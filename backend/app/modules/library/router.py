@@ -17,6 +17,7 @@ from app.modules.library.schemas import (
     LibraryFolderDeleteRequest,
     LibraryFolderTreeRead,
     LibraryFolderUpdateRequest,
+    LibraryOwnedScoreBatchRequest,
     LibrarySort,
     LibraryView,
 )
@@ -136,6 +137,18 @@ async def batch_trash_library_entries(
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_trash(db, user_id, request)
     return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
+
+
+@router.post("/entries/batch-add-owned", response_model=APIResponse[dict[str, int]])
+async def batch_add_owned_scores_to_library(
+    request: LibraryOwnedScoreBatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: LibraryService = Depends(get_library_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    added = await service.batch_add_owned_scores(db, user_id, request)
+    return success_response(data={"added": added}, message=SuccessCode.UPDATE_SUCCESS)
 
 
 @router.post("/entries/batch-practice-state", response_model=APIResponse[dict[str, int]])

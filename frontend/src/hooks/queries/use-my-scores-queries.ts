@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { myScoresApi, publicationsApi, scoresApi } from '@/lib/api';
+import { libraryApi, myScoresApi, publicationsApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { MyScoresSort, MyScoresView } from '@/types/api';
 
@@ -37,6 +37,17 @@ export function useDeleteMyScores() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.myScores.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.scores.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
+    },
+  });
+}
+
+export function useAddMyScoresToLibrary() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scoreIds: string[]) => libraryApi.batchAddOwned({ score_ids: scoreIds }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.myScores.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
     },
   });

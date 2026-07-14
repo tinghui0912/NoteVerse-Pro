@@ -26,7 +26,7 @@
   "addToLibrary": "Add to library",
   "publishSelected": "Publish selected",
   "unpublishSelected": "Unpublish selected",
-  "delete": "Delete",
+  "delete": "Delete work",
   "deleteDialogTitle": "Delete works",
   "deleteDialogDescription": "Delete {count} item(s)? Related files and storage usage will be cleaned up. This cannot be undone.",
   "deleteDialogConfirm": "Delete",

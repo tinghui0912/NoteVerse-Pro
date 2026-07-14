@@ -16,7 +16,7 @@ from app.storage import file_storage
 
 
 def _kind_value(kind: object) -> str:
-    """Normalize FileKind enum values before using them in keys or DB writes."""
+    """Normalize ImportArtifactKind enum values before using them in keys or DB writes."""
 
     if isinstance(kind, Enum):
         return str(kind.value)

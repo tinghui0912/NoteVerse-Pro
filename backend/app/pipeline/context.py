@@ -14,7 +14,7 @@ from app.processing.engines.omr import OmrSuccessResult
 from app.modules.import_jobs.worker_service import sync_import_job_service as job_service
 from app.pipeline.files_recorder import replace_files
 from app.pipeline.step_tracker import StepTracker
-from app.shared.file_kinds import FileKind
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 
 if TYPE_CHECKING:
     from app.pipeline.base import Pipeline
@@ -164,7 +164,7 @@ class JobContext:
 
         if not self.main_xml or not os.path.exists(self.main_xml):
             raise FileNotFoundError("Canonical MusicXML was not produced")
-        replace_files(self.job_id, FileKind.REVIEW_MUSICXML, [self.main_xml])
+        replace_files(self.job_id, ImportArtifactKind.REVIEW_MUSICXML, [self.main_xml])
         total_time = int(time.time() - self._start_ts)
         job_service.finalize_success(
             self.db, self.job_id, total_time_seconds=total_time

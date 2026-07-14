@@ -11,6 +11,8 @@ from app.db.models import (
     ScoreTaxonomyTag,
     TaxonomyCategory,
     TaxonomyTag,
+    LibraryEntrySourceType,
+    ScoreLibraryEntry,
 )
 from app.db.models.score_access import PublicationStatus
 from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
@@ -72,6 +74,25 @@ class ScoreRepository:
             .limit(page_size)
         )
         return list(rows.scalars().all()), total
+
+    async def active_library_score_ids(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        score_ids: list[int],
+    ) -> set[int]:
+        if not score_ids:
+            return set()
+        rows = await db.execute(
+            select(ScoreLibraryEntry.score_id).where(
+                ScoreLibraryEntry.user_id == user_id,
+                ScoreLibraryEntry.score_id.in_(score_ids),
+                ScoreLibraryEntry.source_type == LibraryEntrySourceType.SELF_ADDED,
+                ScoreLibraryEntry.deleted_at.is_(None),
+            )
+        )
+        return {int(score_id) for score_id in rows.scalars().all()}
+
     async def get(self, db: AsyncSession, score_uuid: str, *, lock: bool = False) -> Score | None:
         statement = select(Score).where(Score.score_uuid == score_uuid)
         if lock:

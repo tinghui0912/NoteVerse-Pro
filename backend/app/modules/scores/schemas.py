@@ -82,6 +82,7 @@ class ScoreRead(BaseModel):
     input_assets: list[ScoreInputAssetRead]
     publication: ScorePublicationSummaryRead | None
     originating_job_id: str | None
+    in_library: bool
     metadata: MetadataRead | None
     capabilities: ScoreCapabilities
     created_at: datetime

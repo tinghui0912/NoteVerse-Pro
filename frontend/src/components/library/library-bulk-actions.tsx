@@ -42,10 +42,11 @@ export function LibraryBulkActions({
             {t('selectedCount', { count: selectedCount })}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
           <Button
             type="button"
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={onOpenPracticeStateDialog}
             disabled={!selectedCount || pending}
           >
@@ -55,6 +56,7 @@ export function LibraryBulkActions({
           <Button
             type="button"
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={onOpenMoveDialog}
             disabled={!selectedCount || pending}
           >
@@ -64,6 +66,7 @@ export function LibraryBulkActions({
           <Button
             type="button"
             variant="destructive"
+            className="w-full sm:w-auto"
             onClick={onOpenDeleteDialog}
             disabled={!selectedCount || pending}
           >

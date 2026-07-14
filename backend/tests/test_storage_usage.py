@@ -46,7 +46,7 @@ from app.modules.revisions.service import RevisionService
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
-from app.shared.file_kinds import FileKind
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import LocalFileStorage
 from app.utils.timezone import utc_now_naive
 
@@ -638,7 +638,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         ImportArtifact(
             artifact_uuid="origin-review-source",
             job_id=1201,
-            kind=FileKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
             storage_backend=storage.backend_name,
             storage_key=review_source.storage_key,
             filename=review_source.filename,
@@ -711,7 +711,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         content_type="application/vnd.recordare.musicxml+xml",
     )
     thumbnail = storage.put_bytes(
-        key=f"jobs/{job_uuid}/result_thumbnail/page-1.png",
+        key=f"jobs/{job_uuid}/review_preview_image/page-1.png",
         content=b"thumbnail",
         content_type="image/png",
     )
@@ -747,7 +747,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         ImportArtifact(
             artifact_uuid="delete-owned-review-source",
             job_id=1001,
-            kind=FileKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
             storage_backend=storage.backend_name,
             storage_key=review_source.storage_key,
             filename=review_source.filename,
@@ -759,7 +759,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         ImportArtifact(
             artifact_uuid="delete-owned-thumbnail",
             job_id=1001,
-            kind=FileKind.RESULT_THUMBNAIL.value,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
             storage_backend=storage.backend_name,
             storage_key=thumbnail.storage_key,
             filename=thumbnail.filename,

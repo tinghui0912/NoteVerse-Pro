@@ -94,7 +94,7 @@ from app.modules.publications.schemas import PublicationUpsertRequest
 from app.modules.publications.service import PublicationService
 from app.modules.playback.service import PlaybackService
 from app.shared.constants import ErrorCode
-from app.shared.file_kinds import FileKind
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import LocalFileStorage
 from app.utils.timezone import utc_now_naive
 
@@ -344,7 +344,7 @@ def test_completed_job_notifies_owner_when_ready_for_review(
         ImportArtifact(
             job_id=11,
             artifact_uuid="completed-review-xml",
-            kind=FileKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
             storage_backend="local",
             storage_key=stored_xml.storage_key,
             filename=stored_xml.filename,
@@ -457,7 +457,7 @@ async def test_review_detail_reads_pending_job_artifacts(
             ImportArtifact(
                 job_id=13,
                 artifact_uuid="review-musicxml-artifact",
-                kind=FileKind.REVIEW_MUSICXML.value,
+                kind=ImportArtifactKind.REVIEW_MUSICXML.value,
                 storage_backend="local",
                 storage_key=stored_xml.storage_key,
                 filename=stored_xml.filename,
@@ -498,7 +498,7 @@ async def test_review_detail_reads_pending_job_artifacts(
     assert detail.original_images[0].filename == "page-1.png"
 
 
-def test_job_detail_uses_result_thumbnail_only(
+def test_job_detail_uses_review_preview_image_only(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, _ = score_service_session
@@ -516,9 +516,9 @@ def test_job_detail_uses_result_thumbnail_only(
             ImportArtifact(
                 job_id=16,
                 artifact_uuid="result-thumbnail-artifact",
-                kind=FileKind.RESULT_THUMBNAIL.value,
+                kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
                 storage_backend="local",
-                storage_key="jobs/job-thumbnail/result_thumbnail/001-result.svg",
+                storage_key="jobs/job-thumbnail/review_preview_image/001-result.svg",
                 filename="001-result.svg",
                 mime_type="image/svg+xml",
                 page_number=1,
@@ -554,7 +554,7 @@ def test_review_thumbnail_records_temp_import_usage(
         ImportArtifact(
             job_id=17,
             artifact_uuid="thumbnail-usage-review-xml",
-            kind=FileKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
             storage_backend="local",
             storage_key=stored_xml.storage_key,
             filename=stored_xml.filename,
@@ -626,7 +626,7 @@ async def test_review_update_replaces_pending_review_musicxml(
         ImportArtifact(
             job_id=15,
             artifact_uuid="review-update-artifact",
-            kind=FileKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
             storage_backend="local",
             storage_key=stored_xml.storage_key,
             filename=stored_xml.filename,
@@ -664,7 +664,7 @@ async def test_review_confirm_creates_active_score_once(
 ) -> None:
     session, storage = score_service_session
     stored_thumbnail = storage.put_bytes(
-        key="jobs/job-confirm-review/result_thumbnail/001-result.svg",
+        key="jobs/job-confirm-review/review_preview_image/001-result.svg",
         content=b"<svg />",
         content_type="image/svg+xml",
     )
@@ -695,7 +695,7 @@ async def test_review_confirm_creates_active_score_once(
         ImportArtifact(
             job_id=14,
             artifact_uuid="confirm-review-thumbnail",
-            kind=FileKind.RESULT_THUMBNAIL.value,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
             storage_backend="local",
             storage_key=stored_thumbnail.storage_key,
             filename=stored_thumbnail.filename,
@@ -1398,7 +1398,7 @@ def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
         ImportArtifact(
             job_id=413,
             artifact_uuid="review-thumbnail-source",
-            kind=FileKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
             storage_backend="local",
             storage_key="jobs/review-thumbnail-job/review_musicxml/score.musicxml",
             filename="score.musicxml",

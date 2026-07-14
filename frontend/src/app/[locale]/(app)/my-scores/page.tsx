@@ -28,6 +28,7 @@ import {
 import { PageHeader } from '@/components/page';
 import { useDeleteImportJob, useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import {
+  useAddMyScoresToLibrary,
   useDeleteMyScores,
   useMyScores,
   usePublishMyScores,
@@ -87,6 +88,7 @@ export default function MyScoresPage({
   const showJobs = view === 'all' || view === 'importing' || view === 'review' || view === 'failed';
   const jobsQuery = useImportJobList(1, 20, showJobs);
   const deleteJob = useDeleteImportJob();
+  const addScoresToLibrary = useAddMyScoresToLibrary();
   const deleteScores = useDeleteMyScores();
   const publishScores = usePublishMyScores();
   const unpublishScores = useUnpublishMyScores();
@@ -99,6 +101,13 @@ export default function MyScoresPage({
   const selectedCount = selectedScoreIds.size;
   const selectedJobCount = selectedJobIds.size;
   const scoreIds = React.useMemo(() => scores.map((score) => score.score_id), [scores]);
+  const selectedScoresNotInLibrary = React.useMemo(
+    () =>
+      scores
+        .filter((score) => selectedScoreIds.has(score.score_id) && !score.in_library)
+        .map((score) => score.score_id),
+    [scores, selectedScoreIds]
+  );
   const visibleJobs = visibleMyScoreJobs(jobs, view);
   const visibleSelectableJobIds = visibleJobs
     .filter((job) => job.state === 'FAILURE' || job.state === 'PENDING_REVIEW')
@@ -169,6 +178,13 @@ export default function MyScoresPage({
   const handleDeleteSelected = () => {
     if (selectedCount + selectedJobCount === 0) return;
     setDeleteTarget({ scoreIds: selectedIds(), jobIds: selectedJobs() });
+  };
+  const handleAddToLibrarySelected = () => {
+    if (!selectedScoresNotInLibrary.length) return;
+    addScoresToLibrary.mutate(selectedScoresNotInLibrary, { onSuccess: clearSelection });
+  };
+  const addSingleScoreToLibrary = (scoreId: string) => {
+    addScoresToLibrary.mutate([scoreId]);
   };
   const confirmDeleteTarget = () => {
     if (!deleteTarget || deleteTargetCount === 0) return;
@@ -267,10 +283,13 @@ export default function MyScoresPage({
               allSelected={allVisibleSelected}
               publishPending={publishScores.isPending}
               unpublishPending={unpublishScores.isPending}
+              addToLibraryPending={addScoresToLibrary.isPending}
               deletePending={deleteScores.isPending || deleteJob.isPending}
+              addToLibraryCount={selectedScoresNotInLibrary.length}
               showPublishAction={bulkVisibility.publish}
               showUnpublishAction={bulkVisibility.unpublish}
               onToggleSelectAll={toggleVisibleSelection}
+              onAddToLibrarySelected={handleAddToLibrarySelected}
               onPublishSelected={handlePublishSelected}
               onUnpublishSelected={handleUnpublishSelected}
               onDeleteSelected={handleDeleteSelected}
@@ -314,6 +333,7 @@ export default function MyScoresPage({
                     router.push(`/score/${score.score_id}?from=my-scores`)
                   }
                   onToggleSelection={() => toggleScoreSelection(score.score_id)}
+                  onAddToLibrary={() => addSingleScoreToLibrary(score.score_id)}
                   onDelete={() => deleteSingleScore(score.score_id)}
                   t={t}
                 />

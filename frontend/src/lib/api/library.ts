@@ -39,6 +39,8 @@ export const libraryApi = {
     apiClient.post<ApiResponse<{ moved: number }>>('/library/entries/batch-move', input),
   batchTrash: (input: { entry_ids: string[] }) =>
     apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-trash', input),
+  batchAddOwned: (input: { score_ids: string[] }) =>
+    apiClient.post<ApiResponse<{ added: number }>>('/library/entries/batch-add-owned', input),
   batchPracticeState: (input: { entry_ids: string[]; practice_state: UserSettableLibraryPracticeState }) =>
     apiClient.post<ApiResponse<{ updated: number }>>(
       '/library/entries/batch-practice-state',
