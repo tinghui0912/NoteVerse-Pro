@@ -41,6 +41,8 @@ ROLE_RANK: dict[MembershipRole, int] = {
 }
 
 INVITE_TOKEN_BYTES = 32
+SCORE_INVITE_LIST_DEFAULT_LIMIT = 100
+SCORE_MEMBER_LIST_DEFAULT_LIMIT = 100
 
 
 def hash_invite_token(token: str) -> str:
@@ -94,7 +96,12 @@ class ScoreInviteService:
         return InviteCreatedRead(**read.model_dump(), token=token)
 
     async def list_invites(
-        self, db: AsyncSession, score_uuid: str, user_id: int
+        self,
+        db: AsyncSession,
+        score_uuid: str,
+        user_id: int,
+        *,
+        limit: int = SCORE_INVITE_LIST_DEFAULT_LIMIT,
     ) -> list[InviteRead]:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
@@ -102,7 +109,7 @@ class ScoreInviteService:
         score_id = require_persisted_id(access.score.id, entity="score")
         return [
             await self._invite_read(db, invite)
-            for invite in await self.repository.invites(db, score_id)
+            for invite in await self.repository.invites(db, score_id, limit=limit)
         ]
 
     async def revoke_invite(
@@ -263,7 +270,12 @@ class ScoreInviteService:
         )
 
     async def list_members(
-        self, db: AsyncSession, score_uuid: str, user_id: int
+        self,
+        db: AsyncSession,
+        score_uuid: str,
+        user_id: int,
+        *,
+        limit: int = SCORE_MEMBER_LIST_DEFAULT_LIMIT,
     ) -> list[MemberRead]:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
@@ -271,7 +283,7 @@ class ScoreInviteService:
         score_id = require_persisted_id(access.score.id, entity="score")
         return [
             await self._member_read(db, membership)
-            for membership in await self.repository.memberships(db, score_id)
+            for membership in await self.repository.memberships(db, score_id, limit=limit)
         ]
 
     async def update_member(

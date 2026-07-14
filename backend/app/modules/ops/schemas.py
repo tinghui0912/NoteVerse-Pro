@@ -2,11 +2,8 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
-from typing import Generic, TypeVar
 
 from pydantic import BaseModel
-
-T = TypeVar("T")
 
 
 class AsyncOperationKind(str, enum.Enum):
@@ -69,13 +66,6 @@ class AsyncOperationsSummaryRead(BaseModel):
     total: int
     statuses: list[AsyncOperationStatusCount]
     kinds: list[AsyncOperationKindSummary]
-
-
-class OpsOffsetPage(BaseModel, Generic[T]):
-    items: list[T]
-    limit: int
-    offset: int
-    has_more: bool
 
 
 class OpsAuditOutcome(str, enum.Enum):

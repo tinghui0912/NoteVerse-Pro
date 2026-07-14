@@ -17,9 +17,9 @@ from app.modules.ops.schemas import (
     AsyncOperationStatus,
     OpsAuditEventRead,
     OpsAuditOutcome,
-    OpsOffsetPage,
 )
 from app.modules.ops.service import OpsAsyncOperationService, ops_async_operation_service
+from app.shared.pagination import OffsetPage
 from app.shared.responses import APIResponse, success_response
 
 router = APIRouter()
@@ -29,7 +29,7 @@ def get_ops_async_operation_service() -> OpsAsyncOperationService:
     return ops_async_operation_service
 
 
-@router.get("/audit-events", response_model=APIResponse[OpsOffsetPage[OpsAuditEventRead]])
+@router.get("/audit-events", response_model=APIResponse[OffsetPage[OpsAuditEventRead]])
 async def list_ops_audit_events(
     _admin_user: User = Depends(get_current_active_superuser),
     db: AsyncSession = Depends(get_db),
@@ -59,7 +59,7 @@ async def list_ops_audit_events(
     return success_response(data=result)
 
 
-@router.get("/async-operations", response_model=APIResponse[OpsOffsetPage[AsyncOperationRead]])
+@router.get("/async-operations", response_model=APIResponse[OffsetPage[AsyncOperationRead]])
 async def list_async_operations(
     _admin_user: User = Depends(get_current_active_superuser),
     db: AsyncSession = Depends(get_db),

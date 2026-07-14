@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, get_optional_current_user
@@ -22,17 +22,22 @@ from app.shared.responses import APIResponse, success_response
 score_router = APIRouter()
 invite_router = APIRouter()
 me_router = APIRouter()
+SCORE_INVITE_LIST_DEFAULT_LIMIT = 100
+SCORE_INVITE_LIST_MAX_LIMIT = 100
+SCORE_MEMBER_LIST_DEFAULT_LIMIT = 100
+SCORE_MEMBER_LIST_MAX_LIMIT = 100
 
 
 @score_router.get("/{score_id}/invites", response_model=APIResponse[list[InviteRead]])
 async def list_score_invites(
     score_id: str,
+    limit: int = Query(default=SCORE_INVITE_LIST_DEFAULT_LIMIT, ge=1, le=SCORE_INVITE_LIST_MAX_LIMIT),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: ScoreInviteService = Depends(get_score_invite_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_invites(db, score_id, user_id)
+    result = await service.list_invites(db, score_id, user_id, limit=limit)
     return success_response(data=result)
 
 
@@ -78,12 +83,13 @@ async def delete_score_invite(
 @score_router.get("/{score_id}/members", response_model=APIResponse[list[MemberRead]])
 async def list_score_members(
     score_id: str,
+    limit: int = Query(default=SCORE_MEMBER_LIST_DEFAULT_LIMIT, ge=1, le=SCORE_MEMBER_LIST_MAX_LIMIT),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: ScoreInviteService = Depends(get_score_invite_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_members(db, score_id, user_id)
+    result = await service.list_members(db, score_id, user_id, limit=limit)
     return success_response(data=result)
 
 

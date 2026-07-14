@@ -26,6 +26,8 @@ function revokePreview(preview: string) {
   if (preview.startsWith('blob:')) URL.revokeObjectURL(preview);
 }
 
+class UserFacingUploadError extends Error {}
+
 export function useUploadWorkflow() {
   const t = useTranslations('upload');
   const tCommon = useTranslations('common');
@@ -52,7 +54,7 @@ export function useUploadWorkflow() {
     if (!codeOrMessage) return fallback;
     if (errors.has(codeOrMessage as never)) return errors(codeOrMessage as never);
     if (t.has(codeOrMessage as never)) return t(codeOrMessage as never);
-    return codeOrMessage;
+    return fallback;
   }, [errors, t]);
 
   const setTrackedFiles = useCallback((next: UploadableFile[] | ((current: UploadableFile[]) => UploadableFile[])) => {
@@ -222,7 +224,7 @@ export function useUploadWorkflow() {
           setTrackedFiles((current) => current.map((item, itemIndex) =>
             itemIndex === index ? { ...item, status: 'error', error: message } : item
           ));
-          throw new Error(message);
+          throw new UserFacingUploadError(message);
         }
 
         setTrackedFiles((current) => current.map((item, itemIndex) =>
@@ -244,7 +246,7 @@ export function useUploadWorkflow() {
           setTrackedFiles((current) => current.map((item, itemIndex) =>
             itemIndex === index ? { ...item, status: 'error', error: message } : item
           ));
-          throw new Error(message);
+          throw new UserFacingUploadError(message);
         }
       }
 
@@ -257,7 +259,7 @@ export function useUploadWorkflow() {
         options: { title: scoreName || undefined, taxonomy_tags: taxonomyTags },
       });
       const jobId = response.data?.job_id;
-      if (!jobId) throw new Error(tCommon('operationFailed'));
+      if (!jobId) throw new UserFacingUploadError(tCommon('operationFailed'));
       submissionKeyRef.current = null;
       setCurrentJobId(jobId);
       setTaskProgress(0);
@@ -267,7 +269,7 @@ export function useUploadWorkflow() {
     } catch (error) {
       const message = error instanceof ApiError
         ? translateErrorCode(errors, error.code, t('processingFailed'))
-        : error instanceof Error && error.message
+        : error instanceof UserFacingUploadError && error.message
           ? error.message
           : t('processingFailed');
       toast({ title: t('submitFailed'), description: message, variant: 'destructive' });

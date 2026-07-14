@@ -128,7 +128,7 @@ export function useGenerateScoreFingering() {
 export function useScoreGrants(scoreId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.scores.grants(scoreId),
-    queryFn: ({ signal }) => scoreSharingApi.listGrants(scoreId, signal),
+    queryFn: ({ signal }) => scoreSharingApi.listGrants(scoreId, { signal }),
     enabled: enabled && Boolean(scoreId),
   });
 }
@@ -185,7 +185,7 @@ export function useGrantAccess(token: string) {
 export function useScoreInvites(scoreId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.scores.invites(scoreId),
-    queryFn: ({ signal }) => scoreInvitesApi.listInvites(scoreId, signal),
+    queryFn: ({ signal }) => scoreInvitesApi.listInvites(scoreId, { signal }),
     enabled: enabled && Boolean(scoreId),
   });
 }
@@ -224,7 +224,7 @@ export function useDeleteScoreInvite(scoreId: string) {
 export function useScoreMembers(scoreId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.scores.members(scoreId),
-    queryFn: ({ signal }) => scoreInvitesApi.listMembers(scoreId, signal),
+    queryFn: ({ signal }) => scoreInvitesApi.listMembers(scoreId, { signal }),
     enabled: enabled && Boolean(scoreId),
   });
 }

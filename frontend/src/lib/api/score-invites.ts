@@ -11,8 +11,12 @@ import type {
 } from '@/types/api';
 
 export const scoreInvitesApi = {
-  listInvites: (scoreId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreInvite[]>>(`/scores/${scoreId}/invites`, undefined, { signal }),
+  listInvites: (scoreId: string, options?: { limit?: number; signal?: AbortSignal }) =>
+    apiClient.get<ApiResponse<ScoreInvite[]>>(
+      `/scores/${scoreId}/invites`,
+      { limit: options?.limit },
+      { signal: options?.signal }
+    ),
   createInvite: (
     scoreId: string,
     input: { email: string; role: MembershipRole; expires_at?: string | null; locale: 'en' | 'zh' }
@@ -21,8 +25,12 @@ export const scoreInvitesApi = {
     apiClient.post<ApiResponse<ScoreInvite>>(`/scores/${scoreId}/invites/${inviteId}/revoke`),
   deleteInvite: (scoreId: string, inviteId: string) =>
     apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/scores/${scoreId}/invites/${inviteId}`),
-  listMembers: (scoreId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreMember[]>>(`/scores/${scoreId}/members`, undefined, { signal }),
+  listMembers: (scoreId: string, options?: { limit?: number; signal?: AbortSignal }) =>
+    apiClient.get<ApiResponse<ScoreMember[]>>(
+      `/scores/${scoreId}/members`,
+      { limit: options?.limit },
+      { signal: options?.signal }
+    ),
   updateMember: (scoreId: string, membershipId: number, input: { role: MembershipRole }) =>
     apiClient.patch<ApiResponse<ScoreMember>>(`/scores/${scoreId}/members/${membershipId}`, input),
   removeMember: (scoreId: string, membershipId: number) =>

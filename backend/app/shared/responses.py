@@ -34,6 +34,7 @@ class ErrorResponsePayload(TypedDict, total=False):
     success: bool
     error: str
     code: str
+    request_id: str
     details: dict[str, object]
 
 
@@ -137,12 +138,15 @@ def error_response(
     error: str,
     code: str = "ERROR",
     details: Optional[dict[str, object]] = None,
+    request_id: Optional[str] = None,
 ) -> ErrorResponsePayload:
     response: ErrorResponsePayload = {
         "success": False,
         "error": error,
         "code": code,
     }
+    if request_id:
+        response["request_id"] = request_id
     if details:
         response["details"] = details
     return response

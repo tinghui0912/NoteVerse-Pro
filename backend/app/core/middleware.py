@@ -10,6 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.logger import logger, set_trace_id
 from app.shared.constants import ErrorCode
+from app.shared.responses import error_response
 
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
@@ -28,29 +29,57 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         if self._should_check_origin(request) and not self._has_allowed_origin(request):
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=403,
-                content={
-                    "code": ErrorCode.REQUEST_ORIGIN_INVALID,
-                    "error": ErrorCode.REQUEST_ORIGIN_INVALID,
-                    "details": {"reason": "origin_mismatch"},
-                },
+                content=self._error_payload(
+                    request,
+                    ErrorCode.REQUEST_ORIGIN_INVALID,
+                    {"reason": "origin_mismatch"},
+                ),
             )
+            self._attach_request_id_header(request, response)
+            return response
 
         if self._should_check(request):
             csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME)
             csrf_header = request.headers.get(settings.CSRF_HEADER_NAME)
             if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
-                return JSONResponse(
+                response = JSONResponse(
                     status_code=403,
-                    content={
-                        "code": ErrorCode.CSRF_TOKEN_INVALID,
-                        "error": ErrorCode.CSRF_TOKEN_INVALID,
-                        "details": {"reason": "csrf_token_mismatch"},
-                    },
+                    content=self._error_payload(
+                        request,
+                        ErrorCode.CSRF_TOKEN_INVALID,
+                        {"reason": "csrf_token_mismatch"},
+                    ),
                 )
+                self._attach_request_id_header(request, response)
+                return response
 
         return await call_next(request)
+
+    def _request_id(self, request: Request) -> str:
+        existing = getattr(request.state, "request_id", None)
+        if isinstance(existing, str) and existing:
+            return existing
+        request_id = set_trace_id(request.headers.get("X-Request-ID"))
+        request.state.request_id = request_id
+        return request_id
+
+    def _error_payload(
+        self,
+        request: Request,
+        code: str,
+        details: dict[str, object],
+    ):
+        return error_response(
+            error=code,
+            code=code,
+            details=details,
+            request_id=self._request_id(request),
+        )
+
+    def _attach_request_id_header(self, request: Request, response: JSONResponse) -> None:
+        response.headers["X-Request-ID"] = self._request_id(request)
 
     def _should_check(self, request: Request) -> bool:
         path = request.url.path

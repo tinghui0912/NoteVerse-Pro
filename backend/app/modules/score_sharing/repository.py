@@ -35,13 +35,20 @@ class ScoreSharingRepository:
             )
         ).scalar_one_or_none()
 
-    async def grants(self, db: AsyncSession, score_id: int) -> list[ScoreShareGrant]:
+    async def grants(
+        self,
+        db: AsyncSession,
+        score_id: int,
+        *,
+        limit: int,
+    ) -> list[ScoreShareGrant]:
         return list(
             (
                 await db.execute(
                     select(ScoreShareGrant)
                     .where(ScoreShareGrant.score_id == score_id)
                     .order_by(grant_created_col.desc())
+                    .limit(limit)
                 )
             ).scalars().all()
         )

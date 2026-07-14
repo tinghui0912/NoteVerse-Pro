@@ -11,15 +11,16 @@ from pydantic import ValidationError as PydanticValidationError
 
 from app.core.config import settings
 from app.core.exceptions import AppException
-from app.core.logger import logger
+from app.core.logger import get_trace_id, logger
 from app.shared.constants import ErrorCode
-from app.shared.responses import ErrorResponsePayload
+from app.shared.responses import ErrorResponsePayload, error_response
 
 
 def _error_payload(
     *,
     error: str,
     code: str,
+    request_id: str | None,
     details: dict[str, object] | list[object] | Sequence[object] | None = None,
 ) -> ErrorResponsePayload:
     normalized_details: dict[str, object]
@@ -30,12 +31,16 @@ def _error_payload(
     else:
         normalized_details = {"items": list(details)}
 
-    return {
-        "success": False,
-        "error": error,
-        "code": code,
-        "details": normalized_details,
-    }
+    return error_response(
+        error=error,
+        code=code,
+        request_id=request_id,
+        details=normalized_details,
+    )
+
+
+def _request_id(request: Request) -> str | None:
+    return get_trace_id() or request.headers.get("X-Request-ID")
 
 
 def _json_safe_errors(errors: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -57,6 +62,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
         content=_error_payload(
             error=exc.code,
             code=exc.code,
+            request_id=_request_id(request),
             details=exc.details,
         ),
     )
@@ -72,6 +78,7 @@ async def validation_exception_handler(
         content=_error_payload(
             error="Request validation failed",
             code=ErrorCode.VALIDATION_ERROR,
+            request_id=_request_id(request),
             details=_json_safe_errors(exc.errors()),
         ),
     )
@@ -87,6 +94,7 @@ async def pydantic_validation_exception_handler(
         content=_error_payload(
             error="Data validation failed",
             code=ErrorCode.VALIDATION_ERROR,
+            request_id=_request_id(request),
             details=_json_safe_errors(exc.errors()),
         ),
     )
@@ -101,6 +109,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
         content=_error_payload(
             error="Internal server error",
             code=ErrorCode.INTERNAL_ERROR,
+            request_id=_request_id(request),
             details={"type": type(exc).__name__} if settings.DEBUG else {},
         ),
     )

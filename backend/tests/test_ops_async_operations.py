@@ -289,10 +289,10 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
 
     assert paths["/api/v1/ops/async-operations"]["get"]["responses"]["200"]["content"][
         "application/json"
-    ]["schema"] == {"$ref": "#/components/schemas/APIResponse_OpsOffsetPage_AsyncOperationRead__"}
+    ]["schema"] == {"$ref": "#/components/schemas/APIResponse_OffsetPage_AsyncOperationRead__"}
     assert paths["/api/v1/ops/audit-events"]["get"]["responses"]["200"]["content"][
         "application/json"
-    ]["schema"] == {"$ref": "#/components/schemas/APIResponse_OpsOffsetPage_OpsAuditEventRead__"}
+    ]["schema"] == {"$ref": "#/components/schemas/APIResponse_OffsetPage_OpsAuditEventRead__"}
     assert paths["/api/v1/ops/async-operations/{kind}/{operation_id}/retry"]["post"][
         "responses"
     ]["200"]["content"]["application/json"]["schema"] == {
@@ -300,8 +300,8 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
     }
 
     components = schema["components"]["schemas"]
-    operation_page = components["OpsOffsetPage_AsyncOperationRead_"]["properties"]
-    audit_page = components["OpsOffsetPage_OpsAuditEventRead_"]["properties"]
+    operation_page = components["OffsetPage_AsyncOperationRead_"]["properties"]
+    audit_page = components["OffsetPage_OpsAuditEventRead_"]["properties"]
     for page in (operation_page, audit_page):
         assert set(page) == {"items", "limit", "offset", "has_more"}
         assert page["limit"]["type"] == "integer"

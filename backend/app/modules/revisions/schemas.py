@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 from app.db.models.score import RevisionOrigin
+from app.shared.pagination import CursorPage
 
 
 class RevisionCreateRequest(BaseModel):
@@ -56,9 +57,8 @@ class RevisionRead(BaseModel):
     note: RevisionNoteRead | None
 
 
-class RevisionListRead(BaseModel):
-    items: list[RevisionRead]
-    next_cursor: int | None
+class RevisionListRead(CursorPage[RevisionRead]):
+    pass
 
 
 class RevisionContentRead(RevisionRead):

@@ -33,7 +33,8 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
-    public details?: Record<string, unknown>
+    public details?: Record<string, unknown>,
+    public requestId?: string
   ) {
     super(message);
     this.name = 'ApiError';
@@ -115,7 +116,10 @@ function createApiError(
         : fallbackMessage,
     typeof data.details === 'object' && data.details !== null
       ? (data.details as Record<string, unknown>)
-      : undefined
+      : undefined,
+    typeof data.request_id === 'string'
+      ? data.request_id
+      : response.headers.get('X-Request-ID') ?? undefined
   );
 }
 
@@ -128,7 +132,13 @@ async function handleResponse<T>(response: Response, options?: RequestOptions): 
 
   if (contentType && !contentType.includes('application/json')) {
     if (!response.ok) {
-      throw new ApiError(response.status, 'REQUEST_FAILED', `Request failed: ${response.statusText}`);
+      throw new ApiError(
+        response.status,
+        'REQUEST_FAILED',
+        `Request failed: ${response.statusText}`,
+        undefined,
+        response.headers.get('X-Request-ID') ?? undefined
+      );
     }
     return response as T;
   }

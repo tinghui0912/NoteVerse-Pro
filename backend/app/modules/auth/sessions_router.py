@@ -1,6 +1,6 @@
 """Routes for authenticated session management."""
 
-from fastapi import APIRouter, Cookie, Depends, Response
+from fastapi import APIRouter, Cookie, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -14,10 +14,13 @@ from app.shared.constants import SuccessCode
 from app.shared.responses import SuccessResponsePayload, success_response
 
 router = APIRouter()
+SESSION_LIST_DEFAULT_LIMIT = 100
+SESSION_LIST_MAX_LIMIT = 100
 
 
 @router.get("/sessions")
 async def list_my_sessions(
+    limit: int = Query(default=SESSION_LIST_DEFAULT_LIMIT, ge=1, le=SESSION_LIST_MAX_LIMIT),
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
     refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
@@ -28,6 +31,7 @@ async def list_my_sessions(
         db,
         user_id,
         current_refresh_token=refresh_cookie,
+        limit=limit,
     )
     return success_response(data={"sessions": sessions})
 

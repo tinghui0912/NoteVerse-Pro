@@ -8,8 +8,12 @@ import type {
 } from '@/types/api';
 
 export const scoreSharingApi = {
-  listGrants: (scoreId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreGrant[]>>(`/scores/${scoreId}/grants`, undefined, { signal }),
+  listGrants: (scoreId: string, options?: { limit?: number; signal?: AbortSignal }) =>
+    apiClient.get<ApiResponse<ScoreGrant[]>>(
+      `/scores/${scoreId}/grants`,
+      { limit: options?.limit },
+      { signal: options?.signal }
+    ),
   createGrant: (
     scoreId: string,
     input: {

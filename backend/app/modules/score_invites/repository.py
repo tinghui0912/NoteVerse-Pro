@@ -26,13 +26,20 @@ class ScoreInviteRepository:
             await db.execute(select(ScoreInvite).where(ScoreInvite.invite_uuid == invite_uuid))
         ).scalar_one_or_none()
 
-    async def invites(self, db: AsyncSession, score_id: int) -> list[ScoreInvite]:
+    async def invites(
+        self,
+        db: AsyncSession,
+        score_id: int,
+        *,
+        limit: int,
+    ) -> list[ScoreInvite]:
         return list(
             (
                 await db.execute(
                     select(ScoreInvite)
                     .where(ScoreInvite.score_id == score_id)
                     .order_by(invite_created_col.desc())
+                    .limit(limit)
                 )
             ).scalars().all()
         )
@@ -70,13 +77,20 @@ class ScoreInviteRepository:
             )
         ).scalar_one_or_none()
 
-    async def memberships(self, db: AsyncSession, score_id: int) -> list[ScoreMembership]:
+    async def memberships(
+        self,
+        db: AsyncSession,
+        score_id: int,
+        *,
+        limit: int,
+    ) -> list[ScoreMembership]:
         return list(
             (
                 await db.execute(
                     select(ScoreMembership)
                     .where(ScoreMembership.score_id == score_id)
                     .order_by(membership_created_col.asc())
+                    .limit(limit)
                 )
             ).scalars().all()
         )

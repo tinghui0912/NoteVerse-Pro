@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends
+﻿from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +18,8 @@ from app.shared.responses import APIResponse, success_response
 
 score_router = APIRouter()
 grant_router = APIRouter()
+SHARE_GRANT_LIST_DEFAULT_LIMIT = 100
+SHARE_GRANT_LIST_MAX_LIMIT = 100
 
 
 @score_router.post("/{score_id}/grants", response_model=APIResponse[GrantCreatedRead])
@@ -36,12 +38,13 @@ async def create_score_grant(
 @score_router.get("/{score_id}/grants", response_model=APIResponse[list[GrantRead]])
 async def list_score_grants(
     score_id: str,
+    limit: int = Query(default=SHARE_GRANT_LIST_DEFAULT_LIMIT, ge=1, le=SHARE_GRANT_LIST_MAX_LIMIT),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: ScoreSharingService = Depends(get_score_sharing_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_grants(db, score_id, user_id)
+    result = await service.list_grants(db, score_id, user_id, limit=limit)
     return success_response(data=result)
 
 

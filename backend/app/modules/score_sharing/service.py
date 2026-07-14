@@ -42,6 +42,7 @@ from app.utils.timezone import to_utc_naive, utc_now_naive
 
 
 SHARE_TOKEN_BYTES = 32
+SHARE_GRANT_LIST_DEFAULT_LIMIT = 100
 
 
 def generate_share_token() -> str:
@@ -105,14 +106,19 @@ class ScoreSharingService:
         )
 
     async def list_grants(
-        self, db: AsyncSession, score_uuid: str, user_id: int
+        self,
+        db: AsyncSession,
+        score_uuid: str,
+        user_id: int,
+        *,
+        limit: int = SHARE_GRANT_LIST_DEFAULT_LIMIT,
     ) -> list[GrantRead]:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_SHARING, user_id=user_id
         )
         score_id = require_persisted_id(access.score.id, entity="score")
         result: list[GrantRead] = []
-        for grant in await self.repository.grants(db, score_id):
+        for grant in await self.repository.grants(db, score_id, limit=limit):
             result.append(
                 GrantRead(
                     grant_id=grant.grant_uuid,

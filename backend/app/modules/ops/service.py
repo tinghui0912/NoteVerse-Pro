@@ -31,10 +31,10 @@ from app.modules.ops.schemas import (
     AsyncOperationsSummaryRead,
     AsyncOperationStatus,
     AsyncOperationStatusCount,
-    OpsOffsetPage,
     OpsAuditEventRead,
     OpsAuditOutcome,
 )
+from app.shared.pagination import OffsetPage
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
@@ -75,7 +75,7 @@ class OpsAsyncOperationService:
         outcome: OpsAuditOutcome | None = None,
         created_after: datetime | None = None,
         created_before: datetime | None = None,
-    ) -> OpsOffsetPage[OpsAuditEventRead]:
+    ) -> OffsetPage[OpsAuditEventRead]:
         statement = select(OpsAuditEvent)
         if actor_user_id is not None:
             statement = statement.where(OpsAuditEvent.actor_user_id == actor_user_id)
@@ -95,7 +95,7 @@ class OpsAsyncOperationService:
             statement.order_by(OpsAuditEvent.created_at.desc()).offset(offset).limit(limit + 1)
         )
         events = [self._audit_event_read(event) for event in result.scalars().all()]
-        return OpsOffsetPage(
+        return OffsetPage(
             items=events[:limit],
             limit=limit,
             offset=offset,
@@ -153,7 +153,7 @@ class OpsAsyncOperationService:
         resource_type: str | None = None,
         created_after: datetime | None = None,
         updated_before: datetime | None = None,
-    ) -> OpsOffsetPage[AsyncOperationRead]:
+    ) -> OffsetPage[AsyncOperationRead]:
         filters = AsyncOperationFilters(
             status=status,
             error_class=error_class,
@@ -180,7 +180,7 @@ class OpsAsyncOperationService:
             reverse=True,
         )
         page_items = sorted_operations[offset : offset + limit]
-        return OpsOffsetPage(
+        return OffsetPage(
             items=page_items,
             limit=limit,
             offset=offset,

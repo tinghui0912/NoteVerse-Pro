@@ -136,6 +136,7 @@ class SessionService:
         user_id: int,
         *,
         current_refresh_token: str | None = None,
+        limit: int = 100,
     ) -> list[SessionSummary]:
         now = utc_now_naive()
         current_token_hash = self._current_token_hash(current_refresh_token)
@@ -148,6 +149,7 @@ class SessionService:
                 RefreshToken.expires_at > now,
             )
             .order_by(RefreshToken.created_at.desc())
+            .limit(limit)
         )
         sessions = [
             record

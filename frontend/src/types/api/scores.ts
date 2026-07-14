@@ -1,3 +1,5 @@
+import type { CursorPage } from './common';
+
 export type RevisionOrigin = 'OMR' | 'EDIT' | 'IMPORT';
 export type FingeringHandSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 export type RevisionSourceFormat = 'MUSICXML';
@@ -106,10 +108,7 @@ export interface ScoreRevision {
   } | null;
 }
 
-export interface ScoreRevisionList {
-  items: ScoreRevision[];
-  next_cursor: number | null;
-}
+export type ScoreRevisionList = CursorPage<ScoreRevision, number | null>;
 
 export interface ScoreRevisionContent extends ScoreRevision {
   content: string;

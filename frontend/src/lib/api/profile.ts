@@ -58,8 +58,8 @@ export async function deleteAvatar(): Promise<ApiResponse> {
     return apiClient.delete<ApiResponse>('/me/avatar');
 }
 
-export async function getSessions(): Promise<ApiResponse<AccountSessionsResponse>> {
-    return apiClient.get<ApiResponse<AccountSessionsResponse>>('/me/sessions');
+export async function getSessions(params?: { limit?: number }): Promise<ApiResponse<AccountSessionsResponse>> {
+    return apiClient.get<ApiResponse<AccountSessionsResponse>>('/me/sessions', params);
 }
 
 export async function getSecurityOverview(): Promise<ApiResponse<AccountSecurityResponse>> {

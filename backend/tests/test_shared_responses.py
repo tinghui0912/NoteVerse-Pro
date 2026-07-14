@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta
 
-from app.shared.responses import paginated_response, success_response
+from app.shared.responses import error_response, paginated_response, success_response
 
 
 def test_success_response_serializes_datetimes_as_explicit_utc() -> None:
@@ -36,3 +36,20 @@ def test_paginated_response_serializes_nested_datetimes() -> None:
     )
 
     assert response["data"] == [{"updated_at": "2026-06-23T14:38:00.000000Z"}]
+
+
+def test_error_response_includes_request_id_when_available() -> None:
+    response = error_response(
+        error="validation_error",
+        code="validation_error",
+        request_id="req-123",
+        details={"field": "name"},
+    )
+
+    assert response == {
+        "success": False,
+        "error": "validation_error",
+        "code": "validation_error",
+        "request_id": "req-123",
+        "details": {"field": "name"},
+    }

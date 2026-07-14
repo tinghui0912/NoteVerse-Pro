@@ -237,9 +237,17 @@ def test_cookie_authenticated_writes_require_csrf_header(client: TestClient) -> 
     client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
 
     try:
-        missing_header = client.put("/api/v1/me/profile", json={"display_name": "New Name"})
+        missing_header = client.put(
+            "/api/v1/me/profile",
+            json={"display_name": "New Name"},
+            headers={"X-Request-ID": "csrf-contract"},
+        )
         assert missing_header.status_code == 403
-        assert missing_header.json()["code"] == "csrf_token_invalid"
+        missing_header_payload = missing_header.json()
+        assert missing_header_payload["success"] is False
+        assert missing_header_payload["code"] == "csrf_token_invalid"
+        assert missing_header_payload["request_id"] == "csrf-contract"
+        assert missing_header.headers["X-Request-ID"] == "csrf-contract"
 
         matching_header = client.put(
             "/api/v1/me/profile",
@@ -292,14 +300,23 @@ def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient
     try:
         response = client.post(
             "/api/v1/auth/refresh",
-            headers={"origin": "https://evil.example"},
+            headers={"origin": "https://evil.example", "X-Request-ID": "origin-contract"},
         )
         assert response.status_code == 403
-        assert response.json()["code"] == "request_origin_invalid"
+        payload = response.json()
+        assert payload["success"] is False
+        assert payload["code"] == "request_origin_invalid"
+        assert payload["request_id"] == "origin-contract"
+        assert response.headers["X-Request-ID"] == "origin-contract"
     finally:
         client.cookies.delete(settings.REFRESH_COOKIE_NAME)
 
 
 def test_login_requires_request_body(client: TestClient) -> None:
-    response = client.post("/api/v1/auth/login")
+    response = client.post("/api/v1/auth/login", headers={"X-Request-ID": "validation-contract"})
     assert response.status_code == 422
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["code"] == "validation_error"
+    assert payload["request_id"] == "validation-contract"
+    assert response.headers["X-Request-ID"] == "validation-contract"
