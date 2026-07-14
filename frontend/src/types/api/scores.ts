@@ -57,6 +57,15 @@ export interface ScoreDerivedAssets {
   audio: ScoreDerivedAsset;
 }
 
+export interface ScoreInputAsset {
+  asset_id: string;
+  filename: string;
+  mime_type: string;
+  size: number;
+  sha256: string;
+  page_number: number | null;
+}
+
 export interface ScoreDetail {
   score_id: string;
   title: string;
@@ -64,6 +73,7 @@ export interface ScoreDetail {
   version: number;
   head_revision_id: string | null;
   derived_assets: ScoreDerivedAssets;
+  input_assets: ScoreInputAsset[];
   publication: ScorePublicationSummary | null;
   originating_job_id: string | null;
   metadata: ScoreMetadata | null;

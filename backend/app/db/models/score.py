@@ -40,6 +40,10 @@ class RenderAssetKind(str, enum.Enum):
     RENDERED_PAGE = "RENDERED_PAGE"
 
 
+class ScoreInputAssetPurpose(str, enum.Enum):
+    ORIGINAL_UPLOAD = "ORIGINAL_UPLOAD"
+
+
 class MetadataStatus(str, enum.Enum):
     PENDING = "PENDING"
     READY = "READY"
@@ -181,6 +185,45 @@ class ScoreTaxonomyTag(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(String(32), default="USER", nullable=False),
     )
     confidence: Optional[float] = Field(default=None, sa_column=Column(Float))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class ScoreInputAsset(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_input_assets"
+    __table_args__ = (
+        UniqueConstraint("score_id", "upload_id", name="uq_score_input_assets_score_upload"),
+        Index("idx_score_input_assets_score_order", "score_id", "sort_order"),
+        Index("idx_score_input_assets_upload", "upload_id"),
+    )
+
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
+    asset_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
+    score_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("scores.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    upload_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("uploads.id", ondelete="RESTRICT"),
+            nullable=False,
+        )
+    )
+    purpose: ScoreInputAssetPurpose = Field(
+        default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
+        sa_column=Column(String(32), default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD, nullable=False),
+    )
+    page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    sort_order: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     created_at: datetime = Field(
         default_factory=utc_now_naive,
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),

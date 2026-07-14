@@ -62,6 +62,8 @@ export const scoresApi = {
     params?: { revision_id?: string },
     signal?: AbortSignal
   ) => apiClient.get<ApiResponse<ScoreRevisionAssets>>(`/scores/${scoreId}/revision-assets`, params, { signal }),
+  downloadInputAsset: (scoreId: string, assetId: string) =>
+    apiClient.download(`/scores/${scoreId}/input-assets/${assetId}/download`),
   downloadRevisionSource: (sourceId: string) =>
     apiClient.download(`/revision-sources/${sourceId}/download`),
   downloadRenderAsset: (renderAssetId: string) =>

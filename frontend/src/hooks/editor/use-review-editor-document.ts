@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useAutoSave } from '@/hooks/editor/use-auto-save';
@@ -11,6 +11,7 @@ import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-ga
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
+import { importJobsApi } from '@/lib/api';
 import { ensureStableMusicXmlIdsString, stripAppOwnedMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { useImportJobReview, useUpdateImportJobReview } from '@/hooks/queries/use-review-queries';
@@ -48,9 +49,13 @@ export function useReviewEditorDocument({
     () => review?.original_images ?? [],
     [review?.original_images]
   );
+  const downloadOriginalArtifact = useCallback(
+    (artifactId: string) => importJobsApi.downloadImportJobArtifact(jobId, artifactId),
+    [jobId]
+  );
   const originalImages = useEditorOriginalImages({
-    jobId,
     artifacts: originalArtifacts,
+    downloadArtifact: downloadOriginalArtifact,
     namespace: 'review',
   });
 

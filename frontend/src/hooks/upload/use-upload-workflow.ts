@@ -169,6 +169,7 @@ export function useUploadWorkflow() {
             }),
             preview,
             status: 'uploaded',
+            fileId: uploadInfo?.upload_id,
             sha256: uploadInfo?.sha256,
           });
         }
@@ -212,10 +213,6 @@ export function useUploadWorkflow() {
       const uploadedFileIds: string[] = [];
       for (let index = 0; index < filesRef.current.length; index += 1) {
         const currentFile = filesRef.current[index];
-        if (currentFile.sha256) {
-          uploadedFileIds.push(currentFile.sha256);
-          continue;
-        }
         if (currentFile.status === 'uploaded' && currentFile.fileId) {
           uploadedFileIds.push(currentFile.fileId);
           continue;

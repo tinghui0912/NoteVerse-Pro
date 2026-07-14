@@ -278,10 +278,10 @@ class SyncImportJobService:
             } for step in self.repository.list_steps(db, job_id)],
             "artifacts": artifacts,
             "upload_ids": [{
-                "upload_id": upload.id,
-                "sha256": upload.sha256,
+                "upload_id": upload.upload_uuid,
+                "sha256": blob.sha256,
                 "original_filename": upload.original_filename,
-            } for _, upload in self.repository.list_upload_rows(db, job_id)],
+            } for _, upload, blob in self.repository.list_upload_rows(db, job_id)],
         }
 
 

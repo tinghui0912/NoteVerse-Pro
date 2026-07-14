@@ -13,12 +13,17 @@ def test_import_job_keeps_celery_delivery_guarantees() -> None:
     assert celery_app.conf.worker_prefetch_multiplier == 1
 
 
-def test_worker_materializes_durable_upload_ids() -> None:
+def test_worker_materializes_durable_storage_keys() -> None:
     storage = Mock()
-    storage.resolve_score_uploads.return_value = ["/worker/materialized/input.png"]
+    storage.local_path.return_value = "/worker/cache/blob.png"
+    storage.materialize_to_local.return_value = "/worker/materialized/input.png"
     service = ImportJobExecutionService(storage=storage)
 
-    paths = service._resolve_input_paths(["sha256-upload-id"])
+    paths = service._resolve_input_paths(["blobs/ab/abc123.png"])
 
     assert paths == ["/worker/materialized/input.png"]
-    storage.resolve_score_uploads.assert_called_once_with(["sha256-upload-id"])
+    storage.local_path.assert_called_once_with("blobs/ab/abc123.png")
+    storage.materialize_to_local.assert_called_once_with(
+        "blobs/ab/abc123.png",
+        "/worker/cache/blob.png",
+    )

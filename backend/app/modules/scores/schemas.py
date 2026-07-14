@@ -63,6 +63,15 @@ class ScorePublicationSummaryRead(BaseModel):
     status: PublicationStatus
 
 
+class ScoreInputAssetRead(BaseModel):
+    asset_id: str
+    filename: str
+    mime_type: str
+    size: int
+    sha256: str
+    page_number: int | None
+
+
 class ScoreRead(BaseModel):
     score_id: str
     title: str
@@ -70,6 +79,7 @@ class ScoreRead(BaseModel):
     version: int
     head_revision_id: str | None
     derived_assets: ScoreDerivedAssetsRead
+    input_assets: list[ScoreInputAssetRead]
     publication: ScorePublicationSummaryRead | None
     originating_job_id: str | None
     metadata: MetadataRead | None

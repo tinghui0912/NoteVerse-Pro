@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,10 +23,12 @@ from app.db.models import (
     ImportJobUpload,
     NotificationEvent,
     Score,
+    ScoreInputAsset,
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
+    StorageBlob,
     StorageUsageCategory,
     Upload,
 )
@@ -35,6 +38,7 @@ from app.db.models.score import (
     RenderAssetKind,
     RevisionOrigin,
     RevisionSourceFormat,
+    ScoreInputAssetPurpose,
 )
 from app.modules.library.service import LibraryService
 from app.modules.import_jobs.service import ImportJobService
@@ -58,6 +62,14 @@ from app.shared.constants import ErrorCode
 from app.shared.file_kinds import FileKind
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
+
+
+@dataclass(frozen=True)
+class PromotedScoreInputUsage:
+    asset_uuid: str
+    upload_uuid: str
+    storage_key: str
+    size_bytes: int
 
 
 class ReviewService:
@@ -261,6 +273,11 @@ class ReviewService:
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
             )
+            promoted_inputs = await self._promote_uploads_to_score_inputs(
+                db,
+                job_id=require_persisted_id(job.id, entity="import job"),
+                score_id=score_id,
+            )
             db.add(
                 ScoreRevisionMetadata(
                     revision_id=revision_id,
@@ -302,6 +319,27 @@ class ReviewService:
                 object_id=source_uuid,
                 storage_key=stored.storage_key,
             )
+            for promoted in promoted_inputs:
+                await storage_usage_service.record_release(
+                    db,
+                    user_id=user_id,
+                    category=StorageUsageCategory.UPLOAD,
+                    bytes_count=promoted.size_bytes,
+                    reason="upload_promoted_to_score_input",
+                    object_type="upload",
+                    object_id=promoted.upload_uuid,
+                    storage_key=promoted.storage_key,
+                )
+                await storage_usage_service.record_allocation(
+                    db,
+                    user_id=user_id,
+                    category=StorageUsageCategory.INPUT_ASSET,
+                    bytes_count=promoted.size_bytes,
+                    reason="score_input_asset_created",
+                    object_type="score_input_asset",
+                    object_id=promoted.asset_uuid,
+                    storage_key=promoted.storage_key,
+                )
         except Exception:
             await db.rollback()
             if not business_committed:
@@ -376,6 +414,45 @@ class ReviewService:
                 generator_version="1",
             )
         )
+
+    async def _promote_uploads_to_score_inputs(
+        self,
+        db: AsyncSession,
+        *,
+        job_id: int,
+        score_id: int,
+    ) -> list[PromotedScoreInputUsage]:
+        rows = (
+            await db.execute(
+                select(ImportJobUpload, Upload, StorageBlob)
+                .join(Upload, ImportJobUpload.upload_id == Upload.id)
+                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                .where(ImportJobUpload.job_id == job_id)
+                .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())
+            )
+        ).all()
+        promoted: list[PromotedScoreInputUsage] = []
+        for job_upload, upload, blob in rows:
+            asset_uuid = str(uuid.uuid4())
+            db.add(
+                ScoreInputAsset(
+                    asset_uuid=asset_uuid,
+                    score_id=score_id,
+                    upload_id=require_persisted_id(upload.id, entity="upload"),
+                    purpose=ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
+                    page_number=job_upload.page_number,
+                    sort_order=job_upload.sort_order,
+                )
+            )
+            promoted.append(
+                PromotedScoreInputUsage(
+                    asset_uuid=asset_uuid,
+                    upload_uuid=upload.upload_uuid,
+                    storage_key=blob.storage_key,
+                    size_bytes=blob.size_bytes,
+                )
+            )
+        return promoted
 
     async def update(
         self,
@@ -513,22 +590,23 @@ class ReviewService:
     async def _upload_reads(self, db: AsyncSession, job_id: int) -> list[ReviewArtifactRead]:
         rows = (
             await db.execute(
-                select(Upload)
+                select(Upload, StorageBlob)
                 .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
+                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
                 .where(ImportJobUpload.job_id == job_id)
-                .order_by(ImportJobUpload.id.asc())
+                .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())
             )
-        ).scalars().all()
+        ).all()
         return [
             ReviewArtifactRead(
                 artifact_id=f"upload:{require_persisted_id(upload.id, entity='upload')}",
-                filename=upload.original_filename or upload.filename,
-                mime_type=upload.mime_type,
-                size=upload.size_bytes,
-                sha256=upload.sha256,
+                filename=upload.original_filename or blob.filename,
+                mime_type=blob.mime_type,
+                size=blob.size_bytes,
+                sha256=blob.sha256,
                 page_number=index + 1,
             )
-            for index, upload in enumerate(rows)
+            for index, (upload, blob) in enumerate(rows)
         ]
 
     @staticmethod

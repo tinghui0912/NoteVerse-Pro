@@ -12,6 +12,8 @@ from app.db.models import (
     ImportJobStep,
     ImportJobUpload,
     Score,
+    ScoreInputAsset,
+    StorageBlob,
     Upload,
 )
 job_uuid_col = ImportJob.__table__.c.job_uuid
@@ -115,8 +117,8 @@ class SyncImportJobRepository:
         db.query(ImportArtifact).filter_by(job_id=job_id, kind=kind).delete()
 
     @staticmethod
-    def get_upload_by_sha256(db: Session, sha256: str) -> Upload | None:
-        return db.query(Upload).filter_by(sha256=sha256).first()
+    def get_upload_by_uuid(db: Session, upload_uuid: str) -> Upload | None:
+        return db.query(Upload).filter_by(upload_uuid=upload_uuid).first()
 
     @staticmethod
     def get_job_upload(
@@ -134,11 +136,13 @@ class SyncImportJobRepository:
     def list_upload_rows(
         db: Session,
         job_id: int,
-    ) -> list[tuple[ImportJobUpload, Upload]]:
+    ) -> list[tuple[ImportJobUpload, Upload, StorageBlob]]:
         return (
-            db.query(ImportJobUpload, Upload)
+            db.query(ImportJobUpload, Upload, StorageBlob)
             .join(Upload, ImportJobUpload.upload_id == Upload.id)
+            .join(StorageBlob, Upload.blob_id == StorageBlob.id)
             .filter(ImportJobUpload.job_id == job_id)
+            .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())
             .all()
         )
 
@@ -152,10 +156,13 @@ class SyncImportJobRepository:
     @staticmethod
     def list_orphan_uploads(db: Session, cutoff: datetime) -> list[Upload]:
         job_link_id = ImportJobUpload.__table__.c.id
+        input_asset_id = ScoreInputAsset.__table__.c.id
         return (
             db.query(Upload)
             .outerjoin(ImportJobUpload, Upload.id == ImportJobUpload.upload_id)
+            .outerjoin(ScoreInputAsset, Upload.id == ScoreInputAsset.upload_id)
             .filter(job_link_id.is_(None))
+            .filter(input_asset_id.is_(None))
             .filter(Upload.created_at < cutoff)
             .all()
         )

@@ -1,6 +1,6 @@
 from .user import User, UserRole
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
-from .file import Upload
+from .file import StorageBlob, Upload
 from .notification import NotificationEvent
 from .realtime import RealtimeEvent
 from .revision_event import ScoreRevisionEvent
@@ -31,6 +31,8 @@ from .score import (
     RevisionOrigin,
     RevisionSourceFormat,
     Score,
+    ScoreInputAsset,
+    ScoreInputAssetPurpose,
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
@@ -75,6 +77,7 @@ __all__ = [
     "AuthToken",
     "PendingRegistration",
     "EmailChangeRequest",
+    "StorageBlob",
     "Upload",
     "NotificationEvent",
     "RealtimeEvent",
@@ -99,6 +102,8 @@ __all__ = [
     "RevisionOrigin",
     "RevisionSourceFormat",
     "Score",
+    "ScoreInputAsset",
+    "ScoreInputAssetPurpose",
     "ScoreRenderAsset",
     "ScoreRevision",
     "ScoreRevisionMetadata",

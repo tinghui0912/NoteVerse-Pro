@@ -29,18 +29,24 @@ class ImportJobExecutionService:
             return exception.code
         return ErrorCode.UNKNOWN_ERROR
 
-    def _resolve_input_paths(self, upload_ids: list[str]) -> list[str]:
-        return self.storage.resolve_score_uploads(upload_ids)
+    def _resolve_input_paths(self, storage_keys: list[str]) -> list[str]:
+        return [
+            self.storage.materialize_to_local(
+                storage_key,
+                self.storage.local_path(storage_key),
+            )
+            for storage_key in storage_keys
+        ]
 
     def run_pipeline(
         self,
         celery_task: CeleryTaskLike,
         job_id: str,
-        upload_ids: list[str],
+        storage_keys: list[str],
         options: ImportJobProcessingOptions | None = None,
     ) -> PipelineExecutionSuccessResult:
         try:
-            image_paths = self._resolve_input_paths(upload_ids)
+            image_paths = self._resolve_input_paths(storage_keys)
             with get_worker_db() as db:
                 context = JobContext(
                     job_id=job_id,

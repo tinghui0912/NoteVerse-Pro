@@ -30,6 +30,7 @@ DEFAULT_PLAN_CODE = "FREE"
 QUOTA_CATEGORIES = {
     StorageUsageCategory.SOURCE,
     StorageUsageCategory.UPLOAD,
+    StorageUsageCategory.INPUT_ASSET,
 }
 
 

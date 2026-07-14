@@ -51,7 +51,7 @@ def process_images_job(
         result = job_execution_service.run_pipeline(
             self,
             job_uuid,
-            payload.file_ids,
+            payload.storage_keys,
             payload.options,
         )
     except Exception:

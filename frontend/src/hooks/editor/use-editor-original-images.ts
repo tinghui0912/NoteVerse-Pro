@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { importJobsApi } from '@/lib/api';
 
 interface EditorOriginalImageArtifact {
   artifact_id: string;
@@ -10,12 +9,14 @@ interface EditorOriginalImageArtifact {
 }
 
 export function useEditorOriginalImages({
-  jobId,
   artifacts,
+  downloadArtifact,
+  enabled = true,
   namespace = 'editor',
 }: {
-  jobId?: string | null;
   artifacts: EditorOriginalImageArtifact[];
+  downloadArtifact: (artifactId: string) => Promise<Blob>;
+  enabled?: boolean;
   namespace?: 'editor' | 'review';
 }) {
   const editorT = useTranslations('editor');
@@ -31,11 +32,11 @@ export function useEditorOriginalImages({
     const controller = new AbortController();
     const owned = ownedObjectUrlsRef.current;
     let loaded: string[] = [];
-    if (!jobId || !artifacts.length) {
+    if (!enabled || !artifacts.length) {
       return;
     }
     void Promise.all(
-      artifacts.map((artifact) => importJobsApi.downloadImportJobArtifact(jobId, artifact.artifact_id))
+      artifacts.map((artifact) => downloadArtifact(artifact.artifact_id))
     ).then((blobs) => {
       if (controller.signal.aborted) return;
       loaded = blobs.map(URL.createObjectURL);
@@ -54,7 +55,7 @@ export function useEditorOriginalImages({
         owned.delete(url);
       });
     };
-  }, [artifacts, editorT, jobId, namespace, reviewT, signature]);
+  }, [artifacts, downloadArtifact, editorT, enabled, namespace, reviewT, signature]);
 
   useEffect(() => {
     const urls = ownedObjectUrlsRef.current;
@@ -64,5 +65,5 @@ export function useEditorOriginalImages({
     };
   }, []);
 
-  return jobId && artifacts.length ? originalImages : [];
+  return enabled && artifacts.length ? originalImages : [];
 }

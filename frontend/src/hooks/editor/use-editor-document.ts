@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useAutoSave } from '@/hooks/editor/use-auto-save';
@@ -10,7 +10,6 @@ import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completi
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
 import { ensureStableMusicXmlIdsString, stripAppOwnedMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
-import { useImportJobDetail } from '@/hooks/queries/use-import-job-queries';
 import {
   useCreateRevision,
   useGenerateScoreFingering,
@@ -18,6 +17,7 @@ import {
   useScoreDetail,
 } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
+import { scoresApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { translateErrorCode } from '@/lib/i18n/error-message';
@@ -39,9 +39,6 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const [baseRevisionId, setBaseRevisionId] = useState('');
   const revisionId = baseRevisionId || score?.head_revision_id || '';
   const revisionQuery = useRevisionContent(scoreId, revisionId);
-  const jobQuery = useImportJobDetail(score?.originating_job_id ?? '', {
-    enabled: Boolean(score?.originating_job_id),
-  });
   const createRevision = useCreateRevision();
   const generateFingeringMutation = useGenerateScoreFingering();
   const [initialized, setInitialized] = useState(false);
@@ -55,12 +52,19 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   });
   const xmlContent = revisionQuery.data?.data?.content;
   const originalArtifacts = useMemo(
-    () => jobQuery.data?.data?.artifacts?.original_image ?? [],
-    [jobQuery.data?.data?.artifacts?.original_image]
+    () => (score?.input_assets ?? []).map((asset) => ({
+      artifact_id: asset.asset_id,
+      sha256: asset.sha256,
+    })),
+    [score?.input_assets]
+  );
+  const downloadOriginalAsset = useCallback(
+    (assetId: string) => scoresApi.downloadInputAsset(scoreId, assetId),
+    [scoreId]
   );
   const originalImages = useEditorOriginalImages({
-    jobId: score?.originating_job_id,
     artifacts: originalArtifacts,
+    downloadArtifact: downloadOriginalAsset,
     namespace: 'editor',
   });
 

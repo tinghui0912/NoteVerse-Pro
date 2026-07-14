@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import ImportDispatchStatus, ImportJob, ImportJobUpload, Upload
+from app.db.models import ImportDispatchStatus, ImportJob, ImportJobUpload, StorageBlob, Upload
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.utils.timezone import utc_now_naive
@@ -16,7 +16,7 @@ from app.utils.timezone import utc_now_naive
 @dataclass(frozen=True)
 class ImportDispatchPayload:
     job_uuid: str
-    file_ids: list[str]
+    storage_keys: list[str]
     options: ImportJobProcessingOptions | None
 
 
@@ -42,12 +42,14 @@ class ImportDispatchService:
         ):
             return None
 
-        file_ids = db.execute(
-            select(Upload.sha256)
+        storage_keys = db.execute(
+            select(StorageBlob.storage_key)
             .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
+            .join(StorageBlob, Upload.blob_id == StorageBlob.id)
             .where(ImportJobUpload.job_id == job.id)
+            .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())
         ).scalars().all()
-        if not file_ids:
+        if not storage_keys:
             self._terminal_failure(job, "Import job has no persisted uploads")
             return None
 
@@ -60,7 +62,7 @@ class ImportDispatchService:
         options = job.requested_options if isinstance(job.requested_options, dict) else None
         return ImportDispatchPayload(
             job_uuid=job.job_uuid,
-            file_ids=list(file_ids),
+            storage_keys=list(storage_keys),
             options=options,  # type: ignore[arg-type]
         )
 

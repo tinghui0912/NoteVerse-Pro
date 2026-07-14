@@ -52,7 +52,7 @@ class ImportJobStepItem(TypedDict):
 
 
 class ImportJobUploadItem(TypedDict):
-    upload_id: Optional[int]
+    upload_id: Optional[str]
     sha256: str
     original_filename: Optional[str]
 

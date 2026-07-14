@@ -168,10 +168,10 @@ def test_matchmaker_feature_matrix_extracts_processor_tuple_output() -> None:
     assert extracted is features
 
 
-def test_local_file_storage_saves_and_resolves_score_upload() -> None:
+def test_local_file_storage_saves_and_materializes_blob() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         storage = LocalFileStorage(storage_root=temp_dir)
-        stored = storage.save_score_upload(
+        stored = storage.save_blob(
             content=b"score",
             sha256="abc123",
             extension=".png",
@@ -179,20 +179,21 @@ def test_local_file_storage_saves_and_resolves_score_upload() -> None:
 
         assert stored.filename == "abc123.png"
         assert stored.size_bytes == 5
-        assert storage.resolve_score_uploads(["abc123"]) == [stored.path]
+        assert stored.storage_key == "blobs/ab/abc123.png"
+        assert storage.materialize_to_local(stored.storage_key, storage.local_path(stored.storage_key)) == stored.path
 
 
-def test_local_file_storage_delete_score_upload_is_idempotent() -> None:
+def test_local_file_storage_delete_blob_is_idempotent() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         storage = LocalFileStorage(storage_root=temp_dir)
-        storage.save_score_upload(
+        stored = storage.save_blob(
             content=b"score",
             sha256="abc123",
             extension=".png",
         )
 
-        assert storage.delete_score_upload("abc123.png") is True
-        assert storage.delete_score_upload("abc123.png") is False
+        assert storage.delete(stored.storage_key) is True
+        assert storage.delete(stored.storage_key) is False
 
 
 def test_local_file_storage_rejects_path_traversal_keys() -> None:
@@ -322,7 +323,7 @@ async def test_avatar_service_replaces_user_avatar_and_deletes_old_file() -> Non
         assert db.refreshes == 1
 
 
-def test_s3_storage_saves_and_materializes_score_upload() -> None:
+def test_s3_storage_saves_and_materializes_blob() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         storage = S3CompatibleStorage()
         storage.bucket = "bucket"
@@ -331,18 +332,17 @@ def test_s3_storage_saves_and_materializes_score_upload() -> None:
         storage._client = FakeS3Client()
 
         with patch("app.storage.s3.settings.WORK_ROOT", temp_dir):
-            stored = storage.save_score_upload(
+            stored = storage.save_blob(
                 content=b"score",
                 sha256="abc123",
                 extension=".png",
             )
-            paths = storage.resolve_score_uploads(["abc123"])
+            path = storage.materialize_to_local(stored.storage_key, storage.local_path(stored.storage_key))
 
-        assert stored.storage_key == "uploads/abc123.png"
-        assert stored.public_url == "https://cdn.example/uploads/abc123.png"
-        assert len(paths) == 1
-        assert os.path.exists(paths[0])
-        with open(paths[0], "rb") as file_handle:
+        assert stored.storage_key == "blobs/ab/abc123.png"
+        assert stored.public_url == "https://cdn.example/blobs/ab/abc123.png"
+        assert os.path.exists(path)
+        with open(path, "rb") as file_handle:
             assert file_handle.read() == b"score"
 
 
@@ -369,13 +369,16 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
     db = Mock()
 
     upload = SimpleNamespace(
-        storage_key="uploads/orphan.png",
-        sha256="orphan-sha",
-        size_bytes=123,
+        id=3,
+        upload_uuid="upload-orphan",
+        blob_id=9,
         uploader_user_id=7,
         created_at=utc_now_naive() - timedelta(days=2),
     )
+    blob = SimpleNamespace(id=9, size_bytes=123, storage_key="blobs/or/orphan.png")
     repository.list_orphan_uploads.return_value = [upload]
+    db.get.return_value = blob
+    db.query.return_value.filter_by.return_value.count.return_value = 1
 
     with patch(
         "app.modules.import_jobs.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
@@ -386,12 +389,13 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
         deleted = service.cleanup_orphan_uploads(db)
 
     assert deleted == 1
-    storage.delete.assert_called_once_with("uploads/orphan.png")
+    storage.delete.assert_called_once_with("blobs/or/orphan.png")
     release_usage.assert_called_once()
     assert release_usage.call_args.kwargs["user_id"] == 7
     assert release_usage.call_args.kwargs["bytes_count"] == 123
-    assert release_usage.call_args.kwargs["storage_key"] == "uploads/orphan.png"
-    db.delete.assert_called_once_with(upload)
+    assert release_usage.call_args.kwargs["storage_key"] == "blobs/or/orphan.png"
+    db.delete.assert_any_call(upload)
+    db.delete.assert_any_call(blob)
     db.commit.assert_called_once()
 
 
@@ -441,20 +445,26 @@ async def test_import_job_submission_reuses_existing_idempotency_key() -> None:
 
 def test_import_job_execution_resolves_file_ids_inside_worker() -> None:
     storage = Mock()
-    storage.resolve_score_uploads.return_value = ["C:/worker/cache/score.png"]
+    storage.local_path.return_value = "C:/worker/cache/blob.png"
+    storage.materialize_to_local.return_value = "C:/worker/cache/score.png"
     service = ImportJobExecutionService(storage=storage)
 
-    assert service._resolve_input_paths(["abc123"]) == ["C:/worker/cache/score.png"]
-    storage.resolve_score_uploads.assert_called_once_with(["abc123"])
+    assert service._resolve_input_paths(["blobs/ab/abc123.png"]) == ["C:/worker/cache/score.png"]
+    storage.local_path.assert_called_once_with("blobs/ab/abc123.png")
+    storage.materialize_to_local.assert_called_once_with(
+        "blobs/ab/abc123.png",
+        "C:/worker/cache/blob.png",
+    )
 
 
 def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
     service = ImportJobSubmissionService(storage=Mock())
     sync_db = Mock()
-    upload = SimpleNamespace(uploader_user_id=99)
+    upload = SimpleNamespace(uploader_user_id=99, blob_id=3)
+    sync_db.get.return_value = SimpleNamespace(storage_key="blobs/ab/abc123.png")
 
     with patch("app.db.worker_session.get_db_session", return_value=sync_db):
-        with patch.object(sync_import_job_service.repository, "get_upload_by_sha256", return_value=upload):
+        with patch.object(sync_import_job_service.repository, "get_upload_by_uuid", return_value=upload):
             with pytest.raises(ResourceNotFoundException) as context:
                 service._ensure_uploads_exist(5, ["abc"])
 
@@ -465,8 +475,8 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
 @pytest.mark.asyncio
 async def test_delete_uploaded_file_rejects_non_owner() -> None:
     repository = Mock()
-    repository.get_upload_by_filename = AsyncMock(
-        return_value=SimpleNamespace(id=1, uploader_user_id=99)
+    repository.get_upload_by_uuid = AsyncMock(
+        return_value=SimpleNamespace(id=1, upload_uuid="upload-1", blob_id=5, uploader_user_id=99)
     )
     service = FilesService(repository=repository)
     db = AsyncMock()
@@ -482,27 +492,38 @@ async def test_delete_uploaded_file_rejects_non_owner() -> None:
 @pytest.mark.asyncio
 async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     repository = Mock()
-    repository.get_upload_by_filename = AsyncMock(
-        return_value=SimpleNamespace(id=7, uploader_user_id=1, storage_key="uploads/owned.png")
+    repository.get_upload_by_uuid = AsyncMock(
+        return_value=SimpleNamespace(id=7, upload_uuid="upload-owned", uploader_user_id=1, blob_id=5)
     )
+    repository.upload_reference_count = AsyncMock(return_value=0)
     repository.delete_upload_by_id = AsyncMock()
+    repository.blob_upload_count = AsyncMock(return_value=0)
+    repository.delete_blob_by_id = AsyncMock()
     service = FilesService(repository=repository)
     db = AsyncMock()
+    db.get.return_value = SimpleNamespace(
+        id=5,
+        size_bytes=3,
+        storage_key="blobs/ow/owned.png",
+    )
     current_user = SimpleNamespace(id=1)
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        uploads_dir = os.path.join(temp_dir, "uploads")
-        os.makedirs(uploads_dir, exist_ok=True)
-        file_path = os.path.join(uploads_dir, "owned.png")
+        blob_dir = os.path.join(temp_dir, "blobs", "ow")
+        os.makedirs(blob_dir, exist_ok=True)
+        file_path = os.path.join(blob_dir, "owned.png")
         with open(file_path, "wb") as file_handle:
             file_handle.write(b"png")
 
         storage = LocalFileStorage(storage_root=temp_dir)
         service = FilesService(repository=repository, storage=storage)
-        result = await service.delete_uploaded_file(db, current_user, "owned.png")
+        with patch("app.modules.files.service.storage_usage_service.record_release") as release_usage:
+            result = await service.delete_uploaded_file(db, current_user, "owned.png")
 
     assert result == {"filename": "owned.png"}
     repository.delete_upload_by_id.assert_awaited_once_with(db, 7)
+    repository.delete_blob_by_id.assert_awaited_once_with(db, 5)
+    release_usage.assert_awaited_once()
     db.commit.assert_awaited_once()
 
 

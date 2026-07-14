@@ -1,6 +1,7 @@
 export type StorageUsageCategory =
   | 'SOURCE'
   | 'UPLOAD'
+  | 'INPUT_ASSET'
   | 'DERIVED_RENDER'
   | 'DERIVED_AUDIO'
   | 'TEMP_IMPORT';

@@ -200,6 +200,8 @@ class ImportJobUpload(SQLModel, table=True):  # type: ignore[call-arg]
     upload_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("uploads.id"), nullable=False)
     )
+    page_number: int = Field(sa_column=Column(Integer, nullable=False))
+    sort_order: int = Field(sa_column=Column(Integer, nullable=False))
 
 
 class ImportArtifact(SQLModel, table=True):  # type: ignore[call-arg]

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -62,6 +63,25 @@ async def update_score(
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.update(db, score_id, user_id, request)
     return success_response(data=result, message=SuccessCode.UPDATE_SUCCESS)
+
+
+@router.get("/{score_id}/input-assets/{asset_id}/download")
+async def download_score_input_asset(
+    score_id: str,
+    asset_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreService = Depends(get_score_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    delivery = await service.input_asset_delivery(db, score_id, asset_id, user_id)
+    if delivery.redirect_url:
+        return RedirectResponse(delivery.redirect_url, status_code=302)
+    return FileResponse(
+        delivery.path or "",
+        filename=delivery.filename,
+        media_type=delivery.media_type,
+    )
 
 
 @router.post("/{score_id}/revisions", response_model=APIResponse[RevisionRead])

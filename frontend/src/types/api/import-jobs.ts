@@ -21,7 +21,7 @@ export interface ImportJob {
   error?: string;
   code?: string;
   artifacts?: Record<string, ImportArtifact[]>;
-  upload_ids?: Array<{ upload_id?: number; sha256: string; original_filename?: string }>;
+  upload_ids?: Array<{ upload_id?: string; sha256: string; original_filename?: string }>;
 }
 
 export interface ImportArtifact {

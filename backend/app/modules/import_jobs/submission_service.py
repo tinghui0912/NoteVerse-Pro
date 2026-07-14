@@ -4,7 +4,7 @@ import uuid
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportJob, ImportJobUpload, User
+from app.db.models import ImportJob, ImportJobUpload, StorageBlob, User
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions, ImportJobSubmitRequestLike, ImportJobSubmitResult
 from app.modules.import_jobs.worker_service import sync_import_job_service
@@ -59,11 +59,13 @@ class ImportJobSubmissionService:
         db = get_db_session()
         try:
             for file_id in file_ids:
-                upload = sync_import_job_service.repository.get_upload_by_sha256(db, file_id)
+                upload = sync_import_job_service.repository.get_upload_by_uuid(db, file_id)
+                blob = db.get(StorageBlob, upload.blob_id) if upload else None
                 if (
                     upload
+                    and blob
                     and upload.uploader_user_id == user_id
-                    and self.storage.find_score_upload(file_id)
+                    and self.storage.exists(blob.storage_key)
                 ):
                     continue
                 raise ResourceNotFoundException(
@@ -106,8 +108,8 @@ class ImportJobSubmissionService:
             db.flush()
             job_id = require_persisted_id(job.id, entity="import job")
 
-            for file_id in request.file_ids:
-                upload = sync_import_job_service.repository.get_upload_by_sha256(db, file_id)
+            for index, file_id in enumerate(request.file_ids, 1):
+                upload = sync_import_job_service.repository.get_upload_by_uuid(db, file_id)
                 if not upload or upload.uploader_user_id != user_id:
                     raise ResourceNotFoundException(
                         resource_type="file",
@@ -115,7 +117,14 @@ class ImportJobSubmissionService:
                         code=ErrorCode.FILE_NOT_FOUND,
                     )
                 upload_id = require_persisted_id(upload.id, entity="upload")
-                db.add(ImportJobUpload(job_id=job_id, upload_id=upload_id))
+                db.add(
+                    ImportJobUpload(
+                        job_id=job_id,
+                        upload_id=upload_id,
+                        page_number=index,
+                        sort_order=index,
+                    )
+                )
             db.commit()
         except Exception:
             db.rollback()

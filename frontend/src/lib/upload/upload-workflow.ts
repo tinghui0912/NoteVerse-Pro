@@ -10,6 +10,7 @@ export interface UploadableFile {
 }
 
 export interface RestoredUploadInfo {
+  upload_id?: string;
   original_filename?: string;
   sha256?: string;
 }

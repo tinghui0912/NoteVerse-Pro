@@ -26,7 +26,8 @@ def test_pipeline_timeout_maps_to_task_timeout() -> None:
 
 def test_pipeline_failure_is_persisted_and_reraised() -> None:
     service = ImportJobExecutionService(storage=Mock())
-    service.storage.resolve_score_uploads.return_value = ["/work/score.png"]
+    service.storage.local_path.return_value = "/work/cache/score.png"
+    service.storage.materialize_to_local.return_value = "/work/score.png"
     task = SimpleNamespace(
         request=SimpleNamespace(id="job-123"),
         update_state=Mock(),

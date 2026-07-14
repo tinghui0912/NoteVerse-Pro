@@ -13,7 +13,7 @@ class S3CompatibleStorage:
 
     backend_name = "s3"
     score_prefix = "scores"
-    upload_prefix = "uploads"
+    blob_prefix = "blobs"
     avatar_prefix = "avatars"
     cache_prefix = "storage-cache"
 
@@ -164,60 +164,22 @@ class S3CompatibleStorage:
             raise
         return target_abs
 
-    def save_score_upload(
+    def save_blob(
         self,
         *,
         content: bytes,
         sha256: str,
         extension: str,
+        content_type: str | None = None,
     ) -> StoredFile:
-        existing = self.find_score_upload(sha256)
-        if existing:
-            return existing
+        key = f"{self.blob_prefix}/{sha256[:2]}/{sha256}{extension}"
+        if self.exists(key):
+            return self._stored_file(key, size_bytes=len(content))
         return self.put_bytes(
-            key=f"{self.upload_prefix}/{sha256}{extension}",
+            key=key,
             content=content,
+            content_type=content_type,
         )
-
-    def find_score_upload(self, sha256: str) -> StoredFile | None:
-        prefix = self._normalize_key(f"{self.upload_prefix}/{sha256}")
-        response = self.client.list_objects_v2(
-            Bucket=self.bucket,
-            Prefix=prefix,
-            MaxKeys=1,
-        )
-        contents = response.get("Contents") or []
-        if not contents:
-            return None
-        item = contents[0]
-        return self._stored_file(
-            str(item["Key"]),
-            size_bytes=int(item.get("Size") or 0),
-        )
-
-    def resolve_score_uploads(self, file_ids: list[str]) -> list[str]:
-        paths: list[str] = []
-        for file_id in file_ids:
-            stored = self.find_score_upload(file_id)
-            if not stored:
-                raise FileNotFoundError(file_id)
-            paths.append(
-                self.materialize_to_local(
-                    stored.storage_key,
-                    self.local_path(stored.storage_key),
-                )
-            )
-        return paths
-
-    def score_upload_path(self, filename: str) -> str:
-        key = f"{self.upload_prefix}/{filename}"
-        return self.materialize_to_local(key, self.local_path(key))
-
-    def score_upload_exists(self, filename: str) -> bool:
-        return self.exists(f"{self.upload_prefix}/{filename}")
-
-    def delete_score_upload(self, filename: str) -> bool:
-        return self.delete(f"{self.upload_prefix}/{filename}")
 
     def save_avatar(
         self,

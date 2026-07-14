@@ -7,7 +7,6 @@ worker needs to process bytes.
 
 from __future__ import annotations
 
-import glob
 import os
 import shutil
 
@@ -20,7 +19,7 @@ class LocalFileStorage:
 
     backend_name = "local"
     score_prefix = "scores"
-    upload_prefix = "uploads"
+    blob_prefix = "blobs"
     avatar_prefix = "avatars"
 
     def __init__(self, storage_root: str | None = None) -> None:
@@ -29,10 +28,6 @@ class LocalFileStorage:
     @property
     def storage_root(self) -> str:
         return self._storage_root or settings.STORAGE_ROOT
-
-    @property
-    def upload_root(self) -> str:
-        return os.path.join(self.storage_root, self.upload_prefix)
 
     def put_bytes(
         self,
@@ -99,62 +94,26 @@ class LocalFileStorage:
             shutil.copyfile(source_path, target_abs)
         return target_abs
 
-    def save_score_upload(
+    def save_blob(
         self,
         *,
         content: bytes,
         sha256: str,
         extension: str,
+        content_type: str | None = None,
     ) -> StoredFile:
-        """Store uploaded score bytes by content hash."""
-
-        os.makedirs(self.upload_root, exist_ok=True)
-        existing = self.find_score_upload(sha256)
-        if existing:
-            return existing
+        """Store globally deduplicated bytes by content hash."""
 
         filename = f"{sha256}{extension}"
+        prefix = sha256[:2]
+        key = f"{self.blob_prefix}/{prefix}/{filename}"
+        if self.exists(key):
+            return self._stored_file(key, self.local_path(key))
         return self.put_bytes(
-            key=f"{self.upload_prefix}/{filename}",
+            key=key,
             content=content,
+            content_type=content_type,
         )
-
-    def find_score_upload(self, sha256: str) -> StoredFile | None:
-        """Find a previously stored score upload by content hash."""
-
-        candidates = glob.glob(os.path.join(self.upload_root, f"{sha256}.*"))
-        if not candidates:
-            return None
-
-        path = os.path.abspath(candidates[0])
-        return self._stored_file(
-            f"{self.upload_prefix}/{os.path.basename(path)}",
-            path,
-        )
-
-    def resolve_score_uploads(self, file_ids: list[str]) -> list[str]:
-        """Resolve score upload ids to absolute local paths."""
-
-        paths: list[str] = []
-        for file_id in file_ids:
-            stored = self.find_score_upload(file_id)
-            if not stored:
-                raise FileNotFoundError(file_id)
-            paths.append(os.path.abspath(stored.path))
-        return paths
-
-    def score_upload_path(self, filename: str) -> str:
-        """Return the absolute path for a stored score upload filename."""
-
-        return self.local_path(f"{self.upload_prefix}/{filename}")
-
-    def score_upload_exists(self, filename: str) -> bool:
-        return self.exists(f"{self.upload_prefix}/{filename}")
-
-    def delete_score_upload(self, filename: str) -> bool:
-        """Delete a score upload if present."""
-
-        return self.delete(f"{self.upload_prefix}/{filename}")
 
     def save_avatar(
         self,

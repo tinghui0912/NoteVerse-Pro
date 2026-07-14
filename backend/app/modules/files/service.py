@@ -4,9 +4,9 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
+from app.core.exceptions import ConflictException, FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
 from app.db.model_utils import require_persisted_id
-from app.db.models import StorageUsageCategory, User
+from app.db.models import StorageBlob, StorageUsageCategory, User
 from app.modules.files.repository import FilesRepository
 from app.modules.files.schemas import DeleteUploadedFileResult, UploadFileResult
 from app.modules.storage_usage.service import storage_usage_service
@@ -37,77 +37,95 @@ class FilesService:
         content = await file.read()
         file_hash = hashlib.sha256(content).hexdigest()
         extension = f".{file.filename.rsplit('.', 1)[1].lower()}"
+        content_type = file.content_type or "application/octet-stream"
         user_id = require_persisted_id(current_user.id, entity="user")
-        existing_upload = await self.repository.get_upload_by_sha256(db, file_hash)
-        reservation = None
-        if existing_upload is None:
-            reservation = await storage_usage_service.reserve(
-                db,
-                user_id=user_id,
-                category=StorageUsageCategory.UPLOAD,
-                bytes_count=len(content),
-                reason="upload_file",
-                object_type="upload",
-                object_id=file_hash,
-            )
+        reservation = await storage_usage_service.reserve(
+            db,
+            user_id=user_id,
+            category=StorageUsageCategory.UPLOAD,
+            bytes_count=len(content),
+            reason="upload_file",
+            object_type="upload",
+            object_id=file_hash,
+        )
+        blob = await self.repository.get_blob_by_sha256(db, file_hash)
+        stored = None
         try:
-            stored = self.storage.save_score_upload(content=content, sha256=file_hash, extension=extension)
+            if blob is None:
+                stored = self.storage.save_blob(
+                    content=content,
+                    sha256=file_hash,
+                    extension=extension,
+                    content_type=content_type,
+                )
+                blob = await self.repository.create_blob(
+                    db,
+                    sha256=file_hash,
+                    storage_backend=self.storage.backend_name,
+                    storage_key=stored.storage_key,
+                    filename=stored.filename,
+                    size_bytes=stored.size_bytes,
+                    mime_type=content_type,
+                )
+            upload = await self.repository.create_upload(
+                db,
+                blob_id=require_persisted_id(blob.id, entity="storage blob"),
+                original_filename=file.filename,
+                uploader_user_id=user_id,
+            )
+            await db.commit()
+            await storage_usage_service.commit_reservation(
+                db,
+                reservation.reservation_id,
+                object_type="upload",
+                object_id=upload.upload_uuid,
+                storage_key=blob.storage_key,
+            )
         except Exception as exc:
-            if reservation is not None:
-                await storage_usage_service.release_reservation(db, reservation.reservation_id)
+            await db.rollback()
+            if stored is not None:
+                try:
+                    self.storage.delete(stored.storage_key)
+                except Exception:
+                    pass
+            await storage_usage_service.release_reservation(db, reservation.reservation_id)
+            if isinstance(exc, FileException):
+                raise
             raise FileException(
                 code=ErrorCode.FILE_SAVE_FAILED,
                 filename=file.filename,
                 details={"error": str(exc)},
             ) from exc
-        try:
-            await self.repository.upsert_upload(
-                db,
-                sha256=file_hash,
-                storage_backend=self.storage.backend_name,
-                storage_key=stored.storage_key,
-                filename=stored.filename,
-                original_filename=file.filename,
-                size_bytes=stored.size_bytes,
-                mime_type=file.content_type or "application/octet-stream",
-                uploader_user_id=user_id,
-            )
-            await db.commit()
-            if reservation is not None:
-                await storage_usage_service.commit_reservation(
-                    db,
-                    reservation.reservation_id,
-                    object_type="upload",
-                    object_id=file_hash,
-                    storage_key=stored.storage_key,
-                )
-        except Exception:
-            await db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
-            if reservation is not None:
-                await storage_usage_service.release_reservation(db, reservation.reservation_id)
-            raise
-        return {"file_id": file_hash, "filename": file.filename, "storage_key": stored.storage_key, "size": stored.size_bytes}
+        return {
+            "file_id": upload.upload_uuid,
+            "filename": file.filename,
+            "storage_key": blob.storage_key,
+            "size": blob.size_bytes,
+        }
 
     async def delete_uploaded_file(
         self, db: AsyncSession, current_user: User, filename: str
     ) -> DeleteUploadedFileResult:
-        upload = await self.repository.get_upload_by_filename(db, filename)
+        upload = await self.repository.get_upload_by_uuid(db, filename)
         if not upload:
             raise ResourceNotFoundException("file", filename, ErrorCode.FILE_NOT_FOUND)
         if upload.uploader_user_id != current_user.id:
             raise UnauthorizedException(ErrorCode.NO_DELETE_ACCESS, {"filename": filename})
-        try:
-            self.storage.delete(upload.storage_key)
-        except Exception as exc:
-            raise FileException(ErrorCode.FILE_DELETE_FAILED, filename, {"error": str(exc)}) from exc
-        size_bytes = getattr(upload, "size_bytes", 0) or 0
-        sha256 = getattr(upload, "sha256", filename)
-        storage_key = upload.storage_key
+        upload_id = require_persisted_id(upload.id, entity="upload")
+        if await self.repository.upload_reference_count(db, upload_id) > 0:
+            raise ConflictException(ErrorCode.VALIDATION_ERROR, {"upload_id": upload.upload_uuid})
+        blob = await db.get(StorageBlob, upload.blob_id)
+        if blob is None:
+            raise ResourceNotFoundException("storage_blob", str(upload.blob_id), ErrorCode.FILE_NOT_FOUND)
+        size_bytes = blob.size_bytes
+        storage_key = blob.storage_key
+        upload_uuid = upload.upload_uuid
         await self.repository.delete_upload_by_id(db, require_persisted_id(upload.id, entity="upload"))
+        await db.flush()
+        blob_id = require_persisted_id(blob.id, entity="storage blob")
+        should_delete_blob = await self.repository.blob_upload_count(db, blob_id) == 0
+        if should_delete_blob:
+            await self.repository.delete_blob_by_id(db, blob_id)
         await db.commit()
         await storage_usage_service.record_release(
             db,
@@ -116,9 +134,14 @@ class FilesService:
             bytes_count=size_bytes,
             reason="delete_upload",
             object_type="upload",
-            object_id=sha256,
+            object_id=upload_uuid,
             storage_key=storage_key,
         )
+        if should_delete_blob:
+            try:
+                self.storage.delete(storage_key)
+            except Exception as exc:
+                raise FileException(ErrorCode.FILE_DELETE_FAILED, filename, {"error": str(exc)}) from exc
         return {"filename": filename}
 
 

@@ -58,28 +58,14 @@ class FileStorage(Protocol):
     def materialize_to_local(self, key: str, target_path: str) -> str:
         ...
 
-    def save_score_upload(
+    def save_blob(
         self,
         *,
         content: bytes,
         sha256: str,
         extension: str,
+        content_type: str | None = None,
     ) -> StoredFile:
-        ...
-
-    def find_score_upload(self, sha256: str) -> StoredFile | None:
-        ...
-
-    def resolve_score_uploads(self, file_ids: list[str]) -> list[str]:
-        ...
-
-    def score_upload_path(self, filename: str) -> str:
-        ...
-
-    def score_upload_exists(self, filename: str) -> bool:
-        ...
-
-    def delete_score_upload(self, filename: str) -> bool:
         ...
 
     def save_avatar(

@@ -28,6 +28,7 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class StorageUsageCategory(str, enum.Enum):
     SOURCE = "SOURCE"
     UPLOAD = "UPLOAD"
+    INPUT_ASSET = "INPUT_ASSET"
     DERIVED_RENDER = "DERIVED_RENDER"
     DERIVED_AUDIO = "DERIVED_AUDIO"
     TEMP_IMPORT = "TEMP_IMPORT"

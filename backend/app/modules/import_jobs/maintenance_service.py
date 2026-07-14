@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.logger import logger
-from app.db.models import StorageUsageCategory
+from app.db.models import StorageBlob, StorageUsageCategory, Upload
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import FileStorage, file_storage
@@ -38,22 +38,31 @@ class ImportJobMaintenanceService:
         deleted = 0
         for upload in self.repository.list_orphan_uploads(db, cutoff):
             try:
-                self.storage.delete(upload.storage_key)
-                if upload.uploader_user_id is not None and upload.size_bytes:
+                blob = db.get(StorageBlob, upload.blob_id)
+                if blob is None:
+                    db.delete(upload)
+                    deleted += 1
+                    continue
+                blob_ref_count = db.query(Upload).filter_by(blob_id=upload.blob_id).count()
+                should_delete_blob = blob_ref_count <= 1
+                if upload.uploader_user_id is not None and blob.size_bytes:
                     storage_usage_service.record_release_sync(
                         db,
                         user_id=upload.uploader_user_id,
                         category=StorageUsageCategory.UPLOAD,
-                        bytes_count=upload.size_bytes,
+                        bytes_count=blob.size_bytes,
                         reason="orphan_upload_deleted",
                         object_type="upload",
-                        object_id=upload.sha256,
-                        storage_key=upload.storage_key,
+                        object_id=upload.upload_uuid,
+                        storage_key=blob.storage_key,
                     )
                 db.delete(upload)
+                if should_delete_blob:
+                    db.delete(blob)
+                    self.storage.delete(blob.storage_key)
                 deleted += 1
             except Exception as exc:
-                logger.warning(f"Failed to delete orphan upload {upload.storage_key}: {exc}")
+                logger.warning(f"Failed to delete orphan upload {upload.upload_uuid}: {exc}")
         if deleted:
             db.commit()
         return deleted
