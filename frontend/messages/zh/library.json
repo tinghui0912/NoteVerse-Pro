@@ -67,7 +67,7 @@
   "saveFolder": "保存目录",
   "moveSelected": "移动所选",
   "favoriteSelected": "收藏",
-  "trashSelected": "移入回收站",
+  "trashSelected": "从乐谱库移除",
   "moveTargetPlaceholder": "选择目标目录",
   "libraryRoot": "乐谱库根目录",
   "selectedCount": "已选择 {count} 项",
@@ -81,12 +81,12 @@
   "selectAll": "全选",
   "markAs": "标记为",
   "moveTo": "移动至",
-  "deleteEntry": "删除",
+  "deleteEntry": "移除",
   "confirm": "确认",
   "markAsTitle": "标记为",
   "markAsDescription": "为已选择的 {count} 份乐谱选择练习状态。",
   "moveToTitle": "移动至目录",
   "moveToDescription": "为已选择的 {count} 份乐谱选择目标目录。",
-  "deleteEntriesTitle": "删除乐谱",
-  "deleteEntriesDescription": "确定将已选择的 {count} 份乐谱移入回收站吗？之后可以从回收站恢复。"
+  "deleteEntriesTitle": "从乐谱库移除",
+  "deleteEntriesDescription": "确定从乐谱库移除已选择的 {count} 份乐谱吗？这不会删除乐谱本身，也不会影响分享、协作者或存储用量。"
 }

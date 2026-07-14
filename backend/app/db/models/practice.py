@@ -37,8 +37,12 @@ class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]
 
     id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
     session_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
-    score_id: int = Field(sa_column=Column(BigInteger, ForeignKey("scores.id"), nullable=False))
-    revision_id: int = Field(sa_column=Column(BigInteger, ForeignKey("score_revisions.id"), nullable=False))
+    score_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("scores.id", ondelete="CASCADE"), nullable=False)
+    )
+    revision_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("score_revisions.id", ondelete="CASCADE"), nullable=False)
+    )
     access_origin: AccessOrigin = Field(sa_column=Column(SAEnum(AccessOrigin, name="accessorigin"), nullable=False))
     share_grant_id: Optional[int] = Field(
         default=None,

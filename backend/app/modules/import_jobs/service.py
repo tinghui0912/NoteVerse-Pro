@@ -172,6 +172,7 @@ class ImportJobService:
         await db.flush()
         for upload, _blob in orphan_uploads:
             await db.delete(upload)
+        await db.flush()
         for blob_id in blob_ids_to_delete:
             blob = await db.get(StorageBlob, blob_id)
             if blob is not None:
@@ -205,6 +206,7 @@ class ImportJobService:
         await db.flush()
         for upload, _blob in orphan_uploads:
             await db.delete(upload)
+        await db.flush()
         for blob_id in blob_ids_to_delete:
             blob = await db.get(StorageBlob, blob_id)
             if blob is not None:

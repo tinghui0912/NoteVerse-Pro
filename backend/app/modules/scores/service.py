@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -13,10 +13,11 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    Score,
-    ScoreInputAsset,
     ImportJob,
     ImportJobUpload,
+    PracticeSession,
+    Score,
+    ScoreInputAsset,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -275,6 +276,7 @@ class ScoreService:
             for _asset_uuid, upload_id, blob_id, blob_uuid, storage_key, _size_bytes in input_rows
         }
         score.head_revision_id = None
+        await db.execute(sa_delete(PracticeSession).where(PracticeSession.score_id == score_id))
         await db.flush()
         await db.delete(score)
         await db.flush()

@@ -18,9 +18,13 @@ from app.db.models import (
     ImportArtifact,
     ImportJob,
     ImportJobUpload,
+    PracticeReportStatus,
+    PracticeSession,
+    PracticeSessionState,
     Score,
     ScoreRevision,
     ScoreRevisionSource,
+    StorageBlob,
     StorageQuotaPolicy,
     StorageUsageAccount,
     StorageUsageCategory,
@@ -31,6 +35,7 @@ from app.db.models import (
     User,
 )
 from app.db.models.import_job import ImportJobState
+from app.db.models.score_access import AccessOrigin
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.db.models.user import UserRole
 from app.modules.files.service import FilesService
@@ -532,6 +537,53 @@ async def test_score_delete_releases_source_usage_and_storage_object(
 
 
 @pytest.mark.asyncio
+async def test_score_delete_removes_practice_sessions(
+    storage_usage_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = storage_usage_session
+    score, revision, source = _seed_score_with_source(session, storage)
+    assert score.id is not None
+    assert score.score_uuid is not None
+    assert revision.id is not None
+    assert source.size_bytes is not None
+    session.add(
+        PracticeSession(
+            id=2001,
+            session_uuid="practice-delete-with-score",
+            score_id=score.id,
+            revision_id=revision.id,
+            access_origin=AccessOrigin.OWNER,
+            user_id=1,
+            state=PracticeSessionState.FINISHED,
+            sample_rate=44100,
+            channels=1,
+            frame_format="float32",
+            report_status=PracticeReportStatus.READY,
+            report_payload='{"summary":"done"}',
+        )
+    )
+    session.commit()
+    storage_usage_service.record_allocation_sync(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.SOURCE,
+        bytes_count=source.size_bytes,
+        reason="seed_source",
+        object_type="score_revision_source",
+        object_id=source.source_uuid,
+        storage_key=source.storage_key,
+    )
+
+    await ScoreService(storage=storage).delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+
+    assert session.get(Score, score.id) is None
+    assert session.get(PracticeSession, 2001) is None
+    account = session.get(StorageUsageAccount, 1)
+    assert account is not None
+    assert account.used_bytes == 0
+
+
+@pytest.mark.asyncio
 async def test_score_delete_cleans_single_origin_import_job_storage(
     storage_usage_session: tuple[Session, LocalFileStorage],
 ) -> None:
@@ -559,24 +611,29 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         progress=100,
         score_id=score.id,
     )
-    session.add(job)
-    session.add(
-        Upload(
-            id=1202,
+    session.add_all([
+        job,
+        StorageBlob(
+            id=1302,
+            blob_uuid="origin-upload-blob",
             sha256="origin-upload-sha",
             storage_backend=storage.backend_name,
             storage_key=upload.storage_key,
             filename=upload.filename,
-            original_filename="origin.png",
             size_bytes=upload.size_bytes,
             mime_type="image/png",
+        ),
+        Upload(
+            id=1202,
+            blob_id=1302,
+            original_filename="origin.png",
             uploader_user_id=1,
-        )
-    )
+        ),
+    ])
     session.commit()
     score.originating_job_id = 1201
     session.add(score)
-    session.add(ImportJobUpload(job_id=1201, upload_id=1202))
+    session.add(ImportJobUpload(job_id=1201, upload_id=1202, page_number=1, sort_order=1))
     session.add(
         ImportArtifact(
             artifact_uuid="origin-review-source",
@@ -665,22 +722,27 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         state=ImportJobState.PENDING_REVIEW,
         progress=100,
     )
-    session.add(job)
-    session.add(
-        Upload(
-            id=1002,
+    session.add_all([
+        job,
+        StorageBlob(
+            id=1303,
+            blob_uuid="delete-owned-upload-blob",
             sha256="delete-owned-upload-sha",
             storage_backend=storage.backend_name,
             storage_key=upload.storage_key,
             filename=upload.filename,
-            original_filename="upload.png",
             size_bytes=upload.size_bytes,
             mime_type="image/png",
+        ),
+        Upload(
+            id=1002,
+            blob_id=1303,
+            original_filename="upload.png",
             uploader_user_id=1,
-        )
-    )
+        ),
+    ])
     session.commit()
-    session.add(ImportJobUpload(job_id=1001, upload_id=1002))
+    session.add(ImportJobUpload(job_id=1001, upload_id=1002, page_number=1, sort_order=1))
     session.add(
         ImportArtifact(
             artifact_uuid="delete-owned-review-source",
@@ -773,15 +835,20 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
                 state=ImportJobState.PENDING_REVIEW,
                 progress=100,
             ),
-            Upload(
-                id=1103,
+            StorageBlob(
+                id=1304,
+                blob_uuid="shared-upload-blob",
                 sha256="shared-upload-sha",
                 storage_backend=storage.backend_name,
                 storage_key=upload.storage_key,
                 filename=upload.filename,
-                original_filename="shared.png",
                 size_bytes=upload.size_bytes,
                 mime_type="image/png",
+            ),
+            Upload(
+                id=1103,
+                blob_id=1304,
+                original_filename="shared.png",
                 uploader_user_id=1,
             ),
         ]
@@ -789,8 +856,8 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     session.commit()
     session.add_all(
         [
-            ImportJobUpload(job_id=1101, upload_id=1103),
-            ImportJobUpload(job_id=1102, upload_id=1103),
+            ImportJobUpload(job_id=1101, upload_id=1103, page_number=1, sort_order=1),
+            ImportJobUpload(job_id=1102, upload_id=1103, page_number=1, sort_order=1),
         ]
     )
     session.commit()

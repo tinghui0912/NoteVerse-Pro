@@ -67,7 +67,7 @@
   "saveFolder": "Save folder",
   "moveSelected": "Move selected",
   "favoriteSelected": "Favorite",
-  "trashSelected": "Move to trash",
+  "trashSelected": "Remove from library",
   "moveTargetPlaceholder": "Choose target folder",
   "libraryRoot": "Library root",
   "selectedCount": "{count} selected",
@@ -81,12 +81,12 @@
   "selectAll": "Select all",
   "markAs": "Mark as",
   "moveTo": "Move to",
-  "deleteEntry": "Delete",
+  "deleteEntry": "Remove",
   "confirm": "Confirm",
   "markAsTitle": "Mark as",
   "markAsDescription": "Choose a practice status for {count} selected score(s).",
   "moveToTitle": "Move to folder",
   "moveToDescription": "Choose a destination folder for {count} selected score(s).",
-  "deleteEntriesTitle": "Delete selected scores",
-  "deleteEntriesDescription": "Move {count} selected score(s) to trash? You can restore them from trash later."
+  "deleteEntriesTitle": "Remove from library",
+  "deleteEntriesDescription": "Remove {count} selected score(s) from your library? This will not delete the score itself or affect shares, collaborators, or storage usage."
 }
