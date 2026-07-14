@@ -136,11 +136,12 @@ class RevisionService:
         if base.content_hash == content_hash:
             return await self._read(db, base)
 
+        storage_owner_user_id = score.owner_user_id
         revision_uuid = str(uuid.uuid4())
         key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
         reservation = await storage_usage_service.reserve(
             db,
-            user_id=user_id,
+            user_id=storage_owner_user_id,
             category=StorageUsageCategory.SOURCE,
             bytes_count=len(content),
             reason="revision_create",
@@ -320,11 +321,12 @@ class RevisionService:
         content = self.storage.read_bytes(source.storage_key)
         self._validate_musicxml(content)
         content_hash = hashlib.sha256(content).hexdigest()
+        storage_owner_user_id = score.owner_user_id
         new_revision_uuid = str(uuid.uuid4())
         key = f"scores/{score_uuid}/revisions/{new_revision_uuid}/score.musicxml"
         reservation = await storage_usage_service.reserve(
             db,
-            user_id=user_id,
+            user_id=storage_owner_user_id,
             category=StorageUsageCategory.SOURCE,
             bytes_count=len(content),
             reason="revision_restore",

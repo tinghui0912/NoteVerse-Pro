@@ -44,7 +44,8 @@ class ImportDispatchService:
 
         storage_keys = db.execute(
             select(StorageBlob.storage_key)
-            .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
+            .select_from(ImportJobUpload)
+            .join(Upload, ImportJobUpload.upload_id == Upload.id)
             .join(StorageBlob, Upload.blob_id == StorageBlob.id)
             .where(ImportJobUpload.job_id == job.id)
             .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())

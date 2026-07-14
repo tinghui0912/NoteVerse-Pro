@@ -34,6 +34,7 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionNote,
     ScoreRevisionSource,
+    StorageBlob,
     StorageQuotaPolicy,
     StorageUsageCounter,
     StorageUsageCategory,
@@ -225,6 +226,58 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
         session.commit()
         yield session, storage
     engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_collaborator_revision_source_usage_counts_against_score_owner(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = score_service_session
+    add_active_score_with_head_revision(
+        session,
+        score_id=301,
+        revision_id=401,
+        score_uuid="collab-score",
+        revision_uuid="base-revision",
+        title="Collab Score",
+    )
+    session.add(
+        ScoreMembership(
+            score_id=301,
+            user_id=2,
+            role=MembershipRole.EDITOR,
+            created_by_user_id=1,
+        )
+    )
+    session.commit()
+    service = RevisionService(storage=storage)
+
+    result = await service.create(
+        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+        "collab-score",
+        2,
+        RevisionCreateRequest(
+            content=MUSICXML_2,
+            base_revision_id="base-revision",
+            origin=RevisionOrigin.EDIT,
+            idempotency_key="collab-edit-1",
+        ),
+    )
+
+    created = session.query(ScoreRevision).filter_by(revision_uuid=result.revision_id).one()
+    assert created.created_by_user_id == 2
+    owner_counter = (
+        session.query(StorageUsageCounter)
+        .filter_by(user_id=1, category=StorageUsageCategory.SOURCE)
+        .one()
+    )
+    assert owner_counter.used_bytes == len(MUSICXML_2.encode("utf-8"))
+    collaborator_counter = (
+        session.query(StorageUsageCounter)
+        .filter_by(user_id=2, category=StorageUsageCategory.SOURCE)
+        .one_or_none()
+    )
+    assert collaborator_counter is None or collaborator_counter.used_bytes == 0
 
 
 def test_confirmed_job_creates_one_active_score_and_initial_revision(
@@ -1461,15 +1514,24 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
     )
     upload = Upload(
         id=502,
-        sha256="queued-upload",
-        storage_backend="local",
-        storage_key="uploads/queued.png",
-        filename="queued.png",
+        upload_uuid="queued-upload",
+        blob_id=602,
+        original_filename="queued.png",
         uploader_user_id=1,
     )
-    session.add_all([job, upload])
+    blob = StorageBlob(
+        id=602,
+        blob_uuid="queued-blob",
+        sha256="queued-upload-sha",
+        storage_backend="local",
+        storage_key="blobs/qu/queued-upload-sha.png",
+        filename="queued.png",
+        size_bytes=5,
+        mime_type="image/png",
+    )
+    session.add_all([job, blob, upload])
     session.flush()
-    session.add(ImportJobUpload(job_id=501, upload_id=502))
+    session.add(ImportJobUpload(job_id=501, upload_id=502, page_number=1, sort_order=1))
     session.commit()
 
     payload = ImportDispatchService().claim(session, job.job_uuid)
@@ -1477,7 +1539,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
 
     assert payload is not None
     assert payload.job_uuid == job.job_uuid
-    assert payload.file_ids == ["queued-upload"]
+    assert payload.storage_keys == ["blobs/qu/queued-upload-sha.png"]
     assert payload.options == {"title": "Queued score"}
     assert job.dispatch_status == ImportDispatchStatus.PROCESSING
     assert job.dispatch_attempt_count == 1
