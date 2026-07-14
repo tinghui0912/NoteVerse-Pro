@@ -466,18 +466,22 @@ async def test_review_detail_reads_pending_job_artifacts(
                 sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
                 page_number=1,
             ),
-            Upload(
-                id=130,
+            StorageBlob(
+                id=131,
                 sha256="upload-sha",
                 storage_backend="local",
                 storage_key=uploaded_image.storage_key,
                 filename=uploaded_image.filename,
-                original_filename="page-1.png",
                 size_bytes=uploaded_image.size_bytes,
                 mime_type="image/png",
+            ),
+            Upload(
+                id=130,
+                blob_id=131,
+                original_filename="page-1.png",
                 uploader_user_id=1,
             ),
-            ImportJobUpload(job_id=13, upload_id=130),
+            ImportJobUpload(job_id=13, upload_id=130, page_number=1, sort_order=1),
         ]
     )
     session.commit()

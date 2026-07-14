@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import RealtimeEvent, Score, ScoreMembership
+from app.db.models import RealtimeEvent, Score, ScoreDeletionStatus, ScoreMembership
 
 logger = logging.getLogger(__name__)
 REALTIME_NOTIFY_CHANNEL = "realtime_events"
@@ -62,7 +62,12 @@ def _notify_event_sync(db: Session, event: RealtimeEvent) -> None:
 
 async def score_recipients(db: AsyncSession, score_uuid: str) -> list[int]:
     score = (
-        await db.execute(select(Score).where(Score.score_uuid == score_uuid))
+        await db.execute(
+            select(Score).where(
+                Score.score_uuid == score_uuid,
+                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+            )
+        )
     ).scalar_one_or_none()
     if score is None or score.id is None:
         return []
@@ -76,7 +81,12 @@ async def score_recipients(db: AsyncSession, score_uuid: str) -> list[int]:
 
 
 def score_recipients_sync(db: Session, score_uuid: str) -> list[int]:
-    score = db.execute(select(Score).where(Score.score_uuid == score_uuid)).scalar_one_or_none()
+    score = db.execute(
+        select(Score).where(
+            Score.score_uuid == score_uuid,
+            Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+        )
+    ).scalar_one_or_none()
     if score is None or score.id is None:
         return []
     member_rows = db.execute(

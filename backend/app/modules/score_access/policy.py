@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import (
     Score,
+    ScoreDeletionStatus,
     ScoreMembership,
     ScorePublication,
     ScoreRevision,
@@ -62,7 +63,12 @@ class ScoreAccessPolicy:
         now: datetime | None = None,
     ) -> ScoreAccessContext:
         score = (
-            await db.execute(select(Score).where(Score.score_uuid == score_uuid))
+            await db.execute(
+                select(Score).where(
+                    Score.score_uuid == score_uuid,
+                    Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                )
+            )
         ).scalar_one_or_none()
         if not score:
             raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)

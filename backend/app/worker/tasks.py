@@ -23,6 +23,7 @@ from app.modules.revisions.derived_asset_retention_service import (
     derived_asset_retention_service,
 )
 from app.modules.review.thumbnail_service import review_thumbnail_service
+from app.modules.scores.lifecycle_service import score_lifecycle_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
 from app.worker.celery_config import celery_app
@@ -290,6 +291,19 @@ def run_derived_asset_cleanup() -> dict[str, int]:
     return {
         "rendered_pages_deleted": result.rendered_pages_deleted,
         "playback_assets_deleted": result.playback_assets_deleted,
+        "storage_objects_deleted": result.storage_objects_deleted,
+    }
+
+
+@celery_app.task(name="app.worker.tasks.run_score_deletion_cleanup")
+def run_score_deletion_cleanup() -> dict[str, int]:
+    """Hard-delete scores that were hidden by a user deletion request."""
+
+    with get_worker_db() as db:
+        result = score_lifecycle_service.cleanup_deleting_scores(db)
+
+    return {
+        "scores_deleted": result.scores_deleted,
         "storage_objects_deleted": result.storage_objects_deleted,
     }
 

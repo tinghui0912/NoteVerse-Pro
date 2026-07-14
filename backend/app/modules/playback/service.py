@@ -13,6 +13,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import (
     PlaybackAssetKind,
     Score,
+    ScoreDeletionStatus,
     ScorePlaybackAsset,
     ScoreRevision,
     ScoreRevisionSource,
@@ -68,7 +69,12 @@ class PlaybackService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="asset_kind")
 
         score = (
-            await db.execute(select(Score).where(Score.score_uuid == score_uuid))
+            await db.execute(
+                select(Score).where(
+                    Score.score_uuid == score_uuid,
+                    Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                )
+            )
         ).scalar_one_or_none()
         if not score:
             raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
@@ -205,7 +211,7 @@ class PlaybackService:
         if grant is None:
             raise ResourceNotFoundException("share_grant", code=ErrorCode.SHARE_NOT_FOUND)
         score = await db.get(Score, grant.score_id)
-        if score is None:
+        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
             raise ResourceNotFoundException("score", token, ErrorCode.SCORE_NOT_FOUND)
         access = await self.access_policy.authorize(
             db,
@@ -230,7 +236,7 @@ class PlaybackService:
         if publication is None or publication.status != PublicationStatus.PUBLISHED:
             raise ResourceNotFoundException("publication", slug, ErrorCode.RESOURCE_NOT_FOUND)
         score = await db.get(Score, publication.score_id)
-        if score is None:
+        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
             raise ResourceNotFoundException("score", slug, ErrorCode.SCORE_NOT_FOUND)
         access = await self.access_policy.authorize(
             db,
@@ -312,7 +318,10 @@ class PlaybackService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="asset_kind")
 
         score = db.execute(
-            select(Score).where(Score.score_uuid == score_uuid)
+            select(Score).where(
+                Score.score_uuid == score_uuid,
+                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+            )
         ).scalar_one_or_none()
         if not score:
             raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
@@ -379,7 +388,10 @@ class PlaybackService:
         score = db.execute(
             select(Score)
             .join(ScoreRevision, ScoreRevision.score_id == Score.id)
-            .where(ScoreRevision.id == revision_id)
+            .where(
+                ScoreRevision.id == revision_id,
+                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+            )
         ).scalar_one()
         previous_usage = (
             (previous.asset_uuid, previous.storage_key, previous.size_bytes)

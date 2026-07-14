@@ -18,6 +18,7 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
+    ScoreDeletionStatus,
     ScoreMembership,
     ScoreRenderAsset,
     ScoreRevision,
@@ -244,7 +245,10 @@ class RevisionRenderService:
         user_id: int,
     ) -> tuple[Score, ScoreRevision]:
         score = db.execute(
-            select(Score).where(Score.score_uuid == score_uuid)
+            select(Score).where(
+                Score.score_uuid == score_uuid,
+                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+            )
         ).scalar_one_or_none()
         if score is None:
             raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)

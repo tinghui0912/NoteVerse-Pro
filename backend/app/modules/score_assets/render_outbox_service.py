@@ -16,6 +16,7 @@ from app.db.models import (
     RenderOutboxStatus,
     RenderTargetType,
     Score,
+    ScoreDeletionStatus,
     ScoreRevision,
 )
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -168,7 +169,12 @@ class RenderOutboxService:
         if outbox.target_type == RenderTargetType.SCORE_REVISION:
             score = db.get(Score, outbox.score_id)
             revision = db.get(ScoreRevision, outbox.revision_id)
-            if score is not None and revision is not None and outbox.requested_by_user_id is not None:
+            if (
+                score is not None
+                and score.deletion_status == ScoreDeletionStatus.ACTIVE
+                and revision is not None
+                and outbox.requested_by_user_id is not None
+            ):
                 return RenderOutboxPayload(
                     outbox_uuid=outbox.outbox_uuid,
                     target_type=outbox.target_type,

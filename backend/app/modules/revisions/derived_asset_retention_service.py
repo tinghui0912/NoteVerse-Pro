@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import (
     Score,
+    ScoreDeletionStatus,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -128,7 +129,13 @@ class DerivedAssetRetentionService:
         )
 
     def cleanup_due_scores(self, db: Session) -> DerivedAssetRetentionResult:
-        scores = list(db.execute(select(Score.id, Score.head_revision_id)).all())
+        scores = list(
+            db.execute(
+                select(Score.id, Score.head_revision_id).where(
+                    Score.deletion_status == ScoreDeletionStatus.ACTIVE
+                )
+            ).all()
+        )
         total = DerivedAssetRetentionResult()
         for score_id, head_revision_id in scores:
             result = self.cleanup_for_score_sync(

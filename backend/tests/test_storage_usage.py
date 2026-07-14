@@ -36,13 +36,14 @@ from app.db.models import (
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score_access import AccessOrigin
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.db.models.score import RevisionOrigin, RevisionSourceFormat, ScoreDeletionStatus
 from app.db.models.user import UserRole
 from app.modules.files.service import FilesService
 from app.modules.files.dependencies import get_files_service
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.revisions.service import RevisionService
+from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
@@ -523,6 +524,14 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     service = ScoreService(storage=storage)
     await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
 
+    marked_score = session.get(Score, score.id)
+    assert marked_score is not None
+    assert marked_score.deletion_status == ScoreDeletionStatus.DELETING
+    assert marked_score.deleted_at is not None
+
+    result = service.lifecycle_service.cleanup_deleting_scores(session)
+    assert result.scores_deleted == 1
+
     account = session.get(StorageUsageAccount, 1)
     counter = session.execute(
         select(StorageUsageCounter).where(
@@ -534,6 +543,40 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     assert account.used_bytes == 0
     assert counter.used_bytes == 0
     assert not storage.exists(source_storage_key)
+
+
+def test_score_deletion_cleanup_records_retry_state_on_failure(
+    storage_usage_session: tuple[Session, LocalFileStorage],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session, storage = storage_usage_session
+    score, _revision, _source = _seed_score_with_source(session, storage)
+    assert score.id is not None
+    now = utc_now_naive()
+    score.deletion_status = ScoreDeletionStatus.DELETING
+    score.deletion_requested_at = now
+    score.deleted_at = now
+    session.add(score)
+    session.commit()
+
+    lifecycle = ScoreLifecycleService(storage=storage)
+
+    def fail_cleanup(db: Session, cleanup_score: Score) -> object:
+        _ = db, cleanup_score
+        raise RuntimeError("object storage temporarily unavailable")
+
+    monkeypatch.setattr(lifecycle, "cleanup_deleting_score", fail_cleanup)
+
+    result = lifecycle.cleanup_deleting_scores(session)
+
+    assert result.scores_deleted == 0
+    stored = session.get(Score, score.id)
+    assert stored is not None
+    assert stored.deletion_status == ScoreDeletionStatus.DELETING
+    assert stored.cleanup_attempt_count == 1
+    assert stored.next_cleanup_at is not None
+    assert stored.next_cleanup_at > now
+    assert stored.deletion_error == "object storage temporarily unavailable"
 
 
 @pytest.mark.asyncio
@@ -574,8 +617,15 @@ async def test_score_delete_removes_practice_sessions(
         storage_key=source.storage_key,
     )
 
-    await ScoreService(storage=storage).delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+    service = ScoreService(storage=storage)
+    await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
 
+    marked_score = session.get(Score, score.id)
+    assert marked_score is not None
+    assert marked_score.deletion_status == ScoreDeletionStatus.DELETING
+
+    result = service.lifecycle_service.cleanup_deleting_scores(session)
+    assert result.scores_deleted == 1
     assert session.get(Score, score.id) is None
     assert session.get(PracticeSession, 2001) is None
     account = session.get(StorageUsageAccount, 1)
@@ -681,7 +731,15 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
     upload_storage_key = upload.storage_key
     review_source_storage_key = review_source.storage_key
 
-    await ScoreService(storage=storage).delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+    service = ScoreService(storage=storage)
+    await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+
+    marked_score = session.get(Score, score.id)
+    assert marked_score is not None
+    assert marked_score.deletion_status == ScoreDeletionStatus.DELETING
+
+    result = service.lifecycle_service.cleanup_deleting_scores(session)
+    assert result.scores_deleted == 1
 
     assert session.get(Score, score.id) is None
     assert session.get(ImportJob, 1201) is None

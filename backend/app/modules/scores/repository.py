@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import (
     ImportJob,
     Score,
+    ScoreDeletionStatus,
     ScorePublication,
     ScoreRevision,
     ScoreTaxonomyTag,
@@ -20,6 +21,7 @@ from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
 score_title_col = Score.__table__.c.title
 score_updated_col = Score.__table__.c.updated_at
+active_score_filter = Score.deletion_status == ScoreDeletionStatus.ACTIVE
 
 
 class ScoreRepository:
@@ -34,7 +36,7 @@ class ScoreRepository:
         view: MyScoresView = MyScoresView.ALL,
         sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
     ) -> tuple[list[Score], int]:
-        filters = [Score.owner_user_id == user_id]
+        filters = [Score.owner_user_id == user_id, active_score_filter]
         if search:
             filters.append(score_title_col.ilike(f"%{search}%"))
         if view == MyScoresView.PUBLISHED:
@@ -93,8 +95,17 @@ class ScoreRepository:
         )
         return {int(score_id) for score_id in rows.scalars().all()}
 
-    async def get(self, db: AsyncSession, score_uuid: str, *, lock: bool = False) -> Score | None:
+    async def get(
+        self,
+        db: AsyncSession,
+        score_uuid: str,
+        *,
+        lock: bool = False,
+        include_deleted: bool = False,
+    ) -> Score | None:
         statement = select(Score).where(Score.score_uuid == score_uuid)
+        if not include_deleted:
+            statement = statement.where(active_score_filter)
         if lock:
             statement = statement.with_for_update()
         return (await db.execute(statement)).scalar_one_or_none()

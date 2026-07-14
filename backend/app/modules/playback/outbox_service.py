@@ -14,6 +14,7 @@ from app.db.models import (
     PlaybackOutbox,
     PlaybackOutboxStatus,
     Score,
+    ScoreDeletionStatus,
     ScoreRevision,
 )
 from app.utils.timezone import utc_now_naive
@@ -99,6 +100,7 @@ class PlaybackOutboxService:
         revision = db.get(ScoreRevision, outbox.revision_id)
         if (
             score is not None
+            and score.deletion_status == ScoreDeletionStatus.ACTIVE
             and revision is not None
             and revision.score_id == outbox.score_id
             and revision.content_hash == outbox.source_fingerprint

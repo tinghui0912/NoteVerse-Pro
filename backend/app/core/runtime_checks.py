@@ -250,6 +250,7 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
             "app.worker.tasks.run_mail_outbox_cleanup",
             "app.worker.tasks.run_realtime_maintenance",
             "app.worker.tasks.run_derived_asset_cleanup",
+            "app.worker.tasks.run_score_deletion_cleanup",
         }
         missing = sorted(required.difference(celery_app.tasks))
     except Exception as exc:

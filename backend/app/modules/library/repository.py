@@ -7,6 +7,7 @@ from app.db.models import (
     LibraryEntrySourceType,
     LibraryPracticeState,
     Score,
+    ScoreDeletionStatus,
     ScoreLibraryEntry,
     ScoreLibraryFolder,
     ScoreRevisionMetadata,
@@ -15,6 +16,7 @@ from app.modules.library.schemas import LibrarySort, LibraryView
 
 entry_updated_col = ScoreLibraryEntry.__table__.c.updated_at
 score_title_col = Score.__table__.c.title
+active_score_filter = Score.deletion_status == ScoreDeletionStatus.ACTIVE
 
 
 class LibraryRepository:
@@ -113,9 +115,12 @@ class LibraryRepository:
         total = int(
             (
                 await db.execute(
-                    select(func.count(ScoreLibraryEntry.id)).where(
+                    select(func.count(ScoreLibraryEntry.id))
+                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
+                    .where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
+                        active_score_filter,
                     )
                 )
             ).scalar_one()
@@ -123,10 +128,13 @@ class LibraryRepository:
         favorite = int(
             (
                 await db.execute(
-                    select(func.count(ScoreLibraryEntry.id)).where(
+                    select(func.count(ScoreLibraryEntry.id))
+                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
+                    .where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
                         ScoreLibraryEntry.is_favorite.is_(True),
+                        active_score_filter,
                     )
                 )
             ).scalar_one()
@@ -134,10 +142,13 @@ class LibraryRepository:
         recent_practice = int(
             (
                 await db.execute(
-                    select(func.count(ScoreLibraryEntry.id)).where(
+                    select(func.count(ScoreLibraryEntry.id))
+                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
+                    .where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
                         ScoreLibraryEntry.last_practiced_at.is_not(None),
+                        active_score_filter,
                     )
                 )
             ).scalar_one()
@@ -145,10 +156,13 @@ class LibraryRepository:
         to_practice = int(
             (
                 await db.execute(
-                    select(func.count(ScoreLibraryEntry.id)).where(
+                    select(func.count(ScoreLibraryEntry.id))
+                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
+                    .where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
                         ScoreLibraryEntry.practice_state == LibraryPracticeState.TO_PRACTICE,
+                        active_score_filter,
                     )
                 )
             ).scalar_one()
@@ -156,20 +170,25 @@ class LibraryRepository:
         mastered = int(
             (
                 await db.execute(
-                    select(func.count(ScoreLibraryEntry.id)).where(
+                    select(func.count(ScoreLibraryEntry.id))
+                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
+                    .where(
                         ScoreLibraryEntry.user_id == user_id,
                         ScoreLibraryEntry.deleted_at.is_(None),
                         ScoreLibraryEntry.practice_state == LibraryPracticeState.MASTERED,
+                        active_score_filter,
                     )
                 )
             ).scalar_one()
         )
         rows = await db.execute(
             select(ScoreLibraryEntry.folder_id, func.count(ScoreLibraryEntry.id))
+            .join(Score, Score.id == ScoreLibraryEntry.score_id)
             .where(
                 ScoreLibraryEntry.user_id == user_id,
                 ScoreLibraryEntry.deleted_at.is_(None),
                 ScoreLibraryEntry.folder_id.is_not(None),
+                active_score_filter,
             )
             .group_by(ScoreLibraryEntry.folder_id)
         )
@@ -194,7 +213,7 @@ class LibraryRepository:
         page: int,
         page_size: int,
     ) -> tuple[list[tuple[ScoreLibraryEntry, Score, ScoreRevisionMetadata | None]], int]:
-        filters = [ScoreLibraryEntry.user_id == user_id]
+        filters = [ScoreLibraryEntry.user_id == user_id, active_score_filter]
         if view == LibraryView.TRASH:
             filters.append(ScoreLibraryEntry.deleted_at.is_not(None))
         else:

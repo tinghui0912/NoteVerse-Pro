@@ -25,3 +25,10 @@ def test_realtime_maintenance_is_scheduled() -> None:
 
     assert schedule["task"] == "app.worker.tasks.run_realtime_maintenance"
     assert schedule["schedule"] == float(settings.REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS)
+
+
+def test_score_deletion_cleanup_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["score-deletion-cleanup"]
+
+    assert schedule["task"] == "app.worker.tasks.run_score_deletion_cleanup"
+    assert schedule["schedule"] == float(settings.SCORE_DELETION_CLEANUP_INTERVAL_SECONDS)

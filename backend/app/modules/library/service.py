@@ -14,6 +14,7 @@ from app.db.models import (
     LibraryEntrySourceType,
     LibraryPracticeState,
     Score,
+    ScoreDeletionStatus,
     ScoreLibraryEntry,
     ScoreLibraryFolder,
     ScoreRevision,
@@ -360,7 +361,7 @@ class LibraryService:
         await db.commit()
         await db.refresh(entry)
         score = await db.get(Score, entry.score_id)
-        if not score:
+        if not score or score.deletion_status != ScoreDeletionStatus.ACTIVE:
             raise ResourceNotFoundException("score", str(entry.score_id))
         projection = None
         if score.head_revision_id:
