@@ -2,6 +2,7 @@ from .user import User, UserRole
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
 from .file import StorageBlob, Upload
 from .notification import NotificationEvent
+from .ops_audit import OpsAuditEvent
 from .realtime import RealtimeEvent
 from .revision_event import ScoreRevisionEvent
 from .revision_note import ScoreRevisionNote
@@ -81,6 +82,7 @@ __all__ = [
     "StorageBlob",
     "Upload",
     "NotificationEvent",
+    "OpsAuditEvent",
     "RealtimeEvent",
     "ScoreRevisionEvent",
     "ScoreRevisionNote",

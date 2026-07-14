@@ -12,6 +12,7 @@ from app.modules.import_jobs.router import router as jobs
 from app.modules.library.router import router as library
 from app.modules.my_scores.router import router as my_scores
 from app.modules.notifications.router import router as notifications
+from app.modules.ops.router import router as ops
 from app.modules.playback.router import router as playback
 from app.modules.practice.router import router as practice
 from app.modules.realtime.router import router as realtime
@@ -59,3 +60,4 @@ api_router.include_router(playback, tags=["Playback"])
 api_router.include_router(practice, prefix="/practice", tags=["Practice"])
 api_router.include_router(realtime, prefix="/realtime", tags=["Realtime"])
 api_router.include_router(review, prefix="/review", tags=["Review"])
+api_router.include_router(ops, prefix="/ops", tags=["Operations"])
