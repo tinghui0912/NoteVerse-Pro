@@ -338,8 +338,8 @@ def test_s3_storage_saves_and_materializes_score_upload() -> None:
             )
             paths = storage.resolve_score_uploads(["abc123"])
 
-        assert stored.storage_key == "scores/abc123.png"
-        assert stored.public_url == "https://cdn.example/scores/abc123.png"
+        assert stored.storage_key == "uploads/abc123.png"
+        assert stored.public_url == "https://cdn.example/uploads/abc123.png"
         assert len(paths) == 1
         assert os.path.exists(paths[0])
         with open(paths[0], "rb") as file_handle:
@@ -369,7 +369,7 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
     db = Mock()
 
     upload = SimpleNamespace(
-        storage_key="scores/orphan.png",
+        storage_key="uploads/orphan.png",
         sha256="orphan-sha",
         size_bytes=123,
         uploader_user_id=7,
@@ -386,11 +386,11 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
         deleted = service.cleanup_orphan_uploads(db)
 
     assert deleted == 1
-    storage.delete.assert_called_once_with("scores/orphan.png")
+    storage.delete.assert_called_once_with("uploads/orphan.png")
     release_usage.assert_called_once()
     assert release_usage.call_args.kwargs["user_id"] == 7
     assert release_usage.call_args.kwargs["bytes_count"] == 123
-    assert release_usage.call_args.kwargs["storage_key"] == "scores/orphan.png"
+    assert release_usage.call_args.kwargs["storage_key"] == "uploads/orphan.png"
     db.delete.assert_called_once_with(upload)
     db.commit.assert_called_once()
 
@@ -483,7 +483,7 @@ async def test_delete_uploaded_file_rejects_non_owner() -> None:
 async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     repository = Mock()
     repository.get_upload_by_filename = AsyncMock(
-        return_value=SimpleNamespace(id=7, uploader_user_id=1, storage_key="scores/owned.png")
+        return_value=SimpleNamespace(id=7, uploader_user_id=1, storage_key="uploads/owned.png")
     )
     repository.delete_upload_by_id = AsyncMock()
     service = FilesService(repository=repository)
@@ -491,9 +491,9 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     current_user = SimpleNamespace(id=1)
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        scores_dir = os.path.join(temp_dir, "scores")
-        os.makedirs(scores_dir, exist_ok=True)
-        file_path = os.path.join(scores_dir, "owned.png")
+        uploads_dir = os.path.join(temp_dir, "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        file_path = os.path.join(uploads_dir, "owned.png")
         with open(file_path, "wb") as file_handle:
             file_handle.write(b"png")
 

@@ -20,6 +20,7 @@ class LocalFileStorage:
 
     backend_name = "local"
     score_prefix = "scores"
+    upload_prefix = "uploads"
     avatar_prefix = "avatars"
 
     def __init__(self, storage_root: str | None = None) -> None:
@@ -30,8 +31,8 @@ class LocalFileStorage:
         return self._storage_root or settings.STORAGE_ROOT
 
     @property
-    def score_root(self) -> str:
-        return os.path.join(self.storage_root, self.score_prefix)
+    def upload_root(self) -> str:
+        return os.path.join(self.storage_root, self.upload_prefix)
 
     def put_bytes(
         self,
@@ -107,27 +108,27 @@ class LocalFileStorage:
     ) -> StoredFile:
         """Store uploaded score bytes by content hash."""
 
-        os.makedirs(self.score_root, exist_ok=True)
+        os.makedirs(self.upload_root, exist_ok=True)
         existing = self.find_score_upload(sha256)
         if existing:
             return existing
 
         filename = f"{sha256}{extension}"
         return self.put_bytes(
-            key=f"{self.score_prefix}/{filename}",
+            key=f"{self.upload_prefix}/{filename}",
             content=content,
         )
 
     def find_score_upload(self, sha256: str) -> StoredFile | None:
         """Find a previously stored score upload by content hash."""
 
-        candidates = glob.glob(os.path.join(self.score_root, f"{sha256}.*"))
+        candidates = glob.glob(os.path.join(self.upload_root, f"{sha256}.*"))
         if not candidates:
             return None
 
         path = os.path.abspath(candidates[0])
         return self._stored_file(
-            f"{self.score_prefix}/{os.path.basename(path)}",
+            f"{self.upload_prefix}/{os.path.basename(path)}",
             path,
         )
 
@@ -145,15 +146,15 @@ class LocalFileStorage:
     def score_upload_path(self, filename: str) -> str:
         """Return the absolute path for a stored score upload filename."""
 
-        return self.local_path(f"{self.score_prefix}/{filename}")
+        return self.local_path(f"{self.upload_prefix}/{filename}")
 
     def score_upload_exists(self, filename: str) -> bool:
-        return self.exists(f"{self.score_prefix}/{filename}")
+        return self.exists(f"{self.upload_prefix}/{filename}")
 
     def delete_score_upload(self, filename: str) -> bool:
         """Delete a score upload if present."""
 
-        return self.delete(f"{self.score_prefix}/{filename}")
+        return self.delete(f"{self.upload_prefix}/{filename}")
 
     def save_avatar(
         self,

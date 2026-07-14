@@ -37,6 +37,7 @@ from app.db.models.score import (
     RevisionSourceFormat,
 )
 from app.modules.library.service import LibraryService
+from app.modules.import_jobs.service import ImportJobService
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
 )
@@ -169,6 +170,11 @@ class ReviewService:
         if job.score_id is not None:
             score = await db.get(Score, job.score_id)
             if score:
+                await ImportJobService(storage=self.storage).cleanup_binary_artifacts(
+                    db,
+                    job_uuid,
+                    user_id,
+                )
                 return ReviewConfirmRead(score_id=score.score_uuid)
         if job.state != ImportJobState.PENDING_REVIEW:
             raise ConflictException(
@@ -312,6 +318,11 @@ class ReviewService:
             revision_uuid=revision_uuid,
             user_id=user_id,
             storage=self.storage,
+        )
+        await ImportJobService(storage=self.storage).cleanup_binary_artifacts(
+            db,
+            job_uuid,
+            user_id,
         )
         return ReviewConfirmRead(score_id=score_uuid)
 

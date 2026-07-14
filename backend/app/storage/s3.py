@@ -13,6 +13,7 @@ class S3CompatibleStorage:
 
     backend_name = "s3"
     score_prefix = "scores"
+    upload_prefix = "uploads"
     avatar_prefix = "avatars"
     cache_prefix = "storage-cache"
 
@@ -174,12 +175,12 @@ class S3CompatibleStorage:
         if existing:
             return existing
         return self.put_bytes(
-            key=f"{self.score_prefix}/{sha256}{extension}",
+            key=f"{self.upload_prefix}/{sha256}{extension}",
             content=content,
         )
 
     def find_score_upload(self, sha256: str) -> StoredFile | None:
-        prefix = self._normalize_key(f"{self.score_prefix}/{sha256}")
+        prefix = self._normalize_key(f"{self.upload_prefix}/{sha256}")
         response = self.client.list_objects_v2(
             Bucket=self.bucket,
             Prefix=prefix,
@@ -209,14 +210,14 @@ class S3CompatibleStorage:
         return paths
 
     def score_upload_path(self, filename: str) -> str:
-        key = f"{self.score_prefix}/{filename}"
+        key = f"{self.upload_prefix}/{filename}"
         return self.materialize_to_local(key, self.local_path(key))
 
     def score_upload_exists(self, filename: str) -> bool:
-        return self.exists(f"{self.score_prefix}/{filename}")
+        return self.exists(f"{self.upload_prefix}/{filename}")
 
     def delete_score_upload(self, filename: str) -> bool:
-        return self.delete(f"{self.score_prefix}/{filename}")
+        return self.delete(f"{self.upload_prefix}/{filename}")
 
     def save_avatar(
         self,

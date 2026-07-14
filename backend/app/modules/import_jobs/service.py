@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -158,6 +159,27 @@ class ImportJobService:
         orphan_uploads = await self._orphan_uploads_after_job_delete(db, job_id)
         cleanup_objects = await self._collect_delete_cleanup_objects(db, job_id, orphan_uploads)
         await db.delete(job)
+        await db.flush()
+        for upload in orphan_uploads:
+            await db.delete(upload)
+        await db.commit()
+        for cleanup_object in cleanup_objects:
+            await self._delete_storage_and_release_usage(db, user_id, cleanup_object)
+
+    async def cleanup_binary_artifacts(
+        self,
+        db: AsyncSession,
+        job_uuid: str,
+        user_id: int,
+    ) -> None:
+        job = await self.get_owned_job(db, job_uuid, user_id)
+        if job.state == ImportJobState.RUNNING:
+            raise ValidationException(code=ErrorCode.JOB_RUNNING, field="state")
+        job_id = require_persisted_id(job.id, entity="import job")
+        orphan_uploads = await self._orphan_uploads_after_job_delete(db, job_id)
+        cleanup_objects = await self._collect_delete_cleanup_objects(db, job_id, orphan_uploads)
+        await db.execute(sa_delete(ImportArtifact).where(ImportArtifact.job_id == job_id))
+        await db.execute(sa_delete(ImportJobUpload).where(ImportJobUpload.job_id == job_id))
         await db.flush()
         for upload in orphan_uploads:
             await db.delete(upload)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -11,6 +11,7 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
+    ImportJob,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -33,6 +34,7 @@ from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.render_service import RevisionRenderService
+from app.modules.import_jobs.service import ImportJobService
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
@@ -143,6 +145,11 @@ class ScoreService:
         assert score is not None
         score_id = require_persisted_id(score.id, entity="score")
         owner_user_id = score.owner_user_id
+        originating_job_uuid = await self._single_score_originating_job_uuid(
+            db,
+            score_id=score_id,
+            originating_job_id=score.originating_job_id,
+        )
         usage_releases: list[tuple[StorageUsageCategory, int, str, str, str]] = []
         keys = list(
             (
@@ -240,6 +247,34 @@ class ScoreService:
             except Exception:
                 # Database deletion is authoritative; orphan cleanup retries storage removal.
                 pass
+        if originating_job_uuid is not None:
+            await ImportJobService(storage=self.storage).delete(
+                db,
+                originating_job_uuid,
+                owner_user_id,
+            )
+
+    async def _single_score_originating_job_uuid(
+        self,
+        db: AsyncSession,
+        *,
+        score_id: int,
+        originating_job_id: int | None,
+    ) -> str | None:
+        if originating_job_id is None:
+            return None
+        sibling_count = (
+            await db.execute(
+                select(func.count(Score.id)).where(
+                    Score.originating_job_id == originating_job_id,
+                    Score.id != score_id,
+                )
+            )
+        ).scalar_one()
+        if sibling_count:
+            return None
+        job = await db.get(ImportJob, originating_job_id)
+        return job.job_uuid if job is not None else None
 
     async def _read(
         self,

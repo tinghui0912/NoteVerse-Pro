@@ -532,13 +532,119 @@ async def test_score_delete_releases_source_usage_and_storage_object(
 
 
 @pytest.mark.asyncio
+async def test_score_delete_cleans_single_origin_import_job_storage(
+    storage_usage_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = storage_usage_session
+    score, _revision, source = _seed_score_with_source(session, storage)
+    assert score.id is not None
+    assert score.score_uuid is not None
+    assert source.size_bytes is not None
+    job_uuid = "score-delete-origin-job"
+    upload = storage.put_bytes(
+        key="uploads/origin-upload.png",
+        content=b"uploaded image",
+        content_type="image/png",
+    )
+    review_source = storage.put_bytes(
+        key=f"jobs/{job_uuid}/review_musicxml/review.musicxml",
+        content=b"<score-partwise />",
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    job = ImportJob(
+        id=1201,
+        job_uuid=job_uuid,
+        user_id=1,
+        state=ImportJobState.CONFIRMED,
+        progress=100,
+        score_id=score.id,
+    )
+    session.add(job)
+    session.add(
+        Upload(
+            id=1202,
+            sha256="origin-upload-sha",
+            storage_backend=storage.backend_name,
+            storage_key=upload.storage_key,
+            filename=upload.filename,
+            original_filename="origin.png",
+            size_bytes=upload.size_bytes,
+            mime_type="image/png",
+            uploader_user_id=1,
+        )
+    )
+    session.commit()
+    score.originating_job_id = 1201
+    session.add(score)
+    session.add(ImportJobUpload(job_id=1201, upload_id=1202))
+    session.add(
+        ImportArtifact(
+            artifact_uuid="origin-review-source",
+            job_id=1201,
+            kind=FileKind.REVIEW_MUSICXML.value,
+            storage_backend=storage.backend_name,
+            storage_key=review_source.storage_key,
+            filename=review_source.filename,
+            mime_type="application/vnd.recordare.musicxml+xml",
+            size_bytes=review_source.size_bytes,
+        )
+    )
+    session.commit()
+    storage_usage_service.record_allocation_sync(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.SOURCE,
+        bytes_count=source.size_bytes,
+        reason="seed_source",
+        object_type="score_revision_source",
+        object_id=source.source_uuid,
+        storage_key=source.storage_key,
+    )
+    storage_usage_service.record_allocation_sync(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.UPLOAD,
+        bytes_count=upload.size_bytes,
+        reason="seed_upload",
+        object_type="upload",
+        object_id="origin-upload-sha",
+        storage_key=upload.storage_key,
+    )
+    storage_usage_service.record_allocation_sync(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.TEMP_IMPORT,
+        bytes_count=review_source.size_bytes,
+        reason="seed_import_artifact",
+        object_type="import_artifact",
+        object_id="origin-review-source",
+        storage_key=review_source.storage_key,
+    )
+    source_storage_key = source.storage_key
+    upload_storage_key = upload.storage_key
+    review_source_storage_key = review_source.storage_key
+
+    await ScoreService(storage=storage).delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+
+    assert session.get(Score, score.id) is None
+    assert session.get(ImportJob, 1201) is None
+    assert session.get(Upload, 1202) is None
+    assert not storage.exists(source_storage_key)
+    assert not storage.exists(upload_storage_key)
+    assert not storage.exists(review_source_storage_key)
+    account = session.get(StorageUsageAccount, 1)
+    assert account is not None
+    assert account.used_bytes == 0
+
+
+@pytest.mark.asyncio
 async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
     storage_usage_session: tuple[Session, LocalFileStorage],
 ) -> None:
     session, storage = storage_usage_session
     job_uuid = "job-delete-owned-storage"
     upload = storage.put_bytes(
-        key="scores/delete-owned-upload.png",
+        key="uploads/delete-owned-upload.png",
         content=b"uploaded image",
         content_type="image/png",
     )
@@ -647,7 +753,7 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
 ) -> None:
     session, storage = storage_usage_session
     upload = storage.put_bytes(
-        key="scores/shared-upload.png",
+        key="uploads/shared-upload.png",
         content=b"shared upload",
         content_type="image/png",
     )

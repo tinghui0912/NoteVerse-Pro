@@ -15,6 +15,16 @@ import { MyScoreCard } from '@/components/my-scores/my-score-card';
 import { ImportJobCard } from '@/components/my-scores/import-job-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { PageHeader } from '@/components/page';
 import { useDeleteImportJob, useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import {
@@ -39,6 +49,11 @@ import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { MyScoresPageView, MyScoresSort } from '@/types/api';
 
+type DeleteTarget = {
+  scoreIds: string[];
+  jobIds: string[];
+} | null;
+
 export default function MyScoresPage({
   searchParams,
 }: {
@@ -51,6 +66,7 @@ export default function MyScoresPage({
 }) {
   const params = React.use(searchParams);
   const t = useTranslations('myScores');
+  const common = useTranslations('common');
   const errors = useTranslations('errors');
   const router = useRouter();
   const view = normalizeMyScoresView(params.view);
@@ -79,6 +95,7 @@ export default function MyScoresPage({
   const [batchMode, setBatchMode] = React.useState(false);
   const [selectedScoreIds, setSelectedScoreIds] = React.useState<Set<string>>(new Set());
   const [selectedJobIds, setSelectedJobIds] = React.useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget>(null);
   const selectedCount = selectedScoreIds.size;
   const selectedJobCount = selectedJobIds.size;
   const scoreIds = React.useMemo(() => scores.map((score) => score.score_id), [scores]);
@@ -139,6 +156,7 @@ export default function MyScoresPage({
   };
   const selectedIds = () => Array.from(selectedScoreIds);
   const selectedJobs = () => Array.from(selectedJobIds);
+  const deleteTargetCount = (deleteTarget?.scoreIds.length ?? 0) + (deleteTarget?.jobIds.length ?? 0);
 
   const navigate = (next: {
     view?: MyScoresPageView;
@@ -149,22 +167,23 @@ export default function MyScoresPage({
     router.push(buildMyScoresHref({ view, search: params.search, sort }, next));
   };
   const handleDeleteSelected = () => {
-    const totalSelected = selectedCount + selectedJobCount;
-    if (!totalSelected || !window.confirm(t('confirmDeleteSelected', { count: totalSelected }))) {
-      return;
-    }
+    if (selectedCount + selectedJobCount === 0) return;
+    setDeleteTarget({ scoreIds: selectedIds(), jobIds: selectedJobs() });
+  };
+  const confirmDeleteTarget = () => {
+    if (!deleteTarget || deleteTargetCount === 0) return;
     Promise.all([
-      selectedCount ? deleteScores.mutateAsync(selectedIds()) : Promise.resolve(),
-      ...selectedJobs().map((jobId) => deleteJob.mutateAsync(jobId)),
+      deleteTarget.scoreIds.length ? deleteScores.mutateAsync(deleteTarget.scoreIds) : Promise.resolve(),
+      ...deleteTarget.jobIds.map((jobId) => deleteJob.mutateAsync(jobId)),
     ])
-      .then(clearSelection)
+      .then(() => {
+        clearSelection();
+        setDeleteTarget(null);
+      })
       .catch(() => undefined);
   };
   const deleteSingleScore = (scoreId: string) => {
-    if (!window.confirm(t('confirmDeleteSelected', { count: 1 }))) {
-      return;
-    }
-    deleteScores.mutate([scoreId]);
+    setDeleteTarget({ scoreIds: [scoreId], jobIds: [] });
   };
   const handlePublishSelected = () => {
     publishScores.mutate(selectedIds(), { onSuccess: clearSelection });
@@ -280,7 +299,7 @@ export default function MyScoresPage({
                       : `/upload?job_id=${encodeURIComponent(job.job_id)}`
                   )}
                   onToggleSelection={() => toggleJobSelection(job.job_id)}
-                  onDismiss={() => deleteJob.mutate(job.job_id)}
+                  onDismiss={() => setDeleteTarget({ scoreIds: [], jobIds: [job.job_id] })}
                   t={t}
                 />
               ))}
@@ -326,6 +345,31 @@ export default function MyScoresPage({
               t={t}
             />
           ) : null}
+          <AlertDialog
+            open={deleteTarget !== null}
+            onOpenChange={(open) => {
+              if (!open) setDeleteTarget(null);
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('deleteDialogDescription', { count: deleteTargetCount })}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={deleteScores.isPending || deleteJob.isPending || deleteTargetCount === 0}
+                  onClick={confirmDeleteTarget}
+                >
+                  {t('deleteDialogConfirm')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
     </div>
   );
 }
