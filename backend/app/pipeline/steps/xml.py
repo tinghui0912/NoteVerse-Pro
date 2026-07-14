@@ -1,8 +1,5 @@
 """XML preparation step."""
 
-import os
-from typing import cast
-
 from celery.utils.log import get_task_logger
 
 from ..base import Step
@@ -26,15 +23,6 @@ class ExtractXmlStep(Step):
 
         files_dict = ctx.omr_result["files"]
         main_xml = files_dict.get("xml")
-        mxl_path = files_dict.get("mxl")
-
-        if not main_xml and mxl_path and os.path.exists(mxl_path):
-            from app.processing.extractors.mxl import MXLExtractAllSuccessResult, MXLExtractor
-
-            mx_result = MXLExtractor().extract_all_xml(mxl_path, ctx.xml_dir)
-            if mx_result.get("success"):
-                success_result = cast(MXLExtractAllSuccessResult, mx_result)
-                main_xml = success_result["main_xml"]
 
         if not main_xml:
             raise RuntimeError("OMR processing failed")

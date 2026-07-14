@@ -9,7 +9,6 @@ class OmrOutputFiles(TypedDict, total=False):
     """Files emitted by an OMR engine."""
 
     xml: str
-    mxl: str
     abc: str
     raw_prediction: str
     log: str

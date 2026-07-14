@@ -66,8 +66,6 @@ class JobContext:
     job_temp: str = ""
     raw_dir: str = ""
     omr_dir: str = ""
-    xml_dir: str = ""
-    preview_dir: str = ""
 
     _start_ts: float = field(default_factory=time.time)
     _deadline: float = 0
@@ -82,8 +80,6 @@ class JobContext:
         self.job_temp = os.path.join(settings.WORK_ROOT, self.job_id)
         self.raw_dir = os.path.join(self.job_temp, "raw")
         self.omr_dir = os.path.join(self.job_temp, "omr")
-        self.xml_dir = os.path.join(self.job_temp, "xml")
-        self.preview_dir = os.path.join(self.job_temp, "preview")
 
         self._tracker = None
 
@@ -188,7 +184,7 @@ class JobContext:
 
     def create_dirs(self) -> None:
         """Create per-job working directories."""
-        dirs = [self.raw_dir, self.omr_dir, self.xml_dir, self.preview_dir]
+        dirs = [self.raw_dir, self.omr_dir]
         for directory in dirs:
             os.makedirs(directory, exist_ok=True)
 

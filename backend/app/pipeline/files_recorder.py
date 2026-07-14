@@ -31,7 +31,6 @@ def _guess_mime_type(path: str) -> str:
     custom_types = {
         ".xml": "application/xml",
         ".musicxml": "application/vnd.recordare.musicxml+xml",
-        ".mxl": "application/vnd.recordare.musicxml",
         ".png": "image/png",
         ".svg": "image/svg+xml",
         ".jpg": "image/jpeg",
