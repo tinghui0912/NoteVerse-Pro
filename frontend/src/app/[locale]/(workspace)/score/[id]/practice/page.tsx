@@ -324,7 +324,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       await socket.open(wsUrl);
       setConnectionStatus('ready');
     } catch {
-      console.warn('Practice session preparation failed.');
       preconnectStartedRef.current = false;
       setConnectionStatus('error');
       socket.close();
@@ -382,7 +381,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       setPracticeClockStarted(true);
       recording.start();
     } catch (error) {
-      console.error('Failed to start practice session:', error);
       const isUnsupportedRealtimeAudio =
         error instanceof Error && error.message === 'practice_realtime_audio_unsupported';
       updatePracticeStatus('idle');
@@ -418,9 +416,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       if (!sendPracticeControl('client.pause')) {
         void practiceSession
           .runRestControl('pause', sessionId)
-          .catch((error) => {
-            console.error('Failed to pause practice session:', error);
-          });
+          .catch(() => undefined);
       }
       return;
     }
@@ -433,9 +429,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       if (!sendPracticeControl('client.resume')) {
         void practiceSession
           .runRestControl('resume', sessionId)
-          .catch((error) => {
-            console.error('Failed to resume practice session:', error);
-          });
+          .catch(() => undefined);
       }
     }
   };
@@ -457,9 +451,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
     void practiceSession
       .runRestControl('finish', currentSessionId)
-      .catch((error) => {
-        console.error('Failed to finish practice session:', error);
-      })
+      .catch(() => undefined)
       .finally(() => {
         socket.close();
         prepareNextPracticeSession();
@@ -498,8 +490,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         throw new Error('Analysis failed');
       }
       router.push(`/score/${id}/practice/performance?sessionId=${encodeURIComponent(reportSessionId)}`);
-    } catch (error) {
-      console.error('Failed to get practice analysis:', error);
+    } catch {
       toast({
         variant: 'destructive',
         title: t('analysisFailedTitle'),

@@ -285,8 +285,7 @@ export function insertEntity(params: InsertEntityParams): InsertEntityResult {
             historyLabel: created.historyLabel,
             insertedEntityId,
         };
-    } catch (error) {
-        console.error('Failed to insert entity:', error);
+    } catch {
         return { success: false };
     }
 }

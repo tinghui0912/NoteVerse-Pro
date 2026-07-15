@@ -96,8 +96,7 @@ export function ScoreDataProvider({ children }: ScoreDataProviderProps) {
             const newScoreData = parser.parse();
             setScoreData(newScoreData);
             return newScoreData;
-        } catch (error) {
-            console.error('Failed to reparse XML:', error);
+        } catch {
             return null;
         }
     }, [scoreData, getExpectedVoices]);

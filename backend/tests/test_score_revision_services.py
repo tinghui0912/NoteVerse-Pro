@@ -26,6 +26,7 @@ from app.db.models import (
     NotificationEvent,
     PlaybackAssetKind,
     PlaybackOutbox,
+    PlaybackOutboxStatus,
     RealtimeEvent,
     Score,
     ScorePlaybackAsset,
@@ -73,6 +74,7 @@ from app.modules.revisions.derived_asset_retention_service import (
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.fingering_service import strip_existing_fingerings
 from app.modules.score_assets.service import ScoreAssetService
+from app.modules.score_assets.derived_assets import derived_asset_status
 from app.modules.score_assets.render_outbox_service import RenderOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
@@ -108,6 +110,21 @@ MUSICXML_2 = """<?xml version='1.0'?><score-partwise version='4.0'>
 <part id='P1'><measure number='1'><attributes><divisions>1</divisions></attributes>
 <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
 </measure></part></score-partwise>"""
+
+
+def test_derived_asset_status_uses_public_product_states() -> None:
+    assert derived_asset_status(
+        has_current_asset=False,
+        outbox_status=RenderOutboxStatus.FAILED,
+    ) == "unavailable"
+    assert derived_asset_status(
+        has_current_asset=False,
+        outbox_status=PlaybackOutboxStatus.FAILED,
+    ) == "unavailable"
+    assert derived_asset_status(
+        has_current_asset=True,
+        outbox_status=RenderOutboxStatus.FAILED,
+    ) == "ready"
 
 T = TypeVar("T")
 
@@ -633,10 +650,22 @@ def test_import_job_detail_exposes_public_failure_fields_only(
             error_type="PipelineEngineError",
         )
     )
+    session.add(
+        ImportJob(
+            id=20,
+            job_uuid="job-unsafe-code-failure",
+            user_id=1,
+            state=ImportJobState.FAILURE,
+            error="redis broker unavailable",
+            code="redis broker unavailable",
+            error_type="ImportDispatchFailure",
+        )
+    )
     session.commit()
 
     detail = SyncImportJobService().get_detail(session, "job-public-failure")
     raw_detail = SyncImportJobService().get_detail(session, "job-raw-failure")
+    unsafe_code_detail = SyncImportJobService().get_detail(session, "job-unsafe-code-failure")
 
     assert detail["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
     assert detail["public_message"] == ErrorCode.SCORE_RECOGNITION_FAILED
@@ -647,6 +676,9 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     assert raw_detail["public_message"] == ErrorCode.TASK_ERROR
     assert "paddleocr" not in str(raw_detail)
     assert "/internal/path" not in str(raw_detail)
+    assert unsafe_code_detail["public_code"] == ErrorCode.TASK_ERROR
+    assert unsafe_code_detail["public_message"] == ErrorCode.TASK_ERROR
+    assert "redis" not in str(unsafe_code_detail)
 
 
 def test_review_thumbnail_records_temp_import_usage(

@@ -72,8 +72,7 @@ export function useVoiceEditor() {
 
             recalculateBackups(measureEl);
             return serializeXml(xmlDoc);
-        } catch (error) {
-            console.error('Failed to remove voice elements:', error);
+        } catch {
             return null;
         }
     }, [currentXml]);
@@ -215,9 +214,7 @@ export function useVoiceEditor() {
 
             const parser = new MusicXMLParser(newXml);
             setScoreData(parser.parse());
-        } catch (error) {
-            console.error('Failed to delete track:', error);
-        }
+        } catch {}
     }, [currentXml, currentXmlRef, scoreData, setCurrentXml, setScoreData, history, t]);
 
     return {

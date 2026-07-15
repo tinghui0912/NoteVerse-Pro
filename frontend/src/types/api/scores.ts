@@ -43,7 +43,7 @@ export interface ScorePublicationSummary {
   status: 'PUBLISHED' | 'UNPUBLISHED';
 }
 
-export type DerivedAssetStatus = 'pending' | 'processing' | 'ready' | 'failed';
+export type DerivedAssetStatus = 'pending' | 'processing' | 'ready' | 'unavailable';
 
 export interface ScoreDerivedAsset {
   status: DerivedAssetStatus;

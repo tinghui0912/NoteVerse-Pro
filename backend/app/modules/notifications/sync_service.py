@@ -139,8 +139,6 @@ class SyncNotificationService:
         *,
         job_uuid: str,
         recipient_user_id: int,
-        code: str | None,
-        error_type: str | None,
     ) -> None:
         event = self.create_event_best_effort(
             db,

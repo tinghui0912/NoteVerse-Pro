@@ -196,8 +196,7 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
             newXml,
             newScoreData: newParser.parse(),
         };
-    } catch (error) {
-        console.error('Failed to update entity:', error);
+    } catch {
         return { success: false };
     }
 }

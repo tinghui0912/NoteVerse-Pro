@@ -359,7 +359,6 @@ export function addTieElementsToXML(
     const { startNotes, endNotes } = getConnectionNotes(xmlDoc, startMeta, endMeta, target);
 
     if (startNotes.length === 0 || endNotes.length === 0) {
-        console.error('无法找到音符元素');
         return;
     }
 
@@ -386,7 +385,6 @@ export function addSlurElementsToXML(
     const { startNotes, endNotes } = getConnectionNotes(xmlDoc, startMeta, endMeta, target);
 
     if (startNotes.length === 0 || endNotes.length === 0) {
-        console.error('无法找到音符元素');
         return;
     }
 

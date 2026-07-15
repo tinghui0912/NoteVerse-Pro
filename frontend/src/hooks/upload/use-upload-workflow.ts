@@ -184,9 +184,7 @@ export function useUploadWorkflow() {
           setTaskError(translateTaskError(data.public_code, t('processingFailed')));
           setTaskProgress(0);
         }
-      } catch (error) {
-        if (!controller.signal.aborted) console.error('Failed to restore upload task:', error);
-      }
+      } catch {}
     });
 
     return () => {

@@ -1,25 +1,18 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useEffect } from 'react';
 import { ErrorState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCcw, Home } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 
 export default function EditorError({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
   const t = useTranslations('common');
-
-  useEffect(() => {
-    // Specifically log editor errors
-    console.error("Editor Error:", error);
-  }, [error]);
 
   return (
     <ErrorState

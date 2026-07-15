@@ -12,6 +12,7 @@ from app.core.exceptions import FileException, ResourceNotFoundException, Unauth
 from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, ScoreInputAsset, StorageBlob, StorageUsageCategory, Upload, User
 from app.db.models.import_job import ImportJobState
 from app.db.model_utils import require_persisted_id
+from app.modules.import_jobs.public_errors import public_import_job_error
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobDetail, ImportJobProcessingOptions, ImportJobStatusEntry, ImportJobSubmitRequestLike, ImportJobSubmitResult
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
@@ -149,11 +150,12 @@ class ImportJobService:
             job.job_uuid: {
                 "state": job.state,
                 "progress": job.progress,
-                "public_code": job.code or (ErrorCode.TASK_ERROR if job.error else None),
-                "public_message": job.code or (ErrorCode.TASK_ERROR if job.error else None),
+                "public_code": public_code,
+                "public_message": public_message,
                 "score_id": None,
             }
             for job in jobs
+            for public_code, public_message in [public_import_job_error(job)]
         }
 
     async def delete(self, db: AsyncSession, job_uuid: str, user_id: int) -> None:

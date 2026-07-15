@@ -363,42 +363,8 @@ export class PracticeFollowController {
     alignment: PracticeAlignmentUpdateMessage['payload'],
     candidate: PracticeVisualTimelineEntry | null
   ) {
-    if (!this.debugEnabled) {
-      return;
-    }
-
-    console.debug('[practice_follow]', {
-      decision,
-      mode: this.state.mode,
-      beat: alignment.beat_position,
-      confidence: alignment.confidence,
-      visualConfidence: getVisualConfidence(alignment),
-      alignmentConfidence: alignment.alignment_confidence,
-      audioConfidence: alignment.audio_confidence,
-      continuityConfidence: alignment.continuity_confidence,
-      featureConfidence: alignment.feature_confidence,
-      beatDelta: alignment.beat_delta,
-      pendingTimelineIndex: this.state.pendingTimelineIndex,
-      pendingBeat: this.state.pendingBeat,
-      pendingCount: this.state.pendingCount,
-      commitFrames: this.commitFrames,
-      matchState: alignment.match_state,
-      streamState: alignment.stream_state,
-      frameClass: alignment.frame_class,
-      gateReason: alignment.gate_reason,
-      queueDecision: alignment.queue_decision,
-      tonalSignal: alignment.tonal_signal,
-      onsetSignal: alignment.onset_signal,
-      spectralFlatness: alignment.spectral_flatness,
-      peakProminence: alignment.peak_prominence,
-      spectralFlux: alignment.spectral_flux,
-      alignmentState: alignment.alignment_state,
-      continuityState: alignment.continuity_state,
-      beatVelocity: alignment.beat_velocity,
-      validationConfidence: alignment.validation_confidence,
-      inputWeight: alignment.input_weight,
-      inputPolicyConfidence: alignment.input_policy_confidence,
-      candidate,
-    });
+    void decision;
+    void alignment;
+    void candidate;
   }
 }

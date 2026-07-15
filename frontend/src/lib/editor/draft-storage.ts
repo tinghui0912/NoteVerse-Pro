@@ -48,9 +48,7 @@ export async function saveDraft(
       xml,
       savedAt: Date.now(),
     });
-  } catch (error) {
-    console.error('[DraftStorage] Failed to save draft:', error);
-  }
+  } catch {}
 }
 
 export async function loadDraft(
@@ -59,8 +57,7 @@ export async function loadDraft(
 ): Promise<DraftEntry | undefined> {
   try {
     return await draftTable().get(draftId(scoreId, baseRevisionId));
-  } catch (error) {
-    console.error('[DraftStorage] Failed to load draft:', error);
+  } catch {
     return undefined;
   }
 }
@@ -68,9 +65,7 @@ export async function loadDraft(
 export async function deleteDraft(scoreId: string, baseRevisionId: string): Promise<void> {
   try {
     await draftTable().delete(draftId(scoreId, baseRevisionId));
-  } catch (error) {
-    console.error('[DraftStorage] Failed to delete draft:', error);
-  }
+  } catch {}
 }
 
 export async function cleanOldDrafts(maxAgeDays = 7): Promise<number> {
@@ -80,8 +75,7 @@ export async function cleanOldDrafts(maxAgeDays = 7): Promise<number> {
     const count = await oldDrafts.count();
     await oldDrafts.delete();
     return count;
-  } catch (error) {
-    console.error('[DraftStorage] Failed to clean old drafts:', error);
+  } catch {
     return 0;
   }
 }

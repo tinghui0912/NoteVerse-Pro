@@ -290,9 +290,7 @@ export function useScorePreviewPlayback({
     try {
       await controller.stop();
       await controller.play();
-    } catch (error) {
-      console.error('[ScorePreview] Failed to repeat playback:', error);
-    }
+    } catch {}
   }, [isLoading]);
 
   useEffect(() => {
@@ -325,9 +323,7 @@ export function useScorePreviewPlayback({
         }
         await controller.play();
       }
-    } catch (error) {
-      console.error('[ScorePreview] Failed to change playback state:', error);
-    }
+    } catch {}
   }, [followViewport, isLoading]);
 
   const stop = useCallback(async () => {
@@ -399,9 +395,7 @@ export function useScorePreviewPlayback({
         }
         startProgressLoop();
         startCursorLoop();
-      } catch (error) {
-        console.error('[ScorePreview] Failed to resume after seek:', error);
-      }
+      } catch {}
     }
     wasPlayingBeforeSeekRef.current = false;
   }, [startCursorLoop, startProgressLoop]);

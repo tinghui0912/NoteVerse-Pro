@@ -46,6 +46,7 @@
   "rhythmAnalysis": "节奏分析",
   "overallSuggestion": "综合建议",
   "scoreDisplayArea": "练习模式乐谱显示区域",
+  "scoreUnavailableDesc": "乐谱暂时无法显示，请刷新页面后重试。",
   "accessDeniedTitle": "无权练习",
   "accessDeniedDesc": "你没有练习这份乐谱的权限。",
   "backToScore": "返回乐谱"

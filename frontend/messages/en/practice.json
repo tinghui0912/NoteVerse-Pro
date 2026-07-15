@@ -46,6 +46,7 @@
   "rhythmAnalysis": "Rhythm Analysis",
   "overallSuggestion": "Overall Suggestion",
   "scoreDisplayArea": "Practice mode score display area",
+  "scoreUnavailableDesc": "This score cannot be displayed right now. Please refresh the page and try again.",
   "accessDeniedTitle": "Practice unavailable",
   "accessDeniedDesc": "You do not have permission to practice this score.",
   "backToScore": "Back to score"

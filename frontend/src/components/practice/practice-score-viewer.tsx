@@ -49,7 +49,6 @@ export function PracticeScoreViewer({
   const isMobile = useIsMobile();
   const t = useTranslations('common');
   const tPractice = useTranslations('practice');
-  const errors = useTranslations('errors');
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const followController = useMemo(() => new PracticeFollowController(), []);
@@ -206,7 +205,7 @@ export function PracticeScoreViewer({
         emptyContent={
           <EmptyState title={tPractice('scoreDisplayArea')} className="min-h-[45vh]" />
         }
-        errorMessage={errors('score_preview_failed')}
+        errorMessage={tPractice('scoreUnavailableDesc')}
         renderError={(message) => (
           <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center text-destructive">
             <AlertTriangle className="h-8 w-8" />

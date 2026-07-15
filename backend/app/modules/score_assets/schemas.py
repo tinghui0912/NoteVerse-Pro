@@ -36,7 +36,7 @@ class ScoreRevisionAssetsRead(BaseModel):
     render_assets: list[RenderAssetRead]
 
 
-DerivedAssetStatus = Literal["pending", "processing", "ready", "failed"]
+DerivedAssetStatus = Literal["pending", "processing", "ready", "unavailable"]
 
 
 class ScoreDerivedAssetRead(BaseModel):

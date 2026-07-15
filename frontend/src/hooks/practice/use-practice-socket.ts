@@ -73,9 +73,7 @@ export function usePracticeSocket({ onMessage, onClose }: PracticeSocketOptions)
       socket.onmessage = (event) => {
         try {
           onMessageRef.current(JSON.parse(event.data) as PracticeServerMessage);
-        } catch {
-          console.warn('Ignored malformed practice realtime message.');
-        }
+        } catch {}
       };
       socket.onclose = () => {
         const intentional = intentionalSocketsRef.current.has(socket);

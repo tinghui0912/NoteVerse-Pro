@@ -32,7 +32,7 @@ interface ScoreInfoPanelProps {
   canEditTitle?: boolean;
   createdAt?: string | null;
   imageCount: number;
-  imageCountStatus?: 'pending' | 'processing' | 'ready' | 'failed';
+  imageCountStatus?: 'pending' | 'processing' | 'ready' | 'unavailable';
   metadata?: ScoreMetadata | null;
   scoreId?: string;
   taxonomyTags: ScoreTaxonomyTag[];
@@ -93,7 +93,7 @@ export function ScoreInfoPanel({
   const availableTags = SCORE_GENRE_TAGS.filter((tag) => !selectedKeys.has(taxonomyTagKey(tag)));
   const imageCountLabel = imageCount > 0
     ? t('pageCount', { count: imageCount })
-    : imageCountStatus === 'pending' || imageCountStatus === 'processing' || imageCountStatus === 'failed'
+    : imageCountStatus === 'pending' || imageCountStatus === 'processing' || imageCountStatus === 'unavailable'
       ? t('pageCountUnknown')
       : t('pageCount', { count: imageCount });
 

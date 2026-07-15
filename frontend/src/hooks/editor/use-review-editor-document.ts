@@ -80,8 +80,7 @@ export function useReviewEditorDocument({
         }
         if (cancelled) return;
         await applyXml(xmlContent, { resetHistory: true, updateRawXml: true });
-      } catch (error) {
-        console.error('Failed to parse review XML:', error);
+      } catch {
         if (!cancelled) {
           setLoadError(common('loadFailedDescription'));
           clearXml();

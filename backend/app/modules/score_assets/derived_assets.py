@@ -28,7 +28,7 @@ def derived_asset_status(
     }:
         return "processing"
     if outbox_status in {RenderOutboxStatus.FAILED, PlaybackOutboxStatus.FAILED}:
-        return "failed"
+        return "unavailable"
     return "pending"
 
 

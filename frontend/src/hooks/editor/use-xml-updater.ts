@@ -49,8 +49,8 @@ export function useXmlUpdater() {
                 expectedVoices: getExpectedVoices(scoreData)
             });
             setScoreData(newParser.parse());
-        } catch (e) {
-            console.error("Failed to update MusicXML", e);
+        } catch {
+            // Keep the previous editable score state when an update cannot be applied.
         }
     }, [currentXml, currentXmlRef, history, setCurrentXml, getExpectedVoices, scoreData, setScoreData, t]);
 

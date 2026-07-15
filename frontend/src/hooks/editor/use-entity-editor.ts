@@ -220,9 +220,7 @@ export function useEntityEditor() {
             const parsedData = newParser.parse();
             setScoreData(parsedData);
 
-        } catch (error) {
-            console.error('Failed to delete entity:', error);
-        }
+        } catch {}
     }, [currentXml, scoreData, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, t]);
 
     return {

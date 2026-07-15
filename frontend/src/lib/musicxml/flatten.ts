@@ -187,7 +187,6 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
                     currentGroup.chordMembers.push(noteInfo);
                 } else {
                     // 孤立的和弦成员，转换为主音符
-                    console.warn(`[NORMALIZE_VOICES] staff ${staff}: 发现孤立的和弦成员，将其转换为主音符`);
                     noteInfo.isChord = false;
                     const chordEl = noteInfo.note.querySelector('chord');
                     if (chordEl) chordEl.remove();

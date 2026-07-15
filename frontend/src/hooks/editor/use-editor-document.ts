@@ -87,8 +87,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
         }
         if (cancelled) return;
         await applyXml(xmlContent, { resetHistory: true, updateRawXml: true });
-      } catch (error) {
-        console.error('Failed to parse score XML:', error);
+      } catch {
         if (!cancelled) {
           setLoadError(common('loadFailedDescription'));
           clearXml();
@@ -178,8 +177,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
               resetHistory: false,
             });
             toast({ title: t('fingeringGenerated'), description: t('fingeringGeneratedDesc') });
-          } catch (error) {
-            console.error('Failed to apply generated fingering:', error);
+          } catch {
             toast({
               title: t('fingeringFailed'),
               description: t('fingeringFailedDesc'),

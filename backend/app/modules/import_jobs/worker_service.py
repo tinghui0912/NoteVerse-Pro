@@ -15,6 +15,7 @@ from app.modules.async_operations.diagnostics import (
     apply_async_diagnostic,
     clear_async_diagnostic,
 )
+from app.modules.import_jobs.public_errors import public_import_job_error
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.schemas import (
@@ -141,8 +142,6 @@ class SyncImportJobService:
             db,
             job_uuid=job.job_uuid,
             recipient_user_id=job.user_id,
-            code=job.code,
-            error_type=job.error_type,
         )
 
     def _notify_success(self, db: Session, job) -> None:
@@ -253,6 +252,7 @@ class SyncImportJobService:
                 "public_code": ErrorCode.JOB_NOT_FOUND,
                 "public_message": ErrorCode.JOB_NOT_FOUND,
             }
+        public_code, public_message = public_import_job_error(job)
         job_id = require_persisted_id(job.id, entity="import job")
         requested_options = job.requested_options or {}
         requested_title = requested_options.get("title")
@@ -291,8 +291,8 @@ class SyncImportJobService:
             "updated_at": job.updated_at.isoformat(),
             "started_at": job.started_at.isoformat() if job.started_at else None,
             "finished_at": job.finished_at.isoformat() if job.finished_at else None,
-            "public_code": job.code or (ErrorCode.TASK_ERROR if job.error else None),
-            "public_message": job.code or (ErrorCode.TASK_ERROR if job.error else None),
+            "public_code": public_code,
+            "public_message": public_message,
             "original_images": [{
                 "artifact_id": f"upload:{require_persisted_id(upload.id, entity='upload')}",
                 "filename": upload.original_filename or blob.filename,

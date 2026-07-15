@@ -90,8 +90,7 @@ export function useReviewPageData(jobId: string) {
     try {
       const scoreData = new MusicXMLParser(xmlContent).parse();
       return validateDataIntegrity(scoreData, xmlContent, translateValidationKey).warnings;
-    } catch (error) {
-      console.error('[Review] Failed to validate recognition result:', error);
+    } catch {
       return [];
     }
   }, [translateValidationKey, xmlContent]);
