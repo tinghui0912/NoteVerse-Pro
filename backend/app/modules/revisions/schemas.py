@@ -49,7 +49,6 @@ class RevisionRead(BaseModel):
     revision_number: int
     parent_revision_id: str | None
     base_revision_id: str | None
-    content_hash: str
     origin: RevisionOrigin
     created_at: datetime
     created_by: RevisionActorRead | None

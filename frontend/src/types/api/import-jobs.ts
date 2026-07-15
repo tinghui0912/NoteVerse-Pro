@@ -26,8 +26,6 @@ export interface ImportJob {
 
 export interface ImportArtifact {
   artifact_id: string;
-  storage_backend: string;
-  storage_key: string;
   filename: string;
   page_number?: number;
   size?: number;

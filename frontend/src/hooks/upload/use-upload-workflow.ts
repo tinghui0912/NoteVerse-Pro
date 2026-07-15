@@ -164,7 +164,7 @@ export function useUploadWorkflow() {
           if (preview.startsWith('blob:')) restoredBlobUrls.push(preview);
           const uploadInfo = uploadIds[index];
           const originalImage = originalImages[index];
-          const fallbackName = originalImage.filename || originalImage.storage_key?.split('/').pop();
+          const fallbackName = originalImage.filename;
           restoredFiles.push({
             file: new File([], uploadInfo?.original_filename || fallbackName || `image_${index + 1}.png`, {
               type: 'image/png',

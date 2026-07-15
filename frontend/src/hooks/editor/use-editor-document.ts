@@ -92,7 +92,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
       } catch (error) {
         console.error('Failed to parse score XML:', error);
         if (!cancelled) {
-          setLoadError(common('loadFailed'));
+          setLoadError(common('loadFailedDescription'));
           clearXml();
         }
       } finally {
@@ -208,10 +208,10 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     draftDialogOpen,
     finalLoadError: scoreQuery.error || revisionQuery.error
       ? scoreQuery.error instanceof ApiError
-        ? translateErrorCode(errors, scoreQuery.error.code, common('loadFailed'))
+        ? translateErrorCode(errors, scoreQuery.error.code, common('loadFailedDescription'))
         : revisionQuery.error instanceof ApiError
-          ? translateErrorCode(errors, revisionQuery.error.code, common('loadFailed'))
-          : common('loadFailed')
+          ? translateErrorCode(errors, revisionQuery.error.code, common('loadFailedDescription'))
+          : common('loadFailedDescription')
       : loadError,
     fingeringPending: generateFingeringMutation.isPending,
     generateFingering,

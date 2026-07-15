@@ -7,6 +7,7 @@
   "saveSuccessTitle": "保存成功",
   "saveSuccessDesc": "乐谱「{scoreName}」已保存到你的乐谱库。",
   "loadFailed": "加载失败",
+  "loadFailedDesc": "暂时无法加载分享内容，请稍后重试。",
   "saveFailed": "保存失败",
   "saveFailedDesc": "无法保存到乐谱库",
   "errorNotFoundTitle": "分享链接不存在",

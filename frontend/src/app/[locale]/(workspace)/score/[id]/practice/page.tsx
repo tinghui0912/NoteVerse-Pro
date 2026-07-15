@@ -120,11 +120,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const loadError = scoreQuery.error ?? revisionQuery.error;
   const resourceMissingAfterLoad = !isResourceLoading && !loadError && (!revisionId || !xmlContent);
   const loadErrorDescription = loadError instanceof ApiError
-    ? translateErrorCode(errors, loadError.code, common('loadFailed'))
+    ? translateErrorCode(errors, loadError.code, common('loadFailedDescription'))
     : loadError
-      ? common('loadFailed')
+      ? common('loadFailedDescription')
       : resourceMissingAfterLoad
-        ? common('loadFailed')
+        ? common('loadFailedDescription')
       : null;
   const canPreparePractice = canEnterPractice && Boolean(revisionId && xmlContent) && !isResourceLoading && !loadError;
 

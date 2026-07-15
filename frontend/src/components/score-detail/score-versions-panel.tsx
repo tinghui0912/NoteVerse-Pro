@@ -74,9 +74,9 @@ export function ScoreVersionsPanel({
   const restoreRevision = useRestoreRevision();
   const updateNote = useUpdateRevisionNote();
   const error = revisions.error instanceof ApiError && revisions.error.code
-    ? translateErrorCode(errors, revisions.error.code, common('loadFailed'))
+    ? translateErrorCode(errors, revisions.error.code, common('loadFailedDescription'))
     : revisions.error
-      ? common('loadFailed')
+      ? common('loadFailedDescription')
       : null;
 
   const items = useMemo(
@@ -374,7 +374,6 @@ function VersionRow({
       {isExpanded ? (
         <div className="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-2">
           <VersionDetail label={t('revisionIdLabel')} value={revision.revision_id} />
-          <VersionDetail label={t('contentHashLabel')} value={revision.content_hash} />
           <VersionDetail
             label={t('parentRevisionLabel')}
             value={revision.parent_revision_id ?? '-'}

@@ -65,7 +65,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
         ? { icon: Ban, title: t('errorRevokedTitle'), description: t('errorRevokedDesc') }
         : type === 'expired'
           ? { icon: Clock3, title: t('errorExpiredTitle'), description: t('errorExpiredDesc') }
-          : { icon: CircleAlert, title: t('loadFailed'), description: t('loadFailed') };
+          : { icon: CircleAlert, title: t('loadFailed'), description: t('loadFailedDesc') };
     return (
       <ScoreSurface>
         <ResourceLoadError

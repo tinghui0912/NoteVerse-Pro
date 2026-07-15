@@ -16,7 +16,11 @@ from app.modules.async_operations.diagnostics import (
     clear_async_diagnostic,
 )
 from app.modules.import_jobs.repository import SyncImportJobRepository
-from app.modules.import_jobs.schemas import ImportJobArtifactItem, ImportJobDetail
+from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
+from app.modules.import_jobs.schemas import (
+    ImportJobArtifactItem,
+    ImportJobDetail,
+)
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -192,7 +196,7 @@ class SyncImportJobService:
         db: Session,
         job_uuid: str,
         kind: str,
-        items: list[ImportJobArtifactItem],
+        items: list[ImportJobStoredArtifactItem],
     ) -> None:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
@@ -258,8 +262,6 @@ class SyncImportJobService:
         for row in self.repository.list_artifacts(db, job_id):
             artifacts.setdefault(row.kind, []).append({
                 "artifact_id": row.artifact_uuid,
-                "storage_backend": row.storage_backend,
-                "storage_key": row.storage_key,
                 "filename": row.filename,
                 "page_number": row.page_number,
                 "size": row.size_bytes,

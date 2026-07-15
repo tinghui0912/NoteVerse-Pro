@@ -15,7 +15,6 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRecord, ScoreAssetRepository
 from app.modules.score_assets.schemas import (
     AssetAccessRead,
-    RenderAssetDiagnosticsRead,
     RenderAssetRead,
     RevisionSourceRead,
     ScoreRevisionAssetsRead,
@@ -148,62 +147,6 @@ class ScoreAssetService:
             ScoreAction.VIEW,
         )
         return self._access_read(render_asset, render_asset.asset_uuid, "render-assets")
-
-    async def diagnostics(
-        self,
-        db: AsyncSession,
-        score_uuid: str,
-        revision_uuid: str,
-        user_id: int,
-    ) -> RenderAssetDiagnosticsRead:
-        access = await self.access_policy.authorize(
-            db,
-            score_uuid,
-            ScoreAction.EDIT,
-            user_id=user_id,
-            revision_uuid=revision_uuid,
-        )
-        revision = access.revision
-        render_assets = await self.repository.list_render_assets(
-            db, require_persisted_id(revision.id, entity="score revision")
-        )
-        missing = [
-            item.asset_uuid
-            for item in render_assets
-            if not self.storage.exists(item.storage_key)
-        ]
-        return RenderAssetDiagnosticsRead(
-            revision_id=revision.revision_uuid,
-            render_asset_count=len(render_assets),
-            missing_render_asset_ids=missing,
-        )
-
-    async def cleanup_missing_render_assets(
-        self,
-        db: AsyncSession,
-        score_uuid: str,
-        revision_uuid: str,
-        user_id: int,
-    ) -> int:
-        access = await self.access_policy.authorize(
-            db,
-            score_uuid,
-            ScoreAction.EDIT,
-            user_id=user_id,
-            revision_uuid=revision_uuid,
-        )
-        revision = access.revision
-        render_assets = await self.repository.list_render_assets(
-            db, require_persisted_id(revision.id, entity="score revision")
-        )
-        removed = 0
-        for item in render_assets:
-            if self.storage.exists(item.storage_key):
-                continue
-            await db.delete(item)
-            removed += 1
-        await db.commit()
-        return removed
 
     async def render_asset_archive(
         self,
@@ -388,8 +331,6 @@ class ScoreAssetService:
             mime_type=source.mime_type,
             size_bytes=source.size_bytes,
             sha256=source.sha256,
-            generator=source.generator,
-            generator_version=source.generator_version,
             created_at=source.created_at,
             available=self.storage.exists(source.storage_key),
         )
@@ -406,9 +347,6 @@ class ScoreAssetService:
             size_bytes=render_asset.size_bytes,
             sha256=render_asset.sha256,
             page_number=render_asset.page_number,
-            render_profile=render_asset.render_profile,
-            generator=render_asset.generator,
-            generator_version=render_asset.generator_version,
             created_at=render_asset.created_at,
             available=self.storage.exists(render_asset.storage_key),
         )

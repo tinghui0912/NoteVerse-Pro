@@ -98,7 +98,6 @@ class FilesService:
         return {
             "file_id": upload.upload_uuid,
             "filename": file.filename,
-            "storage_key": blob.storage_key,
             "size": blob.size_bytes,
         }
 

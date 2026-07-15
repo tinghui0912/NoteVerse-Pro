@@ -56,7 +56,6 @@ function useReviewArtifacts(jobId: string | null, artifacts: ReviewArtifact[]) {
 }
 
 export function useReviewPageData(jobId: string) {
-  const t = useTranslations('review');
   const editor = useTranslations('editor');
   const common = useTranslations('common');
   const auth = useTranslations('auth');
@@ -100,11 +99,11 @@ export function useReviewPageData(jobId: string) {
     const queryError = reviewQuery.error;
     if (queryError) {
       return queryError instanceof ApiError
-        ? translateErrorCode(errors, queryError.code, t('loadFailed'))
-        : t('loadFailed');
+        ? translateErrorCode(errors, queryError.code, common('loadFailedDescription'))
+        : common('loadFailedDescription');
     }
     return null;
-  }, [errors, reviewQuery.error, t]);
+  }, [common, errors, reviewQuery.error]);
 
   const confirmRecognition = () => {
     if (!xmlContent) return;

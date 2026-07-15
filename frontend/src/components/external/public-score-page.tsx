@@ -45,8 +45,8 @@ function PublicScoreContent({ slug }: { slug: string }) {
 
   if (!data || publication.error) {
     const description = publication.error instanceof ApiError
-      ? translateErrorCode(errors, publication.error.code, common('loadFailed'))
-      : common('loadFailed');
+      ? translateErrorCode(errors, publication.error.code, common('loadFailedDescription'))
+      : common('loadFailedDescription');
     return (
       <ScoreSurface>
         <ResourceLoadError

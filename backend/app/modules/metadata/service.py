@@ -164,8 +164,6 @@ class MetadataProjectionService:
             key_signature_events=projection.key_signature_events,
             time_signature_events=projection.time_signature_events,
             tempo_events=projection.tempo_events,
-            extractor_version=projection.extractor_version,
-            error_code=projection.error_code,
             computed_at=projection.computed_at,
         )
 

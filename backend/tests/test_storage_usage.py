@@ -466,6 +466,43 @@ def test_file_upload_api_returns_storage_quota_error_without_storing_file(
     assert not storage_root.exists() or not any(storage_root.rglob("*"))
 
 
+def test_file_upload_api_hides_storage_key(
+    client: TestClient,
+    storage_usage_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, storage = storage_usage_session
+    _set_quota(session, 1024)
+    user = session.get(User, 1)
+    assert user is not None
+
+    async def override_get_db():
+        yield AsyncSessionAdapter(session)
+
+    async def override_current_user():
+        return user
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_current_user
+    app.dependency_overrides[get_files_service] = lambda: FilesService(storage=storage)
+    try:
+        response = client.post(
+            "/api/v1/files/upload",
+            files={"file": ("score.png", b"image-bytes", "image/png")},
+        )
+    finally:
+        app.dependency_overrides.pop(get_files_service, None)
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_db, None)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["file_id"]
+    assert payload["data"]["filename"] == "score.png"
+    assert payload["data"]["size"] == len(b"image-bytes")
+    assert "storage_key" not in payload["data"]
+
+
 async def _async_bytes(content: bytes) -> bytes:
     return content
 

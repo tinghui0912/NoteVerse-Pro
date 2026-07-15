@@ -7,6 +7,7 @@
   "saveSuccessTitle": "Saved successfully!",
   "saveSuccessDesc": "Score \"{scoreName}\" has been saved to your library.",
   "loadFailed": "Load Failed",
+  "loadFailedDesc": "Unable to load this shared score right now. Please try again later.",
   "saveFailed": "Save Failed",
   "saveFailedDesc": "Unable to save to collection",
   "errorNotFoundTitle": "Share Link Not Found",

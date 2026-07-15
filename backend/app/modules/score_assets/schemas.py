@@ -16,8 +16,6 @@ class RevisionSourceRead(BaseModel):
     mime_type: str
     size_bytes: int | None
     sha256: str
-    generator: str
-    generator_version: str
     created_at: datetime
     available: bool
 
@@ -31,9 +29,6 @@ class RenderAssetRead(BaseModel):
     size_bytes: int | None
     sha256: str
     page_number: int | None
-    render_profile: str | None
-    generator: str
-    generator_version: str
     created_at: datetime
     available: bool
 
@@ -64,9 +59,3 @@ class AssetAccessRead(BaseModel):
     filename: str
     mime_type: str
     expires_in: int | None
-
-
-class RenderAssetDiagnosticsRead(BaseModel):
-    revision_id: str
-    render_asset_count: int
-    missing_render_asset_ids: list[str]

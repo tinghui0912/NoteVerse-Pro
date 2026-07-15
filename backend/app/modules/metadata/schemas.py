@@ -18,6 +18,4 @@ class MetadataRead(BaseModel):
     key_signature_events: list[dict[str, object]]
     time_signature_events: list[dict[str, object]]
     tempo_events: list[dict[str, object]]
-    extractor_version: str
-    error_code: str | None
     computed_at: datetime | None

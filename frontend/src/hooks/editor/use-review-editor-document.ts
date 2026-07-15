@@ -84,7 +84,7 @@ export function useReviewEditorDocument({
       } catch (error) {
         console.error('Failed to parse review XML:', error);
         if (!cancelled) {
-          setLoadError(common('loadFailed'));
+          setLoadError(common('loadFailedDescription'));
           clearXml();
         }
       } finally {
@@ -130,8 +130,8 @@ export function useReviewEditorDocument({
     draftDialogOpen,
     finalLoadError: reviewQuery.error
       ? reviewQuery.error instanceof ApiError
-        ? translateErrorCode(errors, reviewQuery.error.code, common('loadFailed'))
-        : common('loadFailed')
+        ? translateErrorCode(errors, reviewQuery.error.code, common('loadFailedDescription'))
+        : common('loadFailedDescription')
       : loadError,
     isAutoSaving,
     isLoading: reviewQuery.isLoading || (Boolean(xmlContent) && !initialized),

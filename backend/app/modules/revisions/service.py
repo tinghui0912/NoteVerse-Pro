@@ -540,7 +540,6 @@ class RevisionService:
             revision_number=revision.revision_number,
             parent_revision_id=parent.revision_uuid if parent else None,
             base_revision_id=base.revision_uuid if base else None,
-            content_hash=revision.content_hash,
             origin=revision.origin,
             created_at=revision.created_at,
             created_by=RevisionActorRead(

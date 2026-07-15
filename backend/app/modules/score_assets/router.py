@@ -9,7 +9,6 @@ from app.db.models.score import RenderAssetKind
 from app.modules.score_assets.dependencies import get_score_asset_service
 from app.modules.score_assets.schemas import (
     AssetAccessRead,
-    RenderAssetDiagnosticsRead,
     ScoreRevisionAssetsRead,
 )
 from app.modules.score_assets.service import ScoreAssetService
@@ -118,36 +117,3 @@ async def archive_score_render_assets(
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
-
-@score_router.get(
-    "/{score_id}/revisions/{revision_id}/render-asset-diagnostics",
-    response_model=APIResponse[RenderAssetDiagnosticsRead],
-)
-async def diagnose_revision_render_assets(
-    score_id: str,
-    revision_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: ScoreAssetService = Depends(get_score_asset_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.diagnostics(db, score_id, revision_id, user_id)
-    return success_response(data=result)
-
-
-@score_router.delete(
-    "/{score_id}/revisions/{revision_id}/missing-render-assets",
-    response_model=APIResponse[dict[str, int]],
-)
-async def cleanup_missing_revision_render_assets(
-    score_id: str,
-    revision_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: ScoreAssetService = Depends(get_score_asset_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    removed = await service.cleanup_missing_render_assets(
-        db, score_id, revision_id, user_id
-    )
-    return success_response(data={"removed": removed})

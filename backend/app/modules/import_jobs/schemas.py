@@ -27,8 +27,6 @@ class ImportJobSubmitRequestLike(Protocol):
 
 class ImportJobArtifactItem(TypedDict):
     artifact_id: NotRequired[str]
-    storage_backend: str
-    storage_key: str
     filename: str
     page_number: Optional[int]
     size: Optional[int]

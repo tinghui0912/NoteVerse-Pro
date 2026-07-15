@@ -27,8 +27,6 @@ export interface ScoreMetadata {
   key_signature_events: Array<Record<string, unknown>>;
   time_signature_events: Array<Record<string, unknown>>;
   tempo_events: Array<Record<string, unknown>>;
-  extractor_version: string;
-  error_code: string | null;
   computed_at: string | null;
 }
 
@@ -90,7 +88,6 @@ export interface ScoreRevision {
   revision_number: number;
   parent_revision_id: string | null;
   base_revision_id: string | null;
-  content_hash: string;
   origin: RevisionOrigin;
   created_at: string;
   created_by: InviteActor | null;
@@ -127,8 +124,6 @@ export interface RevisionSource {
   mime_type: string;
   size_bytes: number | null;
   sha256: string;
-  generator: string;
-  generator_version: string;
   created_at: string;
   available: boolean;
 }
@@ -142,9 +137,6 @@ export interface RenderAsset {
   size_bytes: number | null;
   sha256: string;
   page_number: number | null;
-  render_profile: string | null;
-  generator: string;
-  generator_version: string;
   created_at: string;
   available: boolean;
 }

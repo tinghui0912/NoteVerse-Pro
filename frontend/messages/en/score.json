@@ -61,7 +61,6 @@
   "restoredFromUnknownVersion": "Restored from a previous version",
   "versionDetails": "Details",
   "revisionIdLabel": "Revision ID",
-  "contentHashLabel": "Content hash",
   "parentRevisionLabel": "Parent revision",
   "baseRevisionLabel": "Base revision",
   "restoreSourceLabel": "Restore source",

@@ -34,9 +34,9 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   const searchParams = useSearchParams();
   const resources = useScoreDetailSummary(id);
   const error = resources.scoreError instanceof ApiError && resources.scoreError.code
-    ? translateErrorCode(errors, resources.scoreError.code)
+    ? translateErrorCode(errors, resources.scoreError.code, common('loadFailedDescription'))
     : resources.scoreError
-      ? common('loadFailed')
+      ? common('loadFailedDescription')
       : null;
   const scoreTitle = resources.score?.title || t('scoreFallbackTitle', { id: id.slice(0, 8) });
   const capabilities = resources.score?.capabilities ?? null;
@@ -59,7 +59,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
           <PageHeader title={t('title')} />
           <ResourceLoadError
             title={common('loadFailed')}
-            description={error ?? common('loadFailed')}
+            description={error ?? common('loadFailedDescription')}
             actionLabel={source === 'my-scores' ? common('nav.myScores') : t('backToLibrary')}
             actionHref={source === 'my-scores' ? '/my-scores' : '/library'}
             className="min-h-[40vh]"

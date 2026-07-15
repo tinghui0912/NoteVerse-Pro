@@ -554,6 +554,48 @@ def test_job_detail_uses_review_preview_image_only(
     assert detail["thumbnail_artifact_id"] == "result-thumbnail-artifact"
 
 
+def test_import_job_detail_hides_artifact_storage_details(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _ = score_service_session
+    session.add(
+        ImportJob(
+            id=181,
+            job_uuid="job-public-artifact",
+            user_id=1,
+            state=ImportJobState.PENDING_REVIEW,
+        )
+    )
+    session.commit()
+    session.add(
+        ImportArtifact(
+            job_id=181,
+            artifact_uuid="public-artifact-id",
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+            storage_backend="local",
+            storage_key="jobs/job-public-artifact/review_preview_image/001-result.svg",
+            filename="001-result.svg",
+            mime_type="image/svg+xml",
+            page_number=1,
+            size_bytes=123,
+            sha256="abc123",
+        )
+    )
+    session.commit()
+
+    detail = SyncImportJobService().get_detail(session, "job-public-artifact")
+    artifact = detail["artifacts"][ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value][0]
+
+    assert artifact == {
+        "artifact_id": "public-artifact-id",
+        "filename": "001-result.svg",
+        "page_number": 1,
+        "size": 123,
+        "mime_type": "image/svg+xml",
+        "sha256": "abc123",
+    }
+
+
 def test_import_job_detail_exposes_public_failure_fields_only(
     score_service_session: tuple[Session, LocalFileStorage],
 ) -> None:
@@ -1859,16 +1901,6 @@ async def test_source_delivery_checks_score_access_and_reports_missing_objects(
             revision_source.source_uuid,
             2,  # type: ignore[arg-type]
         )
-
-    storage.delete(revision_source.storage_key)
-    diagnostics = await service.diagnostics(
-        async_db,  # type: ignore[arg-type]
-        score_uuid,
-        revision.revision_uuid,
-        1,
-    )
-    assert diagnostics.missing_render_asset_ids == []
-
 
 @pytest.mark.asyncio
 async def test_score_access_policy_is_deny_by_default_and_context_aware(
