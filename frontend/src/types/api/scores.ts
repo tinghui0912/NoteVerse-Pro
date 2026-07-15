@@ -62,7 +62,6 @@ export interface ScoreInputAsset {
   filename: string;
   mime_type: string;
   size: number;
-  sha256: string;
   page_number: number | null;
 }
 
@@ -75,7 +74,6 @@ export interface ScoreDetail {
   derived_assets: ScoreDerivedAssets;
   input_assets: ScoreInputAsset[];
   publication: ScorePublicationSummary | null;
-  originating_job_id: string | null;
   in_library: boolean;
   metadata: ScoreMetadata | null;
   capabilities: ScoreCapabilities;
@@ -86,8 +84,6 @@ export interface ScoreDetail {
 export interface ScoreRevision {
   revision_id: string;
   revision_number: number;
-  parent_revision_id: string | null;
-  base_revision_id: string | null;
   origin: RevisionOrigin;
   created_at: string;
   created_by: InviteActor | null;
@@ -123,7 +119,6 @@ export interface RevisionSource {
   filename: string;
   mime_type: string;
   size_bytes: number | null;
-  sha256: string;
   created_at: string;
   available: boolean;
 }
@@ -135,7 +130,6 @@ export interface RenderAsset {
   filename: string;
   mime_type: string;
   size_bytes: number | null;
-  sha256: string;
   page_number: number | null;
   created_at: string;
   available: boolean;
@@ -245,7 +239,6 @@ export interface ScoreInviteAcceptResult {
 
 export interface ScoreMember {
   membership_id: number;
-  user_id: number;
   display_name: string | null;
   email: string;
   avatar_url: string | null;

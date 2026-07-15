@@ -330,7 +330,6 @@ class ScoreAssetService:
             filename=source.filename,
             mime_type=source.mime_type,
             size_bytes=source.size_bytes,
-            sha256=source.sha256,
             created_at=source.created_at,
             available=self.storage.exists(source.storage_key),
         )
@@ -345,7 +344,6 @@ class ScoreAssetService:
             filename=render_asset.filename,
             mime_type=render_asset.mime_type,
             size_bytes=render_asset.size_bytes,
-            sha256=render_asset.sha256,
             page_number=render_asset.page_number,
             created_at=render_asset.created_at,
             available=self.storage.exists(render_asset.storage_key),

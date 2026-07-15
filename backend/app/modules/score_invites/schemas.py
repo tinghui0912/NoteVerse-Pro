@@ -80,7 +80,6 @@ class InviteAcceptRead(BaseModel):
 
 class MemberRead(BaseModel):
     membership_id: int
-    user_id: int
     display_name: str | None
     email: str
     avatar_url: str | None

@@ -68,7 +68,6 @@ class ScoreInputAssetRead(BaseModel):
     filename: str
     mime_type: str
     size: int
-    sha256: str
     page_number: int | None
 
 
@@ -81,7 +80,6 @@ class ScoreRead(BaseModel):
     derived_assets: ScoreDerivedAssetsRead
     input_assets: list[ScoreInputAssetRead]
     publication: ScorePublicationSummaryRead | None
-    originating_job_id: str | None
     in_library: bool
     metadata: MetadataRead | None
     capabilities: ScoreCapabilities

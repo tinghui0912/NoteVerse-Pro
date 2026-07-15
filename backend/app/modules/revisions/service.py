@@ -530,16 +530,12 @@ class RevisionService:
         return RevisionContentRead(**base.model_dump(), content=content, mime_type=source.mime_type)
 
     async def _read(self, db: AsyncSession, revision: ScoreRevision) -> RevisionRead:
-        parent = await db.get(ScoreRevision, revision.parent_revision_id) if revision.parent_revision_id else None
-        base = await db.get(ScoreRevision, revision.base_revision_id) if revision.base_revision_id else None
         actor = await db.get(User, revision.created_by_user_id) if revision.created_by_user_id else None
         restore = await self._restore_read(db, revision)
         note = await self._note_read(db, revision)
         return RevisionRead(
             revision_id=revision.revision_uuid,
             revision_number=revision.revision_number,
-            parent_revision_id=parent.revision_uuid if parent else None,
-            base_revision_id=base.revision_uuid if base else None,
             origin=revision.origin,
             created_at=revision.created_at,
             created_by=RevisionActorRead(

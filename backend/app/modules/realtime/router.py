@@ -34,6 +34,22 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
+def _public_realtime_payload(event: RealtimeEvent) -> dict[str, Any]:
+    if event.type == "import_job.completed":
+        return {
+            key: value
+            for key, value in event.payload.items()
+            if key in {"job_id", "job_title", "notification_id"}
+        }
+    if event.type == "import_job.failed":
+        return {
+            key: value
+            for key, value in event.payload.items()
+            if key in {"job_id", "notification_id"}
+        }
+    return {}
+
+
 def _format_sse(event: RealtimeEvent) -> str:
     sequence = event.id or 0
     data = RealtimeEventRead(
@@ -44,7 +60,7 @@ def _format_sse(event: RealtimeEvent) -> str:
         resource_id=event.resource_id,
         score_id=event.score_id,
         revision_id=event.revision_id,
-        payload=event.payload,
+        payload=_public_realtime_payload(event),
         created_at=event.created_at,
     ).model_dump()
     return (

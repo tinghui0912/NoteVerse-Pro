@@ -82,7 +82,7 @@ def test_realtime_sse_envelope_is_versioned() -> None:
     assert data["sequence"] == 42
     assert data["score_id"] == "score-1"
     assert data["revision_id"] == "revision-1"
-    assert data["payload"] == {"asset": "preview", "status": "ready"}
+    assert data["payload"] == {}
 
 
 def test_last_event_id_parsing_is_safe() -> None:

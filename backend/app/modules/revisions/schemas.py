@@ -47,8 +47,6 @@ class RevisionNoteRead(BaseModel):
 class RevisionRead(BaseModel):
     revision_id: str
     revision_number: int
-    parent_revision_id: str | None
-    base_revision_id: str | None
     origin: RevisionOrigin
     created_at: datetime
     created_by: RevisionActorRead | None

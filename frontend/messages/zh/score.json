@@ -61,8 +61,6 @@
   "restoredFromUnknownVersion": "恢复自历史版本",
   "versionDetails": "详情",
   "revisionIdLabel": "版本 ID",
-  "parentRevisionLabel": "父版本",
-  "baseRevisionLabel": "基准版本",
   "restoreSourceLabel": "恢复来源",
   "restoreTimeLabel": "恢复时间",
   "restoreSuccess": "恢复成功",

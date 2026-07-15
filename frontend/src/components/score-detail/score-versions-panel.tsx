@@ -374,14 +374,6 @@ function VersionRow({
       {isExpanded ? (
         <div className="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-2">
           <VersionDetail label={t('revisionIdLabel')} value={revision.revision_id} />
-          <VersionDetail
-            label={t('parentRevisionLabel')}
-            value={revision.parent_revision_id ?? '-'}
-          />
-          <VersionDetail
-            label={t('baseRevisionLabel')}
-            value={revision.base_revision_id ?? '-'}
-          />
           {revision.restore ? (
             <>
               <VersionDetail

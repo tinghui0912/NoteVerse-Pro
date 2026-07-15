@@ -234,7 +234,6 @@ class ScoreService:
         in_library: bool | None = None,
     ) -> ScoreRead:
         head = await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
-        job = await self.repository.originating_job(db, score.originating_job_id)
         projection = (
             await db.get(ScoreRevisionMetadata, score.head_revision_id)
             if score.head_revision_id
@@ -300,7 +299,6 @@ class ScoreService:
                     filename=upload.original_filename or blob.filename,
                     mime_type=blob.mime_type,
                     size=blob.size_bytes,
-                    sha256=blob.sha256,
                     page_number=asset.page_number,
                 )
                 for asset, upload, blob in input_asset_rows
@@ -314,7 +312,6 @@ class ScoreService:
                 if publication and published_revision
                 else None
             ),
-            originating_job_id=job.job_uuid if job else None,
             in_library=in_library,
             metadata=(
                 MetadataProjectionService.to_read(head, projection)

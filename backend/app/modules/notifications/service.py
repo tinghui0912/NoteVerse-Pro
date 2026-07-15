@@ -24,6 +24,25 @@ from app.utils.timezone import utc_now_naive
 
 logger = logging.getLogger(__name__)
 
+PUBLIC_NOTIFICATION_DATA_KEYS = frozenset(
+    {
+        "job_id",
+        "job_title",
+        "score_id",
+        "score_title",
+        "revision_id",
+        "revision_number",
+        "invite_id",
+        "role",
+    }
+)
+
+
+def public_notification_data(data: dict[str, Any] | None) -> dict[str, Any]:
+    if not data:
+        return {}
+    return {key: value for key, value in data.items() if key in PUBLIC_NOTIFICATION_DATA_KEYS}
+
 
 class NotificationTypes:
     SCORE_INVITE_ACCEPTED = "score_invite.accepted"
@@ -214,7 +233,7 @@ class NotificationService:
             resource_id=event.resource_id,
             score_id=event.score_id,
             actor=await self._actor(db, event.actor_user_id),
-            data=event.data,
+            data=public_notification_data(event.data),
             read_at=event.read_at,
             created_at=event.created_at,
         )

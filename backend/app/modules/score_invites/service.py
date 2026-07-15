@@ -477,7 +477,6 @@ class ScoreInviteService:
             )
         return MemberRead(
             membership_id=require_persisted_id(membership.id, entity="score membership"),
-            user_id=require_persisted_id(user.id, entity="user"),
             display_name=user.display_name,
             email=user.email,
             avatar_url=user.avatar_url,

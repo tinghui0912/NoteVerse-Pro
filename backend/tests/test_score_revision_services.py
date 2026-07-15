@@ -439,7 +439,8 @@ def test_failed_job_notifies_owner_once(
     assert notification.resource_id == "job-failure-notification"
     assert notification.score_id is None
     assert notification.data["job_id"] == "job-failure-notification"
-    assert notification.data["code"] == ErrorCode.UNKNOWN_ERROR
+    assert "code" not in notification.data
+    assert "error_type" not in notification.data
 
 
 @pytest.mark.asyncio
@@ -1135,8 +1136,8 @@ async def test_revision_restore_creates_new_head_from_target_revision(
     new_artifact = one_row(session, ScoreRevisionSource, revision_id=new_revision.id)
     metadata = session.get(ScoreRevisionMetadata, new_revision.id)
     assert restored.revision_number == 3
-    assert restored.parent_revision_id == "revision-2"
-    assert restored.base_revision_id == "revision-1"
+    assert new_revision.parent_revision_id == revision_2.id
+    assert new_revision.base_revision_id == revision_1.id
     assert restored.revision_id not in {"revision-1", "revision-2"}
     assert restored.created_by is not None
     assert restored.created_by.email == "owner@example.com"

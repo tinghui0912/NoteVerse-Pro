@@ -61,8 +61,6 @@
   "restoredFromUnknownVersion": "Restored from a previous version",
   "versionDetails": "Details",
   "revisionIdLabel": "Revision ID",
-  "parentRevisionLabel": "Parent revision",
-  "baseRevisionLabel": "Base revision",
   "restoreSourceLabel": "Restore source",
   "restoreTimeLabel": "Restore time",
   "restoreSuccess": "Version restored",

@@ -54,7 +54,6 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const originalArtifacts = useMemo(
     () => (score?.input_assets ?? []).map((asset) => ({
       artifact_id: asset.asset_id,
-      sha256: asset.sha256,
     })),
     [score?.input_assets]
   );

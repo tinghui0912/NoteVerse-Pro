@@ -169,8 +169,6 @@ class SyncNotificationService:
             dedupe_key=f"{NotificationTypes.IMPORT_FAILED}:{job_uuid}:{recipient_user_id}",
             data={
                 "job_id": job_uuid,
-                "code": code,
-                "error_type": error_type,
             },
         )
         if event is not None:
@@ -183,8 +181,6 @@ class SyncNotificationService:
                     resource_id=job_uuid,
                     payload={
                         "job_id": job_uuid,
-                        "code": code,
-                        "error_type": error_type,
                         "notification_id": event.notification_uuid,
                     },
                 )
