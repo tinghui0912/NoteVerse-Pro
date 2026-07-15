@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, NotRequired, Optional, Protocol, TypedDict
+from typing import List, Optional, Protocol, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -25,14 +25,6 @@ class ImportJobSubmitRequestLike(Protocol):
     def idempotency_key(self) -> Optional[str]: ...
 
 
-class ImportJobArtifactItem(TypedDict):
-    artifact_id: NotRequired[str]
-    filename: str
-    page_number: Optional[int]
-    size: Optional[int]
-    mime_type: Optional[str]
-
-
 class ImportJobSubmitResult(TypedDict):
     job_id: str
     count: int
@@ -47,16 +39,22 @@ class ImportJobStatusEntry(TypedDict):
     score_id: Optional[str]
 
 
-class ImportJobStepItem(TypedDict):
-    name: str
-    status: str
-    start_time: Optional[str]
-    end_time: Optional[str]
-
-
-class ImportJobUploadItem(TypedDict):
+class ImportJobOriginalImageItem(TypedDict):
+    artifact_id: str
+    filename: str
+    page_number: Optional[int]
+    size: Optional[int]
+    mime_type: Optional[str]
     upload_id: Optional[str]
     original_filename: Optional[str]
+
+
+class ImportJobThumbnailItem(TypedDict):
+    artifact_id: str
+    filename: str
+    page_number: Optional[int]
+    size: Optional[int]
+    mime_type: Optional[str]
 
 
 class ImportJobDetail(TypedDict, total=False):
@@ -64,19 +62,16 @@ class ImportJobDetail(TypedDict, total=False):
     score_id: Optional[str]
     state: ImportJobState | str
     progress: int
-    current_step: Optional[str]
     title: Optional[str]
     taxonomy_tags: list[dict[str, str]]
-    thumbnail_artifact_id: Optional[str]
+    thumbnail: Optional[ImportJobThumbnailItem]
     created_at: Optional[str]
     updated_at: Optional[str]
     started_at: Optional[str]
     finished_at: Optional[str]
     public_code: Optional[str]
     public_message: Optional[str]
-    steps: List[ImportJobStepItem]
-    artifacts: dict[str, List[ImportJobArtifactItem]]
-    upload_ids: List[ImportJobUploadItem]
+    original_images: List[ImportJobOriginalImageItem]
 
 
 class PipelineExecutionSuccessResult(TypedDict):

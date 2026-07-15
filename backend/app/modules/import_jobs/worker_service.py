@@ -18,7 +18,6 @@ from app.modules.async_operations.diagnostics import (
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.schemas import (
-    ImportJobArtifactItem,
     ImportJobDetail,
 )
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
@@ -258,49 +257,51 @@ class SyncImportJobService:
         requested_options = job.requested_options or {}
         requested_title = requested_options.get("title")
         requested_taxonomy_tags = requested_options.get("taxonomy_tags")
-        artifacts: dict[str, list[ImportJobArtifactItem]] = {}
-        for row in self.repository.list_artifacts(db, job_id):
-            artifacts.setdefault(row.kind, []).append({
-                "artifact_id": row.artifact_uuid,
-                "filename": row.filename,
-                "page_number": row.page_number,
-                "size": row.size_bytes,
-                "mime_type": row.mime_type,
-            })
-
-        def first_artifact(kind: str) -> ImportJobArtifactItem | None:
-            items = artifacts.get(kind)
-            return items[0] if items else None
-
-        thumbnail = first_artifact(ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value)
+        artifacts = self.repository.list_artifacts(db, job_id)
+        thumbnail_artifact = next(
+            (
+                artifact
+                for artifact in artifacts
+                if artifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value
+            ),
+            None,
+        )
+        upload_rows = self.repository.list_upload_rows(db, job_id)
         return {
             "job_id": job.job_uuid,
             "score_id": self.repository.get_score_uuid(db, job.score_id),
             "state": job.state,
             "progress": job.progress,
-            "current_step": job.current_step,
             "title": requested_title if isinstance(requested_title, str) else None,
             "taxonomy_tags": (
                 requested_taxonomy_tags if isinstance(requested_taxonomy_tags, list) else []
             ),
-            "thumbnail_artifact_id": thumbnail.get("artifact_id") if thumbnail else None,
+            "thumbnail": (
+                {
+                    "artifact_id": thumbnail_artifact.artifact_uuid,
+                    "filename": thumbnail_artifact.filename,
+                    "page_number": thumbnail_artifact.page_number,
+                    "size": thumbnail_artifact.size_bytes,
+                    "mime_type": thumbnail_artifact.mime_type,
+                }
+                if thumbnail_artifact
+                else None
+            ),
             "created_at": job.created_at.isoformat(),
             "updated_at": job.updated_at.isoformat(),
             "started_at": job.started_at.isoformat() if job.started_at else None,
             "finished_at": job.finished_at.isoformat() if job.finished_at else None,
             "public_code": job.code or (ErrorCode.TASK_ERROR if job.error else None),
             "public_message": job.code or (ErrorCode.TASK_ERROR if job.error else None),
-            "steps": [{
-                "name": step.name,
-                "status": step.status.value,
-                "start_time": step.start_time.isoformat() if step.start_time else None,
-                "end_time": step.end_time.isoformat() if step.end_time else None,
-            } for step in self.repository.list_steps(db, job_id)],
-            "artifacts": artifacts,
-            "upload_ids": [{
+            "original_images": [{
+                "artifact_id": f"upload:{require_persisted_id(upload.id, entity='upload')}",
+                "filename": upload.original_filename or blob.filename,
+                "page_number": job_upload.page_number,
+                "size": blob.size_bytes,
+                "mime_type": blob.mime_type,
                 "upload_id": upload.upload_uuid,
                 "original_filename": upload.original_filename,
-            } for _, upload, blob in self.repository.list_upload_rows(db, job_id)],
+            } for job_upload, upload, blob in upload_rows],
         }
 
 

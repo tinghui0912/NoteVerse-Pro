@@ -151,8 +151,7 @@ export function useUploadWorkflow() {
           setTaxonomyTags(data.taxonomy_tags as ScoreTaxonomyTagValue[]);
         }
 
-        const originalImages = data.artifacts?.original_image ?? [];
-        const uploadIds = data.upload_ids ?? [];
+        const originalImages = data.original_images ?? [];
         const restoredFiles: UploadableFile[] = [];
         for (let index = 0; index < originalImages.length; index += 1) {
           const blob = await importJobsApi.downloadImportJobArtifact(
@@ -162,16 +161,15 @@ export function useUploadWorkflow() {
           const preview = URL.createObjectURL(blob);
           if (!preview || controller.signal.aborted) continue;
           if (preview.startsWith('blob:')) restoredBlobUrls.push(preview);
-          const uploadInfo = uploadIds[index];
           const originalImage = originalImages[index];
           const fallbackName = originalImage.filename;
           restoredFiles.push({
-            file: new File([], uploadInfo?.original_filename || fallbackName || `image_${index + 1}.png`, {
+            file: new File([], originalImage.original_filename || fallbackName || `image_${index + 1}.png`, {
               type: 'image/png',
             }),
             preview,
             status: 'uploaded',
-            fileId: uploadInfo?.upload_id,
+            fileId: originalImage.upload_id,
           });
         }
         if (controller.signal.aborted) return;

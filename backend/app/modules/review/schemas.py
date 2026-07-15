@@ -13,7 +13,6 @@ class ReviewArtifactRead(BaseModel):
     filename: str
     mime_type: str | None = None
     size: int | None = None
-    sha256: str | None = None
     page_number: int | None = None
 
 
@@ -21,7 +20,6 @@ class ReviewMusicXmlRead(BaseModel):
     artifact_id: str
     content: str
     mime_type: str | None = None
-    sha256: str | None = None
 
 
 class ImportJobReviewRead(BaseModel):

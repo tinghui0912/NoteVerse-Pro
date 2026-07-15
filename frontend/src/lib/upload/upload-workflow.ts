@@ -14,7 +14,7 @@ export interface RestoredUploadInfo {
 }
 
 export interface RestorableTaskData {
-  upload_ids?: RestoredUploadInfo[];
+  original_images?: RestoredUploadInfo[];
 }
 
 export function getCompletedJobRoute(

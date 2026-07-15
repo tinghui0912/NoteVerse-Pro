@@ -155,7 +155,6 @@ class ReviewService:
                 artifact_id=musicxml_artifact.artifact_uuid,
                 content=content,
                 mime_type=musicxml_artifact.mime_type,
-                sha256=musicxml_artifact.sha256,
             ),
             original_images=original_images,
             created_at=job.created_at,
@@ -604,7 +603,6 @@ class ReviewService:
                 filename=upload.original_filename or blob.filename,
                 mime_type=blob.mime_type,
                 size=blob.size_bytes,
-                sha256=blob.sha256,
                 page_number=index + 1,
             )
             for index, (upload, blob) in enumerate(rows)

@@ -10,18 +10,16 @@ export interface ImportJob {
   score_id?: string | null;
   state: ImportJobState;
   progress: number;
-  current_step?: string;
   title?: string;
   taxonomy_tags?: Array<{ category: string; code: string }>;
-  thumbnail_artifact_id?: string | null;
+  thumbnail?: ImportArtifact | null;
   created_at?: string;
   updated_at?: string;
   started_at?: string;
   finished_at?: string;
   public_code?: string | null;
   public_message?: string | null;
-  artifacts?: Record<string, ImportArtifact[]>;
-  upload_ids?: Array<{ upload_id?: string; original_filename?: string }>;
+  original_images?: Array<ImportArtifact & { upload_id?: string; original_filename?: string }>;
 }
 
 export interface ImportArtifact {

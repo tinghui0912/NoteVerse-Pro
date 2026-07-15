@@ -19,7 +19,7 @@ import { isImportJob } from '@/lib/my-scores/state';
 import type { ImportJob } from '@/types/api';
 
 function jobTitle(job: ImportJob) {
-  return job.title || job.upload_ids?.[0]?.original_filename || job.job_id;
+  return job.title || job.original_images?.[0]?.original_filename || job.job_id;
 }
 
 interface ImportJobCardProps {
@@ -47,7 +47,7 @@ export function ImportJobCard({
   const selectable = job.state === 'FAILURE' || job.state === 'PENDING_REVIEW';
   const openable = selectable || job.state === 'PENDING_REVIEW';
   const [thumbnail, setThumbnail] = useState<{ artifactId: string; url: string } | null>(null);
-  const thumbnailArtifactId = job.thumbnail_artifact_id ?? null;
+  const thumbnailArtifactId = job.thumbnail?.artifact_id ?? null;
   const thumbnailUrl =
     thumbnailArtifactId && thumbnail?.artifactId === thumbnailArtifactId
       ? thumbnail.url

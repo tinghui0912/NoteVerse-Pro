@@ -519,6 +519,9 @@ async def test_review_detail_reads_pending_job_artifacts(
     assert detail.musicxml.content == MUSICXML_1.decode("utf-8")
     assert detail.original_images[0].artifact_id == "upload:130"
     assert detail.original_images[0].filename == "page-1.png"
+    dumped = detail.model_dump()
+    assert "sha256" not in dumped["musicxml"]
+    assert "sha256" not in dumped["original_images"][0]
 
 
 def test_job_detail_uses_review_preview_image_only(
@@ -552,7 +555,8 @@ def test_job_detail_uses_review_preview_image_only(
 
     detail = SyncImportJobService().get_detail(session, "job-thumbnail")
 
-    assert detail["thumbnail_artifact_id"] == "result-thumbnail-artifact"
+    assert detail["thumbnail"] is not None
+    assert detail["thumbnail"]["artifact_id"] == "result-thumbnail-artifact"
 
 
 def test_import_job_detail_hides_artifact_storage_details(
@@ -565,6 +569,7 @@ def test_import_job_detail_hides_artifact_storage_details(
             job_uuid="job-public-artifact",
             user_id=1,
             state=ImportJobState.PENDING_REVIEW,
+            current_step="ocr_internal_step",
         )
     )
     session.commit()
@@ -585,7 +590,7 @@ def test_import_job_detail_hides_artifact_storage_details(
     session.commit()
 
     detail = SyncImportJobService().get_detail(session, "job-public-artifact")
-    artifact = detail["artifacts"][ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value][0]
+    artifact = detail["thumbnail"]
 
     assert artifact == {
         "artifact_id": "public-artifact-id",
@@ -594,6 +599,12 @@ def test_import_job_detail_hides_artifact_storage_details(
         "size": 123,
         "mime_type": "image/svg+xml",
     }
+    assert "sha256" not in artifact
+    assert "current_step" not in detail
+    assert "steps" not in detail
+    assert "upload_ids" not in detail
+    assert "artifacts" not in detail
+    assert detail["original_images"] == []
 
 
 def test_import_job_detail_exposes_public_failure_fields_only(
