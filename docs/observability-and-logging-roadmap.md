@@ -28,8 +28,8 @@ Target production deployment:
 
 ### Frontend
 
-The frontend currently has good user-facing error handling but does not yet
-have an engineering diagnostics layer.
+The frontend currently has good user-facing error handling and a first
+engineering diagnostics layer.
 
 Implemented:
 
@@ -38,16 +38,19 @@ Implemented:
 - UI surfaces use toasts, translated error messages, `ResourceLoadError`,
   `SectionErrorState`, and route-level `error.tsx`.
 - Production source code no longer relies on scattered `console.*` statements.
+- A vendor-neutral frontend observability facade exists under
+  `frontend/src/lib/observability/`.
+- Route-level error boundaries and API transport failures are wired into the
+  facade.
+- ESLint blocks new `console.*` usage in `frontend/src`.
 
 Missing:
 
-- no frontend observability facade such as `reportClientError`;
-- no route error boundary reporting;
 - no client-side reporting for realtime, editor, upload, playback, or
   AudioWorklet failures;
 - no explicit client-to-server request correlation beyond consuming backend
   `X-Request-ID`;
-- no lint gate that prevents new `console.*` calls in product source.
+- no production error reporting vendor has been selected or connected.
 
 ### Backend
 
@@ -119,6 +122,11 @@ Missing or incomplete:
 
 Objective: make API traffic queryable in production.
 
+Status: implemented for the FastAPI request lifecycle. `LoggingMiddleware`
+emits `api.request_started`, `api.request_completed`, and
+`api.request_exception` as structured log events, and backend production logging
+no longer depends on local rotating application log files.
+
 Tasks:
 
 1. Replace string-only request/response logs in `LoggingMiddleware` with
@@ -148,6 +156,12 @@ Acceptance criteria:
 
 Objective: keep product source clean and create one place for frontend
 diagnostics.
+
+Status: partially implemented. The frontend has a vendor-neutral observability
+facade, route-level error boundaries report through it, API transport failures
+are captured, and `frontend/src` is guarded against scattered `console.*`
+calls. Additional high-value client failures should be wired as their owning
+features are touched.
 
 Tasks:
 
@@ -203,6 +217,10 @@ Acceptance criteria:
 
 Objective: make async work diagnosable without reading free-form strings.
 
+Status: partially implemented. Import, render, playback, mail, dispatch, and
+score deletion cleanup entrypoints now emit structured lifecycle events with
+stable operation IDs and attempt context where available.
+
 Tasks:
 
 1. Standardize task log events:
@@ -235,6 +253,11 @@ Acceptance criteria:
 ### P1 - User/Internal Error Semantics Audit
 
 Objective: prevent backend and technology details from leaking into product UI.
+
+Status: partially implemented. High-risk score, review, share, public,
+library, and practice loading/error surfaces use stable frontend error
+components and translations. Practice realtime errors no longer fall back to
+backend free-text messages.
 
 Tasks:
 

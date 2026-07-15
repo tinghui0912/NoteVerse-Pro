@@ -16,9 +16,21 @@ def dispatch_mail_outbox(outbox_uuid: str) -> bool:
             kwargs={"outbox_uuid": outbox_uuid},
             task_id=f"mail-{outbox_uuid}",
         )
+        logger.bind(
+            event="mail.dispatched",
+            operation_kind="mail",
+            outbox_id=outbox_uuid,
+            task_id=f"mail-{outbox_uuid}",
+        ).info("mail.dispatched")
         return True
     except Exception as exc:
         with get_worker_db() as db:
             mail_outbox_service.release_dispatch(db, outbox_uuid, str(exc))
-        logger.warning("Failed to dispatch mail outbox {}: {}", outbox_uuid, exc)
+        logger.bind(
+            event="mail.dispatch_failed",
+            operation_kind="mail",
+            outbox_id=outbox_uuid,
+            task_id=f"mail-{outbox_uuid}",
+            exception_type=type(exc).__name__,
+        ).opt(exception=True).warning("mail.dispatch_failed")
         return False

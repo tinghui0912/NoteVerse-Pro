@@ -282,7 +282,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         description: translateErrorCode(
           errors,
           message.payload.public_code,
-          message.payload.public_message
+          t('analysisFailedDesc')
         ),
       });
     }

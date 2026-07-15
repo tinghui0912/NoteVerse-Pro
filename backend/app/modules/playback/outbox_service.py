@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 
 from sqlalchemy import or_, select
@@ -33,6 +33,8 @@ class PlaybackOutboxPayload:
     revision_uuid: str
     source_fingerprint: str
     asset_kind: PlaybackAssetKind
+    attempt: int
+    max_attempts: int
 
 
 async def create_playback_outbox(
@@ -89,9 +91,15 @@ class PlaybackOutboxService:
         if outbox.attempt_count >= settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS:
             return None
 
+        attempt = outbox.attempt_count + 1
         payload = self._build_payload(db, outbox)
         if payload is None:
             return None
+        payload = replace(
+            payload,
+            attempt=attempt,
+            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+        )
         now = utc_now_naive()
         outbox.status = PlaybackOutboxStatus.PROCESSING
         outbox.attempt_count += 1
@@ -117,6 +125,8 @@ class PlaybackOutboxService:
                 revision_uuid=revision.revision_uuid,
                 source_fingerprint=outbox.source_fingerprint,
                 asset_kind=outbox.asset_kind,
+                attempt=0,
+                max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
             )
 
         outbox.status = PlaybackOutboxStatus.FAILED

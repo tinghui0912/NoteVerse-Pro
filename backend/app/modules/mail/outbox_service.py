@@ -26,6 +26,9 @@ class MailOutboxPayload:
     subject: str
     text_body: str
     html_body: str | None
+    category: str
+    attempt: int
+    max_attempts: int
 
 
 async def queue_mail(
@@ -122,6 +125,9 @@ class MailOutboxService:
             subject=outbox.subject,
             text_body=outbox.text_body,
             html_body=outbox.html_body,
+            category=outbox.category,
+            attempt=outbox.attempt_count,
+            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
         )
 
     def sent(self, db: Session, outbox_uuid: str, provider_message_id: str | None) -> None:

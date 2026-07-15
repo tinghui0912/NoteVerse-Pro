@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 
 from sqlalchemy import or_, select
@@ -37,6 +37,8 @@ class RenderOutboxPayload:
     target_type: RenderTargetType
     render_profile: str
     source_fingerprint: str
+    attempt: int
+    max_attempts: int
     score_uuid: str | None = None
     revision_uuid: str | None = None
     user_id: int | None = None
@@ -162,9 +164,15 @@ class RenderOutboxService:
         if outbox.attempt_count >= settings.RENDER_OUTBOX_MAX_ATTEMPTS:
             return None
 
+        attempt = outbox.attempt_count + 1
         payload = self._build_payload(db, outbox)
         if payload is None:
             return None
+        payload = replace(
+            payload,
+            attempt=attempt,
+            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+        )
         now = utc_now_naive()
         outbox.status = RenderOutboxStatus.PROCESSING
         outbox.attempt_count += 1
@@ -190,6 +198,8 @@ class RenderOutboxService:
                     user_id=outbox.requested_by_user_id,
                     render_profile=outbox.render_profile,
                     source_fingerprint=outbox.source_fingerprint,
+                    attempt=0,
+                    max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
                 )
         elif outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL:
             job = db.get(ImportJob, outbox.import_job_id)
@@ -212,6 +222,8 @@ class RenderOutboxService:
                     job_uuid=job.job_uuid,
                     render_profile=outbox.render_profile,
                     source_fingerprint=outbox.source_fingerprint,
+                    attempt=0,
+                    max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
                 )
 
         outbox.status = RenderOutboxStatus.FAILED

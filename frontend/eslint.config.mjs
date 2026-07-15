@@ -19,6 +19,12 @@ const eslintConfig = [
     }
   },
   {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-console": "error"
+    }
+  },
+  {
     rules: {
       "prefer-const": "warn",
       "react-hooks/exhaustive-deps": "warn"

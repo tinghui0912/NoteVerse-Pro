@@ -17,9 +17,21 @@ def dispatch_render_outbox(outbox_uuid: str) -> bool:
             kwargs={"outbox_uuid": outbox_uuid},
             task_id=f"render-{outbox_uuid}",
         )
+        logger.bind(
+            event="render.dispatched",
+            operation_kind="render",
+            outbox_id=outbox_uuid,
+            task_id=f"render-{outbox_uuid}",
+        ).info("render.dispatched")
         return True
     except Exception as exc:
         with get_worker_db() as db:
             render_outbox_service.release_dispatch(db, outbox_uuid, str(exc))
-        logger.warning("Failed to dispatch render outbox {}: {}", outbox_uuid, exc)
+        logger.bind(
+            event="render.dispatch_failed",
+            operation_kind="render",
+            outbox_id=outbox_uuid,
+            task_id=f"render-{outbox_uuid}",
+            exception_type=type(exc).__name__,
+        ).opt(exception=True).warning("render.dispatch_failed")
         return False

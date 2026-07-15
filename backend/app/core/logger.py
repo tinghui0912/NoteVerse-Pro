@@ -11,7 +11,6 @@ import sys
 import traceback
 import uuid
 from contextvars import ContextVar
-from pathlib import Path
 from typing import Optional
 
 from loguru import logger as _logger
@@ -153,6 +152,12 @@ def json_format(record) -> str:
         "line": record["line"],
     }
 
+    reserved_keys = set(log_record)
+    extra = SensitiveDataFilter.filter_dict(dict(record["extra"]))
+    for key, value in extra.items():
+        output_key = key if key not in reserved_keys else f"extra_{key}"
+        log_record[output_key] = value
+
     if trace_id:
         log_record["trace_id"] = trace_id
     if task_id:
@@ -175,7 +180,7 @@ def json_format(record) -> str:
             ),
         }
 
-    return json.dumps(log_record, ensure_ascii=False) + "\n"
+    return json.dumps(log_record, ensure_ascii=False, default=str) + "\n"
 
 
 def json_sink(message):
@@ -193,9 +198,6 @@ def json_sink(message):
         sys.stdout.write(safe_payload)
 
 
-log_dir = Path(settings.LOG_DIR)
-log_dir.mkdir(exist_ok=True)
-
 if debug_mode:
     _logger.add(
         sys.stdout,
@@ -206,17 +208,6 @@ if debug_mode:
     )
 else:
     _logger.add(json_sink, level="INFO", filter=filtered_format)
-
-_logger.add(
-    log_dir / "app_{time:YYYY-MM-DD}.log",
-    rotation="00:00",
-    retention="7 days",
-    compression="zip",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}\n{exception}",
-    level="DEBUG" if debug_mode else "INFO",
-    encoding="utf-8",
-    filter=filtered_format,
-)
 
 logger = _logger
 

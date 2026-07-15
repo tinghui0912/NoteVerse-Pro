@@ -144,38 +144,45 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Use an incoming request ID when present, otherwise generate one.
         request_id = request.headers.get("X-Request-ID")
         trace_id = set_trace_id(request_id)
+        request.state.request_id = trace_id
 
         should_log = request.url.path not in HEALTH_PATHS
+        base_log = logger.bind(
+            event="api.request",
+            request_id=trace_id,
+            method=request.method,
+            path=request.url.path,
+            client_host=request.client.host if request.client else "unknown",
+        )
         if should_log:
-            logger.info(
-                f"REQUEST {request.method} {request.url.path} | "
-                f"Client: {request.client.host if request.client else 'unknown'}"
-            )
+            base_log.bind(event="api.request_started").info("api.request_started")
 
         try:
             response = await call_next(request)
 
             # Measure request duration.
             process_time = time.time() - start_time
+            duration_ms = round(process_time * 1000, 2)
 
             # Escalate log level for error responses.
             if response.status_code >= 500:
-                log_func = logger.error
                 status_label = "ERROR"
+                level = "ERROR"
             elif response.status_code >= 400:
-                log_func = logger.warning
                 status_label = "WARN"
+                level = "WARNING"
             else:
-                log_func = logger.info
                 status_label = "OK"
+                level = "INFO"
 
             # Log the response result.
             if should_log:
-                log_func(
-                    f"{status_label} {request.method} {request.url.path} | "
-                    f"Status: {response.status_code} | "
-                    f"Time: {process_time:.3f}s"
-                )
+                base_log.bind(
+                    event="api.request_completed",
+                    status_label=status_label,
+                    status_code=response.status_code,
+                    duration_ms=duration_ms,
+                ).log(level, "api.request_completed")
 
             # Return trace metadata to the caller.
             response.headers["X-Request-ID"] = trace_id
@@ -185,9 +192,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         except Exception as e:
             process_time = time.time() - start_time
-            logger.error(
-                f"EXCEPTION {request.method} {request.url.path} | "
-                f"Error: {str(e)} | "
-                f"Time: {process_time:.3f}s"
-            )
+            base_log.bind(
+                event="api.request_exception",
+                exception_type=type(e).__name__,
+                duration_ms=round(process_time * 1000, 2),
+            ).opt(exception=True).error("api.request_exception")
             raise

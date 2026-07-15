@@ -2,6 +2,7 @@
 
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
 import { requiredEnvValue } from '@/lib/env';
+import { reportClientError } from '@/lib/observability';
 
 export const API_BASE_URL = requiredEnvValue(
   process.env.NEXT_PUBLIC_API_BASE_URL,
@@ -80,6 +81,14 @@ function shouldSkipRefresh(url: string): boolean {
     url.includes('/auth/email/') ||
     url.includes('/auth/password/')
   );
+}
+
+function safeRequestPath(url: string): string {
+  try {
+    return new URL(url, window.location.origin).pathname;
+  } catch {
+    return url.split('?')[0] ?? url;
+  }
 }
 
 function redirectToLoginIfNeeded(options?: RequestOptions): void {
@@ -182,7 +191,18 @@ async function fetchWithAuthRetry(
     }
   }
 
-  const response = await fetch(url, init);
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (error) {
+    reportClientError(error, {
+      area: 'api_client',
+      action: 'fetch',
+      method: init.method ?? 'GET',
+      path: safeRequestPath(url),
+    });
+    throw error;
+  }
 
   if (
     response.status !== 401 ||

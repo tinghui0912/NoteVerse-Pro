@@ -17,9 +17,21 @@ def dispatch_playback_outbox(outbox_uuid: str) -> bool:
             kwargs={"outbox_uuid": outbox_uuid},
             task_id=f"playback-{outbox_uuid}",
         )
+        logger.bind(
+            event="playback.dispatched",
+            operation_kind="playback",
+            outbox_id=outbox_uuid,
+            task_id=f"playback-{outbox_uuid}",
+        ).info("playback.dispatched")
         return True
     except Exception as exc:
         with get_worker_db() as db:
             playback_outbox_service.release_dispatch(db, outbox_uuid, str(exc))
-        logger.warning("Failed to dispatch playback outbox {}: {}", outbox_uuid, exc)
+        logger.bind(
+            event="playback.dispatch_failed",
+            operation_kind="playback",
+            outbox_id=outbox_uuid,
+            task_id=f"playback-{outbox_uuid}",
+            exception_type=type(exc).__name__,
+        ).opt(exception=True).warning("playback.dispatch_failed")
         return False
