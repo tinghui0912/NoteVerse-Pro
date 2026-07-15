@@ -4,7 +4,6 @@ export interface UploadableFile {
   file: File;
   preview: string;
   fileId?: string;
-  sha256?: string;
   status: UploadFileStatus;
   error?: string;
 }
@@ -12,7 +11,6 @@ export interface UploadableFile {
 export interface RestoredUploadInfo {
   upload_id?: string;
   original_filename?: string;
-  sha256?: string;
 }
 
 export interface RestorableTaskData {

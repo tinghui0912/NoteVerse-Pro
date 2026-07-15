@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 
 interface EditorOriginalImageArtifact {
   artifact_id: string;
-  sha256?: string | null;
+  filename?: string | null;
+  size?: number | null;
 }
 
 export function useEditorOriginalImages({
@@ -24,7 +25,9 @@ export function useEditorOriginalImages({
   const [originalImages, setOriginalImages] = useState<{ src: string; alt: string }[]>([]);
   const ownedObjectUrlsRef = useRef(new Set<string>());
   const signature = useMemo(
-    () => artifacts.map((artifact) => `${artifact.artifact_id}:${artifact.sha256 ?? ''}`).join('|'),
+    () => artifacts
+      .map((artifact) => `${artifact.artifact_id}:${artifact.filename ?? ''}:${artifact.size ?? ''}`)
+      .join('|'),
     [artifacts]
   );
 

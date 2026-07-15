@@ -593,7 +593,6 @@ def test_import_job_detail_hides_artifact_storage_details(
         "page_number": 1,
         "size": 123,
         "mime_type": "image/svg+xml",
-        "sha256": "abc123",
     }
 
 

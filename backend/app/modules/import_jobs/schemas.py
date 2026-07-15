@@ -31,7 +31,6 @@ class ImportJobArtifactItem(TypedDict):
     page_number: Optional[int]
     size: Optional[int]
     mime_type: Optional[str]
-    sha256: Optional[str]
 
 
 class ImportJobSubmitResult(TypedDict):
@@ -57,7 +56,6 @@ class ImportJobStepItem(TypedDict):
 
 class ImportJobUploadItem(TypedDict):
     upload_id: Optional[str]
-    sha256: str
     original_filename: Optional[str]
 
 

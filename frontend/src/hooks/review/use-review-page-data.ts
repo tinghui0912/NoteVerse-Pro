@@ -15,7 +15,9 @@ function useReviewArtifacts(jobId: string | null, artifacts: ReviewArtifact[]) {
   const [urls, setUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const ownedUrls = useRef(new Set<string>());
-  const signature = artifacts.map((item) => `${item.artifact_id}:${item.sha256 ?? ''}`).join('|');
+  const signature = artifacts
+    .map((item) => `${item.artifact_id}:${item.filename}:${item.size ?? ''}`)
+    .join('|');
 
   useEffect(() => {
     const controller = new AbortController();

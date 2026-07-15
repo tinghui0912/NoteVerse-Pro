@@ -266,7 +266,6 @@ class SyncImportJobService:
                 "page_number": row.page_number,
                 "size": row.size_bytes,
                 "mime_type": row.mime_type,
-                "sha256": row.sha256,
             })
 
         def first_artifact(kind: str) -> ImportJobArtifactItem | None:
@@ -300,7 +299,6 @@ class SyncImportJobService:
             "artifacts": artifacts,
             "upload_ids": [{
                 "upload_id": upload.upload_uuid,
-                "sha256": blob.sha256,
                 "original_filename": upload.original_filename,
             } for _, upload, blob in self.repository.list_upload_rows(db, job_id)],
         }

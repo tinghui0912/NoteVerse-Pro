@@ -21,7 +21,7 @@ export interface ImportJob {
   public_code?: string | null;
   public_message?: string | null;
   artifacts?: Record<string, ImportArtifact[]>;
-  upload_ids?: Array<{ upload_id?: string; sha256: string; original_filename?: string }>;
+  upload_ids?: Array<{ upload_id?: string; original_filename?: string }>;
 }
 
 export interface ImportArtifact {
@@ -30,7 +30,6 @@ export interface ImportArtifact {
   page_number?: number;
   size?: number;
   mime_type?: string;
-  sha256?: string;
 }
 
 export interface ReviewArtifact {
@@ -38,7 +37,6 @@ export interface ReviewArtifact {
   filename: string;
   mime_type?: string | null;
   size?: number | null;
-  sha256?: string | null;
   page_number?: number | null;
 }
 
@@ -52,7 +50,6 @@ export interface ImportJobReview {
     artifact_id: string;
     content: string;
     mime_type?: string | null;
-    sha256?: string | null;
   } | null;
   original_images: ReviewArtifact[];
   created_at: string;

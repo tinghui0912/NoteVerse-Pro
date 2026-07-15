@@ -172,7 +172,6 @@ export function useUploadWorkflow() {
             preview,
             status: 'uploaded',
             fileId: uploadInfo?.upload_id,
-            sha256: uploadInfo?.sha256,
           });
         }
         if (controller.signal.aborted) return;
