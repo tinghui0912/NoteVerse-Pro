@@ -18,8 +18,8 @@ export interface ImportJob {
   updated_at?: string;
   started_at?: string;
   finished_at?: string;
-  error?: string;
-  code?: string;
+  public_code?: string | null;
+  public_message?: string | null;
   artifacts?: Record<string, ImportArtifact[]>;
   upload_ids?: Array<{ upload_id?: string; sha256: string; original_filename?: string }>;
 }

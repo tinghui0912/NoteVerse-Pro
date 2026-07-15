@@ -9,7 +9,6 @@ export interface ApiResponse<T = unknown> {
   code?: string;
   error?: string;
   request_id?: string;
-  details?: Record<string, unknown>;
 }
 
 export interface PaginatedResponse<T> {

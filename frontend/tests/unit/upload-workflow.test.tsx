@@ -116,8 +116,7 @@ describe('upload workflow storage quota handling', () => {
       new ApiError(
         422,
         'storage_quota_exceeded',
-        'storage_quota_exceeded',
-        { requested_bytes: 9 }
+        'storage_quota_exceeded'
       )
     );
     const queryClient = createQueryClient();

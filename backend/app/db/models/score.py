@@ -117,6 +117,10 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
     )
     next_cleanup_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     deletion_error: Optional[str] = Field(default=None, sa_column=Column(Text))
+    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
+    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     created_at: datetime = Field(
         default_factory=utc_now_naive,
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),

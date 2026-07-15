@@ -46,7 +46,7 @@ describe('api client error contract', () => {
     } satisfies Partial<ApiError>);
   });
 
-  it('uses public error fields from api responses', async () => {
+  it('uses public error fields from api responses without retaining internal details', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -62,11 +62,18 @@ describe('api client error contract', () => {
       )
     );
 
-    await expect(apiClient.get('/scores/score-1')).rejects.toMatchObject({
+    let capturedError: unknown;
+    try {
+      await apiClient.get('/scores/score-1');
+    } catch (error) {
+      capturedError = error;
+    }
+
+    expect(capturedError).toMatchObject({
       status: 500,
       code: 'score_preview_failed',
       message: 'score_preview_failed',
-      details: { engine: 'internal-renderer' },
     } satisfies Partial<ApiError>);
+    expect(capturedError).not.toHaveProperty('details');
   });
 });

@@ -9,6 +9,12 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import ImportDispatchStatus, ImportJob, ImportJobUpload, StorageBlob, Upload
 from app.db.models.import_job import ImportJobState
+from app.modules.async_operations.diagnostics import (
+    AsyncOperationKindValue,
+    AsyncOperationStatusValue,
+    apply_async_diagnostic,
+    clear_async_diagnostic,
+)
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
@@ -60,12 +66,13 @@ class ImportDispatchService:
         job.dispatch_attempt_count += 1
         job.dispatch_started_at = now
         job.dispatch_error = None
+        clear_async_diagnostic(job)
         job.updated_at = now
         options = job.requested_options if isinstance(job.requested_options, dict) else None
         return ImportDispatchPayload(
             job_uuid=job.job_uuid,
             storage_keys=list(storage_keys),
-            options=options,  # type: ignore[arg-type]
+            options=options,
         )
 
     def complete(self, db: Session, job_uuid: str) -> None:
@@ -76,6 +83,7 @@ class ImportDispatchService:
         job.dispatch_status = ImportDispatchStatus.COMPLETED
         job.dispatch_completed_at = now
         job.dispatch_error = None
+        clear_async_diagnostic(job)
         job.updated_at = now
 
     def release_dispatch(self, db: Session, job_uuid: str, error: str) -> None:
@@ -88,6 +96,15 @@ class ImportDispatchService:
         delay_seconds = min(300, 2 ** min(job.publish_attempt_count, 8))
         job.next_dispatch_at = utc_now_naive() + timedelta(seconds=delay_seconds)
         job.dispatch_error = error[:4000]
+        apply_async_diagnostic(
+            job,
+            kind=AsyncOperationKindValue.IMPORT,
+            status=AsyncOperationStatusValue.QUEUED,
+            raw_status=f"{job.state.value}/{job.dispatch_status.value}",
+            last_error=job.dispatch_error,
+            attempts=job.dispatch_attempt_count,
+            max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+        )
         job.updated_at = utc_now_naive()
 
     def recover_and_claim_due(self, db: Session) -> list[str]:
@@ -122,9 +139,18 @@ class ImportDispatchService:
             job.next_dispatch_at = now
             job.dispatched_at = None
             job.dispatch_started_at = None
-            job.dispatch_error = "Import delivery lease expired"
             if stale_processing:
                 self._reset_pipeline_state(job)
+            job.dispatch_error = "Import delivery lease expired"
+            apply_async_diagnostic(
+                job,
+                kind=AsyncOperationKindValue.IMPORT,
+                status=AsyncOperationStatusValue.QUEUED,
+                raw_status=f"{job.state.value}/{job.dispatch_status.value}",
+                last_error=job.dispatch_error,
+                attempts=job.dispatch_attempt_count,
+                max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+            )
             job.updated_at = now
 
         due = db.execute(
@@ -146,6 +172,7 @@ class ImportDispatchService:
             job.dispatch_status = ImportDispatchStatus.DISPATCHED
             job.dispatched_at = now
             job.dispatch_error = None
+            clear_async_diagnostic(job)
             job.updated_at = now
         db.commit()
         return [job.job_uuid for job in due]
@@ -179,6 +206,7 @@ class ImportDispatchService:
         job.code = None
         job.error = None
         job.error_type = None
+        clear_async_diagnostic(job)
 
     @staticmethod
     def _terminal_failure(job: ImportJob, error: str) -> None:
@@ -189,6 +217,15 @@ class ImportDispatchService:
         job.error = ErrorCode.EXTERNAL_SERVICE_ERROR
         job.error_type = "ImportDispatchFailure"
         job.dispatch_error = error
+        apply_async_diagnostic(
+            job,
+            kind=AsyncOperationKindValue.IMPORT,
+            status=AsyncOperationStatusValue.EXHAUSTED,
+            raw_status=f"{job.state.value}/{job.dispatch_status.value}",
+            last_error=job.dispatch_error,
+            attempts=job.dispatch_attempt_count,
+            max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+        )
         job.finished_at = now
         job.updated_at = now
 

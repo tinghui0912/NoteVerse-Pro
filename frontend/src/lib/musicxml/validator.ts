@@ -76,7 +76,7 @@ function validateXMLFormat(currentXml: string | null, t: TranslateFunction): Sco
         }
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        issues.push(errorIssue('xml.parse_failed', `${t('validation.xmlParseFailed')}: ${reason}`, { reason }));
+        issues.push(errorIssue('xml.parse_failed', t('validation.xmlParseFailed'), { reason }));
     }
 
     return issues;
@@ -113,7 +113,7 @@ function validateBasicStructure(currentXml: string | null, t: TranslateFunction)
 
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        issues.push(errorIssue('xml.parse_failed', `${t('validation.xmlParseFailed')}: ${reason}`, { reason }));
+        issues.push(errorIssue('xml.parse_failed', t('validation.xmlParseFailed'), { reason }));
     }
 
     return issues;
@@ -162,7 +162,7 @@ function validateMeasureDurations(
         });
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        warnings.push({ code: 'xml.parse_failed', severity: 'warning', message: `${t('validation.xmlParseFailed')}: ${reason}`, details: { reason } });
+        warnings.push({ code: 'xml.parse_failed', severity: 'warning', message: t('validation.xmlParseFailed'), details: { reason } });
     }
 
     return warnings;

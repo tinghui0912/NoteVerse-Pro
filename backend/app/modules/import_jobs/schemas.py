@@ -40,7 +40,8 @@ class ImportJobSubmitResult(TypedDict):
 class ImportJobStatusEntry(TypedDict):
     state: ImportJobState | str
     progress: int
-    error: Optional[str]
+    public_code: Optional[str]
+    public_message: Optional[str]
     score_id: Optional[str]
 
 
@@ -70,8 +71,8 @@ class ImportJobDetail(TypedDict, total=False):
     updated_at: Optional[str]
     started_at: Optional[str]
     finished_at: Optional[str]
-    error: Optional[str]
-    code: Optional[str]
+    public_code: Optional[str]
+    public_message: Optional[str]
     steps: List[ImportJobStepItem]
     artifacts: dict[str, List[ImportJobArtifactItem]]
     upload_ids: List[ImportJobUploadItem]

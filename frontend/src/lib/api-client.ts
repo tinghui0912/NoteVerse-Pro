@@ -33,7 +33,6 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
-    public details?: Record<string, unknown>,
     public requestId?: string
   ) {
     super(message);
@@ -117,9 +116,6 @@ function createApiError(
     response.status,
     publicCode,
     publicMessage,
-    typeof data.internal_details === 'object' && data.internal_details !== null
-      ? (data.internal_details as Record<string, unknown>)
-      : undefined,
     typeof data.request_id === 'string'
       ? data.request_id
       : response.headers.get('X-Request-ID') ?? undefined
@@ -140,7 +136,6 @@ async function handleResponse<T>(response: Response, options?: RequestOptions): 
         response.status,
         code,
         code,
-        undefined,
         response.headers.get('X-Request-ID') ?? undefined
       );
     }

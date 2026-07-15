@@ -88,7 +88,7 @@ class ImportJobService:
             current_user,
             RetryJobRequest(
                 file_ids=file_ids,
-                options=options,  # type: ignore[arg-type]
+                options=options,
             ),
         )
 
@@ -147,7 +147,8 @@ class ImportJobService:
             job.job_uuid: {
                 "state": job.state,
                 "progress": job.progress,
-                "error": job.error,
+                "public_code": job.code or (ErrorCode.TASK_ERROR if job.error else None),
+                "public_message": job.code or (ErrorCode.TASK_ERROR if job.error else None),
                 "score_id": None,
             }
             for job in jobs

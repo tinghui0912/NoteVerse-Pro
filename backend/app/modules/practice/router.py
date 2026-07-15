@@ -136,8 +136,7 @@ async def stream_practice_session(
         if runtime is None:
             await websocket.send_json(
                 session_error_message(
-                    code=ErrorCode.PRACTICE_STREAM_NOT_READY,
-                    message="Practice runtime is not ready.",
+                    public_code=ErrorCode.PRACTICE_STREAM_NOT_READY,
                 )
             )
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -194,8 +193,7 @@ async def stream_practice_session(
                 else:
                     await websocket.send_json(
                         session_error_message(
-                            code=ErrorCode.PRACTICE_STREAM_CLOSED,
-                            message=f"Unsupported message type: {message_type}",
+                            public_code=ErrorCode.PRACTICE_STREAM_CLOSED,
                         )
                     )
             binary_payload = message.get("bytes")
@@ -205,8 +203,7 @@ async def stream_practice_session(
                 except RuntimeError:
                     await websocket.send_json(
                         session_error_message(
-                            code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
-                            message=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+                            public_code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
                         )
                     )
                     break
@@ -231,8 +228,7 @@ async def stream_practice_session(
     except AppException as exc:
         await websocket.send_json(
             session_error_message(
-                code=exc.code,
-                message=exc.code,
+                public_code=exc.code,
             )
         )
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)

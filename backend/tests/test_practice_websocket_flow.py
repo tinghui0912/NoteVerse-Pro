@@ -175,8 +175,8 @@ def test_practice_websocket_flow_returns_stable_alignment_error(
                 assert error_message == {
                     "type": "session.error",
                     "payload": {
-                        "code": "practice_alignment_failed",
-                        "message": "practice_alignment_failed",
+                        "public_code": "practice_alignment_failed",
+                        "public_message": "practice_alignment_failed",
                     },
                 }
     finally:

@@ -282,7 +282,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       toast({
         variant: 'destructive',
         title: t('analysisFailedTitle'),
-        description: translateErrorCode(errors, message.payload.code, message.payload.message),
+        description: translateErrorCode(
+          errors,
+          message.payload.public_code,
+          message.payload.public_message
+        ),
       });
     }
   }
@@ -301,7 +305,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       toast({
         variant: 'destructive',
         title: t('analysisFailedTitle'),
-        description: 'Practice realtime connection was closed. Please start again.',
+        description: t('connectionClosedDesc'),
       });
     } else if (!wasIntentional && !wasActive) {
       preconnectStartedRef.current = false;

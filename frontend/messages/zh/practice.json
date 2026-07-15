@@ -28,6 +28,7 @@
   "audioWorkletUnsupportedAlertDesc": "当前浏览器无法提供练习模式所需的实时音频能力，请使用最新版 Chrome 或 Edge 打开此页面。",
   "prepareFailedTitle": "练习准备失败",
   "prepareFailedDesc": "暂时无法准备练习会话，请刷新页面后重试。",
+  "connectionClosedDesc": "练习连接已断开，请重新开始。",
   "analysisFailedTitle": "分析失败",
   "analysisFailedDesc": "生成练习报告时发生错误，请稍后重试。",
   "loadingReport": "正在加载练习报告...",

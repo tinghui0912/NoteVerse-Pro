@@ -7,6 +7,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -115,6 +116,10 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     dispatch_started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     dispatch_completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     dispatch_error: Optional[str] = Field(default=None, sa_column=Column(Text))
+    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
+    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     code: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     error: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_type: Optional[str] = Field(default=None, sa_column=Column(String(64)))

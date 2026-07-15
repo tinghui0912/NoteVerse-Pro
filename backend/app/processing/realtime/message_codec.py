@@ -56,12 +56,12 @@ def session_finished_message(state: str) -> RuntimeMessage:
     }
 
 
-def session_error_message(code: str, message: str) -> RuntimeMessage:
+def session_error_message(public_code: str, public_message: str | None = None) -> RuntimeMessage:
     return {
         "type": "session.error",
         "payload": {
-            "code": code,
-            "message": message,
+            "public_code": public_code,
+            "public_message": public_message or public_code,
         },
     }
 

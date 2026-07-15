@@ -17,6 +17,12 @@ from app.db.models import (
     ScoreDeletionStatus,
     ScoreRevision,
 )
+from app.modules.async_operations.diagnostics import (
+    AsyncOperationKindValue,
+    AsyncOperationStatusValue,
+    apply_async_diagnostic,
+    clear_async_diagnostic,
+)
 from app.utils.timezone import utc_now_naive
 
 
@@ -116,6 +122,15 @@ class PlaybackOutboxService:
         outbox.status = PlaybackOutboxStatus.FAILED
         outbox.attempt_count = settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS
         outbox.last_error = "Playback outbox references unavailable or stale resources"
+        apply_async_diagnostic(
+            outbox,
+            kind=AsyncOperationKindValue.PLAYBACK,
+            status=AsyncOperationStatusValue.EXHAUSTED,
+            raw_status=outbox.status.value,
+            last_error=outbox.last_error,
+            attempts=outbox.attempt_count,
+            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+        )
         outbox.updated_at = utc_now_naive()
         return None
 
@@ -127,6 +142,7 @@ class PlaybackOutboxService:
         outbox.status = PlaybackOutboxStatus.COMPLETED
         outbox.completed_at = now
         outbox.last_error = None
+        clear_async_diagnostic(outbox)
         outbox.updated_at = now
 
     def fail(self, db: Session, outbox_uuid: str, error: str) -> None:
@@ -140,6 +156,19 @@ class PlaybackOutboxService:
         outbox.status = PlaybackOutboxStatus.FAILED
         outbox.next_attempt_at = now + timedelta(seconds=delay)
         outbox.last_error = error[:4000]
+        apply_async_diagnostic(
+            outbox,
+            kind=AsyncOperationKindValue.PLAYBACK,
+            status=(
+                AsyncOperationStatusValue.EXHAUSTED
+                if outbox.attempt_count >= settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS
+                else AsyncOperationStatusValue.RETRYING
+            ),
+            raw_status=outbox.status.value,
+            last_error=outbox.last_error,
+            attempts=outbox.attempt_count,
+            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+        )
         outbox.updated_at = now
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
@@ -149,6 +178,7 @@ class PlaybackOutboxService:
         now = utc_now_naive()
         outbox.status = PlaybackOutboxStatus.DISPATCHED
         outbox.dispatched_at = now
+        clear_async_diagnostic(outbox)
         outbox.updated_at = now
         return True
 
@@ -159,6 +189,15 @@ class PlaybackOutboxService:
         outbox.status = PlaybackOutboxStatus.PENDING
         outbox.dispatched_at = None
         outbox.last_error = error[:4000]
+        apply_async_diagnostic(
+            outbox,
+            kind=AsyncOperationKindValue.PLAYBACK,
+            status=AsyncOperationStatusValue.QUEUED,
+            raw_status=outbox.status.value,
+            last_error=outbox.last_error,
+            attempts=outbox.attempt_count,
+            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+        )
         outbox.updated_at = utc_now_naive()
 
     def recover_and_list_due(self, db: Session) -> list[str]:
@@ -192,6 +231,15 @@ class PlaybackOutboxService:
                 outbox.status = PlaybackOutboxStatus.FAILED
                 outbox.next_attempt_at = now
                 outbox.last_error = "Playback delivery lease expired"
+                apply_async_diagnostic(
+                    outbox,
+                    kind=AsyncOperationKindValue.PLAYBACK,
+                    status=AsyncOperationStatusValue.FAILED,
+                    raw_status=outbox.status.value,
+                    last_error=outbox.last_error,
+                    attempts=outbox.attempt_count,
+                    max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+                )
                 outbox.updated_at = now
 
         due = db.execute(

@@ -100,7 +100,7 @@ export interface PracticeAlignmentUpdateMessage {
 
 export interface PracticeSessionErrorMessage {
   type: 'session.error';
-  payload: { code: string; message: string };
+  payload: { public_code: string; public_message: string };
 }
 
 export type PracticeServerMessage =

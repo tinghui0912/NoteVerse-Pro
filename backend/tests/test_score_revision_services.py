@@ -536,6 +536,48 @@ def test_job_detail_uses_review_preview_image_only(
     assert detail["thumbnail_artifact_id"] == "result-thumbnail-artifact"
 
 
+def test_import_job_detail_exposes_public_failure_fields_only(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _ = score_service_session
+    session.add(
+        ImportJob(
+            id=18,
+            job_uuid="job-public-failure",
+            user_id=1,
+            state=ImportJobState.FAILURE,
+            error=ErrorCode.SCORE_RECOGNITION_FAILED,
+            code=ErrorCode.SCORE_RECOGNITION_FAILED,
+            error_type="PipelineEngineError",
+        )
+    )
+    session.add(
+        ImportJob(
+            id=19,
+            job_uuid="job-raw-failure",
+            user_id=1,
+            state=ImportJobState.FAILURE,
+            error="paddleocr crashed while reading /internal/path/score.png",
+            code=None,
+            error_type="PipelineEngineError",
+        )
+    )
+    session.commit()
+
+    detail = SyncImportJobService().get_detail(session, "job-public-failure")
+    raw_detail = SyncImportJobService().get_detail(session, "job-raw-failure")
+
+    assert detail["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
+    assert detail["public_message"] == ErrorCode.SCORE_RECOGNITION_FAILED
+    assert "error" not in detail
+    assert "code" not in detail
+    assert "error_type" not in detail
+    assert raw_detail["public_code"] == ErrorCode.TASK_ERROR
+    assert raw_detail["public_message"] == ErrorCode.TASK_ERROR
+    assert "paddleocr" not in str(raw_detail)
+    assert "/internal/path" not in str(raw_detail)
+
+
 def test_review_thumbnail_records_temp_import_usage(
     score_service_session: tuple[Session, LocalFileStorage], tmp_path
 ) -> None:

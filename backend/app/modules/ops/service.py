@@ -23,6 +23,7 @@ from app.db.models import (
     Score,
     ScoreDeletionStatus,
 )
+from app.modules.async_operations.diagnostics import clear_async_diagnostic
 from app.modules.ops.schemas import (
     AsyncOperationDiagnostic,
     AsyncOperationErrorClass,
@@ -297,11 +298,10 @@ class OpsAsyncOperationService:
             ),
             else_=AsyncOperationStatus.QUEUED.value,
         )
-        error_class_expr = self._error_class_sql(func.coalesce(ImportJob.error, ImportJob.dispatch_error))
         predicates = self._summary_predicates(
             filters,
             status_expr=status_expr,
-            error_class_expr=error_class_expr,
+            error_class_expr=ImportJob.internal_error_class,
             resource_type_expr=literal("import_job"),
             created_at_expr=ImportJob.created_at,
             updated_at_expr=ImportJob.updated_at,
@@ -325,11 +325,10 @@ class OpsAsyncOperationService:
             settings.RENDER_OUTBOX_MAX_ATTEMPTS,
             RenderOutbox.next_attempt_at,
         )
-        error_class_expr = self._error_class_sql(RenderOutbox.last_error)
         predicates = self._summary_predicates(
             filters,
             status_expr=status_expr,
-            error_class_expr=error_class_expr,
+            error_class_expr=RenderOutbox.internal_error_class,
             resource_type_expr=func.lower(RenderOutbox.target_type),
             created_at_expr=RenderOutbox.created_at,
             updated_at_expr=RenderOutbox.updated_at,
@@ -353,11 +352,10 @@ class OpsAsyncOperationService:
             settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
             PlaybackOutbox.next_attempt_at,
         )
-        error_class_expr = self._error_class_sql(PlaybackOutbox.last_error)
         predicates = self._summary_predicates(
             filters,
             status_expr=status_expr,
-            error_class_expr=error_class_expr,
+            error_class_expr=PlaybackOutbox.internal_error_class,
             resource_type_expr=func.lower(PlaybackOutbox.asset_kind),
             created_at_expr=PlaybackOutbox.created_at,
             updated_at_expr=PlaybackOutbox.updated_at,
@@ -392,11 +390,10 @@ class OpsAsyncOperationService:
             (MailOutbox.status == MailOutboxStatus.FAILED, AsyncOperationStatus.RETRYING.value),
             else_=AsyncOperationStatus.QUEUED.value,
         )
-        error_class_expr = self._error_class_sql(MailOutbox.last_error)
         predicates = self._summary_predicates(
             filters,
             status_expr=status_expr,
-            error_class_expr=error_class_expr,
+            error_class_expr=MailOutbox.internal_error_class,
             resource_type_expr=MailOutbox.category,
             created_at_expr=MailOutbox.created_at,
             updated_at_expr=MailOutbox.updated_at,
@@ -422,14 +419,13 @@ class OpsAsyncOperationService:
             (Score.cleanup_attempt_count > 0, AsyncOperationStatus.RETRYING.value),
             else_=AsyncOperationStatus.QUEUED.value,
         )
-        error_class_expr = self._error_class_sql(Score.deletion_error)
         created_at_expr = func.coalesce(Score.deletion_requested_at, Score.deleted_at)
         predicates = [
             Score.deletion_status == ScoreDeletionStatus.DELETING,
             *self._summary_predicates(
                 filters,
                 status_expr=status_expr,
-                error_class_expr=error_class_expr,
+                error_class_expr=Score.internal_error_class,
                 resource_type_expr=literal("score"),
                 created_at_expr=created_at_expr,
                 updated_at_expr=Score.updated_at,
@@ -531,6 +527,7 @@ class OpsAsyncOperationService:
         job.dispatch_started_at = None
         job.dispatch_completed_at = None
         job.dispatch_error = None
+        clear_async_diagnostic(job)
         job.error = None
         job.error_type = None
         job.started_at = None
@@ -566,6 +563,7 @@ class OpsAsyncOperationService:
         outbox.started_at = None
         outbox.completed_at = None
         outbox.last_error = None
+        clear_async_diagnostic(outbox)
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
@@ -599,6 +597,7 @@ class OpsAsyncOperationService:
         outbox.started_at = None
         outbox.completed_at = None
         outbox.last_error = None
+        clear_async_diagnostic(outbox)
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
@@ -638,6 +637,7 @@ class OpsAsyncOperationService:
         outbox.started_at = None
         outbox.completed_at = None
         outbox.last_error = None
+        clear_async_diagnostic(outbox)
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
@@ -661,6 +661,7 @@ class OpsAsyncOperationService:
         score.cleanup_attempt_count = 0
         score.next_cleanup_at = now
         score.deletion_error = None
+        clear_async_diagnostic(score)
         score.updated_at = now
         await db.commit()
         await db.refresh(score)
@@ -677,16 +678,9 @@ class OpsAsyncOperationService:
             attempts=job.dispatch_attempt_count,
             max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
             next_attempt_at=job.next_dispatch_at,
-            last_error=job.error or job.dispatch_error,
-            error_class=self._classify_error(job.error or job.dispatch_error),
-            diagnostic=self._diagnostic(
-                kind=AsyncOperationKind.IMPORT,
-                status=self._import_status(job),
-                raw_status=f"{job.state.value}/{job.dispatch_status.value}",
-                last_error=job.error or job.dispatch_error,
-                attempts=job.dispatch_attempt_count,
-                max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
-            ),
+            internal_reason=job.error or job.dispatch_error,
+            error_class=self._stored_error_class(job),
+            diagnostic=self._stored_diagnostic(job),
             created_at=job.created_at,
             updated_at=job.updated_at,
         )
@@ -708,16 +702,9 @@ class OpsAsyncOperationService:
             attempts=outbox.attempt_count,
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
-            last_error=outbox.last_error,
-            error_class=self._classify_error(outbox.last_error),
-            diagnostic=self._diagnostic(
-                kind=AsyncOperationKind.RENDER,
-                status=status,
-                raw_status=outbox.status.value,
-                last_error=outbox.last_error,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-            ),
+            internal_reason=outbox.last_error,
+            error_class=self._stored_error_class(outbox),
+            diagnostic=self._stored_diagnostic(outbox),
             created_at=outbox.created_at,
             updated_at=outbox.updated_at,
         )
@@ -739,16 +726,9 @@ class OpsAsyncOperationService:
             attempts=outbox.attempt_count,
             max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
-            last_error=outbox.last_error,
-            error_class=self._classify_error(outbox.last_error),
-            diagnostic=self._diagnostic(
-                kind=AsyncOperationKind.PLAYBACK,
-                status=status,
-                raw_status=outbox.status.value,
-                last_error=outbox.last_error,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
-            ),
+            internal_reason=outbox.last_error,
+            error_class=self._stored_error_class(outbox),
+            diagnostic=self._stored_diagnostic(outbox),
             created_at=outbox.created_at,
             updated_at=outbox.updated_at,
         )
@@ -765,16 +745,9 @@ class OpsAsyncOperationService:
             attempts=outbox.attempt_count,
             max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
-            last_error=outbox.last_error,
-            error_class=self._classify_error(outbox.last_error),
-            diagnostic=self._diagnostic(
-                kind=AsyncOperationKind.MAIL,
-                status=status,
-                raw_status=outbox.status.value,
-                last_error=outbox.last_error,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
-            ),
+            internal_reason=outbox.last_error,
+            error_class=self._stored_error_class(outbox),
+            diagnostic=self._stored_diagnostic(outbox),
             created_at=outbox.created_at,
             updated_at=outbox.updated_at,
         )
@@ -791,16 +764,9 @@ class OpsAsyncOperationService:
             attempts=score.cleanup_attempt_count,
             max_attempts=settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
             next_attempt_at=score.next_cleanup_at,
-            last_error=score.deletion_error,
-            error_class=self._classify_error(score.deletion_error),
-            diagnostic=self._diagnostic(
-                kind=AsyncOperationKind.SCORE_DELETION,
-                status=status,
-                raw_status=score.deletion_status.value,
-                last_error=score.deletion_error,
-                attempts=score.cleanup_attempt_count,
-                max_attempts=settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
-            ),
+            internal_reason=score.deletion_error,
+            error_class=self._stored_error_class(score),
+            diagnostic=self._stored_diagnostic(score),
             created_at=score.deletion_requested_at or score.deleted_at,
             updated_at=score.updated_at,
         )
@@ -821,49 +787,6 @@ class OpsAsyncOperationService:
             ),
             (status_column == "FAILED", AsyncOperationStatus.FAILED.value),
             else_=AsyncOperationStatus.QUEUED.value,
-        )
-
-    @staticmethod
-    def _error_class_sql(error_column):
-        normalized = func.lower(func.coalesce(error_column, ""))
-        return case(
-            (normalized == "", None),
-            (
-                normalized.like("%unsupported%")
-                | normalized.like("%invalid file%")
-                | normalized.like("%invalid input%")
-                | normalized.like("%corrupt%")
-                | normalized.like("%parse%"),
-                AsyncOperationErrorClass.USER_ERROR.value,
-            ),
-            (
-                normalized.like("%references unavailable%")
-                | normalized.like("%stale resources%")
-                | normalized.like("%body is unavailable%")
-                | normalized.like("%permanent%")
-                | normalized.like("%expired%"),
-                AsyncOperationErrorClass.PERMANENT.value,
-            ),
-            (
-                normalized.like("%timeout%")
-                | normalized.like("%temporarily%")
-                | normalized.like("%unavailable%")
-                | normalized.like("%connection%")
-                | normalized.like("%lease expired%")
-                | normalized.like("%worker%")
-                | normalized.like("%redis%")
-                | normalized.like("%s3%")
-                | normalized.like("%storage%")
-                | normalized.like("%smtp%"),
-                AsyncOperationErrorClass.TRANSIENT.value,
-            ),
-            (
-                normalized.like("%traceback%")
-                | normalized.like("%exception%")
-                | normalized.like("%failed%"),
-                AsyncOperationErrorClass.SYSTEM_ERROR.value,
-            ),
-            else_=AsyncOperationErrorClass.UNKNOWN.value,
         )
 
     @staticmethod
@@ -999,164 +922,30 @@ class OpsAsyncOperationService:
         return True
 
     @staticmethod
-    def _classify_error(error: str | None) -> AsyncOperationErrorClass | None:
-        if not error:
+    def _stored_error_class(record: object) -> AsyncOperationErrorClass | None:
+        error_class = getattr(record, "internal_error_class", None)
+        if error_class is None:
             return None
-        normalized = error.lower()
-        if any(
-            marker in normalized
-            for marker in (
-                "unsupported",
-                "invalid file",
-                "invalid input",
-                "corrupt",
-                "parse",
-            )
-        ):
-            return AsyncOperationErrorClass.USER_ERROR
-        if any(
-            marker in normalized
-            for marker in (
-                "references unavailable",
-                "stale resources",
-                "body is unavailable",
-                "permanent",
-                "expired",
-            )
-        ):
-            return AsyncOperationErrorClass.PERMANENT
-        if any(
-            marker in normalized
-            for marker in (
-                "timeout",
-                "temporarily",
-                "unavailable",
-                "connection",
-                "lease expired",
-                "worker",
-                "redis",
-                "s3",
-                "storage",
-                "smtp",
-            )
-        ):
-            return AsyncOperationErrorClass.TRANSIENT
-        if any(marker in normalized for marker in ("traceback", "exception", "failed")):
-            return AsyncOperationErrorClass.SYSTEM_ERROR
-        return AsyncOperationErrorClass.UNKNOWN
+        return AsyncOperationErrorClass(str(error_class))
 
-    def _diagnostic(
-        self,
-        *,
-        kind: AsyncOperationKind,
-        status: AsyncOperationStatus,
-        raw_status: str,
-        last_error: str | None,
-        attempts: int,
-        max_attempts: int | None,
-    ) -> AsyncOperationDiagnostic | None:
-        error_class = self._classify_error(last_error)
-        if last_error is None and error_class is None and status not in {
-            AsyncOperationStatus.FAILED,
-            AsyncOperationStatus.PERMANENT_FAILED,
-            AsyncOperationStatus.EXPIRED,
-            AsyncOperationStatus.EXHAUSTED,
-            AsyncOperationStatus.BLOCKED,
-        }:
+    @staticmethod
+    def _stored_diagnostic(record: object) -> AsyncOperationDiagnostic | None:
+        internal_code = getattr(record, "internal_error_code", None)
+        internal_stage = getattr(record, "internal_error_stage", None)
+        internal_error_class = getattr(record, "internal_error_class", None)
+        retryable = getattr(record, "internal_error_retryable", None)
+        if (
+            internal_code is None
+            and internal_stage is None
+            and internal_error_class is None
+            and retryable is None
+        ):
             return None
-
-        internal_code = self._internal_code(
-            kind=kind,
-            status=status,
-            raw_status=raw_status,
-            error_class=error_class,
-            last_error=last_error,
-        )
-        retryable = self._is_retryable(status=status, attempts=attempts, max_attempts=max_attempts)
         return AsyncOperationDiagnostic(
             internal_code=internal_code,
-            internal_stage=self._internal_stage(kind, raw_status),
-            internal_reason=last_error,
-            retryable=retryable,
+            internal_stage=internal_stage,
+            retryable=bool(retryable),
         )
-
-    @staticmethod
-    def _internal_stage(kind: AsyncOperationKind, raw_status: str) -> str:
-        if kind == AsyncOperationKind.IMPORT:
-            if "/" in raw_status:
-                state, dispatch = raw_status.split("/", 1)
-                if dispatch in {"PENDING", "DISPATCHED", "FAILED"}:
-                    return "dispatch"
-                return state.lower()
-            return "import"
-        if kind == AsyncOperationKind.RENDER:
-            return "render"
-        if kind == AsyncOperationKind.PLAYBACK:
-            return "playback"
-        if kind == AsyncOperationKind.MAIL:
-            return "delivery"
-        if kind == AsyncOperationKind.SCORE_DELETION:
-            return "cleanup"
-        return kind.value
-
-    @staticmethod
-    def _internal_code(
-        *,
-        kind: AsyncOperationKind,
-        status: AsyncOperationStatus,
-        raw_status: str,
-        error_class: AsyncOperationErrorClass | None,
-        last_error: str | None,
-    ) -> str:
-        normalized = (last_error or raw_status).lower()
-        if status == AsyncOperationStatus.EXPIRED or "expired" in normalized:
-            return f"{kind.value}_expired"
-        if status == AsyncOperationStatus.EXHAUSTED:
-            return f"{kind.value}_attempts_exhausted"
-        if "lease expired" in normalized:
-            return f"{kind.value}_lease_expired"
-        if "references unavailable" in normalized or "stale resources" in normalized:
-            return f"{kind.value}_stale_resources"
-        if "body is unavailable" in normalized:
-            return f"{kind.value}_body_unavailable"
-        if "timeout" in normalized:
-            return f"{kind.value}_timeout"
-        if error_class == AsyncOperationErrorClass.TRANSIENT:
-            return f"{kind.value}_transient_failure"
-        if error_class == AsyncOperationErrorClass.PERMANENT:
-            return f"{kind.value}_permanent_failure"
-        if error_class == AsyncOperationErrorClass.USER_ERROR:
-            return f"{kind.value}_user_input_error"
-        if error_class == AsyncOperationErrorClass.SYSTEM_ERROR:
-            return f"{kind.value}_system_failure"
-        if error_class == AsyncOperationErrorClass.UNKNOWN:
-            return f"{kind.value}_unknown_failure"
-        return f"{kind.value}_status_{status.value}"
-
-    @staticmethod
-    def _is_retryable(
-        *,
-        status: AsyncOperationStatus,
-        attempts: int,
-        max_attempts: int | None,
-    ) -> bool:
-        if status in {
-            AsyncOperationStatus.SUCCEEDED,
-            AsyncOperationStatus.PROCESSING,
-            AsyncOperationStatus.DISPATCHED,
-            AsyncOperationStatus.PERMANENT_FAILED,
-            AsyncOperationStatus.EXPIRED,
-            AsyncOperationStatus.EXHAUSTED,
-            AsyncOperationStatus.BLOCKED,
-        }:
-            return False
-        if max_attempts is not None and attempts >= max_attempts:
-            return False
-        return status in {
-            AsyncOperationStatus.QUEUED,
-            AsyncOperationStatus.RETRYING,
-            AsyncOperationStatus.FAILED,
-        }
 
     @staticmethod
     def _status_counts(

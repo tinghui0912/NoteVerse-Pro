@@ -9,6 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import MailOutbox, MailOutboxStatus
+from app.modules.async_operations.diagnostics import (
+    AsyncOperationKindValue,
+    AsyncOperationStatusValue,
+    apply_async_diagnostic,
+    clear_async_diagnostic,
+)
 from app.utils.timezone import utc_now_naive
 
 
@@ -66,20 +72,48 @@ class MailOutboxService:
         now = utc_now_naive()
         if outbox.expires_at is not None and outbox.expires_at <= now:
             self._finish(outbox, MailOutboxStatus.EXPIRED, now=now)
+            apply_async_diagnostic(
+                outbox,
+                kind=AsyncOperationKindValue.MAIL,
+                status=AsyncOperationStatusValue.EXPIRED,
+                raw_status=outbox.status.value,
+                last_error=outbox.last_error,
+                attempts=outbox.attempt_count,
+                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            )
             return None
         if outbox.status == MailOutboxStatus.FAILED and outbox.next_attempt_at > now:
             return None
         if outbox.attempt_count >= settings.MAIL_OUTBOX_MAX_ATTEMPTS:
             self._finish(outbox, MailOutboxStatus.PERMANENT_FAILURE, now=now)
+            apply_async_diagnostic(
+                outbox,
+                kind=AsyncOperationKindValue.MAIL,
+                status=AsyncOperationStatusValue.EXHAUSTED,
+                raw_status=outbox.status.value,
+                last_error=outbox.last_error,
+                attempts=outbox.attempt_count,
+                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            )
             return None
         if not outbox.text_body:
             self._finish(outbox, MailOutboxStatus.PERMANENT_FAILURE, now=now)
             outbox.last_error = "Mail outbox body is unavailable"
+            apply_async_diagnostic(
+                outbox,
+                kind=AsyncOperationKindValue.MAIL,
+                status=AsyncOperationStatusValue.PERMANENT_FAILED,
+                raw_status=outbox.status.value,
+                last_error=outbox.last_error,
+                attempts=outbox.attempt_count,
+                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            )
             return None
 
         outbox.status = MailOutboxStatus.PROCESSING
         outbox.attempt_count += 1
         outbox.started_at = now
+        clear_async_diagnostic(outbox)
         outbox.updated_at = now
         return MailOutboxPayload(
             outbox_uuid=outbox.outbox_uuid,
@@ -96,6 +130,7 @@ class MailOutboxService:
         self._finish(outbox, MailOutboxStatus.SENT)
         outbox.provider_message_id = provider_message_id
         outbox.last_error = None
+        clear_async_diagnostic(outbox)
 
     def transient_failure(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
@@ -112,6 +147,19 @@ class MailOutboxService:
             outbox.next_attempt_at = now + timedelta(seconds=delay)
             outbox.updated_at = now
         outbox.last_error = error[:4000]
+        apply_async_diagnostic(
+            outbox,
+            kind=AsyncOperationKindValue.MAIL,
+            status=(
+                AsyncOperationStatusValue.PERMANENT_FAILED
+                if outbox.status == MailOutboxStatus.PERMANENT_FAILURE
+                else AsyncOperationStatusValue.RETRYING
+            ),
+            raw_status=outbox.status.value,
+            last_error=outbox.last_error,
+            attempts=outbox.attempt_count,
+            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+        )
 
     def permanent_failure(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
@@ -119,6 +167,15 @@ class MailOutboxService:
             return
         self._finish(outbox, MailOutboxStatus.PERMANENT_FAILURE)
         outbox.last_error = error[:4000]
+        apply_async_diagnostic(
+            outbox,
+            kind=AsyncOperationKindValue.MAIL,
+            status=AsyncOperationStatusValue.PERMANENT_FAILED,
+            raw_status=outbox.status.value,
+            last_error=outbox.last_error,
+            attempts=outbox.attempt_count,
+            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+        )
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
@@ -127,6 +184,7 @@ class MailOutboxService:
         now = utc_now_naive()
         outbox.status = MailOutboxStatus.DISPATCHED
         outbox.dispatched_at = now
+        clear_async_diagnostic(outbox)
         outbox.updated_at = now
         return True
 
@@ -137,6 +195,15 @@ class MailOutboxService:
         outbox.status = MailOutboxStatus.PENDING
         outbox.dispatched_at = None
         outbox.last_error = error[:4000]
+        apply_async_diagnostic(
+            outbox,
+            kind=AsyncOperationKindValue.MAIL,
+            status=AsyncOperationStatusValue.QUEUED,
+            raw_status=outbox.status.value,
+            last_error=outbox.last_error,
+            attempts=outbox.attempt_count,
+            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+        )
         outbox.updated_at = utc_now_naive()
 
     def recover_and_list_due(self, db: Session) -> list[str]:
@@ -170,6 +237,15 @@ class MailOutboxService:
                 outbox.status = MailOutboxStatus.FAILED
                 outbox.next_attempt_at = now
                 outbox.last_error = "Mail delivery lease expired"
+                apply_async_diagnostic(
+                    outbox,
+                    kind=AsyncOperationKindValue.MAIL,
+                    status=AsyncOperationStatusValue.FAILED,
+                    raw_status=outbox.status.value,
+                    last_error=outbox.last_error,
+                    attempts=outbox.attempt_count,
+                    max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+                )
                 outbox.updated_at = now
 
         expirable = (
@@ -191,6 +267,15 @@ class MailOutboxService:
         )
         for outbox in expirable:
             self._finish(outbox, MailOutboxStatus.EXPIRED, now=now)
+            apply_async_diagnostic(
+                outbox,
+                kind=AsyncOperationKindValue.MAIL,
+                status=AsyncOperationStatusValue.EXPIRED,
+                raw_status=outbox.status.value,
+                last_error=outbox.last_error,
+                attempts=outbox.attempt_count,
+                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            )
 
         due = (
             db.execute(

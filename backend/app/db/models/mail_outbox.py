@@ -7,6 +7,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -76,6 +77,10 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     provider_message_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
+    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
+    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     created_at: datetime = Field(
         default_factory=utc_now_naive,
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),

@@ -8,12 +8,19 @@ from sqlalchemy.orm import Session
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportArtifact, ImportJobStep, StorageUsageCategory
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
+from app.modules.async_operations.diagnostics import (
+    AsyncOperationKindValue,
+    AsyncOperationStatusValue,
+    apply_async_diagnostic,
+    clear_async_diagnostic,
+)
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobArtifactItem, ImportJobDetail
 from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets.render_outbox_service import create_review_thumbnail_render_outbox_sync
+from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
 
@@ -78,6 +85,7 @@ class SyncImportJobService:
         job.progress = 100
         job.last_heartbeat_at = now
         job.finished_at = now
+        clear_async_diagnostic(job)
         job.updated_at = now
         review_xml = (
             db.query(ImportArtifact)
@@ -114,6 +122,15 @@ class SyncImportJobService:
         job.error = error
         job.error_type = error_type
         job.code = code or job.code
+        apply_async_diagnostic(
+            job,
+            kind=AsyncOperationKindValue.IMPORT,
+            status=AsyncOperationStatusValue.FAILED,
+            raw_status=job.state.value,
+            last_error=job.error,
+            attempts=job.dispatch_attempt_count,
+            max_attempts=None,
+        )
         job.last_heartbeat_at = now
         job.finished_at = now
         job.updated_at = now
@@ -230,7 +247,10 @@ class SyncImportJobService:
     def get_detail(self, db: Session, job_uuid: str) -> ImportJobDetail:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
-            return {"error": "Job not found"}
+            return {
+                "public_code": "job_not_found",
+                "public_message": "job_not_found",
+            }
         job_id = require_persisted_id(job.id, entity="import job")
         requested_options = job.requested_options or {}
         requested_title = requested_options.get("title")
@@ -268,8 +288,8 @@ class SyncImportJobService:
             "updated_at": job.updated_at.isoformat(),
             "started_at": job.started_at.isoformat() if job.started_at else None,
             "finished_at": job.finished_at.isoformat() if job.finished_at else None,
-            "error": job.error,
-            "code": job.code,
+            "public_code": job.code or (ErrorCode.TASK_ERROR if job.error else None),
+            "public_message": job.code or (ErrorCode.TASK_ERROR if job.error else None),
             "steps": [{
                 "name": step.name,
                 "status": step.status.value,

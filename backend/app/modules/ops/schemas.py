@@ -38,7 +38,6 @@ class AsyncOperationErrorClass(str, enum.Enum):
 class AsyncOperationDiagnostic(BaseModel):
     internal_code: str | None
     internal_stage: str | None
-    internal_reason: str | None
     retryable: bool
 
 
@@ -52,7 +51,7 @@ class AsyncOperationRead(BaseModel):
     attempts: int
     max_attempts: int | None
     next_attempt_at: datetime | None
-    last_error: str | None
+    internal_reason: str | None
     error_class: AsyncOperationErrorClass | None
     diagnostic: AsyncOperationDiagnostic | None = None
     created_at: datetime | None

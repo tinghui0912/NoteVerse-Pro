@@ -128,7 +128,7 @@ export function useUploadWorkflow() {
       clearFiles();
       router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
     } else if (state === 'FAILURE') {
-      setTaskError(translateTaskError(job.error, t('taskProcessingFailed')));
+      setTaskError(translateTaskError(job.public_code, t('taskProcessingFailed')));
       setIsSubmitting(false);
       setCurrentJobId(null);
       setPollInterval(false);
@@ -186,7 +186,7 @@ export function useUploadWorkflow() {
           setPollStartTime(Date.now());
           setPollInterval(TASK_POLL_INTERVAL_MS);
         } else if (state === 'FAILURE') {
-          setTaskError(translateTaskError(data.error, t('processingFailed')));
+          setTaskError(translateTaskError(data.public_code, t('processingFailed')));
           setTaskProgress(0);
         }
       } catch (error) {

@@ -24,6 +24,12 @@ from app.db.models import (
     StorageUsageCategory,
     Upload,
 )
+from app.modules.async_operations.diagnostics import (
+    AsyncOperationKindValue,
+    AsyncOperationStatusValue,
+    apply_async_diagnostic,
+    clear_async_diagnostic,
+)
 from app.modules.practice.cleanup_service import PracticeCleanupService, practice_cleanup_service
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.scores.repository import ScoreRepository
@@ -68,6 +74,7 @@ class ScoreLifecycleService:
         score.cleanup_attempt_count = 0
         score.next_cleanup_at = None
         score.deletion_error = None
+        clear_async_diagnostic(score)
         await db.commit()
 
     def cleanup_deleting_scores(
@@ -306,6 +313,19 @@ class ScoreLifecycleService:
         retry_delay = self._cleanup_retry_delay_seconds(score.cleanup_attempt_count)
         score.next_cleanup_at = now + timedelta(seconds=retry_delay)
         score.deletion_error = str(exc)[:4000]
+        apply_async_diagnostic(
+            score,
+            kind=AsyncOperationKindValue.SCORE_DELETION,
+            status=(
+                AsyncOperationStatusValue.EXHAUSTED
+                if score.cleanup_attempt_count >= settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS
+                else AsyncOperationStatusValue.RETRYING
+            ),
+            raw_status=score.deletion_status.value,
+            last_error=score.deletion_error,
+            attempts=score.cleanup_attempt_count,
+            max_attempts=settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
+        )
         db.commit()
 
     def _cleanup_retry_delay_seconds(self, attempt_count: int) -> int:

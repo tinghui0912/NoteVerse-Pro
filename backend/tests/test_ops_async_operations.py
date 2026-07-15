@@ -37,6 +37,10 @@ from app.modules.ops.schemas import (
     AsyncOperationStatus,
 )
 from app.modules.ops.service import AsyncOperationFilters, OpsAsyncOperationService
+from app.modules.async_operations.diagnostics import (
+    AsyncOperationErrorClassValue,
+    classify_async_error,
+)
 from app.utils.timezone import utc_now_naive
 
 
@@ -150,18 +154,16 @@ def test_ops_mail_status_normalization_preserves_permanent_failure() -> None:
 
 
 def test_ops_error_classification_keeps_infrastructure_errors_separate() -> None:
-    service = OpsAsyncOperationService()
-
     assert (
-        service._classify_error("object storage temporarily unavailable")
-        == AsyncOperationErrorClass.TRANSIENT
+        classify_async_error("object storage temporarily unavailable")
+        == AsyncOperationErrorClassValue.TRANSIENT
     )
     assert (
-        service._classify_error("Render outbox references unavailable resources")
-        == AsyncOperationErrorClass.PERMANENT
+        classify_async_error("Render outbox references unavailable resources")
+        == AsyncOperationErrorClassValue.PERMANENT
     )
-    assert service._classify_error("unsupported MusicXML") == AsyncOperationErrorClass.USER_ERROR
-    assert service._classify_error(None) is None
+    assert classify_async_error("unsupported MusicXML") == AsyncOperationErrorClassValue.USER_ERROR
+    assert classify_async_error(None) is None
 
 
 def test_ops_filters_match_status_error_class_resource_and_time_window() -> None:
@@ -176,7 +178,7 @@ def test_ops_filters_match_status_error_class_resource_and_time_window() -> None
         attempts=2,
         max_attempts=5,
         next_attempt_at=now + timedelta(minutes=1),
-        last_error="object storage temporarily unavailable",
+        internal_reason="object storage temporarily unavailable",
         error_class=AsyncOperationErrorClass.TRANSIENT,
         created_at=now - timedelta(minutes=5),
         updated_at=now,
@@ -211,6 +213,7 @@ async def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -
             attempt_count=1,
             next_attempt_at=now + timedelta(minutes=5),
             last_error="smtp temporarily unavailable",
+            internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
         ),
         MailOutbox(
             category="auth",
@@ -260,6 +263,7 @@ def test_ops_api_summary_is_available_to_admin(
             attempt_count=1,
             next_attempt_at=utc_now_naive() + timedelta(minutes=5),
             last_error="smtp temporarily unavailable",
+            internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
         )
     )
     ops_session.commit()
@@ -319,7 +323,7 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
         "attempts",
         "max_attempts",
         "next_attempt_at",
-        "last_error",
+        "internal_reason",
         "error_class",
         "diagnostic",
         "created_at",
@@ -366,6 +370,10 @@ def test_ops_api_async_operations_supports_offset_pagination(
             attempt_count=1,
             next_attempt_at=now + timedelta(minutes=10),
             last_error="middle error",
+            internal_error_code="mail_unknown_failure",
+            internal_error_stage="delivery",
+            internal_error_class=AsyncOperationErrorClass.UNKNOWN.value,
+            internal_error_retryable=True,
             updated_at=now - timedelta(minutes=2),
         ),
         MailOutbox(
@@ -399,11 +407,11 @@ def test_ops_api_async_operations_supports_offset_pagination(
     assert payload["data"]["has_more"] is True
     assert len(payload["data"]["items"]) == 1
     operation = payload["data"]["items"][0]
-    assert operation["last_error"] == "middle error"
+    assert operation["internal_reason"] == "middle error"
+    assert operation["error_class"] == "unknown"
     assert operation["diagnostic"] == {
         "internal_code": "mail_unknown_failure",
         "internal_stage": "delivery",
-        "internal_reason": "middle error",
         "retryable": True,
     }
 
@@ -422,6 +430,10 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
         attempt_count=3,
         next_attempt_at=utc_now_naive() + timedelta(hours=1),
         last_error="smtp temporarily unavailable",
+        internal_error_code="mail_transient_failure",
+        internal_error_stage="delivery",
+        internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
+        internal_error_retryable=True,
     )
     ops_session.add(outbox)
     ops_session.commit()
@@ -442,6 +454,10 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     assert outbox.status == MailOutboxStatus.PENDING
     assert outbox.attempt_count == 0
     assert outbox.last_error is None
+    assert outbox.internal_error_code is None
+    assert outbox.internal_error_stage is None
+    assert outbox.internal_error_class is None
+    assert outbox.internal_error_retryable is None
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.actor_user_id == 1
     assert audit_event.action == "retry_async_operation"
@@ -722,6 +738,10 @@ def test_ops_api_admin_can_retry_failed_import_job(
         publish_attempt_count=2,
         next_dispatch_at=next_dispatch_at,
         dispatch_error="redis unavailable",
+        internal_error_code="import_transient_failure",
+        internal_error_stage="dispatch",
+        internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
+        internal_error_retryable=True,
         error="job failed",
         error_type="system",
         started_at=utc_now_naive() - timedelta(minutes=10),
@@ -749,6 +769,10 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert job.dispatch_attempt_count == 0
     assert job.publish_attempt_count == 0
     assert job.dispatch_error is None
+    assert job.internal_error_code is None
+    assert job.internal_error_stage is None
+    assert job.internal_error_class is None
+    assert job.internal_error_retryable is None
     assert job.error is None
     assert job.error_type is None
     assert job.started_at is None
@@ -783,6 +807,10 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
         started_at=utc_now_naive() - timedelta(minutes=3),
         completed_at=utc_now_naive() - timedelta(minutes=2),
         last_error="renderer unavailable",
+        internal_error_code="render_transient_failure",
+        internal_error_stage="render",
+        internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
+        internal_error_retryable=True,
     )
     ops_session.add(outbox)
     ops_session.commit()
@@ -805,6 +833,10 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     assert outbox.started_at is None
     assert outbox.completed_at is None
     assert outbox.last_error is None
+    assert outbox.internal_error_code is None
+    assert outbox.internal_error_stage is None
+    assert outbox.internal_error_class is None
+    assert outbox.internal_error_retryable is None
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "render"
     assert audit_event.operation_id == outbox.outbox_uuid
@@ -835,6 +867,10 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
         started_at=utc_now_naive() - timedelta(minutes=3),
         completed_at=utc_now_naive() - timedelta(minutes=2),
         last_error="soundfont unavailable",
+        internal_error_code="playback_transient_failure",
+        internal_error_stage="playback",
+        internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
+        internal_error_retryable=True,
     )
     ops_session.add(outbox)
     ops_session.commit()
@@ -859,6 +895,10 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
     assert outbox.started_at is None
     assert outbox.completed_at is None
     assert outbox.last_error is None
+    assert outbox.internal_error_code is None
+    assert outbox.internal_error_stage is None
+    assert outbox.internal_error_class is None
+    assert outbox.internal_error_retryable is None
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "playback"
     assert audit_event.operation_id == outbox.outbox_uuid
@@ -877,6 +917,10 @@ def test_ops_api_admin_can_retry_score_deletion_cleanup(
         cleanup_attempt_count=5,
         next_cleanup_at=utc_now_naive() + timedelta(hours=1),
         deletion_error="object storage unavailable",
+        internal_error_code="score_deletion_transient_failure",
+        internal_error_stage="cleanup",
+        internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
+        internal_error_retryable=True,
     )
     ops_session.add(score)
     ops_session.commit()
@@ -898,6 +942,10 @@ def test_ops_api_admin_can_retry_score_deletion_cleanup(
     assert score.deletion_status == ScoreDeletionStatus.DELETING
     assert score.cleanup_attempt_count == 0
     assert score.deletion_error is None
+    assert score.internal_error_code is None
+    assert score.internal_error_stage is None
+    assert score.internal_error_class is None
+    assert score.internal_error_retryable is None
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "score_deletion"
     assert audit_event.operation_id == score.score_uuid

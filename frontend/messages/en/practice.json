@@ -28,6 +28,7 @@
   "audioWorkletUnsupportedAlertDesc": "Your current browser does not support the real-time audio features required by practice mode. Please open this page in the latest Chrome or Edge.",
   "prepareFailedTitle": "Practice Setup Failed",
   "prepareFailedDesc": "The practice session could not be prepared. Please refresh the page and try again.",
+  "connectionClosedDesc": "The practice connection was interrupted. Please start again.",
   "analysisFailedTitle": "Analysis Failed",
   "analysisFailedDesc": "An error occurred while generating the practice report. Please try again later.",
   "loadingReport": "Loading practice report...",
