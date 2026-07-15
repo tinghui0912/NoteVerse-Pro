@@ -80,8 +80,33 @@ def test_realtime_sse_envelope_is_versioned() -> None:
     assert data["schema_version"] == REALTIME_EVENT_SCHEMA_VERSION
     assert data["event_id"] == "event-42"
     assert data["sequence"] == 42
+    assert "resource_type" not in data
+    assert "resource_id" not in data
     assert data["score_id"] == "score-1"
     assert data["revision_id"] == "revision-1"
+    assert data["payload"] == {}
+
+
+def test_realtime_sse_payload_is_not_public_api_detail() -> None:
+    event = RealtimeEvent(
+        id=43,
+        event_uuid="event-43",
+        recipient_user_id=7,
+        type="import_job.completed",
+        resource_type="job",
+        resource_id="job-1",
+        payload={
+            "job_id": "job-1",
+            "job_title": "Imported score",
+            "notification_id": "notification-1",
+            "internal_reason": "worker recovered stale delivery",
+        },
+        created_at=utc_now_naive(),
+    )
+
+    message = _format_sse(event)
+    data = json.loads(message.strip().splitlines()[2].removeprefix("data: "))
+
     assert data["payload"] == {}
 
 

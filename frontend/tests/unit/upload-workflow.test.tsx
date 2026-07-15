@@ -6,9 +6,9 @@ import { act, renderHook } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api-client';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import { queryKeys } from '@/lib/query-client';
 import { getCompletedJobRoute } from '@/lib/upload/upload-workflow';
-import { uploadErrorMessage } from '@/lib/upload/upload-error-message';
 import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
 import commonMessages from '@/../messages/zh/common.json';
 import zhErrors from '@/../messages/zh/errors.json';
@@ -99,13 +99,13 @@ describe('upload error messages', () => {
 
   it('maps storage quota errors to a user-facing message', () => {
     expect(
-      uploadErrorMessage(tErrors, 'storage_quota_exceeded', '操作失败')
+      translateErrorCode(tErrors, 'storage_quota_exceeded', '操作失败')
     ).toBe('存储空间不足，请删除不需要的内容或升级方案。');
   });
 
   it('uses the fallback instead of exposing unknown backend codes', () => {
     expect(
-      uploadErrorMessage(tErrors, 'unexpected_backend_code', '操作失败')
+      translateErrorCode(tErrors, 'unexpected_backend_code', '操作失败')
     ).toBe('操作失败');
   });
 });

@@ -31,8 +31,7 @@ import {
   useMyNotifications,
 } from '@/hooks/queries/use-notification-queries';
 import { formatApiDateTime } from '@/lib/date-time';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import type { NotificationEvent, PendingScoreInvite } from '@/types/api';
 
 interface NotificationCenterDialogProps {
@@ -46,13 +45,13 @@ function stringData(value: unknown): string | null {
 
 function notificationHref(notification: NotificationEvent): string | null {
   if (notification.type === 'import.failed') {
-    const jobId = stringData(notification.data.job_id) ?? notification.resource_id;
+    const jobId = stringData(notification.data.job_id);
     return jobId ? `/upload?job_id=${encodeURIComponent(jobId)}` : null;
   }
   if (notification.type === 'import.completed') {
     const scoreId = stringData(notification.data.score_id) ?? notification.score_id;
     if (scoreId) return `/score/${encodeURIComponent(scoreId)}`;
-    const jobId = stringData(notification.data.job_id) ?? notification.resource_id;
+    const jobId = stringData(notification.data.job_id);
     return jobId ? `/review/${encodeURIComponent(jobId)}` : null;
   }
   if (notification.score_id) {
@@ -99,9 +98,7 @@ export function NotificationCenterDialog({
       onError: (error) => {
         toast({
           title: t('acceptFailed'),
-          description: error instanceof ApiError
-            ? translateErrorCode(errors, error.code, t('acceptFailedDescription'))
-            : t('acceptFailedDescription'),
+          description: userFacingErrorMessage(errors, error, t('acceptFailedDescription')),
           variant: 'destructive',
         });
       },
@@ -116,9 +113,7 @@ export function NotificationCenterDialog({
       onError: (error) => {
         toast({
           title: t('declineFailed'),
-          description: error instanceof ApiError
-            ? translateErrorCode(errors, error.code, t('declineFailedDescription'))
-            : t('declineFailedDescription'),
+          description: userFacingErrorMessage(errors, error, t('declineFailedDescription')),
           variant: 'destructive',
         });
       },

@@ -1750,8 +1750,7 @@ async def test_collaborator_revision_save_notifies_score_owner(
     )
     assert notification.score_id == "collab-revision-score"
     assert notification.resource_id == "collab-revision-score"
-    assert notification.data["revision_id"] == created.revision_id
-    assert notification.data["revision_number"] == created.revision_number
+    assert notification.data == {"score_title": "Collaborative Score"}
     assert count_rows(session, NotificationEvent, recipient_user_id=2) == 0
 
     revision = one_row(session, ScoreRevision, revision_uuid=created.revision_id)
@@ -2463,7 +2462,7 @@ async def test_user_pending_invites_can_be_declined(
         )
     )
     assert notification.score_id == "decline-invite-score"
-    assert notification.data["invite_id"] == created.invite_id
+    assert notification.data == {"score_title": "Decline Invite"}
     assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
     with pytest.raises(ValidationException) as declined_again:
         await service.accept_pending_invite(
@@ -2499,6 +2498,9 @@ async def test_notifications_are_scoped_and_can_be_marked_read(
     owner_notifications = await service.list_for_user(db, 1)  # type: ignore[arg-type]
     other_notifications = await service.list_for_user(db, 2)  # type: ignore[arg-type]
     assert [item.notification_id for item in owner_notifications] == [created.notification_id]
+    public_notification = owner_notifications[0].model_dump()
+    assert "resource_type" not in public_notification
+    assert "resource_id" not in public_notification
     assert other_notifications == []
     assert (await service.unread_count(db, 1)).count == 1  # type: ignore[arg-type]
     assert (await service.unread_count(db, 2)).count == 0  # type: ignore[arg-type]

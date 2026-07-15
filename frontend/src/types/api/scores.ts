@@ -258,8 +258,6 @@ export interface NotificationEvent {
   type: string;
   title: string;
   body: string | null;
-  resource_type: string;
-  resource_id: string | null;
   score_id: string | null;
   actor: NotificationActor | null;
   data: Record<string, unknown>;

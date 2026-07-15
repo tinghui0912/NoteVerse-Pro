@@ -5,7 +5,7 @@ import { filesApi, publicationsApi, scoresApi, scoreSharingApi } from '@/lib/api
 import type { ScoreRevisionAssets } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 
 interface UseDownloadOptions {
     mode: 'score' | 'grant' | 'publication';
@@ -91,12 +91,9 @@ export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptio
                 }
             }
         } catch (error: unknown) {
-            const errorCode = typeof error === 'object' && error !== null && 'code' in error
-                ? String(error.code)
-                : null;
             toast({
                 title: t('downloadFailed'),
-                description: translateErrorCode(tErrors, errorCode, t('downloadFailedDesc')),
+                description: userFacingErrorMessage(tErrors, error, t('downloadFailedDesc')),
                 variant: 'destructive',
             });
         }

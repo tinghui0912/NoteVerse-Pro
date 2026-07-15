@@ -18,9 +18,8 @@ import {
 import { useScoreCapabilities } from '@/components/score/score-capability-context';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
-import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatKeySignature } from '@/lib/score/metadata-display';
 import {
   SCORE_GENRE_TAGS,
@@ -128,9 +127,7 @@ export function ScoreInfoPanel({
         onError: (error) => toast({
           variant: 'destructive',
           title: t('saveFailed'),
-          description: error instanceof ApiError
-            ? translateErrorCode(errors, error.code, t('saveFailedDesc'))
-            : t('saveFailedDesc'),
+          description: userFacingErrorMessage(errors, error, t('saveFailedDesc')),
         }),
       }
     );
@@ -153,9 +150,7 @@ export function ScoreInfoPanel({
           toast({
             variant: 'destructive',
             title: t('saveFailed'),
-            description: error instanceof ApiError
-              ? translateErrorCode(errors, error.code, t('saveFailedDesc'))
-              : t('saveFailedDesc'),
+            description: userFacingErrorMessage(errors, error, t('saveFailedDesc')),
           });
         },
       }

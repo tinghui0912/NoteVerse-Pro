@@ -31,9 +31,8 @@ import {
   useScoreGrants,
 } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
-import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime, parseApiDate } from '@/lib/date-time';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { getShareExpirationDays } from '@/lib/score-detail/share';
 import type { ScoreGrant } from '@/types/api';
 
@@ -115,9 +114,7 @@ export function ScoreSharePanel({
         onError: (error) =>
           toast({
             title: t('createFailed'),
-            description: error instanceof ApiError
-              ? translateErrorCode(errors, error.code, t('createFailedDescription'))
-              : t('createFailedDescription'),
+            description: userFacingErrorMessage(errors, error, t('createFailedDescription')),
             variant: 'destructive',
           }),
       }
@@ -151,9 +148,7 @@ export function ScoreSharePanel({
       onError: (error) =>
         toast({
           title: t('disableFailed'),
-          description: error instanceof ApiError
-            ? translateErrorCode(errors, error.code, t('disableFailedDescription'))
-            : t('disableFailedDescription'),
+          description: userFacingErrorMessage(errors, error, t('disableFailedDescription')),
           variant: 'destructive',
         }),
     });
@@ -165,9 +160,7 @@ export function ScoreSharePanel({
       onError: (error) =>
         toast({
           title: t('enableFailed'),
-          description: error instanceof ApiError
-            ? translateErrorCode(errors, error.code, t('enableFailedDescription'))
-            : t('enableFailedDescription'),
+          description: userFacingErrorMessage(errors, error, t('enableFailedDescription')),
           variant: 'destructive',
         }),
     });
@@ -187,9 +180,7 @@ export function ScoreSharePanel({
       onError: (error) =>
         toast({
           title: t('deleteFailed'),
-          description: error instanceof ApiError
-            ? translateErrorCode(errors, error.code, t('deleteFailedDescription'))
-            : t('deleteFailedDescription'),
+          description: userFacingErrorMessage(errors, error, t('deleteFailedDescription')),
           variant: 'destructive',
         }),
     });

@@ -24,7 +24,7 @@ import {
 } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 import type { MembershipRole } from '@/types/api';
 
@@ -112,9 +112,7 @@ export function ScoreCollaborationPanel({
             title: validationFailed ? t('emailInvalid') : t('inviteFailed'),
             description: validationFailed
               ? t('emailInvalidDescription')
-              : error instanceof ApiError
-                ? translateErrorCode(errors, error.code, t('inviteFailedDescription'))
-                : t('inviteFailedDescription'),
+              : userFacingErrorMessage(errors, error, t('inviteFailedDescription')),
             variant: 'destructive',
           });
         },

@@ -6,8 +6,6 @@ export interface ApiResponse<T = unknown> {
    */
   message?: string;
   data?: T;
-  code?: string;
-  error?: string;
   request_id?: string;
 }
 

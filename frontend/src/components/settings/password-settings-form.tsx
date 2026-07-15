@@ -9,8 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useChangePassword } from '@/hooks/queries/use-profile-mutations';
 import { useToast } from '@/hooks/use-toast';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 
 type PasswordSettingsFormProps = {
   embedded?: boolean;
@@ -66,10 +65,7 @@ export function PasswordSettingsForm({
         onError: (error) => {
           toast({
             title: t('passwordFailed'),
-            description:
-              error instanceof ApiError
-                ? translateErrorCode(tErrors, error.code, t('passwordFailedDesc'))
-                : t('passwordFailedDesc'),
+            description: userFacingErrorMessage(tErrors, error, t('passwordFailedDesc')),
             variant: 'destructive',
           });
         },

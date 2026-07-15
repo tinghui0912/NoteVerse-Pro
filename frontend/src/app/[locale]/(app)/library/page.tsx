@@ -52,8 +52,7 @@ import {
   normalizeLibrarySort,
   normalizePage,
 } from '@/lib/library/state';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import type { FolderDeleteMode, LibraryEntry, LibraryFolder, LibraryPracticeState, LibraryView, UserSettableLibraryPracticeState } from '@/types/api';
 
 const ROOT_FOLDER_VALUE = '__root__';
@@ -334,13 +333,10 @@ export default function LibraryPage({
       IN_PROGRESS: t('practiceStateInProgress'),
       MASTERED: t('practiceStateMastered'),
     })[practiceState];
-  const userFacingErrorMessage = (
+  const formatUserFacingError = (
     error: unknown,
     fallback = t('loadFailedDescription')
-  ) =>
-    error instanceof ApiError
-      ? translateErrorCode(errors, error.code, fallback)
-      : fallback;
+  ) => userFacingErrorMessage(errors, error, fallback);
   const retryEntries = () => {
     void entriesQuery.refetch();
   };
@@ -385,7 +381,7 @@ export default function LibraryPage({
             onNavigateFolder={(nextFolderId) => navigate({ folder: nextFolderId })}
             onEditFolder={openEditFolderDialog}
             onDeleteFolder={setDeleteTarget}
-            errorMessage={(error) => userFacingErrorMessage(error)}
+            errorMessage={(error) => formatUserFacingError(error)}
             t={t}
           />
           <section>
@@ -432,7 +428,7 @@ export default function LibraryPage({
             {mutationError ? (
               <SectionErrorState
                 title={t('operationFailed')}
-                description={userFacingErrorMessage(mutationError, t('operationFailedDescription'))}
+                description={formatUserFacingError(mutationError, t('operationFailedDescription'))}
                 className="mb-5"
               />
             ) : null}
@@ -457,7 +453,7 @@ export default function LibraryPage({
             ) : entriesQuery.isError ? (
               <SectionErrorState
                 title={t('entriesLoadFailed')}
-                description={userFacingErrorMessage(entriesQuery.error)}
+                description={formatUserFacingError(entriesQuery.error)}
                 retryLabel={t('retry')}
                 onRetry={retryEntries}
               />

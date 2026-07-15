@@ -9,7 +9,7 @@ from celery.utils.log import get_task_logger
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.modules.import_jobs.schemas import PipelineExecutionFailureResult, ImportJobProcessingOptions
+from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.processing.engines.omr import OmrSuccessResult
 from app.modules.import_jobs.worker_service import sync_import_job_service as job_service
 from app.pipeline.files_recorder import replace_files
@@ -134,25 +134,6 @@ class JobContext:
             self.db.rollback()
         except Exception:
             self.db.invalidate()
-
-    def fail(
-        self,
-        error: str,
-        error_type: str = "Error",
-        code: str = "unknown_error",
-        current_step: str = "initialization",
-    ) -> PipelineExecutionFailureResult:
-        """Mark the task as failed and return a standard error payload."""
-        self.status(
-            "FAILURE",
-            "failed",
-            0,
-            error=error,
-            error_type=error_type,
-            code=code,
-            current_step=current_step,
-        )
-        return {"success": False, "error": error}
 
     def complete(self) -> None:
         """Finalize successful task execution."""

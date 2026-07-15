@@ -17,8 +17,6 @@ class NotificationEventRead(BaseModel):
     type: str
     title: str
     body: str | None
-    resource_type: str
-    resource_id: str | None
     score_id: str | None
     actor: NotificationActorRead | None
     data: dict[str, Any]

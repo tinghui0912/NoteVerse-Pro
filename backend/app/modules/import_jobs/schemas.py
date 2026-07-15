@@ -79,11 +79,6 @@ class PipelineExecutionSuccessResult(TypedDict):
     job_id: str
 
 
-class PipelineExecutionFailureResult(TypedDict):
-    success: bool
-    error: str
-
-
 class ImportJobSubmitRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

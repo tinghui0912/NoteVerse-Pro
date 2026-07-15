@@ -95,7 +95,7 @@ class MetadataProjectionService:
             score_id=score_uuid,
             revision_id=revision_uuid,
             type=RealtimeEventTypes.SCORE_METADATA_UPDATED,
-            payload=result.model_dump(mode="json"),
+            payload={},
         )
         return result
 

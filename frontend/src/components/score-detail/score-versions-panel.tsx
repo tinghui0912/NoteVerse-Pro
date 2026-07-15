@@ -38,9 +38,8 @@ import {
   useScoreRevisions,
   useUpdateRevisionNote,
 } from '@/hooks/queries/use-score-queries';
-import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { cn } from '@/lib/utils';
 import type { ScoreRevision } from '@/types/api';
 
@@ -73,11 +72,9 @@ export function ScoreVersionsPanel({
   const revisions = useScoreRevisions(scoreId);
   const restoreRevision = useRestoreRevision();
   const updateNote = useUpdateRevisionNote();
-  const error = revisions.error instanceof ApiError && revisions.error.code
-    ? translateErrorCode(errors, revisions.error.code, common('loadFailedDescription'))
-    : revisions.error
-      ? common('loadFailedDescription')
-      : null;
+  const error = revisions.error
+    ? userFacingErrorMessage(errors, revisions.error, common('loadFailedDescription'))
+    : null;
 
   const items = useMemo(
     () => revisions.data?.pages.flatMap((page) => page.data?.items ?? []) ?? [],
@@ -101,9 +98,11 @@ export function ScoreVersionsPanel({
           });
         },
         onError: (unknownError) => {
-          const description = unknownError instanceof ApiError && unknownError.code
-            ? translateErrorCode(errors, unknownError.code, t('restoreFailedDesc'))
-            : t('restoreFailedDesc');
+          const description = userFacingErrorMessage(
+            errors,
+            unknownError,
+            t('restoreFailedDesc')
+          );
           toast({
             title: t('restoreFailed'),
             description,
@@ -128,9 +127,11 @@ export function ScoreVersionsPanel({
           });
         },
         onError: (unknownError) => {
-          const description = unknownError instanceof ApiError && unknownError.code
-            ? translateErrorCode(errors, unknownError.code, t('versionNoteSaveFailedDesc'))
-            : t('versionNoteSaveFailedDesc');
+          const description = userFacingErrorMessage(
+            errors,
+            unknownError,
+            t('versionNoteSaveFailedDesc')
+          );
           toast({
             title: t('versionNoteSaveFailed'),
             description,

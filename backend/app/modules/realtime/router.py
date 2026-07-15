@@ -35,18 +35,6 @@ def _json_default(value: object) -> str:
 
 
 def _public_realtime_payload(event: RealtimeEvent) -> dict[str, Any]:
-    if event.type == "import_job.completed":
-        return {
-            key: value
-            for key, value in event.payload.items()
-            if key in {"job_id", "job_title", "notification_id"}
-        }
-    if event.type == "import_job.failed":
-        return {
-            key: value
-            for key, value in event.payload.items()
-            if key in {"job_id", "notification_id"}
-        }
     return {}
 
 
@@ -56,8 +44,6 @@ def _format_sse(event: RealtimeEvent) -> str:
         event_id=event.event_uuid,
         sequence=sequence,
         type=event.type,
-        resource_type=event.resource_type,
-        resource_id=event.resource_id,
         score_id=event.score_id,
         revision_id=event.revision_id,
         payload=_public_realtime_payload(event),

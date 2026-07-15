@@ -46,8 +46,7 @@ import {
   scoreBackedView,
   visibleMyScoreJobs,
 } from '@/lib/my-scores/state';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import type { MyScoresPageView, MyScoresSort } from '@/types/api';
 
 type DeleteTarget = {
@@ -217,9 +216,7 @@ export default function MyScoresPage({
   const isLoading = (showScores && scoresQuery.isLoading) || jobsQuery.isLoading;
   const isError = (showScores && scoresQuery.isError) || jobsQuery.isError;
   const loadError = scoresQuery.error ?? jobsQuery.error;
-  const loadErrorMessage = loadError instanceof ApiError
-    ? translateErrorCode(errors, loadError.code, t('loadFailedDesc'))
-    : t('loadFailedDesc');
+  const loadErrorMessage = userFacingErrorMessage(errors, loadError, t('loadFailedDesc'));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

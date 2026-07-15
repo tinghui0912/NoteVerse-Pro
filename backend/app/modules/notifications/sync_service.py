@@ -68,18 +68,7 @@ class SyncNotificationService:
                 resource_type="notification",
                 resource_id=event.notification_uuid,
                 score_id=score_id,
-                payload={
-                    "notification_id": event.notification_uuid,
-                    "type": event.type,
-                    "resource_type": event.resource_type,
-                    "resource_id": event.resource_id,
-                    "score_id": event.score_id,
-                    "title": event.title,
-                    "body": event.body,
-                    "data": event.data,
-                    "read_at": event.read_at.isoformat() if event.read_at else None,
-                    "created_at": event.created_at.isoformat(),
-                },
+                payload={},
             )
             db.commit()
         except Exception:
@@ -137,11 +126,7 @@ class SyncNotificationService:
                     type=RealtimeEventTypes.IMPORT_JOB_COMPLETED,
                     resource_type="job",
                     resource_id=job_uuid,
-                    payload={
-                        "job_id": job_uuid,
-                        "job_title": title,
-                        "notification_id": event.notification_uuid,
-                    },
+                    payload={},
                 )
                 db.commit()
             except Exception:
@@ -179,10 +164,7 @@ class SyncNotificationService:
                     type=RealtimeEventTypes.IMPORT_JOB_FAILED,
                     resource_type="job",
                     resource_id=job_uuid,
-                    payload={
-                        "job_id": job_uuid,
-                        "notification_id": event.notification_uuid,
-                    },
+                    payload={},
                 )
                 db.commit()
             except Exception:

@@ -7,11 +7,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useImportJobDetail, useSubmitImportJob } from '@/hooks/queries/use-import-job-queries';
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, importJobsApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 import type { ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
-import { translateErrorCode } from '@/lib/i18n/error-message';
-import { uploadErrorMessage } from '@/lib/upload/upload-error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { getCompletedJobRoute, type UploadableFile } from '@/lib/upload/upload-workflow';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
@@ -237,9 +235,7 @@ export function useUploadWorkflow() {
             itemIndex === index ? { ...item, status: 'uploaded', fileId } : item
           ));
         } catch (error) {
-          const message = error instanceof ApiError
-            ? uploadErrorMessage(errors, error.code, tCommon('operationFailed'))
-            : tCommon('operationFailed');
+          const message = userFacingErrorMessage(errors, error, tCommon('operationFailed'));
           setTrackedFiles((current) => current.map((item, itemIndex) =>
             itemIndex === index ? { ...item, status: 'error', error: message } : item
           ));
@@ -264,11 +260,9 @@ export function useUploadWorkflow() {
       setPollInterval(TASK_POLL_INTERVAL_MS);
       toast({ title: t('taskStarted'), description: t('taskStartedDesc') });
     } catch (error) {
-      const message = error instanceof ApiError
-        ? translateErrorCode(errors, error.code, t('processingFailed'))
-        : error instanceof UserFacingUploadError && error.message
+      const message = error instanceof UserFacingUploadError && error.message
           ? error.message
-          : t('processingFailed');
+          : userFacingErrorMessage(errors, error, t('processingFailed'));
       toast({ title: t('submitFailed'), description: message, variant: 'destructive' });
       setIsUploading(false);
       setIsSubmitting(false);

@@ -430,9 +430,7 @@ class ScoreInviteService:
             body=f"{actor_name} {action} your invite to {score.title}.",
             dedupe_key=f"{notification_type}:{invite.invite_uuid}:{invite.created_by_user_id}",
             data={
-                "invite_id": invite.invite_uuid,
                 "score_title": score.title,
-                "role": invite.role.value,
             },
         )
 

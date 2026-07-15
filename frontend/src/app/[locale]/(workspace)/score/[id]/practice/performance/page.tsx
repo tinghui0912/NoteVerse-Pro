@@ -12,8 +12,7 @@ import { PageHeader } from '@/components/page';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { SectionErrorState } from '@/components/states';
 import { practiceApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import type { PracticeReportPayload } from '@/types/api';
 
 const ReportCard = ({
@@ -73,11 +72,7 @@ export default function PracticePerformancePage() {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(
-            loadError instanceof ApiError
-              ? translateErrorCode(errors, loadError.code, t('analysisFailedDesc'))
-              : t('analysisFailedDesc')
-          );
+          setError(userFacingErrorMessage(errors, loadError, t('analysisFailedDesc')));
         }
       } finally {
         if (!cancelled) {

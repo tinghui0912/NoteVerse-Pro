@@ -11,8 +11,6 @@ const baseNotification: NotificationEvent = {
   type: 'score_invite.accepted',
   title: 'Invite accepted',
   body: null,
-  resource_type: 'score',
-  resource_id: 'score-1',
   score_id: 'score-1',
   actor: null,
   data: {},

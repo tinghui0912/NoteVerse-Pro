@@ -230,12 +230,7 @@ class RevisionService:
                 score_id=score.score_uuid,
                 revision_id=revision.revision_uuid,
                 type=RealtimeEventTypes.SCORE_REVISION_CREATED,
-                payload={
-                    "score_id": score.score_uuid,
-                    "revision_id": revision.revision_uuid,
-                    "revision_number": revision.revision_number,
-                    "origin": revision.origin.value,
-                },
+                payload={},
             )
             await revision_derivative_service.rebuild_metadata_best_effort(
                 db,
@@ -426,12 +421,7 @@ class RevisionService:
                 score_id=score.score_uuid,
                 revision_id=revision.revision_uuid,
                 type=RealtimeEventTypes.SCORE_REVISION_CREATED,
-                payload={
-                    "score_id": score.score_uuid,
-                    "revision_id": revision.revision_uuid,
-                    "revision_number": revision.revision_number,
-                    "origin": revision.origin.value,
-                },
+                payload={},
             )
             await revision_derivative_service.rebuild_metadata_best_effort(
                 db,

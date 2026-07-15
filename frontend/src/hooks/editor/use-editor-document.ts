@@ -18,9 +18,8 @@ import {
 } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
 import { scoresApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { queryKeys } from '@/lib/query-client';
 import type { FingeringHandSize } from '@/types/api';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
@@ -191,9 +190,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
         onError: (error) => {
           toast({
             title: t('fingeringFailed'),
-            description: error instanceof ApiError
-              ? translateErrorCode(errors, error.code, t('fingeringFailedDesc'))
-              : t('fingeringFailedDesc'),
+            description: userFacingErrorMessage(errors, error, t('fingeringFailedDesc')),
             variant: 'destructive',
           });
         },
@@ -206,11 +203,11 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     discardDraft,
     draftDialogOpen,
     finalLoadError: scoreQuery.error || revisionQuery.error
-      ? scoreQuery.error instanceof ApiError
-        ? translateErrorCode(errors, scoreQuery.error.code, common('loadFailedDescription'))
-        : revisionQuery.error instanceof ApiError
-          ? translateErrorCode(errors, revisionQuery.error.code, common('loadFailedDescription'))
-          : common('loadFailedDescription')
+      ? userFacingErrorMessage(
+        errors,
+        scoreQuery.error ?? revisionQuery.error,
+        common('loadFailedDescription')
+      )
       : loadError,
     fingeringPending: generateFingeringMutation.isPending,
     generateFingering,

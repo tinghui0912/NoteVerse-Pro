@@ -29,8 +29,7 @@ import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
-import { translateErrorCode } from '@/lib/i18n/error-message';
-import { ApiError } from '@/lib/api-client';
+import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { useRouter } from 'next/navigation';
 import type {
   PracticeConnectionStatus,
@@ -119,12 +118,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     scoreQuery.isLoading || (Boolean(scoreQuery.data?.data?.head_revision_id) && revisionQuery.isLoading);
   const loadError = scoreQuery.error ?? revisionQuery.error;
   const resourceMissingAfterLoad = !isResourceLoading && !loadError && (!revisionId || !xmlContent);
-  const loadErrorDescription = loadError instanceof ApiError
-    ? translateErrorCode(errors, loadError.code, common('loadFailedDescription'))
-    : loadError
+  const loadErrorDescription = loadError
+    ? userFacingErrorMessage(errors, loadError, common('loadFailedDescription'))
+    : resourceMissingAfterLoad
       ? common('loadFailedDescription')
-      : resourceMissingAfterLoad
-        ? common('loadFailedDescription')
       : null;
   const canPreparePractice = canEnterPractice && Boolean(revisionId && xmlContent) && !isResourceLoading && !loadError;
 

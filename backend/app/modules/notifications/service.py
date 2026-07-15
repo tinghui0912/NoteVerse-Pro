@@ -30,10 +30,6 @@ PUBLIC_NOTIFICATION_DATA_KEYS = frozenset(
         "job_title",
         "score_id",
         "score_title",
-        "revision_id",
-        "revision_number",
-        "invite_id",
-        "role",
     }
 )
 
@@ -111,7 +107,7 @@ class NotificationService:
             resource_type="notification",
             resource_id=event.notification_uuid,
             score_id=score_id,
-            payload=event_read.model_dump(mode="json"),
+            payload={},
         )
         return event_read
 
@@ -157,9 +153,6 @@ class NotificationService:
                 ),
                 data={
                     "score_title": score.title,
-                    "revision_id": revision.revision_uuid,
-                    "revision_number": revision.revision_number,
-                    "origin": revision.origin.value,
                 },
             )
 
@@ -229,8 +222,6 @@ class NotificationService:
             type=event.type,
             title=event.title,
             body=event.body,
-            resource_type=event.resource_type,
-            resource_id=event.resource_id,
             score_id=event.score_id,
             actor=await self._actor(db, event.actor_user_id),
             data=public_notification_data(event.data),

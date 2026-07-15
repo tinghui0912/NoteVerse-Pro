@@ -15,8 +15,7 @@ import { PasswordSettingsForm } from '@/components/settings/password-settings-fo
 import { useRequestEmailChange } from '@/hooks/queries/use-profile-mutations';
 import { useToast } from '@/hooks/use-toast';
 import { profileApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 import type { AccountSecurityOverview } from '@/types/api';
 
@@ -112,10 +111,11 @@ function SecurityContent({ security }: { security: AccountSecurityOverview }) {
         onError: (error) => {
           toast({
             title: t('security.emailChangeFailed'),
-            description:
-              error instanceof ApiError
-                ? translateErrorCode(tErrors, error.code, t('security.emailChangeFailedDesc'))
-                : t('security.emailChangeFailedDesc'),
+            description: userFacingErrorMessage(
+              tErrors,
+              error,
+              t('security.emailChangeFailedDesc')
+            ),
             variant: 'destructive',
           });
         },

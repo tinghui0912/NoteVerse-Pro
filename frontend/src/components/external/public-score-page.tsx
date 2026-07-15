@@ -14,9 +14,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { usePublicScore } from '@/hooks/queries/use-score-queries';
 import { useDownload } from '@/hooks/use-download';
 import { publicationsApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { resolveScoreCapabilities } from '@/lib/score/capabilities';
 import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
 import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
@@ -44,9 +43,11 @@ function PublicScoreContent({ slug }: { slug: string }) {
   }
 
   if (!data || publication.error) {
-    const description = publication.error instanceof ApiError
-      ? translateErrorCode(errors, publication.error.code, common('loadFailedDescription'))
-      : common('loadFailedDescription');
+    const description = userFacingErrorMessage(
+      errors,
+      publication.error,
+      common('loadFailedDescription')
+    );
     return (
       <ScoreSurface>
         <ResourceLoadError

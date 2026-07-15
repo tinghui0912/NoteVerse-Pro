@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
 import { useAcceptScoreInvite, useScoreInviteAccess } from '@/hooks/queries/use-score-queries';
 import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 
 function getInviteErrorConfig(
@@ -188,9 +188,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
 
         {acceptInvite.error ? (
           <div className="mt-6 rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
-            {acceptInvite.error instanceof ApiError
-              ? translateErrorCode(errors, acceptInvite.error.code, t('acceptFailedDescription'))
-              : t('acceptFailedDescription')}
+            {userFacingErrorMessage(errors, acceptInvite.error, t('acceptFailedDescription'))}
           </div>
         ) : null}
 

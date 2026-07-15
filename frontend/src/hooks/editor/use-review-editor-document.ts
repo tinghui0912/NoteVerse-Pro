@@ -9,8 +9,7 @@ import { useEditorSaveErrorToast } from '@/hooks/editor/use-editor-save-error-to
 import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completion';
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { importJobsApi } from '@/lib/api';
 import { ensureStableMusicXmlIdsString, stripAppOwnedMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
@@ -129,9 +128,7 @@ export function useReviewEditorDocument({
     discardDraft,
     draftDialogOpen,
     finalLoadError: reviewQuery.error
-      ? reviewQuery.error instanceof ApiError
-        ? translateErrorCode(errors, reviewQuery.error.code, common('loadFailedDescription'))
-        : common('loadFailedDescription')
+      ? userFacingErrorMessage(errors, reviewQuery.error, common('loadFailedDescription'))
       : loadError,
     isAutoSaving,
     isLoading: reviewQuery.isLoading || (Boolean(xmlContent) && !initialized),

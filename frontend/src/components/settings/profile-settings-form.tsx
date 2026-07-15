@@ -12,8 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/auth-context';
 import { useUploadAvatar, useUpdateProfile } from '@/hooks/queries/use-profile-mutations';
 import { useToast } from '@/hooks/use-toast';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { AvatarCropperModal } from '@/components/settings/avatar-cropper-modal';
 
 export function ProfileSettingsForm() {
@@ -68,10 +67,7 @@ export function ProfileSettingsForm() {
       onError: (error) => {
         toast({
           title: t('uploadFailed'),
-          description:
-            error instanceof ApiError
-              ? translateErrorCode(tErrors, error.code, t('uploadFailedDesc'))
-              : t('uploadFailedDesc'),
+          description: userFacingErrorMessage(tErrors, error, t('uploadFailedDesc')),
           variant: 'destructive',
         });
       },
@@ -93,10 +89,7 @@ export function ProfileSettingsForm() {
         onError: (error) => {
           toast({
             title: t('profileFailed'),
-            description:
-              error instanceof ApiError
-                ? translateErrorCode(tErrors, error.code, t('profileFailedDesc'))
-                : t('profileFailedDesc'),
+            description: userFacingErrorMessage(tErrors, error, t('profileFailedDesc')),
             variant: 'destructive',
           });
         },

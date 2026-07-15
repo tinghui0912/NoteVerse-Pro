@@ -18,9 +18,8 @@ import { ScoreVersionsPanel } from '@/components/score-detail/score-versions-pan
 import { ResourceLoadError } from '@/components/states';
 import { useScoreDetailSummary } from '@/hooks/score-detail/use-score-detail-summary';
 import { scoresApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
 import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
 import { scoreThumbnailUrl } from '@/lib/score-detail/thumbnail';
@@ -33,11 +32,9 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
   const router = useRouter();
   const searchParams = useSearchParams();
   const resources = useScoreDetailSummary(id);
-  const error = resources.scoreError instanceof ApiError && resources.scoreError.code
-    ? translateErrorCode(errors, resources.scoreError.code, common('loadFailedDescription'))
-    : resources.scoreError
-      ? common('loadFailedDescription')
-      : null;
+  const error = resources.scoreError
+    ? userFacingErrorMessage(errors, resources.scoreError, common('loadFailedDescription'))
+    : null;
   const scoreTitle = resources.score?.title || t('scoreFallbackTitle', { id: id.slice(0, 8) });
   const capabilities = resources.score?.capabilities ?? null;
 

@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useConfirmImportJobReview, useImportJobReview } from '@/hooks/queries/use-review-queries';
 import { importJobsApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
 import type { ReviewArtifact } from '@/types/api';
@@ -100,9 +99,7 @@ export function useReviewPageData(jobId: string) {
   const error = useMemo(() => {
     const queryError = reviewQuery.error;
     if (queryError) {
-      return queryError instanceof ApiError
-        ? translateErrorCode(errors, queryError.code, common('loadFailedDescription'))
-        : common('loadFailedDescription');
+      return userFacingErrorMessage(errors, queryError, common('loadFailedDescription'));
     }
     return null;
   }, [common, errors, reviewQuery.error]);

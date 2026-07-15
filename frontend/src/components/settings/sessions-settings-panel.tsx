@@ -13,8 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useRevokeOtherSessions, useRevokeSession } from '@/hooks/queries/use-profile-mutations';
 import { useToast } from '@/hooks/use-toast';
 import { profileApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 import type { AccountSession } from '@/types/api';
 
@@ -64,10 +63,7 @@ export function SessionsSettingsPanel() {
   const showErrorToast = (error: unknown) => {
     toast({
       title: t('sessions.actionFailed'),
-      description:
-        error instanceof ApiError
-          ? translateErrorCode(tErrors, error.code, t('sessions.actionFailedDesc'))
-          : t('sessions.actionFailedDesc'),
+      description: userFacingErrorMessage(tErrors, error, t('sessions.actionFailedDesc')),
       variant: 'destructive',
     });
   };

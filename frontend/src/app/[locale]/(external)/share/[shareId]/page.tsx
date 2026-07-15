@@ -20,9 +20,8 @@ import { useSharePageData } from '@/hooks/share/use-share-page-data';
 import { useDownload } from '@/hooks/use-download';
 import { useToast } from '@/hooks/use-toast';
 import { scoreSharingApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
 import { formatApiDateTime } from '@/lib/date-time';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
 import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
 import { shareDerivedThumbnailUrl } from '@/lib/score-detail/thumbnail';
@@ -100,9 +99,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
     }),
     onError: (error) => toast({
       title: t('saveFailed'),
-      description: error instanceof ApiError
-        ? translateErrorCode(errors, error.code, t('saveFailedDesc'))
-        : t('saveFailedDesc'),
+      description: userFacingErrorMessage(errors, error, t('saveFailedDesc')),
       variant: 'destructive',
     }),
   });

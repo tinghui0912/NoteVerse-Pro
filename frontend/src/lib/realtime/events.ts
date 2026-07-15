@@ -13,8 +13,6 @@ export interface RealtimeEventEnvelope<TPayload = Record<string, unknown>> {
   event_id: string;
   sequence: number;
   type: RealtimeEventType;
-  resource_type: string | null;
-  resource_id: string | null;
   score_id: string | null;
   revision_id: string | null;
   payload: TPayload;
@@ -37,8 +35,6 @@ export function parseRealtimeEvent(data: string): RealtimeEventEnvelope | null {
       event_id: parsed.event_id,
       sequence: parsed.sequence,
       type: parsed.type as RealtimeEventType,
-      resource_type: parsed.resource_type ?? null,
-      resource_id: parsed.resource_id ?? null,
       score_id: parsed.score_id ?? null,
       revision_id: parsed.revision_id ?? null,
       payload: typeof parsed.payload === 'object' && parsed.payload !== null ? parsed.payload : {},
