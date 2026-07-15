@@ -263,7 +263,7 @@ class OmrFailedException(PipelineException):
 
     def __init__(
         self,
-        code: str = ErrorCode.OMR_FAILED,
+        code: str = ErrorCode.SCORE_RECOGNITION_FAILED,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(code=code, details=details)
@@ -278,7 +278,7 @@ class ScoreRenderFailedException(ScoreRenderException):
 
     def __init__(
         self,
-        code: str = ErrorCode.SCORE_RENDER_FAILED,
+        code: str = ErrorCode.SCORE_PREVIEW_FAILED,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(code=code, details=details)

@@ -130,7 +130,6 @@ class PracticeService:
             raise ExternalServiceException(
                 service="matchmaker",
                 code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
-                details={"reason": str(exc)},
             ) from exc
         return self._to_session_summary(session)
 

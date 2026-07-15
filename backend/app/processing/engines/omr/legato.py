@@ -74,7 +74,7 @@ class LegatoOmrEngine:
             )
             if inference.returncode != 0:
                 return self._failure(
-                    ErrorCode.LEGATO_INFERENCE_FAILED,
+                    ErrorCode.SCORE_RECOGNITION_FAILED,
                     "LEGATO inference failed",
                     inference.stderr,
                 )
@@ -82,7 +82,7 @@ class LegatoOmrEngine:
             abcs = self._read_abcs(prediction_path)
             if len(abcs) != len(image_paths):
                 return self._failure(
-                    ErrorCode.LEGATO_FAILED,
+                    ErrorCode.SCORE_RECOGNITION_FAILED,
                     "LEGATO prediction count does not match input page count",
                 )
 
@@ -125,18 +125,18 @@ class LegatoOmrEngine:
             )
         except FileNotFoundError as exc:
             return self._failure(
-                ErrorCode.LEGATO_MISSING,
+                ErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
             )
         except LegatoConversionError as exc:
             return self._failure(
-                ErrorCode.LEGATO_CONVERSION_FAILED,
+                ErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
             )
         except Exception as exc:
             logger.exception("LEGATO processing failed")
             return self._failure(
-                ErrorCode.LEGATO_FAILED,
+                ErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
             )
 

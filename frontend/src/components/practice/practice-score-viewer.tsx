@@ -206,7 +206,7 @@ export function PracticeScoreViewer({
         emptyContent={
           <EmptyState title={tPractice('scoreDisplayArea')} className="min-h-[45vh]" />
         }
-        errorMessage={errors('score_render_failed')}
+        errorMessage={errors('score_preview_failed')}
         renderError={(message) => (
           <div className="flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center text-destructive">
             <AlertTriangle className="h-8 w-8" />

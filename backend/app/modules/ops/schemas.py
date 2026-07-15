@@ -35,6 +35,13 @@ class AsyncOperationErrorClass(str, enum.Enum):
     UNKNOWN = "unknown"
 
 
+class AsyncOperationDiagnostic(BaseModel):
+    internal_code: str | None
+    internal_stage: str | None
+    internal_reason: str | None
+    retryable: bool
+
+
 class AsyncOperationRead(BaseModel):
     operation_id: str
     kind: AsyncOperationKind
@@ -47,6 +54,7 @@ class AsyncOperationRead(BaseModel):
     next_attempt_at: datetime | None
     last_error: str | None
     error_class: AsyncOperationErrorClass | None
+    diagnostic: AsyncOperationDiagnostic | None = None
     created_at: datetime | None
     updated_at: datetime | None
 

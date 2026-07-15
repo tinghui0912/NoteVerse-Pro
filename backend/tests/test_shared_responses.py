@@ -40,16 +40,16 @@ def test_paginated_response_serializes_nested_datetimes() -> None:
 
 def test_error_response_includes_request_id_when_available() -> None:
     response = error_response(
-        error="validation_error",
-        code="validation_error",
+        public_code="validation_error",
+        public_message="validation_error",
         request_id="req-123",
-        details={"field": "name"},
+        internal_details={"field": "name"},
     )
 
     assert response == {
         "success": False,
-        "error": "validation_error",
-        "code": "validation_error",
+        "public_code": "validation_error",
+        "public_message": "validation_error",
         "request_id": "req-123",
-        "details": {"field": "name"},
+        "internal_details": {"field": "name"},
     }

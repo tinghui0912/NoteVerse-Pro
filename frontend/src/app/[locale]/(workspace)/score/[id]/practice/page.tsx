@@ -382,8 +382,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       recording.start();
     } catch (error) {
       console.error('Failed to start practice session:', error);
-      const isUnsupportedAudioWorklet =
-        error instanceof Error && error.message.includes('AudioWorklet is not supported');
+      const isUnsupportedRealtimeAudio =
+        error instanceof Error && error.message === 'practice_realtime_audio_unsupported';
       updatePracticeStatus('idle');
       setPracticeClockStarted(false);
       setConnectionStatus('error');
@@ -391,10 +391,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       socket.close();
       toast({
         variant: 'destructive',
-        title: isUnsupportedAudioWorklet
+        title: isUnsupportedRealtimeAudio
           ? t('audioWorkletUnsupportedTitle')
           : t('analysisFailedTitle'),
-        description: isUnsupportedAudioWorklet
+        description: isUnsupportedRealtimeAudio
           ? t('audioWorkletUnsupportedDesc')
           : t('analysisFailedDesc'),
       });

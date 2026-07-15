@@ -61,13 +61,11 @@ async def upload_avatar(
         raise ValidationException(
             code=ErrorCode.VALIDATION_ERROR,
             field="file",
-            details={"error": str(exc)},
-        )
-    except Exception as exc:
+        ) from exc
+    except Exception:
         raise FileException(
             code=ErrorCode.AVATAR_PROCESS_FAILED,
             filename=file.filename,
-            details={"error": str(exc)},
         )
 
     return success_response(

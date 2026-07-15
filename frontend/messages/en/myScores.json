@@ -58,7 +58,6 @@
     "CONFIRMED": "Done",
     "FAILURE": "Failed"
   },
-  "jobProgress": "{progress}% · {step}",
-  "jobStepPending": "Waiting",
+  "jobProgress": "Processing {progress}%",
   "uploadAgain": "Upload again"
 }

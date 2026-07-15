@@ -245,7 +245,7 @@ def test_cookie_authenticated_writes_require_csrf_header(client: TestClient) -> 
         assert missing_header.status_code == 403
         missing_header_payload = missing_header.json()
         assert missing_header_payload["success"] is False
-        assert missing_header_payload["code"] == "csrf_token_invalid"
+        assert missing_header_payload["public_code"] == "csrf_token_invalid"
         assert missing_header_payload["request_id"] == "csrf-contract"
         assert missing_header.headers["X-Request-ID"] == "csrf-contract"
 
@@ -305,7 +305,7 @@ def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient
         assert response.status_code == 403
         payload = response.json()
         assert payload["success"] is False
-        assert payload["code"] == "request_origin_invalid"
+        assert payload["public_code"] == "request_origin_invalid"
         assert payload["request_id"] == "origin-contract"
         assert response.headers["X-Request-ID"] == "origin-contract"
     finally:
@@ -317,6 +317,6 @@ def test_login_requires_request_body(client: TestClient) -> None:
     assert response.status_code == 422
     payload = response.json()
     assert payload["success"] is False
-    assert payload["code"] == "validation_error"
+    assert payload["public_code"] == "validation_error"
     assert payload["request_id"] == "validation-contract"
     assert response.headers["X-Request-ID"] == "validation-contract"

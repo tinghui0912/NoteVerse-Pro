@@ -74,7 +74,7 @@ export function usePracticeSocket({ onMessage, onClose }: PracticeSocketOptions)
         try {
           onMessageRef.current(JSON.parse(event.data) as PracticeServerMessage);
         } catch {
-          console.warn('Ignored malformed practice websocket message.');
+          console.warn('Ignored malformed practice realtime message.');
         }
       };
       socket.onclose = () => {
@@ -88,7 +88,7 @@ export function usePracticeSocket({ onMessage, onClose }: PracticeSocketOptions)
 
       await new Promise<void>((resolve, reject) => {
         socket.onopen = () => resolve();
-        socket.onerror = () => reject(new Error('Practice websocket connection failed.'));
+        socket.onerror = () => reject(new Error('practice_realtime_connection_failed'));
       });
     },
     [close, stopHeartbeat]

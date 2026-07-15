@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.db.models import ImportDispatchStatus, ImportJob, ImportJobUpload, StorageBlob, Upload
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
+from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
 
@@ -184,8 +185,8 @@ class ImportDispatchService:
         now = utc_now_naive()
         job.dispatch_status = ImportDispatchStatus.FAILED
         job.state = ImportJobState.FAILURE
-        job.code = "external_service_error"
-        job.error = error
+        job.code = ErrorCode.EXTERNAL_SERVICE_ERROR
+        job.error = ErrorCode.EXTERNAL_SERVICE_ERROR
         job.error_type = "ImportDispatchFailure"
         job.dispatch_error = error
         job.finished_at = now

@@ -180,8 +180,8 @@ describe('upload workflow storage quota handling', () => {
       queryKey: queryKeys.storageUsage.current(),
     });
     expect(toastMock).toHaveBeenCalledWith({
-      title: '任务已创建，等待处理',
-      description: '后台服务恢复后会自动处理。你可以保持本页打开，也可以稍后到我的乐谱库查看结果。',
+      title: '识别请求已创建',
+      description: '系统会自动继续处理。你可以保持本页打开，也可以稍后到我的乐谱库查看结果。',
     });
   });
 });

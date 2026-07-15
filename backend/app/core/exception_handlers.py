@@ -18,10 +18,10 @@ from app.shared.responses import ErrorResponsePayload, error_response
 
 def _error_payload(
     *,
-    error: str,
-    code: str,
+    public_code: str,
     request_id: str | None,
     details: dict[str, object] | list[object] | Sequence[object] | None = None,
+    include_internal_details: bool = False,
 ) -> ErrorResponsePayload:
     normalized_details: dict[str, object]
     if details is None:
@@ -32,15 +32,19 @@ def _error_payload(
         normalized_details = {"items": list(details)}
 
     return error_response(
-        error=error,
-        code=code,
+        public_code=public_code,
+        public_message=public_code,
         request_id=request_id,
-        details=normalized_details,
+        internal_details=normalized_details if include_internal_details else None,
     )
 
 
 def _request_id(request: Request) -> str | None:
     return get_trace_id() or request.headers.get("X-Request-ID")
+
+
+def _include_internal_details(request: Request) -> bool:
+    return request.url.path.startswith(f"{settings.API_V1_STR}/ops")
 
 
 def _json_safe_errors(errors: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -60,10 +64,10 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     return JSONResponse(
         status_code=exc.status_code,
         content=_error_payload(
-            error=exc.code,
-            code=exc.code,
+            public_code=exc.code,
             request_id=_request_id(request),
             details=exc.details,
+            include_internal_details=_include_internal_details(request),
         ),
     )
 
@@ -76,10 +80,10 @@ async def validation_exception_handler(
     return JSONResponse(
         status_code=422,
         content=_error_payload(
-            error="Request validation failed",
-            code=ErrorCode.VALIDATION_ERROR,
+            public_code=ErrorCode.VALIDATION_ERROR,
             request_id=_request_id(request),
             details=_json_safe_errors(exc.errors()),
+            include_internal_details=_include_internal_details(request),
         ),
     )
 
@@ -92,10 +96,10 @@ async def pydantic_validation_exception_handler(
     return JSONResponse(
         status_code=422,
         content=_error_payload(
-            error="Data validation failed",
-            code=ErrorCode.VALIDATION_ERROR,
+            public_code=ErrorCode.VALIDATION_ERROR,
             request_id=_request_id(request),
             details=_json_safe_errors(exc.errors()),
+            include_internal_details=_include_internal_details(request),
         ),
     )
 
@@ -107,10 +111,10 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     return JSONResponse(
         status_code=500,
         content=_error_payload(
-            error="Internal server error",
-            code=ErrorCode.INTERNAL_ERROR,
+            public_code=ErrorCode.INTERNAL_ERROR,
             request_id=_request_id(request),
             details={"type": type(exc).__name__} if settings.DEBUG else {},
+            include_internal_details=_include_internal_details(request),
         ),
     )
 

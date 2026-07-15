@@ -21,16 +21,11 @@ export default function EditorError({
     console.error("Editor Error:", error);
   }, [error]);
 
-  const description =
-    process.env.NODE_ENV === 'development' && error.message
-      ? error.message
-      : t('errorBoundaryDesc');
-
   return (
     <ErrorState
       icon={AlertCircle}
       title={t('errorBoundaryTitle')}
-      description={description}
+      description={t('errorBoundaryDesc')}
       className="min-h-screen bg-gray-50 px-4"
       primaryAction={
         <Button onClick={() => reset()} className="min-w-40" size="lg">

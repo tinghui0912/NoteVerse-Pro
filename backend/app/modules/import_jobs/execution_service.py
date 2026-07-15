@@ -71,14 +71,15 @@ class ImportJobExecutionService:
                 return {"success": True, "job_id": job_id}
         except Exception as exc:
             logger.error(f"[{job_id}] Job failed: {exc}", exc_info=True)
+            code = self.get_error_code(exc)
             try:
                 with get_worker_db() as db:
                     sync_import_job_service.finalize_failure(
                         db,
                         job_id,
-                        error=str(exc),
+                        error=code,
                         error_type=type(exc).__name__,
-                        code=self.get_error_code(exc),
+                        code=code,
                     )
             except Exception:
                 pass

@@ -180,7 +180,8 @@ describe('route shell groups', () => {
     expect(rootNotFound).not.toContain('style={{');
     expect(localeError).toContain('ErrorState');
     expect(editorError).toContain('ErrorState');
-    expect(editorError).toContain("process.env.NODE_ENV === 'development'");
+    expect(editorError).not.toContain("process.env.NODE_ENV === 'development'");
+    expect(editorError).not.toContain('error.message');
     expect(myScoresPage).toContain('EmptyState');
     expect(libraryPage).toContain('EmptyState');
     expect(notificationDialog).toContain('EmptyState');

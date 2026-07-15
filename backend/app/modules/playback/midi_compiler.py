@@ -23,23 +23,23 @@ class VerovioMidiCompiler:
         try:
             import verovio
         except Exception as exc:
-            raise RuntimeError(f"{ErrorCode.VEROVIO_MISSING}: {exc}") from exc
+            raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: {exc}") from exc
 
         toolkit = verovio.toolkit()
         toolkit.setOptions({"inputFrom": "xml"})
         loaded = toolkit.loadData(content.decode("utf-8"))
         if loaded is False:
-            raise RuntimeError(f"{ErrorCode.VEROVIO_FAILED}: failed to load MusicXML")
+            raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: failed to load MusicXML")
 
         encoded = toolkit.renderToMIDI()
         if not encoded:
-            raise RuntimeError(f"{ErrorCode.VEROVIO_FAILED}: Verovio produced no MIDI")
+            raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: no MIDI output")
         try:
             midi = base64.b64decode(encoded, validate=True)
         except Exception as exc:
-            raise RuntimeError(f"{ErrorCode.VEROVIO_FAILED}: invalid MIDI output") from exc
+            raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: invalid MIDI output") from exc
         if not midi.startswith(b"MThd"):
-            raise RuntimeError(f"{ErrorCode.VEROVIO_FAILED}: invalid MIDI header")
+            raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: invalid MIDI header")
         return CompiledMidi(
             content=midi,
             generator=self.generator,

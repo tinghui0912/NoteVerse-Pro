@@ -31,16 +31,14 @@ class XMLFingeringService:
                 return {"xml_content": handle.read(), "hand_size": hand_size}
         except ImportError as exc:
             raise ExternalServiceException(
-                service="pianoplayer",
-                code=ErrorCode.EXTERNAL_SERVICE_ERROR,
-                details={"error": "pianoplayer module not installed"},
+                service="score_fingering",
+                code=ErrorCode.SCORE_FINGERING_FAILED,
             ) from exc
         except Exception as exc:
             logger.error(f"Fingering generation failed: {exc}")
             raise ExternalServiceException(
-                service="pianoplayer",
-                code=ErrorCode.EXTERNAL_SERVICE_ERROR,
-                details={"error": str(exc)},
+                service="score_fingering",
+                code=ErrorCode.SCORE_FINGERING_FAILED,
             ) from exc
 
 

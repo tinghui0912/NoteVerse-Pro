@@ -202,11 +202,11 @@ async def stream_practice_session(
             if binary_payload is not None:
                 try:
                     alignment = runtime.process_audio_chunk(binary_payload)
-                except RuntimeError as exc:
+                except RuntimeError:
                     await websocket.send_json(
                         session_error_message(
                             code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
-                            message=str(exc),
+                            message=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
                         )
                     )
                     break
@@ -232,7 +232,7 @@ async def stream_practice_session(
         await websocket.send_json(
             session_error_message(
                 code=exc.code,
-                message=str(exc),
+                message=exc.code,
             )
         )
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)

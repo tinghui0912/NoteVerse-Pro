@@ -295,8 +295,8 @@ class RevisionRenderService:
             result = engine.render_score(xml_path=xml_path, output_name="page")
             if not result["success"] or not result.get("files"):
                 raise ScoreRenderFailedException(
-                    code=str(result.get("code") or ErrorCode.SCORE_RENDER_FAILED),
-                    details={"error": result.get("error"), "revision_id": revision_uuid},
+                    code=str(result.get("code") or ErrorCode.SCORE_PREVIEW_FAILED),
+                    details={"revision_id": revision_uuid},
                 )
             generator = str(result.get("engine") or "score-renderer")
             for output in result["files"]:

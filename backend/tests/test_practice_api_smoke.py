@@ -108,7 +108,7 @@ def test_get_practice_session_returns_not_found_for_missing_session(client: Test
     response = client.get("/api/v1/practice/sessions/missing-session")
 
     assert response.status_code == 404
-    assert response.json()["code"] == ErrorCode.PRACTICE_SESSION_NOT_FOUND
+    assert response.json()["public_code"] == ErrorCode.PRACTICE_SESSION_NOT_FOUND
 
 
 def test_get_practice_session_rejects_unauthorized_access(client: TestClient) -> None:
@@ -118,7 +118,7 @@ def test_get_practice_session_rejects_unauthorized_access(client: TestClient) ->
     response = client.get("/api/v1/practice/sessions/forbidden-session")
 
     assert response.status_code == 403
-    assert response.json()["code"] == ErrorCode.NO_PRACTICE_ACCESS
+    assert response.json()["public_code"] == ErrorCode.NO_PRACTICE_ACCESS
 
 
 def test_get_practice_report_returns_structured_payload(client: TestClient) -> None:

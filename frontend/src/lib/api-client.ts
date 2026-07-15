@@ -100,22 +100,25 @@ async function readJsonSafely(response: Response): Promise<Record<string, unknow
   }
 }
 
+function fallbackErrorCode(status: number): string {
+  return status >= 500 ? 'internal_error' : 'unknown_error';
+}
+
 function createApiError(
   response: Response,
   data: Record<string, unknown>,
-  fallbackCode = 'REQUEST_FAILED',
-  fallbackMessage = `Request failed: ${response.statusText}`
+  fallbackCode = fallbackErrorCode(response.status),
+  fallbackMessage = fallbackCode
 ): ApiError {
+  const publicCode = typeof data.public_code === 'string' ? data.public_code : fallbackCode;
+  const publicMessage =
+    typeof data.public_message === 'string' ? data.public_message : fallbackMessage;
   return new ApiError(
     response.status,
-    typeof data.code === 'string' ? data.code : fallbackCode,
-    typeof data.error === 'string'
-      ? data.error
-      : typeof data.message === 'string'
-        ? data.message
-        : fallbackMessage,
-    typeof data.details === 'object' && data.details !== null
-      ? (data.details as Record<string, unknown>)
+    publicCode,
+    publicMessage,
+    typeof data.internal_details === 'object' && data.internal_details !== null
+      ? (data.internal_details as Record<string, unknown>)
       : undefined,
     typeof data.request_id === 'string'
       ? data.request_id
@@ -132,10 +135,11 @@ async function handleResponse<T>(response: Response, options?: RequestOptions): 
 
   if (contentType && !contentType.includes('application/json')) {
     if (!response.ok) {
+      const code = fallbackErrorCode(response.status);
       throw new ApiError(
         response.status,
-        'REQUEST_FAILED',
-        `Request failed: ${response.statusText}`,
+        code,
+        code,
         undefined,
         response.headers.get('X-Request-ID') ?? undefined
       );
@@ -346,8 +350,7 @@ async function postDownload(url: string, data?: unknown): Promise<Response> {
     throw createApiError(
       response,
       errorData,
-      'REQUEST_FAILED',
-      `Request failed: ${response.statusText}`
+      fallbackErrorCode(response.status)
     );
   }
 
@@ -379,8 +382,7 @@ async function getRaw(
     throw createApiError(
       response,
       errorData,
-      'REQUEST_FAILED',
-      `Request failed: ${response.statusText}`
+      fallbackErrorCode(response.status)
     );
   }
 

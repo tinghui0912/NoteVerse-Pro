@@ -72,9 +72,9 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         details: dict[str, object],
     ):
         return error_response(
-            error=code,
-            code=code,
-            details=details,
+            public_code=code,
+            public_message=code,
+            internal_details=details if request.url.path.startswith(f"{settings.API_V1_STR}/ops") else None,
             request_id=self._request_id(request),
         )
 

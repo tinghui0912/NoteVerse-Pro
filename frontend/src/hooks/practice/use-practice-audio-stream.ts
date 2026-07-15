@@ -51,7 +51,7 @@ export function usePracticeAudioStream(onPcmFrame: (frame: ArrayBuffer) => void)
     teardown();
     if (!isAudioWorkletSupported()) {
       setIsSupported(false);
-      throw new Error('AudioWorklet is not supported in this browser.');
+      throw new Error('practice_realtime_audio_unsupported');
     }
 
     let stream: MediaStream;
@@ -76,7 +76,7 @@ export function usePracticeAudioStream(onPcmFrame: (frame: ArrayBuffer) => void)
       (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextConstructor) {
       teardown();
-      throw new Error('AudioContext is not supported in this browser.');
+      throw new Error('practice_realtime_audio_unsupported');
     }
 
     try {

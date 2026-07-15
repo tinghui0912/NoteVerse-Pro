@@ -39,7 +39,7 @@ class VerovioRenderEngine:
             return {
                 "success": False,
                 "engine": self.engine_name,
-                "code": ErrorCode.SCORE_RENDER_FAILED,
+                "code": ErrorCode.SCORE_PREVIEW_FAILED,
                 "error": "Verovio renderer supports SVG output only",
             }
 
@@ -57,7 +57,7 @@ class VerovioRenderEngine:
             return {
                 "success": False,
                 "engine": self.engine_name,
-                "code": ErrorCode.VEROVIO_MISSING,
+                "code": ErrorCode.SCORE_PREVIEW_FAILED,
                 "error": str(exc),
             }
 
@@ -70,7 +70,7 @@ class VerovioRenderEngine:
                 return {
                     "success": False,
                     "engine": self.engine_name,
-                    "code": ErrorCode.VEROVIO_FAILED,
+                    "code": ErrorCode.SCORE_PREVIEW_FAILED,
                     "error": "Verovio failed to load MusicXML",
                 }
 
@@ -79,7 +79,7 @@ class VerovioRenderEngine:
                 return {
                     "success": False,
                     "engine": self.engine_name,
-                    "code": ErrorCode.VEROVIO_FAILED,
+                    "code": ErrorCode.SCORE_PREVIEW_FAILED,
                     "error": "Verovio produced no pages",
                 }
 
@@ -116,7 +116,7 @@ class VerovioRenderEngine:
             return {
                 "success": False,
                 "engine": self.engine_name,
-                "code": ErrorCode.VEROVIO_FAILED,
+                "code": ErrorCode.SCORE_PREVIEW_FAILED,
                 "error": str(exc),
             }
 

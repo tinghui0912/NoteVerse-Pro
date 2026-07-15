@@ -24,6 +24,7 @@ from app.db.models import (
     ScoreDeletionStatus,
 )
 from app.modules.ops.schemas import (
+    AsyncOperationDiagnostic,
     AsyncOperationErrorClass,
     AsyncOperationKind,
     AsyncOperationKindSummary,
@@ -678,84 +679,128 @@ class OpsAsyncOperationService:
             next_attempt_at=job.next_dispatch_at,
             last_error=job.error or job.dispatch_error,
             error_class=self._classify_error(job.error or job.dispatch_error),
+            diagnostic=self._diagnostic(
+                kind=AsyncOperationKind.IMPORT,
+                status=self._import_status(job),
+                raw_status=f"{job.state.value}/{job.dispatch_status.value}",
+                last_error=job.error or job.dispatch_error,
+                attempts=job.dispatch_attempt_count,
+                max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+            ),
             created_at=job.created_at,
             updated_at=job.updated_at,
         )
 
     def _read_render(self, outbox: RenderOutbox) -> AsyncOperationRead:
+        status = self._outbox_status(
+            outbox.status,
+            attempts=outbox.attempt_count,
+            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            next_attempt_at=outbox.next_attempt_at,
+        )
         return AsyncOperationRead(
             operation_id=outbox.outbox_uuid,
             kind=AsyncOperationKind.RENDER,
             resource_type=outbox.target_type.value.lower(),
             resource_id=outbox.outbox_uuid,
-            status=self._outbox_status(
-                outbox.status,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-                next_attempt_at=outbox.next_attempt_at,
-            ),
+            status=status,
             raw_status=outbox.status.value,
             attempts=outbox.attempt_count,
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
             last_error=outbox.last_error,
             error_class=self._classify_error(outbox.last_error),
+            diagnostic=self._diagnostic(
+                kind=AsyncOperationKind.RENDER,
+                status=status,
+                raw_status=outbox.status.value,
+                last_error=outbox.last_error,
+                attempts=outbox.attempt_count,
+                max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            ),
             created_at=outbox.created_at,
             updated_at=outbox.updated_at,
         )
 
     def _read_playback(self, outbox: PlaybackOutbox) -> AsyncOperationRead:
+        status = self._outbox_status(
+            outbox.status,
+            attempts=outbox.attempt_count,
+            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+            next_attempt_at=outbox.next_attempt_at,
+        )
         return AsyncOperationRead(
             operation_id=outbox.outbox_uuid,
             kind=AsyncOperationKind.PLAYBACK,
             resource_type=outbox.asset_kind.value.lower(),
             resource_id=outbox.outbox_uuid,
-            status=self._outbox_status(
-                outbox.status,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
-                next_attempt_at=outbox.next_attempt_at,
-            ),
+            status=status,
             raw_status=outbox.status.value,
             attempts=outbox.attempt_count,
             max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
             last_error=outbox.last_error,
             error_class=self._classify_error(outbox.last_error),
+            diagnostic=self._diagnostic(
+                kind=AsyncOperationKind.PLAYBACK,
+                status=status,
+                raw_status=outbox.status.value,
+                last_error=outbox.last_error,
+                attempts=outbox.attempt_count,
+                max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+            ),
             created_at=outbox.created_at,
             updated_at=outbox.updated_at,
         )
 
     def _read_mail(self, outbox: MailOutbox) -> AsyncOperationRead:
+        status = self._mail_status(outbox)
         return AsyncOperationRead(
             operation_id=outbox.outbox_uuid,
             kind=AsyncOperationKind.MAIL,
             resource_type=outbox.category,
             resource_id=outbox.outbox_uuid,
-            status=self._mail_status(outbox),
+            status=status,
             raw_status=outbox.status.value,
             attempts=outbox.attempt_count,
             max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
             last_error=outbox.last_error,
             error_class=self._classify_error(outbox.last_error),
+            diagnostic=self._diagnostic(
+                kind=AsyncOperationKind.MAIL,
+                status=status,
+                raw_status=outbox.status.value,
+                last_error=outbox.last_error,
+                attempts=outbox.attempt_count,
+                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            ),
             created_at=outbox.created_at,
             updated_at=outbox.updated_at,
         )
 
     def _read_score_deletion(self, score: Score) -> AsyncOperationRead:
+        status = self._score_deletion_status(score)
         return AsyncOperationRead(
             operation_id=score.score_uuid,
             kind=AsyncOperationKind.SCORE_DELETION,
             resource_type="score",
             resource_id=score.score_uuid,
-            status=self._score_deletion_status(score),
+            status=status,
             raw_status=score.deletion_status.value,
             attempts=score.cleanup_attempt_count,
             max_attempts=settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
             next_attempt_at=score.next_cleanup_at,
             last_error=score.deletion_error,
             error_class=self._classify_error(score.deletion_error),
+            diagnostic=self._diagnostic(
+                kind=AsyncOperationKind.SCORE_DELETION,
+                status=status,
+                raw_status=score.deletion_status.value,
+                last_error=score.deletion_error,
+                attempts=score.cleanup_attempt_count,
+                max_attempts=settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
+            ),
             created_at=score.deletion_requested_at or score.deleted_at,
             updated_at=score.updated_at,
         )
@@ -999,6 +1044,119 @@ class OpsAsyncOperationService:
         if any(marker in normalized for marker in ("traceback", "exception", "failed")):
             return AsyncOperationErrorClass.SYSTEM_ERROR
         return AsyncOperationErrorClass.UNKNOWN
+
+    def _diagnostic(
+        self,
+        *,
+        kind: AsyncOperationKind,
+        status: AsyncOperationStatus,
+        raw_status: str,
+        last_error: str | None,
+        attempts: int,
+        max_attempts: int | None,
+    ) -> AsyncOperationDiagnostic | None:
+        error_class = self._classify_error(last_error)
+        if last_error is None and error_class is None and status not in {
+            AsyncOperationStatus.FAILED,
+            AsyncOperationStatus.PERMANENT_FAILED,
+            AsyncOperationStatus.EXPIRED,
+            AsyncOperationStatus.EXHAUSTED,
+            AsyncOperationStatus.BLOCKED,
+        }:
+            return None
+
+        internal_code = self._internal_code(
+            kind=kind,
+            status=status,
+            raw_status=raw_status,
+            error_class=error_class,
+            last_error=last_error,
+        )
+        retryable = self._is_retryable(status=status, attempts=attempts, max_attempts=max_attempts)
+        return AsyncOperationDiagnostic(
+            internal_code=internal_code,
+            internal_stage=self._internal_stage(kind, raw_status),
+            internal_reason=last_error,
+            retryable=retryable,
+        )
+
+    @staticmethod
+    def _internal_stage(kind: AsyncOperationKind, raw_status: str) -> str:
+        if kind == AsyncOperationKind.IMPORT:
+            if "/" in raw_status:
+                state, dispatch = raw_status.split("/", 1)
+                if dispatch in {"PENDING", "DISPATCHED", "FAILED"}:
+                    return "dispatch"
+                return state.lower()
+            return "import"
+        if kind == AsyncOperationKind.RENDER:
+            return "render"
+        if kind == AsyncOperationKind.PLAYBACK:
+            return "playback"
+        if kind == AsyncOperationKind.MAIL:
+            return "delivery"
+        if kind == AsyncOperationKind.SCORE_DELETION:
+            return "cleanup"
+        return kind.value
+
+    @staticmethod
+    def _internal_code(
+        *,
+        kind: AsyncOperationKind,
+        status: AsyncOperationStatus,
+        raw_status: str,
+        error_class: AsyncOperationErrorClass | None,
+        last_error: str | None,
+    ) -> str:
+        normalized = (last_error or raw_status).lower()
+        if status == AsyncOperationStatus.EXPIRED or "expired" in normalized:
+            return f"{kind.value}_expired"
+        if status == AsyncOperationStatus.EXHAUSTED:
+            return f"{kind.value}_attempts_exhausted"
+        if "lease expired" in normalized:
+            return f"{kind.value}_lease_expired"
+        if "references unavailable" in normalized or "stale resources" in normalized:
+            return f"{kind.value}_stale_resources"
+        if "body is unavailable" in normalized:
+            return f"{kind.value}_body_unavailable"
+        if "timeout" in normalized:
+            return f"{kind.value}_timeout"
+        if error_class == AsyncOperationErrorClass.TRANSIENT:
+            return f"{kind.value}_transient_failure"
+        if error_class == AsyncOperationErrorClass.PERMANENT:
+            return f"{kind.value}_permanent_failure"
+        if error_class == AsyncOperationErrorClass.USER_ERROR:
+            return f"{kind.value}_user_input_error"
+        if error_class == AsyncOperationErrorClass.SYSTEM_ERROR:
+            return f"{kind.value}_system_failure"
+        if error_class == AsyncOperationErrorClass.UNKNOWN:
+            return f"{kind.value}_unknown_failure"
+        return f"{kind.value}_status_{status.value}"
+
+    @staticmethod
+    def _is_retryable(
+        *,
+        status: AsyncOperationStatus,
+        attempts: int,
+        max_attempts: int | None,
+    ) -> bool:
+        if status in {
+            AsyncOperationStatus.SUCCEEDED,
+            AsyncOperationStatus.PROCESSING,
+            AsyncOperationStatus.DISPATCHED,
+            AsyncOperationStatus.PERMANENT_FAILED,
+            AsyncOperationStatus.EXPIRED,
+            AsyncOperationStatus.EXHAUSTED,
+            AsyncOperationStatus.BLOCKED,
+        }:
+            return False
+        if max_attempts is not None and attempts >= max_attempts:
+            return False
+        return status in {
+            AsyncOperationStatus.QUEUED,
+            AsyncOperationStatus.RETRYING,
+            AsyncOperationStatus.FAILED,
+        }
 
     @staticmethod
     def _status_counts(

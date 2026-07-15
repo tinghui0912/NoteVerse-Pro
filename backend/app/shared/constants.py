@@ -81,22 +81,14 @@ class ErrorCode:
 
     EXTERNAL_SERVICE_ERROR = "external_service_error"
     INPUT_FILE_MISSING = "input_file_missing"
-    OMR_FAILED = "omr_failed"
-    LEGATO_MISSING = "legato_missing"
-    LEGATO_FAILED = "legato_failed"
-    LEGATO_INFERENCE_FAILED = "legato_inference_failed"
-    LEGATO_CONVERSION_FAILED = "legato_conversion_failed"
-    VEROVIO_MISSING = "verovio_missing"
-    VEROVIO_FAILED = "verovio_failed"
-    SCORE_RENDER_FAILED = "score_render_failed"
-    PREVIEW_FAILED = "preview_failed"
+    SCORE_RECOGNITION_FAILED = "score_recognition_failed"
+    SCORE_PREVIEW_FAILED = "score_preview_failed"
+    SCORE_PLAYBACK_FAILED = "score_playback_failed"
     EXCEL_NOT_AVAILABLE = "excel_not_available"
 
     INVALID_HAND_TYPE = "invalid_hand_type"
     INVALID_DEPTH = "invalid_depth"
-    PIANOPLAYER_NOT_AVAILABLE = "pianoplayer_not_available"
-    FINGERING_GENERATION_FAILED = "fingering_generation_failed"
-    FINGERING_FAILED = "fingering_failed"
+    SCORE_FINGERING_FAILED = "score_fingering_failed"
 
     REQUEST_TOO_FREQUENT = "request_too_frequent"
 

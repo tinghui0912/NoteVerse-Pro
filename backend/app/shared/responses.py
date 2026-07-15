@@ -32,10 +32,10 @@ class ErrorResponsePayload(TypedDict, total=False):
     """Default error response payload shape."""
 
     success: bool
-    error: str
-    code: str
+    public_code: str
+    public_message: str
     request_id: str
-    details: dict[str, object]
+    internal_details: dict[str, object]
 
 
 class PaginatedResponsePayload(TypedDict):
@@ -135,20 +135,20 @@ def success_response(
 
 
 def error_response(
-    error: str,
-    code: str = "ERROR",
-    details: Optional[dict[str, object]] = None,
+    public_code: str,
+    public_message: Optional[str] = None,
+    internal_details: Optional[dict[str, object]] = None,
     request_id: Optional[str] = None,
 ) -> ErrorResponsePayload:
     response: ErrorResponsePayload = {
         "success": False,
-        "error": error,
-        "code": code,
+        "public_code": public_code,
+        "public_message": public_message or public_code,
     }
     if request_id:
         response["request_id"] = request_id
-    if details:
-        response["details"] = details
+    if internal_details:
+        response["internal_details"] = internal_details
     return response
 
 

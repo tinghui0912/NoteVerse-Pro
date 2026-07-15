@@ -144,7 +144,7 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
         practice_runtime_registry.clear()
 
 
-def test_practice_websocket_flow_surfaces_engine_failures(
+def test_practice_websocket_flow_returns_stable_alignment_error(
     client: TestClient,
 ) -> None:
     practice_runtime_registry.clear()
@@ -176,7 +176,7 @@ def test_practice_websocket_flow_surfaces_engine_failures(
                     "type": "session.error",
                     "payload": {
                         "code": "practice_alignment_failed",
-                        "message": "engine failure",
+                        "message": "practice_alignment_failed",
                     },
                 }
     finally:

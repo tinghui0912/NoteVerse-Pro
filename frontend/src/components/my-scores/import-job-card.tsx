@@ -152,7 +152,6 @@ export function ImportJobCard({
             <p className="mt-2 text-xs text-muted-foreground">
               {t('jobProgress', {
                 progress: job.progress,
-                step: job.current_step || t('jobStepPending'),
               })}
             </p>
           </div>

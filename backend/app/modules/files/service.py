@@ -94,7 +94,6 @@ class FilesService:
             raise FileException(
                 code=ErrorCode.FILE_SAVE_FAILED,
                 filename=file.filename,
-                details={"error": str(exc)},
             ) from exc
         return {
             "file_id": upload.upload_uuid,
@@ -141,7 +140,7 @@ class FilesService:
             try:
                 self.storage.delete(storage_key)
             except Exception as exc:
-                raise FileException(ErrorCode.FILE_DELETE_FAILED, filename, {"error": str(exc)}) from exc
+                raise FileException(ErrorCode.FILE_DELETE_FAILED, filename) from exc
         return {"filename": filename}
 
 

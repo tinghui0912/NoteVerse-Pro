@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/page';
 import { ScoreSurface } from '@/components/score/score-surface';
+import { SectionErrorState } from '@/components/states';
 import { practiceApi } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
 import { translateErrorCode } from '@/lib/i18n/error-message';
@@ -115,17 +116,7 @@ export default function PracticePerformancePage() {
         {isLoading && <ResourceLoading label={t('loadingReport')} minHeight="md" />}
 
         {!isLoading && error && (
-          <Card className="rounded-lg bg-white">
-            <CardHeader>
-              <CardTitle>{t('analysisFailedTitle')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">{error}</p>
-              <Button onClick={() => router.back()} variant="outline">
-                {t('backToPractice')}
-              </Button>
-            </CardContent>
-          </Card>
+          <SectionErrorState title={t('analysisFailedTitle')} description={error} />
         )}
 
         {!isLoading && report && (

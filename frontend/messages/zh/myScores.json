@@ -58,7 +58,6 @@
     "CONFIRMED": "已完成",
     "FAILURE": "失败"
   },
-  "jobProgress": "{progress}% · {step}",
-  "jobStepPending": "等待开始",
+  "jobProgress": "处理进度 {progress}%",
   "uploadAgain": "重新上传"
 }
