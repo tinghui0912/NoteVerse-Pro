@@ -7,6 +7,7 @@ from datetime import timedelta
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlmodel import col
 
 from app.core.config import settings
 from app.db.models import (
@@ -338,7 +339,9 @@ class RenderOutboxService:
         due = db.execute(
             select(RenderOutbox.outbox_uuid)
             .where(
-                RenderOutbox.status.in_([RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED]),
+                col(RenderOutbox.status).in_(
+                    [RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED]
+                ),
                 RenderOutbox.next_attempt_at <= now,
                 RenderOutbox.attempt_count < settings.RENDER_OUTBOX_MAX_ATTEMPTS,
             )

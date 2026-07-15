@@ -10,6 +10,7 @@ import asyncpg
 from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy import select
 from sqlalchemy.sql import Select
+from sqlmodel import col
 from starlette.responses import StreamingResponse
 
 from app.api.deps import get_current_user
@@ -71,9 +72,9 @@ def _pending_events_statement(user_id: int, last_sequence: int) -> Select[tuple[
         select(RealtimeEvent)
         .where(
             RealtimeEvent.recipient_user_id == user_id,
-            RealtimeEvent.id > last_sequence,
+            col(RealtimeEvent.id) > last_sequence,
         )
-        .order_by(RealtimeEvent.id.asc())
+        .order_by(col(RealtimeEvent.id).asc())
         .limit(EVENT_BATCH_SIZE)
     )
 

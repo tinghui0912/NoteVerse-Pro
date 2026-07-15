@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlmodel import col
 
 from app.core.config import settings
 from app.db.models import ImportDispatchStatus, ImportJob, ImportJobUpload, StorageBlob, Upload
@@ -28,6 +30,11 @@ class ImportDispatchPayload:
 
 
 class ImportDispatchService:
+    @staticmethod
+    def _requested_options(job: ImportJob) -> ImportJobProcessingOptions | None:
+        options = job.requested_options
+        return cast(ImportJobProcessingOptions, options) if isinstance(options, dict) else None
+
     def claim(self, db: Session, job_uuid: str) -> ImportDispatchPayload | None:
         job = db.execute(
             select(ImportJob)
@@ -55,7 +62,7 @@ class ImportDispatchService:
             .join(Upload, ImportJobUpload.upload_id == Upload.id)
             .join(StorageBlob, Upload.blob_id == StorageBlob.id)
             .where(ImportJobUpload.job_id == job.id)
-            .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())
+            .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
         ).scalars().all()
         if not storage_keys:
             self._terminal_failure(job, "Import job has no persisted uploads")
@@ -68,11 +75,10 @@ class ImportDispatchService:
         job.dispatch_error = None
         clear_async_diagnostic(job)
         job.updated_at = now
-        options = job.requested_options if isinstance(job.requested_options, dict) else None
         return ImportDispatchPayload(
             job_uuid=job.job_uuid,
             storage_keys=list(storage_keys),
-            options=options,
+            options=self._requested_options(job),
         )
 
     def complete(self, db: Session, job_uuid: str) -> None:
@@ -113,7 +119,7 @@ class ImportDispatchService:
         processing_cutoff = now - timedelta(seconds=settings.IMPORT_PROCESSING_TIMEOUT_SECONDS)
         active = db.execute(
             select(ImportJob).where(
-                ImportJob.dispatch_status.in_([
+                col(ImportJob.dispatch_status).in_([
                     ImportDispatchStatus.DISPATCHED,
                     ImportDispatchStatus.PROCESSING,
                 ])
@@ -157,7 +163,7 @@ class ImportDispatchService:
             select(ImportJob)
             .where(
                 ImportJob.state == ImportJobState.PENDING,
-                ImportJob.dispatch_status.in_([
+                col(ImportJob.dispatch_status).in_([
                     ImportDispatchStatus.PENDING,
                     ImportDispatchStatus.FAILED,
                 ]),

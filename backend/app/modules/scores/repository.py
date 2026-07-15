@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.db.models import (
     ImportJob,
@@ -21,7 +22,7 @@ from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
 score_title_col = Score.__table__.c.title
 score_updated_col = Score.__table__.c.updated_at
-active_score_filter = Score.deletion_status == ScoreDeletionStatus.ACTIVE
+active_score_filter = col(Score.deletion_status) == ScoreDeletionStatus.ACTIVE
 
 
 class ScoreRepository:
@@ -88,9 +89,9 @@ class ScoreRepository:
         rows = await db.execute(
             select(ScoreLibraryEntry.score_id).where(
                 ScoreLibraryEntry.user_id == user_id,
-                ScoreLibraryEntry.score_id.in_(score_ids),
+                col(ScoreLibraryEntry.score_id).in_(score_ids),
                 ScoreLibraryEntry.source_type == LibraryEntrySourceType.SELF_ADDED,
-                ScoreLibraryEntry.deleted_at.is_(None),
+                col(ScoreLibraryEntry.deleted_at).is_(None),
             )
         )
         return {int(score_id) for score_id in rows.scalars().all()}
@@ -131,7 +132,7 @@ class ScoreRepository:
         rows = list(
             (
                 await db.execute(
-                    statement.order_by(ScoreRevision.revision_number.desc()).limit(limit + 1)
+                    statement.order_by(col(ScoreRevision.revision_number).desc()).limit(limit + 1)
                 )
             ).scalars().all()
         )
@@ -145,7 +146,7 @@ class ScoreRepository:
                 await db.execute(
                     select(ScoreRevision)
                     .where(ScoreRevision.score_id == score_id)
-                    .order_by(ScoreRevision.revision_number.desc())
+                    .order_by(col(ScoreRevision.revision_number).desc())
                 )
             ).scalars().all()
         )
@@ -196,7 +197,7 @@ class ScoreRepository:
             select(TaxonomyCategory.code, TaxonomyTag.code, TaxonomyTag.id)
             .join(TaxonomyCategory, TaxonomyTag.category_id == TaxonomyCategory.id)
             .where(tuple_(TaxonomyCategory.code, TaxonomyTag.code).in_(tags))
-            .where(TaxonomyCategory.is_active.is_(True), TaxonomyTag.is_active.is_(True))
+            .where(col(TaxonomyCategory.is_active).is_(True), col(TaxonomyTag.is_active).is_(True))
         )
         tag_ids = {
             (category, code): tag_id

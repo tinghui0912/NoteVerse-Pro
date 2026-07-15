@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.core.exceptions import (
     ConflictException,
@@ -562,7 +563,7 @@ class RevisionService:
                     ScoreRevisionEvent.revision_id == revision_id,
                     ScoreRevisionEvent.type == "RESTORE",
                 )
-                .order_by(ScoreRevisionEvent.created_at.desc())
+                .order_by(col(ScoreRevisionEvent.created_at).desc())
                 .limit(1)
             )
         ).scalar_one_or_none()

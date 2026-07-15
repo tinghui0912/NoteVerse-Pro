@@ -5,6 +5,7 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.core.exceptions import (
     ResourceNotFoundException,
@@ -332,7 +333,7 @@ class ScoreSharingService:
                     ScoreLibraryEntry.score_id == score_id,
                     ScoreLibraryEntry.user_id == user_id,
                     ScoreLibraryEntry.source_type == LibraryEntrySourceType.BOOKMARK,
-                    ScoreLibraryEntry.deleted_at.is_(None),
+                    col(ScoreLibraryEntry.deleted_at).is_(None),
                 )
             )
         ).scalar_one_or_none()

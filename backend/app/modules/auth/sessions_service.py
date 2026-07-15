@@ -4,7 +4,7 @@ import hashlib
 import secrets
 from datetime import timedelta
 
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import security
@@ -148,7 +148,7 @@ class SessionService:
                 revoked_at_column.is_(None),
                 RefreshToken.expires_at > now,
             )
-            .order_by(RefreshToken.created_at.desc())
+            .order_by(col(RefreshToken.created_at).desc())
             .limit(limit)
         )
         sessions = [

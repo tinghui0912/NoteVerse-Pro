@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlmodel import col
 
 from app.core.config import settings
 from app.db.models import (
@@ -281,7 +282,7 @@ class DerivedAssetRetentionService:
         statement = select(ScoreRevision.id).where(ScoreRevision.score_id == score_id)
         if head_revision_id is not None:
             statement = statement.where(ScoreRevision.id != head_revision_id)
-        return statement.order_by(ScoreRevision.revision_number.desc()).limit(
+        return statement.order_by(col(ScoreRevision.revision_number).desc()).limit(
             retain_recent_revisions
         )
 
@@ -296,7 +297,7 @@ class DerivedAssetRetentionService:
             )
         )
         if keep_ids:
-            statement = statement.where(ScoreRenderAsset.revision_id.not_in(keep_ids))
+            statement = statement.where(col(ScoreRenderAsset.revision_id).not_in(keep_ids))
         return statement
 
     @staticmethod
@@ -307,7 +308,7 @@ class DerivedAssetRetentionService:
             .where(ScoreRevision.score_id == score_id)
         )
         if keep_ids:
-            statement = statement.where(ScorePlaybackAsset.revision_id.not_in(keep_ids))
+            statement = statement.where(col(ScorePlaybackAsset.revision_id).not_in(keep_ids))
         return statement
 
     def _delete_storage_objects(self, storage_keys: list[str]) -> int:

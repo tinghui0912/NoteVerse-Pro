@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
@@ -87,14 +88,12 @@ class SyncImportJobService:
         job.finished_at = now
         clear_async_diagnostic(job)
         job.updated_at = now
-        review_xml = (
-            db.query(ImportArtifact)
-            .filter_by(
-                job_id=job.id,
-                kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+        review_xml = db.execute(
+            select(ImportArtifact).where(
+                ImportArtifact.job_id == job.id,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
             )
-            .one_or_none()
-        )
+        ).scalar_one_or_none()
         if review_xml is not None and review_xml.sha256:
             create_review_thumbnail_render_outbox_sync(
                 db,
@@ -248,8 +247,8 @@ class SyncImportJobService:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             return {
-                "public_code": "job_not_found",
-                "public_message": "job_not_found",
+                "public_code": ErrorCode.JOB_NOT_FOUND,
+                "public_message": ErrorCode.JOB_NOT_FOUND,
             }
         job_id = require_persisted_id(job.id, entity="import job")
         requested_options = job.requested_options or {}

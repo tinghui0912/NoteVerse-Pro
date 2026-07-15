@@ -6,6 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, ValidationException
@@ -94,7 +95,7 @@ class OpsAsyncOperationService:
         if created_before is not None:
             statement = statement.where(OpsAuditEvent.created_at <= created_before)
         result = await db.execute(
-            statement.order_by(OpsAuditEvent.created_at.desc()).offset(offset).limit(limit + 1)
+            statement.order_by(col(OpsAuditEvent.created_at).desc()).offset(offset).limit(limit + 1)
         )
         events = [self._audit_event_read(event) for event in result.scalars().all()]
         return OffsetPage(
@@ -274,7 +275,7 @@ class OpsAsyncOperationService:
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         status_expr = case(
             (
-                ImportJob.state.in_([ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED]),
+                col(ImportJob.state).in_([ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED]),
                 AsyncOperationStatus.SUCCEEDED.value,
             ),
             (
@@ -446,7 +447,7 @@ class OpsAsyncOperationService:
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(select(ImportJob).order_by(ImportJob.updated_at.desc()).limit(limit))
+            await db.execute(select(ImportJob).order_by(col(ImportJob.updated_at).desc()).limit(limit))
         ).scalars()
         return [self._read_import(job) for job in rows]
 
@@ -457,7 +458,9 @@ class OpsAsyncOperationService:
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(select(RenderOutbox).order_by(RenderOutbox.updated_at.desc()).limit(limit))
+            await db.execute(
+                select(RenderOutbox).order_by(col(RenderOutbox.updated_at).desc()).limit(limit)
+            )
         ).scalars()
         return [self._read_render(outbox) for outbox in rows]
 
@@ -469,7 +472,7 @@ class OpsAsyncOperationService:
     ) -> list[AsyncOperationRead]:
         rows = (
             await db.execute(
-                select(PlaybackOutbox).order_by(PlaybackOutbox.updated_at.desc()).limit(limit)
+                select(PlaybackOutbox).order_by(col(PlaybackOutbox.updated_at).desc()).limit(limit)
             )
         ).scalars()
         return [self._read_playback(outbox) for outbox in rows]
@@ -481,7 +484,7 @@ class OpsAsyncOperationService:
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(select(MailOutbox).order_by(MailOutbox.updated_at.desc()).limit(limit))
+            await db.execute(select(MailOutbox).order_by(col(MailOutbox.updated_at).desc()).limit(limit))
         ).scalars()
         return [self._read_mail(outbox) for outbox in rows]
 
@@ -495,7 +498,7 @@ class OpsAsyncOperationService:
             await db.execute(
                 select(Score)
                 .where(Score.deletion_status == ScoreDeletionStatus.DELETING)
-                .order_by(Score.updated_at.desc())
+                .order_by(col(Score.updated_at).desc())
                 .limit(limit)
             )
         ).scalars()

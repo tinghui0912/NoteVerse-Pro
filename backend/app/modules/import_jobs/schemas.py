@@ -15,9 +15,14 @@ class ImportJobProcessingOptions(TypedDict, total=False):
 
 
 class ImportJobSubmitRequestLike(Protocol):
-    file_ids: List[str]
-    options: Optional[ImportJobProcessingOptions]
-    idempotency_key: Optional[str]
+    @property
+    def file_ids(self) -> List[str]: ...
+
+    @property
+    def options(self) -> Optional[ImportJobProcessingOptions]: ...
+
+    @property
+    def idempotency_key(self) -> Optional[str]: ...
 
 
 class ImportJobArtifactItem(TypedDict):

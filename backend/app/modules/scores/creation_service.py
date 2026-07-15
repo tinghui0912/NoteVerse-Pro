@@ -5,6 +5,7 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlmodel import col
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
@@ -98,12 +99,14 @@ class SyncConfirmedScoreCreationService:
             score_id = require_persisted_id(score.id, entity="score")
             normalized_tags = ordered_unique_pairs(taxonomy_tags or [])
             if normalized_tags:
-                tag_rows = (
-                    db.query(TaxonomyCategory.code, TaxonomyTag.code, TaxonomyTag.id)
+                tag_rows = db.execute(
+                    select(TaxonomyCategory.code, TaxonomyTag.code, TaxonomyTag.id)
                     .join(TaxonomyCategory, TaxonomyTag.category_id == TaxonomyCategory.id)
-                    .filter(TaxonomyCategory.is_active.is_(True), TaxonomyTag.is_active.is_(True))
-                    .all()
-                )
+                    .where(
+                        col(TaxonomyCategory.is_active).is_(True),
+                        col(TaxonomyTag.is_active).is_(True),
+                    )
+                ).all()
                 tag_ids = {
                     (category, code): tag_id
                     for category, code, tag_id in tag_rows

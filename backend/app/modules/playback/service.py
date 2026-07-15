@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlmodel import col
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.model_utils import require_persisted_id
@@ -277,8 +278,8 @@ class PlaybackService:
                         ScorePlaybackAsset.kind == PlaybackAssetKind.AUDIO,
                     )
                     .order_by(
-                        ScoreRevision.revision_number.desc(),
-                        ScorePlaybackAsset.created_at.asc(),
+                        col(ScoreRevision.revision_number).desc(),
+                        col(ScorePlaybackAsset.created_at).asc(),
                     )
                     .limit(1)
                 )

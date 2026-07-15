@@ -76,7 +76,7 @@
     "viewPlans": "View public plans",
     "storage": {
       "title": "Storage usage",
-      "description": "Counts your uploads and score revision sources. System-derived previews and audio are tracked internally but do not count toward your user quota yet.",
+      "description": "Counts your uploads and score revision sources. Preview images and listening audio do not count toward your user quota yet.",
       "refresh": "Refresh",
       "loadFailed": "Unable to load storage usage",
       "loadFailedDesc": "Please try again later or refresh the page.",

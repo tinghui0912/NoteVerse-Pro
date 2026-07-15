@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.core.exceptions import (
     ConflictException,
@@ -260,7 +261,7 @@ class ScoreService:
                             ScoreLibraryEntry.user_id == user_id,
                             ScoreLibraryEntry.score_id == score_id,
                             ScoreLibraryEntry.source_type == LibraryEntrySourceType.SELF_ADDED,
-                            ScoreLibraryEntry.deleted_at.is_(None),
+                            col(ScoreLibraryEntry.deleted_at).is_(None),
                         )
                     )
                 ).first() is not None
@@ -270,7 +271,7 @@ class ScoreService:
                 .join(Upload, ScoreInputAsset.upload_id == Upload.id)
                 .join(StorageBlob, Upload.blob_id == StorageBlob.id)
                 .where(ScoreInputAsset.score_id == score_id)
-                .order_by(ScoreInputAsset.sort_order.asc(), ScoreInputAsset.id.asc())
+                .order_by(col(ScoreInputAsset.sort_order).asc(), col(ScoreInputAsset.id).asc())
             )
         ).all()
         published_revision = (

@@ -7,6 +7,7 @@ from typing import Any, Iterable
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlmodel import col
 
 from app.core.config import settings
 from app.db.models import RealtimeEvent, Score, ScoreDeletionStatus, ScoreMembership
@@ -74,7 +75,7 @@ async def score_recipients(db: AsyncSession, score_uuid: str) -> list[int]:
     member_rows = await db.execute(
         select(ScoreMembership.user_id).where(
             ScoreMembership.score_id == score.id,
-            ScoreMembership.revoked_at.is_(None),
+            col(ScoreMembership.revoked_at).is_(None),
         )
     )
     return _unique_user_ids([score.owner_user_id, *member_rows.scalars().all()])
@@ -92,7 +93,7 @@ def score_recipients_sync(db: Session, score_uuid: str) -> list[int]:
     member_rows = db.execute(
         select(ScoreMembership.user_id).where(
             ScoreMembership.score_id == score.id,
-            ScoreMembership.revoked_at.is_(None),
+            col(ScoreMembership.revoked_at).is_(None),
         )
     )
     return _unique_user_ids([score.owner_user_id, *member_rows.scalars().all()])

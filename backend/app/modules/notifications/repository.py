@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.db.models import NotificationEvent
 
@@ -30,7 +31,7 @@ class NotificationRepository:
         result = await db.execute(
             select(func.count(NotificationEvent.id)).where(
                 NotificationEvent.recipient_user_id == user_id,
-                NotificationEvent.read_at.is_(None),
+                col(NotificationEvent.read_at).is_(None),
             )
         )
         return int(result.scalar_one())

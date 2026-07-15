@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -43,7 +44,9 @@ class ImportJobMaintenanceService:
                     db.delete(upload)
                     deleted += 1
                     continue
-                blob_ref_count = db.query(Upload).filter_by(blob_id=upload.blob_id).count()
+                blob_ref_count = db.execute(
+                    select(func.count(Upload.id)).where(Upload.blob_id == upload.blob_id)
+                ).scalar_one()
                 should_delete_blob = blob_ref_count <= 1
                 if upload.uploader_user_id is not None and blob.size_bytes:
                     storage_usage_service.record_release_sync(

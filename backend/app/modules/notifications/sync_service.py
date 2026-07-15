@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -99,7 +100,9 @@ class SyncNotificationService:
 
     @staticmethod
     def by_dedupe_key(db: Session, dedupe_key: str) -> NotificationEvent | None:
-        return db.query(NotificationEvent).filter_by(dedupe_key=dedupe_key).one_or_none()
+        return db.execute(
+            select(NotificationEvent).where(NotificationEvent.dedupe_key == dedupe_key)
+        ).scalar_one_or_none()
 
     def notify_import_completed_best_effort(
         self,

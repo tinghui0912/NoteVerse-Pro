@@ -4,6 +4,7 @@ from typing import TypeAlias
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.db.models import (
     PlaybackAssetKind,
@@ -90,7 +91,10 @@ class ScoreAssetRepository:
                     ScoreRenderAsset.revision_id == revision_id,
                     ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
                 )
-                .order_by(ScoreRenderAsset.page_number.asc(), ScoreRenderAsset.created_at.asc())
+                .order_by(
+                    col(ScoreRenderAsset.page_number).asc(),
+                    col(ScoreRenderAsset.created_at).asc(),
+                )
                 .limit(1)
             )
         ).scalar_one_or_none()
@@ -105,7 +109,7 @@ class ScoreAssetRepository:
                     RenderOutbox.revision_id == revision_id,
                     RenderOutbox.render_profile == render_profile,
                 )
-                .order_by(RenderOutbox.created_at.desc())
+                .order_by(col(RenderOutbox.created_at).desc())
                 .limit(1)
             )
         ).scalar_one_or_none()
@@ -142,7 +146,7 @@ class ScoreAssetRepository:
                     PlaybackOutbox.revision_id == revision_id,
                     PlaybackOutbox.asset_kind == kind,
                 )
-                .order_by(PlaybackOutbox.created_at.desc())
+                .order_by(col(PlaybackOutbox.created_at).desc())
                 .limit(1)
             )
         ).scalar_one_or_none()
@@ -160,9 +164,9 @@ class ScoreAssetRepository:
                     ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
                 )
                 .order_by(
-                    ScoreRevision.revision_number.desc(),
-                    ScoreRenderAsset.page_number.asc(),
-                    ScoreRenderAsset.created_at.asc(),
+                    col(ScoreRevision.revision_number).desc(),
+                    col(ScoreRenderAsset.page_number).asc(),
+                    col(ScoreRenderAsset.created_at).asc(),
                 )
                 .limit(1)
             )
@@ -187,8 +191,8 @@ class ScoreAssetRepository:
                     ScorePlaybackAsset.kind == kind,
                 )
                 .order_by(
-                    ScoreRevision.revision_number.desc(),
-                    ScorePlaybackAsset.created_at.asc(),
+                    col(ScoreRevision.revision_number).desc(),
+                    col(ScorePlaybackAsset.created_at).asc(),
                 )
                 .limit(1)
             )

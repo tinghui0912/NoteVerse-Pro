@@ -378,7 +378,7 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
     blob = SimpleNamespace(id=9, size_bytes=123, storage_key="blobs/or/orphan.png")
     repository.list_orphan_uploads.return_value = [upload]
     db.get.return_value = blob
-    db.query.return_value.filter_by.return_value.count.return_value = 1
+    db.execute.return_value.scalar_one.return_value = 1
 
     with patch(
         "app.modules.import_jobs.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",

@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
@@ -241,7 +242,7 @@ class NotificationService:
         rows = await db.execute(
             select(ScoreMembership.user_id).where(
                 ScoreMembership.score_id == score_id,
-                ScoreMembership.revoked_at.is_(None),
+                col(ScoreMembership.revoked_at).is_(None),
             )
         )
         recipients = {score.owner_user_id}

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
+from typing import Any, TypeVar
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import event, func, select
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.exceptions import (
@@ -107,6 +108,27 @@ MUSICXML_2 = """<?xml version='1.0'?><score-partwise version='4.0'>
 <part id='P1'><measure number='1'><attributes><divisions>1</divisions></attributes>
 <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
 </measure></part></score-partwise>"""
+
+T = TypeVar("T")
+
+
+def one_row(session: Session, model: type[T], **filters: Any) -> T:
+    return session.execute(select(model).filter_by(**filters)).scalar_one()
+
+
+def maybe_one_row(session: Session, model: type[T], **filters: Any) -> T | None:
+    return session.execute(select(model).filter_by(**filters)).scalar_one_or_none()
+
+
+def all_rows(session: Session, model: type[T], **filters: Any) -> list[T]:
+    return list(session.execute(select(model).filter_by(**filters)).scalars())
+
+
+def count_rows(session: Session, model: type[T], **filters: Any) -> int:
+    statement = select(func.count()).select_from(model)
+    if filters:
+        statement = statement.filter_by(**filters)
+    return int(session.execute(statement).scalar_one())
 
 
 class AsyncSessionAdapter:
@@ -264,18 +286,14 @@ async def test_collaborator_revision_source_usage_counts_against_score_owner(
         ),
     )
 
-    created = session.query(ScoreRevision).filter_by(revision_uuid=result.revision_id).one()
+    created = one_row(session, ScoreRevision, revision_uuid=result.revision_id)
     assert created.created_by_user_id == 2
     owner_counter = (
-        session.query(StorageUsageCounter)
-        .filter_by(user_id=1, category=StorageUsageCategory.SOURCE)
-        .one()
+        one_row(session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.SOURCE)
     )
     assert owner_counter.used_bytes == len(MUSICXML_2.encode("utf-8"))
     collaborator_counter = (
-        session.query(StorageUsageCounter)
-        .filter_by(user_id=2, category=StorageUsageCategory.SOURCE)
-        .one_or_none()
+        maybe_one_row(session, StorageUsageCounter, user_id=2, category=StorageUsageCategory.SOURCE)
     )
     assert collaborator_counter is None or collaborator_counter.used_bytes == 0
 
@@ -307,10 +325,10 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
     )
 
     assert first_id == second_id
-    assert session.query(Score).count() == 1
-    score = session.query(Score).one()
-    revision = session.query(ScoreRevision).one()
-    revision_source = session.query(ScoreRevisionSource).one()
+    assert count_rows(session, Score) == 1
+    score = one_row(session, Score)
+    revision = one_row(session, ScoreRevision)
+    revision_source = one_row(session, ScoreRevisionSource)
     metadata = session.get(ScoreRevisionMetadata, revision.id)
     assert score.head_revision_id == revision.id
     assert revision_source.format == RevisionSourceFormat.MUSICXML
@@ -360,20 +378,20 @@ def test_completed_job_notifies_owner_when_ready_for_review(
     job_service.finalize_success(session, "job-complete-notification")
 
     notification = (
-        session.query(NotificationEvent)
-        .filter_by(
+        one_row(
+            session,
+            NotificationEvent,
             recipient_user_id=1,
             type=NotificationTypes.IMPORT_COMPLETED,
         )
-        .one()
     )
     assert notification.resource_type == "job"
     assert notification.resource_id == "job-complete-notification"
     assert notification.score_id is None
     assert notification.data["job_id"] == "job-complete-notification"
     assert notification.data["job_title"] == "Ready Score"
-    assert session.query(Score).filter_by(title="Ready Score").one_or_none() is None
-    render_outbox = session.query(RenderOutbox).one()
+    assert maybe_one_row(session, Score, title="Ready Score") is None
+    render_outbox = one_row(session, RenderOutbox)
     assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
     assert render_outbox.import_job_id == 11
     assert render_outbox.status == RenderOutboxStatus.PENDING
@@ -410,12 +428,12 @@ def test_failed_job_notifies_owner_once(
     )
 
     notification = (
-        session.query(NotificationEvent)
-        .filter_by(
+        one_row(
+            session,
+            NotificationEvent,
             recipient_user_id=1,
             type=NotificationTypes.IMPORT_FAILED,
         )
-        .one()
     )
     assert notification.resource_type == "job"
     assert notification.resource_id == "job-failure-notification"
@@ -642,9 +660,7 @@ def test_review_thumbnail_records_temp_import_usage(
 
     assert artifact_id is not None
     counter = (
-        session.query(StorageUsageCounter)
-        .filter_by(user_id=1, category=StorageUsageCategory.TEMP_IMPORT)
-        .one()
+        one_row(session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.TEMP_IMPORT)
     )
     assert counter.used_bytes == len(b"<svg />")
 
@@ -693,11 +709,11 @@ async def test_review_update_replaces_pending_review_musicxml(
 
     assert detail.musicxml is not None
     assert detail.musicxml.content == MUSICXML_2
-    artifact = session.query(ImportArtifact).filter_by(artifact_uuid="review-update-artifact").one()
+    artifact = one_row(session, ImportArtifact, artifact_uuid="review-update-artifact")
     assert artifact.storage_key != stored_xml.storage_key
     assert storage.read_bytes(artifact.storage_key).decode("utf-8") == MUSICXML_2
-    assert session.query(Score).count() == 0
-    render_outbox = session.query(RenderOutbox).one()
+    assert count_rows(session, Score) == 0
+    render_outbox = one_row(session, RenderOutbox)
     assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
     assert render_outbox.import_job_id == 15
     assert render_outbox.source_fingerprint == artifact.sha256
@@ -769,11 +785,11 @@ async def test_review_confirm_creates_active_score_once(
     )
 
     assert first.score_id == second.score_id
-    assert session.query(Score).count() == 1
-    score = session.query(Score).one()
-    revision = session.query(ScoreRevision).one()
-    job = session.query(ImportJob).filter_by(job_uuid="job-confirm-review").one()
-    library_entry = session.query(ScoreLibraryEntry).one()
+    assert count_rows(session, Score) == 1
+    score = one_row(session, Score)
+    revision = one_row(session, ScoreRevision)
+    job = one_row(session, ImportJob, job_uuid="job-confirm-review")
+    library_entry = one_row(session, ScoreLibraryEntry)
     assert score.score_uuid == first.score_id
     assert score.title == "Confirmed Score"
     assert score.head_revision_id == revision.id
@@ -781,9 +797,7 @@ async def test_review_confirm_creates_active_score_once(
     assert job.score_id == score.id
     assert library_entry.score_id == score.id
     notification = (
-        session.query(NotificationEvent)
-        .filter_by(notification_uuid="notification-review-ready")
-        .one()
+        one_row(session, NotificationEvent, notification_uuid="notification-review-ready")
     )
     assert notification.score_id == score.score_uuid
     assert notification.data["score_id"] == score.score_uuid
@@ -797,26 +811,26 @@ async def test_review_confirm_creates_active_score_once(
     assert detail_after_confirm.score_id == score.score_uuid
     assert detail_after_confirm.musicxml is None
     assert (
-        session.query(ScoreRevisionSource)
-        .filter_by(
+        one_row(
+            session,
+            ScoreRevisionSource,
             revision_id=revision.id,
             format=RevisionSourceFormat.MUSICXML,
         )
-            .one()
     )
     copied_thumbnail = (
-        session.query(ScoreRenderAsset)
-        .filter_by(
+        one_row(
+            session,
+            ScoreRenderAsset,
             revision_id=revision.id,
             kind=RenderAssetKind.RENDERED_PAGE,
             render_profile="default",
             page_number=1,
         )
-        .one()
     )
     assert copied_thumbnail.generator == "review-thumbnail"
     assert storage.read_bytes(copied_thumbnail.storage_key) == b"<svg />"
-    render_outbox = session.query(RenderOutbox).one()
+    render_outbox = one_row(session, RenderOutbox)
     assert render_outbox.revision_id == revision.id
     assert render_outbox.status == RenderOutboxStatus.PENDING
 
@@ -975,8 +989,8 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
 
     assert duplicate.revision_id == created.revision_id
     assert reverted.revision_id not in {"revision-1", created.revision_id}
-    assert session.query(ScoreRevision).count() == 3
-    assert session.query(RenderOutbox).count() == 2
+    assert count_rows(session, ScoreRevision) == 3
+    assert count_rows(session, RenderOutbox) == 2
 
     with pytest.raises(ConflictException) as conflict:
         await service.create(
@@ -1075,16 +1089,8 @@ async def test_revision_restore_creates_new_head_from_target_revision(
     )
 
     session.refresh(score)
-    new_revision = (
-        session.query(ScoreRevision)
-        .filter(ScoreRevision.revision_uuid == restored.revision_id)
-        .one()
-    )
-    new_artifact = (
-        session.query(ScoreRevisionSource)
-        .filter(ScoreRevisionSource.revision_id == new_revision.id)
-        .one()
-    )
+    new_revision = one_row(session, ScoreRevision, revision_uuid=restored.revision_id)
+    new_artifact = one_row(session, ScoreRevisionSource, revision_id=new_revision.id)
     metadata = session.get(ScoreRevisionMetadata, new_revision.id)
     assert restored.revision_number == 3
     assert restored.parent_revision_id == "revision-2"
@@ -1101,9 +1107,9 @@ async def test_revision_restore_creates_new_head_from_target_revision(
     assert storage.read_bytes(new_artifact.storage_key) == MUSICXML_1
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
-    assert session.query(RenderOutbox).count() == 1
-    assert session.query(PlaybackOutbox).count() == 1
-    event = session.query(ScoreRevisionEvent).one()
+    assert count_rows(session, RenderOutbox) == 1
+    assert count_rows(session, PlaybackOutbox) == 1
+    event = one_row(session, ScoreRevisionEvent)
     assert event.revision_id == new_revision.id
     assert event.target_revision_id == 41
     assert event.note == "Return to the imported baseline"
@@ -1154,7 +1160,7 @@ async def test_revision_note_can_be_added_updated_and_cleared(
     assert updated.note is not None
     assert updated.note.note == "Fixed page 3 rhythm and fingering"
     assert cleared.note is None
-    assert session.query(ScoreRevisionNote).count() == 0
+    assert count_rows(session, ScoreRevisionNote) == 0
 
 
 @pytest.mark.asyncio
@@ -1263,9 +1269,9 @@ async def test_derived_asset_retention_keeps_current_and_recent_history(
 
     assert result.rendered_pages_deleted == 2
     assert result.playback_assets_deleted == 2
-    assert session.query(ScoreRenderAsset).filter_by(kind=RenderAssetKind.RENDERED_PAGE).count() == 3
-    assert session.query(ScorePlaybackAsset).count() == 3
-    assert session.query(ScoreRevisionSource).filter_by(format=RevisionSourceFormat.MUSICXML).count() == 5
+    assert count_rows(session, ScoreRenderAsset, kind=RenderAssetKind.RENDERED_PAGE) == 3
+    assert count_rows(session, ScorePlaybackAsset) == 3
+    assert count_rows(session, ScoreRevisionSource, format=RevisionSourceFormat.MUSICXML) == 5
     for number in (1, 2):
         assert not storage.exists(stored_keys[f"render-{number}"])
         assert not storage.exists(stored_keys[f"audio-{number}"])
@@ -1681,21 +1687,21 @@ async def test_collaborator_revision_save_notifies_score_owner(
     )
 
     notification = (
-        session.query(NotificationEvent)
-        .filter_by(
+        one_row(
+            session,
+            NotificationEvent,
             recipient_user_id=1,
             actor_user_id=2,
             type=NotificationTypes.SCORE_VERSION_CREATED,
         )
-        .one()
     )
     assert notification.score_id == "collab-revision-score"
     assert notification.resource_id == "collab-revision-score"
     assert notification.data["revision_id"] == created.revision_id
     assert notification.data["revision_number"] == created.revision_number
-    assert session.query(NotificationEvent).filter_by(recipient_user_id=2).count() == 0
+    assert count_rows(session, NotificationEvent, recipient_user_id=2) == 0
 
-    revision = session.query(ScoreRevision).filter_by(revision_uuid=created.revision_id).one()
+    revision = one_row(session, ScoreRevision, revision_uuid=created.revision_id)
     actor = session.get(User, 2)
     assert actor is not None
     await service.notification_service.notify_score_version_created_best_effort(
@@ -1705,13 +1711,13 @@ async def test_collaborator_revision_save_notifies_score_owner(
         actor=actor,
     )
     assert (
-        session.query(NotificationEvent)
-        .filter_by(
+        count_rows(
+            session,
+            NotificationEvent,
             recipient_user_id=1,
             actor_user_id=2,
             type=NotificationTypes.SCORE_VERSION_CREATED,
         )
-        .count()
         == 1
     )
 
@@ -1731,8 +1737,8 @@ async def test_generate_fingering_returns_xml_without_creating_revision(
     )
     fingering_service = FakeFingeringService()
     service = RevisionService(storage=storage, fingering_service=fingering_service)
-    revision_count = session.query(ScoreRevision).count()
-    source_count = session.query(ScoreRevisionSource).count()
+    revision_count = count_rows(session, ScoreRevision)
+    source_count = count_rows(session, ScoreRevisionSource)
 
     result = await service.generate_fingering(
         AsyncSessionAdapter(session),  # type: ignore[arg-type]
@@ -1749,8 +1755,8 @@ async def test_generate_fingering_returns_xml_without_creating_revision(
             "hand_size": "L",
         }
     ]
-    assert session.query(ScoreRevision).count() == revision_count
-    assert session.query(ScoreRevisionSource).count() == source_count
+    assert count_rows(session, ScoreRevision) == revision_count
+    assert count_rows(session, ScoreRevisionSource) == source_count
 
 
 @pytest.mark.asyncio
@@ -1834,9 +1840,9 @@ async def test_source_delivery_checks_score_access_and_reports_missing_objects(
     score_uuid = SyncConfirmedScoreCreationService(storage).create_confirmed_from_job(
         session, "job-source", str(source), title="Source score"
     )
-    score = session.query(Score).filter_by(score_uuid=score_uuid).one()
+    score = one_row(session, Score, score_uuid=score_uuid)
     revision = session.get(ScoreRevision, score.head_revision_id)
-    revision_source = session.query(ScoreRevisionSource).filter_by(revision_id=revision.id).one()
+    revision_source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
     service = ScoreAssetService(storage=storage)
     async_db = AsyncSessionAdapter(session)
 
@@ -2018,7 +2024,7 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
         1,
         GrantCreateRequest(),
     )
-    stored_grant = session.query(ScoreShareGrant).filter_by(grant_uuid=created.grant_id).one()
+    stored_grant = one_row(session, ScoreShareGrant, grant_uuid=created.grant_id)
     assert "." not in created.token
     assert created.grant_id not in created.token
     assert stored_grant.token_hash == hash_share_token(created.token)
@@ -2038,8 +2044,8 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     assert access.shared_at == stored_grant.created_at
 
     await service.revoke_grant(db, created.grant_id, 1)  # type: ignore[arg-type]
-    assert session.query(ShareGrantRedemption).count() == 1
-    library_entry = session.query(ScoreLibraryEntry).one()
+    assert count_rows(session, ShareGrantRedemption) == 1
+    library_entry = one_row(session, ScoreLibraryEntry)
     assert library_entry.source_type == LibraryEntrySourceType.BOOKMARK
     assert library_entry.is_favorite is True
     assert library_entry.deleted_at is None
@@ -2080,7 +2086,7 @@ async def test_create_grant_normalizes_aware_expiration_to_naive_utc(
         GrantCreateRequest(expires_at=expires_at),
     )
 
-    stored_grant = session.query(ScoreShareGrant).filter_by(grant_uuid=created.grant_id).one()
+    stored_grant = one_row(session, ScoreShareGrant, grant_uuid=created.grant_id)
     assert stored_grant.expires_at == datetime(2026, 6, 30, 13, 41, 35)
     assert stored_grant.expires_at.tzinfo is None
 
@@ -2243,12 +2249,12 @@ async def test_invite_acceptance_creates_editable_membership(
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole.EDITOR),
     )
-    stored_invite = session.query(ScoreInvite).filter_by(invite_uuid=created.invite_id).one()
+    stored_invite = one_row(session, ScoreInvite, invite_uuid=created.invite_id)
     assert "." not in created.token
     assert created.invite_id not in created.token
     assert stored_invite.token_hash == hash_invite_token(created.token)
     assert created.token not in stored_invite.token_hash
-    queued_mail = session.query(MailOutbox).one()
+    queued_mail = one_row(session, MailOutbox)
     assert queued_mail.recipient == "other@example.com"
     assert "Invite score" in (queued_mail.text_body or "")
     assert f"/invite/{created.token}" in (queued_mail.text_body or "")
@@ -2268,23 +2274,23 @@ async def test_invite_acceptance_creates_editable_membership(
     assert accepted.role == MembershipRole.EDITOR
     assert accepted.membership_id is not None
     stored_membership = (
-        session.query(ScoreMembership)
-        .filter_by(
+        one_row(
+            session,
+            ScoreMembership,
             score_id=87,
             user_id=2,
         )
-        .one()
     )
     assert stored_membership.role == MembershipRole.EDITOR
     assert stored_invite.status == InviteStatus.ACCEPTED
     notification = (
-        session.query(NotificationEvent)
-        .filter_by(
+        one_row(
+            session,
+            NotificationEvent,
             recipient_user_id=1,
             actor_user_id=2,
             type=NotificationTypes.SCORE_INVITE_ACCEPTED,
         )
-        .one()
     )
     assert notification.score_id == "invite-score"
     assert notification.resource_id == "invite-score"
@@ -2325,11 +2331,11 @@ async def test_invite_email_target_is_enforced(
     inspected = await service.inspect_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert inspected.requires_login is False
     assert inspected.can_accept is False
-    assert session.query(MailOutbox).count() == 1
+    assert count_rows(session, MailOutbox) == 1
     with pytest.raises(ValidationException) as mismatch:
         await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert mismatch.value.code == ErrorCode.INVITE_EMAIL_MISMATCH
-    assert session.query(ScoreMembership).filter_by(score_id=89, user_id=2).one_or_none() is None
+    assert maybe_one_row(session, ScoreMembership, score_id=89, user_id=2) is None
 
 
 @pytest.mark.asyncio
@@ -2368,7 +2374,7 @@ async def test_user_pending_invites_can_be_accepted_without_token(
 
     assert accepted.score_id == "pending-invite-score"
     assert accepted.role == MembershipRole.EDITOR
-    assert session.query(ScoreMembership).filter_by(score_id=91, user_id=2).one_or_none()
+    assert maybe_one_row(session, ScoreMembership, score_id=91, user_id=2)
     assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
 
 
@@ -2400,18 +2406,18 @@ async def test_user_pending_invites_can_be_declined(
         2,
     )
 
-    stored_invite = session.query(ScoreInvite).filter_by(invite_uuid=created.invite_id).one()
+    stored_invite = one_row(session, ScoreInvite, invite_uuid=created.invite_id)
     assert declined.status == InviteStatus.DECLINED
     assert stored_invite.status == InviteStatus.DECLINED
     assert stored_invite.declined_at is not None
     notification = (
-        session.query(NotificationEvent)
-        .filter_by(
+        one_row(
+            session,
+            NotificationEvent,
             recipient_user_id=1,
             actor_user_id=2,
             type=NotificationTypes.SCORE_INVITE_DECLINED,
         )
-        .one()
     )
     assert notification.score_id == "decline-invite-score"
     assert notification.data["invite_id"] == created.invite_id
@@ -2499,7 +2505,7 @@ async def test_notification_dedupe_key_returns_existing_event(
     assert second is not None
     assert second.notification_id == first.notification_id
     assert (
-        session.query(NotificationEvent).filter_by(dedupe_key="system:test:score-1:owner").count()
+        count_rows(session, NotificationEvent, dedupe_key="system:test:score-1:owner")
         == 1
     )
 
@@ -2541,7 +2547,7 @@ async def test_notification_cleanup_removes_events_older_than_retention(
     )
 
     assert deleted == 1
-    remaining = session.query(NotificationEvent).all()
+    remaining = all_rows(session, NotificationEvent)
     assert [event.resource_id for event in remaining] == ["fresh-score"]
 
 
@@ -2579,7 +2585,7 @@ def test_notification_maintenance_removes_events_older_than_retention(
     result = service.run(session)
 
     assert result.expired_notifications_deleted == 1
-    remaining = session.query(NotificationEvent).all()
+    remaining = all_rows(session, NotificationEvent)
     assert [event.resource_id for event in remaining] == ["fresh-score"]
 
 
@@ -2617,7 +2623,7 @@ def test_realtime_maintenance_removes_events_older_than_retention(
     result = service.run(session)
 
     assert result.expired_events_deleted == 1
-    remaining = session.query(RealtimeEvent).all()
+    remaining = all_rows(session, RealtimeEvent)
     assert [event.resource_id for event in remaining] == ["fresh-score"]
 
 

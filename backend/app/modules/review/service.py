@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.core.exceptions import (
     ConflictException,
@@ -380,7 +381,7 @@ class ReviewService:
                     ImportArtifact.job_id == job_id,
                     ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
                 )
-                .order_by(ImportArtifact.created_at.desc())
+                .order_by(col(ImportArtifact.created_at).desc())
                 .limit(1)
             )
         ).scalar_one_or_none()
@@ -428,7 +429,7 @@ class ReviewService:
                 .join(Upload, ImportJobUpload.upload_id == Upload.id)
                 .join(StorageBlob, Upload.blob_id == StorageBlob.id)
                 .where(ImportJobUpload.job_id == job_id)
-                .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())
+                .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
             )
         ).all()
         promoted: list[PromotedScoreInputUsage] = []
@@ -594,7 +595,7 @@ class ReviewService:
                 .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
                 .join(StorageBlob, Upload.blob_id == StorageBlob.id)
                 .where(ImportJobUpload.job_id == job_id)
-                .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())
+                .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
             )
         ).all()
         return [

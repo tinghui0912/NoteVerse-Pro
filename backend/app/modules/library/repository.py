@@ -2,6 +2,7 @@
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.db.models import (
     LibraryEntrySourceType,
@@ -16,7 +17,7 @@ from app.modules.library.schemas import LibrarySort, LibraryView
 
 entry_updated_col = ScoreLibraryEntry.__table__.c.updated_at
 score_title_col = Score.__table__.c.title
-active_score_filter = Score.deletion_status == ScoreDeletionStatus.ACTIVE
+active_score_filter = col(Score.deletion_status) == ScoreDeletionStatus.ACTIVE
 
 
 class LibraryRepository:
@@ -26,7 +27,7 @@ class LibraryRepository:
         statement = select(ScoreLibraryFolder).where(
             ScoreLibraryFolder.user_id == user_id,
             ScoreLibraryFolder.folder_uuid == folder_uuid,
-            ScoreLibraryFolder.deleted_at.is_(None),
+            col(ScoreLibraryFolder.deleted_at).is_(None),
         )
         if lock:
             statement = statement.with_for_update()
@@ -37,7 +38,7 @@ class LibraryRepository:
             select(ScoreLibraryFolder)
             .where(
                 ScoreLibraryFolder.user_id == user_id,
-                ScoreLibraryFolder.deleted_at.is_(None),
+                col(ScoreLibraryFolder.deleted_at).is_(None),
             )
             .order_by(ScoreLibraryFolder.position, ScoreLibraryFolder.name)
         )
@@ -50,7 +51,7 @@ class LibraryRepository:
             select(ScoreLibraryFolder).where(
                 ScoreLibraryFolder.user_id == user_id,
                 ScoreLibraryFolder.parent_folder_id == parent_id,
-                ScoreLibraryFolder.deleted_at.is_(None),
+                col(ScoreLibraryFolder.deleted_at).is_(None),
             )
         )
         return list(rows.scalars().all())
@@ -63,7 +64,7 @@ class LibraryRepository:
                 select(ScoreLibraryEntry).where(
                     ScoreLibraryEntry.user_id == user_id,
                     ScoreLibraryEntry.entry_uuid == entry_uuid,
-                    ScoreLibraryEntry.deleted_at.is_(None),
+                    col(ScoreLibraryEntry.deleted_at).is_(None),
                 )
             )
         ).scalar_one_or_none()
@@ -81,7 +82,7 @@ class LibraryRepository:
                     ScoreLibraryEntry.user_id == user_id,
                     ScoreLibraryEntry.score_id == score_id,
                     ScoreLibraryEntry.source_type == source_type,
-                    ScoreLibraryEntry.deleted_at.is_(None),
+                    col(ScoreLibraryEntry.deleted_at).is_(None),
                 )
             )
         ).scalar_one_or_none()
@@ -102,9 +103,9 @@ class LibraryRepository:
                     ScoreLibraryEntry.source_type == source_type,
                 )
                 .order_by(
-                    ScoreLibraryEntry.deleted_at.is_(None).desc(),
-                    ScoreLibraryEntry.updated_at.desc(),
-                    ScoreLibraryEntry.id.desc(),
+                    col(ScoreLibraryEntry.deleted_at).is_(None).desc(),
+                    col(ScoreLibraryEntry.updated_at).desc(),
+                    col(ScoreLibraryEntry.id).desc(),
                 )
             )
         ).scalar_one_or_none()
@@ -119,7 +120,7 @@ class LibraryRepository:
                     .join(Score, Score.id == ScoreLibraryEntry.score_id)
                     .where(
                         ScoreLibraryEntry.user_id == user_id,
-                        ScoreLibraryEntry.deleted_at.is_(None),
+                        col(ScoreLibraryEntry.deleted_at).is_(None),
                         active_score_filter,
                     )
                 )
@@ -132,8 +133,8 @@ class LibraryRepository:
                     .join(Score, Score.id == ScoreLibraryEntry.score_id)
                     .where(
                         ScoreLibraryEntry.user_id == user_id,
-                        ScoreLibraryEntry.deleted_at.is_(None),
-                        ScoreLibraryEntry.is_favorite.is_(True),
+                        col(ScoreLibraryEntry.deleted_at).is_(None),
+                        col(ScoreLibraryEntry.is_favorite).is_(True),
                         active_score_filter,
                     )
                 )
@@ -146,8 +147,8 @@ class LibraryRepository:
                     .join(Score, Score.id == ScoreLibraryEntry.score_id)
                     .where(
                         ScoreLibraryEntry.user_id == user_id,
-                        ScoreLibraryEntry.deleted_at.is_(None),
-                        ScoreLibraryEntry.last_practiced_at.is_not(None),
+                        col(ScoreLibraryEntry.deleted_at).is_(None),
+                        col(ScoreLibraryEntry.last_practiced_at).is_not(None),
                         active_score_filter,
                     )
                 )
@@ -160,7 +161,7 @@ class LibraryRepository:
                     .join(Score, Score.id == ScoreLibraryEntry.score_id)
                     .where(
                         ScoreLibraryEntry.user_id == user_id,
-                        ScoreLibraryEntry.deleted_at.is_(None),
+                        col(ScoreLibraryEntry.deleted_at).is_(None),
                         ScoreLibraryEntry.practice_state == LibraryPracticeState.TO_PRACTICE,
                         active_score_filter,
                     )
@@ -174,7 +175,7 @@ class LibraryRepository:
                     .join(Score, Score.id == ScoreLibraryEntry.score_id)
                     .where(
                         ScoreLibraryEntry.user_id == user_id,
-                        ScoreLibraryEntry.deleted_at.is_(None),
+                        col(ScoreLibraryEntry.deleted_at).is_(None),
                         ScoreLibraryEntry.practice_state == LibraryPracticeState.MASTERED,
                         active_score_filter,
                     )
@@ -186,8 +187,8 @@ class LibraryRepository:
             .join(Score, Score.id == ScoreLibraryEntry.score_id)
             .where(
                 ScoreLibraryEntry.user_id == user_id,
-                ScoreLibraryEntry.deleted_at.is_(None),
-                ScoreLibraryEntry.folder_id.is_not(None),
+                col(ScoreLibraryEntry.deleted_at).is_(None),
+                col(ScoreLibraryEntry.folder_id).is_not(None),
                 active_score_filter,
             )
             .group_by(ScoreLibraryEntry.folder_id)
@@ -215,13 +216,13 @@ class LibraryRepository:
     ) -> tuple[list[tuple[ScoreLibraryEntry, Score, ScoreRevisionMetadata | None]], int]:
         filters = [ScoreLibraryEntry.user_id == user_id, active_score_filter]
         if view == LibraryView.TRASH:
-            filters.append(ScoreLibraryEntry.deleted_at.is_not(None))
+            filters.append(col(ScoreLibraryEntry.deleted_at).is_not(None))
         else:
-            filters.append(ScoreLibraryEntry.deleted_at.is_(None))
+            filters.append(col(ScoreLibraryEntry.deleted_at).is_(None))
         if view == LibraryView.FAVORITES:
-            filters.append(ScoreLibraryEntry.is_favorite.is_(True))
+            filters.append(col(ScoreLibraryEntry.is_favorite).is_(True))
         elif view == LibraryView.RECENT_PRACTICE:
-            filters.append(ScoreLibraryEntry.last_practiced_at.is_not(None))
+            filters.append(col(ScoreLibraryEntry.last_practiced_at).is_not(None))
             sort = LibrarySort.PRACTICED_DESC
         elif view == LibraryView.TO_PRACTICE:
             filters.append(ScoreLibraryEntry.practice_state == LibraryPracticeState.TO_PRACTICE)
@@ -230,7 +231,7 @@ class LibraryRepository:
         elif view == LibraryView.BOOKMARKS:
             filters.append(ScoreLibraryEntry.source_type == LibraryEntrySourceType.BOOKMARK)
         if folder_ids is not None:
-            filters.append(ScoreLibraryEntry.folder_id.in_(folder_ids))
+            filters.append(col(ScoreLibraryEntry.folder_id).in_(folder_ids))
         if search:
             filters.append(score_title_col.ilike(f"%{search}%"))
 
@@ -248,7 +249,10 @@ class LibraryRepository:
             LibrarySort.UPDATED_DESC: [entry_updated_col.desc()],
             LibrarySort.NAME_ASC: [score_title_col.asc()],
             LibrarySort.NAME_DESC: [score_title_col.desc()],
-            LibrarySort.PRACTICED_DESC: [ScoreLibraryEntry.last_practiced_at.desc().nullslast(), entry_updated_col.desc()],
+            LibrarySort.PRACTICED_DESC: [
+                col(ScoreLibraryEntry.last_practiced_at).desc().nullslast(),
+                entry_updated_col.desc(),
+            ],
         }[sort]
         rows = await db.execute(
             select(ScoreLibraryEntry, Score, ScoreRevisionMetadata)
@@ -269,8 +273,8 @@ class LibraryRepository:
         rows = await db.execute(
             select(ScoreLibraryEntry).where(
                 ScoreLibraryEntry.user_id == user_id,
-                ScoreLibraryEntry.deleted_at.is_(None),
-                ScoreLibraryEntry.folder_id.in_(folder_ids),
+                col(ScoreLibraryEntry.deleted_at).is_(None),
+                col(ScoreLibraryEntry.folder_id).in_(folder_ids),
             )
         )
         return list(rows.scalars().all())

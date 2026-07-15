@@ -6,6 +6,7 @@ from datetime import timedelta
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlmodel import col
 
 from app.core.config import settings
 from app.db.model_utils import require_persisted_id
@@ -91,12 +92,12 @@ class ScoreLifecycleService:
                 .where(
                     Score.deletion_status == ScoreDeletionStatus.DELETING,
                     Score.cleanup_attempt_count < settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
-                    or_(Score.next_cleanup_at.is_(None), Score.next_cleanup_at <= now),
+                    or_(col(Score.next_cleanup_at).is_(None), col(Score.next_cleanup_at) <= now),
                 )
                 .order_by(
-                    Score.next_cleanup_at.asc().nullsfirst(),
-                    Score.deletion_requested_at.asc(),
-                    Score.id.asc(),
+                    col(Score.next_cleanup_at).asc().nullsfirst(),
+                    col(Score.deletion_requested_at).asc(),
+                    col(Score.id).asc(),
                 )
                 .limit(effective_limit)
             ).scalars()

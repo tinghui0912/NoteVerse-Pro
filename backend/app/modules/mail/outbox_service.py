@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlmodel import col
 
 from app.core.config import settings
 from app.db.models import MailOutbox, MailOutboxStatus
@@ -251,9 +252,9 @@ class MailOutboxService:
         expirable = (
             db.execute(
                 select(MailOutbox).where(
-                    MailOutbox.expires_at.is_not(None),
-                    MailOutbox.expires_at <= now,
-                    MailOutbox.status.in_(
+                    col(MailOutbox.expires_at).is_not(None),
+                    col(MailOutbox.expires_at) <= now,
+                    col(MailOutbox.status).in_(
                         [
                             MailOutboxStatus.PENDING,
                             MailOutboxStatus.FAILED,
@@ -281,10 +282,12 @@ class MailOutboxService:
             db.execute(
                 select(MailOutbox.outbox_uuid)
                 .where(
-                    MailOutbox.status.in_([MailOutboxStatus.PENDING, MailOutboxStatus.FAILED]),
+                    col(MailOutbox.status).in_(
+                        [MailOutboxStatus.PENDING, MailOutboxStatus.FAILED]
+                    ),
                     MailOutbox.next_attempt_at <= now,
                     MailOutbox.attempt_count < settings.MAIL_OUTBOX_MAX_ATTEMPTS,
-                    or_(MailOutbox.expires_at.is_(None), MailOutbox.expires_at > now),
+                    or_(col(MailOutbox.expires_at).is_(None), col(MailOutbox.expires_at) > now),
                 )
                 .order_by(MailOutbox.created_at)
                 .limit(settings.MAIL_OUTBOX_DISPATCH_BATCH_SIZE)
@@ -300,14 +303,14 @@ class MailOutboxService:
         cutoff = utc_now_naive() - timedelta(days=settings.MAIL_OUTBOX_RETENTION_DAYS)
         result = db.execute(
             delete(MailOutbox).where(
-                MailOutbox.status.in_(
+                col(MailOutbox.status).in_(
                     [
                         MailOutboxStatus.SENT,
                         MailOutboxStatus.PERMANENT_FAILURE,
                         MailOutboxStatus.EXPIRED,
                     ]
                 ),
-                MailOutbox.completed_at < cutoff,
+                col(MailOutbox.completed_at) < cutoff,
             )
         )
         db.commit()

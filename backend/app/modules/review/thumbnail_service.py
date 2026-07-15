@@ -5,6 +5,7 @@ import os
 import tempfile
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -37,11 +38,12 @@ class ReviewThumbnailService:
         if not job:
             raise RuntimeError(f"Import job {job_uuid} no longer exists")
         job_id = require_persisted_id(job.id, entity="import job")
-        review_xml = (
-            db.query(ImportArtifact)
-            .filter_by(job_id=job_id, kind=ImportArtifactKind.REVIEW_MUSICXML.value)
-            .one_or_none()
-        )
+        review_xml = db.execute(
+            select(ImportArtifact).where(
+                ImportArtifact.job_id == job_id,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+            )
+        ).scalar_one_or_none()
         if review_xml is None:
             raise RuntimeError(f"Review MusicXML for {job_uuid} is unavailable")
         if (
@@ -50,10 +52,13 @@ class ReviewThumbnailService:
         ):
             return None
 
-        previous = (
-            db.query(ImportArtifact)
-            .filter_by(job_id=job_id, kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value)
-            .all()
+        previous = list(
+            db.execute(
+                select(ImportArtifact).where(
+                    ImportArtifact.job_id == job_id,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                )
+            ).scalars()
         )
         previous_usage = [
             (item.artifact_uuid, item.storage_key, item.size_bytes or 0)

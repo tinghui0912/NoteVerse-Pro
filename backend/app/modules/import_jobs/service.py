@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
 from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, ScoreInputAsset, StorageBlob, StorageUsageCategory, Upload, User
@@ -74,13 +76,13 @@ class ImportJobService:
             select(Upload.upload_uuid)
             .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
             .where(ImportJobUpload.job_id == job_id)
-            .order_by(ImportJobUpload.sort_order.asc(), ImportJobUpload.id.asc())
+            .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
         )
         file_ids = list(rows.scalars().all())
         if not file_ids:
             raise ResourceNotFoundException("job_upload", job_uuid, ErrorCode.FILE_NOT_FOUND)
         options = (
-            job.requested_options
+            cast(ImportJobProcessingOptions, job.requested_options)
             if isinstance(job.requested_options, dict)
             else None
         )

@@ -2,6 +2,7 @@
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.core.exceptions import (
     ResourceAlreadyExistsException,
@@ -379,7 +380,7 @@ class LibraryService:
             select(ScoreLibraryEntry).where(
                 ScoreLibraryEntry.user_id == user_id,
                 ScoreLibraryEntry.score_id == score_id,
-                ScoreLibraryEntry.deleted_at.is_(None),
+                col(ScoreLibraryEntry.deleted_at).is_(None),
             )
         )
         entries = list(rows.scalars().all())
