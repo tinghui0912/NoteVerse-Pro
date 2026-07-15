@@ -175,7 +175,7 @@ class ExternalServiceException(AppException):
     def __init__(
         self,
         service: str,
-        code: str = ErrorCode.EXTERNAL_SERVICE_ERROR,
+        code: str = ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
         details: Optional[ErrorDetails] = None,
     ):
         _details: dict[str, object] = {"service": service}

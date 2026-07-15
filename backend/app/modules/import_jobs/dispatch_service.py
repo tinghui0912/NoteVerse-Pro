@@ -219,8 +219,8 @@ class ImportDispatchService:
         now = utc_now_naive()
         job.dispatch_status = ImportDispatchStatus.FAILED
         job.state = ImportJobState.FAILURE
-        job.code = ErrorCode.EXTERNAL_SERVICE_ERROR
-        job.error = ErrorCode.EXTERNAL_SERVICE_ERROR
+        job.code = ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE
+        job.error = ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE
         job.error_type = "ImportDispatchFailure"
         job.dispatch_error = error
         apply_async_diagnostic(

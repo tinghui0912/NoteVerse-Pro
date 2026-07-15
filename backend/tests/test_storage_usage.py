@@ -275,7 +275,7 @@ def test_storage_usage_requires_seeded_default_policy() -> None:
                 reason="test_upload",
             )
 
-    assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_POLICY_NOT_CONFIGURED
+    assert exc_info.value.code == ErrorCode.QUOTA_CHECK_UNAVAILABLE
 
 
 def test_storage_usage_api_returns_quota_and_breakdown(

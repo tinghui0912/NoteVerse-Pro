@@ -507,7 +507,7 @@ class StorageUsageService:
         raise ResourceNotFoundException(
             "storage_quota_policy",
             DEFAULT_PLAN_CODE,
-            ErrorCode.STORAGE_QUOTA_POLICY_NOT_CONFIGURED,
+            ErrorCode.QUOTA_CHECK_UNAVAILABLE,
         )
 
     def _require_default_policy_sync(self, db: Session) -> StorageQuotaPolicy:
@@ -517,7 +517,7 @@ class StorageUsageService:
         raise ResourceNotFoundException(
             "storage_quota_policy",
             DEFAULT_PLAN_CODE,
-            ErrorCode.STORAGE_QUOTA_POLICY_NOT_CONFIGURED,
+            ErrorCode.QUOTA_CHECK_UNAVAILABLE,
         )
 
     @staticmethod
