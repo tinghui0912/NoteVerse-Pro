@@ -15,6 +15,7 @@ from starlette.responses import StreamingResponse
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.metrics import realtime_connection_closed, realtime_connection_opened
 from app.db.model_utils import require_persisted_id
 from app.db.session import AsyncSessionLocal
 from app.db.models import RealtimeEvent, User
@@ -125,6 +126,7 @@ async def _event_stream(
     last_sequence: int,
 ) -> AsyncIterator[str]:
     queue: asyncio.Queue[None] = asyncio.Queue()
+    realtime_connection_opened(channel="app_sse")
 
     def notify_listener(
         _connection: Any,
@@ -135,9 +137,10 @@ async def _event_stream(
         if _payload_matches_user(payload, user_id):
             queue.put_nowait(None)
 
-    connection = await asyncpg.connect(dsn=_asyncpg_dsn())
-    await connection.add_listener(REALTIME_NOTIFY_CHANNEL, notify_listener)
+    connection: asyncpg.Connection | None = None
     try:
+        connection = await asyncpg.connect(dsn=_asyncpg_dsn())
+        await connection.add_listener(REALTIME_NOTIFY_CHANNEL, notify_listener)
         seconds_since_heartbeat = 0
         yield ": connected\n\n"
 
@@ -161,9 +164,11 @@ async def _event_stream(
             for message in messages:
                 yield message
     finally:
-        with contextlib.suppress(Exception):
-            await connection.remove_listener(REALTIME_NOTIFY_CHANNEL, notify_listener)
-        await connection.close()
+        if connection is not None:
+            with contextlib.suppress(Exception):
+                await connection.remove_listener(REALTIME_NOTIFY_CHANNEL, notify_listener)
+            await connection.close()
+        realtime_connection_closed(channel="app_sse")
 
 
 @router.get("/events")

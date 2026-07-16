@@ -18,11 +18,22 @@ failures diagnosable while keeping the product UI clean:
 Target production deployment:
 
 - Kubernetes for application runtime;
-- Fluent/Fluent Bit for log collection;
-- Elasticsearch + Kibana for log storage and search;
+- Fluent Bit for log collection;
+- Loki + Grafana for log storage, querying, and visualization;
 - Prometheus + Grafana for metrics and dashboards;
+- OpenTelemetry + Tempo for distributed tracing after request/outbox
+  correlation is stable;
 - backend services must write production logs to stdout/stderr only and must not
   depend on local log files.
+
+Out of scope:
+
+- Sentry is not part of the planned production stack. Browser/runtime error
+  reporting should continue to go through the vendor-neutral frontend
+  observability facade and can later be delivered to a self-hosted pipeline.
+- Elasticsearch/Kibana is not the default logging target. It remains a future
+  option only if NoteVerse develops strong full-text log search or SIEM-like
+  requirements that justify the operational cost.
 
 ## Current Baseline
 
@@ -46,9 +57,8 @@ Implemented:
 
 Missing:
 
-- no explicit client-to-server request correlation beyond consuming backend
-  `X-Request-ID`;
-- no production error reporting vendor has been selected or connected.
+- no self-hosted browser error ingestion endpoint has been selected or
+  connected behind the frontend observability facade.
 
 ### Backend
 
@@ -68,17 +78,11 @@ Implemented:
 
 Missing or incomplete:
 
-- API lifecycle logs are still mostly string messages, not stable structured
-  fields;
 - standard `logging`, Celery task logger, and `app.core.logger` are mixed across
   modules;
 - task logs do not consistently include stable context fields such as
   `job_id`, `outbox_id`, `score_id`, `revision_id`, `attempt`, and
   `next_retry_at`;
-- production containers still write daily local log files in addition to stdout;
-  this should be removed for the Kubernetes deployment target;
-- request-level correlation does not yet extend cleanly into worker/outbox
-  execution;
 - audit events, analytics events, and runtime logs are not fully separated.
 
 ## Principles
@@ -110,9 +114,24 @@ Missing or incomplete:
    Do not mix `score.created`, `share.created`, request logs, worker failures,
    and product analytics into one vague logging concept.
 
-7. **Build the facade before choosing the vendor.**
-   Sentry, Datadog, Elasticsearch, Kibana, Grafana, and OpenTelemetry should be
-   integration targets, not concepts leaked throughout application code.
+7. **Build product facades before choosing transport tools.**
+   Grafana, Loki, Prometheus, OpenTelemetry, Tempo, and future self-hosted
+   browser-error pipelines should be integration targets, not concepts leaked
+   throughout application code.
+
+8. **Loki labels must stay low-cardinality.**
+   Fluent Bit/Loki labels should be limited to stable infrastructure dimensions
+   such as `service`, `environment`, `namespace`, `pod`, `container`, and
+   `level`. High-cardinality fields such as `request_id`, `user_id`,
+   `score_id`, `revision_id`, `job_id`, `outbox_id`, email addresses, storage
+   keys, and file hashes must stay in the structured JSON log body, not Loki
+   labels.
+
+9. **Logs are not audit storage.**
+   User/security-sensitive business events such as password changes, score
+   deletion, share revocation, permission changes, and billing events belong in
+   database-backed audit tables. Loki stores operational logs for diagnosis; it
+   is not the product audit database.
 
 ## Priority Roadmap
 
@@ -169,8 +188,8 @@ Tasks:
    - `reportClientError(error, context)`;
    - `reportClientEvent(event, context)`;
    - optionally `reportClientPerformance(metric, context)`.
-3. Keep the first implementation no-op or development-safe. Do not add Sentry
-   yet.
+3. Keep the first implementation no-op or development-safe. Do not add a paid
+   vendor SDK such as Sentry.
 4. Add an ESLint rule that forbids `console.*` in `frontend/src/**/*`.
    Development scripts under `frontend/scripts/**` may keep console output.
 5. Wire route-level `error.tsx` files into `reportClientError`.
@@ -223,9 +242,14 @@ Acceptance criteria:
 
 Objective: make async work diagnosable without reading free-form strings.
 
-Status: partially implemented. Import, render, playback, mail, dispatch, and
-score deletion cleanup entrypoints now emit structured lifecycle events with
-stable operation IDs and attempt context where available.
+Status: partially implemented. Import, render, playback, mail, dispatch, score
+deletion cleanup, API exception boundaries, runtime startup, notification,
+realtime, avatar, practice runtime, and derived-asset retention entrypoints now
+emit structured lifecycle events with stable operation IDs and context where
+available.
+
+Detailed audit:
+`docs/backend-structured-logging-audit.md`.
 
 Tasks:
 
@@ -291,18 +315,29 @@ Acceptance criteria:
 
 Objective: expose system health and degradation signals through Prometheus.
 
+Status: started. The API now exposes `/metrics` in Prometheus text format and
+records bounded-cardinality HTTP request counters, latency histograms,
+async-operation backlog gauges, and active realtime connection gauges. Initial
+Grafana dashboard requirements are documented in
+`docs/grafana-dashboard-requirements.md`. Async operation age and recent
+completion-duration gauges are derived from database state instead of worker
+process memory. Storage/quota metrics remain to be added.
+
 Tasks:
 
 1. Define initial backend metrics:
-   - API request count by route/status;
-   - API request latency histogram;
+   - API request count by route/status; implemented;
+   - API request latency histogram; implemented;
    - import jobs by state;
    - render/playback/mail outbox records by state;
    - async failure rates by kind;
-   - active realtime connections;
+   - oldest open/processing async operation age by kind; implemented;
+   - recent completed operation duration by kind; implemented;
+   - active realtime connections; implemented;
    - storage quota usage check failures.
-2. Expose metrics through a Prometheus scrape endpoint.
-3. Create initial Grafana dashboard requirements.
+2. Expose metrics through a Prometheus scrape endpoint; implemented at
+   `/metrics`.
+3. Create initial Grafana dashboard requirements; implemented.
 4. Keep metrics free of high-cardinality raw IDs such as every `score_id` or
    `revision_id`.
 
@@ -316,38 +351,55 @@ Acceptance criteria:
 
 Objective: align production runtime with container/Kubernetes expectations.
 
+Target stack:
+
+`container stdout/stderr -> Fluent Bit -> Loki -> Grafana`.
+
+Detailed deployment and label policy:
+`docs/k8s-logging-loki-fluent-bit-plan.md`.
+
 Tasks:
 
 1. Keep stdout/stderr JSON as the only production backend logging target.
 2. Remove backend local daily log file output from production behavior.
 3. Keep readable console/file logs only for local development if explicitly
    enabled.
-3. Document the intended production collection path:
-   `container stdout/stderr -> Fluent/Fluent Bit -> Elasticsearch -> Kibana`.
+4. Document Fluent Bit parsing/routing rules:
+   - parse JSON logs from API, worker, beat, and frontend server containers;
+   - label only low-cardinality infrastructure fields;
+   - keep `request_id`, `originating_request_id`, operation IDs, and resource
+     IDs in the log body.
 
 Acceptance criteria:
 
 - production containers do not rely on persistent local log files.
 - backend production code does not create or rotate local application log files.
 - local development can still use readable console logs.
+- Loki queries can find a request by `request_id` in log content without making
+  `request_id` a label.
 
-### P2 - Vendor Integrations
+### P2 - Production Observability Integrations
 
-Objective: connect the facades to production observability tools.
+Objective: connect the facades to the self-hosted production observability
+stack.
 
 Tasks:
 
-1. Evaluate Sentry for frontend and backend exceptions.
-2. Integrate production logs with Fluent/Fluent Bit, Elasticsearch, and Kibana.
-3. Integrate metrics with Prometheus and Grafana.
-4. Evaluate OpenTelemetry for cross-process tracing after request/outbox
-   correlation is stable.
-5. Add required env configuration without fallback DSNs.
+1. Deploy Fluent Bit as the Kubernetes log collector.
+2. Send structured stdout/stderr logs to Loki.
+3. Use Grafana for log exploration and dashboard links.
+4. Integrate metrics with Prometheus and Grafana.
+5. Add OpenTelemetry instrumentation after request/outbox correlation is
+   stable.
+6. Send traces to Tempo.
+7. Add required env/configuration without fallback DSNs.
 
 Acceptance criteria:
 
 - missing production observability configuration fails clearly.
 - no events are sent to a test or default project by accident.
+- frontend/browser errors are not sent to Sentry; they are handled by the
+  existing facade and a future self-hosted ingestion path if needed.
 
 ### P2 - Audit and Analytics Event Split
 
@@ -383,11 +435,14 @@ Acceptance criteria:
 4. Define and document the request correlation contract.
 5. Upgrade worker/outbox logs to structured events.
 6. Audit user-visible errors for internal detail leakage.
-7. Remove production local backend log files and finalize Fluent -> ES -> Kibana
-   logging mode.
-8. Add Prometheus metrics baseline and Grafana dashboard requirements.
-9. Add Sentry/OpenTelemetry integrations only after the local facades and
-   contracts are stable.
+7. Audit remaining backend free-form logs and convert high-value application
+   modules to structured events.
+8. Remove production local backend log files and finalize Fluent Bit -> Loki ->
+   Grafana logging mode.
+9. Add Prometheus metrics baseline and Grafana dashboard requirements.
+10. Add Fluent Bit -> Loki -> Grafana deployment requirements.
+11. Add OpenTelemetry -> Tempo tracing only after the local facades and
+    correlation contracts are stable.
 
 ## Non-goals For The Next Iteration
 
@@ -402,9 +457,7 @@ Acceptance criteria:
 
 - Should the frontend generate a request ID for every API request, or should it
   only consume backend-generated IDs for now?
-- Which async tables should persist originating `request_id` in the first
-  migration?
 - Should audit events live in the existing ops audit model or a separate
   product audit stream?
-- Which error-reporting vendor should be used first for frontend/browser
-  exceptions: Sentry, Datadog RUM, or another tool?
+- What self-hosted browser error ingestion path should receive frontend
+  observability facade events if product needs outgrow route-level logs?

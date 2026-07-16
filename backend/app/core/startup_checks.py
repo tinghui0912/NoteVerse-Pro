@@ -17,20 +17,43 @@ def ensure_runtime_directories() -> None:
             continue
 
         path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Created runtime directory: {path}")
+        logger.bind(
+            event="runtime.directory_created",
+            path=str(path),
+        ).info("Runtime directory created")
 
 
 def log_external_tool_status() -> None:
     """Log whether configured external executables are currently available."""
-    logger.info(f"Configured OMR engine: {settings.OMR_ENGINE}")
-    logger.info(f"Configured score render engine: {settings.SCORE_RENDER_ENGINE}")
+    logger.bind(
+        event="runtime.omr_engine_configured",
+        engine=settings.OMR_ENGINE,
+    ).info("OMR engine configured")
+    logger.bind(
+        event="runtime.score_render_engine_configured",
+        engine=settings.SCORE_RENDER_ENGINE,
+    ).info("Score render engine configured")
 
     if settings.LEGATO_REPO_PATH:
         legato_path = Path(settings.LEGATO_REPO_PATH)
         if legato_path.exists():
-            logger.info(f"LEGATO repository available: {legato_path}")
+            logger.bind(
+                event="runtime.legato_repository_available",
+                path=str(legato_path),
+            ).info("LEGATO repository available")
         else:
-            logger.warning(f"LEGATO repository not found: {legato_path}")
-        logger.info(f"LEGATO python: {settings.LEGATO_PYTHON}")
-        logger.info(f"LEGATO model: {settings.LEGATO_MODEL_PATH}")
-    logger.info("Verovio renderer selected; Python package availability is checked at render time")
+            logger.bind(
+                event="runtime.legato_repository_missing",
+                path=str(legato_path),
+            ).warning("LEGATO repository not found")
+        logger.bind(
+            event="runtime.legato_python_configured",
+            path=settings.LEGATO_PYTHON,
+        ).info("LEGATO python configured")
+        logger.bind(
+            event="runtime.legato_model_configured",
+            path=settings.LEGATO_MODEL_PATH,
+        ).info("LEGATO model configured")
+    logger.bind(
+        event="runtime.verovio_renderer_selected",
+    ).info("Verovio renderer selected")

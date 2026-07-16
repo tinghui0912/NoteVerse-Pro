@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import AppException
+from app.core.metrics import realtime_connection_closed, realtime_connection_opened
 from app.db.models import User
 from app.db.model_utils import require_persisted_id
 from app.modules.practice.dependencies import get_practice_service, get_websocket_current_user
@@ -126,6 +127,7 @@ async def stream_practice_session(
     practice_service: PracticeService = Depends(get_practice_service),
 ):
     await websocket.accept()
+    realtime_connection_opened(channel="practice_websocket")
 
     try:
         current_user = await get_websocket_current_user(websocket, db)
@@ -238,3 +240,4 @@ async def stream_practice_session(
         runtime = practice_runtime_registry.get(session_id)
         if runtime is not None and runtime.websocket is websocket:
             runtime.websocket = None
+        realtime_connection_closed(channel="practice_websocket")

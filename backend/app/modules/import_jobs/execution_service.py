@@ -64,14 +64,23 @@ class ImportJobExecutionService:
                 )
                 context.update_celery_state("initialization", 0, "initialization")
                 pipeline = PipelineBuilder.build(image_paths, options)
-                logger.info(f"[{job_id}] Running pipeline: {pipeline}")
+                logger.bind(
+                    event="import_job.pipeline_started",
+                    job_id=job_id,
+                    pipeline=repr(pipeline),
+                ).info("Import job pipeline started")
                 pipeline.run(context)
                 context.status("RUNNING", "completed", 100, current_step="ocr_completed")
                 context.complete()
                 return {"success": True, "job_id": job_id}
         except Exception as exc:
-            logger.error(f"[{job_id}] Job failed: {exc}", exc_info=True)
             code = self.get_error_code(exc)
+            logger.bind(
+                event="import_job.pipeline_failed",
+                job_id=job_id,
+                public_code=code,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).error("Import job pipeline failed")
             try:
                 with get_worker_db() as db:
                     sync_import_job_service.finalize_failure(

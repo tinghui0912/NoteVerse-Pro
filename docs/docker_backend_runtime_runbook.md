@@ -143,7 +143,6 @@ The local Docker profile uses explicit runtime directories:
 ```text
 backend/data/storage   durable local file storage when FILE_STORAGE_BACKEND=local
 backend/data/work      worker scratch space, storage cache, and Celery beat state
-backend/logs           backend file logs
 models                 mounted read-only model assets
 external/legato        mounted read-only LEGATO source dependency
 ```
@@ -153,14 +152,13 @@ Inside the containers these paths are:
 ```text
 /app/data/storage
 /app/data/work
-/app/logs
 /opt/noteverse/models
 /external/legato
 ```
 
-`LOG_DIR=/app/logs` is set in `backend/.env.docker`. The backend also writes logs
-to stdout/stderr so Docker can collect service logs. File logs are retained for
-local debugging and are ignored by Git.
+Backend services write logs to stdout/stderr. In Kubernetes, Fluent Bit should
+collect container logs and send them to Loki for Grafana exploration. Production
+containers must not depend on persistent local log files.
 
 Celery beat state is stored under:
 

@@ -1,6 +1,4 @@
 """Centralized FastAPI exception handlers."""
-
-import traceback
 from collections.abc import Sequence
 from copy import deepcopy
 
@@ -47,6 +45,14 @@ def _include_internal_details(request: Request) -> bool:
     return request.url.path.startswith(f"{settings.API_V1_STR}/ops")
 
 
+def _request_log_context(request: Request) -> dict[str, object]:
+    return {
+        "request_id": _request_id(request),
+        "method": request.method,
+        "path": request.url.path,
+    }
+
+
 def _json_safe_errors(errors: list[dict[str, object]]) -> list[dict[str, object]]:
     safe_errors = deepcopy(errors)
     for item in safe_errors:
@@ -59,8 +65,24 @@ def _json_safe_errors(errors: list[dict[str, object]]) -> list[dict[str, object]
     return safe_errors
 
 
+def _validation_error_summary(errors: list[dict[str, object]]) -> dict[str, object]:
+    first_error = errors[0] if errors else {}
+    loc = first_error.get("loc")
+    location = ".".join(str(part) for part in loc) if isinstance(loc, list | tuple) else None
+    return {
+        "validation_error_count": len(errors),
+        "validation_first_location": location,
+        "validation_first_type": first_error.get("type"),
+    }
+
+
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    logger.warning(f"Application error: {exc.code} | details={exc.details}")
+    logger.bind(
+        event="http.app_exception",
+        public_code=exc.code,
+        status_code=exc.status_code,
+        **_request_log_context(request),
+    ).warning("Application exception")
     return JSONResponse(
         status_code=exc.status_code,
         content=_error_payload(
@@ -76,13 +98,20 @@ async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
-    logger.warning(f"Request validation failed: {exc.errors()}")
+    errors = exc.errors()
+    logger.bind(
+        event="http.request_validation_failed",
+        public_code=ErrorCode.VALIDATION_ERROR,
+        status_code=422,
+        **_request_log_context(request),
+        **_validation_error_summary(errors),
+    ).warning("Request validation failed")
     return JSONResponse(
         status_code=422,
         content=_error_payload(
             public_code=ErrorCode.VALIDATION_ERROR,
             request_id=_request_id(request),
-            details=_json_safe_errors(exc.errors()),
+            details=_json_safe_errors(errors),
             include_internal_details=_include_internal_details(request),
         ),
     )
@@ -92,21 +121,33 @@ async def pydantic_validation_exception_handler(
     request: Request,
     exc: PydanticValidationError,
 ) -> JSONResponse:
-    logger.warning(f"Data validation failed: {exc.errors()}")
+    errors = exc.errors()
+    logger.bind(
+        event="http.data_validation_failed",
+        public_code=ErrorCode.VALIDATION_ERROR,
+        status_code=422,
+        **_request_log_context(request),
+        **_validation_error_summary(errors),
+    ).warning("Data validation failed")
     return JSONResponse(
         status_code=422,
         content=_error_payload(
             public_code=ErrorCode.VALIDATION_ERROR,
             request_id=_request_id(request),
-            details=_json_safe_errors(exc.errors()),
+            details=_json_safe_errors(errors),
             include_internal_details=_include_internal_details(request),
         ),
     )
 
 
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.error(f"Unhandled exception: {type(exc).__name__} - {exc}")
-    logger.error(traceback.format_exc())
+    logger.bind(
+        event="http.unhandled_exception",
+        public_code=ErrorCode.INTERNAL_ERROR,
+        status_code=500,
+        exception_type=type(exc).__name__,
+        **_request_log_context(request),
+    ).opt(exception=exc).error("Unhandled exception")
 
     return JSONResponse(
         status_code=500,

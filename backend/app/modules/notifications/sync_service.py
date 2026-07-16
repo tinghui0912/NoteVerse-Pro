@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.logger import logger
 from app.db.models import NotificationEvent
 from app.modules.notifications.service import NotificationTypes
 from app.modules.realtime.publisher import RealtimeEventTypes, publish_event_sync
 from app.utils.timezone import utc_now_naive
-
-logger = logging.getLogger(__name__)
 
 
 class SyncNotificationService:
@@ -73,7 +71,14 @@ class SyncNotificationService:
             db.commit()
         except Exception:
             db.rollback()
-            logger.exception("Failed to publish notification realtime event", extra={"type": type})
+            logger.bind(
+                event="notification.realtime.publish_failed",
+                notification_type=type,
+                recipient_user_id=recipient_user_id,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                score_id=score_id,
+            ).opt(exception=True).warning("Notification realtime publish failed")
         return event
 
     def create_event_best_effort(self, db: Session, **kwargs) -> NotificationEvent | None:
@@ -81,10 +86,14 @@ class SyncNotificationService:
             return self.create_event(db, **kwargs)
         except Exception:
             db.rollback()
-            logger.exception(
-                "Failed to create notification event",
-                extra={"type": kwargs.get("type")},
-            )
+            logger.bind(
+                event="notification.event.create_failed",
+                notification_type=kwargs.get("type"),
+                recipient_user_id=kwargs.get("recipient_user_id"),
+                resource_type=kwargs.get("resource_type"),
+                resource_id=kwargs.get("resource_id"),
+                score_id=kwargs.get("score_id"),
+            ).opt(exception=True).warning("Notification event creation failed")
             return None
 
     @staticmethod
@@ -131,7 +140,11 @@ class SyncNotificationService:
                 db.commit()
             except Exception:
                 db.rollback()
-                logger.exception("Failed to publish import completion realtime event")
+                logger.bind(
+                    event="notification.import_completed_realtime.publish_failed",
+                    job_id=job_uuid,
+                    recipient_user_id=recipient_user_id,
+                ).opt(exception=True).warning("Import completion realtime publish failed")
 
     def notify_import_failed_best_effort(
         self,
@@ -167,7 +180,11 @@ class SyncNotificationService:
                 db.commit()
             except Exception:
                 db.rollback()
-                logger.exception("Failed to publish import failure realtime event")
+                logger.bind(
+                    event="notification.import_failed_realtime.publish_failed",
+                    job_id=job_uuid,
+                    recipient_user_id=recipient_user_id,
+                ).opt(exception=True).warning("Import failure realtime publish failed")
 
 
 sync_notification_service = SyncNotificationService()

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from datetime import timedelta
 from typing import Any
 
@@ -11,6 +10,7 @@ from sqlmodel import col
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
+from app.core.logger import logger
 from app.db.models import NotificationEvent, Score, ScoreMembership, ScoreRevision, User
 from app.modules.notifications.repository import NotificationRepository
 from app.modules.notifications.schemas import (
@@ -21,8 +21,6 @@ from app.modules.notifications.schemas import (
 from app.shared.constants import ErrorCode
 from app.modules.realtime.publisher import RealtimeEventTypes, publish_event_best_effort
 from app.utils.timezone import utc_now_naive
-
-logger = logging.getLogger(__name__)
 
 PUBLIC_NOTIFICATION_DATA_KEYS = frozenset(
     {
@@ -120,7 +118,14 @@ class NotificationService:
             return await self.create_event(db, **kwargs)
         except Exception:
             await db.rollback()
-            logger.exception("Failed to create notification event", extra={"type": kwargs.get("type")})
+            logger.bind(
+                event="notification.event.create_failed",
+                notification_type=kwargs.get("type"),
+                recipient_user_id=kwargs.get("recipient_user_id"),
+                resource_type=kwargs.get("resource_type"),
+                resource_id=kwargs.get("resource_id"),
+                score_id=kwargs.get("score_id"),
+            ).opt(exception=True).warning("Notification event creation failed")
             return None
 
     async def notify_score_version_created_best_effort(

@@ -118,12 +118,12 @@ class PracticeService:
                 frame_format=frame_format,
             )
         except Exception as exc:
-            logger.exception(
-                "practice_session_runtime_registration_failed "
-                f"score_id={access.score.score_uuid} "
-                f"session_id={session.session_uuid} "
-                f"revision_id={access.revision.revision_uuid}"
-            )
+            logger.bind(
+                event="practice.session_runtime.registration_failed",
+                score_id=access.score.score_uuid,
+                session_id=session.session_uuid,
+                revision_id=access.revision.revision_uuid,
+            ).opt(exception=exc).warning("Practice session runtime registration failed")
             session.state = PracticeSessionState.FAILED
             session.error = str(exc)
             await self.repository.save_session(db, session)

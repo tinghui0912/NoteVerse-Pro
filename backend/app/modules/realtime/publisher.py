@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import json
 from typing import Any, Iterable
 
@@ -10,9 +9,9 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.config import settings
+from app.core.logger import logger
 from app.db.models import RealtimeEvent, Score, ScoreDeletionStatus, ScoreMembership
 
-logger = logging.getLogger(__name__)
 REALTIME_NOTIFY_CHANNEL = "realtime_events"
 
 
@@ -134,7 +133,15 @@ async def publish_event_best_effort(
         await db.commit()
     except Exception:
         await db.rollback()
-        logger.exception("Failed to publish realtime event", extra={"type": kwargs.get("type")})
+        logger.bind(
+            event="realtime.event.publish_failed",
+            event_type=kwargs.get("type"),
+            recipient_user_id=kwargs.get("recipient_user_id"),
+            resource_type=kwargs.get("resource_type"),
+            resource_id=kwargs.get("resource_id"),
+            score_id=kwargs.get("score_id"),
+            revision_id=kwargs.get("revision_id"),
+        ).opt(exception=True).warning("Realtime event publish failed")
 
 
 async def publish_score_event_best_effort(
@@ -163,10 +170,14 @@ async def publish_score_event_best_effort(
         await db.commit()
     except Exception:
         await db.rollback()
-        logger.exception(
-            "Failed to publish score realtime event",
-            extra={"score_id": score_id, "type": type},
-        )
+        logger.bind(
+            event="realtime.score_event.publish_failed",
+            event_type=type,
+            score_id=score_id,
+            revision_id=revision_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+        ).opt(exception=True).warning("Score realtime event publish failed")
 
 
 def publish_event_sync(
@@ -219,7 +230,11 @@ def publish_score_event_sync_best_effort(
                 payload=payload,
             )
     except Exception:
-        logger.exception(
-            "Failed to publish score realtime event",
-            extra={"score_id": score_id, "type": type},
-        )
+        logger.bind(
+            event="realtime.score_event.publish_failed",
+            event_type=type,
+            score_id=score_id,
+            revision_id=revision_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+        ).opt(exception=True).warning("Score realtime event publish failed")

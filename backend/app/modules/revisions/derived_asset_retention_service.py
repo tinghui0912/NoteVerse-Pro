@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -9,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.config import settings
+from app.core.logger import logger
 from app.db.models import (
     Score,
     ScoreDeletionStatus,
@@ -20,8 +20,6 @@ from app.db.models import (
 from app.db.models.score import RenderAssetKind
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import FileStorage, file_storage
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -52,7 +50,12 @@ class DerivedAssetRetentionService:
             )
         except Exception as exc:
             await db.rollback()
-            logger.warning("Failed to cleanup derived assets for score %s: %s", score_id, exc)
+            logger.bind(
+                event="derived_asset_retention.cleanup_failed",
+                score_id=score_id,
+                head_revision_id=head_revision_id,
+                retain_recent_revisions=retain_recent_revisions,
+            ).opt(exception=exc).warning("Derived asset retention cleanup failed")
             return DerivedAssetRetentionResult()
 
     async def cleanup_for_score(
@@ -318,7 +321,10 @@ class DerivedAssetRetentionService:
                 if self.storage.delete(key):
                     deleted += 1
             except Exception as exc:
-                logger.warning("Failed to delete derived asset object %s: %s", key, exc)
+                logger.bind(
+                    event="derived_asset_retention.storage_object_delete_failed",
+                    storage_key=key,
+                ).opt(exception=exc).warning("Derived asset storage object deletion failed")
         return deleted
 
 

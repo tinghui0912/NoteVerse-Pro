@@ -71,10 +71,18 @@ class AvatarService:
                 filename=final_filename,
             )
 
-            logger.info(f"Avatar saved: {final_filename}")
+            logger.bind(
+                event="account.avatar.saved",
+                user_id=user_id,
+                filename=final_filename,
+            ).info("Avatar saved")
             return final_filename, stored.public_url or self.storage.avatar_url(final_filename)
         except Exception as exc:
-            logger.error(f"Avatar processing failed: {exc}")
+            logger.bind(
+                event="account.avatar.processing_failed",
+                user_id=user_id,
+                filename=filename,
+            ).opt(exception=exc).error("Avatar processing failed")
             raise ValueError(f"Image processing failed: {str(exc)}")
 
     async def replace_user_avatar(
@@ -120,24 +128,37 @@ class AvatarService:
 
         user.avatar_url = None
         await db.commit()
-        logger.info(f"Cleared missing avatar reference for user_id={user.id}")
+        logger.bind(
+            event="account.avatar.missing_reference_cleared",
+            user_id=user.id,
+            filename=avatar_filename,
+        ).info("Missing avatar reference cleared")
         return True
 
     def delete_avatar(self, filename: str) -> bool:
         try:
             deleted = self.storage.delete_avatar(filename)
             if deleted:
-                logger.info(f"Avatar deleted: {filename}")
+                logger.bind(
+                    event="account.avatar.deleted",
+                    filename=filename,
+                ).info("Avatar deleted")
             return deleted
         except Exception as exc:
-            logger.error(f"Avatar deletion failed: {exc}")
+            logger.bind(
+                event="account.avatar.deletion_failed",
+                filename=filename,
+            ).opt(exception=exc).error("Avatar deletion failed")
             return False
 
     def avatar_exists(self, filename: str) -> bool:
         try:
             return self.storage.exists(f"avatars/{filename}")
         except Exception as exc:
-            logger.warning(f"Avatar existence check failed for {filename}: {exc}")
+            logger.bind(
+                event="account.avatar.exists_check_failed",
+                filename=filename,
+            ).opt(exception=exc).warning("Avatar existence check failed")
             return True
 
 

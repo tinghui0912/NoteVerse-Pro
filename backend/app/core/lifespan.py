@@ -14,18 +14,21 @@ from app.core.startup_checks import ensure_runtime_directories, log_external_too
 async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Run startup and shutdown logging for the FastAPI application."""
 
-    logger.info("=" * 60)
-    logger.info(f"Starting {settings.PROJECT_NAME}")
-    logger.info("Version: 2.0.0")
-    logger.info(f"Environment: {'development' if settings.DEBUG else 'production'}")
-    logger.info("API docs path: /docs")
-    logger.info("=" * 60)
+    logger.bind(
+        event="app.starting",
+        project_name=settings.PROJECT_NAME,
+        app_version="2.0.0",
+        environment="development" if settings.DEBUG else "production",
+        api_docs_path="/docs",
+    ).info("Application starting")
     ensure_runtime_directories()
     log_external_tool_status()
 
     try:
         yield
     finally:
-        logger.info("=" * 60)
-        logger.info(f"Stopping {settings.PROJECT_NAME}")
-        logger.info("=" * 60)
+        logger.bind(
+            event="app.stopping",
+            project_name=settings.PROJECT_NAME,
+            app_version="2.0.0",
+        ).info("Application stopping")

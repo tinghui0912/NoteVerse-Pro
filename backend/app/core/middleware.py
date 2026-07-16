@@ -9,12 +9,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 from app.core.logger import logger, set_trace_id
+from app.core.metrics import record_http_request
 from app.shared.constants import ErrorCode
 from app.shared.responses import error_response
 
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
-HEALTH_PATHS = {"/health/live", "/health/ready"}
+HEALTH_PATHS = {"/health/live", "/health/ready", "/metrics"}
 CSRF_EXEMPT_PATHS = (
     f"{settings.API_V1_STR}/auth/login",
     f"{settings.API_V1_STR}/auth/refresh",
@@ -163,6 +164,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # Measure request duration.
             process_time = time.time() - start_time
             duration_ms = round(process_time * 1000, 2)
+            self._record_metrics(
+                request=request,
+                status_code=response.status_code,
+                duration_seconds=process_time,
+            )
 
             # Escalate log level for error responses.
             if response.status_code >= 500:
@@ -192,9 +198,31 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         except Exception as e:
             process_time = time.time() - start_time
+            self._record_metrics(
+                request=request,
+                status_code=500,
+                duration_seconds=process_time,
+            )
             base_log.bind(
                 event="api.request_exception",
                 exception_type=type(e).__name__,
                 duration_ms=round(process_time * 1000, 2),
             ).opt(exception=True).error("api.request_exception")
             raise
+
+    def _record_metrics(
+        self,
+        *,
+        request: Request,
+        status_code: int,
+        duration_seconds: float,
+    ) -> None:
+        if request.url.path in HEALTH_PATHS:
+            return
+        route = getattr(request.scope.get("route"), "path", None)
+        record_http_request(
+            method=request.method,
+            route=route or request.url.path,
+            status_code=status_code,
+            duration_seconds=duration_seconds,
+        )
