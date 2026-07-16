@@ -97,10 +97,10 @@ docker compose -f docker-compose.backend-dev.yml build api
 Run these before merging backend changes:
 
 ```powershell
-..\scripts\backend_quality.ps1 ruff
-..\scripts\backend_quality.ps1 mypy
-..\scripts\backend_quality.ps1 mypy-model-layer
-..\scripts\backend_quality.ps1 pytest
+..\scripts\quality.ps1 -Check backend-ruff
+..\scripts\quality.ps1 -Check backend-mypy
+..\scripts\quality.ps1 -Check backend-mypy-model-layer
+..\scripts\quality.ps1 -Check backend-pytest
 ```
 
 Current verified baseline:

@@ -54,12 +54,12 @@ Status: Historical / Completed
 - Router：`backend/app/modules/scores/router.py`
 - Schema：`backend/app/modules/revisions/schemas.py`
 - Service：`backend/app/modules/revisions/service.py`
-- Fingering engine wrapper：`backend/app/modules/revisions/fingering_service.py`
+- Fingering engine wrapper：`backend/app/processing/engines/fingering/pianoplayer.py`
 
 现有后端语义：
 
 - `RevisionService.generate_fingering()` 会读取 `base_revision_id` 的内容。
-- `XMLFingeringService.generate()` 生成带指法的 XML。
+- `PianoplayerFingeringEngine.generate()` 生成带指法的 XML。
 - `RevisionService.create()` 立刻创建 `RevisionOrigin.FINGERING` revision。
 - 返回 `RevisionRead`，不直接返回生成后的 XML content。
 
@@ -167,10 +167,10 @@ POST /scores/{score_id}/fingering
 4. `RevisionService.generate_fingering()`：
    - 保留 `ScoreAction.EDIT` 权限检查。
    - 校验传入 MusicXML。
-   - 调用 `XMLFingeringService.generate(score_id, content, hand_size)`。
+   - 调用 `PianoplayerFingeringEngine.generate(score_id, content, hand_size)`。
    - 校验生成后的 MusicXML。
    - 返回 `FingeringResultRead(content=...)`。
-5. `XMLFingeringService.generate()`：
+5. `PianoplayerFingeringEngine.generate()`：
    - 移除 `hand` / `depth` 参数。
    - 改为 `hand_size`。
    - 调用 `pianoplayer.core.run_annotate(..., hand_size=hand_size)`。
@@ -267,7 +267,7 @@ Event Inspector 已经支持逐音修改 `<fingering>`。生成指法应视为�
 2. `schemas.py` 新增 `FingeringResultRead`。
 3. `service.py` 将 `generate_fingering()` 改为不创建 revision，只返回 generated XML。
 4. `router.py` 保持 `POST /scores/{score_id}/fingering` 路径，但 response model 改为 `APIResponse[FingeringResultRead]`。
-5. `fingering_service.py` 将 `hand/depth` 参数替换为 `hand_size`。
+5. `pianoplayer.py` 将 `hand/depth` 参数替换为 `hand_size`。
 6. 删除 `RevisionOrigin.FINGERING` 及引用。
 7. 同步更新 score domain contract 和开发期 migration enum。
 8. 添加后端单元测试：

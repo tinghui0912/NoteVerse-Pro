@@ -15,11 +15,11 @@ from ..base import Step
 from ..context import JobContext
 
 if TYPE_CHECKING:
-    from app.processing.processors.text_recognition import (
+    from app.processing.text.recognition import (
         ClassifiedTexts,
         TextRecognitionProcessSuccessResult,
     )
-    from app.processing.processors.text_integration import TextIntegrationSuccessResult
+    from app.processing.text.integration import TextIntegrationSuccessResult
 
 
 class TextOcrStep(Step):
@@ -38,7 +38,7 @@ class TextOcrStep(Step):
 
     def _recognize_text(self, ctx: JobContext) -> TextRecognitionProcessSuccessResult | None:
         """Run PaddleOCR and return classified text metadata."""
-        from app.processing.processors.text_recognition import (
+        from app.processing.text.recognition import (
             TextRecognitionEngine,
             TextRecognitionProcessSuccessResult,
         )
@@ -103,7 +103,7 @@ class TextOcrStep(Step):
         ocr_result: TextRecognitionProcessSuccessResult,
     ) -> None:
         """Write recognized text metadata into the current XML file."""
-        from app.processing.processors.text_integration import (
+        from app.processing.text.integration import (
             TextIntegrationEngine,
             TextIntegrationSuccessResult,
         )

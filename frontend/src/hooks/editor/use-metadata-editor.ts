@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl';
 import { useXmlUpdater } from './use-xml-updater';
 import { rebuildAutomaticBeams } from '@/lib/musicxml/automatic-beams';
 
-// 项目 A4 MusicXML 坐标配置（与后端 text_config.py XmlLayoutConfig 一致）
+// 项目 A4 MusicXML 坐标配置（与后端 processing/text/config.py XmlLayoutConfig 一致）
 const CREDIT_CONFIG = {
     TITLE_CENTER_X: '600.241935',
     TITLE: {

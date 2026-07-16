@@ -7,7 +7,7 @@ from typing import Iterable, List, Literal, Optional, TypedDict
 from app.core.logger import logger
 from app.processing.engines.paddle import run_ocr_subprocess
 
-from .text_config import ClassificationConfig, OCR_CORRECTIONS, OcrConfig
+from .config import ClassificationConfig, OCR_CORRECTIONS, OcrConfig
 
 OCRPoint = tuple[float, float]
 OCRBoundingBox = list[OCRPoint]

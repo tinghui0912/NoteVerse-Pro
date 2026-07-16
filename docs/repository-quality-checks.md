@@ -84,16 +84,16 @@ The K8s workflow also verifies that strict mode rejects the public production
 template. A private deployable production overlay should pass strict mode in its
 own deployment pipeline.
 
-## Backend-Specific Entry Point
+## Backend Checks
 
-The older backend-specific entry point remains available:
+Backend checks are run through the unified entry point:
 
 ```powershell
-.\scripts\backend_quality.ps1 -Check ruff
-.\scripts\backend_quality.ps1 -Check mypy
-.\scripts\backend_quality.ps1 -Check mypy-model-layer
-.\scripts\backend_quality.ps1 -Check pytest
+.\scripts\quality.ps1 -Check backend-ruff
+.\scripts\quality.ps1 -Check backend-mypy
+.\scripts\quality.ps1 -Check backend-mypy-model-layer
+.\scripts\quality.ps1 -Check backend-pytest
 ```
 
-Keep backend-only checks here; use `scripts/quality.ps1` for repository-level
-coordination.
+Backend checks intentionally run inside the backend Docker runtime so local
+quality checks use the same Linux dependency shape as CI and worker execution.

@@ -8,7 +8,7 @@ from unittest.mock import patch
 from app.processing.engines.paddle_worker import _build_paddleocr_kwargs
 from app.pipeline.steps.text import TextOcrStep
 from app.processing.engines.paddle import run_ocr_subprocess
-from app.processing.processors.text_recognition import TextRecognitionEngine
+from app.processing.text.recognition import TextRecognitionEngine
 
 
 def test_run_ocr_subprocess_maps_timeout_to_failure() -> None:

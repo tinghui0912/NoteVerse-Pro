@@ -1,12 +1,12 @@
-"""Processing module exports for engines, extractors, and processors."""
+"""Processing module exports for engines and domain processing helpers."""
 
 from .engines.render import (
     ScoreRenderEngine,
     VerovioRenderEngine,
     create_score_render_engine,
 )
-from .processors.text_integration import TextIntegrationEngine
-from .processors.text_recognition import TextRecognitionEngine
+from .text.integration import TextIntegrationEngine
+from .text.recognition import TextRecognitionEngine
 
 __all__ = [
     "ScoreRenderEngine",

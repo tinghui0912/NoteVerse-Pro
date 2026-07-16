@@ -4,7 +4,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from app.processing.processors.text_integration import TextIntegrationEngine
+from app.processing.text.integration import TextIntegrationEngine
 
 
 def test_musicxml_input_writes_separate_enhanced_file() -> None:

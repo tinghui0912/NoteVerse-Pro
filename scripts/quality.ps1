@@ -18,7 +18,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-$BackendQuality = Join-Path $PSScriptRoot "backend_quality.ps1"
+$BackendComposeFile = Join-Path $RepoRoot "docker-compose.backend-dev.yml"
 $FrontendRoot = Join-Path $RepoRoot "frontend"
 $K8sManifestCheck = Join-Path $PSScriptRoot "check_k8s_application_manifests.py"
 $K8sReleaseOverlayRenderer = Join-Path $PSScriptRoot "render_k8s_release_overlay.py"
@@ -40,8 +40,16 @@ function Invoke-Step {
 function Invoke-BackendQuality {
     param([string] $BackendCheck)
 
+    $BackendCommandArgs = switch ($BackendCheck) {
+        "ruff" { @("python", "-m", "ruff", "check", "app", "tests", "--config", "pyproject.toml", "--cache-dir", ".ruff_cache") }
+        "mypy" { @("python", "-m", "mypy", "--config-file", "pyproject.toml") }
+        "mypy-model-layer" { @("python", "-m", "mypy", "--config-file", "mypy-model-layer.ini") }
+        "pytest" { @("python", "-m", "pytest", "tests", "-q") }
+        default { throw "Unknown backend quality check: $BackendCheck" }
+    }
+
     Invoke-Step "backend:$BackendCheck" {
-        & $BackendQuality -Check $BackendCheck
+        docker compose -f $BackendComposeFile run --rm api @BackendCommandArgs
     }
 }
 

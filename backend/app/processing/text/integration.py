@@ -6,8 +6,8 @@ from typing import List, Optional, TypedDict
 
 from app.core.logger import logger
 
-from .text_config import XmlLayoutConfig
-from .text_recognition import ClassifiedTexts, OtherTextInfo
+from .config import XmlLayoutConfig
+from .recognition import ClassifiedTexts, OtherTextInfo
 
 
 class AuthorInfo(TypedDict):

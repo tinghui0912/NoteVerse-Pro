@@ -15,7 +15,7 @@ class FingeringResult(TypedDict):
     hand_size: str
 
 
-class XMLFingeringService:
+class PianoplayerFingeringEngine:
     def generate(self, score_id: str, xml_content: str, hand_size: str = "M") -> FingeringResult:
         try:
             from pianoplayer.core import run_annotate

@@ -1159,10 +1159,10 @@ recreate the disposable local database, then upgrade directly to head.
 
 ```powershell
 cd backend
-..\scripts\backend_quality.ps1 ruff
-..\scripts\backend_quality.ps1 mypy
-..\scripts\backend_quality.ps1 mypy-model-layer
-..\scripts\backend_quality.ps1 pytest
+..\scripts\quality.ps1 -Check backend-ruff
+..\scripts\quality.ps1 -Check backend-mypy
+..\scripts\quality.ps1 -Check backend-mypy-model-layer
+..\scripts\quality.ps1 -Check backend-pytest
 ```
 
 Required focused coverage:

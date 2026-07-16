@@ -72,7 +72,7 @@ from app.modules.revisions.derived_asset_retention_service import (
     DerivedAssetRetentionService,
 )
 from app.modules.revisions.service import RevisionService
-from app.modules.revisions.fingering_service import strip_existing_fingerings
+from app.processing.engines.fingering.pianoplayer import strip_existing_fingerings
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.score_assets.derived_assets import derived_asset_status
 from app.modules.score_assets.render_outbox_service import RenderOutboxService
@@ -177,7 +177,7 @@ class AsyncSessionAdapter:
         self.session.add(instance)
 
 
-class FakeFingeringService:
+class FakeFingeringEngine:
     def __init__(self, xml_content: str = MUSICXML_2) -> None:
         self.xml_content = xml_content
         self.calls: list[dict[str, str]] = []
@@ -1819,8 +1819,8 @@ async def test_generate_fingering_returns_xml_without_creating_revision(
         revision_uuid="fingering-revision",
         title="Fingering Score",
     )
-    fingering_service = FakeFingeringService()
-    service = RevisionService(storage=storage, fingering_service=fingering_service)
+    fingering_engine = FakeFingeringEngine()
+    service = RevisionService(storage=storage, fingering_engine=fingering_engine)
     revision_count = count_rows(session, ScoreRevision)
     source_count = count_rows(session, ScoreRevisionSource)
 
@@ -1832,7 +1832,7 @@ async def test_generate_fingering_returns_xml_without_creating_revision(
     )
 
     assert result.content == MUSICXML_2
-    assert fingering_service.calls == [
+    assert fingering_engine.calls == [
         {
             "score_id": "fingering-score",
             "xml_content": MUSICXML_1.decode("utf-8"),
@@ -1857,7 +1857,7 @@ async def test_generate_fingering_validates_input_and_generated_xml(
         title="Invalid Fingering Score",
     )
     service = RevisionService(
-        storage=storage, fingering_service=FakeFingeringService(xml_content="<bad />")
+        storage=storage, fingering_engine=FakeFingeringEngine(xml_content="<bad />")
     )
     db = AsyncSessionAdapter(session)
 

@@ -37,8 +37,8 @@ from app.modules.revisions.schemas import (
     RevisionRestoreRead,
     RevisionRestoreRequest,
 )
-from app.modules.revisions.fingering_service import XMLFingeringService
 from app.modules.notifications.service import NotificationService
+from app.processing.engines.fingering import PianoplayerFingeringEngine
 from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
 from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.revisions.derived_asset_retention_service import (
@@ -60,14 +60,14 @@ class RevisionService:
         asset_repository: ScoreAssetRepository | None = None,
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        fingering_service: XMLFingeringService | None = None,
+        fingering_engine: PianoplayerFingeringEngine | None = None,
         notification_service: NotificationService | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.fingering_service = fingering_service or XMLFingeringService()
+        self.fingering_engine = fingering_engine or PianoplayerFingeringEngine()
         self.notification_service = notification_service or NotificationService()
 
     async def generate_fingering(
@@ -81,7 +81,7 @@ class RevisionService:
             db, score_uuid, ScoreAction.EDIT, user_id=user_id
         )
         self._validate_musicxml(request.content.encode("utf-8"))
-        generated = self.fingering_service.generate(
+        generated = self.fingering_engine.generate(
             score_uuid,
             request.content,
             hand_size=request.hand_size,
