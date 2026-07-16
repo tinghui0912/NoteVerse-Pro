@@ -11,6 +11,7 @@ Related documents:
 - `docs/container-image-build-strategy.md`
 - `docs/k8s-production-preflight-checklist.md`
 - `docs/k8s-secrets-and-storage-template.md`
+- `docs/minikube-local-k8s-runbook.md`
 - `docs/k8s-observability-deployment-skeleton.md`
 - `docs/k8s-logging-loki-fluent-bit-plan.md`
 - `docs/opentelemetry-tempo-tracing-plan.md`

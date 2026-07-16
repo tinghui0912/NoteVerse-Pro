@@ -261,12 +261,14 @@ images for critical vulnerabilities.
 Current gate:
 
 - SBOM format: SPDX JSON;
-- scanner: Trivy;
+- scanner: Trivy GitHub Action with a pinned `v*` release tag;
 - failing severity: `CRITICAL`;
 - unfixed vulnerabilities are ignored until a remediation path exists.
 
 Future CI should add:
 
+- GitHub Actions JavaScript action versions should stay on Node 24-compatible
+  majors;
 - base image digest pinning;
 - a reviewed baseline for moving from `CRITICAL` to `HIGH,CRITICAL`;
 - signed image attestations if the registry/deployment platform supports them;
