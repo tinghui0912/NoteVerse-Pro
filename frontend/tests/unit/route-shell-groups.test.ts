@@ -208,7 +208,7 @@ describe('route shell groups', () => {
     }
 
     expect(publicScorePage).toContain('publication.error');
-    expect(publicScorePage).toContain('translateErrorCode');
+    expect(publicScorePage).toContain('userFacingErrorMessage');
     expect(publicScorePage).not.toContain("text-muted-foreground\">\n          {common('loadFailed')}");
 
     expect(practicePage).toContain('scoreQuery.error ?? revisionQuery.error');

@@ -107,7 +107,7 @@ Current verified baseline:
 
 - `ruff` passes
 - `mypy` passes on the current directory-based baseline (`102` source files)
-- `mypy-model-layer.ini` passes on the current ORM-aware target set (`40` source files)
+- `mypy-model-layer.ini` passes on the current ORM-aware database model target set
 - `pytest` passes with `38` tests
 
 ## CI
