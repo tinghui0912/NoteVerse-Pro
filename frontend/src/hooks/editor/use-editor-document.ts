@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { scoresApi } from '@/lib/api';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import { queryKeys } from '@/lib/query-client';
 import type { FingeringHandSize } from '@/types/api';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
@@ -87,8 +88,14 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
         }
         if (cancelled) return;
         await applyXml(xmlContent, { resetHistory: true, updateRawXml: true });
-      } catch {
+      } catch (error) {
         if (!cancelled) {
+          reportUnexpectedClientError(error, {
+            area: 'editor',
+            action: 'load_score_document',
+            score_id: scoreId,
+            revision_id: revisionId,
+          });
           setLoadError(common('loadFailedDescription'));
           clearXml();
         }
@@ -177,7 +184,12 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
               resetHistory: false,
             });
             toast({ title: t('fingeringGenerated'), description: t('fingeringGeneratedDesc') });
-          } catch {
+          } catch (error) {
+            reportUnexpectedClientError(error, {
+              area: 'editor',
+              action: 'apply_generated_fingering',
+              score_id: scoreId,
+            });
             toast({
               title: t('fingeringFailed'),
               description: t('fingeringFailedDesc'),

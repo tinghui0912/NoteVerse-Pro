@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from app.core.exceptions import ResourceNotFoundException
+from app.core.logger import get_trace_id
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportJob, ImportJobUpload, StorageBlob, User
 from app.db.models.import_job import ImportJobState
@@ -99,6 +100,7 @@ class ImportJobSubmissionService:
                 state=ImportJobState.PENDING,
                 progress=0,
                 idempotency_key=idempotency_key,
+                originating_request_id=get_trace_id(),
                 requested_options=request.options,
                 requested_at=now,
                 created_at=now,

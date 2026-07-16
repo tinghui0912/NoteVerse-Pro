@@ -46,8 +46,6 @@ Implemented:
 
 Missing:
 
-- no client-side reporting for realtime, editor, upload, playback, or
-  AudioWorklet failures;
 - no explicit client-to-server request correlation beyond consuming backend
   `X-Request-ID`;
 - no production error reporting vendor has been selected or connected.
@@ -160,8 +158,9 @@ diagnostics.
 Status: partially implemented. The frontend has a vendor-neutral observability
 facade, route-level error boundaries report through it, API transport failures
 are captured, and `frontend/src` is guarded against scattered `console.*`
-calls. Additional high-value client failures should be wired as their owning
-features are touched.
+calls. Upload, editor load/save, score preview playback, cover audio playback,
+downloads, practice realtime/audio setup, and practice report loading now report
+unexpected client failures through the facade.
 
 Tasks:
 
@@ -192,6 +191,13 @@ Acceptance criteria:
 ### P0 - Request Correlation Contract
 
 Objective: connect browser failures, API failures, and worker follow-up.
+
+Status: implemented for the current async operation model. Backend-generated `request_id` remains the
+source of truth for HTTP requests, frontend error normalization preserves
+`request_id` when an error object provides it, and import/render/playback/mail
+async operation records now persist `originating_request_id` for request-created
+work. Score deletion cleanup persists `deletion_request_id` and exposes it as
+`originating_request_id` through the ops API.
 
 Tasks:
 

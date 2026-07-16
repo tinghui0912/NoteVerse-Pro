@@ -8,6 +8,7 @@ import {
   isAudioWorkletSupported,
   normalizeWorkletSamples,
 } from '@/lib/practice/audio-stream';
+import { reportUnexpectedClientError } from '@/lib/observability';
 
 export function usePracticeAudioStream(onPcmFrame: (frame: ArrayBuffer) => void) {
   const onPcmFrameRef = useRef(onPcmFrame);
@@ -107,6 +108,10 @@ export function usePracticeAudioStream(onPcmFrame: (frame: ArrayBuffer) => void)
       muteGain.connect(audioContext.destination);
       return stream;
     } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'practice_audio',
+        action: 'setup_audio_pipeline',
+      });
       teardown();
       throw error;
     }

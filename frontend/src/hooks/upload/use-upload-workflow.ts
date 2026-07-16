@@ -10,6 +10,7 @@ import { filesApi, importJobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import { getCompletedJobRoute, type UploadableFile } from '@/lib/upload/upload-workflow';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
@@ -24,7 +25,9 @@ function revokePreview(preview: string) {
   if (preview.startsWith('blob:')) URL.revokeObjectURL(preview);
 }
 
-class UserFacingUploadError extends Error {}
+class UserFacingUploadError extends Error {
+  name = 'UserFacingUploadError';
+}
 
 export function useUploadWorkflow() {
   const t = useTranslations('upload');
@@ -184,7 +187,13 @@ export function useUploadWorkflow() {
           setTaskError(translateTaskError(data.public_code, t('processingFailed')));
           setTaskProgress(0);
         }
-      } catch {}
+      } catch (error) {
+        reportUnexpectedClientError(error, {
+          area: 'upload',
+          action: 'restore_job',
+          job_id: urlJobId,
+        });
+      }
     });
 
     return () => {
@@ -233,6 +242,12 @@ export function useUploadWorkflow() {
             itemIndex === index ? { ...item, status: 'uploaded', fileId } : item
           ));
         } catch (error) {
+          reportUnexpectedClientError(error, {
+            area: 'upload',
+            action: 'upload_file',
+            file_index: index,
+            file_size: currentFile.file.size,
+          });
           const message = userFacingErrorMessage(errors, error, tCommon('operationFailed'));
           setTrackedFiles((current) => current.map((item, itemIndex) =>
             itemIndex === index ? { ...item, status: 'error', error: message } : item
@@ -258,6 +273,11 @@ export function useUploadWorkflow() {
       setPollInterval(TASK_POLL_INTERVAL_MS);
       toast({ title: t('taskStarted'), description: t('taskStartedDesc') });
     } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'upload',
+        action: 'start_recognition',
+        file_count: filesRef.current.length,
+      });
       const message = error instanceof UserFacingUploadError && error.message
           ? error.message
           : userFacingErrorMessage(errors, error, t('processingFailed'));

@@ -19,6 +19,7 @@ import {
 import { recalculateBackups } from '@/lib/musicxml/backup';
 import { repairAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
 import { createDefaultEditableEvent, toScoreEntity } from '@/lib/editor/editable-event';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import { insertEntity } from './entity-editor/insert-entity';
 import { updateExistingEntity } from './entity-editor/update-existing-entity';
 
@@ -220,7 +221,12 @@ export function useEntityEditor() {
             const parsedData = newParser.parse();
             setScoreData(parsedData);
 
-        } catch {}
+        } catch (error) {
+            reportUnexpectedClientError(error, {
+                area: 'editor',
+                action: 'delete_entity',
+            });
+        }
     }, [currentXml, scoreData, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, t]);
 
     return {

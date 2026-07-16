@@ -29,6 +29,7 @@ class ImportDispatchPayload:
     options: ImportJobProcessingOptions | None
     attempt: int
     max_attempts: int
+    originating_request_id: str | None = None
 
 
 class ImportDispatchService:
@@ -83,6 +84,7 @@ class ImportDispatchService:
             options=self._requested_options(job),
             attempt=job.dispatch_attempt_count,
             max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+            originating_request_id=job.originating_request_id,
         )
 
     def complete(self, db: Session, job_uuid: str) -> None:

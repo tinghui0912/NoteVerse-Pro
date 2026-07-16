@@ -103,6 +103,10 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL")),
     )
+    originating_request_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(64), index=True),
+    )
     render_profile: str = Field(
         default="default",
         sa_column=Column(String(128), default="default", nullable=False),

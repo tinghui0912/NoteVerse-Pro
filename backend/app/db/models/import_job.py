@@ -88,6 +88,10 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     progress: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     current_step: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     idempotency_key: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    originating_request_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(64), index=True),
+    )
     requested_options: Optional[dict[str, object]] = Field(
         default=None,
         sa_column=Column(metadata_json_type),

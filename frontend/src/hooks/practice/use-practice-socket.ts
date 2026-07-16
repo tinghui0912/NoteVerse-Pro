@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { API_BASE_URL } from '@/lib/api-client';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import type { PracticeServerMessage } from '@/types/api';
 
 function buildPracticeWebSocketUrl(path: string) {
@@ -73,7 +74,12 @@ export function usePracticeSocket({ onMessage, onClose }: PracticeSocketOptions)
       socket.onmessage = (event) => {
         try {
           onMessageRef.current(JSON.parse(event.data) as PracticeServerMessage);
-        } catch {}
+        } catch (error) {
+          reportUnexpectedClientError(error, {
+            area: 'practice_realtime',
+            action: 'parse_message',
+          });
+        }
       };
       socket.onclose = () => {
         const intentional = intentionalSocketsRef.current.has(socket);
@@ -86,7 +92,14 @@ export function usePracticeSocket({ onMessage, onClose }: PracticeSocketOptions)
 
       await new Promise<void>((resolve, reject) => {
         socket.onopen = () => resolve();
-        socket.onerror = () => reject(new Error('practice_realtime_connection_failed'));
+        socket.onerror = () => {
+          const error = new Error('practice_realtime_connection_failed');
+          reportUnexpectedClientError(error, {
+            area: 'practice_realtime',
+            action: 'open_socket',
+          });
+          reject(error);
+        };
       });
     },
     [close, stopHeartbeat]

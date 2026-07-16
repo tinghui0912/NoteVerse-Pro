@@ -54,6 +54,10 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     )
     category: str = Field(sa_column=Column(String(64), nullable=False))
     dedupe_key: str = Field(sa_column=Column(String(160), unique=True, nullable=False))
+    originating_request_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(64), index=True),
+    )
     recipient: str = Field(sa_column=Column(String(320), nullable=False))
     subject: str = Field(sa_column=Column(String(255), nullable=False))
     text_body: Optional[str] = Field(default=None, sa_column=Column(Text))

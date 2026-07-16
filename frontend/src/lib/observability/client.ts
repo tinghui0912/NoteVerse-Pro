@@ -34,11 +34,18 @@ function normalizeError(error: unknown): NormalizedClientError {
   if (error instanceof Error) {
     const digest =
       'digest' in error && typeof error.digest === 'string' ? error.digest : undefined;
+    const requestId =
+      'requestId' in error && typeof error.requestId === 'string'
+        ? error.requestId
+        : 'request_id' in error && typeof error.request_id === 'string'
+          ? error.request_id
+          : undefined;
     return {
       name: error.name || 'Error',
       message: error.message,
       stack: error.stack,
       digest,
+      request_id: requestId,
     };
   }
 
@@ -57,6 +64,22 @@ export function reportClientError(
   context: ObservabilityContext = {}
 ): void {
   activeSink?.captureError(normalizeError(error), sanitizeContext(context));
+}
+
+export function reportUnexpectedClientError(
+  error: unknown,
+  context: ObservabilityContext = {}
+): void {
+  if (error instanceof Error) {
+    if (['AbortError', 'ApiError', 'UserFacingUploadError'].includes(error.name)) {
+      return;
+    }
+    if (['FILE_NOT_FOUND', 'practice_realtime_audio_unsupported'].includes(error.message)) {
+      return;
+    }
+  }
+
+  reportClientError(error, context);
 }
 
 export function reportClientEvent(

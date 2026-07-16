@@ -3,6 +3,7 @@
 import { Loader2, Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import { cn } from '@/lib/utils';
 
 interface ScoreCoverPlaybackButtonProps {
@@ -34,7 +35,11 @@ export function ScoreCoverPlaybackButton({ audioSrc, className }: ScoreCoverPlay
     setAudioBusy(true);
     try {
       await audio.play();
-    } catch {
+    } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'score_cover_playback',
+        action: 'play_audio_asset',
+      });
       audioRef.current = null;
       setAudioPlaying(false);
     } finally {

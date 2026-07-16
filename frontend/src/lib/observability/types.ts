@@ -10,6 +10,7 @@ export interface NormalizedClientError {
   message: string;
   stack?: string;
   digest?: string;
+  request_id?: string;
 }
 
 export interface ObservabilitySink {

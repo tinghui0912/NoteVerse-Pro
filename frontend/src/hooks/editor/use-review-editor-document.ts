@@ -13,6 +13,7 @@ import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { importJobsApi } from '@/lib/api';
 import { ensureStableMusicXmlIdsString, stripAppOwnedMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import { useImportJobReview, useUpdateImportJobReview } from '@/hooks/queries/use-review-queries';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
@@ -80,8 +81,13 @@ export function useReviewEditorDocument({
         }
         if (cancelled) return;
         await applyXml(xmlContent, { resetHistory: true, updateRawXml: true });
-      } catch {
+      } catch (error) {
         if (!cancelled) {
+          reportUnexpectedClientError(error, {
+            area: 'editor',
+            action: 'load_review_document',
+            job_id: jobId,
+          });
           setLoadError(common('loadFailedDescription'));
           clearXml();
         }
@@ -92,7 +98,7 @@ export function useReviewEditorDocument({
     return () => {
       cancelled = true;
     };
-  }, [applyXml, clearXml, common, draftBaseRevisionId, draftResourceId, initialized, xmlContent]);
+  }, [applyXml, clearXml, common, draftBaseRevisionId, draftResourceId, initialized, jobId, xmlContent]);
 
   const performSave = () => {
     if (!currentXml) return;

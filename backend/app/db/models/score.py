@@ -79,6 +79,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
             "next_cleanup_at",
             "deletion_requested_at",
         ),
+        Index("idx_scores_deletion_request_id", "deletion_request_id"),
     )
 
     id: Optional[int] = Field(
@@ -110,6 +111,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
     )
     deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     deletion_requested_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    deletion_request_id: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     cleanup_completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     cleanup_attempt_count: int = Field(
         default=0,

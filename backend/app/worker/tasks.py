@@ -71,6 +71,7 @@ def process_images_job(
             job_id=job_uuid,
             attempt=payload.attempt,
             max_attempts=payload.max_attempts,
+            originating_request_id=payload.originating_request_id,
             upload_count=len(payload.storage_keys),
         )
         task_log.info("import.started")
@@ -88,6 +89,7 @@ def process_images_job(
                 job_id=job_uuid,
                 attempt=payload.attempt,
                 max_attempts=payload.max_attempts,
+                originating_request_id=payload.originating_request_id,
                 exception_type=type(exc).__name__,
             ).opt(exception=True).error("import.failed")
             with get_worker_db() as db:
@@ -102,6 +104,7 @@ def process_images_job(
             job_id=job_uuid,
             attempt=payload.attempt,
             max_attempts=payload.max_attempts,
+            originating_request_id=payload.originating_request_id,
             status="completed",
         ).info("import.completed")
         return result
@@ -131,6 +134,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
             "category": payload.category,
             "attempt": payload.attempt,
             "max_attempts": payload.max_attempts,
+            "originating_request_id": payload.originating_request_id,
         }
         _operation_logger("mail.started", **context).info("mail.started")
         try:
@@ -200,6 +204,7 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
             "render_profile": payload.render_profile,
             "attempt": payload.attempt,
             "max_attempts": payload.max_attempts,
+            "originating_request_id": payload.originating_request_id,
         }
         _operation_logger("render.started", **context).info("render.started")
 
@@ -314,6 +319,7 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
             "asset_kind": payload.asset_kind.value,
             "attempt": payload.attempt,
             "max_attempts": payload.max_attempts,
+            "originating_request_id": payload.originating_request_id,
         }
         _operation_logger("playback.started", **context).info("playback.started")
 

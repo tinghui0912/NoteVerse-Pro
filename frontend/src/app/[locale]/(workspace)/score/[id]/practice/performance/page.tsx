@@ -13,6 +13,7 @@ import { ScoreSurface } from '@/components/score/score-surface';
 import { SectionErrorState } from '@/components/states';
 import { practiceApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import type { PracticeReportPayload } from '@/types/api';
 
 const ReportCard = ({
@@ -72,6 +73,10 @@ export default function PracticePerformancePage() {
         }
       } catch (loadError) {
         if (!cancelled) {
+          reportUnexpectedClientError(loadError, {
+            area: 'practice',
+            action: 'load_report',
+          });
           setError(userFacingErrorMessage(errors, loadError, t('analysisFailedDesc')));
         }
       } finally {

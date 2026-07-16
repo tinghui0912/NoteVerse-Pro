@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { DEFAULT_TEMPO_BPM } from '@/lib/constants/audio';
 import { extractTempoBpm } from '@/lib/musicxml';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import type { ScoreCursorScrollTarget, ScorePreviewController } from '@/lib/score-preview/contracts';
 
 export type ScorePreviewControllerFactory = (
@@ -178,7 +179,11 @@ export function useScorePreviewPlayback({
       setHasRenderedScore(true);
       setTotalTime(duration > 0 ? duration : 0);
       setIsLoading(false);
-    } catch {
+    } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'score_preview_playback',
+        action: 'load_score',
+      });
       if (controller && controllerRef.current === controller) {
         controllerRef.current = null;
         controller.dispose();
@@ -216,8 +221,12 @@ export function useScorePreviewPlayback({
         setTotalTime(duration > 0 ? duration : 0);
         setHasRenderedScore(true);
         setIsLoading(false);
-      }).catch(() => {
+      }).catch((error) => {
         if (cancelled || generation !== loadGenerationRef.current || controllerRef.current !== controller) return;
+        reportUnexpectedClientError(error, {
+          area: 'score_preview_playback',
+          action: 'reload_score',
+        });
         setLoadError(t('errorBoundaryDesc'));
         setIsLoading(false);
       });
@@ -290,7 +299,12 @@ export function useScorePreviewPlayback({
     try {
       await controller.stop();
       await controller.play();
-    } catch {}
+    } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'score_preview_playback',
+        action: 'repeat',
+      });
+    }
   }, [isLoading]);
 
   useEffect(() => {
@@ -323,7 +337,12 @@ export function useScorePreviewPlayback({
         }
         await controller.play();
       }
-    } catch {}
+    } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'score_preview_playback',
+        action: 'play_pause',
+      });
+    }
   }, [followViewport, isLoading]);
 
   const stop = useCallback(async () => {
@@ -395,7 +414,12 @@ export function useScorePreviewPlayback({
         }
         startProgressLoop();
         startCursorLoop();
-      } catch {}
+      } catch (error) {
+        reportUnexpectedClientError(error, {
+          area: 'score_preview_playback',
+          action: 'seek_end_resume',
+        });
+      }
     }
     wasPlayingBeforeSeekRef.current = false;
   }, [startCursorLoop, startProgressLoop]);

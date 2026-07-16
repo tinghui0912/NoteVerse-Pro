@@ -117,6 +117,10 @@ class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL")),
     )
+    originating_request_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(64), index=True),
+    )
     source_fingerprint: str = Field(sa_column=Column(String(64), nullable=False))
     asset_kind: PlaybackAssetKind = Field(
         default=PlaybackAssetKind.AUDIO,

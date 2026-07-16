@@ -46,6 +46,7 @@ class AsyncOperationRead(BaseModel):
     kind: AsyncOperationKind
     resource_type: str
     resource_id: str
+    originating_request_id: str | None = None
     status: AsyncOperationStatus
     raw_status: str
     attempts: int

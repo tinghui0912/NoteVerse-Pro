@@ -30,6 +30,7 @@ import { ResourceLoading } from '@/components/loading';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
+import { reportUnexpectedClientError } from '@/lib/observability';
 import { useRouter } from 'next/navigation';
 import type {
   PracticeConnectionStatus,
@@ -323,7 +324,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       const { wsUrl } = await practiceSession.create();
       await socket.open(wsUrl);
       setConnectionStatus('ready');
-    } catch {
+    } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'practice',
+        action: 'prepare_session',
+        score_id: id,
+      });
       preconnectStartedRef.current = false;
       setConnectionStatus('error');
       socket.close();
@@ -381,6 +387,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       setPracticeClockStarted(true);
       recording.start();
     } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'practice',
+        action: 'start_session',
+        score_id: id,
+      });
       const isUnsupportedRealtimeAudio =
         error instanceof Error && error.message === 'practice_realtime_audio_unsupported';
       updatePracticeStatus('idle');
@@ -490,7 +501,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         throw new Error('Analysis failed');
       }
       router.push(`/score/${id}/practice/performance?sessionId=${encodeURIComponent(reportSessionId)}`);
-    } catch {
+    } catch (error) {
+      reportUnexpectedClientError(error, {
+        area: 'practice',
+        action: 'request_report',
+        score_id: id,
+      });
       toast({
         variant: 'destructive',
         title: t('analysisFailedTitle'),

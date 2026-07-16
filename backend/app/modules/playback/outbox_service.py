@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.logger import get_trace_id
 from app.db.models import (
     PlaybackAssetKind,
     PlaybackOutbox,
@@ -35,6 +36,7 @@ class PlaybackOutboxPayload:
     asset_kind: PlaybackAssetKind
     attempt: int
     max_attempts: int
+    originating_request_id: str | None = None
 
 
 async def create_playback_outbox(
@@ -62,6 +64,7 @@ async def create_playback_outbox(
         score_id=score_id,
         revision_id=revision_id,
         requested_by_user_id=requested_by_user_id,
+        originating_request_id=get_trace_id(),
         source_fingerprint=source_fingerprint,
         asset_kind=asset_kind,
         status=PlaybackOutboxStatus.PENDING,
@@ -127,6 +130,7 @@ class PlaybackOutboxService:
                 asset_kind=outbox.asset_kind,
                 attempt=0,
                 max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+                originating_request_id=outbox.originating_request_id,
             )
 
         outbox.status = PlaybackOutboxStatus.FAILED

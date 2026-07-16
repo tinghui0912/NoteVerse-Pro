@@ -14,6 +14,7 @@ import {
 } from '@/lib/musicxml/core';
 import { useTranslations } from 'next-intl';
 import { recalculateBackups } from '@/lib/musicxml/backup';
+import { reportUnexpectedClientError } from '@/lib/observability';
 
 export function useVoiceEditor() {
     const t = useTranslations('editor.actions');
@@ -214,7 +215,12 @@ export function useVoiceEditor() {
 
             const parser = new MusicXMLParser(newXml);
             setScoreData(parser.parse());
-        } catch {}
+        } catch (error) {
+            reportUnexpectedClientError(error, {
+                area: 'editor',
+                action: 'delete_voice_track',
+            });
+        }
     }, [currentXml, currentXmlRef, scoreData, setCurrentXml, setScoreData, history, t]);
 
     return {

@@ -3,6 +3,7 @@ export {
   reportClientError,
   reportClientEvent,
   reportClientPerformance,
+  reportUnexpectedClientError,
 } from './client';
 export type {
   NormalizedClientError,

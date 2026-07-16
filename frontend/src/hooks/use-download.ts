@@ -6,6 +6,7 @@ import type { ScoreRevisionAssets } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
+import { reportUnexpectedClientError } from '@/lib/observability';
 
 interface UseDownloadOptions {
     mode: 'score' | 'grant' | 'publication';
@@ -91,6 +92,13 @@ export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptio
                 }
             }
         } catch (error: unknown) {
+            reportUnexpectedClientError(error, {
+                area: 'download',
+                action: 'download_asset',
+                mode,
+                id,
+                type,
+            });
             toast({
                 title: t('downloadFailed'),
                 description: userFacingErrorMessage(tErrors, error, t('downloadFailedDesc')),
