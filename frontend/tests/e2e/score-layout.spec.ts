@@ -10,7 +10,7 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ con
     head_revision_id: revisionId, originating_job_id: 'job-1', metadata: null, publication: null,
     derived_assets: {
       preview: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
-      audio: { status: 'pending', asset_id: null, revision_id: null, is_fallback: false },
+      audio: { status: 'ready', asset_id: 'audio-1', revision_id: revisionId, is_fallback: false },
     },
     capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_sharing: true, can_download: true, can_practice: true, can_publish: true },
     created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-21T00:00:00Z' };
@@ -23,8 +23,8 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ con
   await expect(page.getByRole('heading', { name: 'Layout Score' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Play Score' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Score Information' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Version History' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Create Share' })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Collaborators' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Edit' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Practice Mode' })).toBeVisible();
   await expect(page.getByTestId('score-preview-viewport')).toHaveCount(0);

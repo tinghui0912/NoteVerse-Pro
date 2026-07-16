@@ -274,6 +274,12 @@ Future CI should add:
 - signed image attestations if the registry/deployment platform supports them;
 - registry retention policy for old commit images.
 
+The current GitHub Packages view is kept simple by disabling BuildKit
+provenance/SBOM attestations in `docker/build-push-action`. Without that,
+GHCR can show attestation manifests as an extra `unknown/unknown` platform.
+The workflow still generates explicit SPDX SBOM artifacts through the separate
+SBOM step.
+
 Do not disable the scan because a dependency is noisy. Either upgrade the base
 image/dependency, document an accepted risk with expiry, or keep the release
 blocked.

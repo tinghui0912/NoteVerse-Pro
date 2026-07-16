@@ -27,6 +27,6 @@ test('anonymous grant UI follows backend capabilities', async ({ page }) => {
   }));
   await page.goto('/en/share/view-token');
   await expect(page.getByRole('heading', { name: 'Shared Score' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Download' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Download' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Edit' })).toHaveCount(0);
 });

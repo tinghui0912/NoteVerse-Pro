@@ -56,6 +56,8 @@ jobs:
           file: docker/backend/Dockerfile.runtime
           push: ${{ env.PUSH_IMAGES == 'true' }}
           load: ${{ env.PUSH_IMAGES != 'true' }}
+          provenance: false
+          sbom: false
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/backend:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/backend:build-${{ github.run_id }}
@@ -74,6 +76,8 @@ jobs:
           file: docker/frontend/Dockerfile.runtime
           push: ${{ env.PUSH_IMAGES == 'true' }}
           load: ${{ env.PUSH_IMAGES != 'true' }}
+          provenance: false
+          sbom: false
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/frontend:build-${{ github.run_id }}

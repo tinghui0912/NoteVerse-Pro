@@ -12,8 +12,8 @@ const userProfile = {
 
 const apiError = (code: string, message: string) => ({
   success: false,
-  code,
-  error: message,
+  public_code: code,
+  public_message: message,
 });
 
 function deferred<T>() {
