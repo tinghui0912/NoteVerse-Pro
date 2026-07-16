@@ -62,6 +62,39 @@ python scripts/check_k8s_application_manifests.py \
 Strict mode must pass only after placeholders are replaced with real image tags,
 hosts, TLS names, Secret references, PVC names, and scheduling labels.
 
+## Release Overlay Rendering
+
+Public overlays are templates. Generate a deployable temporary overlay from CI
+inputs and image digests:
+
+```bash
+python scripts/render_k8s_release_overlay.py \
+  --environment production \
+  --output build/k8s-release/production \
+  --backend-image ghcr.io/<owner>/noteverse/backend@sha256:<digest> \
+  --frontend-image ghcr.io/<owner>/noteverse/frontend@sha256:<digest> \
+  --frontend-host noteverse.example.com \
+  --api-host api.noteverse.example.com \
+  --tls-secret noteverse-production-tls \
+  --frontend-base-url https://noteverse.example.com \
+  --backend-cors-origins '["https://noteverse.example.com"]' \
+  --mail-default-sender 'NoteVerse Pro <no-reply@noteverse.example.com>' \
+  --s3-endpoint-url https://object-storage.example.com \
+  --s3-public-base-url https://objects.noteverse.example.com
+```
+
+Then validate the generated overlay before applying it:
+
+```bash
+python scripts/check_k8s_application_manifests.py \
+  build/k8s-release/production \
+  --strict
+```
+
+The renderer does not create Secrets, PVCs, database credentials, Redis
+credentials, S3 access keys, or mail provider keys. Those must already exist in
+the target namespace through the cluster secret-management path.
+
 ## Observability Bootstrap
 
 Deploy observability before the application so new pods are visible from the

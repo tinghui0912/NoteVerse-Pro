@@ -65,9 +65,6 @@ export class PracticeFollowController {
   private readonly minSequentialPromptAdvanceMs = 220;
   private readonly commitFrames = 3;
   private readonly commitBeatTolerance = 0.35;
-  private readonly debugEnabled =
-    typeof process !== 'undefined' &&
-    process.env.NEXT_PUBLIC_PRACTICE_DEBUG === 'true';
 
   private state: FollowControllerState = {
     activeNoteIds: [],

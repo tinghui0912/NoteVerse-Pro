@@ -25,7 +25,7 @@ Available checks:
 | `frontend-typecheck` | Frontend TypeScript type checking |
 | `frontend-i18n` | Frontend error translation key guard |
 | `frontend-test` | Frontend unit tests |
-| `k8s` | Kubernetes application manifest guard |
+| `k8s` | Kubernetes application manifest guard and release overlay renderer smoke test |
 | `observability` | Observability values guard |
 | `all` | Fast broad gate: backend ruff/mypy, frontend lint/typecheck/i18n, K8s and observability guards |
 
@@ -51,6 +51,11 @@ python scripts/check_k8s_application_manifests.py `
 Default template mode allows explicit public placeholders. Strict mode blocks
 placeholder images and domains before deployment.
 
+The `k8s` quality check also renders a temporary staging release overlay with
+sample image digests and public host values, then validates it in strict mode.
+This keeps `scripts/render_k8s_release_overlay.py` covered by local and CI
+checks without committing real production values.
+
 ## Observability Values Guard
 
 Run:
@@ -70,6 +75,7 @@ Current GitHub Actions workflows:
 | Workflow | Trigger scope | Purpose |
 | --- | --- | --- |
 | `.github/workflows/backend-quality.yml` | `backend/**` | Backend ruff, mypy, model-layer mypy, pytest |
+| `.github/workflows/container-images.yml` | `backend/**`, `frontend/**`, `docker/**` | Runtime image build guard; pushes GHCR images on `main` and manual runs |
 | `.github/workflows/frontend-quality.yml` | `frontend/**` and shared API constants | Frontend lint, i18n guard, typecheck, tests, build, e2e |
 | `.github/workflows/k8s-application-manifests.yml` | `deploy/application/**` and K8s guard script | Kustomize rendering and deployment-placeholder guard |
 | `.github/workflows/observability-manifests.yml` | `deploy/observability/**` and observability guard script | Loki/Fluent Bit/Prometheus/Tempo values guard |

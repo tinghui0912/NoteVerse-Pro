@@ -1,7 +1,8 @@
 /**
  * 个人资料相关 API
  */
-import { API_BASE_URL, apiClient, ApiResponse } from '../api-client';
+import { API_BASE_URL } from '@/lib/app-protocol';
+import { apiClient, ApiResponse } from '../api-client';
 import type {
     AccountSecurityResponse,
     AccountSessionsResponse,

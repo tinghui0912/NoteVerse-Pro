@@ -7,12 +7,20 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
 spec:
   ingressClassName: nginx
   rules:
     - host: staging.noteverse.example.invalid
       http:
         paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: noteverse-backend-api
+                port:
+                  name: http
           - path: /
             pathType: Prefix
             backend:

@@ -37,6 +37,6 @@ Frontend routing notes:
 
 - `NEXT_BACKEND_ORIGIN` points to the internal backend Service because it is used
   by Next.js rewrites on the server side.
-- `NEXT_PUBLIC_REALTIME_API_BASE_URL` points to the public API host because the
-  browser creates the SSE connection directly. The ingress path must support
-  long-lived responses without buffering.
+- Browser API and realtime requests use same-origin `/api/v1`. The ingress path
+  must route `/api/v1` to the backend API and support long-lived responses
+  without buffering.

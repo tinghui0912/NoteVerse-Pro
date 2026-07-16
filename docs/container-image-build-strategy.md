@@ -28,14 +28,15 @@ Current Dockerfiles:
 | `docker/backend/Dockerfile.ml-base` | CUDA/Python/PyTorch ML base image | yes, as a base image |
 | `docker/backend/Dockerfile.runtime` | FastAPI/Celery backend runtime image | mostly yes |
 | `docker/frontend/Dockerfile.dev` | Next.js development runtime | no |
+| `docker/frontend/Dockerfile.runtime` | Next.js production runtime | initial production path |
 | `docker/transcoda/*` | Transcoda experimental/runtime images | not part of main deployment path |
 
-Current gap:
+Frontend runtime path:
 
-- there is no dedicated production frontend runtime Dockerfile yet;
-- production frontend deployments should not use `docker/frontend/Dockerfile.dev`;
-- a future `docker/frontend/Dockerfile.runtime` should build with `npm ci`,
-  `npm run build`, and run with `next start`.
+- `docker/frontend/Dockerfile.runtime` exists;
+- browser API and realtime traffic use same-origin `/api/v1`;
+- environment-specific backend routing belongs in ingress and
+  `NEXT_BACKEND_ORIGIN`, not in browser-bundled `NEXT_PUBLIC_*` values.
 
 ## Image Names
 
@@ -176,25 +177,20 @@ docker build \
 Current state:
 
 - `docker/frontend/Dockerfile.dev` is for local development only;
-- it runs `next dev` and should not be used in production.
-
-Required next implementation:
-
-- add `docker/frontend/Dockerfile.runtime`;
-- build dependencies with `npm ci`;
-- run `npm run build`;
-- run production server with `npm run start` or `next start`;
-- set `NEXT_TELEMETRY_DISABLED=1`;
-- keep build/runtime configuration explicit and fail-fast.
+- `docker/frontend/Dockerfile.runtime` is the production runtime path;
+- it builds dependencies with `npm ci`;
+- it runs `npm run build`;
+- it runs the production server with `npm run start`;
+- it sets `NEXT_TELEMETRY_DISABLED=1`;
+- build/runtime configuration remains explicit and fail-fast.
 
 Important Next.js config note:
 
 - `frontend/next.config.ts` requires `NEXT_BACKEND_ORIGIN`;
-- staging and production should use a stable internal backend Service origin
-  such as `http://noteverse-backend-api:8000` so the same frontend image can be
-  promoted across environments;
-- browser-facing realtime config remains runtime/public configuration through
-  `NEXT_PUBLIC_REALTIME_API_BASE_URL`.
+- staging and production can use a stable internal backend Service origin such
+  as `http://noteverse-backend-api:8000`;
+- browser-facing API and realtime traffic use same-origin `/api/v1`, with
+  ingress routing that path to the backend API.
 
 Recommended future build:
 
@@ -202,9 +198,16 @@ Recommended future build:
 docker build \
   -f docker/frontend/Dockerfile.runtime \
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 \
+  --build-arg AUTH_COOKIE_NAME=noteverse_session \
+  --build-arg REFRESH_COOKIE_NAME=noteverse_refresh \
   -t <registry>/noteverse/frontend:<git-sha> \
   .
 ```
+
+Docker may emit `SecretsUsedInArgOrEnv` warnings for `AUTH_COOKIE_NAME`. In this
+project those values are cookie names, not secret material. Real secrets must
+still be provided through Kubernetes Secrets and must not be passed as Docker
+build args.
 
 ## Build Cache Strategy
 
@@ -271,8 +274,8 @@ placeholder image tags. Deployable overlays must replace them.
 
 P0 before production:
 
-- add `docker/frontend/Dockerfile.runtime`;
-- add CI image build workflow;
+- connect the pushed GHCR image digests to private staging/production overlay
+  generation;
 - record backend/frontend image digests in release metadata;
 - create private staging/production overlay generation path;
 - run strict manifest validation against private overlays.

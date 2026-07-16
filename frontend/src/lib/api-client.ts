@@ -1,21 +1,8 @@
 'use client';
 
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
-import { requiredEnvValue } from '@/lib/env';
+import { API_BASE_URL, CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/lib/app-protocol';
 import { reportClientError } from '@/lib/observability';
-
-export const API_BASE_URL = requiredEnvValue(
-  process.env.NEXT_PUBLIC_API_BASE_URL,
-  'NEXT_PUBLIC_API_BASE_URL'
-);
-const CSRF_COOKIE_NAME = requiredEnvValue(
-  process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME,
-  'NEXT_PUBLIC_CSRF_COOKIE_NAME'
-);
-const CSRF_HEADER_NAME = requiredEnvValue(
-  process.env.NEXT_PUBLIC_CSRF_HEADER_NAME,
-  'NEXT_PUBLIC_CSRF_HEADER_NAME'
-);
 
 export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path}`;

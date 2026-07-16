@@ -35,8 +35,22 @@ In GitHub Actions, the public template check runs in:
 Render a private production overlay in strict mode:
 
 ```bash
+python scripts/render_k8s_release_overlay.py \
+  --environment production \
+  --output build/k8s-release/production \
+  --backend-image ghcr.io/<owner>/noteverse/backend@sha256:<digest> \
+  --frontend-image ghcr.io/<owner>/noteverse/frontend@sha256:<digest> \
+  --frontend-host noteverse.example.com \
+  --api-host api.noteverse.example.com \
+  --tls-secret noteverse-production-tls \
+  --frontend-base-url https://noteverse.example.com \
+  --backend-cors-origins '["https://noteverse.example.com"]' \
+  --mail-default-sender 'NoteVerse Pro <no-reply@noteverse.example.com>' \
+  --s3-endpoint-url https://object-storage.example.com \
+  --s3-public-base-url https://objects.noteverse.example.com
+
 python scripts/check_k8s_application_manifests.py \
-  deploy/application/overlays/production-private \
+  build/k8s-release/production \
   --strict
 ```
 
@@ -80,9 +94,8 @@ Verify:
 - `FRONTEND_BASE_URL` is the public product URL;
 - `BACKEND_CORS_ORIGINS` includes only approved browser origins;
 - `NEXT_BACKEND_ORIGIN` points to the internal backend Service;
-- `NEXT_PUBLIC_REALTIME_API_BASE_URL` points to the public API origin that
-  supports SSE without buffering;
-- cookie names and CSRF header names match backend and frontend configuration.
+- `/api/v1` is routed by ingress to the backend API;
+- cookie names match backend and frontend configuration.
 
 Do not use `localhost`, private LAN IPs, or Docker host aliases in deployable
 overlays.

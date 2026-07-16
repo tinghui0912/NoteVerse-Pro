@@ -5,11 +5,13 @@ on:
     paths:
       - "deploy/application/**"
       - "scripts/check_k8s_application_manifests.py"
+      - "scripts/render_k8s_release_overlay.py"
       - ".github/workflows/k8s-application-manifests.yml"
   pull_request:
     paths:
       - "deploy/application/**"
       - "scripts/check_k8s_application_manifests.py"
+      - "scripts/render_k8s_release_overlay.py"
       - ".github/workflows/k8s-application-manifests.yml"
 
 concurrency:
@@ -42,3 +44,21 @@ jobs:
             exit 1
           fi
           echo "Strict mode rejected the public production template as expected."
+
+      - name: Verify release overlay renderer
+        run: |
+          python scripts/render_k8s_release_overlay.py \
+            --environment staging \
+            --output build/k8s-release-check/staging \
+            --backend-image ghcr.io/example/noteverse/backend@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
+            --frontend-image ghcr.io/example/noteverse/frontend@sha256:2222222222222222222222222222222222222222222222222222222222222222 \
+            --frontend-host staging.noteverse.test \
+            --api-host api.staging.noteverse.test \
+            --tls-secret noteverse-staging-real-tls \
+            --frontend-base-url https://staging.noteverse.test \
+            --backend-cors-origins '["https://staging.noteverse.test"]' \
+            --mail-default-sender 'NoteVerse Pro <no-reply@staging.noteverse.test>' \
+            --s3-endpoint-url https://object-storage.noteverse.test \
+            --s3-public-base-url https://objects.staging.noteverse.test
+
+          python scripts/check_k8s_application_manifests.py build/k8s-release-check/staging --strict

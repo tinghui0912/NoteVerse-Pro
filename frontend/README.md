@@ -20,7 +20,8 @@ Open:
 http://localhost:9002
 ```
 
-The frontend proxies `/api/v1/*` through Next.js rewrites.
+The frontend uses same-origin `/api/v1/*` for browser API and realtime traffic.
+In local development, Next.js rewrites that path to the backend API.
 `NEXT_BACKEND_ORIGIN` is required in `.env.docker`:
 
 ```text
@@ -30,25 +31,15 @@ http://host.docker.internal:8000
 This points to the backend API running on the Windows host or in the backend
 Docker profile published to port `8000`.
 
-Realtime events use `NEXT_PUBLIC_REALTIME_API_BASE_URL` because EventSource
-connections must not pass through proxies that buffer streaming responses. The
-value must be browser-reachable and include the API base path, for example:
-
-```text
-http://localhost:8000/api/v1
-```
-
-Use the same hostname in the browser and realtime API URL so HttpOnly auth
-cookies are sent consistently. For example, open `http://localhost:9002` with
-`NEXT_PUBLIC_REALTIME_API_BASE_URL=http://localhost:8000/api/v1`; if you open
-`http://127.0.0.1:9002`, configure the realtime URL with `127.0.0.1` too.
+In Kubernetes, route `/api/v1` to the backend API at the ingress layer so
+browser requests do not depend on environment-specific public JavaScript
+configuration.
 
 For LAN device testing, configure the frontend dev server with the LAN host:
 
 ```powershell
 $env:NEXT_BACKEND_ORIGIN='http://localhost:8000'
 $env:NEXT_ALLOWED_DEV_ORIGINS='192.168.31.59'
-$env:NEXT_PUBLIC_REALTIME_API_BASE_URL='http://192.168.31.59:8000/api/v1'
 npm run dev
 ```
 

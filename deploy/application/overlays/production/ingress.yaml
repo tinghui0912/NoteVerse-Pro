@@ -14,6 +14,13 @@ spec:
     - host: noteverse.example.invalid
       http:
         paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: noteverse-backend-api
+                port:
+                  name: http
           - path: /
             pathType: Prefix
             backend:

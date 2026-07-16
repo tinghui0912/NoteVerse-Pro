@@ -36,11 +36,12 @@ Related documents:
 Current repository workflows:
 
 - `.github/workflows/backend-quality.yml`
+- `.github/workflows/container-images.yml`
 - `.github/workflows/frontend-quality.yml`
 - `.github/workflows/k8s-application-manifests.yml`
 - `.github/workflows/observability-manifests.yml`
 
-These workflows are quality gates, not production deployers.
+These workflows are quality/build gates, not production deployers.
 
 ## Image Tagging
 
@@ -90,7 +91,7 @@ commit
 ```
 
 Do not rebuild different production images from the same source after staging.
-Promote the tested artifact.
+Promote the tested artifact by immutable tag or digest.
 
 ## Private Overlays
 
@@ -307,20 +308,28 @@ Implemented:
 
 ### Phase 2 - Image Build
 
-Add workflows that:
+Implemented:
 
-- build backend image;
-- build frontend image;
-- tag images by commit SHA;
-- push to the chosen registry;
-- record image digests as workflow outputs.
+- `.github/workflows/container-images.yml` builds the backend and frontend
+  runtime images for pull requests and branch pushes;
+- the same workflow pushes immutable GHCR images on `main` pushes and manual
+  runs;
+- images are tagged with the full Git commit SHA and `build-<run-id>`;
+- image digests are written to the workflow summary.
+
+Still required:
+
+- feed captured image digests into private staging and production overlays;
+- record image digests as release metadata;
+- add SBOM and image vulnerability scanning gates.
 
 ### Phase 3 - Staging Deploy
 
 Add a staging deploy workflow that:
 
 - receives image digests;
-- generates or checks a private staging overlay;
+- generates a private staging overlay with
+  `scripts/render_k8s_release_overlay.py`;
 - runs strict manifest validation;
 - runs migration job;
 - rolls application workloads;

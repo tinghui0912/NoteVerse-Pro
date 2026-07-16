@@ -139,13 +139,6 @@ Runtime:
 Required environment variables:
 
 - `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites;
-- `NEXT_PUBLIC_API_BASE_URL`: browser API base, normally `/api/v1` when using
-  the same public host;
-- `NEXT_PUBLIC_REALTIME_API_BASE_URL`: browser realtime API base; for production
-  this should use the public backend/API origin that supports SSE without
-  buffering;
-- `NEXT_PUBLIC_CSRF_COOKIE_NAME`;
-- `NEXT_PUBLIC_CSRF_HEADER_NAME`;
 - `AUTH_COOKIE_NAME`;
 - `REFRESH_COOKIE_NAME`.
 
@@ -157,10 +150,10 @@ Development-only environment variables:
 Production frontend builds must fail fast when required runtime config is
 missing. Do not add fallback API origins, cookie names, or realtime URLs.
 
-`NEXT_BACKEND_ORIGIN` and `NEXT_PUBLIC_REALTIME_API_BASE_URL` intentionally may
-point to different origins: server-side rewrites can use the internal backend
-Service, while browser SSE should use the public API origin that is configured
-for CORS and long-lived streaming.
+Browser API and realtime calls use same-origin `/api/v1`. In production, the
+ingress must route `/api/v1` to the backend API and must support long-lived SSE
+responses without buffering. This keeps frontend images environment-neutral and
+avoids baking public API origins into the browser bundle.
 
 ## Configuration Ownership
 
@@ -190,15 +183,11 @@ Store these as ConfigMaps:
   - `FRONTEND_BASE_URL`;
   - `BACKEND_CORS_ORIGINS`;
   - `NEXT_BACKEND_ORIGIN`;
-  - `NEXT_PUBLIC_API_BASE_URL`;
-  - `NEXT_PUBLIC_REALTIME_API_BASE_URL`;
 - cookie/header names:
   - `AUTH_COOKIE_NAME`;
   - `REFRESH_COOKIE_NAME`;
   - `CSRF_COOKIE_NAME`;
   - `CSRF_HEADER_NAME`;
-  - `NEXT_PUBLIC_CSRF_COOKIE_NAME`;
-  - `NEXT_PUBLIC_CSRF_HEADER_NAME`;
 - storage mode and non-secret S3 settings:
   - `FILE_STORAGE_BACKEND`;
   - `S3_ENDPOINT_URL`;
@@ -336,7 +325,7 @@ or database-backed ops APIs, not Kubernetes labels.
 3. Deploy `backend-api` with probes and ServiceMonitor.
 4. Deploy `backend-worker` with role runtime checks.
 5. Deploy singleton `backend-beat` with role runtime checks.
-6. Deploy `frontend` with explicit public API/realtime/cookie env.
+6. Deploy `frontend` with explicit server-side rewrite and auth cookie env.
 7. Verify:
    - `/health/live`;
    - `/health/ready`;

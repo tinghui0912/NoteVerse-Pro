@@ -21,6 +21,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $BackendQuality = Join-Path $PSScriptRoot "backend_quality.ps1"
 $FrontendRoot = Join-Path $RepoRoot "frontend"
 $K8sManifestCheck = Join-Path $PSScriptRoot "check_k8s_application_manifests.py"
+$K8sReleaseOverlayRenderer = Join-Path $PSScriptRoot "render_k8s_release_overlay.py"
 $ObservabilityManifestCheck = Join-Path $PSScriptRoot "check_observability_manifests.py"
 
 function Invoke-Step {
@@ -64,6 +65,33 @@ function Invoke-K8sManifestCheck {
     }
 }
 
+function Invoke-K8sReleaseOverlaySmokeCheck {
+    $OutputDir = Join-Path $RepoRoot "build/k8s-release-check/staging"
+    $OutputRoot = Join-Path $RepoRoot "build/k8s-release-check"
+
+    Invoke-Step "k8s:release-overlay-renderer" {
+        if (Test-Path $OutputRoot) {
+            Remove-Item -Recurse -Force $OutputRoot
+        }
+
+        python $K8sReleaseOverlayRenderer `
+            --environment staging `
+            --output $OutputDir `
+            --backend-image "ghcr.io/example/noteverse/backend@sha256:1111111111111111111111111111111111111111111111111111111111111111" `
+            --frontend-image "ghcr.io/example/noteverse/frontend@sha256:2222222222222222222222222222222222222222222222222222222222222222" `
+            --frontend-host "staging.noteverse.test" `
+            --api-host "api.staging.noteverse.test" `
+            --tls-secret "noteverse-staging-real-tls" `
+            --frontend-base-url "https://staging.noteverse.test" `
+            --backend-cors-origins '["https://staging.noteverse.test"]' `
+            --mail-default-sender "NoteVerse Pro <no-reply@staging.noteverse.test>" `
+            --s3-endpoint-url "https://object-storage.noteverse.test" `
+            --s3-public-base-url "https://objects.staging.noteverse.test"
+
+        python $K8sManifestCheck $OutputDir --strict
+    }
+}
+
 function Invoke-ObservabilityManifestCheck {
     Invoke-Step "observability:manifests" {
         python $ObservabilityManifestCheck
@@ -97,6 +125,7 @@ switch ($Check) {
     }
     "k8s" {
         Invoke-K8sManifestCheck
+        Invoke-K8sReleaseOverlaySmokeCheck
     }
     "observability" {
         Invoke-ObservabilityManifestCheck
@@ -108,6 +137,7 @@ switch ($Check) {
         Invoke-FrontendNpm "typecheck"
         Invoke-FrontendNpm "check:i18n-errors"
         Invoke-K8sManifestCheck
+        Invoke-K8sReleaseOverlaySmokeCheck
         Invoke-ObservabilityManifestCheck
     }
 }
