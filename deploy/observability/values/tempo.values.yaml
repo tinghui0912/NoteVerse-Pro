@@ -1,0 +1,33 @@
+# Tempo values skeleton for NoteVerse Pro.
+#
+# Chart family: grafana/tempo or grafana/tempo-distributed
+# Namespace: observability
+#
+# Validate against the exact chart version before installation.
+
+tempo:
+  reportingEnabled: false
+  retention: 168h
+  searchEnabled: true
+  receivers:
+    otlp:
+      protocols:
+        grpc: {}
+        http: {}
+
+server:
+  http_listen_port: 3100
+
+serviceMonitor:
+  enabled: true
+
+persistence:
+  enabled: true
+  size: 20Gi
+
+# Application pods should export traces to the OpenTelemetry Collector, not
+# directly to Tempo. The collector owns sampling, batching, redaction, and
+# routing policy.
+#
+# Do not attach request bodies, MusicXML, OCR text, raw audio, emails, tokens,
+# or file hashes as span attributes.

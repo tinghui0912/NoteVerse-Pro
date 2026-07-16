@@ -239,4 +239,4 @@ Initial retention recommendation:
 2. Confirm application JSON logs parse correctly in a staging cluster.
 3. Add Grafana Explore links from operations dashboards.
 4. Introduce OpenTelemetry and Tempo after trace sampling and retention policy
-   are decided.
+   are decided. See `docs/opentelemetry-tempo-tracing-plan.md`.

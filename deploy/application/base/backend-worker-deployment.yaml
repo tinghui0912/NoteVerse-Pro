@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse-backend-worker
+  labels:
+    app.kubernetes.io/component: backend-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: backend-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: noteverse
+        app.kubernetes.io/part-of: noteverse
+        app.kubernetes.io/component: backend-worker
+    spec:
+      containers:
+        - name: worker
+          image: noteverse-backend:replace-me
+          args:
+            - worker
+          envFrom:
+            - configMapRef:
+                name: noteverse-backend-config
+            - secretRef:
+                name: noteverse-backend-secret
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+            limits:
+              cpu: "4"
+              memory: 12Gi

@@ -20,6 +20,7 @@ The target deployment is Kubernetes with Prometheus, Loki, Tempo, and Grafana.
   See `docs/k8s-logging-loki-fluent-bit-plan.md` for the full label policy.
 - Distributed traces will use OpenTelemetry and Tempo once request/outbox
   correlation is stable enough to justify trace sampling and retention policy.
+  See `docs/opentelemetry-tempo-tracing-plan.md`.
 - Sentry is not part of the planned stack.
 - Alerts should page only for user-impacting or operator-actionable failures.
 

@@ -1,0 +1,33 @@
+name: Observability Manifests
+
+on:
+  push:
+    paths:
+      - "deploy/observability/**"
+      - "scripts/check_observability_manifests.py"
+      - ".github/workflows/observability-manifests.yml"
+  pull_request:
+    paths:
+      - "deploy/observability/**"
+      - "scripts/check_observability_manifests.py"
+      - ".github/workflows/observability-manifests.yml"
+
+concurrency:
+  group: observability-manifests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate observability values
+        run: python scripts/check_observability_manifests.py

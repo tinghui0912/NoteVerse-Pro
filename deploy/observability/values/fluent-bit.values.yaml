@@ -1,0 +1,71 @@
+# Fluent Bit values skeleton for NoteVerse Pro.
+#
+# Chart family: fluent/fluent-bit
+# Namespace: observability
+#
+# This file is intentionally incomplete. Validate against the exact chart
+# version before installation.
+
+serviceMonitor:
+  enabled: true
+
+config:
+  service: |
+    [SERVICE]
+        Flush        1
+        Log_Level    info
+        Parsers_File parsers.conf
+
+  inputs: |
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*.log
+        Parser            cri
+        Tag               kube.*
+        Refresh_Interval  5
+        Rotate_Wait       30
+        Mem_Buf_Limit     50MB
+        Skip_Long_Lines   On
+
+  filters: |
+    [FILTER]
+        Name                kubernetes
+        Match               kube.*
+        Merge_Log           On
+        Keep_Log            Off
+        K8S-Logging.Parser  On
+        K8S-Logging.Exclude On
+
+    [FILTER]
+        Name         parser
+        Match        kube.*
+        Key_Name     log
+        Parser       noteverse_json
+        Reserve_Data On
+
+  outputs: |
+    [OUTPUT]
+        Name        loki
+        Match       kube.*
+        Host        loki-gateway.observability.svc.cluster.local
+        Port        80
+        Line_Format json
+        Labels      namespace=$kubernetes['namespace_name'],container=$kubernetes['container_name']
+        Label_Keys  level
+
+  customParsers: |
+    [PARSER]
+        Name        cri
+        Format      regex
+        Regex       ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+
+    [PARSER]
+        Name        noteverse_json
+        Format      json
+        Time_Key    timestamp
+        Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+
+# Do not add request_id, score_id, job_id, user_id, revision_id, outbox_id,
+# email, file hashes, or storage keys as Loki labels.

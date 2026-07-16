@@ -315,6 +315,29 @@ Grafana dashboard panels should link to Explore with these query shapes.
 Use `$event` only for curated low-cardinality values. Do not expose raw IDs as
 drop-down variables.
 
+## Future Trace Correlation
+
+After OpenTelemetry + Tempo is enabled, backend logs should include `trace_id`
+and `span_id` in the JSON body. They must remain JSON fields, not Loki labels.
+
+From logs to traces:
+
+```logql
+{namespace="$namespace"} | json | trace_id="$trace_id"
+```
+
+Grafana derived fields can turn the `trace_id` field into a link to Tempo.
+
+From traces to logs:
+
+- open a trace in Tempo;
+- copy `trace_id`;
+- query Loki with the LogQL shape above;
+- narrow by `request_id` or `originating_request_id` when investigating a
+  specific support incident.
+
+Tracing design is documented in `docs/opentelemetry-tempo-tracing-plan.md`.
+
 ## Incident Checklist
 
 1. Start from the user-visible request ID, operation ID, score ID, or alerting

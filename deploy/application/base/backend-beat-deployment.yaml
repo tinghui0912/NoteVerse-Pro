@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse-backend-beat
+  labels:
+    app.kubernetes.io/component: backend-beat
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: backend-beat
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: noteverse
+        app.kubernetes.io/part-of: noteverse
+        app.kubernetes.io/component: backend-beat
+    spec:
+      containers:
+        - name: beat
+          image: noteverse-backend:replace-me
+          args:
+            - beat
+          envFrom:
+            - configMapRef:
+                name: noteverse-backend-config
+            - secretRef:
+                name: noteverse-backend-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

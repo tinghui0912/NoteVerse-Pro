@@ -1,0 +1,44 @@
+name: K8s Application Manifests
+
+on:
+  push:
+    paths:
+      - "deploy/application/**"
+      - "scripts/check_k8s_application_manifests.py"
+      - ".github/workflows/k8s-application-manifests.yml"
+  pull_request:
+    paths:
+      - "deploy/application/**"
+      - "scripts/check_k8s_application_manifests.py"
+      - ".github/workflows/k8s-application-manifests.yml"
+
+concurrency:
+  group: k8s-application-manifests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Validate public application templates
+        run: python scripts/check_k8s_application_manifests.py
+
+      - name: Verify strict mode rejects public production template
+        run: |
+          if python scripts/check_k8s_application_manifests.py deploy/application/overlays/production --strict; then
+            echo "::error::Strict K8s manifest validation unexpectedly accepted the public production template."
+            exit 1
+          fi
+          echo "Strict mode rejected the public production template as expected."

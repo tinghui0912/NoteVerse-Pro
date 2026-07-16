@@ -18,11 +18,25 @@ failures diagnosable while keeping the product UI clean:
 Target production deployment:
 
 - Kubernetes for application runtime;
+- application runtime contract documented in
+  `docs/k8s-application-runtime-contract.md`;
+- production preflight checklist documented in
+  `docs/k8s-production-preflight-checklist.md`;
+- Kubernetes deployment runbook documented in
+  `docs/k8s-deployment-runbook.md`;
+- Kubernetes Secret and storage contract documented in
+  `docs/k8s-secrets-and-storage-template.md`;
+- repository quality checks documented in
+  `docs/repository-quality-checks.md`;
+- CI/CD release strategy documented in
+  `docs/cicd-release-strategy.md`;
+- container image build strategy documented in
+  `docs/container-image-build-strategy.md`;
 - Fluent Bit for log collection;
 - Loki + Grafana for log storage, querying, and visualization;
 - Prometheus + Grafana for metrics and dashboards;
 - OpenTelemetry + Tempo for distributed tracing after request/outbox
-  correlation is stable;
+  correlation is stable; see `docs/opentelemetry-tempo-tracing-plan.md`;
 - backend services must write production logs to stdout/stderr only and must not
   depend on local log files.
 
@@ -386,6 +400,12 @@ Acceptance criteria:
 Objective: connect the facades to the self-hosted production observability
 stack.
 
+Status: planning documents exist for the observability platform and application
+runtime boundaries. See:
+
+- `docs/k8s-observability-deployment-skeleton.md`;
+- `docs/k8s-application-runtime-contract.md`.
+
 Tasks:
 
 1. Deploy Fluent Bit as the Kubernetes log collector.
@@ -393,7 +413,8 @@ Tasks:
 3. Use Grafana for log exploration and dashboard links.
 4. Integrate metrics with Prometheus and Grafana.
 5. Add OpenTelemetry instrumentation after request/outbox correlation is
-   stable.
+   stable. Use `docs/opentelemetry-tempo-tracing-plan.md` as the implementation
+   contract.
 6. Send traces to Tempo.
 7. Add required env/configuration without fallback DSNs.
 
@@ -446,8 +467,15 @@ Acceptance criteria:
 10. Add Fluent Bit -> Loki -> Grafana deployment requirements.
 11. Add Grafana Loki query runbook for request, async operation, import,
     derived asset, realtime, and practice investigations.
-12. Add OpenTelemetry -> Tempo tracing only after the local facades and
-    correlation contracts are stable.
+12. Add Kubernetes observability deployment skeleton under
+    `deploy/observability` and document release boundaries.
+13. Add Kubernetes application runtime contract for API, worker, beat, and
+    frontend ports, probes, metrics, env, and fail-fast rules.
+14. Add repository quality entry point for Kubernetes application manifest
+    guardrails.
+15. Add OpenTelemetry -> Tempo tracing only after the local facades and
+    correlation contracts are stable, following
+    `docs/opentelemetry-tempo-tracing-plan.md`.
 
 ## Non-goals For The Next Iteration
 

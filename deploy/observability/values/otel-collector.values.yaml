@@ -1,0 +1,65 @@
+# OpenTelemetry Collector values skeleton for NoteVerse Pro.
+#
+# Chart family: open-telemetry/opentelemetry-collector
+# Namespace: observability
+#
+# Validate against the exact chart version before installation.
+
+mode: deployment
+
+presets:
+  logsCollection:
+    enabled: false
+  hostMetrics:
+    enabled: false
+  kubernetesAttributes:
+    enabled: true
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch:
+      timeout: 5s
+      send_batch_size: 1024
+    resource:
+      attributes:
+        - key: deployment.environment
+          from_attribute: k8s.namespace.name
+          action: insert
+
+  exporters:
+    otlp/tempo:
+      endpoint: tempo.observability.svc.cluster.local:4317
+      tls:
+        insecure: true
+
+  service:
+    pipelines:
+      traces:
+        receivers:
+          - otlp
+        processors:
+          - memory_limiter
+          - resource
+          - batch
+        exporters:
+          - otlp/tempo
+
+serviceMonitor:
+  enabled: true
+
+# Sampling is intentionally not enabled in this skeleton. Decide head/tail
+# sampling policy after staging traffic confirms trace volume.
+#
+# Application code must not export traces to a fallback or default endpoint.

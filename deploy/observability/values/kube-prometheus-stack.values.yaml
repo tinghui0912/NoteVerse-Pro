@@ -1,0 +1,60 @@
+# kube-prometheus-stack values skeleton for NoteVerse Pro.
+#
+# Chart family: prometheus-community/kube-prometheus-stack
+# Namespace: observability
+#
+# Validate against the exact chart version before installation.
+
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: true
+  sidecar:
+    dashboards:
+      enabled: true
+    datasources:
+      enabled: true
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.observability.svc.cluster.local
+      jsonData:
+        derivedFields:
+          - datasourceUid: tempo
+            matcherRegex: '"trace_id":"([a-f0-9]+)"'
+            name: trace_id
+            url: "$${__value.raw}"
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo.observability.svc.cluster.local:3100
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: Loki
+          tags:
+            - key: namespace
+              value: namespace
+          filterByTraceID: true
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    scrapeInterval: 30s
+
+alertmanager:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+# Do not add raw request_id, score_id, job_id, user_id, storage_key, or email as
+# Prometheus labels.
+#
+# Grafana admin credentials must be provided through external secret management,
+# not committed values.

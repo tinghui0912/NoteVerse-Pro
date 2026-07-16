@@ -1,0 +1,42 @@
+# Loki values skeleton for NoteVerse Pro.
+#
+# Chart family: grafana/loki or grafana/loki-distributed
+# Namespace: observability
+#
+# Validate against the exact chart version before installation.
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  limits_config:
+    retention_period: 720h
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+  schemaConfig:
+    configs:
+      - from: "2026-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 50Gi
+
+gateway:
+  enabled: true
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+
+# Production should switch storage to a durable object store or persistent
+# volume strategy appropriate for the cluster.
+#
+# Loki is operational log storage, not audit or billing source of truth.

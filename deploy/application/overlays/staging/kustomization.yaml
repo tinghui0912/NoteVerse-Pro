@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: noteverse-staging
+
+resources:
+  - ../../base
+  - ingress.yaml
+
+labels:
+  - includeSelectors: false
+    includeTemplates: true
+    pairs:
+      app.kubernetes.io/instance: noteverse-staging
+      app.kubernetes.io/environment: staging
+
+images:
+  - name: noteverse-backend
+    newName: registry.example.invalid/noteverse/backend
+    newTag: staging-replace-me
+  - name: noteverse-frontend
+    newName: registry.example.invalid/noteverse/frontend
+    newTag: staging-replace-me
+
+configMapGenerator:
+  - name: noteverse-backend-config
+    envs:
+      - backend-config.env
+  - name: noteverse-frontend-config
+    envs:
+      - frontend-config.env
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+replicas:
+  - name: noteverse-backend-api
+    count: 2
+  - name: noteverse-backend-worker
+    count: 1
+  - name: noteverse-frontend
+    count: 2
+
+patches:
+  - path: patch-backend-api-runtime-volumes.yaml
+  - path: patch-backend-worker-runtime-volumes.yaml
+  - path: patch-backend-beat-runtime-volumes.yaml

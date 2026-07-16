@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: noteverse
+  labels:
+    app.kubernetes.io/component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: staging.noteverse.example.invalid
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: noteverse-frontend
+                port:
+                  name: http
+    - host: api.staging.noteverse.example.invalid
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: noteverse-backend-api
+                port:
+                  name: http
+  tls:
+    - hosts:
+        - staging.noteverse.example.invalid
+        - api.staging.noteverse.example.invalid
+      secretName: noteverse-staging-tls
