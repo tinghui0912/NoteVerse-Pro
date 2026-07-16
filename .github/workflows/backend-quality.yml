@@ -85,5 +85,8 @@ jobs:
       - name: Run model-layer mypy
         run: python -m mypy --config-file mypy-model-layer.ini
 
+      - name: Run database migrations
+        run: python -m alembic upgrade head
+
       - name: Run pytest
         run: python -m pytest tests -q

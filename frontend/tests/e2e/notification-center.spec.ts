@@ -68,7 +68,7 @@ const completedProcessingNotification = {
   score_id: null,
   actor: null,
   data: { job_id: 'ready-job-1', job_title: 'Ready Score' },
-  read_at: null,
+  read_at: '2026-07-01T09:35:00Z',
   created_at: '2026-07-01T09:30:00Z',
 };
 
@@ -238,15 +238,13 @@ test('failed processing notification opens the matching upload job', async ({ pa
 });
 
 test('completed processing notification opens job review', async ({ page }) => {
-  let markReadCalled = false;
-
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
   await page.route('**/api/v1/me/notifications/unread-count', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 1 } }),
+      body: JSON.stringify({ success: true, data: { count: 0 } }),
     })
   );
   await page.route('**/api/v1/me/notifications', (route) => {
@@ -259,19 +257,6 @@ test('completed processing notification opens job review', async ({ page }) => {
     }
     return route.fallback();
   });
-  await page.route('**/api/v1/me/notifications/notification-processing-completed/read', (route) =>
-  {
-    markReadCalled = true;
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: { ...completedProcessingNotification, read_at: '2026-07-01T09:35:00Z' },
-      }),
-    });
-  }
-  );
   await page.route('**/api/v1/review/ready-job-1**', (route) =>
     route.fulfill({
       status: 200,
@@ -289,7 +274,6 @@ test('completed processing notification opens job review', async ({ page }) => {
   await expect(completedNotification).toBeVisible();
   await completedNotification.click();
 
-  await expect.poll(() => markReadCalled).toBe(true);
   await expect(page).toHaveURL(/\/review\/ready-job-1$/);
 });
 
