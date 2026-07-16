@@ -924,6 +924,28 @@ def test_matchmaker_live_engine_calculates_beat_velocity() -> None:
     )
 
 
+def test_matchmaker_live_engine_samples_alignment_diagnostics(monkeypatch) -> None:
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+
+    monkeypatch.setattr(
+        "app.processing.engines.matchmaker_live.settings.PRACTICE_AUDIO_DIAGNOSTICS",
+        True,
+    )
+    monkeypatch.setattr(
+        "app.processing.engines.matchmaker_live.settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL",
+        3,
+    )
+
+    assert engine._should_log_alignment_update() is True
+    assert engine._should_log_alignment_update() is False
+    assert engine._should_log_alignment_update() is True
+    assert engine._should_log_alignment_update() is False
+
+    assert engine._should_log_alignment_decision() is True
+    assert engine._should_log_alignment_decision() is False
+    assert engine._should_log_alignment_decision() is True
+
+
 def test_matchmaker_live_engine_validates_start_against_first_score_feature() -> None:
     import numpy as np
 

@@ -11,15 +11,12 @@ from typing import Callable
 import copy
 import xml.etree.ElementTree as ET
 
-from celery.utils.log import get_task_logger
-
 from app.core.config import settings
+from app.core.logger import logger
 from app.processing.musicxml import normalize_initial_musicxml_clefs
 from app.shared.constants import ErrorCode
 
 from .base import OmrFailureResult, OmrOutputFiles, OmrResult, OmrSuccessResult
-
-logger = get_task_logger(__name__)
 
 
 class LegatoConversionError(RuntimeError):
@@ -64,6 +61,13 @@ class LegatoOmrEngine:
 
     def process_images(self, image_paths: list[str]) -> OmrResult:
         try:
+            logger.bind(
+                event="legato_omr.processing_started",
+                engine=self.engine_name,
+                page_count=len(image_paths),
+                timeout_seconds=self.timeout_seconds,
+                device=self.device,
+            ).info("LEGATO OMR processing started")
             self._check_prerequisites(image_paths)
             self.output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -78,6 +82,12 @@ class LegatoOmrEngine:
                     "LEGATO inference failed",
                     inference.stderr,
                 )
+
+            logger.bind(
+                event="legato_omr.inference_completed",
+                engine=self.engine_name,
+                page_count=len(image_paths),
+            ).info("LEGATO OMR inference completed")
 
             abcs = self._read_abcs(prediction_path)
             if len(abcs) != len(image_paths):
@@ -118,23 +128,43 @@ class LegatoOmrEngine:
                 stdout=inference.stdout,
                 stderr=inference.stderr,
             )
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
+            logger.bind(
+                event="legato_omr.processing_timeout",
+                engine=self.engine_name,
+                page_count=len(image_paths),
+                timeout_seconds=self.timeout_seconds,
+            ).opt(exception=exc).warning("LEGATO OMR processing timed out")
             return self._failure(
                 ErrorCode.TASK_TIMEOUT,
                 "LEGATO processing timed out",
             )
         except FileNotFoundError as exc:
+            logger.bind(
+                event="legato_omr.prerequisite_missing",
+                engine=self.engine_name,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).warning("LEGATO OMR prerequisite missing")
             return self._failure(
                 ErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
             )
         except LegatoConversionError as exc:
+            logger.bind(
+                event="legato_omr.conversion_failed",
+                engine=self.engine_name,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).warning("LEGATO OMR conversion failed")
             return self._failure(
                 ErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
             )
         except Exception as exc:
-            logger.exception("LEGATO processing failed")
+            logger.bind(
+                event="legato_omr.processing_failed",
+                engine=self.engine_name,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).error("LEGATO OMR processing failed")
             return self._failure(
                 ErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
@@ -151,6 +181,13 @@ class LegatoOmrEngine:
 
         conversion = self._run_abc2xml(cleaned_abc, stem)
         if conversion.returncode != 0:
+            logger.bind(
+                event="legato_omr.abc_to_musicxml_failed",
+                engine=self.engine_name,
+                stem=stem,
+                exit_code=conversion.returncode,
+                stderr_tail=conversion.stderr.decode("utf-8", errors="replace")[-1000:],
+            ).warning("LEGATO ABC to MusicXML conversion failed")
             raise LegatoConversionError(
                 "LEGATO ABC to MusicXML conversion failed: "
                 + conversion.stderr.decode("utf-8", errors="replace")[-1000:]
@@ -242,6 +279,13 @@ class LegatoOmrEngine:
             result.stderr,
             encoding="utf-8",
         )
+        logger.bind(
+            event="legato_omr.inference_subprocess_finished",
+            engine=self.engine_name,
+            exit_code=result.returncode,
+            stdout_tail=result.stdout[-1000:],
+            stderr_tail=result.stderr[-1000:],
+        ).info("LEGATO inference subprocess finished")
         return result
 
     def _read_abc(self, prediction_path: Path) -> str:
@@ -360,7 +404,12 @@ class LegatoOmrEngine:
         stderr: str = "",
     ) -> OmrFailureResult:
         if stderr:
-            logger.warning(f"LEGATO error [{code}]: {stderr[-1000:]}")
+            logger.bind(
+                event="legato_omr.failure",
+                engine=self.engine_name,
+                public_code=code,
+                stderr_tail=stderr[-1000:],
+            ).warning("LEGATO OMR failure")
         return OmrFailureResult(
             success=False,
             engine=self.engine_name,

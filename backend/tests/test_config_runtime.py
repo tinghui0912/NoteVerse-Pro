@@ -34,6 +34,22 @@ def test_practice_audio_min_active_frames_uses_stable_floor() -> None:
     assert settings.PRACTICE_AUDIO_MIN_ACTIVE_FRAMES == 3
 
 
+def test_practice_diagnostic_intervals_must_be_positive() -> None:
+    settings = Settings(
+        PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=15,
+        PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=15,
+    )
+
+    assert settings.PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL == 15
+    assert settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL == 15
+
+    with pytest.raises(ValidationError, match="task timing settings must be positive"):
+        Settings(PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=0)
+
+    with pytest.raises(ValidationError, match="task timing settings must be positive"):
+        Settings(PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=0)
+
+
 def test_practice_soundfont_path_expands_user_home() -> None:
     settings = Settings(
         PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2",

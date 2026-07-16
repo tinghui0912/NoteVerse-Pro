@@ -11,7 +11,8 @@ The target deployment is Kubernetes with Prometheus, Loki, Tempo, and Grafana.
   `revision_id`, `job_id`, user email, or storage object keys.
 - Logs are collected by Fluent Bit, stored in Loki, and explored in Grafana.
   Grafana panels should link to logs through request IDs or operation IDs when
-  the platform supports it.
+  the platform supports it. Operator query workflows are documented in
+  `docs/grafana-loki-query-runbook.md`.
 - Loki labels must stay low-cardinality. Use labels such as `service`,
   `environment`, `namespace`, `pod`, `container`, and `level`. Keep
   `request_id`, `originating_request_id`, `score_id`, `revision_id`, `job_id`,

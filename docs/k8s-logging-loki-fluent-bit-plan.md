@@ -174,6 +174,8 @@ Important: do not use `request_id`, `user_id`, `score_id`, `job_id`, or
 
 ## LogQL Query Examples
 
+For the full operator runbook, see `docs/grafana-loki-query-runbook.md`.
+
 Find backend API errors:
 
 ```logql

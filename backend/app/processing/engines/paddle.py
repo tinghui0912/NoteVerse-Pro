@@ -9,11 +9,9 @@ import sys
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
-from celery.utils.log import get_task_logger
-
 from app.core.config import settings
+from app.core.logger import logger
 
-logger = get_task_logger(__name__)
 _CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 _BACKEND_DIR = Path(__file__).resolve().parents[3]
@@ -101,7 +99,12 @@ def run_ocr_subprocess(
             env[name] = str(value)
 
     try:
-        logger.info(f"Executing PaddleOCR subprocess: {' '.join(cmd)}")
+        logger.bind(
+            event="paddle_ocr.subprocess_started",
+            image_path=os.path.abspath(image_path),
+            timeout_seconds=timeout_seconds,
+            worker_module=_WORKER_MODULE,
+        ).info("PaddleOCR subprocess started")
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -111,15 +114,23 @@ def run_ocr_subprocess(
             env=env,
             creationflags=_CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
-    except subprocess.TimeoutExpired:
-        logger.error("PaddleOCR subprocess timed out")
+    except subprocess.TimeoutExpired as exc:
+        logger.bind(
+            event="paddle_ocr.subprocess_timeout",
+            image_path=os.path.abspath(image_path),
+            timeout_seconds=timeout_seconds,
+        ).opt(exception=exc).warning("PaddleOCR subprocess timed out")
         return {
             "success": False,
             "error": "PaddleOCR processing timed out",
             "code": "task_timeout",
         }
     except Exception as exc:
-        logger.error(f"PaddleOCR subprocess launch failed: {exc}")
+        logger.bind(
+            event="paddle_ocr.subprocess_launch_failed",
+            image_path=os.path.abspath(image_path),
+            exception_type=type(exc).__name__,
+        ).opt(exception=exc).error("PaddleOCR subprocess launch failed")
         return {
             "success": False,
             "error": f"PaddleOCR subprocess launch failed: {exc}",
@@ -136,7 +147,15 @@ def run_ocr_subprocess(
             error_detail = result.stderr.strip() or result.stdout.strip() or "Unknown PaddleOCR error"
             error_code = "ocr_subprocess_failed"
 
-        logger.error(f"PaddleOCR subprocess failed: {error_detail}")
+        logger.bind(
+            event="paddle_ocr.subprocess_failed",
+            image_path=os.path.abspath(image_path),
+            exit_code=result.returncode,
+            error_code=error_code,
+            stderr_tail=_output_tail(result.stderr),
+            stdout_tail=_output_tail(result.stdout),
+            internal_reason=error_detail,
+        ).warning("PaddleOCR subprocess failed")
         return {
             "success": False,
             "error": error_detail,
@@ -145,11 +164,12 @@ def run_ocr_subprocess(
 
     payload = _load_json_payload(result.stdout)
     if payload is None:
-        logger.error(
-            "PaddleOCR subprocess returned invalid JSON. "
-            f"stdout_tail={_output_tail(result.stdout)!r} "
-            f"stderr_tail={_output_tail(result.stderr)!r}"
-        )
+        logger.bind(
+            event="paddle_ocr.invalid_output",
+            image_path=os.path.abspath(image_path),
+            stdout_tail=_output_tail(result.stdout),
+            stderr_tail=_output_tail(result.stderr),
+        ).error("PaddleOCR subprocess returned invalid output")
         return {
             "success": False,
             "error": "PaddleOCR subprocess returned invalid JSON",

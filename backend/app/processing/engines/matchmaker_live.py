@@ -103,6 +103,7 @@ class BrowserAudioStreamAdapter:
         min_peak_prominence: float = 8.0,
         onset_flux_gate: float = 0.35,
         onset_hold_frames: int = 45,
+        diagnostic_frame_interval: int = 15,
     ) -> None:
         self.processor = processor
         self.queue = feature_queue
@@ -120,6 +121,7 @@ class BrowserAudioStreamAdapter:
         self.onset_flux_gate = onset_flux_gate
         self.onset_hold_frames = max(onset_hold_frames, 1)
         self.diagnostics_enabled = diagnostics_enabled
+        self.diagnostic_frame_interval = max(diagnostic_frame_interval, 1)
         self.no_input_frames = max(no_input_frames, 1)
         self.feature_extractor = AudioFeatureExtractor(
             np=np,
@@ -563,49 +565,49 @@ class BrowserAudioStreamAdapter:
         should_log = (
             decision == "accepted"
             or self.total_frames <= self.warmup_frames
-            or self.total_frames % 15 == 0
+            or self.total_frames % self.diagnostic_frame_interval == 0
         )
         if not should_log:
             return
 
         effective_start_rms_gate, effective_start_peak_gate = self._effective_start_gates()
-        logger.info(
-            "practice_audio_gate "
-            f"decision={decision} "
-            f"frame={self.total_frames} "
-            f"rms={rms:.5f} "
-            f"peak={peak:.5f} "
-            f"rms_gate={self._calibrated_rms_gate:.5f} "
-            f"peak_gate={self._calibrated_peak_gate:.5f} "
-            f"start_rms_gate={self.start_rms_gate:.5f} "
-            f"start_peak_gate={self.start_peak_gate:.5f} "
-            f"effective_start_rms_gate={effective_start_rms_gate:.5f} "
-            f"effective_start_peak_gate={effective_start_peak_gate:.5f} "
-            f"armed={self.armed} "
-            f"active_streak={self.active_streak} "
-            f"start_streak={self.start_streak} "
-            f"no_input_streak={self.no_input_streak} "
-            f"performance_active={self.performance_active} "
-            f"tonal={self.last_tonal_signal} "
-            f"spectral_flatness={self.last_spectral_flatness:.5f} "
-            f"peak_prominence={self.last_peak_prominence:.2f} "
-            f"spectral_flux={self.last_spectral_flux:.5f} "
-            f"flux_gate={self._calibrated_flux_gate:.5f} "
-            f"onset={self.last_onset_signal} "
-            f"accepted={self.accepted_frames} "
-            f"rejected={self.rejected_frames} "
-            f"noise_samples={len(self._noise_rms_values)} "
-            f"started={self.ready_to_start} "
-            f"state={self.stream_state} "
-            f"frame_class={self.last_frame_class} "
-            f"gate_reason={self.last_gate_reason} "
-            f"start_reason={self.last_start_signal_reason} "
-            f"runtime_reason={self.last_runtime_activity_reason} "
-            f"queue_decision={self.last_queue_decision} "
-            f"input_weight={self.last_input_weight:.2f} "
-            f"input_policy_confidence={self.last_input_policy_confidence:.2f} "
-            f"start_feature_confidence={self.last_start_feature_confidence}"
-        )
+        logger.bind(
+            event="practice_audio.gate_diagnostic",
+            decision=decision,
+            frame=self.total_frames,
+            rms=round(rms, 5),
+            peak=round(peak, 5),
+            rms_gate=round(self._calibrated_rms_gate, 5),
+            peak_gate=round(self._calibrated_peak_gate, 5),
+            start_rms_gate=round(self.start_rms_gate, 5),
+            start_peak_gate=round(self.start_peak_gate, 5),
+            effective_start_rms_gate=round(effective_start_rms_gate, 5),
+            effective_start_peak_gate=round(effective_start_peak_gate, 5),
+            armed=self.armed,
+            active_streak=self.active_streak,
+            start_streak=self.start_streak,
+            no_input_streak=self.no_input_streak,
+            performance_active=self.performance_active,
+            tonal=self.last_tonal_signal,
+            spectral_flatness=round(self.last_spectral_flatness, 5),
+            peak_prominence=round(self.last_peak_prominence, 2),
+            spectral_flux=round(self.last_spectral_flux, 5),
+            flux_gate=round(self._calibrated_flux_gate, 5),
+            onset=self.last_onset_signal,
+            accepted=self.accepted_frames,
+            rejected=self.rejected_frames,
+            noise_samples=len(self._noise_rms_values),
+            started=self.ready_to_start,
+            state=self.stream_state,
+            frame_class=self.last_frame_class,
+            gate_reason=self.last_gate_reason,
+            start_reason=self.last_start_signal_reason,
+            runtime_reason=self.last_runtime_activity_reason,
+            queue_decision=self.last_queue_decision,
+            input_weight=round(self.last_input_weight, 2),
+            input_policy_confidence=round(self.last_input_policy_confidence, 2),
+            start_feature_confidence=self.last_start_feature_confidence,
+        ).info("Practice audio gate diagnostic")
 
 
 class MatchmakerLiveEngine:
@@ -665,6 +667,8 @@ class MatchmakerLiveEngine:
         self._closed = threading.Event()
         self._updates: queue.Queue[AlignmentUpdate] = queue.Queue()
         self._worker: threading.Thread | None = None
+        self._alignment_update_log_count = 0
+        self._alignment_decision_log_count = 0
 
         self.score_part = partitura.load_score_as_part(self.score_file_path)
         self._note_array = self.score_part.note_array()
@@ -699,6 +703,7 @@ class MatchmakerLiveEngine:
             min_peak_prominence=settings.PRACTICE_AUDIO_MIN_PEAK_PROMINENCE,
             onset_flux_gate=settings.PRACTICE_AUDIO_ONSET_FLUX_GATE,
             onset_hold_frames=settings.PRACTICE_AUDIO_ONSET_HOLD_FRAMES,
+            diagnostic_frame_interval=settings.PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL,
         )
 
         raw_score_audio = self._generate_score_audio(
@@ -772,14 +777,14 @@ class MatchmakerLiveEngine:
             daemon=True,
         )
         self._worker.start()
-        logger.info(
-            "practice_matchmaker_started "
-            f"frames={self._stream.total_frames} "
-            f"accepted={self._stream.accepted_frames} "
-            f"rejected={self._stream.rejected_frames} "
-            f"rms_gate={self._stream._calibrated_rms_gate:.5f} "
-            f"peak_gate={self._stream._calibrated_peak_gate:.5f}"
-        )
+        logger.bind(
+            event="practice_matchmaker.started",
+            frames=self._stream.total_frames,
+            accepted=self._stream.accepted_frames,
+            rejected=self._stream.rejected_frames,
+            rms_gate=round(self._stream._calibrated_rms_gate, 5),
+            peak_gate=round(self._stream._calibrated_peak_gate, 5),
+        ).info("Practice matchmaker started")
 
     def _run_follower(self) -> None:
         try:
@@ -790,14 +795,14 @@ class MatchmakerLiveEngine:
                 alignment = self._alignment_from_beat(float(beat_position))
 
                 self._updates.put(alignment)
-                if settings.PRACTICE_AUDIO_DIAGNOSTICS:
-                    logger.info(
-                        "practice_alignment_update "
-                        f"raw_beat={beat_position:.2f} "
-                        f"beat={alignment['beat_position']:.2f} "
-                        f"confidence={alignment['confidence']:.2f} "
-                        f"completed={alignment['score_completed']}"
-                    )
+                if self._should_log_alignment_update():
+                    logger.bind(
+                        event="practice_alignment.update",
+                        raw_beat=round(float(beat_position), 2),
+                        beat=round(alignment["beat_position"], 2),
+                        confidence=round(alignment["confidence"], 2),
+                        completed=alignment["score_completed"],
+                    ).info("Practice alignment update")
                 if alignment["score_completed"]:
                     break
         except queue.Empty:
@@ -1029,27 +1034,43 @@ class MatchmakerLiveEngine:
             "input_weight": round(getattr(self._stream, "last_input_weight", 0.0), 3),
             "input_policy_confidence": round(input_policy_confidence, 3),
         }
-        if settings.PRACTICE_AUDIO_DIAGNOSTICS:
-            logger.info(
-                "practice_alignment_decision "
-                f"beat={update['beat_position']:.2f} "
-                f"beat_delta={update.get('beat_delta')} "
-                f"match_state={update['match_state']} "
-                f"confidence={update['confidence']:.3f} "
-                f"alignment_confidence={update['alignment_confidence']:.3f} "
-                f"feature_confidence={update['feature_confidence']:.3f} "
-                f"audio_confidence={update['audio_confidence']:.3f} "
-                f"continuity_confidence={update['continuity_confidence']:.3f} "
-                f"validation_confidence={update['validation_confidence']:.3f} "
-                f"input_policy_confidence={update['input_policy_confidence']:.3f} "
-                f"alignment_state={update['alignment_state']} "
-                f"continuity_state={update['continuity_state']} "
-                f"beat_velocity={update.get('beat_velocity')} "
-                f"frame_class={update['frame_class']} "
-                f"gate_reason={update['gate_reason']} "
-                f"queue_decision={update['queue_decision']}"
-            )
+        if self._should_log_alignment_decision():
+            logger.bind(
+                event="practice_alignment.decision",
+                beat=round(update["beat_position"], 2),
+                beat_delta=update.get("beat_delta"),
+                match_state=update["match_state"],
+                confidence=round(update["confidence"], 3),
+                alignment_confidence=round(update["alignment_confidence"], 3),
+                feature_confidence=round(update["feature_confidence"], 3),
+                audio_confidence=round(update["audio_confidence"], 3),
+                continuity_confidence=round(update["continuity_confidence"], 3),
+                validation_confidence=round(update["validation_confidence"], 3),
+                input_policy_confidence=round(update["input_policy_confidence"], 3),
+                alignment_state=update["alignment_state"],
+                continuity_state=update["continuity_state"],
+                beat_velocity=update.get("beat_velocity"),
+                frame_class=update["frame_class"],
+                gate_reason=update["gate_reason"],
+                queue_decision=update["queue_decision"],
+            ).info("Practice alignment decision")
         return update
+
+    def _should_log_alignment_update(self) -> bool:
+        if not settings.PRACTICE_AUDIO_DIAGNOSTICS:
+            return False
+        update_count = getattr(self, "_alignment_update_log_count", 0) + 1
+        self._alignment_update_log_count = update_count
+        interval = max(settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL, 1)
+        return update_count == 1 or update_count % interval == 0
+
+    def _should_log_alignment_decision(self) -> bool:
+        if not settings.PRACTICE_AUDIO_DIAGNOSTICS:
+            return False
+        decision_count = getattr(self, "_alignment_decision_log_count", 0) + 1
+        self._alignment_decision_log_count = decision_count
+        interval = max(settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL, 1)
+        return decision_count == 1 or decision_count % interval == 0
 
     def _is_valid_start_feature(self, feature_vector) -> bool:
         return self._score_start_feature(feature_vector) >= 0.7

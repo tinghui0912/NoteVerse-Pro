@@ -52,6 +52,12 @@ diagnostics, but they must remain structured, searchable, and safe for Loki card
 - Derived asset retention cleanup and storage object deletion failures now use structured
   events under `derived_asset_retention.*`.
 - Orphan upload cleanup and score fingering failures now use structured events.
+- Text recognition, text integration, OCR subprocess execution, LEGATO OMR, and
+  practice matchmaker diagnostics now use structured events and avoid logging
+  recognized user text as ordinary message content.
+- High-volume practice diagnostics are disabled by default and additionally
+  sampled through `PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL` and
+  `PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL` when enabled.
 
 ## Current Field Policy
 
@@ -76,33 +82,26 @@ Allowed Loki labels remain low-cardinality only:
 
 ## Remaining Work
 
-### Processing Engines and Processors
-
-These modules still contain implementation-level logs:
-
-- `backend/app/processing/processors/text_recognition.py`
-- `backend/app/processing/processors/text_integration.py`
-- `backend/app/processing/engines/paddle.py`
-- `backend/app/processing/engines/omr/legato.py`
-- `backend/app/processing/engines/matchmaker_live.py`
-
-This is acceptable for the current development phase because they are not exposed to
-ordinary users, but they should be cleaned before production:
-
-- replace subprocess command strings with `event`, `engine`, `operation`, `exit_code`
-- avoid logging full text payloads or full file paths unless needed for ops debugging
-- log traceback through `.opt(exception=...)`, not a separate `Traceback: ...` message
-
 ### Logging Facade Cleanup
 
 The backend still contains a few standard-library logging integration points for framework
 loggers. That is acceptable when the logs are framework-owned, but application modules
 should continue to use `app.core.logger.logger`.
 
+### Regression Guard
+
+`backend/tests/test_structured_logging_contract.py` scans application Python files with
+AST and blocks these patterns from coming back:
+
+- `from celery.utils.log import get_task_logger`
+- `logging.getLogger(...)` outside framework logging setup
+- `logger.info(f"...")`, `logger.warning(f"...")`, `logger.error(f"...")`, etc.
+- `logger.exception(..., extra=...)`
+
+This is intentionally small and strict. If a future module genuinely needs a different
+logging integration, document the exception before relaxing the guard.
+
 ## Next Recommended Pass
 
-1. Convert text recognition/integration processors.
-2. Convert external engine wrappers.
-3. Add a lightweight test or lint-style check that blocks new `logger.error(f"...")` and
-   `logger.exception(..., extra=...)` patterns in application modules.
-4. Add example Grafana Explore queries for `event` and `request_id` to the runbook.
+1. Add trace correlation fields once OpenTelemetry and Tempo are introduced.
+2. Periodically review diagnostic event volume after staging traffic exists.

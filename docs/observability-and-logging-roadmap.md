@@ -246,8 +246,10 @@ Status: partially implemented. Import, import pipeline, render, playback, mail,
 dispatch, score deletion cleanup, API exception boundaries, runtime startup,
 notification, realtime, avatar, practice runtime, and derived-asset retention
 entrypoints now emit structured lifecycle events with stable operation IDs and
-context where available. Low-level processing engines and processors remain the
-main structured-logging cleanup target.
+context where available. Text recognition/integration, OCR subprocess execution,
+LEGATO OMR, and practice matchmaker diagnostics also use structured events.
+Guardrails now prevent new free-form application logs from creeping back in via
+`backend/tests/test_structured_logging_contract.py`.
 
 Detailed audit:
 `docs/backend-structured-logging-audit.md`.
@@ -442,7 +444,9 @@ Acceptance criteria:
    Grafana logging mode.
 9. Add Prometheus metrics baseline and Grafana dashboard requirements.
 10. Add Fluent Bit -> Loki -> Grafana deployment requirements.
-11. Add OpenTelemetry -> Tempo tracing only after the local facades and
+11. Add Grafana Loki query runbook for request, async operation, import,
+    derived asset, realtime, and practice investigations.
+12. Add OpenTelemetry -> Tempo tracing only after the local facades and
     correlation contracts are stable.
 
 ## Non-goals For The Next Iteration

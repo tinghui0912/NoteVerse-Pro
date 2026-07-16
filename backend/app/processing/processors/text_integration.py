@@ -1,16 +1,13 @@
 """Integrate OCR-classified text into a MusicXML document."""
 
-import traceback
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import List, Optional, TypedDict
 
-from celery.utils.log import get_task_logger
+from app.core.logger import logger
 
 from .text_config import XmlLayoutConfig
 from .text_recognition import ClassifiedTexts, OtherTextInfo
-
-logger = get_task_logger(__name__)
 
 
 class AuthorInfo(TypedDict):
@@ -52,16 +49,25 @@ class TextIntegrationEngine:
     ) -> TextIntegrationSuccessResult | TextIntegrationFailureResult:
         """Integrate already-classified OCR metadata into a MusicXML file."""
         try:
-            logger.info(f"Starting text integration into MusicXML: {musicxml_path}")
+            logger.bind(
+                event="text_integration.started",
+                musicxml_path=musicxml_path,
+                output_path=output_path,
+            ).info("Text integration started")
 
             if not text_info:
-                logger.warning("text_info is empty; enhanced XML will still be generated")
+                logger.bind(
+                    event="text_integration.empty_text_payload",
+                    musicxml_path=musicxml_path,
+                ).warning("Text integration payload is empty")
                 text_info = _empty_classified_texts()
 
             if not isinstance(text_info, dict):
-                logger.error(
-                    f"Invalid text_info type; expected dict, got {type(text_info)}. Resetting to empty dict"
-                )
+                logger.bind(
+                    event="text_integration.invalid_text_payload",
+                    musicxml_path=musicxml_path,
+                    payload_type=type(text_info).__name__,
+                ).warning("Text integration payload has invalid type")
                 text_info = _empty_classified_texts()
 
             tree = ET.parse(musicxml_path)
@@ -71,17 +77,29 @@ class TextIntegrationEngine:
             try:
                 self._add_standard_title_info(root, texts, text_info)
             except Exception as exc:
-                logger.error(f"Text info integration failed: {exc}")
-                logger.error(f"Traceback: {traceback.format_exc()}")
+                logger.bind(
+                    event="text_integration.xml_update_failed",
+                    musicxml_path=musicxml_path,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).error("Text integration XML update failed")
                 raise
 
             try:
                 output_file = output_path or self._default_enhanced_output_path(musicxml_path)
                 tree.write(output_file, encoding="utf-8", xml_declaration=True)
-                logger.info(f"Text integration completed: {output_file}")
+                logger.bind(
+                    event="text_integration.completed",
+                    musicxml_path=musicxml_path,
+                    output_path=output_file,
+                    text_count=len(texts),
+                ).info("Text integration completed")
             except Exception as exc:
-                logger.error(f"Failed to save XML output: {exc}")
-                logger.error(f"Traceback: {traceback.format_exc()}")
+                logger.bind(
+                    event="text_integration.xml_save_failed",
+                    musicxml_path=musicxml_path,
+                    output_path=output_path,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).error("Text integration XML save failed")
                 raise
 
             return {
@@ -90,7 +108,11 @@ class TextIntegrationEngine:
                 "text_count": len(texts),
             }
         except Exception as exc:
-            logger.error(f"Text integration failed: {str(exc)}")
+            logger.bind(
+                event="text_integration.failed",
+                musicxml_path=musicxml_path,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).error("Text integration failed")
             return {"success": False, "error": str(exc)}
 
     @staticmethod
@@ -145,12 +167,16 @@ class TextIntegrationEngine:
             work_title = ET.SubElement(work, "work-title")
             work_title.text = title_text
             root.insert(0, work)
-            logger.info("Added work-title")
+            logger.bind(
+                event="text_integration.work_title_added",
+            ).debug("Work title added")
         elif work is not None and title_text:
             work_title_element = work.find("work-title")
             if work_title_element is not None:
                 work_title_element.text = title_text
-                logger.info("Updated work-title")
+                logger.bind(
+                    event="text_integration.work_title_updated",
+                ).debug("Work title updated")
 
     def _clean_existing_creator_elements(self, root: ET.Element) -> None:
         """Remove all existing `<creator>` elements before rebuilding them."""
@@ -160,7 +186,10 @@ class TextIntegrationEngine:
             for element in creators:
                 identification.remove(element)
             if creators:
-                logger.info(f"Removed {len(creators)} creator elements")
+                logger.bind(
+                    event="text_integration.creator_elements_removed",
+                    count=len(creators),
+                ).debug("Creator elements removed")
 
     def _clean_existing_credits(self, root: ET.Element) -> None:
         """Remove existing `<credit>` elements before writing the canonical set."""
@@ -168,7 +197,10 @@ class TextIntegrationEngine:
         for credit in credits:
             root.remove(credit)
         if credits:
-            logger.info(f"Removed {len(credits)} credit elements")
+            logger.bind(
+                event="text_integration.credit_elements_removed",
+                count=len(credits),
+            ).debug("Credit elements removed")
 
     def _create_credit_element(
         self,

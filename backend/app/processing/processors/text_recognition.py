@@ -2,16 +2,12 @@
 
 import os
 import re
-import traceback
 from typing import Iterable, List, Literal, Optional, TypedDict
 
-from celery.utils.log import get_task_logger
-
+from app.core.logger import logger
 from app.processing.engines.paddle import run_ocr_subprocess
 
 from .text_config import ClassificationConfig, OCR_CORRECTIONS, OcrConfig
-
-logger = get_task_logger(__name__)
 
 OCRPoint = tuple[float, float]
 OCRBoundingBox = list[OCRPoint]
@@ -89,7 +85,11 @@ class TextRecognitionEngine:
             result = result.replace(wrong, correct)
 
         if result != text:
-            logger.info(f"OCR post-processing corrected text: '{text}' -> '{result}'")
+            logger.bind(
+                event="text_recognition.ocr_text_corrected",
+                original_length=len(text),
+                corrected_length=len(result),
+            ).debug("OCR text post-processing correction applied")
 
         return result
 
@@ -138,13 +138,20 @@ class TextRecognitionEngine:
                     "texts": [],
                 }
 
-            logger.info(f"Starting text recognition for image: {image_path}")
+            logger.bind(
+                event="text_recognition.started",
+                image_path=image_path,
+                timeout_seconds=timeout_seconds,
+            ).info("Text recognition started")
 
             process_result = run_ocr_subprocess(image_path, timeout_seconds=timeout_seconds)
             if not process_result["success"]:
-                logger.error(
-                    f"PaddleOCR subprocess failed: {process_result['error']}"
-                )
+                logger.bind(
+                    event="text_recognition.subprocess_failed",
+                    image_path=image_path,
+                    error_code=process_result.get("code"),
+                    internal_reason=process_result.get("error"),
+                ).warning("Text recognition subprocess failed")
                 return {
                     "success": False,
                     "error": process_result["error"],
@@ -161,7 +168,12 @@ class TextRecognitionEngine:
                     rec_scores = ocr_result.get("rec_scores", [])
                     rec_polys = ocr_result.get("rec_polys", [])
 
-                    logger.info(f"Detected {len(rec_texts)} OCR text regions")
+                    logger.bind(
+                        event="text_recognition.ocr_regions_detected",
+                        image_path=image_path,
+                        region_count=len(rec_texts),
+                        payload_shape="dict",
+                    ).info("OCR text regions detected")
 
                     for idx, (text_content, confidence) in enumerate(zip(rec_texts, rec_scores)):
                         if not text_content or confidence <= OcrConfig.MIN_CONFIDENCE_THRESHOLD:
@@ -194,7 +206,12 @@ class TextRecognitionEngine:
                         )
 
                 elif isinstance(ocr_result, list):
-                    logger.info(f"Detected {len(ocr_result)} OCR rows")
+                    logger.bind(
+                        event="text_recognition.ocr_rows_detected",
+                        image_path=image_path,
+                        row_count=len(ocr_result),
+                        payload_shape="list",
+                    ).info("OCR rows detected")
 
                     for line in ocr_result:
                         if not line or len(line) < 2:
@@ -205,7 +222,12 @@ class TextRecognitionEngine:
                             text_info = line[1]
 
                             if not isinstance(text_info, (list, tuple)) or len(text_info) < 2:
-                                logger.warning(f"Invalid OCR text payload: {text_info}")
+                                logger.bind(
+                                    event="text_recognition.invalid_text_payload",
+                                    image_path=image_path,
+                                    row_index=len(texts),
+                                    payload_type=type(text_info).__name__,
+                                ).warning("Invalid OCR text payload")
                                 continue
 
                             text_content = text_info[0]
@@ -237,16 +259,27 @@ class TextRecognitionEngine:
                                 }
                             )
                         except Exception as exc:
-                            logger.warning(f"Failed to parse OCR result row: {exc}")
+                            logger.bind(
+                                event="text_recognition.row_parse_failed",
+                                image_path=image_path,
+                                exception_type=type(exc).__name__,
+                            ).opt(exception=exc).warning("Failed to parse OCR result row")
                             continue
 
             texts = self._post_process_texts(texts)
-            logger.info(f"Text recognition completed with {len(texts)} text regions")
+            logger.bind(
+                event="text_recognition.completed",
+                image_path=image_path,
+                text_count=len(texts),
+            ).info("Text recognition completed")
 
             return {"success": True, "texts": texts, "total_count": len(texts)}
         except Exception as exc:
-            logger.error(f"Text recognition failed: {exc}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.bind(
+                event="text_recognition.failed",
+                image_path=image_path,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).error("Text recognition failed")
             return {"success": False, "error": str(exc), "texts": []}
 
     def classify_texts(self, texts: List[RecognizedText]) -> ClassifiedTexts:
@@ -271,7 +304,12 @@ class TextRecognitionEngine:
             text = text_info["text"].strip()
             confidence = text_info["confidence"]
 
-            logger.debug(f"Processing text #{idx}: '{text}' (confidence={confidence:.3f})")
+            logger.bind(
+                event="text_recognition.text_classification_item",
+                text_index=idx,
+                text_length=len(text),
+                confidence=round(confidence, 3),
+            ).debug("Classifying recognized text item")
 
             if confidence < OcrConfig.CLASSIFICATION_CONFIDENCE_THRESHOLD:
                 continue
@@ -319,7 +357,9 @@ class TextRecognitionEngine:
 
         result["copyright"] = self._extract_copyright_from_texts(texts, min_y, max_y)
         if result["copyright"]:
-            logger.info("Detected copyright text")
+            logger.bind(
+                event="text_recognition.copyright_detected",
+            ).info("Copyright text detected")
 
         return result
 
