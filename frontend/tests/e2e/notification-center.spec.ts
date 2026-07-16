@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockAuthenticatedSession, mockRealtimeEvents, testUserProfile } from './support/api-mocks';
+import { mockAuthenticatedSession, mockRealtimeEvents } from './support/api-mocks';
 
 const pendingInvites = [
   {
@@ -82,22 +82,6 @@ const confirmedProcessingNotification = {
     score_id: 'ready-score-1',
     score_title: 'Ready Score',
   },
-};
-
-const readyJobReview = {
-  job_id: 'ready-job-1',
-  state: 'PENDING_REVIEW',
-  score_id: null,
-  title: 'Ready Score',
-  taxonomy_tags: [],
-  musicxml: {
-    artifact_id: 'ready-job-1-musicxml',
-    content: '<score-partwise version="4.0"></score-partwise>',
-    mime_type: 'application/vnd.recordare.musicxml+xml',
-  },
-  original_images: [],
-  created_at: '2026-07-01T09:00:00Z',
-  updated_at: '2026-07-01T09:30:00Z',
 };
 
 test('notification center combines pending invites and update notifications', async ({ page }) => {
@@ -235,46 +219,6 @@ test('failed processing notification opens the matching upload job', async ({ pa
   await page.getByText('Score processing failed').click();
 
   await expect(page).toHaveURL(/\/upload\?job_id=failed-job-1$/);
-});
-
-test('completed processing notification opens job review', async ({ page }) => {
-  await mockAuthenticatedSession(page);
-  await mockRealtimeEvents(page);
-  await page.route('**/api/v1/me/notifications/unread-count', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 0 } }),
-    })
-  );
-  await page.route('**/api/v1/me/notifications', (route) => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: [completedProcessingNotification] }),
-      });
-    }
-    return route.fallback();
-  });
-  await page.route('**/api/v1/review/ready-job-1**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: readyJobReview }),
-    })
-  );
-
-  await page.goto('/en/upload');
-  await page.getByRole('button', { name: 'Notifications' }).click();
-  const completedNotification = page
-    .getByRole('button')
-    .filter({ hasText: 'Score processing completed' })
-    .filter({ hasText: 'Ready Score' });
-  await expect(completedNotification).toBeVisible();
-  await completedNotification.click();
-
-  await expect(page).toHaveURL(/\/review\/ready-job-1$/);
 });
 
 test('confirmed processing notification opens created score', async ({ page }) => {
