@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { mockAuthenticatedSession, mockRealtimeEvents } from './support/api-mocks';
 
 const scoreId = 'score-detail-layout';
 const revisionId = 'revision-score-detail-layout';
 const musicXml = '<?xml version="1.0"?><score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part></score-partwise>';
 
-test('score detail uses lightweight hero layout and lazy playback', async ({ context, page }) => {
-  await context.addCookies([{ name: 'noteverse_session', value: 'session', domain: 'localhost', path: '/' }]);
+test('score detail uses lightweight hero layout and lazy playback', async ({ page }) => {
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
   const score = { score_id: scoreId, title: 'Layout Score', taxonomy_tags: [{ category: 'genre', code: 'classical', source: 'USER', confidence: null }], version: 1,
     head_revision_id: revisionId, originating_job_id: 'job-1', metadata: null, publication: null,
     derived_assets: {

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { mockAnonymousSession } from './support/api-mocks';
 
 const inviteAccess = {
   invite_id: 'invite-1',
@@ -14,11 +15,7 @@ const inviteAccess = {
 };
 
 test('invite login and registration links preserve returnUrl', async ({ page }) => {
-  await page.route('**/api/v1/me/profile**', (route) => route.fulfill({
-    status: 401,
-    contentType: 'application/json',
-    body: '{}',
-  }));
+  await mockAnonymousSession(page);
   await page.route('**/api/v1/invites/invite-token', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',

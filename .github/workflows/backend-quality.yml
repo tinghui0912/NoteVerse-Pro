@@ -16,6 +16,26 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      SECRET_KEY: ci-test-secret-key-that-is-long-enough
+      AUTH_COOKIE_NAME: noteverse_session
+      REFRESH_COOKIE_NAME: noteverse_refresh
+      CSRF_COOKIE_NAME: noteverse_csrf
+      CSRF_HEADER_NAME: x-csrf-token
+      AUTH_COOKIE_SECURE: "false"
+      AUTH_COOKIE_SAMESITE: lax
+      FRONTEND_BASE_URL: http://localhost:9002
+      PRACTICE_SOUNDFONT_PATH: /tmp/noteverse/practice.sf2
+      PLAYBACK_SOUNDFONT_PATH: /tmp/noteverse/playback.sf2
+      REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS: "60"
+      REALTIME_EVENT_RETENTION_DAYS: "7"
+      BACKEND_CORS_ORIGINS: '["http://localhost:9002"]'
+      DATABASE_URL: postgresql+asyncpg://noteverse:noteverse@127.0.0.1:5432/noteverse_test
+      SYNC_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@127.0.0.1:5432/noteverse_test
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/1
+      CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/2
+      LEGATO_REPO_PATH: /tmp/noteverse/legato
 
     steps:
       - name: Checkout repository

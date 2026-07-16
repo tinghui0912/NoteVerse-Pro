@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { mockAnonymousSession } from './support/api-mocks';
 
 const xml = '<?xml version="1.0"?><score-partwise version="4.0"><part-list/></score-partwise>';
 const capabilities = (download: boolean, edit: boolean) => ({
@@ -7,6 +8,7 @@ const capabilities = (download: boolean, edit: boolean) => ({
 });
 
 test('anonymous grant UI follows backend capabilities', async ({ page }) => {
+  await mockAnonymousSession(page);
   await page.route('**/api/v1/score-grants/view-token', (route) => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {
       score_id: 'score-1', revision_id: 'revision-1', title: 'Shared Score', taxonomy_tags: [],

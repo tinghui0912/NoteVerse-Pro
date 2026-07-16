@@ -1,14 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-const userProfile = {
-  user: {
-    id: 1,
-    email: 'owner@example.com',
-    display_name: 'Owner',
-    avatar_url: null,
-    is_active: true,
-  },
-};
+import { mockAuthenticatedSession, mockRealtimeEvents, testUserProfile } from './support/api-mocks';
 
 const pendingInvites = [
   {
@@ -93,31 +84,27 @@ const confirmedProcessingNotification = {
   },
 };
 
+const readyJobReview = {
+  job_id: 'ready-job-1',
+  state: 'PENDING_REVIEW',
+  score_id: null,
+  title: 'Ready Score',
+  taxonomy_tags: [],
+  musicxml: {
+    artifact_id: 'ready-job-1-musicxml',
+    content: '<score-partwise version="4.0"></score-partwise>',
+    mime_type: 'application/vnd.recordare.musicxml+xml',
+  },
+  original_images: [],
+  created_at: '2026-07-01T09:00:00Z',
+  updated_at: '2026-07-01T09:30:00Z',
+};
+
 test('notification center combines pending invites and update notifications', async ({ page }) => {
   let markReadCalled = false;
 
-  await page.context().addCookies([
-    {
-      name: 'noteverse_session',
-      value: 'test-session',
-      domain: 'localhost',
-      path: '/',
-    },
-  ]);
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
-    })
-  );
-  await page.route('**/api/v1/me/profile**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: userProfile }),
-    })
-  );
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
   await page.route('**/api/v1/me/invites', (route) =>
     route.fulfill({
       status: 200,
@@ -185,35 +172,8 @@ test('notification center combines pending invites and update notifications', as
 });
 
 test('failed processing notification opens the matching upload job', async ({ page }) => {
-  await page.context().addCookies([
-    {
-      name: 'noteverse_session',
-      value: 'test-session',
-      domain: 'localhost',
-      path: '/',
-    },
-  ]);
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
-    })
-  );
-  await page.route('**/api/v1/me/profile**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: userProfile }),
-    })
-  );
-  await page.route('**/api/v1/me/invites', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: [] }),
-    })
-  );
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
   await page.route('**/api/v1/me/notifications/unread-count', (route) =>
     route.fulfill({
       status: 200,
@@ -278,35 +238,8 @@ test('failed processing notification opens the matching upload job', async ({ pa
 });
 
 test('completed processing notification opens job review', async ({ page }) => {
-  await page.context().addCookies([
-    {
-      name: 'noteverse_session',
-      value: 'test-session',
-      domain: 'localhost',
-      path: '/',
-    },
-  ]);
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
-    })
-  );
-  await page.route('**/api/v1/me/profile**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: userProfile }),
-    })
-  );
-  await page.route('**/api/v1/me/invites', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: [] }),
-    })
-  );
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
   await page.route('**/api/v1/me/notifications/unread-count', (route) =>
     route.fulfill({
       status: 200,
@@ -334,6 +267,13 @@ test('completed processing notification opens job review', async ({ page }) => {
       }),
     })
   );
+  await page.route('**/api/v1/review/ready-job-1**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: readyJobReview }),
+    })
+  );
 
   await page.goto('/en/upload');
   await page.getByRole('button', { name: 'Notifications' }).click();
@@ -343,35 +283,8 @@ test('completed processing notification opens job review', async ({ page }) => {
 });
 
 test('confirmed processing notification opens created score', async ({ page }) => {
-  await page.context().addCookies([
-    {
-      name: 'noteverse_session',
-      value: 'test-session',
-      domain: 'localhost',
-      path: '/',
-    },
-  ]);
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
-    })
-  );
-  await page.route('**/api/v1/me/profile**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: userProfile }),
-    })
-  );
-  await page.route('**/api/v1/me/invites', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: [] }),
-    })
-  );
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
   await page.route('**/api/v1/me/notifications/unread-count', (route) =>
     route.fulfill({
       status: 200,
