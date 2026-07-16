@@ -3,14 +3,11 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List
 
-from celery.utils.log import get_task_logger
-
 from app.core.exceptions import TimeoutException
+from app.core.logger import logger
 
 if TYPE_CHECKING:
     from .context import JobContext
-
-logger = get_task_logger(__name__)
 
 
 class Step(ABC):
@@ -60,16 +57,31 @@ class Pipeline:
             try:
                 self._ensure_before_deadline(ctx, step.name)
                 ctx.status("RUNNING", step.name, step.progress_start, current_step=step.name)
-                logger.info(f"[{ctx.job_id}] Step started: {step.name}")
+                logger.bind(
+                    event="import_pipeline.step_started",
+                    job_id=ctx.job_id,
+                    step=step.name,
+                    progress=step.progress_start,
+                ).info("Import pipeline step started")
 
                 step.run(ctx)
                 executed_steps.append(step)
                 self._ensure_before_deadline(ctx, step.name)
 
                 ctx.status("RUNNING", step.name, step.progress_end, current_step=step.name)
-                logger.info(f"[{ctx.job_id}] Step completed: {step.name}")
+                logger.bind(
+                    event="import_pipeline.step_completed",
+                    job_id=ctx.job_id,
+                    step=step.name,
+                    progress=step.progress_end,
+                ).info("Import pipeline step completed")
             except Exception as exc:
-                logger.error(f"[{ctx.job_id}] Step failed: {step.name} | Error: {exc}")
+                logger.bind(
+                    event="import_pipeline.step_failed",
+                    job_id=ctx.job_id,
+                    step=step.name,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).error("Import pipeline step failed")
                 self._rollback(ctx, executed_steps)
                 raise
 
@@ -85,9 +97,12 @@ class Pipeline:
             try:
                 step.rollback(ctx)
             except Exception as exc:
-                logger.warning(
-                    f"[{ctx.job_id}] Step rollback failed: {step.name} | Error: {exc}"
-                )
+                logger.bind(
+                    event="import_pipeline.step_rollback_failed",
+                    job_id=ctx.job_id,
+                    step=step.name,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).warning("Import pipeline step rollback failed")
 
     def __repr__(self) -> str:
         step_names = [step.name for step in self.steps]

@@ -242,11 +242,12 @@ Acceptance criteria:
 
 Objective: make async work diagnosable without reading free-form strings.
 
-Status: partially implemented. Import, render, playback, mail, dispatch, score
-deletion cleanup, API exception boundaries, runtime startup, notification,
-realtime, avatar, practice runtime, and derived-asset retention entrypoints now
-emit structured lifecycle events with stable operation IDs and context where
-available.
+Status: partially implemented. Import, import pipeline, render, playback, mail,
+dispatch, score deletion cleanup, API exception boundaries, runtime startup,
+notification, realtime, avatar, practice runtime, and derived-asset retention
+entrypoints now emit structured lifecycle events with stable operation IDs and
+context where available. Low-level processing engines and processors remain the
+main structured-logging cleanup target.
 
 Detailed audit:
 `docs/backend-structured-logging-audit.md`.

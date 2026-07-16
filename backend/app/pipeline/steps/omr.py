@@ -2,15 +2,12 @@
 
 from typing import cast
 
-from celery.utils.log import get_task_logger
-
 from app.core.exceptions import FileNotFoundException, OmrFailedException, TimeoutException
+from app.core.logger import logger
 from app.processing.engines.omr import OmrFailureResult, OmrSuccessResult, create_omr_engine
 
 from ..base import Step
 from ..context import JobContext
-
-logger = get_task_logger(__name__)
 
 
 def _raise_from_result(result: OmrFailureResult) -> None:
@@ -36,7 +33,11 @@ class OmrStep(Step):
     progress_end = 65
 
     def run(self, ctx: JobContext) -> None:
-        logger.info(f"[{ctx.job_id}] Starting OMR processing for {len(ctx.raw_paths)} page(s)")
+        logger.bind(
+            event="import_pipeline.omr_started",
+            job_id=ctx.job_id,
+            page_count=len(ctx.raw_paths),
+        ).info("OMR processing started")
 
         if not ctx.raw_paths:
             raise FileNotFoundException(details={"error": "No score image pages are available"})
@@ -52,6 +53,9 @@ class OmrStep(Step):
             _raise_from_result(cast(OmrFailureResult, result))
 
         ctx.omr_result = cast(OmrSuccessResult, result)
-        logger.info(
-            f"[{ctx.job_id}] OMR processing completed via {ctx.omr_result['engine']}"
-        )
+        logger.bind(
+            event="import_pipeline.omr_completed",
+            job_id=ctx.job_id,
+            engine=ctx.omr_result["engine"],
+            page_count=len(ctx.raw_paths),
+        ).info("OMR processing completed")

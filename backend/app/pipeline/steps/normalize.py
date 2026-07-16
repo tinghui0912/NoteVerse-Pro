@@ -5,12 +5,10 @@ from __future__ import annotations
 import os
 import xml.etree.ElementTree as ET
 
-from celery.utils.log import get_task_logger
+from app.core.logger import logger
 
 from ..base import Step
 from ..context import JobContext
-
-logger = get_task_logger(__name__)
 
 
 class XmlNormalizeStep(Step):
@@ -29,24 +27,41 @@ class XmlNormalizeStep(Step):
     def run(self, ctx: JobContext) -> None:
         xml_path = ctx.main_xml
         if not xml_path or not os.path.exists(xml_path):
-            logger.warning(f"[{ctx.job_id}] XML file not found; skipping normalization")
+            logger.bind(
+                event="import_pipeline.xml_normalization_skipped",
+                job_id=ctx.job_id,
+                reason="musicxml_missing",
+            ).warning("XML normalization skipped")
             return
 
-        logger.info(f"[{ctx.job_id}] Starting XML normalization: {xml_path}")
+        logger.bind(
+            event="import_pipeline.xml_normalization_started",
+            job_id=ctx.job_id,
+            musicxml_path=xml_path,
+        ).info("XML normalization started")
 
         try:
             tree = ET.parse(xml_path)
             root = tree.getroot()
 
-            self._force_a4_page_layout(root)
-            self._fix_measure_numbers(root)
-            self._save_formatted_xml(tree, xml_path)
+            self._force_a4_page_layout(root, ctx.job_id)
+            self._fix_measure_numbers(root, ctx.job_id)
+            self._save_formatted_xml(tree, xml_path, ctx.job_id)
 
-            logger.info(f"[{ctx.job_id}] XML normalization completed")
+            logger.bind(
+                event="import_pipeline.xml_normalization_completed",
+                job_id=ctx.job_id,
+                musicxml_path=xml_path,
+            ).info("XML normalization completed")
         except Exception as exc:
-            logger.warning(f"[{ctx.job_id}] XML normalization failed: {exc}")
+            logger.bind(
+                event="import_pipeline.xml_normalization_failed",
+                job_id=ctx.job_id,
+                musicxml_path=xml_path,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).warning("XML normalization failed")
 
-    def _force_a4_page_layout(self, root: ET.Element) -> None:
+    def _force_a4_page_layout(self, root: ET.Element, job_id: str) -> None:
         """Rewrite `<defaults>` layout values to the A4 standard."""
         defaults = root.find("defaults")
         if defaults is None:
@@ -92,28 +107,49 @@ class XmlNormalizeStep(Step):
                 elem = ET.SubElement(pm, side)
                 elem.text = margin_str
 
-        logger.info(
-            f"Applied A4 page layout ({self.A4_PAGE_WIDTH}x{self.A4_PAGE_HEIGHT}, "
-            f"margin={self.A4_MARGIN})"
-        )
+        logger.bind(
+            event="import_pipeline.xml_page_layout_applied",
+            job_id=job_id,
+            page_width=self.A4_PAGE_WIDTH,
+            page_height=self.A4_PAGE_HEIGHT,
+            margin=self.A4_MARGIN,
+        ).info("XML page layout applied")
 
-    def _fix_measure_numbers(self, root: ET.Element) -> None:
+    def _fix_measure_numbers(self, root: ET.Element, job_id: str) -> None:
         """Normalize measure numbering when the source starts at zero."""
         measures = root.findall(".//measure")
         if not measures:
-            logger.info("No measures found; skipping measure number normalization")
+            logger.bind(
+                event="import_pipeline.measure_number_normalization_skipped",
+                job_id=job_id,
+                reason="no_measures",
+            ).info("Measure number normalization skipped")
             return
 
         measures.sort(key=lambda measure: int(measure.get("number", "0")))
 
         first_measure_number = int(measures[0].get("number", "0"))
-        logger.info(f"Detected first measure number: {first_measure_number}")
+        logger.bind(
+            event="import_pipeline.measure_number_detected",
+            job_id=job_id,
+            first_measure_number=first_measure_number,
+            measure_count=len(measures),
+        ).info("First measure number detected")
 
         if first_measure_number == 1:
-            logger.info("First measure number is 1; no adjustment needed")
+            logger.bind(
+                event="import_pipeline.measure_number_normalization_skipped",
+                job_id=job_id,
+                reason="already_one_based",
+                first_measure_number=first_measure_number,
+            ).info("Measure number normalization skipped")
             return
         if first_measure_number == 0:
-            logger.info("First measure number is 0; starting normalization")
+            logger.bind(
+                event="import_pipeline.measure_number_normalization_started",
+                job_id=job_id,
+                first_measure_number=first_measure_number,
+            ).info("Measure number normalization started")
             fixes_made = 0
 
             for measure in measures:
@@ -122,12 +158,26 @@ class XmlNormalizeStep(Step):
                 measure.set("number", str(new_number))
                 fixes_made += 1
 
-            logger.info(f"Measure number normalization completed; updated {fixes_made} measures")
+            logger.bind(
+                event="import_pipeline.measure_number_normalization_completed",
+                job_id=job_id,
+                fixes_made=fixes_made,
+            ).info("Measure number normalization completed")
             return
 
-        logger.info(f"First measure number is {first_measure_number}; keeping original values")
+        logger.bind(
+            event="import_pipeline.measure_number_normalization_skipped",
+            job_id=job_id,
+            reason="nonstandard_start",
+            first_measure_number=first_measure_number,
+        ).info("Measure number normalization skipped")
 
-    def _save_formatted_xml(self, tree: ET.ElementTree[ET.Element], output_file: str) -> None:
+    def _save_formatted_xml(
+        self,
+        tree: ET.ElementTree[ET.Element],
+        output_file: str,
+        job_id: str,
+    ) -> None:
         """Persist a formatted XML document in place."""
         self._indent_xml(tree.getroot())
         tree.write(
@@ -136,7 +186,11 @@ class XmlNormalizeStep(Step):
             xml_declaration=True,
             short_empty_elements=True,
         )
-        logger.info(f"Saved XML output: {output_file}")
+        logger.bind(
+            event="import_pipeline.xml_saved",
+            job_id=job_id,
+            output_path=output_file,
+        ).info("XML output saved")
 
     def _indent_xml(self, elem, level=0) -> None:
         """Apply indentation and newlines to the XML tree."""

@@ -42,8 +42,16 @@ diagnostics, but they must remain structured, searchable, and safe for Loki card
 - Import job execution start/failure is structured as:
   - `import_job.pipeline_started`
   - `import_job.pipeline_failed`
+- Import pipeline orchestration and steps now use structured events under:
+  - `import_pipeline.step_*`
+  - `import_pipeline.progress_*`
+  - `import_pipeline.input_copy_*`
+  - `import_pipeline.omr_*`
+  - `import_pipeline.xml_*`
+  - `import_pipeline.text_*`
 - Derived asset retention cleanup and storage object deletion failures now use structured
   events under `derived_asset_retention.*`.
+- Orphan upload cleanup and score fingering failures now use structured events.
 
 ## Current Field Policy
 
@@ -67,33 +75,6 @@ Allowed Loki labels remain low-cardinality only:
 - optionally curated bounded `event`
 
 ## Remaining Work
-
-### Import Pipeline
-
-The following modules still contain free-form worker logs and should be converted in a
-dedicated import-pipeline pass:
-
-- `backend/app/pipeline/context.py`
-- `backend/app/pipeline/base.py`
-- `backend/app/pipeline/step_tracker.py`
-- `backend/app/pipeline/steps/*.py`
-
-Target event pattern:
-
-```text
-import_pipeline.step_started
-import_pipeline.step_completed
-import_pipeline.step_failed
-import_pipeline.progress_update_failed
-```
-
-Required fields:
-
-- `job_id`
-- `step`
-- `progress`
-- `public_code` when applicable
-- `exception_type` on failure
 
 ### Processing Engines and Processors
 
@@ -120,8 +101,8 @@ should continue to use `app.core.logger.logger`.
 
 ## Next Recommended Pass
 
-1. Convert `backend/app/pipeline/*` to structured import-pipeline events.
-2. Convert text recognition/integration processors.
+1. Convert text recognition/integration processors.
+2. Convert external engine wrappers.
 3. Add a lightweight test or lint-style check that blocks new `logger.error(f"...")` and
    `logger.exception(..., extra=...)` patterns in application modules.
 4. Add example Grafana Explore queries for `event` and `request_id` to the runbook.

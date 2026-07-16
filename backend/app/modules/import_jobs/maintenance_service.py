@@ -65,7 +65,12 @@ class ImportJobMaintenanceService:
                     self.storage.delete(blob.storage_key)
                 deleted += 1
             except Exception as exc:
-                logger.warning(f"Failed to delete orphan upload {upload.upload_uuid}: {exc}")
+                logger.bind(
+                    event="import_job.orphan_upload_delete_failed",
+                    upload_id=upload.upload_uuid,
+                    blob_id=upload.blob_id,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).warning("Orphan upload deletion failed")
         if deleted:
             db.commit()
         return deleted

@@ -6,10 +6,10 @@ import os
 from typing import TYPE_CHECKING, cast
 
 from celery.exceptions import SoftTimeLimitExceeded
-from celery.utils.log import get_task_logger
 
 from app.core.config import settings
 from app.core.exceptions import TimeoutException
+from app.core.logger import logger
 
 from ..base import Step
 from ..context import JobContext
@@ -20,8 +20,6 @@ if TYPE_CHECKING:
         TextRecognitionProcessSuccessResult,
     )
     from app.processing.processors.text_integration import TextIntegrationSuccessResult
-
-logger = get_task_logger(__name__)
 
 
 class TextOcrStep(Step):
@@ -47,12 +45,20 @@ class TextOcrStep(Step):
 
         image_path = ctx.first_image
         if not image_path or not os.path.exists(image_path):
-            logger.warning(f"[{ctx.job_id}] Input image missing; skipping text recognition")
+            logger.bind(
+                event="import_pipeline.text_recognition_skipped",
+                job_id=ctx.job_id,
+                reason="input_image_missing",
+            ).warning("Text recognition skipped")
             return None
         if ctx.remaining() <= 0:
             raise TimeoutException(details={"error": "Task deadline exceeded before text recognition"})
 
-        logger.info(f"[{ctx.job_id}] Starting PaddleOCR text recognition")
+        logger.bind(
+            event="import_pipeline.text_recognition_started",
+            job_id=ctx.job_id,
+            timeout_seconds=min(ctx.remaining(), int(settings.PADDLEOCR_TIMEOUT_SECONDS)),
+        ).info("Text recognition started")
 
         try:
             engine = TextRecognitionEngine()
@@ -68,18 +74,27 @@ class TextOcrStep(Step):
             if result.get("success"):
                 typed_result = cast(TextRecognitionProcessSuccessResult, result)
                 classified = typed_result["classified_texts"]
-                logger.info(
-                    f"[{ctx.job_id}] Text recognition completed: "
-                    f"{self._summarize_classified_texts(classified)}"
-                )
+                logger.bind(
+                    event="import_pipeline.text_recognition_completed",
+                    job_id=ctx.job_id,
+                    text_summary=self._summarize_classified_texts(classified),
+                ).info("Text recognition completed")
                 return typed_result
 
-            logger.warning(f"[{ctx.job_id}] Text recognition failed: {result.get('error')}")
+            logger.bind(
+                event="import_pipeline.text_recognition_failed",
+                job_id=ctx.job_id,
+                internal_reason=result.get("error"),
+            ).warning("Text recognition failed")
             return None
         except SoftTimeLimitExceeded:
             raise
         except Exception as exc:
-            logger.warning(f"[{ctx.job_id}] PaddleOCR failed: {exc}")
+            logger.bind(
+                event="import_pipeline.text_recognition_failed",
+                job_id=ctx.job_id,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).warning("Text recognition failed")
             return None
 
     def _integrate_text(
@@ -95,25 +110,38 @@ class TextOcrStep(Step):
 
         main_xml = ctx.main_xml
         if not main_xml or not os.path.exists(main_xml):
-            logger.warning(f"[{ctx.job_id}] XML file missing; skipping text integration")
+            logger.bind(
+                event="import_pipeline.text_integration_skipped",
+                job_id=ctx.job_id,
+                reason="musicxml_missing",
+            ).warning("Text integration skipped")
             return
 
         text_info = ocr_result["classified_texts"]
         if not text_info:
-            logger.warning(f"[{ctx.job_id}] No text info available; skipping integration")
+            logger.bind(
+                event="import_pipeline.text_integration_skipped",
+                job_id=ctx.job_id,
+                reason="text_info_empty",
+            ).warning("Text integration skipped")
             return
 
-        logger.info(
-            f"[{ctx.job_id}] Integrating text into XML: "
-            f"{self._summarize_classified_texts(text_info)}"
-        )
+        logger.bind(
+            event="import_pipeline.text_integration_started",
+            job_id=ctx.job_id,
+            text_summary=self._summarize_classified_texts(text_info),
+        ).info("Text integration started")
 
         try:
             engine = TextIntegrationEngine()
             result = engine.integrate_text_with_existing_info(main_xml, text_info)
 
             if not result.get("success"):
-                logger.warning(f"[{ctx.job_id}] Text integration failed: {result.get('error')}")
+                logger.bind(
+                    event="import_pipeline.text_integration_failed",
+                    job_id=ctx.job_id,
+                    internal_reason=result.get("error"),
+                ).warning("Text integration failed")
                 return
 
             enhanced_path = self._resolve_enhanced_xml_path(
@@ -121,13 +149,26 @@ class TextOcrStep(Step):
                 cast(TextIntegrationSuccessResult, result),
             )
             if not enhanced_path:
-                logger.info(f"[{ctx.job_id}] Text integration completed")
+                logger.bind(
+                    event="import_pipeline.text_integration_completed",
+                    job_id=ctx.job_id,
+                    enhanced=False,
+                ).info("Text integration completed")
                 return
 
             ctx.main_xml = enhanced_path
-            logger.info(f"[{ctx.job_id}] Text integration completed: {enhanced_path}")
+            logger.bind(
+                event="import_pipeline.text_integration_completed",
+                job_id=ctx.job_id,
+                enhanced=True,
+                output_path=enhanced_path,
+            ).info("Text integration completed")
         except Exception as exc:
-            logger.warning(f"[{ctx.job_id}] Text integration error: {exc}")
+            logger.bind(
+                event="import_pipeline.text_integration_failed",
+                job_id=ctx.job_id,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).warning("Text integration failed")
 
     def _resolve_enhanced_xml_path(
         self,

@@ -23,11 +23,8 @@ from __future__ import annotations
 
 from typing import Callable, Dict, Optional, Set
 
-from celery.utils.log import get_task_logger
-
+from app.core.logger import logger
 from app.utils.timezone import utc_now_naive
-
-logger = get_task_logger(__name__)
 
 
 class StepTracker:
@@ -73,7 +70,12 @@ class StepTracker:
                     step_order=init_order,
                 )
             except Exception as exc:
-                logger.debug(f"[{self.job_id}] Failed to complete initialization step: {exc}")
+                logger.bind(
+                    event="import_pipeline.tracker_initialization_complete_failed",
+                    job_id=self.job_id,
+                    step="initialization",
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).debug("Failed to complete initialization step")
 
         if self.last_step and self.last_step != step:
             try:
@@ -83,9 +85,12 @@ class StepTracker:
                     end_time=utc_now_naive(),
                 )
             except Exception as exc:
-                logger.debug(
-                    f"[{self.job_id}] Failed to complete previous step {self.last_step}: {exc}"
-                )
+                logger.bind(
+                    event="import_pipeline.tracker_previous_step_complete_failed",
+                    job_id=self.job_id,
+                    step=self.last_step,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).debug("Failed to complete previous step")
 
         try:
             if step not in self.seen:
@@ -100,7 +105,12 @@ class StepTracker:
             else:
                 self._upsert(step, status="running")
         except Exception as exc:
-            logger.debug(f"[{self.job_id}] Failed to mark step {step} as running: {exc}")
+            logger.bind(
+                event="import_pipeline.tracker_step_running_failed",
+                job_id=self.job_id,
+                step=step,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).debug("Failed to mark step as running")
 
         self.last_step = step
 
@@ -121,9 +131,12 @@ class StepTracker:
                     end_time=now,
                 )
             except Exception as exc:
-                logger.debug(
-                    f"[{self.job_id}] Failed to complete last step {self.last_step}: {exc}"
-                )
+                logger.bind(
+                    event="import_pipeline.tracker_last_step_complete_failed",
+                    job_id=self.job_id,
+                    step=self.last_step,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).debug("Failed to complete last step")
 
         if final_step_name:
             try:
@@ -135,9 +148,12 @@ class StepTracker:
                     step_order=self.order_map.get(final_step_name),
                 )
             except Exception as exc:
-                logger.debug(
-                    f"[{self.job_id}] Failed to create final step {final_step_name}: {exc}"
-                )
+                logger.bind(
+                    event="import_pipeline.tracker_final_step_create_failed",
+                    job_id=self.job_id,
+                    step=final_step_name,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).debug("Failed to create final step")
 
     def mark_failed(self, step_name: Optional[str]) -> None:
         """
@@ -164,4 +180,9 @@ class StepTracker:
                     )
         except Exception as exc:
             failed_step = step_name or "initialization"
-            logger.debug(f"[{self.job_id}] Failed to mark step {failed_step} as failed: {exc}")
+            logger.bind(
+                event="import_pipeline.tracker_step_failed_mark_failed",
+                job_id=self.job_id,
+                step=failed_step,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).debug("Failed to mark step as failed")

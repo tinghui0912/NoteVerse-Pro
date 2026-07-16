@@ -35,7 +35,12 @@ class XMLFingeringService:
                 code=ErrorCode.SCORE_FINGERING_FAILED,
             ) from exc
         except Exception as exc:
-            logger.error(f"Fingering generation failed: {exc}")
+            logger.bind(
+                event="score_fingering.generation_failed",
+                score_id=score_id,
+                hand_size=hand_size,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).error("Score fingering generation failed")
             raise ExternalServiceException(
                 service="score_fingering",
                 code=ErrorCode.SCORE_FINGERING_FAILED,

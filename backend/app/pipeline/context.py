@@ -5,10 +5,10 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional, Protocol, TypedDict
 
-from celery.utils.log import get_task_logger
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.logger import logger
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.processing.engines.omr import OmrSuccessResult
 from app.modules.import_jobs.worker_service import sync_import_job_service as job_service
@@ -18,8 +18,6 @@ from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 
 if TYPE_CHECKING:
     from app.pipeline.base import Pipeline
-
-logger = get_task_logger(__name__)
 
 
 class CeleryStateMeta(TypedDict):
@@ -93,7 +91,12 @@ class JobContext:
         try:
             job_service.upsert_step(self.db, self.job_id, name=name, **kwargs)
         except Exception as exc:
-            logger.error(f"[{self.job_id}] _upsert failed for {name}: {exc}")
+            logger.bind(
+                event="import_pipeline.step_state_upsert_failed",
+                job_id=self.job_id,
+                step=name,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).error("Import pipeline step state upsert failed")
             self._recover_session()
 
     def remaining(self) -> int:
@@ -114,7 +117,14 @@ class JobContext:
                 started_at=kw.get("started_at"),
             )
         except Exception as exc:
-            logger.error(f"[{self.job_id}] update_progress failed: {exc}")
+            logger.bind(
+                event="import_pipeline.progress_update_failed",
+                job_id=self.job_id,
+                state=state,
+                progress=prog,
+                current_step=kw.get("current_step"),
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).error("Import pipeline progress update failed")
             self._recover_session()
 
         try:
@@ -122,11 +132,22 @@ class JobContext:
             if step and self._tracker:
                 self._tracker.on_progress(step)
         except Exception as exc:
-            logger.error(f"[{self.job_id}] tracker.on_progress failed: {exc}")
+            logger.bind(
+                event="import_pipeline.tracker_progress_failed",
+                job_id=self.job_id,
+                current_step=kw.get("current_step"),
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).warning("Import pipeline tracker progress update failed")
 
-        logger.info(
-            f"[{self.job_id}] step={kw.get('current_step') or ''} status={msg} progress={prog}%"
-        )
+        logger.bind(
+            event="import_pipeline.progress_updated",
+            job_id=self.job_id,
+            state=state,
+            status=msg,
+            progress=prog,
+            current_step=kw.get("current_step"),
+            public_code=kw.get("code"),
+        ).info("Import pipeline progress updated")
 
     def _recover_session(self) -> None:
         """Recover a worker session interrupted during a progress update."""
@@ -141,7 +162,11 @@ class JobContext:
             if self._tracker:
                 self._tracker.complete_last(final_step_name="ocr_completed")
         except Exception as exc:
-            logger.debug(f"[{self.job_id}] tracker.complete_last failed: {exc}")
+            logger.bind(
+                event="import_pipeline.tracker_complete_failed",
+                job_id=self.job_id,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).debug("Import pipeline tracker completion failed")
 
         if not self.main_xml or not os.path.exists(self.main_xml):
             raise FileNotFoundError("Canonical MusicXML was not produced")
@@ -150,7 +175,11 @@ class JobContext:
         job_service.finalize_success(
             self.db, self.job_id, total_time_seconds=total_time
         )
-        logger.info(f"[{self.job_id}] Job completed in {total_time}s")
+        logger.bind(
+            event="import_pipeline.job_completed",
+            job_id=self.job_id,
+            duration_seconds=total_time,
+        ).info("Import pipeline job completed")
 
     def update_celery_state(self, status: str, progress: int, current_step: str) -> None:
         """Update the Celery task state payload."""

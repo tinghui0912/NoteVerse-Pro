@@ -1,11 +1,9 @@
 """XML preparation step."""
 
-from celery.utils.log import get_task_logger
+from app.core.logger import logger
 
 from ..base import Step
 from ..context import JobContext
-
-logger = get_task_logger(__name__)
 
 
 class ExtractXmlStep(Step):
@@ -16,7 +14,10 @@ class ExtractXmlStep(Step):
     progress_end = 70
 
     def run(self, ctx: JobContext) -> None:
-        logger.info(f"[{ctx.job_id}] Starting XML preparation")
+        logger.bind(
+            event="import_pipeline.xml_preparation_started",
+            job_id=ctx.job_id,
+        ).info("XML preparation started")
 
         if not ctx.omr_result:
             raise RuntimeError("OMR processing failed")
@@ -28,4 +29,8 @@ class ExtractXmlStep(Step):
             raise RuntimeError("OMR processing failed")
 
         ctx.main_xml = main_xml
-        logger.info(f"[{ctx.job_id}] XML preparation completed: {main_xml}")
+        logger.bind(
+            event="import_pipeline.xml_preparation_completed",
+            job_id=ctx.job_id,
+            musicxml_path=main_xml,
+        ).info("XML preparation completed")

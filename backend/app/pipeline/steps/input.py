@@ -4,14 +4,11 @@ import os
 import shutil
 from typing import List
 
-from celery.utils.log import get_task_logger
-
 from app.core.exceptions import FileNotFoundException
+from app.core.logger import logger
 
 from ..base import Step
 from ..context import JobContext
-
-logger = get_task_logger(__name__)
 
 
 class CopyImageStep(Step):
@@ -22,7 +19,11 @@ class CopyImageStep(Step):
     progress_end = 5
 
     def run(self, ctx: JobContext) -> None:
-        logger.info(f"[{ctx.job_id}] Starting input copy")
+        logger.bind(
+            event="import_pipeline.input_copy_started",
+            job_id=ctx.job_id,
+            page_count=1,
+        ).info("Input copy started")
 
         ctx.create_dirs()
 
@@ -38,13 +39,24 @@ class CopyImageStep(Step):
         try:
             shutil.copy2(abs_path, dst)
         except Exception as exc:
-            logger.debug(f"[{ctx.job_id}] copy2 failed for {abs_path}, using stream copy: {exc}")
+            logger.bind(
+                event="import_pipeline.input_copy_fallback_used",
+                job_id=ctx.job_id,
+                source_path=abs_path,
+                destination_path=dst,
+                exception_type=type(exc).__name__,
+            ).opt(exception=exc).debug("Input copy fallback used")
             with open(abs_path, "rb") as rf, open(dst, "wb") as wf:
                 wf.write(rf.read())
 
         ctx.raw_paths = [dst]
 
-        logger.info(f"[{ctx.job_id}] Input copy completed: {dst}")
+        logger.bind(
+            event="import_pipeline.input_copy_completed",
+            job_id=ctx.job_id,
+            page_count=1,
+            destination_path=dst,
+        ).info("Input copy completed")
 
 
 class CopyImagesStep(Step):
@@ -55,7 +67,11 @@ class CopyImagesStep(Step):
     progress_end = 5
 
     def run(self, ctx: JobContext) -> None:
-        logger.info(f"[{ctx.job_id}] Starting input copy")
+        logger.bind(
+            event="import_pipeline.input_copy_started",
+            job_id=ctx.job_id,
+            page_count=len(ctx.image_paths),
+        ).info("Input copy started")
 
         ctx.create_dirs()
 
@@ -71,7 +87,14 @@ class CopyImagesStep(Step):
             try:
                 shutil.copy2(path, dst)
             except Exception as exc:
-                logger.debug(f"[{ctx.job_id}] copy2 failed for {path}, using stream copy: {exc}")
+                logger.bind(
+                    event="import_pipeline.input_copy_fallback_used",
+                    job_id=ctx.job_id,
+                    source_path=path,
+                    destination_path=dst,
+                    page_index=idx,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).debug("Input copy fallback used")
                 with open(path, "rb") as rf, open(dst, "wb") as wf:
                     wf.write(rf.read())
 
@@ -79,4 +102,8 @@ class CopyImagesStep(Step):
 
         ctx.raw_paths = raw_paths
 
-        logger.info(f"[{ctx.job_id}] Input copy completed: {len(raw_paths)} images")
+        logger.bind(
+            event="import_pipeline.input_copy_completed",
+            job_id=ctx.job_id,
+            page_count=len(raw_paths),
+        ).info("Input copy completed")
