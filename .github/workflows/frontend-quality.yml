@@ -4,12 +4,12 @@ on:
   push:
     paths:
       - "frontend/**"
-      - "backend/app/shared/constants.py"
+      - "backend/app/shared/error_codes.py"
       - ".github/workflows/frontend-quality.yml"
   pull_request:
     paths:
       - "frontend/**"
-      - "backend/app/shared/constants.py"
+      - "backend/app/shared/error_codes.py"
       - ".github/workflows/frontend-quality.yml"
 
 concurrency:

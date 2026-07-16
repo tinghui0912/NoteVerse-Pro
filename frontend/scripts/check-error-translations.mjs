@@ -5,14 +5,13 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, '../..');
 const frontendDir = path.resolve(rootDir, 'frontend');
-const constantsPath = path.resolve(rootDir, 'backend/app/shared/constants.py');
+const errorCodesPath = path.resolve(rootDir, 'backend/app/shared/error_codes.py');
 const locales = ['en', 'zh'];
 
 function readErrorCodes() {
-  const constants = fs.readFileSync(constantsPath, 'utf8');
-  const errorBlock = constants.split('class SuccessCode:')[0];
+  const errorCodes = fs.readFileSync(errorCodesPath, 'utf8');
   return new Set(
-    [...errorBlock.matchAll(/^\s+[A-Z0-9_]+\s*=\s*"([^"]+)"/gm)].map((match) => match[1])
+    [...errorCodes.matchAll(/^\s+[A-Z0-9_]+\s*=\s*"([^"]+)"/gm)].map((match) => match[1])
   );
 }
 
