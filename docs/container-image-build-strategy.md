@@ -48,6 +48,17 @@ Recommended registry paths:
 <registry>/noteverse/ml-base
 ```
 
+The current CI workflow uses GitHub Container Registry:
+
+```text
+ghcr.io/<github-owner>/noteverse/backend
+ghcr.io/<github-owner>/noteverse/frontend
+```
+
+GHCR package visibility is controlled by GitHub package settings. Keep
+production images private unless there is an explicit decision to publish them.
+Kubernetes pulls private images through `Secret/noteverse-registry-credentials`.
+
 The ML base image is a dependency for backend runtime builds, not a directly
 deployed application workload.
 
@@ -244,15 +255,26 @@ overlays, not in different application images.
 
 ## Security And Supply Chain
 
+The container image workflow now generates SBOM artifacts and scans runtime
+images for critical vulnerabilities.
+
+Current gate:
+
+- SBOM format: SPDX JSON;
+- scanner: Trivy;
+- failing severity: `CRITICAL`;
+- unfixed vulnerabilities are ignored until a remediation path exists.
+
 Future CI should add:
 
-- SBOM generation for backend and frontend images;
-- vulnerability scanning for OS and language dependencies;
 - base image digest pinning;
+- a reviewed baseline for moving from `CRITICAL` to `HIGH,CRITICAL`;
 - signed image attestations if the registry/deployment platform supports them;
 - registry retention policy for old commit images.
 
-Initial scanning can be added after production Dockerfile coverage is complete.
+Do not disable the scan because a dependency is noisy. Either upgrade the base
+image/dependency, document an accepted risk with expiry, or keep the release
+blocked.
 
 ## Deployment Integration
 
@@ -282,8 +304,7 @@ P0 before production:
 
 P1 hardening:
 
-- SBOM generation;
-- image vulnerability scanning;
+- raise the vulnerability gate after the first production baseline;
 - image signing/attestation;
 - registry retention and cleanup policy;
 - optional split between API image and GPU worker image if runtime size or

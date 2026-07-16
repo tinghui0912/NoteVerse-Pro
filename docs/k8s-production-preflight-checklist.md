@@ -114,6 +114,7 @@ Verify the API ingress path supports:
 Verify:
 
 - object storage bucket exists;
+- `Secret/noteverse-registry-credentials` exists and can pull private images;
 - object storage credentials are scoped to the intended bucket;
 - `FILE_STORAGE_BACKEND=s3` has all required S3 settings;
 - model PVC is read-only in application pods;

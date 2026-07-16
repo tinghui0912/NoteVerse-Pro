@@ -40,6 +40,7 @@ Current repository workflows:
 - `.github/workflows/frontend-quality.yml`
 - `.github/workflows/k8s-application-manifests.yml`
 - `.github/workflows/observability-manifests.yml`
+- `.github/workflows/staging-release-overlay.yml`
 
 These workflows are quality/build gates, not production deployers.
 
@@ -109,6 +110,7 @@ Private overlays must provide:
 - real image tags or digests;
 - real frontend and API hosts;
 - real TLS Secret or cert-manager issuer names;
+- existing registry pull Secret name;
 - real ConfigMap values;
 - existing Secret names;
 - existing PVC names;
@@ -316,21 +318,26 @@ Implemented:
   runs;
 - images are tagged with the full Git commit SHA and `build-<run-id>`;
 - image digests are written to the workflow summary.
+- SBOM artifacts are generated for backend and frontend images;
+- Trivy blocks images with fixable or already-fixed `CRITICAL`
+  vulnerabilities.
 
 Still required:
 
 - feed captured image digests into private staging and production overlays;
 - record image digests as release metadata;
-- add SBOM and image vulnerability scanning gates.
+- decide when to raise the vulnerability gate to `HIGH,CRITICAL`.
 
 ### Phase 3 - Staging Deploy
 
-Add a staging deploy workflow that:
+Partially implemented:
 
-- receives image digests;
-- generates a private staging overlay with
-  `scripts/render_k8s_release_overlay.py`;
-- runs strict manifest validation;
+- `.github/workflows/staging-release-overlay.yml` manually renders a deployable
+  staging overlay from image refs and public environment values;
+- the generated overlay is validated in strict mode and uploaded as an artifact.
+
+Still required for actual staging deployment:
+
 - runs migration job;
 - rolls application workloads;
 - runs smoke tests.

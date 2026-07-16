@@ -95,6 +95,11 @@ The renderer does not create Secrets, PVCs, database credentials, Redis
 credentials, S3 access keys, or mail provider keys. Those must already exist in
 the target namespace through the cluster secret-management path.
 
+For staging, the manual GitHub Actions workflow
+`.github/workflows/staging-release-overlay.yml` performs this render and strict
+validation step and uploads the generated overlay as an artifact. It does not
+apply manifests to a cluster.
+
 ## Observability Bootstrap
 
 Deploy observability before the application so new pods are visible from the
@@ -155,6 +160,7 @@ Create required external resources before applying manifests:
 - PostgreSQL database and user;
 - Redis instance;
 - object storage bucket;
+- registry pull Secret for private GHCR images;
 - backend Secret;
 - TLS Secret or cert-manager issuer;
 - model assets PVC;
@@ -178,6 +184,15 @@ S3_ACCESS_KEY_ID
 S3_SECRET_ACCESS_KEY
 RESEND_API_KEY
 ```
+
+Required image pull Secret:
+
+```text
+Secret/noteverse-registry-credentials
+```
+
+For GHCR, this Secret should use `ghcr.io` as the Docker server and a
+least-privilege token with package read access.
 
 Render manifests before applying:
 

@@ -1,0 +1,97 @@
+name: Staging Release Overlay
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_image:
+        description: Backend image tag or digest
+        required: true
+        type: string
+      frontend_image:
+        description: Frontend image tag or digest
+        required: true
+        type: string
+      frontend_host:
+        description: Staging frontend host
+        required: true
+        type: string
+      api_host:
+        description: Staging API host
+        required: true
+        type: string
+      tls_secret:
+        description: Existing staging TLS Secret name
+        required: true
+        type: string
+      frontend_base_url:
+        description: Public staging frontend base URL
+        required: true
+        type: string
+      backend_cors_origins:
+        description: JSON array of allowed browser origins
+        required: true
+        type: string
+      mail_default_sender:
+        description: Public default sender address
+        required: true
+        type: string
+      s3_endpoint_url:
+        description: Object storage endpoint URL
+        required: true
+        type: string
+      s3_public_base_url:
+        description: Public object URL base
+        required: true
+        type: string
+
+concurrency:
+  group: staging-release-overlay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Render staging release overlay
+        run: |
+          python scripts/render_k8s_release_overlay.py \
+            --environment staging \
+            --output build/k8s-release/staging \
+            --backend-image "${{ inputs.backend_image }}" \
+            --frontend-image "${{ inputs.frontend_image }}" \
+            --frontend-host "${{ inputs.frontend_host }}" \
+            --api-host "${{ inputs.api_host }}" \
+            --tls-secret "${{ inputs.tls_secret }}" \
+            --frontend-base-url "${{ inputs.frontend_base_url }}" \
+            --backend-cors-origins '${{ inputs.backend_cors_origins }}' \
+            --mail-default-sender "${{ inputs.mail_default_sender }}" \
+            --s3-endpoint-url "${{ inputs.s3_endpoint_url }}" \
+            --s3-public-base-url "${{ inputs.s3_public_base_url }}"
+
+      - name: Validate rendered overlay
+        run: python scripts/check_k8s_application_manifests.py build/k8s-release/staging --strict
+
+      - name: Render manifest artifact
+        run: kubectl kustomize build/k8s-release/staging > build/k8s-release/staging.rendered.yaml
+
+      - name: Upload rendered staging overlay
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-release-overlay
+          path: |
+            build/k8s-release/staging
+            build/k8s-release/staging.rendered.yaml

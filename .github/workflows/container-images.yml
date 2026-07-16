@@ -55,6 +55,7 @@ jobs:
           context: .
           file: docker/backend/Dockerfile.runtime
           push: ${{ env.PUSH_IMAGES == 'true' }}
+          load: ${{ env.PUSH_IMAGES != 'true' }}
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/backend:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/backend:build-${{ github.run_id }}
@@ -72,6 +73,7 @@ jobs:
           context: .
           file: docker/frontend/Dockerfile.runtime
           push: ${{ env.PUSH_IMAGES == 'true' }}
+          load: ${{ env.PUSH_IMAGES != 'true' }}
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/frontend:build-${{ github.run_id }}
@@ -79,6 +81,40 @@ jobs:
             NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000
             AUTH_COOKIE_NAME=noteverse_session
             REFRESH_COOKIE_NAME=noteverse_refresh
+
+      - name: Generate backend SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE_NAMESPACE }}/backend:${{ github.sha }}
+          format: spdx-json
+          artifact-name: backend-image-sbom.spdx.json
+
+      - name: Generate frontend SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
+          format: spdx-json
+          artifact-name: frontend-image-sbom.spdx.json
+
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend:${{ github.sha }}
+          vuln-type: os,library
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+
+      - name: Scan frontend image
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
+          vuln-type: os,library
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
 
       - name: Write image build summary
         run: |
@@ -90,4 +126,6 @@ jobs:
             echo "- Backend digest: \`${{ steps.backend-build.outputs.digest }}\`"
             echo "- Frontend image: \`${IMAGE_NAMESPACE}/frontend:${GITHUB_SHA}\`"
             echo "- Frontend digest: \`${{ steps.frontend-build.outputs.digest }}\`"
+            echo "- SBOM artifacts: backend-image-sbom.spdx.json, frontend-image-sbom.spdx.json"
+            echo "- Vulnerability gate: CRITICAL, ignore unfixed"
           } >> "$GITHUB_STEP_SUMMARY"

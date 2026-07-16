@@ -65,6 +65,36 @@ Prefer an external secret manager or sealed-secret mechanism for real clusters.
 The referenced env file must be generated outside this repository and must
 contain the required keys listed above.
 
+## Registry Pull Secret
+
+Required name:
+
+```text
+Secret/noteverse-registry-credentials
+```
+
+Purpose:
+
+- allow Kubernetes nodes to pull private backend/frontend images from GHCR or a
+  future private registry.
+
+Example command shape for GHCR:
+
+```bash
+kubectl -n noteverse-production create secret docker-registry noteverse-registry-credentials \
+  --docker-server=ghcr.io \
+  --docker-username=<github-user-or-ci-bot> \
+  --docker-password=<token-with-read-packages> \
+  --docker-email=<ops-email>
+```
+
+Rules:
+
+- use a least-privilege token with package read access only;
+- create separate pull credentials for staging and production;
+- rotate the token deliberately and restart workloads only if needed;
+- do not commit this Secret or the token value to the repository.
+
 ## Frontend Secret
 
 The frontend currently does not require a dedicated Secret.

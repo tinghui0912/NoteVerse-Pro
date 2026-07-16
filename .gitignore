@@ -40,3 +40,7 @@ backend/data/
 backend/logs/
 backend/celerybeat-schedule.*
 /models/
+
+# Local checkouts for pinned third-party source tools.
+# See docs/external_dependencies.md.
+external/

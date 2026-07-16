@@ -4,6 +4,12 @@ This project keeps source-level third-party tools under `external/` when they ar
 not available as normal Python packages or when the application depends on
 repository scripts in addition to importable modules.
 
+The `external/` directory is a local dependency checkout area and is ignored by
+the NoteVerse Git repository. Do not vendor the full third-party repository into
+the main application history. Keep the dependency pinned by upstream URL and
+commit, and provide it to Docker/Kubernetes as a read-only checkout or mounted
+volume.
+
 ## LEGATO
 
 Location:
@@ -70,6 +76,11 @@ Docker mounts it read-only:
 ```yaml
 ./external/legato:/external/legato:ro
 ```
+
+Production Kubernetes should provide the same pinned checkout through a
+read-only model/tooling volume. The application verifies the configured
+`LEGATO_REPO_COMMIT` at runtime instead of assuming that arbitrary source under
+`/external/legato` is valid.
 
 ### Updating LEGATO
 
