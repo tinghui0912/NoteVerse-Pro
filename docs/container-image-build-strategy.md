@@ -209,16 +209,16 @@ Recommended future build:
 docker build \
   -f docker/frontend/Dockerfile.runtime \
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 \
-  --build-arg AUTH_COOKIE_NAME=noteverse_session \
-  --build-arg REFRESH_COOKIE_NAME=noteverse_refresh \
+  --build-arg SESSION_COOKIE_NAME=noteverse_session \
+  --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh \
   -t <registry>/noteverse/frontend:<git-sha> \
   .
 ```
 
-Docker may emit `SecretsUsedInArgOrEnv` warnings for `AUTH_COOKIE_NAME`. In this
-project those values are cookie names, not secret material. Real secrets must
-still be provided through Kubernetes Secrets and must not be passed as Docker
-build args.
+The frontend image build uses neutral build argument names for cookie names so
+Docker does not confuse runtime cookie naming with secret material. Real secrets
+must still be provided through Kubernetes Secrets and must not be passed as
+Docker build args.
 
 ## Build Cache Strategy
 

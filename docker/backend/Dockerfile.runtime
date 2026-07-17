@@ -97,6 +97,8 @@ COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
 RUN chmod +x /usr/local/bin/noteverse-entrypoint \
     && mkdir -p /app/data/storage /app/data/work /opt/noteverse/models
 
+COPY backend/ /app/
+
 EXPOSE 8000
 
 ENTRYPOINT ["/usr/bin/tini", "--", "noteverse-entrypoint"]

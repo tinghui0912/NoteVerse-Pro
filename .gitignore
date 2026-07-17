@@ -34,6 +34,7 @@ backend/.env.docker
 tmp/
 temp/
 scratch/
+build/
 
 # Local runtime data
 backend/data/

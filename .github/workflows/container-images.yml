@@ -83,8 +83,8 @@ jobs:
             ${{ env.IMAGE_NAMESPACE }}/frontend:build-${{ github.run_id }}
           build-args: |
             NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000
-            AUTH_COOKIE_NAME=noteverse_session
-            REFRESH_COOKIE_NAME=noteverse_refresh
+            SESSION_COOKIE_NAME=noteverse_session
+            SESSION_REFRESH_COOKIE_NAME=noteverse_refresh
 
       - name: Generate backend SBOM
         uses: anchore/sbom-action@v0.24.0

@@ -7,7 +7,11 @@ export PYTHONPATH="/app:${PYTHONPATH:-}"
 
 case "${1:-api}" in
   api)
-    exec python -m uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}" --reload
+    uvicorn_args=(app.main:app --host 0.0.0.0 --port "${PORT:-8000}")
+    if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
+      uvicorn_args+=(--reload)
+    fi
+    exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
   worker)
     python scripts/check_runtime.py --role worker

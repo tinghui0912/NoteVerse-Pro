@@ -195,6 +195,24 @@ Secret/noteverse-registry-credentials
 For GHCR, this Secret should use `ghcr.io` as the Docker server and a
 least-privilege token with package read access.
 
+Initialize model assets before enabling worker replicas:
+
+```bash
+kubectl -n noteverse-production apply -f deploy/application/jobs/model-assets-init-job.yaml
+kubectl -n noteverse-production wait --for=condition=complete job/noteverse-model-assets-init --timeout=7200s
+kubectl -n noteverse-production logs job/noteverse-model-assets-init
+kubectl -n noteverse-production delete job/noteverse-model-assets-init
+```
+
+Patch or kustomize the job image to the same backend image digest used by the
+release. The job mounts `PersistentVolumeClaim/noteverse-model-assets` writable
+and runs `backend/scripts/prepare_model_assets.py`. Application pods continue to
+mount the same PVC read-only.
+
+If the selected Hugging Face model repositories are gated, the backend Secret
+must include `HF_TOKEN`. A missing or unauthorized token should fail the model
+initialization job; do not start worker pods against a partial model volume.
+
 Render manifests before applying:
 
 ```bash
@@ -205,12 +223,13 @@ Apply order:
 
 1. ConfigMaps and Secrets.
 2. PVCs and external dependency bindings.
-3. Migration Job.
-4. Backend API.
-5. Backend worker.
-6. Backend beat.
-7. Frontend.
-8. Ingress.
+3. Model assets initialization Job.
+4. Migration Job.
+5. Backend API.
+6. Backend worker.
+7. Backend beat.
+8. Frontend.
+9. Ingress.
 
 The public template overlay is not directly deployable because it contains
 `example.invalid` domains and placeholder images. Use a private deployable

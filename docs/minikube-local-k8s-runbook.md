@@ -65,9 +65,9 @@ Build production-style runtime images locally:
 ```powershell
 docker build `
   -f docker/backend/Dockerfile.runtime `
-  --build-arg PYTHON_IMAGE=python:3.12-slim-bookworm `
+  --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124 `
   --build-arg INSTALL_DEV_DEPS=false `
-  --build-arg INSTALL_GPU_DEPS=false `
+  --build-arg INSTALL_GPU_DEPS=true `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
   -t noteverse-backend:local `
@@ -76,8 +76,8 @@ docker build `
 docker build `
   -f docker/frontend/Dockerfile.runtime `
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 `
-  --build-arg AUTH_COOKIE_NAME=noteverse_session `
-  --build-arg REFRESH_COOKIE_NAME=noteverse_refresh `
+  --build-arg SESSION_COOKIE_NAME=noteverse_session `
+  --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh `
   -t noteverse-frontend:local `
   .
 ```
@@ -120,6 +120,41 @@ Create or bind PVCs for:
 For API/frontend-only smoke tests, it is acceptable to scale worker and beat to
 zero in a dedicated local overlay. For import, render, playback, and cleanup
 tests, worker and beat must run with their required runtime assets.
+
+## Initialize Model Assets
+
+For worker smoke tests, initialize the model PVC from inside Linux rather than
+copying a Windows Hugging Face cache. Windows cache snapshots may contain NTFS
+reparse points that do not survive `kubectl cp` or tar extraction into Linux.
+
+Create the PVC before running the job:
+
+```powershell
+kubectl -n noteverse-staging create pvc noteverse-model-assets `
+  --storage=40Gi `
+  --access-modes=ReadWriteOnce
+```
+
+If the selected Hugging Face repositories are gated, add an `HF_TOKEN` key to
+`Secret/noteverse-backend-secret` before running the job.
+
+Patch the job image to the local backend image tag and run it:
+
+```powershell
+Copy-Item deploy\application\jobs\model-assets-init-job.yaml build\k8s-release\minikube\model-assets-init-job.yaml
+
+(Get-Content build\k8s-release\minikube\model-assets-init-job.yaml) `
+  -replace 'image: noteverse-backend:replace-me', 'image: noteverse-backend:local' |
+  Set-Content build\k8s-release\minikube\model-assets-init-job.yaml
+
+kubectl -n noteverse-staging apply -f build\k8s-release\minikube\model-assets-init-job.yaml
+kubectl -n noteverse-staging wait --for=condition=complete job/noteverse-model-assets-init --timeout=7200s
+kubectl -n noteverse-staging logs job/noteverse-model-assets-init
+```
+
+If the job fails because Hugging Face access is missing, fix the Secret and
+recreate the job. Do not enable worker replicas until the model initialization
+job succeeds.
 
 ## Render Local Overlay
 

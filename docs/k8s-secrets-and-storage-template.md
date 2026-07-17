@@ -46,6 +46,7 @@ Required keys:
 | `S3_ACCESS_KEY_ID` | platform/storage | object storage credential rotation |
 | `S3_SECRET_ACCESS_KEY` | platform/storage | object storage credential rotation |
 | `RESEND_API_KEY` | platform/email | mail provider credential rotation |
+| `HF_TOKEN` | platform/ml | Hugging Face access token rotation, only required when model assets are initialized from gated Hugging Face repositories |
 
 Rules:
 
@@ -198,8 +199,21 @@ Contains:
 Rules:
 
 - mount read-only in app pods;
-- update through a controlled model publishing process;
+- update through a controlled model publishing process such as
+  `deploy/application/jobs/model-assets-init-job.yaml`;
 - do not let worker jobs mutate the model PVC.
+
+Initialization contract:
+
+1. Create or bind `PersistentVolumeClaim/noteverse-model-assets`.
+2. Run `Job/noteverse-model-assets-init` with the backend runtime image and the
+   same backend ConfigMap/Secret used by the application.
+3. The job writes assets to `/opt/noteverse/models` and then runs worker runtime
+   checks.
+4. Only after the job succeeds should API/worker pods mount the PVC read-only.
+
+`HF_TOKEN` is required when the selected Hugging Face repositories are gated.
+Do not commit this token or bake it into images.
 
 ### Legato Repository
 
@@ -309,7 +323,9 @@ TLS rotation:
 
 Model volume update:
 
-1. Publish new model assets to the model PVC through a controlled job.
+1. Publish new model assets to the model PVC through
+   `deploy/application/jobs/model-assets-init-job.yaml` or an equivalent
+   controlled job.
 2. Run worker runtime checks in staging.
 3. Roll worker pods.
 4. Validate import/render/playback smoke tests.
