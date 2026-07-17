@@ -57,6 +57,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="include recursive directory sizes in the final runtime check output",
     )
+    parser.add_argument(
+        "--check-scope",
+        choices=("assets", "worker"),
+        default="worker",
+        help="final validation scope: model assets only, or full worker runtime checks",
+    )
     return parser.parse_args()
 
 
@@ -91,13 +97,14 @@ def prepare_soundfont(target_path: Path) -> None:
 def prepare_huggingface_snapshots(hf_home: Path) -> None:
     from huggingface_hub import snapshot_download
 
-    _ensure_directory(hf_home)
+    hub_cache = hf_home / "hub"
+    _ensure_directory(hub_cache)
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
     for repo_id in HF_REPOSITORIES:
         print(f"[INFO] downloading Hugging Face snapshot: {repo_id}")
         snapshot_path = snapshot_download(
             repo_id=repo_id,
-            cache_dir=str(hf_home),
+            cache_dir=str(hub_cache),
             token=token,
             local_files_only=False,
         )
@@ -142,6 +149,22 @@ async def run_final_checks(include_sizes: bool) -> int:
     return 1 if failed else 0
 
 
+def run_asset_checks(include_sizes: bool) -> int:
+    from app.core.runtime_checks import check_huggingface_models, check_paddleocr_models, check_soundfont
+
+    checks = (
+        check_soundfont,
+        check_paddleocr_models,
+        check_huggingface_models,
+    )
+    failed = False
+    for check in checks:
+        result = check(include_sizes)
+        print(f"[{'OK' if result.ok else 'FAIL'}] {result.name}: {result.message}")
+        failed = failed or not result.ok
+    return 1 if failed else 0
+
+
 async def main() -> int:
     args = parse_args()
 
@@ -157,6 +180,8 @@ async def main() -> int:
     if not args.skip_paddleocr:
         prepare_paddleocr_models()
 
+    if args.check_scope == "assets":
+        return run_asset_checks(include_sizes=args.include_sizes)
     return await run_final_checks(include_sizes=args.include_sizes)
 
 

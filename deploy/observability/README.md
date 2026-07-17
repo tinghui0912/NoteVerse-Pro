@@ -26,6 +26,7 @@ Reference documents:
 - `docs/k8s-deployment-runbook.md`
 - `docs/k8s-observability-deployment-skeleton.md`
 - `docs/k8s-logging-loki-fluent-bit-plan.md`
+- `docs/minikube-observability-runbook.md`
 - `docs/grafana-dashboard-requirements.md`
 - `docs/grafana-loki-query-runbook.md`
 - `docs/opentelemetry-tempo-tracing-plan.md`
@@ -45,8 +46,11 @@ values/
 
 - Do not commit secrets.
 - Do not add fallback external endpoints.
-- Do not make `request_id`, `score_id`, `job_id`, `user_id`, or storage keys
-  Loki labels.
+- Do not make `pod`, `request_id`, `trace_id`, `span_id`, `score_id`,
+  `revision_id`, `job_id`, `outbox_id`, `user_id`, email addresses, file
+  hashes, or storage keys Loki labels.
+- Keep operational IDs in the structured JSON log body and query them with
+  LogQL `| json`.
 - Do not enable high-volume practice tracing by default.
 - Add environment overlays only when staging/production cluster details are
   known.
@@ -57,4 +61,10 @@ Run the lightweight guard:
 
 ```bash
 python scripts/check_observability_manifests.py
+```
+
+Render Helm manifests before installing:
+
+```bash
+python scripts/render_observability_helm.py --release loki --release fluent-bit
 ```

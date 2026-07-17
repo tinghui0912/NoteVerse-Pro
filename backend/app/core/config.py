@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     AUTH_COOKIE_SECURE: bool
     AUTH_COOKIE_SAMESITE: str
     DEBUG: bool = False
+    LOG_FORMAT: str
     FRONTEND_BASE_URL: str
     PRACTICE_MATCHMAKER_FRAME_RATE: int = 30
     PRACTICE_AUDIO_RMS_GATE: float = 0.015
@@ -60,8 +61,6 @@ class Settings(BaseSettings):
     PADDLEOCR_DETECTION_MODEL_DIR: Optional[str] = None
     PADDLEOCR_RECOGNITION_MODEL_DIR: Optional[str] = None
     PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR: Optional[str] = None
-    LOG_DIR: str = str(BASE_DIR / "logs")
-
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl]
 
@@ -88,6 +87,16 @@ class Settings(BaseSettings):
                 return False
         return v
 
+    @field_validator("LOG_FORMAT")
+    @classmethod
+    def validate_log_format(cls, v: str) -> str:
+        """Validate the stdout log encoding used by container log collectors."""
+
+        value = v.strip().lower()
+        if value not in {"json", "console"}:
+            raise ValueError("LOG_FORMAT must be one of: json, console")
+        return value
+
     @field_validator("PRACTICE_AUDIO_MIN_ACTIVE_FRAMES")
     @classmethod
     def validate_practice_audio_min_active_frames(cls, v: int) -> int:
@@ -99,7 +108,6 @@ class Settings(BaseSettings):
         return max(v, 1)
 
     @field_validator(
-        "LOG_DIR",
         "PRACTICE_SOUNDFONT_PATH",
         "PLAYBACK_SOUNDFONT_PATH",
         "MODEL_ROOT",

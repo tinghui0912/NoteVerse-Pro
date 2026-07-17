@@ -100,6 +100,62 @@ def scan_file(path: Path) -> list[Finding]:
     return findings
 
 
+def add_file_finding(path: Path, rule: str, text: str) -> Finding:
+    return Finding(path=str(path.relative_to(REPO_ROOT)), line=1, rule=rule, text=text)
+
+
+def validate_fluent_bit_values(target: Path) -> list[Finding]:
+    """Validate the NoteVerse Fluent Bit -> Loki values contract."""
+
+    target_path = target if target.is_absolute() else REPO_ROOT / target
+    fluent_bit_path = target_path / "values" / "fluent-bit.values.yaml"
+    if not fluent_bit_path.exists():
+        return []
+
+    text = fluent_bit_path.read_text(encoding="utf-8")
+    findings: list[Finding] = []
+    required_snippets = {
+        "fluent-bit-cri-parser": "Name        cri",
+        "fluent-bit-json-parser": "Name        noteverse_json",
+        "fluent-bit-merge-parser": "Merge_Parser        noteverse_json",
+        "fluent-bit-loki-output": "Name        loki",
+        "fluent-bit-json-line-format": "Line_Format json",
+        "fluent-bit-level-label": "Label_Keys  level",
+    }
+    for rule, snippet in required_snippets.items():
+        if snippet not in text:
+            findings.append(add_file_finding(fluent_bit_path, rule, f"missing required snippet: {snippet}"))
+
+    if re.search(r"\bName\s+parser\b.*\bKey_Name\s+log\b", text, re.IGNORECASE | re.DOTALL):
+        findings.append(
+            add_file_finding(
+                fluent_bit_path,
+                "fluent-bit-parser-after-kubernetes-merge",
+                "parse NoteVerse JSON through Kubernetes Merge_Parser, not a second log-field parser filter",
+            )
+        )
+
+    labels_line = next((line.strip() for line in text.splitlines() if line.strip().startswith("Labels ")), "")
+    if labels_line:
+        allowed_label_names = {"namespace", "container"}
+        label_names = {
+            segment.split("=", 1)[0].strip()
+            for segment in labels_line.removeprefix("Labels").split(",")
+            if "=" in segment
+        }
+        unexpected = sorted(label_names.difference(allowed_label_names))
+        if unexpected:
+            findings.append(
+                add_file_finding(
+                    fluent_bit_path,
+                    "unexpected-loki-label",
+                    f"unexpected Loki labels: {', '.join(unexpected)}",
+                )
+            )
+
+    return findings
+
+
 def print_findings(findings: list[Finding]) -> None:
     for finding in findings:
         print(f"{finding.path}:{finding.line}: {finding.rule}: {finding.text}")
@@ -110,6 +166,7 @@ def main() -> int:
     findings: list[Finding] = []
     for path in target_files(args.target):
         findings.extend(scan_file(path))
+    findings.extend(validate_fluent_bit_values(args.target))
 
     if findings:
         print_findings(findings)

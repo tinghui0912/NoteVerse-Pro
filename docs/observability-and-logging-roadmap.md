@@ -81,20 +81,21 @@ The backend already has a solid observability foundation.
 Implemented:
 
 - centralized Loguru setup in `app.core.logger`;
-- debug console logs and production-style JSON stdout;
+- explicit `LOG_FORMAT=console|json` selection;
+- local-readable console logs and production JSON stdout;
 - `X-Request-ID` generation/propagation;
 - request/response lifecycle logging middleware;
+- standard-library framework logging and Celery worker/beat logs are routed
+  through the same stdout sink;
 - centralized exception handlers;
 - public/internal error response separation;
 - async operation diagnostics for import, render, playback, mail, and score
   deletion;
 - durable outbox and Celery beat maintenance for recoverable async work.
 
-Missing or incomplete:
+Remaining gaps:
 
-- standard `logging`, Celery task logger, and `app.core.logger` are mixed across
-  modules;
-- task logs do not consistently include stable context fields such as
+- some task logs still need richer stable context fields such as
   `job_id`, `outbox_id`, `score_id`, `revision_id`, `attempt`, and
   `next_retry_at`;
 - audit events, analytics events, and runtime logs are not fully separated.
@@ -135,11 +136,11 @@ Missing or incomplete:
 
 8. **Loki labels must stay low-cardinality.**
    Fluent Bit/Loki labels should be limited to stable infrastructure dimensions
-   such as `service`, `environment`, `namespace`, `pod`, `container`, and
-   `level`. High-cardinality fields such as `request_id`, `user_id`,
+   such as `service`, `environment`, `namespace`, `container`, and `level`.
+   High-cardinality fields such as `request_id`, `user_id`,
    `score_id`, `revision_id`, `job_id`, `outbox_id`, email addresses, storage
-   keys, and file hashes must stay in the structured JSON log body, not Loki
-   labels.
+   keys, pod names, and file hashes must stay in the structured JSON log body,
+   not Loki labels.
 
 9. **Logs are not audit storage.**
    User/security-sensitive business events such as password changes, score
@@ -262,6 +263,8 @@ notification, realtime, avatar, practice runtime, and derived-asset retention
 entrypoints now emit structured lifecycle events with stable operation IDs and
 context where available. Text recognition/integration, OCR subprocess execution,
 LEGATO OMR, and practice matchmaker diagnostics also use structured events.
+Standard-library framework logs and Celery worker/beat logs are routed through
+the shared stdout sink, so K8s `LOG_FORMAT=json` produces JSON container logs.
 Guardrails now prevent new free-form application logs from creeping back in via
 `backend/tests/test_structured_logging_contract.py`.
 
@@ -287,8 +290,8 @@ Tasks:
    - `max_attempts`;
    - `next_retry_at`;
    - `internal_error_class`.
-3. Normalize `get_task_logger`, standard `logging`, and `app.core.logger`
-   behavior for worker processes.
+3. Keep standard `logging`, Celery framework logs, and `app.core.logger`
+   behavior unified through `app.core.logging_setup`.
 
 Acceptance criteria:
 
@@ -379,8 +382,8 @@ Tasks:
 
 1. Keep stdout/stderr JSON as the only production backend logging target.
 2. Remove backend local daily log file output from production behavior.
-3. Keep readable console/file logs only for local development if explicitly
-   enabled.
+3. Keep readable console logs only for local development through
+   `LOG_FORMAT=console`.
 4. Document Fluent Bit parsing/routing rules:
    - parse JSON logs from API, worker, beat, and frontend server containers;
    - label only low-cardinality infrastructure fields;

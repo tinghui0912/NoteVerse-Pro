@@ -75,7 +75,6 @@ Allowed Loki labels remain low-cardinality only:
 - `service`
 - `component`
 - `environment`
-- `pod`
 - `container`
 - `level`
 - optionally curated bounded `event`

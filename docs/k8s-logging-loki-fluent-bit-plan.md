@@ -53,7 +53,6 @@ Allowed labels:
 - `service`
 - `component`
 - `environment`
-- `pod`
 - `container`
 - `level`
 
@@ -138,23 +137,17 @@ Example shape:
     Name                kubernetes
     Match               kube.*
     Merge_Log           On
+    Merge_Parser        noteverse_json
     Keep_Log            Off
     K8S-Logging.Parser  On
     K8S-Logging.Exclude On
-
-[FILTER]
-    Name   parser
-    Match  kube.*
-    Key_Name log
-    Parser noteverse_json
-    Reserve_Data On
 
 [OUTPUT]
     Name        loki
     Match       kube.*
     Host        loki-gateway.observability.svc.cluster.local
     Port        80
-    Labels      cluster=$cluster,namespace=$kubernetes['namespace_name'],pod=$kubernetes['pod_name'],container=$kubernetes['container_name']
+    Labels      namespace=$kubernetes['namespace_name'],container=$kubernetes['container_name']
     Label_Keys  level
     Line_Format json
 ```
@@ -169,8 +162,14 @@ Parser sketch:
     Time_Format %Y-%m-%dT%H:%M:%S.%LZ
 ```
 
-Important: do not use `request_id`, `user_id`, `score_id`, `job_id`, or
-`outbox_id` in `Labels` or `Label_Keys`.
+Important:
+
+- Parse NoteVerse application JSON through the Kubernetes filter
+  `Merge_Parser`, not through a second parser filter after `Keep_Log Off`.
+- Do not use `pod`, `request_id`, `user_id`, `score_id`, `job_id`, or
+  `outbox_id` in `Labels` or `Label_Keys`.
+- Keep `request_id`, `trace_id`, `score_id`, and other operational IDs in the
+  JSON body and query them with `| json`.
 
 ## LogQL Query Examples
 

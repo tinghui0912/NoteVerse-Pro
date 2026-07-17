@@ -14,9 +14,9 @@ The target deployment is Kubernetes with Prometheus, Loki, Tempo, and Grafana.
   the platform supports it. Operator query workflows are documented in
   `docs/grafana-loki-query-runbook.md`.
 - Loki labels must stay low-cardinality. Use labels such as `service`,
-  `environment`, `namespace`, `pod`, `container`, and `level`. Keep
+  `environment`, `namespace`, `container`, and `level`. Keep
   `request_id`, `originating_request_id`, `score_id`, `revision_id`, `job_id`,
-  `outbox_id`, emails, storage keys, and file hashes in the structured log body.
+  `outbox_id`, pod names, emails, storage keys, and file hashes in the structured log body.
   See `docs/k8s-logging-loki-fluent-bit-plan.md` for the full label policy.
 - Distributed traces will use OpenTelemetry and Tempo once request/outbox
   correlation is stable enough to justify trace sampling and retention policy.

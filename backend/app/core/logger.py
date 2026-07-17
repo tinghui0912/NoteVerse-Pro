@@ -19,7 +19,7 @@ from app.core.config import settings
 
 _logger.remove()
 
-debug_mode = settings.DEBUG
+log_format = settings.LOG_FORMAT
 
 
 trace_id_var: ContextVar[Optional[str]] = ContextVar("trace_id", default=None)
@@ -126,7 +126,7 @@ def console_format(record):
     if trace_id:
         extra += f"[{trace_id}] "
     if task_id:
-        extra += f"<{task_id[:8]}> "
+        extra += f"task={task_id[:8]} "
 
     return (
         "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
@@ -198,7 +198,7 @@ def json_sink(message):
         sys.stdout.write(safe_payload)
 
 
-if debug_mode:
+if log_format == "console":
     _logger.add(
         sys.stdout,
         colorize=True,

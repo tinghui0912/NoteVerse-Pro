@@ -32,16 +32,10 @@ config:
         Name                kubernetes
         Match               kube.*
         Merge_Log           On
+        Merge_Parser        noteverse_json
         Keep_Log            Off
         K8S-Logging.Parser  On
         K8S-Logging.Exclude On
-
-    [FILTER]
-        Name         parser
-        Match        kube.*
-        Key_Name     log
-        Parser       noteverse_json
-        Reserve_Data On
 
   outputs: |
     [OUTPUT]

@@ -47,6 +47,7 @@ jobs:
       CSRF_HEADER_NAME: x-csrf-token
       AUTH_COOKIE_SECURE: "false"
       AUTH_COOKIE_SAMESITE: lax
+      LOG_FORMAT: json
       FRONTEND_BASE_URL: http://localhost:9002
       PRACTICE_SOUNDFONT_PATH: /tmp/noteverse/practice.sf2
       PLAYBACK_SOUNDFONT_PATH: /tmp/noteverse/playback.sf2

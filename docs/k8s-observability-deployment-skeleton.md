@@ -203,6 +203,7 @@ See:
 
 - `docs/grafana-dashboard-requirements.md`
 - `docs/grafana-loki-query-runbook.md`
+- `docs/minikube-observability-runbook.md`
 - `docs/opentelemetry-tempo-tracing-plan.md`
 
 ## Deployment Order

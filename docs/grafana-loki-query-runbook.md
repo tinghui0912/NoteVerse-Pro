@@ -18,7 +18,6 @@ Use Loki labels only for low-cardinality infrastructure dimensions:
 
 - `namespace`
 - `container`
-- `pod`
 - `level`
 - `environment`
 - `service`

@@ -4,8 +4,9 @@ Uses synchronous database sessions for worker tasks.
 """
 from pathlib import Path
 
-from celery import Celery
+from celery import Celery, signals
 from app.core.config import settings
+from app.core.logging_setup import configure_celery_logging
 
 beat_state_dir = Path(settings.WORK_ROOT) / "celerybeat"
 beat_state_dir.mkdir(parents=True, exist_ok=True)
@@ -46,6 +47,7 @@ celery_app.conf.update(
     },
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=50,
+    worker_hijack_root_logger=False,
     result_expires=3600,
     beat_schedule_filename=str(beat_schedule_filename),
     beat_schedule={
@@ -99,3 +101,10 @@ celery_app.conf.update(
 # }
 
 celery_app.loader.import_default_modules()
+
+
+@signals.setup_logging.connect
+def setup_celery_logging(**_: object) -> None:
+    """Use the application logging pipeline for Celery framework logs."""
+
+    configure_celery_logging()
