@@ -39,9 +39,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tls-secret", required=True)
     parser.add_argument("--frontend-base-url", required=True)
     parser.add_argument("--backend-cors-origins", required=True)
+    parser.add_argument("--auth-cookie-secure", choices=("true", "false"), required=True)
     parser.add_argument("--mail-default-sender", required=True)
     parser.add_argument("--s3-endpoint-url", required=True)
+    parser.add_argument("--s3-region", required=True)
+    parser.add_argument("--s3-bucket", required=True)
     parser.add_argument("--s3-public-base-url", required=True)
+    parser.add_argument("--s3-force-path-style", choices=("true", "false"), required=True)
+    parser.add_argument("--s3-presign-expire-seconds", required=True)
     parser.add_argument(
         "--overwrite",
         action="store_true",
@@ -52,8 +57,8 @@ def parse_args() -> argparse.Namespace:
 
 def parse_image_ref(value: str) -> ImageRef:
     if "@sha256:" in value:
-      name, digest = value.split("@", 1)
-      return ImageRef(name=name, field="digest", value=digest)
+        name, digest = value.split("@", 1)
+        return ImageRef(name=name, field="digest", value=digest)
 
     slash_index = value.rfind("/")
     colon_index = value.rfind(":")
@@ -168,6 +173,11 @@ def render_overlay(args: argparse.Namespace) -> Path:
     )
     backend_config = replace_env_value(
         backend_config,
+        "AUTH_COOKIE_SECURE",
+        args.auth_cookie_secure,
+    )
+    backend_config = replace_env_value(
+        backend_config,
         "MAIL_DEFAULT_SENDER",
         args.mail_default_sender,
     )
@@ -178,8 +188,28 @@ def render_overlay(args: argparse.Namespace) -> Path:
     )
     backend_config = replace_env_value(
         backend_config,
+        "S3_REGION",
+        args.s3_region,
+    )
+    backend_config = replace_env_value(
+        backend_config,
+        "S3_BUCKET",
+        args.s3_bucket,
+    )
+    backend_config = replace_env_value(
+        backend_config,
         "S3_PUBLIC_BASE_URL",
         args.s3_public_base_url,
+    )
+    backend_config = replace_env_value(
+        backend_config,
+        "S3_FORCE_PATH_STYLE",
+        args.s3_force_path_style,
+    )
+    backend_config = replace_env_value(
+        backend_config,
+        "S3_PRESIGN_EXPIRE_SECONDS",
+        args.s3_presign_expire_seconds,
     )
     backend_config_path.write_text(backend_config, encoding="utf-8")
 

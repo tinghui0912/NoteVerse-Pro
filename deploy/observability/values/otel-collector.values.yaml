@@ -49,7 +49,7 @@ alternateConfig:
 
   exporters:
     otlp_grpc/tempo:
-      endpoint: ${env:TEMPO_SERVICE_HOST}:4317
+      endpoint: tempo.observability.svc.cluster.local:4317
       tls:
         insecure: true
 

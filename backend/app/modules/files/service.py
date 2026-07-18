@@ -51,22 +51,38 @@ class FilesService:
         blob = await self.repository.get_blob_by_sha256(db, file_hash)
         stored = None
         try:
-            if blob is None:
+            blob_needs_current_storage = (
+                blob is None
+                or blob.storage_backend != self.storage.backend_name
+                or not self.storage.exists(blob.storage_key)
+            )
+            if blob_needs_current_storage:
                 stored = self.storage.save_blob(
                     content=content,
                     sha256=file_hash,
                     extension=extension,
                     content_type=content_type,
                 )
-                blob = await self.repository.create_blob(
-                    db,
-                    sha256=file_hash,
-                    storage_backend=self.storage.backend_name,
-                    storage_key=stored.storage_key,
-                    filename=stored.filename,
-                    size_bytes=stored.size_bytes,
-                    mime_type=content_type,
-                )
+                if blob is None:
+                    blob = await self.repository.create_blob(
+                        db,
+                        sha256=file_hash,
+                        storage_backend=self.storage.backend_name,
+                        storage_key=stored.storage_key,
+                        filename=stored.filename,
+                        size_bytes=stored.size_bytes,
+                        mime_type=content_type,
+                    )
+                else:
+                    blob = await self.repository.update_blob_storage(
+                        db,
+                        blob,
+                        storage_backend=self.storage.backend_name,
+                        storage_key=stored.storage_key,
+                        filename=stored.filename,
+                        size_bytes=stored.size_bytes,
+                        mime_type=content_type,
+                    )
             upload = await self.repository.create_upload(
                 db,
                 blob_id=require_persisted_id(blob.id, entity="storage blob"),

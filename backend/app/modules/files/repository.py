@@ -31,6 +31,25 @@ class FilesRepository:
         await db.flush()
         return blob
 
+    async def update_blob_storage(
+        self,
+        db: AsyncSession,
+        blob: StorageBlob,
+        *,
+        storage_backend: str,
+        storage_key: str,
+        filename: str,
+        size_bytes: int,
+        mime_type: str,
+    ) -> StorageBlob:
+        blob.storage_backend = storage_backend
+        blob.storage_key = storage_key
+        blob.filename = filename
+        blob.size_bytes = size_bytes
+        blob.mime_type = mime_type
+        await db.flush()
+        return blob
+
     async def create_upload(
         self,
         db: AsyncSession,

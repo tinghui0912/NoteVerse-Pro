@@ -18,9 +18,9 @@ spec:
               mountPath: /var/lib/noteverse/work
       volumes:
         - name: model-assets
-          persistentVolumeClaim:
-            claimName: noteverse-model-assets
-            readOnly: true
+          hostPath:
+            path: /var/lib/noteverse/models
+            type: Directory
         - name: legato-repo
           persistentVolumeClaim:
             claimName: noteverse-legato-repo

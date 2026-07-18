@@ -9,6 +9,7 @@ param(
         "frontend-i18n",
         "frontend-test",
         "k8s",
+        "k8s-minikube",
         "observability",
         "all"
     )]
@@ -22,6 +23,7 @@ $BackendComposeFile = Join-Path $RepoRoot "docker-compose.backend-dev.yml"
 $FrontendRoot = Join-Path $RepoRoot "frontend"
 $K8sManifestCheck = Join-Path $PSScriptRoot "check_k8s_application_manifests.py"
 $K8sReleaseOverlayRenderer = Join-Path $PSScriptRoot "render_k8s_release_overlay.py"
+$MinikubeBootstrap = Join-Path $PSScriptRoot "minikube_bootstrap.ps1"
 $ObservabilityManifestCheck = Join-Path $PSScriptRoot "check_observability_manifests.py"
 
 function Invoke-Step {
@@ -92,9 +94,14 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --tls-secret "noteverse-staging-real-tls" `
             --frontend-base-url "https://staging.noteverse.test" `
             --backend-cors-origins '["https://staging.noteverse.test"]' `
+            --auth-cookie-secure true `
             --mail-default-sender "NoteVerse Pro <no-reply@staging.noteverse.test>" `
             --s3-endpoint-url "https://object-storage.noteverse.test" `
-            --s3-public-base-url "https://objects.staging.noteverse.test"
+            --s3-region "auto" `
+            --s3-bucket "noteverse-staging" `
+            --s3-public-base-url "https://objects.staging.noteverse.test" `
+            --s3-force-path-style true `
+            --s3-presign-expire-seconds 900
 
         python $K8sManifestCheck $OutputDir --strict
     }
@@ -103,6 +110,12 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
 function Invoke-ObservabilityManifestCheck {
     Invoke-Step "observability:manifests" {
         python $ObservabilityManifestCheck
+    }
+}
+
+function Invoke-MinikubeBootstrapCheck {
+    Invoke-Step "k8s:minikube-bootstrap" {
+        powershell -NoProfile -ExecutionPolicy Bypass -File $MinikubeBootstrap -ValidateTracing
     }
 }
 
@@ -134,6 +147,9 @@ switch ($Check) {
     "k8s" {
         Invoke-K8sManifestCheck
         Invoke-K8sReleaseOverlaySmokeCheck
+    }
+    "k8s-minikube" {
+        Invoke-MinikubeBootstrapCheck
     }
     "observability" {
         Invoke-ObservabilityManifestCheck

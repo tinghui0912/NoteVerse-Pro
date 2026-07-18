@@ -22,10 +22,11 @@ Required objects supplied outside this overlay:
   - `S3_ACCESS_KEY_ID`
   - `S3_SECRET_ACCESS_KEY`
   - `RESEND_API_KEY` if mail is enabled
-- `PersistentVolumeClaim/noteverse-model-assets`
 - `PersistentVolumeClaim/noteverse-legato-repo`
 - `PersistentVolumeClaim/noteverse-beat-work`
 - `Secret/noteverse-staging-tls` or a cert-manager issuer that owns it
+- node label `noteverse.io/model-cache=enabled` on nodes that may run API or
+  worker pods
 
 Replace all `example.invalid` domains and `registry.example.invalid` images in
 an environment-specific branch or private overlay before deployment.

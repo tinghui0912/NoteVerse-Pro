@@ -66,7 +66,7 @@ class ImportJobSubmissionService:
                     upload
                     and blob
                     and upload.uploader_user_id == user_id
-                    and self.storage.exists(blob.storage_key)
+                    and blob.storage_backend == self.storage.backend_name
                 ):
                     continue
                 raise ResourceNotFoundException(

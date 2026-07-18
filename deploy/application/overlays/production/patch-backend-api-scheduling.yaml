@@ -1,0 +1,9 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse-backend-api
+spec:
+  template:
+    spec:
+      nodeSelector:
+        noteverse.io/model-cache: enabled

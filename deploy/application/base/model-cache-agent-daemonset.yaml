@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: noteverse-model-cache-agent
+  labels:
+    app.kubernetes.io/component: model-cache-agent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: model-cache-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: model-cache-agent
+    spec:
+      nodeSelector:
+        noteverse.io/model-cache: enabled
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      initContainers:
+        - name: prepare-model-assets
+          image: noteverse-backend:replace-me
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - /app/scripts/prepare_model_assets.py
+            - --check-scope
+            - assets
+          envFrom:
+            - configMapRef:
+                name: noteverse-backend-config
+            - secretRef:
+                name: noteverse-backend-secret
+          env:
+            - name: MODEL_ROOT
+              value: /opt/noteverse/models
+            - name: PRACTICE_SOUNDFONT_PATH
+              value: /opt/noteverse/models/soundfonts/FluidR3_GM.sf2
+            - name: PLAYBACK_SOUNDFONT_PATH
+              value: /opt/noteverse/models/soundfonts/FluidR3_GM.sf2
+            - name: HF_HOME
+              value: /opt/noteverse/models/huggingface
+            - name: HF_HUB_OFFLINE
+              value: "false"
+            - name: TRANSFORMERS_OFFLINE
+              value: "false"
+            - name: PADDLEOCR_MODEL_ROOT
+              value: /opt/noteverse/models/paddleocr/official_models
+            - name: PADDLEOCR_DETECTION_MODEL_DIR
+              value: /opt/noteverse/models/paddleocr/official_models/PP-OCRv6_medium_det
+            - name: PADDLEOCR_RECOGNITION_MODEL_DIR
+              value: /opt/noteverse/models/paddleocr/official_models/PP-OCRv6_medium_rec
+            - name: PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR
+              value: /opt/noteverse/models/paddleocr/official_models/PP-LCNet_x1_0_textline_ori
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-backend-secret
+                  key: HF_TOKEN
+                  optional: true
+          volumeMounts:
+            - name: node-model-cache
+              mountPath: /opt/noteverse/models
+      containers:
+        - name: cache-ready
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              echo "model cache ready on ${NODE_NAME}"
+              trap : TERM INT
+              sleep infinity &
+              wait
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: node-model-cache
+              mountPath: /opt/noteverse/models
+              readOnly: true
+      volumes:
+        - name: node-model-cache
+          hostPath:
+            path: /var/lib/noteverse/models
+            type: DirectoryOrCreate

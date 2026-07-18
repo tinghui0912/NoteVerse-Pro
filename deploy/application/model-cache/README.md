@@ -21,6 +21,16 @@ ready for node-local model caching.
   - mounts `/var/lib/noteverse/models` as node-local cache;
   - validates only model assets, not database, Redis, or Celery.
 
+## Which Manifest To Use
+
+- Minikube topology simulation: use `model-cache-sim-daemonset.yaml` to verify
+  DaemonSet scheduling and node-local cache shape without duplicating the full
+  model set.
+- Real minikube/staging/production runtime: use
+  `deploy/application/base/model-cache-agent-daemonset.yaml`. It prepares the
+  node-local model cache under `/var/lib/noteverse/models`, while API and worker
+  pods mount that same path read-only at `/opt/noteverse/models`.
+
 ## Topology
 
 ```text

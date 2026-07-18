@@ -6,6 +6,7 @@ spec:
   template:
     spec:
       nodeSelector:
+        noteverse.io/model-cache: enabled
         noteverse.io/workload: gpu-worker
       tolerations:
         - key: nvidia.com/gpu

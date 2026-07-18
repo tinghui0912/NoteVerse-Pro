@@ -128,6 +128,7 @@ def render_release(release: Release, namespace: str, output_dir: Path, profile: 
     if not release.values_file.exists():
         raise RuntimeError(f"missing values file: {release.values_file.relative_to(REPO_ROOT)}")
 
+    output_dir = output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{release.name}.yaml"
     command = [
@@ -171,7 +172,10 @@ def main() -> int:
         return 1
 
     for path in rendered:
-        print(path.relative_to(REPO_ROOT))
+        try:
+            print(path.relative_to(REPO_ROOT))
+        except ValueError:
+            print(path)
     return 0
 
 

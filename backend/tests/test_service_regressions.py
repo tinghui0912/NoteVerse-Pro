@@ -461,7 +461,7 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
     service = ImportJobSubmissionService(storage=Mock())
     sync_db = Mock()
     upload = SimpleNamespace(uploader_user_id=99, blob_id=3)
-    sync_db.get.return_value = SimpleNamespace(storage_key="blobs/ab/abc123.png")
+    sync_db.get.return_value = SimpleNamespace(storage_backend=service.storage.backend_name, storage_key="blobs/ab/abc123.png")
 
     with patch("app.db.worker_session.get_db_session", return_value=sync_db):
         with patch.object(sync_import_job_service.repository, "get_upload_by_uuid", return_value=upload):
@@ -470,6 +470,73 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
 
     assert context.value.code == ErrorCode.FILE_NOT_FOUND
     sync_db.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_file_upload_rehomes_existing_blob_when_storage_backend_changes() -> None:
+    repository = Mock()
+    existing_blob = SimpleNamespace(
+        id=3,
+        storage_backend="local",
+        storage_key="blobs/ab/existing.png",
+        filename="existing.png",
+        size_bytes=3,
+        mime_type="image/png",
+    )
+    updated_blob = SimpleNamespace(
+        id=3,
+        storage_backend="s3",
+        storage_key="blobs/ba/new.png",
+        filename="new.png",
+        size_bytes=5,
+        mime_type="image/png",
+    )
+    upload_record = SimpleNamespace(upload_uuid="upload-1")
+    repository.get_blob_by_sha256 = AsyncMock(return_value=existing_blob)
+    repository.update_blob_storage = AsyncMock(return_value=updated_blob)
+    repository.create_blob = AsyncMock()
+    repository.create_upload = AsyncMock(return_value=upload_record)
+    storage = Mock()
+    storage.backend_name = "s3"
+    storage.exists.return_value = False
+    storage.save_blob.return_value = SimpleNamespace(
+        storage_key="blobs/ba/new.png",
+        filename="new.png",
+        size_bytes=5,
+    )
+    db = AsyncMock()
+    user = SimpleNamespace(id=1)
+    upload = SimpleNamespace(
+        filename="score.png",
+        content_type="image/png",
+        read=AsyncMock(return_value=b"score"),
+    )
+
+    with patch("app.modules.files.service.storage_usage_service.reserve") as reserve_mock:
+        reserve_mock.return_value = SimpleNamespace(reservation_id="reservation-1")
+        with patch("app.modules.files.service.storage_usage_service.commit_reservation") as commit_mock:
+            result = await FilesService(repository=repository, storage=storage).upload_file(db, user, upload)
+
+    assert result == {"file_id": "upload-1", "filename": "score.png", "size": 5}
+    storage.exists.assert_not_called()
+    storage.save_blob.assert_called_once()
+    repository.create_blob.assert_not_called()
+    repository.update_blob_storage.assert_awaited_once_with(
+        db,
+        existing_blob,
+        storage_backend="s3",
+        storage_key="blobs/ba/new.png",
+        filename="new.png",
+        size_bytes=5,
+        mime_type="image/png",
+    )
+    repository.create_upload.assert_awaited_once_with(
+        db,
+        blob_id=3,
+        original_filename="score.png",
+        uploader_user_id=1,
+    )
+    commit_mock.assert_awaited_once()
 
 
 @pytest.mark.asyncio

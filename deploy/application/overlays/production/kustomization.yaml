@@ -46,6 +46,7 @@ replicas:
     count: 3
 
 patches:
+  - path: patch-backend-api-scheduling.yaml
   - path: patch-backend-api-runtime-volumes.yaml
   - path: patch-backend-worker-runtime-volumes.yaml
   - path: patch-backend-beat-runtime-volumes.yaml
