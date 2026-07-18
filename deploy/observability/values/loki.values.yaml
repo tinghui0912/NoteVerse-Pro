@@ -1,14 +1,25 @@
 # Loki values skeleton for NoteVerse Pro.
 #
-# Chart family: grafana/loki or grafana/loki-distributed
+# Chart family: grafana/loki
 # Namespace: observability
 #
-# Validate against the exact chart version before installation.
+# Validated against grafana/loki chart 7.x for local/minikube rendering.
+
+deploymentMode: SingleBinary
 
 loki:
   auth_enabled: false
   commonConfig:
+    path_prefix: /tmp/loki
     replication_factor: 1
+  storage:
+    type: filesystem
+    filesystem:
+      chunks_directory: /tmp/loki/chunks
+      rules_directory: /rules
+  rulerConfig:
+    wal:
+      dir: /tmp/loki/ruler-wal
   limits_config:
     retention_period: 720h
     reject_old_samples: true
@@ -26,17 +37,33 @@ loki:
 singleBinary:
   replicas: 1
   persistence:
-    enabled: true
-    size: 50Gi
+    enabled: false
+
+read:
+  replicas: 0
+
+write:
+  replicas: 0
+
+backend:
+  replicas: 0
 
 gateway:
   enabled: true
+  nginxConfig:
+    resolver: 10.96.0.10
 
 monitoring:
   serviceMonitor:
     enabled: true
 
-# Production should switch storage to a durable object store or persistent
-# volume strategy appropriate for the cluster.
+chunksCache:
+  enabled: false
+
+resultsCache:
+  enabled: false
+
+# Production should revisit Loki storage, retention, and deploymentMode based on
+# log volume and durability requirements.
 #
 # Loki is operational log storage, not audit or billing source of truth.

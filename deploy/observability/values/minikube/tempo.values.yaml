@@ -1,0 +1,12 @@
+# Minikube-only overrides for Tempo.
+#
+# The deprecated single-binary Tempo chart mounts local persistence at
+# `/var/tempo`. The default minikube dynamic volume can fail the container's
+# write permissions for this path. Use ephemeral storage locally; production
+# must use durable object storage or an explicitly managed persistent volume.
+#
+# Do not use this file for production.
+
+persistence:
+  enabled: false
+

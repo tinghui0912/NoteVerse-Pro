@@ -7,15 +7,24 @@
 
 mode: deployment
 
+image:
+  repository: otel/opentelemetry-collector-contrib
+
 presets:
   logsCollection:
     enabled: false
   hostMetrics:
     enabled: false
   kubernetesAttributes:
-    enabled: true
+    enabled: false
 
-config:
+config: {}
+
+alternateConfig:
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+
   receivers:
     otlp:
       protocols:
@@ -39,12 +48,14 @@ config:
           action: insert
 
   exporters:
-    otlp/tempo:
-      endpoint: tempo.observability.svc.cluster.local:4317
+    otlp_grpc/tempo:
+      endpoint: ${env:TEMPO_SERVICE_HOST}:4317
       tls:
         insecure: true
 
   service:
+    extensions:
+      - health_check
     pipelines:
       traces:
         receivers:
@@ -54,7 +65,7 @@ config:
           - resource
           - batch
         exporters:
-          - otlp/tempo
+          - otlp_grpc/tempo
 
 serviceMonitor:
   enabled: true

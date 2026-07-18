@@ -8,6 +8,7 @@ manifests so chart/value compatibility can be checked before an operator runs
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,12 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALUES_DIR = REPO_ROOT / "deploy" / "observability" / "values"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "tmp" / "observability-rendered"
+HELM_REPOS = {
+    "fluent": "https://fluent.github.io/helm-charts",
+    "grafana": "https://grafana.github.io/helm-charts",
+    "open-telemetry": "https://open-telemetry.github.io/opentelemetry-helm-charts",
+    "prometheus-community": "https://prometheus-community.github.io/helm-charts",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,12 +70,51 @@ def parse_args() -> argparse.Namespace:
         choices=[release.name for release in RELEASES],
         help="Release to render. Can be repeated. Defaults to all releases.",
     )
+    parser.add_argument(
+        "--profile",
+        choices=("minikube", "production"),
+        help="Optional environment profile values overlay.",
+    )
     return parser.parse_args()
 
 
 def require_helm() -> None:
     if shutil.which("helm") is None:
         raise RuntimeError("helm is required but was not found on PATH")
+
+
+def installed_helm_repos() -> set[str]:
+    result = subprocess.run(
+        ["helm", "repo", "list", "-o", "json"],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return set()
+
+    try:
+        repo_rows = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"failed to parse helm repo list output: {exc}") from exc
+
+    return {str(row.get("name")) for row in repo_rows if row.get("name")}
+
+
+def require_helm_repos(releases: list[Release]) -> None:
+    installed = installed_helm_repos()
+    required = {release.chart.split("/", 1)[0] for release in releases}
+    missing = sorted(required.difference(installed))
+    if not missing:
+        return
+
+    commands = "\n".join(f"helm repo add {name} {HELM_REPOS[name]}" for name in missing)
+    raise RuntimeError(
+        "missing Helm chart repositories. Run:\n"
+        f"{commands}\n"
+        "helm repo update"
+    )
 
 
 def selected_releases(names: list[str] | None) -> list[Release]:
@@ -78,7 +124,7 @@ def selected_releases(names: list[str] | None) -> list[Release]:
     return [release for release in RELEASES if release.name in wanted]
 
 
-def render_release(release: Release, namespace: str, output_dir: Path) -> Path:
+def render_release(release: Release, namespace: str, output_dir: Path, profile: str | None) -> Path:
     if not release.values_file.exists():
         raise RuntimeError(f"missing values file: {release.values_file.relative_to(REPO_ROOT)}")
 
@@ -94,6 +140,10 @@ def render_release(release: Release, namespace: str, output_dir: Path) -> Path:
         "-f",
         str(release.values_file),
     ]
+    if profile:
+        profile_values_file = VALUES_DIR / profile / release.values_file.name
+        if profile_values_file.exists():
+            command.extend(["-f", str(profile_values_file)])
     result = subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, check=False)
     if result.returncode != 0:
         raise RuntimeError(
@@ -110,9 +160,11 @@ def main() -> int:
     args = parse_args()
     try:
         require_helm()
+        releases = selected_releases(args.release)
+        require_helm_repos(releases)
         rendered = [
-            render_release(release, args.namespace, args.output_dir)
-            for release in selected_releases(args.release)
+            render_release(release, args.namespace, args.output_dir, args.profile)
+            for release in releases
         ]
     except RuntimeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

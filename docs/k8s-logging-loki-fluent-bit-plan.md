@@ -145,11 +145,12 @@ Example shape:
 [OUTPUT]
     Name        loki
     Match       kube.*
-    Host        loki-gateway.observability.svc.cluster.local
-    Port        80
-    Labels      namespace=$kubernetes['namespace_name'],container=$kubernetes['container_name']
-    Label_Keys  level
     Line_Format json
+    Host        loki.observability.svc.cluster.local
+    Port        3100
+    Labels      job=noteverse,namespace=$kubernetes['namespace_name'],container=$kubernetes['container_name']
+    Label_Keys  $level
+    Auto_Kubernetes_Labels Off
 ```
 
 Parser sketch:
@@ -166,6 +167,9 @@ Important:
 
 - Parse NoteVerse application JSON through the Kubernetes filter
   `Merge_Parser`, not through a second parser filter after `Keep_Log Off`.
+- Send Fluent Bit directly to the Loki service on port `3100`. In local
+  multi-node minikube, this avoids an extra gateway hop and keeps the log
+  ingestion path closer to the backend storage service.
 - Do not use `pod`, `request_id`, `user_id`, `score_id`, `job_id`, or
   `outbox_id` in `Labels` or `Label_Keys`.
 - Keep `request_id`, `trace_id`, `score_id`, and other operational IDs in the

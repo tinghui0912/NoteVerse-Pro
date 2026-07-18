@@ -115,12 +115,20 @@ def validate_fluent_bit_values(target: Path) -> list[Finding]:
     text = fluent_bit_path.read_text(encoding="utf-8")
     findings: list[Finding] = []
     required_snippets = {
-        "fluent-bit-cri-parser": "Name        cri",
         "fluent-bit-json-parser": "Name        noteverse_json",
+        "fluent-bit-custom-parser-file": "Parsers_File /fluent-bit/etc/conf/custom_parsers.conf",
+        "fluent-bit-kube-url-env": "Kube_URL            https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}",
         "fluent-bit-merge-parser": "Merge_Parser        noteverse_json",
         "fluent-bit-loki-output": "Name        loki",
+        "fluent-bit-loki-host-env": "Host        ${LOKI_SERVICE_HOST}",
+        "fluent-bit-loki-port": "Port        3100",
         "fluent-bit-json-line-format": "Line_Format json",
-        "fluent-bit-level-label": "Label_Keys  level",
+        "fluent-bit-level-label": "Label_Keys  $level",
+        "fluent-bit-kubernetes-labels": (
+            "Labels      job=noteverse,namespace=$kubernetes['namespace_name'],"
+            "container=$kubernetes['container_name']"
+        ),
+        "fluent-bit-disable-auto-kubernetes-labels": "Auto_Kubernetes_Labels Off",
     }
     for rule, snippet in required_snippets.items():
         if snippet not in text:
@@ -136,8 +144,8 @@ def validate_fluent_bit_values(target: Path) -> list[Finding]:
         )
 
     labels_line = next((line.strip() for line in text.splitlines() if line.strip().startswith("Labels ")), "")
-    if labels_line:
-        allowed_label_names = {"namespace", "container"}
+    if labels_line and "=" in labels_line:
+        allowed_label_names = {"job", "namespace", "container"}
         label_names = {
             segment.split("=", 1)[0].strip()
             for segment in labels_line.removeprefix("Labels").split(",")

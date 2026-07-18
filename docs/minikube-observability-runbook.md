@@ -11,8 +11,9 @@ Prometheus -> Grafana
 OpenTelemetry Collector -> Tempo -> Grafana
 ```
 
-Start with logs. Metrics and traces should be enabled after the logging path is
-stable.
+Start with logs, then metrics, then traces. Keep all three paths structurally
+aligned with production, but use minikube overlays only where local Kubernetes
+needs a different setting.
 
 ## Principles
 
@@ -25,6 +26,26 @@ stable.
   job IDs, outbox IDs, user IDs, emails, file hashes, paths, or object keys to
   Loki labels.
 - Keep operational IDs in the JSON log body and query them with LogQL `| json`.
+
+## Values Scope
+
+This runbook uses the shared values in `deploy/observability/values/` directly
+for minikube. Those files are also the production baseline, but not the final
+production configuration.
+
+Production should keep the same component model and label policy, then layer
+environment-specific values for:
+
+- durable Loki and Tempo object storage;
+- Prometheus, Alertmanager, and Grafana persistence;
+- retention periods;
+- external secret management for Grafana and alert receivers;
+- ingress/TLS;
+- resource requests, limits, replicas, and topology rules;
+- cluster/environment labels.
+
+In other words: minikube and production should stay structurally aligned, but
+production must not blindly deploy the minikube storage and credential choices.
 
 ## Prerequisites
 
@@ -72,10 +93,16 @@ Run the repository guard:
 python scripts/check_observability_manifests.py
 ```
 
-Or render selected releases through the repository helper:
+Or render selected releases through the repository helper. Use the `minikube`
+profile to include local-only values overlays:
 
 ```powershell
-python scripts/render_observability_helm.py --release loki --release fluent-bit
+python scripts/render_observability_helm.py --profile minikube `
+  --release loki `
+  --release fluent-bit `
+  --release kube-prometheus-stack `
+  --release tempo `
+  --release otel-collector
 ```
 
 Rendered manifests are written to:
@@ -123,6 +150,93 @@ kubectl rollout status daemonset/fluent-bit -n observability --timeout=300s
 kubectl get pods -n observability -l app.kubernetes.io/name=fluent-bit -o wide
 ```
 
+## Install Prometheus And Grafana
+
+```powershell
+helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack `
+  --namespace observability `
+  -f deploy/observability/values/kube-prometheus-stack.values.yaml `
+  -f deploy/observability/values/minikube/kube-prometheus-stack.values.yaml
+```
+
+Wait for the metrics stack:
+
+```powershell
+kubectl wait --for=condition=Ready pod -n observability --all --timeout=300s
+kubectl get pods -n observability -o wide
+```
+
+The minikube overlay pins Prometheus to the primary `minikube` node. This is a
+local workaround for asymmetric cross-node Pod IP connectivity in the current
+two-node minikube profile, not a production scheduling rule.
+
+If the application was applied before Prometheus Operator CRDs existed, apply
+the backend ServiceMonitor after installing the stack:
+
+```powershell
+kubectl label service noteverse-backend-api -n noteverse-staging `
+  app.kubernetes.io/name=noteverse `
+  app.kubernetes.io/part-of=noteverse `
+  --overwrite
+
+kubectl apply -n noteverse-staging -f deploy/application/base/backend-api-servicemonitor.yaml
+```
+
+Verify Prometheus discovery:
+
+```powershell
+kubectl port-forward -n observability svc/kube-prometheus-stack-prometheus 19090:9090
+```
+
+Then open `http://127.0.0.1:19090/targets` and confirm
+`noteverse-backend-api` is `UP`.
+
+## Install Tempo
+
+```powershell
+helm upgrade --install tempo grafana/tempo `
+  --namespace observability `
+  -f deploy/observability/values/tempo.values.yaml `
+  -f deploy/observability/values/minikube/tempo.values.yaml
+```
+
+Wait for Tempo:
+
+```powershell
+kubectl wait --for=condition=Ready pod -n observability -l app.kubernetes.io/name=tempo --timeout=300s
+kubectl get pods -n observability -l app.kubernetes.io/name=tempo -o wide
+```
+
+The minikube overlay disables Tempo persistence to avoid local PVC ownership
+issues with the single-binary chart. This is a local-only choice. Production
+must use durable trace storage and a production topology.
+
+## Install OpenTelemetry Collector
+
+```powershell
+helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
+  --namespace observability `
+  -f deploy/observability/values/otel-collector.values.yaml
+```
+
+Wait for the collector:
+
+```powershell
+kubectl rollout status deploy/otel-collector-opentelemetry-collector -n observability --timeout=300s
+kubectl get pods -n observability -l app.kubernetes.io/name=opentelemetry-collector -o wide
+```
+
+The collector currently exposes OTLP on:
+
+```text
+otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317
+otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318
+```
+
+Application services should send traces to that collector endpoint through
+explicit environment configuration. Do not configure fallback trace exporters or
+default external endpoints.
+
 ## Generate Application Logs
 
 Restart the API or run a smoke script:
@@ -160,7 +274,7 @@ Query recent NoteVerse logs:
 
 ```powershell
 Invoke-RestMethod `
-  'http://127.0.0.1:3100/loki/api/v1/query_range?query={namespace="noteverse-staging"}|json&limit=20'
+  'http://127.0.0.1:3100/loki/api/v1/query_range?query=%7Bnamespace%3D%22noteverse-staging%22%7D%20%7C%20json&limit=20'
 ```
 
 Useful LogQL examples:
@@ -176,8 +290,8 @@ Do not rewrite those high-cardinality JSON fields into Loki labels.
 
 ## Grafana Datasource
 
-When Grafana is installed through `kube-prometheus-stack`, add Loki as a
-declarative datasource.
+When Grafana is installed through `kube-prometheus-stack`, Loki is provisioned
+as a declarative datasource by `kube-prometheus-stack.values.yaml`.
 
 Minimum datasource shape:
 
@@ -187,7 +301,7 @@ datasources:
   - name: Loki
     type: loki
     access: proxy
-    url: http://loki-gateway.observability.svc.cluster.local
+    url: http://loki.observability.svc.cluster.local:3100
     isDefault: false
 ```
 
@@ -217,6 +331,9 @@ kubectl get events -n observability --sort-by=.lastTimestamp
 ```powershell
 helm uninstall fluent-bit -n observability
 helm uninstall loki -n observability
+helm uninstall otel-collector -n observability
+helm uninstall tempo -n observability
+helm uninstall kube-prometheus-stack -n observability
 ```
 
 Do not delete application namespaces, database resources, Redis resources, or

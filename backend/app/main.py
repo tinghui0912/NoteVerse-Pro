@@ -14,6 +14,7 @@ from app.core.exception_handlers import register_exception_handlers
 from app.core.lifespan import app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
 from app.core.middleware import CsrfProtectionMiddleware, LoggingMiddleware
+from app.core.tracing import configure_api_tracing
 
 
 configure_uvicorn_logging()
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     )
 
     register_exception_handlers(app)
+    configure_api_tracing(app)
 
     # StaticFiles requires the target directory to exist at mount time.
     os.makedirs(settings.STORAGE_ROOT, exist_ok=True)

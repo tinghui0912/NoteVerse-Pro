@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     LOG_FORMAT: str
     FRONTEND_BASE_URL: str
+    OTEL_TRACING_ENABLED: bool = False
+    OTEL_SERVICE_NAME: Optional[str] = None
+    OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None
+    OTEL_EXPORTER_OTLP_INSECURE: bool = True
     PRACTICE_MATCHMAKER_FRAME_RATE: int = 30
     PRACTICE_AUDIO_RMS_GATE: float = 0.015
     PRACTICE_AUDIO_PEAK_GATE: float = 0.06
@@ -350,6 +354,15 @@ class Settings(BaseSettings):
             value = f"https://{value}"
         return value
 
+    @field_validator("OTEL_EXPORTER_OTLP_ENDPOINT")
+    @classmethod
+    def normalize_optional_otel_endpoint(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize the optional OTLP endpoint."""
+
+        if not v:
+            return None
+        return v.strip().rstrip("/")
+
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
@@ -444,6 +457,25 @@ class Settings(BaseSettings):
             if missing:
                 raise ValueError(
                     "Missing required S3 storage settings: " + ", ".join(missing)
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_tracing_settings(self) -> "Settings":
+        """Require explicit trace exporter settings when tracing is enabled."""
+
+        if self.OTEL_TRACING_ENABLED:
+            missing = [
+                name
+                for name, value in (
+                    ("OTEL_SERVICE_NAME", self.OTEL_SERVICE_NAME),
+                    ("OTEL_EXPORTER_OTLP_ENDPOINT", self.OTEL_EXPORTER_OTLP_ENDPOINT),
+                )
+                if not value
+            ]
+            if missing:
+                raise ValueError(
+                    "Missing required OpenTelemetry settings: " + ", ".join(missing)
                 )
         return self
 

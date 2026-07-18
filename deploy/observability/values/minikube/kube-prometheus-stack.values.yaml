@@ -1,0 +1,13 @@
+# Minikube-only overrides for kube-prometheus-stack.
+#
+# The local two-node minikube profile used for NoteVerse can have asymmetric
+# cross-node Pod IP connectivity. Pin Prometheus to the primary minikube node so
+# it can scrape the current local application pods reliably.
+#
+# Do not use this file for production.
+
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      kubernetes.io/hostname: minikube
+

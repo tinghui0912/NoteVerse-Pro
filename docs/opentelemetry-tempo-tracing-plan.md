@@ -1,9 +1,14 @@
 # OpenTelemetry + Tempo Tracing Plan
 
-This document defines the future distributed tracing model for NoteVerse Pro.
-It is intentionally a design plan first. Do not add tracing SDKs or exporters
-until logging, metrics, request IDs, and async operation correlation remain
-stable under staging traffic.
+This document defines the distributed tracing model for NoteVerse Pro.
+
+Current implementation status:
+
+- FastAPI request tracing is available behind explicit backend configuration.
+- Traces are exported to the OpenTelemetry Collector, not directly to Tempo.
+- Async outbox and Celery worker trace-context propagation are still planned.
+- Structured logs still use the existing request/task correlation fields; adding
+  W3C `trace_id` and `span_id` to logs is a later correlation phase.
 
 ## Target Architecture
 
@@ -291,19 +296,21 @@ routing.
 
 ## Implementation Phases
 
-### Phase 1: Design And Config Only
+### Phase 1: Design And Config
 
 - Keep this document current.
 - Ensure logs already support `request_id` and `originating_request_id`.
-- Keep OTel dependencies out of production runtime until a concrete rollout is
-  scheduled.
+- Keep OpenTelemetry exporter endpoints explicit, with no fallback external
+  endpoint.
 
 ### Phase 2: Backend API Tracing
 
-- Add OpenTelemetry SDK and FastAPI instrumentation.
+- Add OpenTelemetry SDK and FastAPI instrumentation. Completed for API request
+  spans.
 - Add SQLAlchemy instrumentation if overhead is acceptable.
 - Emit `trace_id` and `span_id` in structured backend logs.
-- Send traces to a local/staging OpenTelemetry Collector.
+- Send traces to a local/staging OpenTelemetry Collector. Completed when
+  `OTEL_TRACING_ENABLED=true` and an explicit Collector endpoint is configured.
 
 ### Phase 3: Async Outbox Tracing
 

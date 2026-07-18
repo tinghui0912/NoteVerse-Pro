@@ -333,9 +333,13 @@ Prometheus:
 
 Tempo:
 
-- keep tracing disabled until staging confirms sampling and redaction policy;
-- when enabled, traces should flow through the OpenTelemetry Collector, not
-  directly from app pods to Tempo.
+- API request tracing is enabled through explicit backend configuration in the
+  staging/production templates;
+- traces flow through the OpenTelemetry Collector, not directly from app pods to
+  Tempo;
+- worker/outbox trace propagation and log `trace_id`/`span_id` correlation are
+  later phases;
+- confirm sampling and redaction policy before high-volume tracing is enabled.
 
 ## Rollback
 
