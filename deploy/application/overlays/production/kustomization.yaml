@@ -19,8 +19,11 @@ labels:
       app.kubernetes.io/environment: production
 
 images:
-  - name: noteverse-backend
-    newName: registry.example.invalid/noteverse/backend
+  - name: noteverse-backend-api
+    newName: registry.example.invalid/noteverse/backend-api
+    newTag: production-replace-me
+  - name: noteverse-backend-worker
+    newName: registry.example.invalid/noteverse/backend-worker
     newTag: production-replace-me
   - name: noteverse-frontend
     newName: registry.example.invalid/noteverse/frontend
@@ -46,7 +49,6 @@ replicas:
     count: 3
 
 patches:
-  - path: patch-backend-api-scheduling.yaml
   - path: patch-backend-api-runtime-volumes.yaml
   - path: patch-backend-worker-runtime-volumes.yaml
   - path: patch-backend-beat-runtime-volumes.yaml

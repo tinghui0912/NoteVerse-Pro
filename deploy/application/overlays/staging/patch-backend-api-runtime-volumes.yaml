@@ -8,15 +8,8 @@ spec:
       containers:
         - name: api
           volumeMounts:
-            - name: model-assets
-              mountPath: /opt/noteverse/models
-              readOnly: true
             - name: work
               mountPath: /var/lib/noteverse/work
       volumes:
-        - name: model-assets
-          hostPath:
-            path: /var/lib/noteverse/models
-            type: Directory
         - name: work
           emptyDir: {}

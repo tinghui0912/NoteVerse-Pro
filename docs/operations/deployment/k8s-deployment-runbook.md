@@ -72,7 +72,8 @@ inputs and image digests:
 python scripts/render_k8s_release_overlay.py \
   --environment production \
   --output build/k8s-release/production \
-  --backend-image ghcr.io/<owner>/noteverse/backend@sha256:<digest> \
+  --backend-api-image ghcr.io/<owner>/noteverse/backend-api@sha256:<digest> \
+  --backend-worker-image ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest> \
   --frontend-image ghcr.io/<owner>/noteverse/frontend@sha256:<digest> \
   --frontend-host noteverse.example.com \
   --api-host api.noteverse.example.com \
@@ -171,8 +172,6 @@ Create required external resources before applying manifests:
 - Ingress Controller exposed through `Service/type=LoadBalancer`;
 - cert-manager issuer or an external certificate automation path;
 - model-capable node labels and node-local model cache;
-- Legato repo PVC;
-- beat work PVC;
 - GPU node labels/tolerations if production worker uses GPU.
 
 Naming and ownership details are defined in
@@ -210,11 +209,11 @@ kubectl -n noteverse-production get pods -l app.kubernetes.io/component=model-ca
 ```
 
 The `model-cache-agent` DaemonSet uses the backend runtime image and runs
-`backend/scripts/prepare_model_assets.py --check-scope assets`. API and worker
-pods mount the same node-local cache read-only. If the selected Hugging Face
-model repositories are gated, the backend Secret must include `HF_TOKEN`.
-Missing or unauthorized model access should fail the DaemonSet; do not start
-worker traffic against a partial model cache.
+`backend/scripts/prepare_model_assets.py --check-scope assets`. Worker pods
+mount the same node-local cache read-only. API pods do not need this cache. If
+the selected Hugging Face model repositories are gated, the backend Secret must
+include `HF_TOKEN`. Missing or unauthorized model access should fail the
+DaemonSet; do not start worker traffic against a partial model cache.
 
 Render manifests before applying:
 
@@ -427,7 +426,7 @@ Likely causes:
 
 - runtime check failure;
 - missing node-local model cache;
-- missing Legato repo PVC;
+- backend image does not contain the pinned Legato source checkout;
 - missing soundfont;
 - Redis unavailable;
 - GPU scheduling mismatch.

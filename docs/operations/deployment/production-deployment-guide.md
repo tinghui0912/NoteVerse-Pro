@@ -109,9 +109,9 @@ Production must not copy local-only shortcuts:
    runtime checks are ready.
 
    Model assets are prepared by the `model-cache-agent` DaemonSet on nodes
-   labeled `noteverse.io/model-cache=enabled`. API and worker pods mount that
-   node-local cache read-only. Roll API/worker pods only after the model-cache
-   DaemonSet is ready on the target nodes.
+   labeled `noteverse.io/model-cache=enabled`. Worker pods mount that
+   node-local cache read-only. Roll workers only after the model-cache DaemonSet
+   is ready on the target nodes. API pods do not require model-cache scheduling.
 
 9. Run production smoke checks.
 

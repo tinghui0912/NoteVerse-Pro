@@ -210,44 +210,32 @@ Initialization contract:
    and the same backend ConfigMap/Secret used by the application.
 3. The DaemonSet writes assets to `/var/lib/noteverse/models` and validates the
    asset set.
-4. Only after the DaemonSet is ready should API/worker pods run on those nodes.
+4. Only after the DaemonSet is ready should worker pods run on those nodes.
 
 `HF_TOKEN` is required when the selected Hugging Face repositories are gated.
 Do not commit this token or bake it into images.
 
 ### Legato Repository
 
-Required name:
+Legato source code is part of the backend runtime image. Kubernetes should not
+provide a source-code PVC for Legato.
+
+Runtime path:
 
 ```text
-PersistentVolumeClaim/noteverse-legato-repo
+/opt/noteverse/legato
 ```
-
-Mounted at:
-
-```text
-/external/legato
-```
-
-Used by:
-
-- `backend-worker` read-only.
 
 Rules:
 
 - contents must match `LEGATO_REPO_COMMIT`;
 - worker runtime checks should fail when repository metadata does not match;
-- do not mount writable in runtime pods.
+- update Legato by updating the pinned checkout and rebuilding the worker
+  runtime image, not by mutating a live volume.
 
 ### Beat Work State
 
-Required name:
-
-```text
-PersistentVolumeClaim/noteverse-beat-work
-```
-
-Mounted at:
+Celery beat uses an `emptyDir` work volume mounted at:
 
 ```text
 /var/lib/noteverse/work
@@ -260,14 +248,17 @@ Used by:
 Rules:
 
 - beat remains singleton;
-- PVC exists because Celery beat currently stores scheduler state under
-  `WORK_ROOT/celerybeat`;
-- if beat is replaced by a database-backed or leader-elected scheduler, this PVC
-  should be revisited.
+- Postgres/outbox tables are the durable scheduling source of truth;
+- Celery's local schedule file is transient runtime state and must not require a
+  PVC;
+- if beat is replaced by a database-backed or leader-elected scheduler, keep the
+  same rule: scheduler durability belongs in the database, not in pod-local
+  files.
 
 ## Runtime Work Volumes
 
-API and worker use `emptyDir` for runtime work paths in the public templates.
+API, worker, and beat use `emptyDir` for runtime work paths in the public
+templates.
 
 Rules:
 

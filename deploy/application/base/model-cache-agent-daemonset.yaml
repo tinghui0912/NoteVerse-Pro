@@ -25,7 +25,7 @@ spec:
           effect: NoSchedule
       initContainers:
         - name: prepare-model-assets
-          image: noteverse-backend:replace-me
+          image: noteverse-backend-worker:replace-me
           imagePullPolicy: IfNotPresent
           command:
             - python

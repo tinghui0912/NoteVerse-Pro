@@ -54,15 +54,21 @@ jobs:
           python scripts/render_k8s_release_overlay.py \
             --environment staging \
             --output build/k8s-release-check/staging \
-            --backend-image ghcr.io/example/noteverse/backend@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
+            --backend-api-image ghcr.io/example/noteverse/backend-api@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
+            --backend-worker-image ghcr.io/example/noteverse/backend-worker@sha256:3333333333333333333333333333333333333333333333333333333333333333 \
             --frontend-image ghcr.io/example/noteverse/frontend@sha256:2222222222222222222222222222222222222222222222222222222222222222 \
             --frontend-host staging.noteverse.test \
             --api-host api.staging.noteverse.test \
             --tls-secret noteverse-staging-real-tls \
             --frontend-base-url https://staging.noteverse.test \
             --backend-cors-origins '["https://staging.noteverse.test"]' \
+            --auth-cookie-secure true \
             --mail-default-sender 'NoteVerse Pro <no-reply@staging.noteverse.test>' \
             --s3-endpoint-url https://object-storage.noteverse.test \
-            --s3-public-base-url https://objects.staging.noteverse.test
+            --s3-region auto \
+            --s3-bucket noteverse-staging \
+            --s3-public-base-url https://objects.staging.noteverse.test \
+            --s3-force-path-style true \
+            --s3-presign-expire-seconds 900
 
           python scripts/check_k8s_application_manifests.py build/k8s-release-check/staging --strict

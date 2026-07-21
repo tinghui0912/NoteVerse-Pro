@@ -9,7 +9,6 @@ backend API, Celery worker, and Celery beat.
 ```text
 Windows workspace
   backend source code    -> bind mounted to /app
-  external/legato        -> bind mounted to /external/legato:ro
   model directory        -> bind mounted to /opt/noteverse/models:ro
   Windows Redis          -> reached through host.docker.internal
   Windows database       -> reached through host.docker.internal
@@ -22,8 +21,10 @@ Docker services
 
 This keeps code iteration fast while making the backend runtime Linux-like.
 
-LEGATO is a pinned external source dependency, not backend application code.
-See `docs/architecture/integrations/external-dependencies.md` for the pinned commit and update process.
+LEGATO is a pinned external source dependency copied into the backend runtime
+image at `/opt/noteverse/legato`. See
+`docs/architecture/integrations/external-dependencies.md` for the pinned commit
+and update process.
 
 ## Files
 
@@ -32,7 +33,8 @@ See `docs/architecture/integrations/external-dependencies.md` for the pinned com
 - `docker/backend/entrypoint.sh`: service command switch.
 - `docker-compose.backend-dev.yml`: API, worker, and beat only.
 - `backend/.env.docker.example`: Docker-specific backend environment template.
-- `.dockerignore`: prevents caches, data, models, and external repos from being copied into the image.
+- `.dockerignore`: prevents caches, data, and models from being copied into the
+  image while allowing the pinned `external/legato` source tree.
 
 ## Prepare Environment
 
@@ -132,6 +134,12 @@ models--meta-llama--Llama-3.2-11B-Vision
   -> models\huggingface\hub\models--meta-llama--Llama-3.2-11B-Vision
 ```
 
+The required Hugging Face cache directories are determined by
+`HF_MODEL_REPOSITORIES`. The current production/staging configuration requires
+both `guangyangmusic/legato` and `meta-llama/Llama-3.2-11B-Vision` because
+Legato loads the Llama vision encoder at runtime. The Llama repository is gated;
+the Hugging Face account behind `HF_TOKEN` must accept its license.
+
 For Hugging Face cache directories, preserve symlinks when copying. If a Windows
 copy tool breaks snapshots, copy the cache as a tar archive and extract it into
 `models\huggingface`.
@@ -144,7 +152,6 @@ The local Docker profile uses explicit runtime directories:
 backend/data/storage   durable local file storage when FILE_STORAGE_BACKEND=local
 backend/data/work      worker scratch space, storage cache, and Celery beat state
 models                 mounted read-only model assets
-external/legato        mounted read-only LEGATO source dependency
 ```
 
 Inside the containers these paths are:
@@ -153,7 +160,7 @@ Inside the containers these paths are:
 /app/data/storage
 /app/data/work
 /opt/noteverse/models
-/external/legato
+/opt/noteverse/legato
 ```
 
 Backend services write logs to stdout/stderr. In Kubernetes, Fluent Bit should

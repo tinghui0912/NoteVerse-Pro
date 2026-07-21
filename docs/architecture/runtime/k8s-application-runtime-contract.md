@@ -118,9 +118,9 @@ Runtime:
 
 State:
 
-- beat state currently lives under `WORK_ROOT/celerybeat`;
-- production should mount a small writable volume or switch to a database-backed
-  scheduler before running multiple schedulers.
+- beat uses an `emptyDir` work directory for Celery's transient schedule file;
+- Postgres/outbox tables are the durable scheduling source of truth;
+- do not use a beat PVC unless the scheduler design changes and a new ADR explains why.
 
 ### `frontend`
 
@@ -281,8 +281,7 @@ Beat:
 
 - exactly one scheduler;
 - startup runtime checks are the current health gate;
-- future production hardening should replace local beat state with a
-  cluster-safe scheduler strategy if multiple replicas become necessary.
+- future production hardening should add leader election or a database-backed scheduler before multiple replicas become necessary.
 
 ## Fail-Fast Rules
 

@@ -16,7 +16,6 @@ x-backend-common: &backend-common
   volumes:
     - ./backend:/app
     - ./docker/backend/entrypoint.sh:/docker/entrypoint.sh:ro
-    - ./external/legato:/external/legato:ro
     - ${NOTEVERSE_MODEL_ROOT:-./models}:/opt/noteverse/models:ro
     - ./backend/data:/app/data
     - ./backend/logs:/app/logs

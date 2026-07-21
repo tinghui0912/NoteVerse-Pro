@@ -87,7 +87,8 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
         python $K8sReleaseOverlayRenderer `
             --environment staging `
             --output $OutputDir `
-            --backend-image "ghcr.io/example/noteverse/backend@sha256:1111111111111111111111111111111111111111111111111111111111111111" `
+            --backend-api-image "ghcr.io/example/noteverse/backend-api@sha256:1111111111111111111111111111111111111111111111111111111111111111" `
+            --backend-worker-image "ghcr.io/example/noteverse/backend-worker@sha256:3333333333333333333333333333333333333333333333333333333333333333" `
             --frontend-image "ghcr.io/example/noteverse/frontend@sha256:2222222222222222222222222222222222222222222222222222222222222222" `
             --frontend-host "staging.noteverse.test" `
             --api-host "api.staging.noteverse.test" `

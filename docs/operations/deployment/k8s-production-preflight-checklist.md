@@ -38,7 +38,8 @@ Render a private production overlay in strict mode:
 python scripts/render_k8s_release_overlay.py \
   --environment production \
   --output build/k8s-release/production \
-  --backend-image ghcr.io/<owner>/noteverse/backend@sha256:<digest> \
+  --backend-api-image ghcr.io/<owner>/noteverse/backend-api@sha256:<digest> \
+  --backend-worker-image ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest> \
   --frontend-image ghcr.io/<owner>/noteverse/frontend@sha256:<digest> \
   --frontend-host noteverse.example.com \
   --api-host api.noteverse.example.com \
@@ -122,10 +123,11 @@ Verify:
 - `Secret/noteverse-registry-credentials` exists and can pull private images;
 - object storage credentials are scoped to the intended bucket;
 - `FILE_STORAGE_BACKEND=s3` has all required S3 settings;
-- nodes that run API/worker pods are labeled `noteverse.io/model-cache=enabled`;
+- nodes that run worker pods are labeled `noteverse.io/model-cache=enabled`;
 - node-local model cache is read-only in application pods;
-- Legato repository PVC is read-only in worker pods;
-- beat work PVC exists if local beat state is used.
+- Legato source is built into the backend runtime image;
+- beat uses transient `emptyDir` state; durable scheduling state lives in
+  Postgres/outbox tables.
 
 ## 6. Workload Health
 

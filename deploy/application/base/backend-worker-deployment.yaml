@@ -17,11 +17,9 @@ spec:
         app.kubernetes.io/part-of: noteverse
         app.kubernetes.io/component: backend-worker
     spec:
-      imagePullSecrets:
-        - name: noteverse-registry-credentials
       containers:
         - name: worker
-          image: noteverse-backend:replace-me
+          image: noteverse-backend-worker:replace-me
           args:
             - worker
           envFrom:

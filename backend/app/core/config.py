@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import List, Optional
+import json
 import os
 
 from pydantic import AnyHttpUrl, field_validator, model_validator
@@ -59,6 +60,7 @@ class Settings(BaseSettings):
     REALTIME_EVENT_RETENTION_DAYS: int
     MODEL_ROOT: Optional[str] = None
     HF_HOME: Optional[str] = None
+    HF_MODEL_REPOSITORIES: List[str]
     HF_HUB_OFFLINE: bool = False
     TRANSFORMERS_OFFLINE: bool = False
     PADDLEOCR_MODEL_ROOT: Optional[str] = None
@@ -100,6 +102,25 @@ class Settings(BaseSettings):
         if value not in {"json", "console"}:
             raise ValueError("LOG_FORMAT must be one of: json, console")
         return value
+
+    @field_validator("HF_MODEL_REPOSITORIES", mode="before")
+    @classmethod
+    def parse_hf_model_repositories(cls, v: str | List[str]) -> List[str]:
+        """Parse the explicit Hugging Face model snapshot list for runtime pods."""
+
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            value = v.strip()
+            if not value:
+                raise ValueError("HF_MODEL_REPOSITORIES must not be empty")
+            if value.startswith("["):
+                parsed = json.loads(value)
+                if not isinstance(parsed, list):
+                    raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
+                return parsed
+            return [item.strip() for item in value.split(",") if item.strip()]
+        raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
 
     @field_validator("PRACTICE_AUDIO_MIN_ACTIVE_FRAMES")
     @classmethod

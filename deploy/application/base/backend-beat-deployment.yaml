@@ -19,11 +19,9 @@ spec:
         app.kubernetes.io/part-of: noteverse
         app.kubernetes.io/component: backend-beat
     spec:
-      imagePullSecrets:
-        - name: noteverse-registry-credentials
       containers:
         - name: beat
-          image: noteverse-backend:replace-me
+          image: noteverse-backend-api:replace-me
           args:
             - beat
           envFrom:

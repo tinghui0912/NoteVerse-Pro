@@ -54,16 +54,19 @@ Build immutable images from a Git commit.
 Recommended image tags:
 
 ```text
-<registry>/noteverse/backend:<git-sha>
+<registry>/noteverse/backend-api:<git-sha>
+<registry>/noteverse/backend-worker:<git-sha>
 <registry>/noteverse/frontend:<git-sha>
 ```
 
 Optional environment aliases:
 
 ```text
-<registry>/noteverse/backend:staging
+<registry>/noteverse/backend-api:staging
+<registry>/noteverse/backend-worker:staging
 <registry>/noteverse/frontend:staging
-<registry>/noteverse/backend:production
+<registry>/noteverse/backend-api:production
+<registry>/noteverse/backend-worker:production
 <registry>/noteverse/frontend:production
 ```
 

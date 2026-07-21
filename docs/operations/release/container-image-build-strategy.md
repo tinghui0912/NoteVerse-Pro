@@ -43,7 +43,8 @@ Frontend runtime path:
 Recommended registry paths:
 
 ```text
-<registry>/noteverse/backend
+<registry>/noteverse/backend-api
+<registry>/noteverse/backend-worker
 <registry>/noteverse/frontend
 <registry>/noteverse/ml-base
 ```
@@ -51,7 +52,8 @@ Recommended registry paths:
 The current CI workflow uses GitHub Container Registry:
 
 ```text
-ghcr.io/<github-owner>/noteverse/backend
+ghcr.io/<github-owner>/noteverse/backend-api
+ghcr.io/<github-owner>/noteverse/backend-worker
 ghcr.io/<github-owner>/noteverse/frontend
 ```
 
@@ -67,23 +69,27 @@ deployed application workload.
 Every deployable image must have an immutable source tag:
 
 ```text
-<registry>/noteverse/backend:<git-sha>
+<registry>/noteverse/backend-api:<git-sha>
+<registry>/noteverse/backend-worker:<git-sha>
 <registry>/noteverse/frontend:<git-sha>
 ```
 
 Recommended additional metadata tags:
 
 ```text
-<registry>/noteverse/backend:build-<run-id>
+<registry>/noteverse/backend-api:build-<run-id>
+<registry>/noteverse/backend-worker:build-<run-id>
 <registry>/noteverse/frontend:build-<run-id>
 ```
 
 Optional mutable aliases:
 
 ```text
-<registry>/noteverse/backend:staging
+<registry>/noteverse/backend-api:staging
+<registry>/noteverse/backend-worker:staging
 <registry>/noteverse/frontend:staging
-<registry>/noteverse/backend:production
+<registry>/noteverse/backend-api:production
+<registry>/noteverse/backend-worker:production
 <registry>/noteverse/frontend:production
 ```
 
@@ -100,7 +106,8 @@ Rules:
 The safest production reference is an image digest:
 
 ```text
-<registry>/noteverse/backend@sha256:<digest>
+<registry>/noteverse/backend-api@sha256:<digest>
+<registry>/noteverse/backend-worker@sha256:<digest>
 <registry>/noteverse/frontend@sha256:<digest>
 ```
 
@@ -109,8 +116,10 @@ If using tags in manifests, release metadata must record the resolved digest.
 Production release records should include:
 
 - Git commit SHA;
-- backend image tag;
-- backend image digest;
+- backend API image tag;
+- backend API image digest;
+- backend worker image tag;
+- backend worker image digest;
 - frontend image tag;
 - frontend image digest;
 - build run ID;
@@ -166,10 +175,24 @@ Production build rules:
   stack has been validated;
 - `INSTALL_LEGATO_EXTRA_DEPS=false` unless training/debug-only dependencies are
   explicitly needed;
-- build one backend image for API, worker, beat, and migration job unless a
-  future split is justified by size or security.
+- build API/beat/migration with a slim backend API image;
+- build worker/model-cache-agent with a worker-capable backend worker image.
 
-Recommended build:
+Recommended API image build:
+
+```bash
+docker build \
+  -f docker/backend/Dockerfile.runtime \
+  --build-arg PYTHON_IMAGE=python:3.12-slim-bookworm \
+  --build-arg INSTALL_DEV_DEPS=false \
+  --build-arg INSTALL_GPU_DEPS=false \
+  --build-arg INSTALL_PADDLE_GPU=false \
+  --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
+  -t <registry>/noteverse/backend-api:<git-sha> \
+  .
+```
+
+Recommended worker image build:
 
 ```bash
 docker build \
@@ -179,7 +202,7 @@ docker build \
   --build-arg INSTALL_GPU_DEPS=true \
   --build-arg INSTALL_PADDLE_GPU=false \
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
-  -t <registry>/noteverse/backend:<git-sha> \
+  -t <registry>/noteverse/backend-worker:<git-sha> \
   .
 ```
 

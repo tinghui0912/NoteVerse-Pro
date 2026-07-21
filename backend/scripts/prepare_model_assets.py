@@ -1,8 +1,8 @@
-"""Prepare Kubernetes model assets in a writable model PVC.
+"""Prepare Kubernetes model assets in a writable node-local model cache.
 
 This script is intended for one-time or controlled operational runs, not for
-normal API/worker startup. Runtime pods consume the same PVC read-only after
-this job has completed successfully.
+normal API/worker startup. Worker pods consume the same node-local cache
+read-only after the model-cache DaemonSet has completed successfully.
 """
 
 # ruff: noqa: E402 - bootstrap the backend import root before app imports.
@@ -23,11 +23,6 @@ if str(BACKEND_ROOT) not in sys.path:
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-
-HF_REPOSITORIES = (
-    "guangyangmusic/legato",
-    "meta-llama/Llama-3.2-11B-Vision",
-)
 
 SYSTEM_SOUNDFONT_CANDIDATES = (
     Path("/usr/share/sounds/sf2/FluidR3_GM.sf2"),
@@ -76,6 +71,38 @@ def _ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def _ensure_paddlex_official_model_link(model_root: Path) -> None:
+    """Point PaddleX's default official model cache at the configured model root."""
+
+    paddlex_root = model_root.parent / ".paddlex"
+    official_models = paddlex_root / "official_models"
+    _ensure_directory(paddlex_root)
+    if official_models.exists():
+        if official_models.resolve() != model_root:
+            raise RuntimeError(
+                f"PaddleX official model cache points to {official_models.resolve()}, "
+                f"expected {model_root}"
+            )
+        return
+    official_models.symlink_to(model_root, target_is_directory=True)
+
+
+def _has_required_inference_files(path: Path) -> bool:
+    required_files = ("inference.yml", "inference.pdiparams", "inference.json")
+    return all((path / filename).is_file() for filename in required_files)
+
+
+def _remove_incomplete_model_dir(path: Path) -> None:
+    if not path.exists():
+        return
+    if _has_required_inference_files(path):
+        return
+    if not path.is_dir():
+        raise RuntimeError(f"PaddleOCR model path is not a directory: {path}")
+    shutil.rmtree(path)
+    print(f"[INFO] removed incomplete PaddleOCR model directory: {path}")
+
+
 def _copy_if_changed(source: Path, target: Path) -> None:
     _ensure_directory(target.parent)
     if target.is_file() and target.stat().st_size == source.stat().st_size:
@@ -94,13 +121,13 @@ def prepare_soundfont(target_path: Path) -> None:
     raise RuntimeError(f"FluidR3 soundfont was not found in runtime image. Checked: {candidates}")
 
 
-def prepare_huggingface_snapshots(hf_home: Path) -> None:
+def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
     from huggingface_hub import snapshot_download
 
     hub_cache = hf_home / "hub"
     _ensure_directory(hub_cache)
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
-    for repo_id in HF_REPOSITORIES:
+    for repo_id in repo_ids:
         print(f"[INFO] downloading Hugging Face snapshot: {repo_id}")
         snapshot_path = snapshot_download(
             repo_id=repo_id,
@@ -117,8 +144,8 @@ def prepare_paddleocr_models() -> None:
     from app.core.config import settings
     from app.processing.engines.paddle import run_ocr_subprocess
 
-    required_dirs = (
-        _require_path(settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT"),
+    model_root = _require_path(settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
+    model_dirs = (
         _require_path(settings.PADDLEOCR_DETECTION_MODEL_DIR, "PADDLEOCR_DETECTION_MODEL_DIR"),
         _require_path(settings.PADDLEOCR_RECOGNITION_MODEL_DIR, "PADDLEOCR_RECOGNITION_MODEL_DIR"),
         _require_path(
@@ -126,12 +153,16 @@ def prepare_paddleocr_models() -> None:
             "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
         ),
     )
-    for directory in required_dirs:
-        _ensure_directory(directory)
+    _ensure_directory(model_root)
+    for directory in model_dirs:
+        _remove_incomplete_model_dir(directory)
+    _ensure_paddlex_official_model_link(model_root)
 
     with tempfile.TemporaryDirectory(prefix="noteverse-paddle-bootstrap-") as tmp:
         image_path = Path(tmp) / "blank.png"
         Image.new("RGB", (64, 64), color="white").save(image_path)
+        os.environ["PADDLEOCR_ALLOW_MODEL_DOWNLOAD"] = "1"
+        os.environ["HOME"] = str(model_root.parent)
         result = run_ocr_subprocess(str(image_path), timeout_seconds=settings.PADDLEOCR_TIMEOUT_SECONDS)
     if not result.get("success"):
         raise RuntimeError(f"PaddleOCR model bootstrap failed: {result.get('code')}: {result.get('error')}")
@@ -176,7 +207,10 @@ async def main() -> int:
     if not args.skip_soundfont:
         prepare_soundfont(_require_path(settings.PLAYBACK_SOUNDFONT_PATH, "PLAYBACK_SOUNDFONT_PATH"))
     if not args.skip_huggingface:
-        prepare_huggingface_snapshots(_require_path(settings.HF_HOME, "HF_HOME"))
+        prepare_huggingface_snapshots(
+            _require_path(settings.HF_HOME, "HF_HOME"),
+            settings.HF_MODEL_REPOSITORIES,
+        )
     if not args.skip_paddleocr:
         prepare_paddleocr_models()
 

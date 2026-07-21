@@ -32,7 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--environment", choices=("staging", "production"), required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--backend-image", required=True)
+    parser.add_argument("--backend-api-image", required=True)
+    parser.add_argument("--backend-worker-image", required=True)
     parser.add_argument("--frontend-image", required=True)
     parser.add_argument("--frontend-host", required=True)
     parser.add_argument("--api-host", required=True)
@@ -121,7 +122,8 @@ def render_overlay(args: argparse.Namespace) -> Path:
     output = args.output if args.output.is_absolute() else REPO_ROOT / args.output
     copy_template(source, output, args.overwrite)
 
-    backend_ref = parse_image_ref(args.backend_image)
+    backend_api_ref = parse_image_ref(args.backend_api_image)
+    backend_worker_ref = parse_image_ref(args.backend_worker_image)
     frontend_ref = parse_image_ref(args.frontend_image)
 
     kustomization_path = output / "kustomization.yaml"
@@ -132,7 +134,8 @@ def render_overlay(args: argparse.Namespace) -> Path:
         "- ../../base",
         f"- {base_relative_path.replace(os.sep, '/')}",
     )
-    kustomization = replace_image_block(kustomization, "noteverse-backend", backend_ref)
+    kustomization = replace_image_block(kustomization, "noteverse-backend-api", backend_api_ref)
+    kustomization = replace_image_block(kustomization, "noteverse-backend-worker", backend_worker_ref)
     kustomization = replace_image_block(kustomization, "noteverse-frontend", frontend_ref)
     kustomization_path.write_text(kustomization, encoding="utf-8")
 

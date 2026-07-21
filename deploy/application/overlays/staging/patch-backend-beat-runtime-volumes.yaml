@@ -12,5 +12,4 @@ spec:
               mountPath: /var/lib/noteverse/work
       volumes:
         - name: work
-          persistentVolumeClaim:
-            claimName: noteverse-beat-work
+          emptyDir: {}

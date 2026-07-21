@@ -31,8 +31,6 @@ Required objects supplied outside this overlay:
   - `S3_ACCESS_KEY_ID`
   - `S3_SECRET_ACCESS_KEY`
   - `RESEND_API_KEY` if mail is enabled
-- `PersistentVolumeClaim/noteverse-legato-repo`
-- `PersistentVolumeClaim/noteverse-beat-work`
 - `Secret/noteverse-production-tls` or a cert-manager issuer that owns it
 - node labels/tolerations for GPU worker scheduling:
   - `noteverse.io/model-cache=enabled`

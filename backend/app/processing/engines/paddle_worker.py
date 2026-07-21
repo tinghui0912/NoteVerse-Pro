@@ -18,12 +18,49 @@ def _set_stable_env() -> None:
 
 
 def _existing_env_path(name: str) -> str | None:
-    """Return an expanded env path only when the variable is configured."""
+    """Return a configured model path only when it contains a usable model."""
+
+    value = os.environ.get(name)
+    if not value:
+        return None
+    path = os.path.abspath(os.path.expanduser(value))
+    required_files = ("inference.yml", "inference.pdiparams", "inference.json")
+    if all(os.path.isfile(os.path.join(path, filename)) for filename in required_files):
+        return path
+    return None
+
+
+def _env_model_path(name: str) -> str | None:
+    """Return a normalized configured model path without requiring files."""
 
     value = os.environ.get(name)
     if not value:
         return None
     return os.path.abspath(os.path.expanduser(value))
+
+
+def _model_name_from_path(path: str | None) -> str | None:
+    """Use the configured model directory basename as the Paddle model name."""
+
+    if not path:
+        return None
+    return os.path.basename(os.path.normpath(path)) or None
+
+
+def _set_first_supported_value(
+    kwargs: dict[str, Any],
+    parameters: Mapping[str, Any],
+    names: tuple[str, ...],
+    value: str | None,
+) -> None:
+    """Set a constructor value using the first supported parameter name."""
+
+    if not value:
+        return
+    for name in names:
+        if name in parameters:
+            kwargs[name] = value
+            return
 
 
 def _set_first_supported_path(
@@ -86,17 +123,44 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
     elif "use_gpu" in parameters:
         kwargs["use_gpu"] = use_gpu
 
+    allow_download = os.environ.get("PADDLEOCR_ALLOW_MODEL_DOWNLOAD") == "1"
+    detection_configured_dir = _env_model_path("PADDLEOCR_DETECTION_MODEL_DIR")
+    recognition_configured_dir = _env_model_path("PADDLEOCR_RECOGNITION_MODEL_DIR")
+    orientation_configured_dir = _env_model_path("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR")
+    detection_model_dir = None if allow_download else _existing_env_path("PADDLEOCR_DETECTION_MODEL_DIR")
+    recognition_model_dir = None if allow_download else _existing_env_path("PADDLEOCR_RECOGNITION_MODEL_DIR")
+    orientation_model_dir = None if allow_download else _existing_env_path("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR")
+
+    _set_first_supported_value(
+        kwargs,
+        parameters,
+        ("text_detection_model_name",),
+        _model_name_from_path(detection_configured_dir),
+    )
+    _set_first_supported_value(
+        kwargs,
+        parameters,
+        ("text_recognition_model_name",),
+        _model_name_from_path(recognition_configured_dir),
+    )
+    _set_first_supported_value(
+        kwargs,
+        parameters,
+        ("textline_orientation_model_name",),
+        _model_name_from_path(orientation_configured_dir),
+    )
+
     _set_first_supported_path(
         kwargs,
         parameters,
         ("text_detection_model_dir", "det_model_dir"),
-        _existing_env_path("PADDLEOCR_DETECTION_MODEL_DIR"),
+        detection_model_dir,
     )
     _set_first_supported_path(
         kwargs,
         parameters,
         ("text_recognition_model_dir", "rec_model_dir"),
-        _existing_env_path("PADDLEOCR_RECOGNITION_MODEL_DIR"),
+        recognition_model_dir,
     )
     _set_first_supported_path(
         kwargs,
@@ -106,7 +170,7 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
             "text_line_orientation_model_dir",
             "cls_model_dir",
         ),
-        _existing_env_path("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR"),
+        orientation_model_dir,
     )
 
     return kwargs

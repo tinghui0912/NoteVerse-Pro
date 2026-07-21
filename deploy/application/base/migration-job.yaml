@@ -16,7 +16,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: noteverse-backend:replace-me
+          image: noteverse-backend-api:replace-me
           args:
             - migrate
           envFrom:

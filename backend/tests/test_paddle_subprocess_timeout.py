@@ -11,6 +11,13 @@ from app.processing.engines.paddle import run_ocr_subprocess
 from app.processing.text.recognition import TextRecognitionEngine
 
 
+def _create_fake_paddle_model_dir(path) -> str:
+    path.mkdir(parents=True)
+    for filename in ("inference.yml", "inference.pdiparams", "inference.json"):
+        (path / filename).write_text("test", encoding="utf-8")
+    return str(path)
+
+
 def test_run_ocr_subprocess_maps_timeout_to_failure() -> None:
     with patch(
         "app.processing.engines.paddle.subprocess.run",
@@ -72,7 +79,7 @@ def test_run_ocr_subprocess_accepts_structured_error_after_stdout_noise() -> Non
     assert result["error"] == "model load failed"
 
 
-def test_build_paddleocr_kwargs_supports_v3_device_parameter(monkeypatch) -> None:
+def test_build_paddleocr_kwargs_supports_v3_device_parameter(monkeypatch, tmp_path) -> None:
     class FakePaddleOcr:
         def __init__(
             self,
@@ -87,9 +94,12 @@ def test_build_paddleocr_kwargs_supports_v3_device_parameter(monkeypatch) -> Non
         ) -> None:
             pass
 
-    monkeypatch.setenv("PADDLEOCR_DETECTION_MODEL_DIR", "/models/det")
-    monkeypatch.setenv("PADDLEOCR_RECOGNITION_MODEL_DIR", "/models/rec")
-    monkeypatch.setenv("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR", "/models/ori")
+    det_dir = _create_fake_paddle_model_dir(tmp_path / "det")
+    rec_dir = _create_fake_paddle_model_dir(tmp_path / "rec")
+    ori_dir = _create_fake_paddle_model_dir(tmp_path / "ori")
+    monkeypatch.setenv("PADDLEOCR_DETECTION_MODEL_DIR", det_dir)
+    monkeypatch.setenv("PADDLEOCR_RECOGNITION_MODEL_DIR", rec_dir)
+    monkeypatch.setenv("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR", ori_dir)
     fake_paddle = SimpleNamespace(
         device=SimpleNamespace(is_compiled_with_cuda=lambda: True)
     )
@@ -102,13 +112,13 @@ def test_build_paddleocr_kwargs_supports_v3_device_parameter(monkeypatch) -> Non
         "use_doc_orientation_classify": False,
         "use_doc_unwarping": False,
         "device": "gpu",
-        "text_detection_model_dir": os.path.abspath("/models/det"),
-        "text_recognition_model_dir": os.path.abspath("/models/rec"),
-        "textline_orientation_model_dir": os.path.abspath("/models/ori"),
+        "text_detection_model_dir": os.path.abspath(det_dir),
+        "text_recognition_model_dir": os.path.abspath(rec_dir),
+        "textline_orientation_model_dir": os.path.abspath(ori_dir),
     }
 
 
-def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch) -> None:
+def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch, tmp_path) -> None:
     class FakePaddleOcr:
         def __init__(
             self,
@@ -121,9 +131,12 @@ def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch) -> No
         ) -> None:
             pass
 
-    monkeypatch.setenv("PADDLEOCR_DETECTION_MODEL_DIR", "/models/det")
-    monkeypatch.setenv("PADDLEOCR_RECOGNITION_MODEL_DIR", "/models/rec")
-    monkeypatch.setenv("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR", "/models/ori")
+    det_dir = _create_fake_paddle_model_dir(tmp_path / "det")
+    rec_dir = _create_fake_paddle_model_dir(tmp_path / "rec")
+    ori_dir = _create_fake_paddle_model_dir(tmp_path / "ori")
+    monkeypatch.setenv("PADDLEOCR_DETECTION_MODEL_DIR", det_dir)
+    monkeypatch.setenv("PADDLEOCR_RECOGNITION_MODEL_DIR", rec_dir)
+    monkeypatch.setenv("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR", ori_dir)
     fake_paddle = SimpleNamespace(
         device=SimpleNamespace(is_compiled_with_cuda=lambda: False)
     )
@@ -134,9 +147,9 @@ def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch) -> No
         "lang": "ch",
         "use_angle_cls": True,
         "use_gpu": False,
-        "det_model_dir": os.path.abspath("/models/det"),
-        "rec_model_dir": os.path.abspath("/models/rec"),
-        "cls_model_dir": os.path.abspath("/models/ori"),
+        "det_model_dir": os.path.abspath(det_dir),
+        "rec_model_dir": os.path.abspath(rec_dir),
+        "cls_model_dir": os.path.abspath(ori_dir),
     }
 
 

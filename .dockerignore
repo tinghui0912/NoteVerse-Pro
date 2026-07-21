@@ -17,7 +17,10 @@ frontend/.next
 frontend/node_modules
 frontend/tsconfig.tsbuildinfo
 
-external
+external/*
+!external/legato
+!external/legato/**
+external/legato/.git
 logs
 models
 matchmaker

@@ -104,7 +104,7 @@ def test_offline_model_paths_expand_user_home() -> None:
 
 
 def test_omr_engine_is_normalized_and_validated() -> None:
-    settings = Settings(OMR_ENGINE="LEGATO", LEGATO_REPO_PATH="../external/legato")
+    settings = Settings(OMR_ENGINE="LEGATO", LEGATO_REPO_PATH="/opt/noteverse/legato")
 
     assert settings.OMR_ENGINE == "legato"
 
@@ -163,7 +163,7 @@ def test_s3_storage_settings_are_validated() -> None:
 def test_selected_engine_settings_are_valid() -> None:
     settings = Settings(
         OMR_ENGINE="legato",
-        LEGATO_REPO_PATH="../external/legato",
+        LEGATO_REPO_PATH="/opt/noteverse/legato",
         SCORE_RENDER_ENGINE="verovio",
     )
 

@@ -95,9 +95,10 @@ RUN if [ "${INSTALL_GPU_DEPS}" = "true" ]; then \
 
 COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
 RUN chmod +x /usr/local/bin/noteverse-entrypoint \
-    && mkdir -p /app/data/storage /app/data/work /opt/noteverse/models
+    && mkdir -p /app/data/storage /app/data/work /opt/noteverse/models /opt/noteverse/legato
 
 COPY backend/ /app/
+COPY external/legato/ /opt/noteverse/legato/
 
 EXPOSE 8000
 

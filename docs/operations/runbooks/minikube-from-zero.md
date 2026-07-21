@@ -38,7 +38,7 @@ The local environment should stay production-shaped:
 | --- | --- | --- |
 | Tool installation | Docker Desktop, kubectl, Helm, minikube, PowerShell | none |
 | Cluster creation | `minikube start`, node count, ingress controller | none |
-| Local DNS stability | decide whether the local two-node CoreDNS fix applies | `scripts/minikube_bootstrap.ps1 -ApplyDnsFix` |
+| Local DNS stability | verify two-node CoreDNS and remove local-only kube-dns policy if present | `scripts/minikube_bootstrap.ps1 -ApplyDnsFix` |
 | Images | choose registry path, tag, and build args | image commands are documented in the runbook |
 | Application overlay | choose namespace, hostnames, image tags, S3 settings | `scripts/render_k8s_release_overlay.py` |
 | Manifest validation | review generated manifests | `scripts/check_k8s_application_manifests.py`, `scripts/quality.ps1 -Check k8s-minikube` |
@@ -60,13 +60,13 @@ The local environment should stay production-shaped:
    .\scripts\minikube_bootstrap.ps1 -ApplyDnsFix
    ```
 
-   This is a local minikube workaround. Do not treat it as a production DNS
-   design.
+   This scales CoreDNS and makes sure `kube-dns` keeps normal cluster-wide
+   endpoint routing. Do not set `internalTrafficPolicy: Local` on `kube-dns`.
 
 3. Build and publish uniquely tagged images.
 
-   For multi-node minikube, prefer the registry add-on or a real registry path.
-   `minikube image load` is only acceptable for single-node local smoke tests.
+   Use GHCR or the same private registry shape used by CI.
+   Do not use `minikube image load` for NoteVerse staging rehearsal.
 
 4. Render the application overlay.
 
@@ -83,7 +83,7 @@ The local environment should stay production-shaped:
 6. Apply node labels, TLS Secret, ConfigMaps, Secrets, and workloads.
 
    The model cache is a node-local DaemonSet-managed cache. Label only nodes
-   that should host API/worker pods with `noteverse.io/model-cache=enabled`.
+   that should host worker pods with `noteverse.io/model-cache=enabled`.
    Object assets must continue using S3 so local behavior stays close to
    production. For production-flow rehearsal, use cert-manager with the
    Cloudflare DNS-01 staging issuer and a real test domain. Use mkcert or
@@ -119,10 +119,12 @@ The local environment should stay production-shaped:
 ## Known Pitfalls Already Captured
 
 - Multi-node minikube can expose DNS instability when CoreDNS has too few
-  replicas or cross-node DNS forwarding is unhealthy.
-- `minikube image load` does not reliably cover every node in multi-node tests.
-- Docker Desktop may need an insecure-registry setting for the minikube registry
-  add-on.
+  replicas, cross-node DNS forwarding is unhealthy, or `kube-dns` was changed
+  to local-only endpoint routing.
+- `minikube image load` is intentionally excluded from the staging rehearsal
+  path because it bypasses production-style image pulls.
+- Local staging uses GHCR for image publication and pulls. Do not run a local
+  registry for NoteVerse production-shaped minikube rehearsal.
 - Do not use fixed `:local` tags for release-like tests; use unique tags or
   digests.
 - Do not use local filesystem object storage for app assets in minikube when the

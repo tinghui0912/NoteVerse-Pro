@@ -3,8 +3,12 @@ name: Staging Release Overlay
 on:
   workflow_dispatch:
     inputs:
-      backend_image:
-        description: Backend image tag or digest
+      backend_api_image:
+        description: Backend API image tag or digest
+        required: true
+        type: string
+      backend_worker_image:
+        description: Backend worker image tag or digest
         required: true
         type: string
       frontend_image:
@@ -31,6 +35,13 @@ on:
         description: JSON array of allowed browser origins
         required: true
         type: string
+      auth_cookie_secure:
+        description: Whether auth cookies use Secure=true
+        required: true
+        type: choice
+        options:
+          - "true"
+          - "false"
       mail_default_sender:
         description: Public default sender address
         required: true
@@ -39,8 +50,27 @@ on:
         description: Object storage endpoint URL
         required: true
         type: string
+      s3_region:
+        description: Object storage region
+        required: true
+        type: string
+      s3_bucket:
+        description: Object storage bucket
+        required: true
+        type: string
       s3_public_base_url:
         description: Public object URL base
+        required: true
+        type: string
+      s3_force_path_style:
+        description: Whether to use path-style S3 URLs
+        required: true
+        type: choice
+        options:
+          - "true"
+          - "false"
+      s3_presign_expire_seconds:
+        description: S3 presigned URL expiry in seconds
         required: true
         type: string
 
@@ -75,16 +105,22 @@ jobs:
           python scripts/render_k8s_release_overlay.py \
             --environment staging \
             --output build/k8s-release/staging \
-            --backend-image "${{ inputs.backend_image }}" \
+            --backend-api-image "${{ inputs.backend_api_image }}" \
+            --backend-worker-image "${{ inputs.backend_worker_image }}" \
             --frontend-image "${{ inputs.frontend_image }}" \
             --frontend-host "${{ inputs.frontend_host }}" \
             --api-host "${{ inputs.api_host }}" \
             --tls-secret "${{ inputs.tls_secret }}" \
             --frontend-base-url "${{ inputs.frontend_base_url }}" \
             --backend-cors-origins '${{ inputs.backend_cors_origins }}' \
+            --auth-cookie-secure "${{ inputs.auth_cookie_secure }}" \
             --mail-default-sender "${{ inputs.mail_default_sender }}" \
             --s3-endpoint-url "${{ inputs.s3_endpoint_url }}" \
-            --s3-public-base-url "${{ inputs.s3_public_base_url }}"
+            --s3-region "${{ inputs.s3_region }}" \
+            --s3-bucket "${{ inputs.s3_bucket }}" \
+            --s3-public-base-url "${{ inputs.s3_public_base_url }}" \
+            --s3-force-path-style "${{ inputs.s3_force_path_style }}" \
+            --s3-presign-expire-seconds "${{ inputs.s3_presign_expire_seconds }}"
 
       - name: Validate rendered overlay
         run: python scripts/check_k8s_application_manifests.py build/k8s-release/staging --strict

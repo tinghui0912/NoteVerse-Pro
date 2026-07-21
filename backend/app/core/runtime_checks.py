@@ -331,16 +331,17 @@ def _snapshot_has_model_files(snapshot: Path) -> bool:
     return any(any(snapshot.glob(pattern)) for pattern in patterns)
 
 
+def _hf_repo_cache_dir(repo_id: str) -> str:
+    return "models--" + repo_id.replace("/", "--")
+
+
 def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
     hf_home = Path(settings.HF_HOME or os.environ.get("HF_HOME") or "~/.cache/huggingface").expanduser()
     hub = hf_home / "hub"
-    required = (
-        ("legato", "models--guangyangmusic--legato"),
-        ("llama_vision", "models--meta-llama--Llama-3.2-11B-Vision"),
-    )
     missing: list[str] = []
     summaries: list[str] = []
-    for label, repo_dir in required:
+    for repo_id in settings.HF_MODEL_REPOSITORIES:
+        repo_dir = _hf_repo_cache_dir(repo_id)
         path = hub / repo_dir
         snapshots = path / "snapshots"
         valid_snapshots = (
@@ -349,9 +350,9 @@ def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
             else []
         )
         if not valid_snapshots:
-            missing.append(f"{label}: no complete model snapshot in {path}")
+            missing.append(f"{repo_id}: no complete model snapshot in {path}")
             continue
-        summaries.append(f"{label}={path}{_size_suffix(path, include_sizes)}")
+        summaries.append(f"{repo_id}={path}{_size_suffix(path, include_sizes)}")
 
     offline = f"HF_HUB_OFFLINE={int(settings.HF_HUB_OFFLINE)}, TRANSFORMERS_OFFLINE={int(settings.TRANSFORMERS_OFFLINE)}"
     if missing:

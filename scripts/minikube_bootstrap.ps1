@@ -49,8 +49,12 @@ if ($ApplyDnsFix) {
         kubectl -n kube-system rollout status deployment/coredns --timeout=180s
     }
 
-    Invoke-Checked "kube-dns:prefer-local-endpoints" {
-        kubectl -n kube-system patch svc kube-dns --type='merge' -p '{"spec":{"internalTrafficPolicy":"Local"}}'
+    Invoke-Checked "kube-dns:use-cluster-endpoints" {
+        kubectl -n kube-system patch svc kube-dns --type='json' -p '[{"op":"remove","path":"/spec/internalTrafficPolicy"}]' 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "kube-dns internalTrafficPolicy was already unset."
+            $global:LASTEXITCODE = 0
+        }
     }
 }
 

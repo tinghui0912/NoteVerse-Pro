@@ -77,17 +77,20 @@ kubectl wait --for=condition=Ready node/<worker-node-name> --timeout=180s
 ```
 
 For two-node Docker driver testing on Windows/WSL, verify Pod DNS from a Pod on
-each node before debugging application code. If Pods scheduled on the worker
-node cannot resolve `*.svc.cluster.local` but can reach same-node Pod IPs,
-scale CoreDNS to one replica per node and make the DNS Service prefer local
-endpoints:
+each node before debugging application code. Keep `kube-dns` on normal
+cluster-wide endpoint routing. Do not set `internalTrafficPolicy: Local` on
+`kube-dns`: if CoreDNS is temporarily scheduled away from a node, pods on that
+node can have their DNS traffic dropped.
+
+If DNS is unhealthy after adding a second node, scale CoreDNS to two replicas,
+restart it, and explicitly remove any local-only DNS service policy:
 
 ```powershell
 kubectl -n kube-system scale deployment coredns --replicas=2
 kubectl -n kube-system rollout status deployment/coredns --timeout=180s
 kubectl -n kube-system get pods -l k8s-app=kube-dns -o wide
 
-kubectl -n kube-system patch svc kube-dns --type='merge' -p '{"spec":{"internalTrafficPolicy":"Local"}}'
+kubectl -n kube-system patch svc kube-dns --type='json' -p '[{"op":"remove","path":"/spec/internalTrafficPolicy"}]'
 ```
 
 The same local-only check and fix is available through:
@@ -110,12 +113,22 @@ $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss
 
 docker build `
   -f docker/backend/Dockerfile.runtime `
+  --build-arg PYTHON_IMAGE=python:3.12-slim-bookworm `
+  --build-arg INSTALL_DEV_DEPS=false `
+  --build-arg INSTALL_GPU_DEPS=false `
+  --build-arg INSTALL_PADDLE_GPU=false `
+  --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
+  -t noteverse-backend-api:$imageTag `
+  .
+
+docker build `
+  -f docker/backend/Dockerfile.runtime `
   --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124 `
   --build-arg INSTALL_DEV_DEPS=false `
   --build-arg INSTALL_GPU_DEPS=true `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
-  -t noteverse-backend:$imageTag `
+  -t noteverse-backend-worker:$imageTag `
   .
 
 docker build `
@@ -127,84 +140,59 @@ docker build `
   .
 ```
 
-Load images into minikube only for a single-node local cluster:
-
-```powershell
-minikube image load noteverse-backend:$imageTag
-minikube image load noteverse-frontend:$imageTag
-```
-
-For a multi-node minikube cluster, do not rely on `minikube image load` or a
-mutable `:local` tag. A Pod may be scheduled on a node that still has an older
-cached image, or no image at all. Use one of these production-like options
-instead:
-
-- enable the minikube registry add-on and push uniquely tagged images to it;
-- push to the same private registry shape used by CI, such as GHCR;
-- pin manifests to immutable tags or digests, even for local smoke tests.
-
-For fast local smoke tests that do not need to exercise registry pulls, build
-the image inside every minikube node with `minikube image build --all`:
-
-```powershell
-$imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
-$backendBaseImage = "noteverse-backend:<existing-local-base-tag>"
-
-minikube image build . --all `
-  -t noteverse-backend:$imageTag `
-  -f docker/backend/Dockerfile.runtime `
-  --build-opt build-arg=PYTHON_IMAGE=$backendBaseImage `
-  --build-opt build-arg=INSTALL_DEV_DEPS=false `
-  --build-opt build-arg=INSTALL_GPU_DEPS=false `
-  --build-opt build-arg=INSTALL_PADDLE_GPU=false `
-  --build-opt build-arg=INSTALL_LEGATO_EXTRA_DEPS=false
-```
-
-This keeps both nodes on the same immutable local tag without requiring Docker
-Desktop insecure-registry configuration. For release-like testing, still prefer
-a real registry path so the local flow matches CI and production image pulls.
+Use a real registry route for local Kubernetes releases. Do not use
+`minikube image load` for NoteVerse staging validation: it does not exercise the
+same image-pull path as production and is especially easy to misuse in
+multi-node clusters.
 
 `minikube docker-env` is intentionally unavailable for multi-node clusters. If
 you see `ENV_MULTINODE_CONFLICT`, use the registry route rather than patching
 Pods to a specific node.
 
-Example registry add-on path:
+For production-shaped staging rehearsal, publish images to GitHub Container
+Registry (GHCR), the same registry family used by CI:
 
 ```powershell
-minikube addons enable registry
-kubectl -n kube-system rollout status deployment/registry
+$ghcrOwner = "<github-owner>"
+$backendApiImage = "ghcr.io/$ghcrOwner/noteverse/backend-api:$imageTag"
+$backendWorkerImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker:$imageTag"
+$frontendImage = "ghcr.io/$ghcrOwner/noteverse/frontend:$imageTag"
 
-kubectl -n kube-system port-forward svc/registry 5000:80
+docker tag noteverse-backend-api:$imageTag $backendApiImage
+docker tag noteverse-backend-worker:$imageTag $backendWorkerImage
+docker tag noteverse-frontend:$imageTag $frontendImage
+docker push $backendApiImage
+docker push $backendWorkerImage
+docker push $frontendImage
 ```
 
-On Docker Desktop for Windows, keep that port-forward running and start the
-Docker-side forwarding process recommended by minikube's registry handbook:
+If API/beat and worker intentionally use split backend images in the future,
+push explicit role images under the same namespace:
 
 ```powershell
-docker run --rm --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:host.docker.internal:5000"
+docker push ghcr.io/$ghcrOwner/noteverse/backend-api:<tag>
+docker push ghcr.io/$ghcrOwner/noteverse/backend-worker:<tag>
+docker push ghcr.io/$ghcrOwner/noteverse/frontend:<tag>
 ```
 
-In another terminal, tag and push the same images. Keep the pushed registry
-reference in the rendered manifests:
+Kubernetes pulls private GHCR images through
+`Secret/noteverse-registry-credentials`. Use GHCR references in rendered
+manifests and one-off rollout commands:
 
 ```powershell
-docker tag noteverse-backend:$imageTag localhost:5000/noteverse-backend:$imageTag
-docker tag noteverse-frontend:$imageTag localhost:5000/noteverse-frontend:$imageTag
-docker push localhost:5000/noteverse-backend:$imageTag
-docker push localhost:5000/noteverse-frontend:$imageTag
+kubectl -n noteverse-staging set image deployment/noteverse-backend-api `
+  api=ghcr.io/$ghcrOwner/noteverse/backend-api:<tag>
+kubectl -n noteverse-staging rollout status deployment/noteverse-backend-api
 ```
 
-Reference: <https://minikube.sigs.k8s.io/docs/handbook/registry/>
-
-Use `IfNotPresent` only with immutable local tags. Production and CI release
-overlays should use immutable registry tags or image digests.
+Use `IfNotPresent` only with immutable tags. Production and CI release overlays
+should use immutable registry tags or image digests.
 
 ## Required Local Resources
 
-Create a local registry pull Secret only if the rendered overlay references one.
-For local images loaded into minikube, prefer a local overlay that omits private
-registry pull requirements. If testing GHCR pulls, create a real read-only GHCR
-Secret in the namespace:
+Create a registry pull Secret only if the rendered overlay references a private
+registry that requires authentication. GHCR images are private by default in this project,
+so create a real read-only GHCR Secret in the namespace:
 
 ```powershell
 kubectl -n noteverse-staging create secret docker-registry noteverse-registry-credentials `
@@ -243,6 +231,98 @@ Create or bind PVCs for:
 For API/frontend-only smoke tests, it is acceptable to scale worker and beat to
 zero in a dedicated local overlay. For import, render, playback, and cleanup
 tests, worker and beat must run with their required runtime assets.
+
+## Bind Host PostgreSQL And Redis Through Stable Services
+
+For production-shaped local testing, keep application settings pointed at stable
+Kubernetes service names instead of embedding a laptop IP in every Secret:
+
+```text
+noteverse-host-postgres.noteverse-staging.svc.cluster.local:5432
+noteverse-host-redis.noteverse-staging.svc.cluster.local:6379
+```
+
+In minikube on Docker Desktop, the node usually reaches host services through
+`host.minikube.internal` or the Docker Desktop host gateway address. Resolve it
+from a node before creating the service binding:
+
+```powershell
+minikube ssh -- getent hosts host.minikube.internal
+```
+
+Create normal ClusterIP Services plus EndpointSlices. EndpointSlice is the
+current Kubernetes API; avoid new `v1 Endpoints` manifests.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: noteverse-host-postgres
+  namespace: noteverse-staging
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: noteverse-host-postgres
+  namespace: noteverse-staging
+  labels:
+    kubernetes.io/service-name: noteverse-host-postgres
+addressType: IPv4
+ports:
+  - name: postgres
+    protocol: TCP
+    port: 5432
+endpoints:
+  - addresses:
+      - <host-gateway-ip>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: noteverse-host-redis
+  namespace: noteverse-staging
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: noteverse-host-redis
+  namespace: noteverse-staging
+  labels:
+    kubernetes.io/service-name: noteverse-host-redis
+addressType: IPv4
+ports:
+  - name: redis
+    protocol: TCP
+    port: 6379
+endpoints:
+  - addresses:
+      - <host-gateway-ip>
+```
+
+Then set backend Secret values to use those service names:
+
+```text
+DATABASE_URL=postgresql+asyncpg://...@noteverse-host-postgres:5432/...
+SYNC_DATABASE_URL=postgresql+psycopg://...@noteverse-host-postgres:5432/...
+REDIS_URL=redis://noteverse-host-redis:6379/0
+CELERY_BROKER_URL=redis://noteverse-host-redis:6379/0
+CELERY_RESULT_BACKEND=redis://noteverse-host-redis:6379/1
+```
+
+This mirrors the production pattern: application workloads depend on stable
+Kubernetes service names, while each environment decides whether those services
+target local host services, managed PostgreSQL/Redis private endpoints, or an
+in-cluster dependency used only for disposable tests.
 
 ## Use Test S3 Storage
 
@@ -482,8 +562,9 @@ yet.
 
 The application overlay uses `model-cache-agent-daemonset.yaml` to prepare the
 node-local model cache. The DaemonSet downloads or verifies model assets under
-the node path `/var/lib/noteverse/models`. API and worker pods mount the same
-node path read-only at `/opt/noteverse/models`.
+the node path `/var/lib/noteverse/models`. Worker pods mount the same node path
+read-only at `/opt/noteverse/models`; API pods do not require model-cache
+scheduling.
 
 These paths are intentionally different:
 
@@ -497,7 +578,7 @@ Do not make application code depend on the node path. Keeping the paths
 separate preserves the Kubernetes storage abstraction while still giving the
 application a stable, production-like mount location.
 
-Label nodes that may run API/worker pods and therefore need a model cache:
+Label nodes that may run worker pods and therefore need a model cache:
 
 ```powershell
 kubectl label node minikube noteverse.io/model-cache=enabled --overwrite
@@ -516,9 +597,37 @@ If the selected Hugging Face repositories are gated, add an `HF_TOKEN` key to
 unauthorized model access should fail the model-cache DaemonSet; do not enable
 worker smoke tests against a partial cache.
 
-Wait for the model-cache DaemonSet before relying on worker tasks:
+The model-cache agent prepares assets from these sources:
 
-Label nodes that should participate in worker/cache experiments:
+- Hugging Face snapshots are controlled by `HF_MODEL_REPOSITORIES` and are
+  downloaded with `huggingface_hub.snapshot_download` into
+  `/opt/noteverse/models/huggingface/hub`. The current staging and production
+  overlays intentionally include only `guangyangmusic/legato`.
+- `FluidR3_GM.sf2` is copied from the backend runtime image system soundfont
+  directory into `/opt/noteverse/models/soundfonts/FluidR3_GM.sf2`.
+- PaddleOCR models are bootstrapped by PaddleOCR/PaddleX itself during a small
+  OCR warmup run. The configured cache is
+  `/opt/noteverse/models/paddleocr/official_models`.
+
+Removing a repository from `HF_MODEL_REPOSITORIES` stops future validation and
+downloads for that repository, but it does not delete previously cached files.
+Clean stale node-local model cache explicitly after changing the model set:
+
+```powershell
+minikube ssh -- "sudo rm -rf /var/lib/noteverse/models/huggingface/hub/models--meta-llama--Llama-3.2-11B-Vision"
+```
+
+Older deployments used a PVC/local-path-provisioner directory named
+`noteverse-model-assets`. The current model-cache design does not use that PVC.
+If `kubectl -n noteverse-staging get pvc` no longer shows
+`noteverse-model-assets` and no workload references it, remove the stale local
+directory:
+
+```powershell
+minikube ssh -- "sudo rm -rf /tmp/hostpath-provisioner/noteverse-staging/noteverse-model-assets"
+```
+
+Wait for the model-cache DaemonSet before relying on worker tasks:
 
 ```powershell
 kubectl -n noteverse-staging rollout status ds/noteverse-model-cache-agent --timeout=7200s
@@ -640,8 +749,9 @@ python scripts/render_k8s_release_overlay.py `
   --environment staging `
   --output build/k8s-release/minikube `
   --overwrite `
-  --backend-image localhost:5000/noteverse-backend:$imageTag `
-  --frontend-image localhost:5000/noteverse-frontend:$imageTag `
+  --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
+  --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
   --frontend-host staging.noteverse.local `
   --api-host api.staging.noteverse.local `
   --tls-secret noteverse-staging-tls `
@@ -749,8 +859,9 @@ python scripts/render_k8s_release_overlay.py `
   --environment staging `
   --output build/k8s-release/minikube `
   --overwrite `
-  --backend-image localhost:5000/noteverse-backend:$imageTag `
-  --frontend-image localhost:5000/noteverse-frontend:$imageTag `
+  --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
+  --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
   --frontend-host staging.johnabc.ccwu.cc `
   --api-host api.staging.johnabc.ccwu.cc `
   --tls-secret noteverse-staging-tls `
@@ -790,8 +901,8 @@ For quick development smoke tests that do not validate certificate automation,
 ## Render Local Overlay
 
 Use the release overlay renderer with local hosts and immutable local image
-tags. For multi-node minikube, these tags should point at the minikube registry
-add-on or the same private registry used by CI.
+tags. For multi-node minikube, these tags should point at GHCR or the same
+private registry used by CI.
 
 ```powershell
 $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
@@ -799,8 +910,9 @@ $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss
 python scripts/render_k8s_release_overlay.py `
   --environment staging `
   --output build/k8s-release/minikube `
-  --backend-image localhost:5000/noteverse-backend:$imageTag `
-  --frontend-image localhost:5000/noteverse-frontend:$imageTag `
+  --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
+  --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
   --frontend-host localhost `
   --api-host api.localhost `
   --tls-secret noteverse-staging-tls `
