@@ -55,6 +55,7 @@ Recommended image tags:
 
 ```text
 <registry>/noteverse/backend-api:<git-sha>
+<registry>/noteverse/backend-beat:<git-sha>
 <registry>/noteverse/backend-worker:<git-sha>
 <registry>/noteverse/frontend:<git-sha>
 ```
@@ -63,9 +64,11 @@ Optional environment aliases:
 
 ```text
 <registry>/noteverse/backend-api:staging
+<registry>/noteverse/backend-beat:staging
 <registry>/noteverse/backend-worker:staging
 <registry>/noteverse/frontend:staging
 <registry>/noteverse/backend-api:production
+<registry>/noteverse/backend-beat:production
 <registry>/noteverse/backend-worker:production
 <registry>/noteverse/frontend:production
 ```
@@ -364,6 +367,7 @@ Every production release should record:
 - release ID;
 - Git commit SHA;
 - backend image digest;
+- backend beat image digest;
 - frontend image digest;
 - migration revision before and after;
 - approver;

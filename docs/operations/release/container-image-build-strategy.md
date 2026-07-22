@@ -26,7 +26,8 @@ Current Dockerfiles:
 | File | Purpose | Production-ready |
 | --- | --- | --- |
 | `docker/backend/Dockerfile.ml-base` | CUDA/Python/PyTorch ML base image | yes, as a base image |
-| `docker/backend/Dockerfile.api` | FastAPI API, beat, and migration runtime image | yes |
+| `docker/backend/Dockerfile.api` | FastAPI API and migration runtime image | yes |
+| `docker/backend/Dockerfile.beat` | Celery beat scheduler runtime image | yes |
 | `docker/backend/Dockerfile.worker` | Celery worker and model-cache-agent ML runtime image | yes, after ML base is published |
 | `docker/frontend/Dockerfile.dev` | Next.js development runtime | no |
 | `docker/frontend/Dockerfile.runtime` | Next.js production runtime | initial production path |
@@ -45,6 +46,7 @@ Recommended registry paths:
 
 ```text
 <registry>/noteverse/backend-api
+<registry>/noteverse/backend-beat
 <registry>/noteverse/backend-worker
 <registry>/noteverse/frontend
 <registry>/noteverse/ml-base
@@ -54,6 +56,7 @@ The current CI workflow uses GitHub Container Registry:
 
 ```text
 ghcr.io/<github-owner>/noteverse/backend-api
+ghcr.io/<github-owner>/noteverse/backend-beat
 ghcr.io/<github-owner>/noteverse/backend-worker
 ghcr.io/<github-owner>/noteverse/frontend
 ```
@@ -71,6 +74,7 @@ Every deployable image must have an immutable source tag:
 
 ```text
 <registry>/noteverse/backend-api:<git-sha>
+<registry>/noteverse/backend-beat:<git-sha>
 <registry>/noteverse/backend-worker:<git-sha>
 <registry>/noteverse/frontend:<git-sha>
 ```
@@ -79,6 +83,7 @@ Recommended additional metadata tags:
 
 ```text
 <registry>/noteverse/backend-api:build-<run-id>
+<registry>/noteverse/backend-beat:build-<run-id>
 <registry>/noteverse/backend-worker:build-<run-id>
 <registry>/noteverse/frontend:build-<run-id>
 ```
@@ -87,9 +92,11 @@ Optional mutable aliases:
 
 ```text
 <registry>/noteverse/backend-api:staging
+<registry>/noteverse/backend-beat:staging
 <registry>/noteverse/backend-worker:staging
 <registry>/noteverse/frontend:staging
 <registry>/noteverse/backend-api:production
+<registry>/noteverse/backend-beat:production
 <registry>/noteverse/backend-worker:production
 <registry>/noteverse/frontend:production
 ```
@@ -108,6 +115,7 @@ The safest production reference is an image digest:
 
 ```text
 <registry>/noteverse/backend-api@sha256:<digest>
+<registry>/noteverse/backend-beat@sha256:<digest>
 <registry>/noteverse/backend-worker@sha256:<digest>
 <registry>/noteverse/frontend@sha256:<digest>
 ```
@@ -119,6 +127,8 @@ Production release records should include:
 - Git commit SHA;
 - backend API image tag;
 - backend API image digest;
+- backend beat image tag;
+- backend beat image digest;
 - backend worker image tag;
 - backend worker image digest;
 - frontend image tag;
@@ -169,7 +179,6 @@ image intentionally does not contain LEGATO source, PyTorch, PaddleOCR, or model
 bootstrap tooling. It is the image for:
 
 - `backend-api`;
-- `backend-beat`;
 - database migration jobs.
 
 Recommended API image build:
@@ -178,6 +187,32 @@ Recommended API image build:
 docker build \
   -f docker/backend/Dockerfile.api \
   -t <registry>/noteverse/backend-api:<git-sha> \
+  .
+```
+
+The API image currently includes the interactive practice and fingering
+dependencies because those endpoints run in the API process:
+
+- `pymatchmaker` / `partitura` for realtime practice alignment;
+- `pianoplayer` for synchronous fingering generation;
+- `Pillow` for account avatar processing.
+
+If practice realtime or fingering generation are split into dedicated runtimes,
+move these dependencies with that runtime and slim the API image again.
+
+### Backend Beat Image
+
+`docker/backend/Dockerfile.beat` builds the deployed Celery beat scheduler image.
+It installs `backend/requirements/beat.txt`, which inherits only shared backend
+runtime infrastructure. Beat publishes scheduled task names and does not import
+worker task implementations.
+
+Recommended beat image build:
+
+```bash
+docker build \
+  -f docker/backend/Dockerfile.beat \
+  -t <registry>/noteverse/backend-beat:<git-sha> \
   .
 ```
 
@@ -335,7 +370,7 @@ CI/CD should:
 1. run quality gates;
 2. build or select the pinned ML base image;
 3. build backend worker image from that ML base;
-4. build backend API and frontend images;
+4. build backend API, backend beat, and frontend images;
 5. push commit SHA tags;
 6. capture image digests;
 7. render private staging overlay with the captured digests;

@@ -61,8 +61,8 @@ services:
 
   beat:
     <<: *backend-common
-    image: noteverse-backend-api:dev
+    image: noteverse-backend-beat:dev
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.api
+      dockerfile: docker/backend/Dockerfile.beat
     command: beat

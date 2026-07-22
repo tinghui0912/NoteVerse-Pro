@@ -1,27 +1,5 @@
 ARG PYTHON_IMAGE=ghcr.io/tinghui0912/noteverse/ml-base:py312-torch260-cu124
 
-FROM ${PYTHON_IMAGE} AS matchmaker-wheel
-
-ENV PIP_NO_CACHE_DIR=1 \
-    DEBIAN_FRONTEND=noninteractive
-
-WORKDIR /build
-
-RUN apt-get update -o Acquire::Retries=3 \
-    && apt-get install -y --no-install-recommends \
-        build-essential \
-        ca-certificates \
-        git \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY backend/requirements/ /tmp/requirements/
-
-RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install Cython==3.0.8 numpy==1.26.4 \
-    && MATCHMAKER_REQ="$(grep -E '^pymatchmaker @' /tmp/requirements/worker.txt)" \
-    && CFLAGS="-O1" python -m pip wheel --no-build-isolation --no-deps -w /wheels "${MATCHMAKER_REQ}"
-
-
 FROM ${PYTHON_IMAGE}
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -50,17 +28,14 @@ RUN apt-get update -o Acquire::Retries=3 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements/ /tmp/requirements/
-COPY --from=matchmaker-wheel /wheels /tmp/wheels
 
 ARG INSTALL_DEV_DEPS=false
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && grep -vE '^(pymatchmaker @|paddleocr==)' /tmp/requirements/worker.txt > /tmp/requirements/worker-core.txt \
+    && grep -vE '^paddleocr==' /tmp/requirements/worker.txt > /tmp/requirements/worker-core.txt \
     && python -m pip install -r /tmp/requirements/worker-core.txt \
-    && python -m pip install /tmp/wheels/pymatchmaker-*.whl \
     && if [ "${INSTALL_DEV_DEPS}" = "true" ]; then \
       python -m pip install -r /tmp/requirements/dev.txt; \
-    fi \
-    && rm -rf /tmp/wheels
+    fi
 
 ARG INSTALL_PADDLE_GPU=false
 ARG INSTALL_LEGATO_EXTRA_DEPS=false

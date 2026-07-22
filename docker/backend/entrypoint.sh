@@ -14,6 +14,7 @@ case "${1:-api}" in
     exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
   worker)
+    export NOTEVERSE_CELERY_IMPORT_TASKS=true
     python scripts/check_runtime.py --role worker
     exec python -m celery -A app.worker.celery_config:celery_app worker \
       --loglevel="${CELERY_LOGLEVEL:-info}" \

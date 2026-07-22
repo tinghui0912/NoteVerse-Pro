@@ -234,6 +234,7 @@ def check_beat_state(_: bool = False) -> CheckResult:
 
 def check_celery_tasks(_: bool = False) -> CheckResult:
     try:
+        import app.worker.tasks  # noqa: F401
         from app.worker.celery_config import celery_app
 
         celery_app.loader.import_default_modules()

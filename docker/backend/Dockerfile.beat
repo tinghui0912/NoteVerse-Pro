@@ -1,0 +1,29 @@
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+RUN apt-get update -o Acquire::Retries=3 \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libffi8 \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements/ /tmp/requirements/
+
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install -r /tmp/requirements/beat.txt
+
+COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
+RUN chmod +x /usr/local/bin/noteverse-entrypoint \
+    && mkdir -p /app/data/work
+
+COPY backend/ /app/
+
+ENTRYPOINT ["/usr/bin/tini", "--", "noteverse-entrypoint"]
+CMD ["beat"]

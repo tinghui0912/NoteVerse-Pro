@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from app.core.logger import logger
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
+from app.worker.celery_config import celery_app
 
 
 def dispatch_import_job(job_uuid: str) -> bool:
     try:
-        from app.worker.tasks import process_images_job
-
-        process_images_job.apply_async(
+        celery_app.send_task(
+            "app.worker.tasks.process_images_job",
             kwargs={"job_uuid": job_uuid},
             task_id=job_uuid,
         )

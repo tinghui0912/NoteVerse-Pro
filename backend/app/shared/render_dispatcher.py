@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.core.logger import logger
 from app.db.worker_session import get_worker_db
 from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.worker.celery_config import celery_app
 
 
 def dispatch_render_outbox(outbox_uuid: str) -> bool:
@@ -11,9 +12,8 @@ def dispatch_render_outbox(outbox_uuid: str) -> bool:
             return False
 
     try:
-        from app.worker.tasks import render_outbox_task
-
-        render_outbox_task.apply_async(
+        celery_app.send_task(
+            "app.worker.tasks.render_outbox_task",
             kwargs={"outbox_uuid": outbox_uuid},
             task_id=f"render-{outbox_uuid}",
         )

@@ -8,11 +8,18 @@ text on their side.
 from collections.abc import Mapping
 from typing import Optional
 
-from fastapi import status
-
 from app.shared.constants import ErrorCode
 
 ErrorDetails = Mapping[str, object]
+
+HTTP_400_BAD_REQUEST = 400
+HTTP_401_UNAUTHORIZED = 401
+HTTP_403_FORBIDDEN = 403
+HTTP_404_NOT_FOUND = 404
+HTTP_409_CONFLICT = 409
+HTTP_422_UNPROCESSABLE_CONTENT = 422
+HTTP_500_INTERNAL_SERVER_ERROR = 500
+HTTP_503_SERVICE_UNAVAILABLE = 503
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +33,7 @@ class AppException(Exception):
     def __init__(
         self,
         code: str = ErrorCode.UNKNOWN_ERROR,
-        status_code: int = status.HTTP_400_BAD_REQUEST,
+        status_code: int = HTTP_400_BAD_REQUEST,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(code)
@@ -53,7 +60,7 @@ class AuthenticationException(AppException):
     ):
         super().__init__(
             code=code,
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=HTTP_401_UNAUTHORIZED,
             details=details,
         )
 
@@ -68,7 +75,7 @@ class UnauthorizedException(AppException):
     ):
         super().__init__(
             code=code,
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTP_403_FORBIDDEN,
             details=details,
         )
 
@@ -87,7 +94,7 @@ class ResourceNotFoundException(AppException):
             details["resource_id"] = resource_id
         super().__init__(
             code=code,
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=HTTP_404_NOT_FOUND,
             details=details,
         )
 
@@ -101,7 +108,7 @@ class ResourceAlreadyExistsException(AppException):
             _details.update(details)
         super().__init__(
             code=ErrorCode.RESOURCE_ALREADY_EXISTS,
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=HTTP_409_CONFLICT,
             details=_details,
         )
 
@@ -122,7 +129,7 @@ class ValidationException(AppException):
             _details.update(details)
         super().__init__(
             code=code,
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             details=_details,
         )
 
@@ -143,7 +150,7 @@ class TaskException(AppException):
             _details.update(details)
         super().__init__(
             code=code,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             details=_details,
         )
 
@@ -164,7 +171,7 @@ class FileException(AppException):
             _details.update(details)
         super().__init__(
             code=code,
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=HTTP_400_BAD_REQUEST,
             details=_details,
         )
 
@@ -183,7 +190,7 @@ class ExternalServiceException(AppException):
             _details.update(details)
         super().__init__(
             code=code,
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=HTTP_503_SERVICE_UNAVAILABLE,
             details=_details,
         )
 
@@ -204,7 +211,7 @@ class BusinessRuleException(AppException):
             _details.update(details)
         super().__init__(
             code=code,
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=HTTP_400_BAD_REQUEST,
             details=_details,
         )
 
@@ -219,7 +226,7 @@ class ConflictException(AppException):
     ):
         super().__init__(
             code=code,
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=HTTP_409_CONFLICT,
             details=details,
         )
 
@@ -239,7 +246,7 @@ class PipelineException(AppException):
     ):
         super().__init__(
             code=code,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             details=details,
         )
 

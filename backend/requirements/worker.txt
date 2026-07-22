@@ -1,14 +1,11 @@
--r api.txt
+-r base.txt
 
 # Score processing, rendering, playback, imports, and exports.
 numpy==1.26.4
 Pillow==12.2.0
 verovio==6.2.1
-pianoplayer==3.0.2
-openpyxl==3.1.5
 
-# OMR/OCR and practice alignment engines.
-pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@0d106d07d96f9def77de116b29690c262b51b9ee
+# OMR/OCR engines.
 paddleocr==3.7.0
 
 # GPU framework notes:

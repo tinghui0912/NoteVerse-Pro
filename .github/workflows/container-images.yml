@@ -61,6 +61,19 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/backend-api:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/backend-api:build-${{ github.run_id }}
+      - name: Build backend beat runtime image
+        id: backend-beat-build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/backend/Dockerfile.beat
+          push: ${{ env.PUSH_IMAGES == 'true' }}
+          load: ${{ env.PUSH_IMAGES != 'true' }}
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.IMAGE_NAMESPACE }}/backend-beat:${{ github.sha }}
+            ${{ env.IMAGE_NAMESPACE }}/backend-beat:build-${{ github.run_id }}
       - name: Build frontend runtime image
         id: frontend-build
         uses: docker/build-push-action@v7
@@ -92,6 +105,12 @@ jobs:
           image: ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
           format: spdx-json
           artifact-name: frontend-image-sbom.spdx.json
+      - name: Generate backend beat SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: ${{ env.IMAGE_NAMESPACE }}/backend-beat:${{ github.sha }}
+          format: spdx-json
+          artifact-name: backend-beat-image-sbom.spdx.json
 
       - name: Scan backend API image
         uses: aquasecurity/trivy-action@v0.35.0
@@ -112,6 +131,15 @@ jobs:
           ignore-unfixed: true
           format: table
           exit-code: "1"
+      - name: Scan backend beat image
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-beat:${{ github.sha }}
+          vuln-type: os,library
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
 
       - name: Write image build summary
         run: |
@@ -121,9 +149,11 @@ jobs:
             echo "- Push images: \`${PUSH_IMAGES}\`"
             echo "- Backend API image: \`${IMAGE_NAMESPACE}/backend-api:${GITHUB_SHA}\`"
             echo "- Backend API digest: \`${{ steps.backend-api-build.outputs.digest }}\`"
+            echo "- Backend beat image: \`${IMAGE_NAMESPACE}/backend-beat:${GITHUB_SHA}\`"
+            echo "- Backend beat digest: \`${{ steps.backend-beat-build.outputs.digest }}\`"
             echo "- Backend worker image: build separately from the ML base image before staging/production rollout"
             echo "- Frontend image: \`${IMAGE_NAMESPACE}/frontend:${GITHUB_SHA}\`"
             echo "- Frontend digest: \`${{ steps.frontend-build.outputs.digest }}\`"
-            echo "- SBOM artifacts: backend-api-image-sbom.spdx.json, frontend-image-sbom.spdx.json"
+            echo "- SBOM artifacts: backend-api-image-sbom.spdx.json, backend-beat-image-sbom.spdx.json, frontend-image-sbom.spdx.json"
             echo "- Vulnerability gate: CRITICAL, ignore unfixed"
           } >> "$GITHUB_STEP_SUMMARY"

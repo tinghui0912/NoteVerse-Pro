@@ -1,7 +1,5 @@
-"""
-Celery configuration for FastAPI backend.
-Uses synchronous database sessions for worker tasks.
-"""
+"""Celery configuration shared by worker and beat processes."""
+import os
 from pathlib import Path
 
 from celery import Celery, signals
@@ -11,13 +9,14 @@ from app.core.logging_setup import configure_celery_logging
 beat_state_dir = Path(settings.WORK_ROOT) / "celerybeat"
 beat_state_dir.mkdir(parents=True, exist_ok=True)
 beat_schedule_filename = beat_state_dir / "celerybeat-schedule"
+task_modules = ["app.worker.tasks"] if os.getenv("NOTEVERSE_CELERY_IMPORT_TASKS") == "true" else []
 
 # Create Celery app
 celery_app = Celery(
     'melody_forge_worker',
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["app.worker.tasks"],
+    include=task_modules,
 )
 
 # Celery configuration
@@ -100,7 +99,8 @@ celery_app.conf.update(
 #     'app.worker.tasks.process_images_task': {'queue': 'default'},
 # }
 
-celery_app.loader.import_default_modules()
+if task_modules:
+    celery_app.loader.import_default_modules()
 
 
 @signals.setup_logging.connect

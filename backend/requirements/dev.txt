@@ -1,3 +1,4 @@
+-r api.txt
 -r worker.txt
 
 # Backend test and quality tools.

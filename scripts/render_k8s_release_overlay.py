@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--environment", choices=("staging", "production"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--backend-api-image", required=True)
+    parser.add_argument("--backend-beat-image", required=True)
     parser.add_argument("--backend-worker-image", required=True)
     parser.add_argument("--frontend-image", required=True)
     parser.add_argument("--frontend-host", required=True)
@@ -123,6 +124,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     copy_template(source, output, args.overwrite)
 
     backend_api_ref = parse_image_ref(args.backend_api_image)
+    backend_beat_ref = parse_image_ref(args.backend_beat_image)
     backend_worker_ref = parse_image_ref(args.backend_worker_image)
     frontend_ref = parse_image_ref(args.frontend_image)
 
@@ -135,6 +137,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
         f"- {base_relative_path.replace(os.sep, '/')}",
     )
     kustomization = replace_image_block(kustomization, "noteverse-backend-api", backend_api_ref)
+    kustomization = replace_image_block(kustomization, "noteverse-backend-beat", backend_beat_ref)
     kustomization = replace_image_block(kustomization, "noteverse-backend-worker", backend_worker_ref)
     kustomization = replace_image_block(kustomization, "noteverse-frontend", frontend_ref)
     kustomization_path.write_text(kustomization, encoding="utf-8")

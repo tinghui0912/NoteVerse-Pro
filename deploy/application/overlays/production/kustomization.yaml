@@ -25,6 +25,9 @@ images:
   - name: noteverse-backend-worker
     newName: registry.example.invalid/noteverse/backend-worker
     newTag: production-replace-me
+  - name: noteverse-backend-beat
+    newName: registry.example.invalid/noteverse/backend-beat
+    newTag: production-replace-me
   - name: noteverse-frontend
     newName: registry.example.invalid/noteverse/frontend
     newTag: production-replace-me

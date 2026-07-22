@@ -1,9 +1,9 @@
 """Shared API response models and helpers."""
 
+from collections.abc import Mapping, Sequence as SequenceABC
 from datetime import datetime, timezone
 from typing import Generic, Optional, Sequence, TypeVar, cast
 
-from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
@@ -65,12 +65,18 @@ def format_utc_datetime(value: datetime) -> str:
 def encode_response_data(value: object) -> object:
     """Encode API payloads with the project's UTC timestamp contract."""
 
-    return jsonable_encoder(
-        value,
-        custom_encoder={
-            datetime: format_utc_datetime,
-        },
-    )
+    if isinstance(value, datetime):
+        return format_utc_datetime(value)
+    if isinstance(value, BaseModel):
+        return encode_response_data(value.model_dump(mode="python"))
+    if isinstance(value, Mapping):
+        return {
+            str(key): encode_response_data(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, SequenceABC) and not isinstance(value, (str, bytes, bytearray)):
+        return [encode_response_data(item) for item in value]
+    return value
 
 
 class APIResponse(BaseModel, Generic[T]):

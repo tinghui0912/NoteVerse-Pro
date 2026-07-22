@@ -119,6 +119,11 @@ docker build `
   .
 
 docker build `
+  -f docker/backend/Dockerfile.beat `
+  -t noteverse-backend-beat:$imageTag `
+  .
+
+docker build `
   -f docker/backend/Dockerfile.worker `
   --build-arg PYTHON_IMAGE=$mlBaseImage `
   --build-arg INSTALL_DEV_DEPS=false `
@@ -165,13 +170,16 @@ Registry (GHCR), the same registry family used by CI:
 
 ```powershell
 $backendApiImage = "ghcr.io/$ghcrOwner/noteverse/backend-api:$imageTag"
+$backendBeatImage = "ghcr.io/$ghcrOwner/noteverse/backend-beat:$imageTag"
 $backendWorkerImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker:$imageTag"
 $frontendImage = "ghcr.io/$ghcrOwner/noteverse/frontend:$imageTag"
 
 docker tag noteverse-backend-api:$imageTag $backendApiImage
+docker tag noteverse-backend-beat:$imageTag $backendBeatImage
 docker tag noteverse-backend-worker:$imageTag $backendWorkerImage
 docker tag noteverse-frontend:$imageTag $frontendImage
 docker push $backendApiImage
+docker push $backendBeatImage
 docker push $backendWorkerImage
 docker push $frontendImage
 ```
@@ -181,6 +189,7 @@ images. Push explicit role images under the same namespace:
 
 ```powershell
 docker push ghcr.io/$ghcrOwner/noteverse/backend-api:<tag>
+docker push ghcr.io/$ghcrOwner/noteverse/backend-beat:<tag>
 docker push ghcr.io/$ghcrOwner/noteverse/backend-worker:<tag>
 docker push ghcr.io/$ghcrOwner/noteverse/frontend:<tag>
 ```
@@ -777,6 +786,7 @@ python scripts/render_k8s_release_overlay.py `
   --output build/k8s-release/minikube `
   --overwrite `
   --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
   --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
   --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
   --frontend-host staging.noteverse.local `
@@ -887,6 +897,7 @@ python scripts/render_k8s_release_overlay.py `
   --output build/k8s-release/minikube `
   --overwrite `
   --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
   --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
   --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
   --frontend-host staging.johnabc.ccwu.cc `
@@ -938,6 +949,7 @@ python scripts/render_k8s_release_overlay.py `
   --environment staging `
   --output build/k8s-release/minikube `
   --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
   --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
   --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
   --frontend-host localhost `

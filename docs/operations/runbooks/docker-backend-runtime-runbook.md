@@ -16,12 +16,14 @@ Windows workspace
 Docker services
   api                    -> FastAPI API image
   worker                 -> ML worker image
-  beat                   -> FastAPI API image running celery beat
+  beat                   -> lightweight Celery beat image
 ```
 
 This keeps code iteration fast while making the backend runtime Linux-like.
-API and beat use the lightweight API image. The worker uses the ML image because
-it runs OCR/OMR, rendering, playback generation, and model-cache checks.
+API uses the HTTP runtime image. Beat uses its own scheduler image so it does
+not inherit API, practice, fingering, or ML dependencies. The worker uses the ML
+image because it runs OCR/OMR, rendering, playback generation, and model-cache
+checks.
 
 LEGATO is a pinned external source dependency cloned into the backend worker
 image at `/opt/noteverse/legato` during image build. See
@@ -31,7 +33,8 @@ and update process.
 ## Files
 
 - `docker/backend/Dockerfile.ml-base`: Python 3.12 + CUDA 12.4 + PyTorch 2.6 base image.
-- `docker/backend/Dockerfile.api`: API, beat, and migration runtime image.
+- `docker/backend/Dockerfile.api`: API and migration runtime image.
+- `docker/backend/Dockerfile.beat`: Celery beat scheduler runtime image.
 - `docker/backend/Dockerfile.worker`: Celery worker and model-cache-agent runtime image.
 - `docker/backend/entrypoint.sh`: service command switch.
 - `docker-compose.backend-dev.yml`: API, worker, and beat only.
@@ -196,6 +199,7 @@ Then build the API and worker images:
 ```powershell
 docker compose -f docker-compose.backend-dev.yml build api
 docker compose -f docker-compose.backend-dev.yml build worker
+docker compose -f docker-compose.backend-dev.yml build beat
 ```
 
 If Docker cannot reach Docker Hub while resolving the base image, pre-pull the
@@ -227,6 +231,12 @@ Docker Desktop to recreate it for every worker build.
 
 The API image installs API dependencies from `backend/requirements/api.txt`. It
 does not contain LEGATO source, PyTorch, PaddleOCR, or model-cache tooling.
+It currently includes practice/fingering dependencies because those endpoints
+run in the API process.
+
+The beat image installs scheduler dependencies from `backend/requirements/beat.txt`.
+It does not import worker task implementations; scheduled task names are sent to
+Celery by name and executed by worker pods.
 
 The worker image installs worker dependencies from `backend/requirements/worker.txt`:
 
