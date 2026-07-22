@@ -17,6 +17,8 @@ spec:
         app.kubernetes.io/part-of: noteverse
         app.kubernetes.io/component: backend-api
     spec:
+      imagePullSecrets:
+        - name: noteverse-registry-credentials
       containers:
         - name: api
           image: noteverse-backend-api:replace-me

@@ -1,4 +1,4 @@
-from app.core.runtime_checks import ROLE_CHECK_NAMES, RuntimeRole
+from app.core.runtime_checks import ROLE_CHECK_NAMES, RuntimeRole, check_omr_engine
 
 
 def test_api_runtime_checks_cover_api_owned_dependencies() -> None:
@@ -42,3 +42,16 @@ def test_all_runtime_checks_are_a_deduplicated_union() -> None:
     assert len(all_checks) == len(set(all_checks))
     for role in (RuntimeRole.API, RuntimeRole.WORKER, RuntimeRole.BEAT):
         assert set(ROLE_CHECK_NAMES[role]).issubset(all_checks)
+
+
+def test_omr_runtime_check_accepts_image_source_without_git_metadata(tmp_path, monkeypatch) -> None:
+    repo_path = tmp_path / "legato"
+    (repo_path / "legato" / "models").mkdir(parents=True)
+
+    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_REPO_PATH", str(repo_path))
+    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_REPO_COMMIT", "abc123")
+
+    result = check_omr_engine()
+
+    assert result.ok is True
+    assert result.message == "LEGATO commit=abc123 (image metadata)"

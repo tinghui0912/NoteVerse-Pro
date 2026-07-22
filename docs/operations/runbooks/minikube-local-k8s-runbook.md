@@ -202,6 +202,23 @@ kubectl -n noteverse-staging create secret docker-registry noteverse-registry-cr
   --docker-email=<email>
 ```
 
+If the local Docker client is already authenticated to GHCR, prefer creating
+the Secret from Docker's config file instead of putting the token in shell
+history:
+
+```powershell
+$dockerConfig = Join-Path $env:USERPROFILE ".docker\config.json"
+kubectl -n noteverse-staging create secret generic noteverse-registry-credentials `
+  --type=kubernetes.io/dockerconfigjson `
+  --from-file=.dockerconfigjson=$dockerConfig `
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+If authentication was performed inside the minikube node rather than the host
+Docker client, copy the node's Docker config to a temporary file outside the
+repository, create the Secret from that file, then delete the temporary file.
+Do not commit Docker config files or generated Secret manifests.
+
 Create app Secrets with local-only values. Do not reuse production credentials.
 
 When updating an existing Kubernetes Secret, avoid applying a partial Secret

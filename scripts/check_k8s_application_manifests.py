@@ -65,6 +65,10 @@ STRICT_FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
 )
 
+REQUIRED_RENDERED_SNIPPETS: tuple[tuple[str, str], ...] = (
+    ("registry-pull-secret", "name: noteverse-registry-credentials"),
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -122,6 +126,16 @@ def main() -> int:
     for target in args.targets:
         rendered = render_kustomize(target)
         findings.extend(scan_text(f"{target} (rendered)", rendered, patterns))
+        for rule, snippet in REQUIRED_RENDERED_SNIPPETS:
+            if snippet not in rendered:
+                findings.append(
+                    Finding(
+                        path=f"{target} (rendered)",
+                        line=1,
+                        rule=rule,
+                        text=f"missing required snippet: {snippet}",
+                    )
+                )
 
     if findings:
         print_findings(findings)

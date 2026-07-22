@@ -14,6 +14,8 @@ spec:
       labels:
         app.kubernetes.io/component: model-cache-agent
     spec:
+      imagePullSecrets:
+        - name: noteverse-registry-credentials
       nodeSelector:
         noteverse.io/model-cache: enabled
       tolerations:

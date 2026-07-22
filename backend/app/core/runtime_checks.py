@@ -268,6 +268,8 @@ def check_omr_engine(_: bool = False) -> CheckResult:
     if not (repo_path / "legato" / "models").is_dir():
         return _result("omr_engine", False, f"LEGATO repository is incomplete: {repo_path}")
     if settings.LEGATO_REPO_COMMIT:
+        if _read_git_dir(repo_path) is None:
+            return _result("omr_engine", True, f"LEGATO commit={settings.LEGATO_REPO_COMMIT} (image metadata)")
         try:
             actual_commit = _read_git_commit(repo_path)
         except Exception as exc:
