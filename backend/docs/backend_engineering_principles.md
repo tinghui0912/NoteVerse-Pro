@@ -305,9 +305,12 @@ the selected engine.
 
 External dependencies:
 
-- LEGATO lives under `external/legato`;
-- it is pinned by commit;
-- it is not backend application code;
+- LEGATO is a pinned external source dependency;
+- optional local checkouts may live under `external/legato` for inspection;
+- worker images clone the pinned LEGATO commit into `/opt/noteverse/legato`
+  during image build;
+- API and beat images do not contain LEGATO;
+- LEGATO is not backend application code;
 - local patches must be documented and should become a fork or patch file when needed.
 
 ## 7. Reliability Rules
@@ -417,14 +420,16 @@ Local backend development uses Docker as the supported runtime:
 - API, worker, and beat run in Docker;
 - Redis and PostgreSQL may run on the Windows host;
 - source is bind-mounted into `/app`;
-- `external/legato` is mounted read-only;
 - model roots are mounted read-only;
-- backend data/log directories are mounted for local persistence.
+- backend data directories are mounted for local storage and worker scratch
+  persistence;
+- logs go to stdout/stderr and are collected by the runtime platform.
 
 Recommended runtime checks:
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build worker
 docker compose -f docker-compose.backend-dev.yml run --rm api check
 docker compose -f docker-compose.backend-dev.yml run --rm api alembic current
 docker compose -f docker-compose.backend-dev.yml run --rm api migrate
@@ -438,9 +443,9 @@ is disposable. Use the safe cutover sequence for databases with legacy data.
 Choose validation based on blast radius. For broad backend changes, run:
 
 ```powershell
-docker run --rm -v "${PWD}\backend:/app" -w /app noteverse-backend-runtime:dev ruff check app scripts tests alembic/versions
-docker run --rm -v "${PWD}\backend:/app" -w /app noteverse-backend-runtime:dev mypy app scripts
-docker run --rm --env-file backend/.env.docker -v "${PWD}\backend:/app" -w /app noteverse-backend-runtime:dev pytest -q
+docker compose -f docker-compose.backend-dev.yml run --rm api ruff check app scripts tests alembic/versions
+docker compose -f docker-compose.backend-dev.yml run --rm api mypy app scripts
+docker compose -f docker-compose.backend-dev.yml run --rm api pytest -q
 ```
 
 For score-domain changes, add focused coverage for the relevant behavior:

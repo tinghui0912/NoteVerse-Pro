@@ -4,14 +4,16 @@ This project keeps source-level third-party tools under `external/` when they ar
 not available as normal Python packages or when the application depends on
 repository scripts in addition to importable modules.
 
-The `external/` directory is a local dependency checkout area. Do not edit or
-vendor third-party code into `backend/`. Keep the dependency pinned by upstream
-URL and commit. Runtime images copy the pinned source into a stable application
-path so Kubernetes does not need a source-code PVC.
+The `external/` directory is a local dependency checkout area for inspection,
+debugging, and upstream validation. Do not edit or vendor third-party code into
+`backend/`. Keep the runtime dependency pinned by upstream URL and commit.
+Production worker images fetch the pinned source during image build, so
+Kubernetes does not need a source-code PVC and CI does not depend on an
+untracked local checkout.
 
 ## LEGATO
 
-Location:
+Optional local checkout:
 
 ```text
 external/legato
@@ -32,6 +34,7 @@ Pinned commit:
 Configured through:
 
 ```dotenv
+LEGATO_REPO_URL=https://github.com/guang-yng/legato.git
 LEGATO_REPO_PATH=/opt/noteverse/legato
 LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc
 ```
@@ -70,19 +73,20 @@ frontend/         web application
 external/legato   third-party source tool
 ```
 
-The backend runtime image copies the pinned source into:
+The backend worker image clones the pinned source into:
 
 ```text
 /opt/noteverse/legato
 ```
 
 Production Kubernetes should not mount a Legato source-code PVC. The application
-verifies the configured `LEGATO_REPO_COMMIT` at runtime instead of assuming that
-arbitrary source under the runtime path is valid.
+verifies the configured `LEGATO_REPO_COMMIT` at runtime. API and beat images do
+not contain LEGATO because they do not run OCR/OMR inference.
 
 ### Updating LEGATO
 
-Update only intentionally:
+Update only intentionally. If you keep a local checkout, use it to inspect and
+verify the target commit:
 
 ```bash
 cd external/legato
@@ -94,15 +98,18 @@ git rev-parse HEAD
 
 Then update:
 
+- `LEGATO_REPO_URL` if the upstream repository changes
 - `LEGATO_REPO_COMMIT` in `backend/.env.docker.example`
 - default `LEGATO_REPO_COMMIT` in `backend/app/core/config.py`
 - this document
+- worker image build arguments in deployment or CI when they override defaults
 
 Run:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api check
-docker compose -f docker-compose.backend-dev.yml run --rm api python scripts/legato_visual_probe.py --legato-repo /opt/noteverse/legato --image-dir data/storage --limit 1
+docker compose -f docker-compose.backend-dev.yml build worker
+docker compose -f docker-compose.backend-dev.yml run --rm worker check --role worker
+docker compose -f docker-compose.backend-dev.yml run --rm worker python scripts/legato_visual_probe.py --legato-repo /opt/noteverse/legato --image-dir data/storage --limit 1
 ```
 
 Then validate the full upload/review/editor/practice flow.

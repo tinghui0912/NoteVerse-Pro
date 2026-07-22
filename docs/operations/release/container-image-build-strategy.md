@@ -26,7 +26,8 @@ Current Dockerfiles:
 | File | Purpose | Production-ready |
 | --- | --- | --- |
 | `docker/backend/Dockerfile.ml-base` | CUDA/Python/PyTorch ML base image | yes, as a base image |
-| `docker/backend/Dockerfile.runtime` | FastAPI/Celery backend runtime image | mostly yes |
+| `docker/backend/Dockerfile.api` | FastAPI API, beat, and migration runtime image | yes |
+| `docker/backend/Dockerfile.worker` | Celery worker and model-cache-agent ML runtime image | yes, after ML base is published |
 | `docker/frontend/Dockerfile.dev` | Next.js development runtime | no |
 | `docker/frontend/Dockerfile.runtime` | Next.js production runtime | initial production path |
 | `docker/transcoda/*` | Transcoda experimental/runtime images | not part of main deployment path |
@@ -154,57 +155,77 @@ Rules:
 - update runtime images after base image changes;
 - do not install project code in the ML base image.
 
-### Backend Runtime Image
+CI entry point:
 
-`docker/backend/Dockerfile.runtime` builds the deployed backend runtime image.
+- run the `ML Base Image` workflow manually when the CUDA/Python/PyTorch base
+  changes or when a fresh environment does not yet have the base image in GHCR;
+- use the published `ghcr.io/<github-owner>/noteverse/ml-base:<tag>` as the
+  `PYTHON_IMAGE` input for the `Backend Worker Image` workflow.
 
-Inputs:
+### Backend API Image
 
-- `PYTHON_IMAGE`
-- `INSTALL_DEV_DEPS`
-- `INSTALL_GPU_DEPS`
-- `INSTALL_PADDLE_GPU`
-- `INSTALL_LEGATO_EXTRA_DEPS`
-- `PADDLE_CUDA_INDEX`
+`docker/backend/Dockerfile.api` builds the deployed backend API image. This
+image intentionally does not contain LEGATO source, PyTorch, PaddleOCR, or model
+bootstrap tooling. It is the image for:
 
-Production build rules:
-
-- `INSTALL_DEV_DEPS=false`;
-- `INSTALL_GPU_DEPS=true` for worker-capable images;
-- `INSTALL_PADDLE_GPU=false` unless compatibility with the selected PyTorch CUDA
-  stack has been validated;
-- `INSTALL_LEGATO_EXTRA_DEPS=false` unless training/debug-only dependencies are
-  explicitly needed;
-- build API/beat/migration with a slim backend API image;
-- build worker/model-cache-agent with a worker-capable backend worker image.
+- `backend-api`;
+- `backend-beat`;
+- database migration jobs.
 
 Recommended API image build:
 
 ```bash
 docker build \
-  -f docker/backend/Dockerfile.runtime \
-  --build-arg PYTHON_IMAGE=python:3.12-slim-bookworm \
-  --build-arg INSTALL_DEV_DEPS=false \
-  --build-arg INSTALL_GPU_DEPS=false \
-  --build-arg INSTALL_PADDLE_GPU=false \
-  --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
+  -f docker/backend/Dockerfile.api \
   -t <registry>/noteverse/backend-api:<git-sha> \
   .
 ```
+
+### Backend Worker Image
+
+`docker/backend/Dockerfile.worker` builds the deployed worker image. This image
+contains the ML runtime dependencies needed by OCR/OMR, rendering, playback
+generation, and model-cache-agent runtime checks.
+
+Inputs:
+
+- `PYTHON_IMAGE`;
+- `INSTALL_DEV_DEPS`;
+- `INSTALL_PADDLE_GPU`;
+- `INSTALL_LEGATO_EXTRA_DEPS`;
+- `PADDLE_CUDA_INDEX`;
+- `LEGATO_REPO_URL`;
+- `LEGATO_REPO_COMMIT`.
+
+Production build rules:
+
+- `INSTALL_DEV_DEPS=false`;
+- `INSTALL_PADDLE_GPU=false` unless compatibility with the selected PyTorch CUDA
+  stack has been validated;
+- `INSTALL_LEGATO_EXTRA_DEPS=false` unless training/debug-only dependencies are
+  explicitly needed;
+- LEGATO source must be pinned by commit and fetched during the image build, or
+  supplied as a tracked submodule/vendor directory. Do not rely on an untracked
+  local `external/legato` directory.
 
 Recommended worker image build:
 
 ```bash
 docker build \
-  -f docker/backend/Dockerfile.runtime \
+  -f docker/backend/Dockerfile.worker \
   --build-arg PYTHON_IMAGE=<registry>/noteverse/ml-base:py312-torch260-cu124 \
   --build-arg INSTALL_DEV_DEPS=false \
-  --build-arg INSTALL_GPU_DEPS=true \
   --build-arg INSTALL_PADDLE_GPU=false \
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
+  --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git \
+  --build-arg LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc \
   -t <registry>/noteverse/backend-worker:<git-sha> \
   .
 ```
+
+The standard `Container Images` workflow builds API and frontend images. The
+`Backend Worker Image` workflow builds the ML worker image separately because it
+depends on the heavier ML base image and should be promoted deliberately.
 
 ## Frontend Image Build
 
@@ -312,13 +333,15 @@ blocked.
 CI/CD should:
 
 1. run quality gates;
-2. build backend and frontend images;
-3. push commit SHA tags;
-4. capture image digests;
-5. render private staging overlay with the captured digests;
-6. run strict manifest validation;
-7. deploy staging and run smoke tests;
-8. promote the same digests to production after approval.
+2. build or select the pinned ML base image;
+3. build backend worker image from that ML base;
+4. build backend API and frontend images;
+5. push commit SHA tags;
+6. capture image digests;
+7. render private staging overlay with the captured digests;
+8. run strict manifest validation;
+9. deploy staging and run smoke tests;
+10. promote the same digests to production after approval.
 
 The public templates under `deploy/application/overlays/*` intentionally keep
 placeholder image tags. Deployable overlays must replace them.
@@ -338,5 +361,4 @@ P1 hardening:
 - raise the vulnerability gate after the first production baseline;
 - image signing/attestation;
 - registry retention and cleanup policy;
-- optional split between API image and GPU worker image if runtime size or
-  security boundaries require it.
+- pin ML base by digest in worker builds after the first stable ML base release.

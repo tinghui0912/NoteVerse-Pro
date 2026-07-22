@@ -109,25 +109,23 @@ substitute for production DNS and CNI health checks.
 Build production-style runtime images locally:
 
 ```powershell
+$ghcrOwner = "<github-owner>"
 $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
+$mlBaseImage = "ghcr.io/$ghcrOwner/noteverse/ml-base:py312-torch260-cu124"
 
 docker build `
-  -f docker/backend/Dockerfile.runtime `
-  --build-arg PYTHON_IMAGE=python:3.12-slim-bookworm `
-  --build-arg INSTALL_DEV_DEPS=false `
-  --build-arg INSTALL_GPU_DEPS=false `
-  --build-arg INSTALL_PADDLE_GPU=false `
-  --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
+  -f docker/backend/Dockerfile.api `
   -t noteverse-backend-api:$imageTag `
   .
 
 docker build `
-  -f docker/backend/Dockerfile.runtime `
-  --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124 `
+  -f docker/backend/Dockerfile.worker `
+  --build-arg PYTHON_IMAGE=$mlBaseImage `
   --build-arg INSTALL_DEV_DEPS=false `
-  --build-arg INSTALL_GPU_DEPS=true `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
+  --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git `
+  --build-arg LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc `
   -t noteverse-backend-worker:$imageTag `
   .
 
@@ -138,6 +136,19 @@ docker build `
   --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh `
   -t noteverse-frontend:$imageTag `
   .
+```
+
+The worker build requires the ML base image to exist in GHCR. If it does not
+exist yet, run the GitHub Actions `ML Base Image` workflow first, or build and
+push the base image manually:
+
+```powershell
+docker build `
+  -f docker/backend/Dockerfile.ml-base `
+  -t $mlBaseImage `
+  .
+
+docker push $mlBaseImage
 ```
 
 Use a real registry route for local Kubernetes releases. Do not use
@@ -153,7 +164,6 @@ For production-shaped staging rehearsal, publish images to GitHub Container
 Registry (GHCR), the same registry family used by CI:
 
 ```powershell
-$ghcrOwner = "<github-owner>"
 $backendApiImage = "ghcr.io/$ghcrOwner/noteverse/backend-api:$imageTag"
 $backendWorkerImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker:$imageTag"
 $frontendImage = "ghcr.io/$ghcrOwner/noteverse/frontend:$imageTag"
@@ -166,8 +176,8 @@ docker push $backendWorkerImage
 docker push $frontendImage
 ```
 
-If API/beat and worker intentionally use split backend images in the future,
-push explicit role images under the same namespace:
+API/beat/migration and worker/model-cache-agent intentionally use split backend
+images. Push explicit role images under the same namespace:
 
 ```powershell
 docker push ghcr.io/$ghcrOwner/noteverse/backend-api:<tag>
@@ -622,8 +632,8 @@ The model-cache agent prepares assets from these sources:
   overlays intentionally include only `guangyangmusic/legato`.
 - `FluidR3_GM.sf2` is copied from the backend runtime image system soundfont
   directory into `/opt/noteverse/models/soundfonts/FluidR3_GM.sf2`.
-- PaddleOCR models are bootstrapped by PaddleOCR/PaddleX itself during a small
-  OCR warmup run. The configured cache is
+- PaddleOCR inference models are downloaded explicitly from Paddle's official
+  model package endpoint, extracted, and validated under
   `/opt/noteverse/models/paddleocr/official_models`.
 
 Removing a repository from `HF_MODEL_REPOSITORIES` stops future validation and

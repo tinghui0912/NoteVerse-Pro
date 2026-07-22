@@ -83,9 +83,12 @@ class FilesService:
                         size_bytes=stored.size_bytes,
                         mime_type=content_type,
                     )
+            if blob is None:
+                raise FileException(code=ErrorCode.FILE_SAVE_FAILED, filename=file.filename)
+            persisted_blob = blob
             upload = await self.repository.create_upload(
                 db,
-                blob_id=require_persisted_id(blob.id, entity="storage blob"),
+                blob_id=require_persisted_id(persisted_blob.id, entity="storage blob"),
                 original_filename=file.filename,
                 uploader_user_id=user_id,
             )
@@ -95,7 +98,7 @@ class FilesService:
                 reservation.reservation_id,
                 object_type="upload",
                 object_id=upload.upload_uuid,
-                storage_key=blob.storage_key,
+                storage_key=persisted_blob.storage_key,
             )
         except Exception as exc:
             await db.rollback()
@@ -114,7 +117,7 @@ class FilesService:
         return {
             "file_id": upload.upload_uuid,
             "filename": file.filename,
-            "size": blob.size_bytes,
+            "size": persisted_blob.size_bytes,
         }
 
     async def delete_uploaded_file(

@@ -76,8 +76,25 @@ an init container. The script prepares the node cache as follows:
   runtime.
 - `FluidR3_GM.sf2` is copied from the backend runtime image system soundfont
   directory into `/opt/noteverse/models/soundfonts/FluidR3_GM.sf2`.
-- PaddleOCR model directories are prepared through PaddleOCR/PaddleX bootstrap
+- PaddleOCR inference model packages are downloaded explicitly from Paddle's
+  official model package endpoint, checked by expected archive size, extracted,
   and stored under `/opt/noteverse/models/paddleocr/official_models`.
+
+PaddleOCR runtime directories are intentionally separate from
+`/opt/noteverse/models/huggingface/hub`. The Hugging Face directory is managed by
+`huggingface_hub` for repo snapshots such as LEGATO and Llama. PaddleOCR reads
+plain inference model directories that contain `inference.yml`,
+`inference.pdiparams`, and `inference.json`, so the stable application-facing
+paths are:
+
+```text
+/opt/noteverse/models/paddleocr/official_models/PP-OCRv6_medium_det
+/opt/noteverse/models/paddleocr/official_models/PP-OCRv6_medium_rec
+/opt/noteverse/models/paddleocr/official_models/PP-LCNet_x1_0_textline_ori
+```
+
+Workers mount the prepared model cache read-only and do not download PaddleOCR
+models at runtime.
 
 The agent validates the configured model set; it does not garbage collect old
 repositories removed from `HF_MODEL_REPOSITORIES`. Clean stale node-local cache

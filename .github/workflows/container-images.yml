@@ -53,7 +53,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: docker/backend/Dockerfile.runtime
+          file: docker/backend/Dockerfile.api
           push: ${{ env.PUSH_IMAGES == 'true' }}
           load: ${{ env.PUSH_IMAGES != 'true' }}
           provenance: false
@@ -61,13 +61,6 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/backend-api:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/backend-api:build-${{ github.run_id }}
-          build-args: |
-            PYTHON_IMAGE=python:3.12-slim-bookworm
-            INSTALL_DEV_DEPS=false
-            INSTALL_GPU_DEPS=false
-            INSTALL_PADDLE_GPU=false
-            INSTALL_LEGATO_EXTRA_DEPS=false
-
       - name: Build frontend runtime image
         id: frontend-build
         uses: docker/build-push-action@v7

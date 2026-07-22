@@ -76,9 +76,11 @@ available.
 
 Dependency files are split by purpose:
 
-- `requirements.txt`: backend runtime dependencies.
-- `requirements-dev.txt`: test and quality tools installed in the Docker dev
-  image by default.
+- `requirements/base.txt`: shared backend infrastructure dependencies.
+- `requirements/api.txt`: FastAPI API, beat, and migration runtime dependencies.
+- `requirements/worker.txt`: worker-only processing, rendering, playback, OCR,
+  and OMR dependencies.
+- `requirements/dev.txt`: test and quality tools plus all runtime roles.
 
 Production-style builds can omit development tools with:
 

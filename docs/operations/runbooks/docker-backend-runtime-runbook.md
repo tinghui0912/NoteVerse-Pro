@@ -14,27 +14,30 @@ Windows workspace
   Windows database       -> reached through host.docker.internal
 
 Docker services
-  api                    -> uvicorn app.main:app --reload
-  worker                 -> celery worker
-  beat                   -> celery beat
+  api                    -> FastAPI API image
+  worker                 -> ML worker image
+  beat                   -> FastAPI API image running celery beat
 ```
 
 This keeps code iteration fast while making the backend runtime Linux-like.
+API and beat use the lightweight API image. The worker uses the ML image because
+it runs OCR/OMR, rendering, playback generation, and model-cache checks.
 
-LEGATO is a pinned external source dependency copied into the backend runtime
-image at `/opt/noteverse/legato`. See
+LEGATO is a pinned external source dependency cloned into the backend worker
+image at `/opt/noteverse/legato` during image build. See
 `docs/architecture/integrations/external-dependencies.md` for the pinned commit
 and update process.
 
 ## Files
 
 - `docker/backend/Dockerfile.ml-base`: Python 3.12 + CUDA 12.4 + PyTorch 2.6 base image.
-- `docker/backend/Dockerfile.runtime`: backend runtime image.
+- `docker/backend/Dockerfile.api`: API, beat, and migration runtime image.
+- `docker/backend/Dockerfile.worker`: Celery worker and model-cache-agent runtime image.
 - `docker/backend/entrypoint.sh`: service command switch.
 - `docker-compose.backend-dev.yml`: API, worker, and beat only.
 - `backend/.env.docker.example`: Docker-specific backend environment template.
-- `.dockerignore`: prevents caches, data, and models from being copied into the
-  image while allowing the pinned `external/legato` source tree.
+- `.dockerignore`: prevents caches, data, models, and local external checkouts
+  from being copied into images.
 
 ## Prepare Environment
 
@@ -188,10 +191,11 @@ The ML base image installs Python through Miniforge/conda-forge, not Anaconda
 defaults. This keeps the Docker build non-interactive and avoids Anaconda
 channel Terms-of-Service prompts during CI or local image builds.
 
-Then build the backend runtime image:
+Then build the API and worker images:
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
 If Docker cannot reach Docker Hub while resolving the base image, pre-pull the
@@ -201,26 +205,30 @@ NVIDIA CUDA image and retry:
 docker pull nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 docker build -f docker/backend/Dockerfile.ml-base -t noteverse-ml-base:py312-torch260-cu124 .
 docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
-The runtime base image can also be overridden for local mirrors or preloaded
+The worker base image can also be overridden for local mirrors or preloaded
 images:
 
 ```powershell
 $env:PYTHON_IMAGE="noteverse-ml-base:py312-torch260-cu124"
-docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
 An error such as `Head "https://registry-1.docker.io/...": EOF` happens before
 the project Dockerfile starts installing dependencies. Treat it as a Docker
 Desktop registry/proxy/network issue.
 
-The runtime Dockerfile does not install PyTorch manually; the selected base image
+The worker Dockerfile does not install PyTorch manually; the selected base image
 is the source of truth for Python, PyTorch, and CUDA. This moves the largest
 PyTorch/CUDA filesystem layer into a reusable base image instead of asking
-Docker Desktop to recreate it for every backend runtime build.
+Docker Desktop to recreate it for every worker build.
 
-The default dev build installs the runtime dependencies used by the application:
+The API image installs API dependencies from `backend/requirements/api.txt`. It
+does not contain LEGATO source, PyTorch, PaddleOCR, or model-cache tooling.
+
+The worker image installs worker dependencies from `backend/requirements/worker.txt`:
 
 - PyTorch 2.6.0 for LEGATO inference.
 - PaddlePaddle CPU 3.2.0 for PaddleOCR.
@@ -230,7 +238,8 @@ The default dev build installs the runtime dependencies used by the application:
   `CELERY_TASK_TIME_LIMIT` forcibly terminates a stuck worker process.
 - Transformers 4.54.0.
 - Accelerate and LEGATO inference helpers.
-- Backend test and quality tools from `backend/requirements-dev.txt`.
+- optional backend test and quality tools from `backend/requirements/dev.txt`
+  when `INSTALL_DEV_DEPS=true`.
 
 Installation order is intentional:
 
@@ -244,14 +253,14 @@ Installation order is intentional:
 5. `paddleocr` is installed after PaddlePaddle so it reuses the selected Paddle
    runtime.
 
-Production-style builds can omit development tools:
+Production-style worker builds omit development tools:
 
 ```powershell
 $env:INSTALL_DEV_DEPS="false"
-docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
-The runtime Dockerfile keeps only runtime system packages:
+The worker Dockerfile keeps only runtime system packages:
 
 - `fluidsynth`, `fluid-soundfont-gm`, `libfluidsynth3`, `libsndfile1`: required by practice audio synthesis.
 - `ffmpeg`, `libgl1`, `libglib2.0-0`, `libgomp1`: required by image/audio/ML packages such as OpenCV, PaddleOCR, and audio processing libraries.
@@ -266,12 +275,12 @@ runtime packages in a single Python environment. This avoids an unstable
 dependency graph while keeping the expensive LEGATO inference path on GPU.
 
 PaddlePaddle GPU can be tested explicitly, but it is not the supported default
-for the combined backend image:
+for the worker image:
 
 ```powershell
 $env:INSTALL_PADDLE_GPU="true"
 $env:PADDLE_CUDA_INDEX="cu126"
-docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
 Use this only when you have verified that the selected PyTorch and PaddlePaddle
@@ -283,20 +292,12 @@ inference. To include them:
 
 ```powershell
 $env:INSTALL_LEGATO_EXTRA_DEPS="true"
-docker compose -f docker-compose.backend-dev.yml build api
-```
-
-Lightweight image without GPU/ML runtime packages:
-
-```powershell
-$env:PYTHON_IMAGE="python:3.12-slim-trixie"
-$env:INSTALL_GPU_DEPS="false"
-docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
 The ML base build is large and depends on network access. Build it once, then
-reuse the base image for normal development. Use the lightweight build only when
-you want to validate non-OMR/non-OCR backend code paths.
+reuse the base image for normal worker development. Use the API image when you
+want to validate non-OMR/non-OCR backend code paths.
 
 ## Start Backend Containers
 
@@ -376,14 +377,14 @@ LEGATO requires GPU for practical performance. Docker Desktop on Windows needs:
 - Docker Desktop Linux containers.
 - GPU support enabled for Docker Desktop.
 
-The backend compose profile requests GPU access for `api` and `worker` with
-`gpus: all`. If Docker cannot provide a GPU, those services should fail early
-instead of silently falling back to CPU.
+The backend compose profile requests GPU access for `worker` with `gpus: all`.
+API and beat stay CPU-only. If Docker cannot provide a GPU, the worker should
+fail early instead of silently falling back to CPU.
 
 Verify inside the container:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'no cuda')"
+docker compose -f docker-compose.backend-dev.yml run --rm worker python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'no cuda')"
 ```
 
 Expected output starts with:

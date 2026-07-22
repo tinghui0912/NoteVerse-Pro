@@ -1,4 +1,4 @@
-ARG PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124
+ARG PYTHON_IMAGE=ghcr.io/tinghui0912/noteverse/ml-base:py312-torch260-cu124
 
 FROM ${PYTHON_IMAGE} AS matchmaker-wheel
 
@@ -7,18 +7,18 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /build
 
-RUN apt-get update \
+RUN apt-get update -o Acquire::Retries=3 \
     && apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
         git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt /tmp/requirements.txt
+COPY backend/requirements/ /tmp/requirements/
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install Cython==3.0.8 numpy==1.26.4 \
-    && MATCHMAKER_REQ="$(grep -E '^pymatchmaker @' /tmp/requirements.txt)" \
+    && MATCHMAKER_REQ="$(grep -E '^pymatchmaker @' /tmp/requirements/worker.txt)" \
     && CFLAGS="-O1" python -m pip wheel --no-build-isolation --no-deps -w /wheels "${MATCHMAKER_REQ}"
 
 
@@ -31,12 +31,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update \
+RUN apt-get update -o Acquire::Retries=3 \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         ffmpeg \
         fluid-soundfont-gm \
         fluidsynth \
+        git \
         libaio1 \
         libasound2 \
         libffi8 \
@@ -48,44 +49,37 @@ RUN apt-get update \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt /tmp/requirements.txt
-COPY backend/requirements-dev.txt /tmp/requirements-dev.txt
+COPY backend/requirements/ /tmp/requirements/
 COPY --from=matchmaker-wheel /wheels /tmp/wheels
 
-ARG INSTALL_DEV_DEPS=true
+ARG INSTALL_DEV_DEPS=false
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && grep -vE '^(pymatchmaker @|paddleocr==)' /tmp/requirements.txt > /tmp/requirements-core.txt \
-    && python -m pip install -r /tmp/requirements-core.txt \
+    && grep -vE '^(pymatchmaker @|paddleocr==)' /tmp/requirements/worker.txt > /tmp/requirements/worker-core.txt \
+    && python -m pip install -r /tmp/requirements/worker-core.txt \
     && python -m pip install /tmp/wheels/pymatchmaker-*.whl \
     && if [ "${INSTALL_DEV_DEPS}" = "true" ]; then \
-      python -m pip install -r /tmp/requirements-dev.txt; \
+      python -m pip install -r /tmp/requirements/dev.txt; \
     fi \
     && rm -rf /tmp/wheels
 
-ARG INSTALL_GPU_DEPS=true
 ARG INSTALL_PADDLE_GPU=false
 ARG INSTALL_LEGATO_EXTRA_DEPS=false
 ARG PADDLE_CUDA_INDEX=cu126
-RUN if [ "${INSTALL_GPU_DEPS}" = "true" ]; then \
-      # PyTorch comes from the selected base image. PaddleOCR defaults to CPU
-      # Paddle because PyTorch CUDA runtimes and paddlepaddle-gpu can require
-      # incompatible exact NVIDIA runtime packages in one Python environment.
-      if [ "${INSTALL_PADDLE_GPU}" = "true" ]; then \
-        python -m pip install paddlepaddle-gpu==3.2.0 -i "https://www.paddlepaddle.org.cn/packages/stable/${PADDLE_CUDA_INDEX}/"; \
-      else \
-        python -m pip install paddlepaddle==3.2.0 -i "https://www.paddlepaddle.org.cn/packages/stable/cpu/"; \
-      fi \
-      && PADDLEOCR_REQ="$(grep -E '^paddleocr==' /tmp/requirements.txt)" \
-      && python -m pip install "${PADDLEOCR_REQ}" \
-      && python -m pip install \
-        accelerate==1.8.0 \
-        fire==0.7.0 \
-        Levenshtein \
-        pyparsing \
-        tqdm \
-        transformers==4.54.0 \
-        zss; \
+RUN if [ "${INSTALL_PADDLE_GPU}" = "true" ]; then \
+      python -m pip install paddlepaddle-gpu==3.2.0 -i "https://www.paddlepaddle.org.cn/packages/stable/${PADDLE_CUDA_INDEX}/"; \
+    else \
+      python -m pip install paddlepaddle==3.2.0 -i "https://www.paddlepaddle.org.cn/packages/stable/cpu/"; \
     fi \
+    && PADDLEOCR_REQ="$(grep -E '^paddleocr==' /tmp/requirements/worker.txt)" \
+    && python -m pip install "${PADDLEOCR_REQ}" \
+    && python -m pip install \
+      accelerate==1.8.0 \
+      fire==0.7.0 \
+      Levenshtein \
+      pyparsing \
+      tqdm \
+      transformers==4.54.0 \
+      zss \
     && if [ "${INSTALL_LEGATO_EXTRA_DEPS}" = "true" ]; then \
       python -m pip install \
         datasets==3.2.0 \
@@ -93,14 +87,22 @@ RUN if [ "${INSTALL_GPU_DEPS}" = "true" ]; then \
         wandb; \
     fi
 
+ARG LEGATO_REPO_URL=https://github.com/guang-yng/legato.git
+ARG LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc
+RUN mkdir -p /opt/noteverse/models /opt/noteverse/legato \
+    && git clone --filter=blob:none "${LEGATO_REPO_URL}" /opt/noteverse/legato \
+    && cd /opt/noteverse/legato \
+    && git fetch --depth 1 origin "${LEGATO_REPO_COMMIT}" \
+    && git checkout --detach "${LEGATO_REPO_COMMIT}" \
+    && rm -rf .git
+
 COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
 RUN chmod +x /usr/local/bin/noteverse-entrypoint \
-    && mkdir -p /app/data/storage /app/data/work /opt/noteverse/models /opt/noteverse/legato
+    && mkdir -p /app/data/storage /app/data/work
 
 COPY backend/ /app/
-COPY external/legato/ /opt/noteverse/legato/
 
 EXPOSE 8000
 
 ENTRYPOINT ["/usr/bin/tini", "--", "noteverse-entrypoint"]
-CMD ["api"]
+CMD ["worker"]

@@ -1,7 +1,6 @@
 name: noteverse-backend-dev
 
 x-backend-common: &backend-common
-  image: noteverse-backend-runtime:dev
   env_file:
     - path: backend/.env.docker
       required: true
@@ -18,7 +17,6 @@ x-backend-common: &backend-common
     - ./docker/backend/entrypoint.sh:/docker/entrypoint.sh:ro
     - ${NOTEVERSE_MODEL_ROOT:-./models}:/opt/noteverse/models:ro
     - ./backend/data:/app/data
-    - ./backend/logs:/app/logs
   extra_hosts:
     - "host.docker.internal:host-gateway"
   restart: unless-stopped
@@ -26,18 +24,11 @@ x-backend-common: &backend-common
 services:
   api:
     <<: *backend-common
+    image: noteverse-backend-api:dev
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.runtime
-      args:
-        PYTHON_IMAGE: ${PYTHON_IMAGE:-noteverse-ml-base:py312-torch260-cu124}
-        INSTALL_DEV_DEPS: ${INSTALL_DEV_DEPS:-true}
-        INSTALL_GPU_DEPS: ${INSTALL_GPU_DEPS:-true}
-        INSTALL_PADDLE_GPU: ${INSTALL_PADDLE_GPU:-false}
-        INSTALL_LEGATO_EXTRA_DEPS: ${INSTALL_LEGATO_EXTRA_DEPS:-false}
-        PADDLE_CUDA_INDEX: ${PADDLE_CUDA_INDEX:-cu126}
+      dockerfile: docker/backend/Dockerfile.api
     command: api
-    gpus: all
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     healthcheck:
@@ -53,9 +44,25 @@ services:
 
   worker:
     <<: *backend-common
+    image: noteverse-backend-worker:dev
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.worker
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-ghcr.io/tinghui0912/noteverse/ml-base:py312-torch260-cu124}
+        INSTALL_DEV_DEPS: ${INSTALL_DEV_DEPS:-true}
+        INSTALL_PADDLE_GPU: ${INSTALL_PADDLE_GPU:-false}
+        INSTALL_LEGATO_EXTRA_DEPS: ${INSTALL_LEGATO_EXTRA_DEPS:-false}
+        PADDLE_CUDA_INDEX: ${PADDLE_CUDA_INDEX:-cu126}
+        LEGATO_REPO_URL: ${LEGATO_REPO_URL:-https://github.com/guang-yng/legato.git}
+        LEGATO_REPO_COMMIT: ${LEGATO_REPO_COMMIT:-179c228d3d5f67113cf739b44891b3abe046f1dc}
     command: worker
     gpus: all
 
   beat:
     <<: *backend-common
+    image: noteverse-backend-api:dev
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.api
     command: beat

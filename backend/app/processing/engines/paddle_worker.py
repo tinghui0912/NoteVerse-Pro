@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import os
-import inspect
 import sys
 from contextlib import redirect_stdout
 from typing import Any, Mapping
@@ -17,17 +17,17 @@ def _set_stable_env() -> None:
     os.environ.setdefault("FLAGS_use_mkldnn", "false")
 
 
-def _existing_env_path(name: str) -> str | None:
-    """Return a configured model path only when it contains a usable model."""
+def _required_env_model_path(name: str) -> str:
+    """Return a configured usable model path, failing closed when missing."""
 
     value = os.environ.get(name)
     if not value:
-        return None
+        raise RuntimeError(f"{name} is required")
     path = os.path.abspath(os.path.expanduser(value))
     required_files = ("inference.yml", "inference.pdiparams", "inference.json")
     if all(os.path.isfile(os.path.join(path, filename)) for filename in required_files):
         return path
-    return None
+    raise RuntimeError(f"{name} does not contain a complete PaddleOCR inference model: {path}")
 
 
 def _env_model_path(name: str) -> str | None:
@@ -67,16 +67,15 @@ def _set_first_supported_path(
     kwargs: dict[str, Any],
     parameters: Mapping[str, Any],
     names: tuple[str, ...],
-    path: str | None,
-) -> None:
+    path: str,
+) -> bool:
     """Set a model path using the first constructor parameter supported."""
 
-    if not path:
-        return
     for name in names:
         if name in parameters:
             kwargs[name] = path
-            return
+            return True
+    return False
 
 
 def _to_json_safe(value: Any) -> Any:
@@ -123,13 +122,12 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
     elif "use_gpu" in parameters:
         kwargs["use_gpu"] = use_gpu
 
-    allow_download = os.environ.get("PADDLEOCR_ALLOW_MODEL_DOWNLOAD") == "1"
     detection_configured_dir = _env_model_path("PADDLEOCR_DETECTION_MODEL_DIR")
     recognition_configured_dir = _env_model_path("PADDLEOCR_RECOGNITION_MODEL_DIR")
     orientation_configured_dir = _env_model_path("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR")
-    detection_model_dir = None if allow_download else _existing_env_path("PADDLEOCR_DETECTION_MODEL_DIR")
-    recognition_model_dir = None if allow_download else _existing_env_path("PADDLEOCR_RECOGNITION_MODEL_DIR")
-    orientation_model_dir = None if allow_download else _existing_env_path("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR")
+    detection_model_dir = _required_env_model_path("PADDLEOCR_DETECTION_MODEL_DIR")
+    recognition_model_dir = _required_env_model_path("PADDLEOCR_RECOGNITION_MODEL_DIR")
+    orientation_model_dir = _required_env_model_path("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR")
 
     _set_first_supported_value(
         kwargs,
@@ -150,19 +148,21 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
         _model_name_from_path(orientation_configured_dir),
     )
 
-    _set_first_supported_path(
+    if not _set_first_supported_path(
         kwargs,
         parameters,
         ("text_detection_model_dir", "det_model_dir"),
         detection_model_dir,
-    )
-    _set_first_supported_path(
+    ):
+        raise RuntimeError("PaddleOCR constructor does not support a text detection model directory")
+    if not _set_first_supported_path(
         kwargs,
         parameters,
         ("text_recognition_model_dir", "rec_model_dir"),
         recognition_model_dir,
-    )
-    _set_first_supported_path(
+    ):
+        raise RuntimeError("PaddleOCR constructor does not support a text recognition model directory")
+    if not _set_first_supported_path(
         kwargs,
         parameters,
         (
@@ -171,7 +171,10 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
             "cls_model_dir",
         ),
         orientation_model_dir,
-    )
+    ):
+        raise RuntimeError(
+            "PaddleOCR constructor does not support a textline orientation model directory"
+        )
 
     return kwargs
 

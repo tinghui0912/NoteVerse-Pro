@@ -17,7 +17,6 @@ _CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 _BACKEND_DIR = Path(__file__).resolve().parents[3]
 _WORKER_MODULE = "app.processing.engines.paddle_worker"
 _PADDLEOCR_ENV_NAMES = (
-    "PADDLEOCR_ALLOW_MODEL_DOWNLOAD",
     "PADDLEOCR_MODEL_ROOT",
     "PADDLEOCR_DETECTION_MODEL_DIR",
     "PADDLEOCR_RECOGNITION_MODEL_DIR",

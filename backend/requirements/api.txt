@@ -1,0 +1,10 @@
+-r base.txt
+
+# HTTP/API runtime.
+fastapi==0.136.1
+uvicorn[standard]==0.46.0
+python-multipart==0.0.28
+
+# Authentication and security.
+PyJWT[crypto]==2.12.1
+pwdlib[argon2]==0.3.0

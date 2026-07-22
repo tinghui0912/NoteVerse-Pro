@@ -14,7 +14,10 @@ import asyncio
 import os
 import shutil
 import sys
+import tarfile
 import tempfile
+import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +33,45 @@ SYSTEM_SOUNDFONT_CANDIDATES = (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class PaddleOcrModelAsset:
+    name: str
+    target_env_name: str
+    url: str
+    expected_size_bytes: int
+
+
+PADDLEOCR_MODEL_ASSETS = (
+    PaddleOcrModelAsset(
+        name="PP-OCRv6_medium_det",
+        target_env_name="PADDLEOCR_DETECTION_MODEL_DIR",
+        url=(
+            "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/"
+            "paddle3.0.0/PP-OCRv6_medium_det_infer.tar"
+        ),
+        expected_size_bytes=62279680,
+    ),
+    PaddleOcrModelAsset(
+        name="PP-OCRv6_medium_rec",
+        target_env_name="PADDLEOCR_RECOGNITION_MODEL_DIR",
+        url=(
+            "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/"
+            "paddle3.0.0/PP-OCRv6_medium_rec_infer.tar"
+        ),
+        expected_size_bytes=76851200,
+    ),
+    PaddleOcrModelAsset(
+        name="PP-LCNet_x1_0_textline_ori",
+        target_env_name="PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
+        url=(
+            "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/"
+            "paddle3.0.0/PP-LCNet_x1_0_textline_ori_infer.tar"
+        ),
+        expected_size_bytes=6871040,
+    ),
+)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -40,7 +82,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-paddleocr",
         action="store_true",
-        help="do not bootstrap PaddleOCR model directories",
+        help="do not prepare PaddleOCR inference model directories",
     )
     parser.add_argument(
         "--skip-soundfont",
@@ -71,22 +113,6 @@ def _ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def _ensure_paddlex_official_model_link(model_root: Path) -> None:
-    """Point PaddleX's default official model cache at the configured model root."""
-
-    paddlex_root = model_root.parent / ".paddlex"
-    official_models = paddlex_root / "official_models"
-    _ensure_directory(paddlex_root)
-    if official_models.exists():
-        if official_models.resolve() != model_root:
-            raise RuntimeError(
-                f"PaddleX official model cache points to {official_models.resolve()}, "
-                f"expected {model_root}"
-            )
-        return
-    official_models.symlink_to(model_root, target_is_directory=True)
-
-
 def _has_required_inference_files(path: Path) -> bool:
     required_files = ("inference.yml", "inference.pdiparams", "inference.json")
     return all((path / filename).is_file() for filename in required_files)
@@ -101,6 +127,89 @@ def _remove_incomplete_model_dir(path: Path) -> None:
         raise RuntimeError(f"PaddleOCR model path is not a directory: {path}")
     shutil.rmtree(path)
     print(f"[INFO] removed incomplete PaddleOCR model directory: {path}")
+
+
+def _download_file(url: str, target: Path, expected_size_bytes: int) -> None:
+    with urllib.request.urlopen(url, timeout=120) as response:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("wb") as output:
+            shutil.copyfileobj(response, output)
+    actual_size = target.stat().st_size
+    if actual_size != expected_size_bytes:
+        target.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"downloaded PaddleOCR asset has unexpected size: {url}; "
+            f"expected {expected_size_bytes}, got {actual_size}"
+        )
+
+
+def _safe_extract_tar(archive_path: Path, target_dir: Path) -> None:
+    target_root = target_dir.resolve()
+    with tarfile.open(archive_path) as archive:
+        members = archive.getmembers()
+        for member in members:
+            member_path = (target_dir / member.name).resolve()
+            if target_root not in (member_path, *member_path.parents):
+                raise RuntimeError(f"unsafe path in PaddleOCR model archive: {member.name}")
+            if member.issym() or member.islnk():
+                raise RuntimeError(f"links are not allowed in PaddleOCR model archive: {member.name}")
+        archive.extractall(target_dir, members=members)
+
+
+def _find_inference_model_dir(root: Path) -> Path:
+    if _has_required_inference_files(root):
+        return root
+    candidates = [path for path in root.rglob("*") if path.is_dir() and _has_required_inference_files(path)]
+    if len(candidates) != 1:
+        raise RuntimeError(
+            f"expected exactly one PaddleOCR inference model directory in {root}, found {len(candidates)}"
+        )
+    return candidates[0]
+
+
+def _replace_directory(source: Path, target: Path) -> None:
+    _ensure_directory(target.parent)
+    backup = None
+    if target.exists():
+        backup = target.with_name(f".{target.name}.old")
+        if backup.exists():
+            shutil.rmtree(backup)
+        target.rename(backup)
+    try:
+        source.rename(target)
+    except Exception:
+        if backup is not None and not target.exists():
+            backup.rename(target)
+        raise
+    if backup is not None:
+        shutil.rmtree(backup)
+
+
+def _prepare_paddleocr_model_asset(asset: PaddleOcrModelAsset, target: Path) -> None:
+    if _has_required_inference_files(target):
+        print(f"[OK] PaddleOCR model already present: {asset.name} -> {target}")
+        return
+    _remove_incomplete_model_dir(target)
+
+    archive_path = target.parent / f".{asset.name}.tar"
+    extraction_root = Path(tempfile.mkdtemp(prefix=f".{asset.name}-", dir=target.parent))
+    prepared_root = Path(tempfile.mkdtemp(prefix=f".{asset.name}-prepared-", dir=target.parent))
+    try:
+        print(f"[INFO] downloading PaddleOCR model: {asset.name}")
+        _download_file(asset.url, archive_path, asset.expected_size_bytes)
+        _safe_extract_tar(archive_path, extraction_root)
+        model_dir = _find_inference_model_dir(extraction_root)
+        for item in model_dir.iterdir():
+            shutil.move(str(item), prepared_root / item.name)
+        if not _has_required_inference_files(prepared_root):
+            raise RuntimeError(f"PaddleOCR model did not contain required inference files: {asset.name}")
+        _replace_directory(prepared_root, target)
+        print(f"[OK] PaddleOCR model ready: {asset.name} -> {target}")
+    finally:
+        archive_path.unlink(missing_ok=True)
+        shutil.rmtree(extraction_root, ignore_errors=True)
+        if prepared_root.exists():
+            shutil.rmtree(prepared_root, ignore_errors=True)
 
 
 def _copy_if_changed(source: Path, target: Path) -> None:
@@ -139,34 +248,14 @@ def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
 
 
 def prepare_paddleocr_models() -> None:
-    from PIL import Image
-
     from app.core.config import settings
-    from app.processing.engines.paddle import run_ocr_subprocess
 
     model_root = _require_path(settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
-    model_dirs = (
-        _require_path(settings.PADDLEOCR_DETECTION_MODEL_DIR, "PADDLEOCR_DETECTION_MODEL_DIR"),
-        _require_path(settings.PADDLEOCR_RECOGNITION_MODEL_DIR, "PADDLEOCR_RECOGNITION_MODEL_DIR"),
-        _require_path(
-            settings.PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR,
-            "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
-        ),
-    )
     _ensure_directory(model_root)
-    for directory in model_dirs:
-        _remove_incomplete_model_dir(directory)
-    _ensure_paddlex_official_model_link(model_root)
-
-    with tempfile.TemporaryDirectory(prefix="noteverse-paddle-bootstrap-") as tmp:
-        image_path = Path(tmp) / "blank.png"
-        Image.new("RGB", (64, 64), color="white").save(image_path)
-        os.environ["PADDLEOCR_ALLOW_MODEL_DOWNLOAD"] = "1"
-        os.environ["HOME"] = str(model_root.parent)
-        result = run_ocr_subprocess(str(image_path), timeout_seconds=settings.PADDLEOCR_TIMEOUT_SECONDS)
-    if not result.get("success"):
-        raise RuntimeError(f"PaddleOCR model bootstrap failed: {result.get('code')}: {result.get('error')}")
-    print("[OK] PaddleOCR bootstrap completed")
+    for asset in PADDLEOCR_MODEL_ASSETS:
+        target = _require_path(getattr(settings, asset.target_env_name), asset.target_env_name)
+        _prepare_paddleocr_model_asset(asset, target)
+    print("[OK] PaddleOCR models prepared")
 
 
 async def run_final_checks(include_sizes: bool) -> int:
