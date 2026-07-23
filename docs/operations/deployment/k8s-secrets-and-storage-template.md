@@ -96,6 +96,12 @@ Rules:
 - rotate the token deliberately and restart workloads only if needed;
 - do not commit this Secret or the token value to the repository.
 
+This Kubernetes pull Secret is not the same credential used by GitHub Actions
+to push images. CI image publishing uses repository secrets named
+`GHCR_USERNAME` and `GHCR_TOKEN` when the default `GITHUB_TOKEN` does not have
+write access to the target GHCR package namespace. The Kubernetes Secret should
+remain read-only.
+
 ## Frontend Secret
 
 The frontend currently does not require a dedicated Secret.

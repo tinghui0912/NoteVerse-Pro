@@ -136,6 +136,7 @@ docker build `
 docker build `
   -f docker/frontend/Dockerfile.runtime `
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 `
+  --build-arg NEXT_PRACTICE_ORIGIN=http://noteverse-backend-practice:8000 `
   --build-arg SESSION_COOKIE_NAME=noteverse_session `
   --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh `
   -t noteverse-frontend:$imageTag `

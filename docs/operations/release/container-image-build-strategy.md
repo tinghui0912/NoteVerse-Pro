@@ -72,6 +72,20 @@ GHCR package visibility is controlled by GitHub package settings. Keep
 production images private unless there is an explicit decision to publish them.
 Kubernetes pulls private images through `Secret/noteverse-registry-credentials`.
 
+CI publishes to GHCR with this priority:
+
+1. `secrets.GHCR_USERNAME` and `secrets.GHCR_TOKEN`;
+2. the workflow `GITHUB_TOKEN`.
+
+Use `GITHUB_TOKEN` only when the GHCR packages are owned by this repository and
+the package settings grant this repository write access. If a push fails with
+`403 Forbidden` during a blob `HEAD` or `PUT` request, either connect the GHCR
+package to this repository with write permission or create:
+
+- `GHCR_USERNAME`: GitHub user or bot account name;
+- `GHCR_TOKEN`: a fine-grained or classic token allowed to write packages for
+  the target owner.
+
 The ML base image is a dependency for backend runtime builds, not a directly
 deployed application workload.
 
@@ -339,9 +353,20 @@ docker build \
 The standard `Container Images` workflow builds API, practice, beat, and
 frontend images. The `Backend Worker Image` workflow builds the ML worker image
 separately because it depends on the heavier ML base image and should be
-promoted deliberately. Pull requests and branch pushes can build the worker
-image for validation. Worker images are pushed only from `main` or manual
-dispatch.
+promoted deliberately.
+
+The worker workflow is manual-only. GitHub-hosted runners have limited
+ephemeral disk space and are not a reliable place to automatically unpack CUDA,
+PyTorch, PaddleOCR, Transformers, and worker runtime layers on every push. Use
+one of these production-grade options for worker publication:
+
+- run the workflow on a self-hosted Linux build runner with enough disk space;
+- use a paid larger GitHub runner with sufficient disk;
+- build and push the worker image from controlled release infrastructure.
+
+Do not make normal pull requests depend on a full worker image build. Worker
+contract tests belong in backend quality checks; the full worker image is a
+release artifact.
 
 The worker workflow pulls the selected ML base image before building and fails
 clearly if it is missing. Do not let the worker build silently fall back to an
@@ -368,6 +393,10 @@ Current state:
 
 - `docker/frontend/Dockerfile.dev` is for local development only;
 - `docker/frontend/Dockerfile.runtime` is the production runtime path;
+- frontend Dockerfiles use the Node 24 LTS image line, not `node:latest`;
+- both frontend Dockerfiles use a pinned npm version on top of the Node base
+  image so the globally bundled npm dependencies are deterministic and can be
+  scanned;
 - it builds dependencies with `npm ci`;
 - it runs `npm run build`;
 - it runs the production server with `npm run start`;
@@ -388,6 +417,7 @@ Recommended future build:
 docker build \
   -f docker/frontend/Dockerfile.runtime \
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 \
+  --build-arg NEXT_PRACTICE_ORIGIN=http://noteverse-backend-practice:8000 \
   --build-arg SESSION_COOKIE_NAME=noteverse_session \
   --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh \
   -t <registry>/noteverse/frontend:<git-sha> \
@@ -412,6 +442,9 @@ Frontend:
 
 - cache npm dependencies by `package-lock.json`;
 - do not copy local `.next` or `node_modules`;
+- keep npm itself pinned inside frontend images; app-level `package.json`
+  overrides do not remediate vulnerabilities in the base image's global npm
+  installation;
 - keep runtime image smaller than the build image when the production Dockerfile
   is added.
 

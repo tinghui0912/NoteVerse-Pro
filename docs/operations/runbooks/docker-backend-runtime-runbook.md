@@ -247,6 +247,12 @@ CUDA/Python/PyTorch inputs and rerun the worker workflow. Do not point
 `Dockerfile.worker` at an ad hoc local image just to make CI pass; the published
 ML base is the contract between worker builds and deployment.
 
+The worker image workflow is intentionally manual. A full CUDA/PyTorch worker
+build can exceed GitHub-hosted runner disk space. If the GitHub Actions log
+contains `no space left on device` under `/var/lib/buildkit` while unpacking
+CUDA libraries, move the build to a self-hosted or larger runner instead of
+making worker builds run on every push.
+
 The API image installs API dependencies from `backend/requirements/api.txt`. It
 does not contain LEGATO source, PyTorch, PaddleOCR, practice realtime alignment,
 or model-cache tooling. Fingering generation remains an API capability for now.

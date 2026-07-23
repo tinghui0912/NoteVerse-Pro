@@ -322,6 +322,9 @@ Implemented:
   runtime images for pull requests and branch pushes;
 - the same workflow pushes immutable GHCR images on `main` pushes and manual
   runs;
+- `.github/workflows/backend-worker-image.yml` is manual-only because the ML
+  worker image needs a large CUDA/PyTorch base and should run on controlled
+  release infrastructure or a sufficiently provisioned runner;
 - images are tagged with the full Git commit SHA and `build-<run-id>`;
 - image digests are written to the workflow summary.
 - SBOM artifacts are generated for backend and frontend images;
