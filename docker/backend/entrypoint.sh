@@ -13,6 +13,14 @@ case "${1:-api}" in
     fi
     exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
+  practice)
+    python scripts/check_runtime.py --role practice
+    uvicorn_args=(app.practice_main:app --host 0.0.0.0 --port "${PORT:-8000}")
+    if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
+      uvicorn_args+=(--reload)
+    fi
+    exec python -m uvicorn "${uvicorn_args[@]}"
+    ;;
   worker)
     export NOTEVERSE_CELERY_IMPORT_TASKS=true
     python scripts/check_runtime.py --role worker

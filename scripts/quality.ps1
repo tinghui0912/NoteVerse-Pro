@@ -19,7 +19,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-$BackendComposeFile = Join-Path $RepoRoot "docker-compose.backend-dev.yml"
+$BackendQualityScript = Join-Path $PSScriptRoot "backend_quality_docker.ps1"
 $FrontendRoot = Join-Path $RepoRoot "frontend"
 $K8sManifestCheck = Join-Path $PSScriptRoot "check_k8s_application_manifests.py"
 $K8sReleaseOverlayRenderer = Join-Path $PSScriptRoot "render_k8s_release_overlay.py"
@@ -42,16 +42,8 @@ function Invoke-Step {
 function Invoke-BackendQuality {
     param([string] $BackendCheck)
 
-    $BackendCommandArgs = switch ($BackendCheck) {
-        "ruff" { @("python", "-m", "ruff", "check", "app", "tests", "--config", "pyproject.toml", "--cache-dir", ".ruff_cache") }
-        "mypy" { @("python", "-m", "mypy", "--config-file", "pyproject.toml") }
-        "mypy-model-layer" { @("python", "-m", "mypy", "--config-file", "mypy-model-layer.ini") }
-        "pytest" { @("python", "-m", "pytest", "tests", "-q") }
-        default { throw "Unknown backend quality check: $BackendCheck" }
-    }
-
     Invoke-Step "backend:$BackendCheck" {
-        docker compose -f $BackendComposeFile run --rm api @BackendCommandArgs
+        powershell -NoProfile -ExecutionPolicy Bypass -File $BackendQualityScript -Check $BackendCheck
     }
 }
 
@@ -88,6 +80,7 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --environment staging `
             --output $OutputDir `
             --backend-api-image "ghcr.io/example/noteverse/backend-api@sha256:1111111111111111111111111111111111111111111111111111111111111111" `
+            --backend-practice-image "ghcr.io/example/noteverse/backend-practice@sha256:5555555555555555555555555555555555555555555555555555555555555555" `
             --backend-beat-image "ghcr.io/example/noteverse/backend-beat@sha256:4444444444444444444444444444444444444444444444444444444444444444" `
             --backend-worker-image "ghcr.io/example/noteverse/backend-worker@sha256:3333333333333333333333333333333333333333333333333333333333333333" `
             --frontend-image "ghcr.io/example/noteverse/frontend@sha256:2222222222222222222222222222222222222222222222222222222222222222" `

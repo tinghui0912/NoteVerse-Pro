@@ -166,7 +166,7 @@ UI boundaries:
 
 ## Verified
 
-```bash
+```powershell
 cd frontend
 npm run typecheck
 npm run lint
@@ -174,8 +174,8 @@ npm run test:unit -- tests/unit/query-client.test.ts
 
 cd ..
 docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade head
-docker compose -f docker-compose.backend-dev.yml run --rm api python -m ruff check app/modules/score_invites app/modules/score_access app/modules/score_sharing app/db/models/score_access.py app/api/v1/router.py tests/test_score_revision_services.py tests/test_api_smoke.py
-docker compose -f docker-compose.backend-dev.yml run --rm api pytest tests/test_score_revision_services.py tests/test_api_smoke.py
+.\scripts\backend_quality_docker.ps1 -Check ruff
+.\scripts\backend_quality_docker.ps1 -Check pytest
 ```
 
 Latest manual validation:

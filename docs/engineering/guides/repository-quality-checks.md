@@ -17,10 +17,10 @@ Available checks:
 
 | Check | Purpose |
 | --- | --- |
-| `backend-ruff` | Backend linting inside the backend Docker runtime |
-| `backend-mypy` | Backend type checking |
-| `backend-mypy-model-layer` | Backend model-layer type boundary checks |
-| `backend-pytest` | Backend test suite |
+| `backend-ruff` | Backend linting inside the dedicated backend quality image |
+| `backend-mypy` | Backend type checking inside the dedicated backend quality image |
+| `backend-mypy-model-layer` | Backend model-layer type boundary checks inside the dedicated backend quality image |
+| `backend-pytest` | Backend test suite inside the dedicated backend quality image |
 | `frontend-lint` | Frontend ESLint |
 | `frontend-typecheck` | Frontend TypeScript type checking |
 | `frontend-i18n` | Frontend error translation key guard |
@@ -95,5 +95,31 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-pytest
 ```
 
-Backend checks intentionally run inside the backend Docker runtime so local
-quality checks use the same Linux dependency shape as CI and worker execution.
+Backend checks intentionally run inside `docker/backend/Dockerfile.quality`.
+That image installs `backend/requirements/quality.txt`, which includes all
+backend runtime roles plus test and static-analysis tools. Runtime images stay
+lean: API, practice, beat, and worker images do not install quality tooling by
+default.
+
+The backend quality GitHub Actions workflow builds the same quality image and
+runs checks through `docker run --env-file ...`. The image inherits the same
+published ML base as the worker so CI validates against the production runtime
+family while keeping quality tools out of deployed images. CI should not install
+backend quality dependencies directly on the runner Python environment.
+
+You can also call the backend quality image directly:
+
+```powershell
+.\scripts\backend_quality_docker.ps1 -Check all
+.\scripts\backend_quality_docker.ps1 -Check ruff
+.\scripts\backend_quality_docker.ps1 -Check mypy
+.\scripts\backend_quality_docker.ps1 -Check mypy-model-layer
+.\scripts\backend_quality_docker.ps1 -Check pytest
+```
+
+The script passes `--build` to Docker Compose, so the first run builds the
+quality image and later runs reuse Docker's cache.
+
+Do not add ruff, mypy, pytest, or pre-commit to runtime requirements only to
+make local checks work. Add quality-only tools to
+`backend/requirements/quality.txt`.

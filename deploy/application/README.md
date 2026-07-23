@@ -6,12 +6,14 @@ NoteVerse application workloads.
 The runtime contract is defined in:
 
 ```text
-docs/k8s-application-runtime-contract.md
+docs/architecture/runtime/k8s-application-runtime-contract.md
 ```
 
 Planned workload boundaries:
 
 - `backend-api`: FastAPI HTTP API, `/health/*`, `/metrics`;
+- `backend-practice`: FastAPI HTTP/WebSocket realtime practice service,
+  `/api/v1/practice/*`, `/health/*`, `/metrics`;
 - `backend-worker`: Celery worker, no HTTP service;
 - `backend-beat`: singleton Celery beat scheduler, no HTTP service;
 - `frontend`: Next.js web application;

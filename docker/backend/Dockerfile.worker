@@ -29,13 +29,9 @@ RUN apt-get update -o Acquire::Retries=3 \
 
 COPY backend/requirements/ /tmp/requirements/
 
-ARG INSTALL_DEV_DEPS=false
 RUN python -m pip install --upgrade pip setuptools wheel \
     && grep -vE '^paddleocr==' /tmp/requirements/worker.txt > /tmp/requirements/worker-core.txt \
-    && python -m pip install -r /tmp/requirements/worker-core.txt \
-    && if [ "${INSTALL_DEV_DEPS}" = "true" ]; then \
-      python -m pip install -r /tmp/requirements/dev.txt; \
-    fi
+    && python -m pip install -r /tmp/requirements/worker-core.txt
 
 ARG INSTALL_PADDLE_GPU=false
 ARG INSTALL_LEGATO_EXTRA_DEPS=false

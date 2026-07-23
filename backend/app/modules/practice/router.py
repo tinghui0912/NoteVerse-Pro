@@ -20,7 +20,6 @@ from app.processing.realtime.message_codec import (
     session_ready_message,
     state_changed_message,
 )
-from app.processing.realtime.session_runtime import practice_runtime_registry
 from app.shared.constants import ErrorCode, SuccessCode
 from app.shared.responses import success_response
 
@@ -134,16 +133,7 @@ async def stream_practice_session(
         user_id = require_persisted_id(current_user.id, entity="user")
         await practice_service.require_session_access(db, session_id, user_id)
 
-        runtime = practice_runtime_registry.get(session_id)
-        if runtime is None:
-            await websocket.send_json(
-                session_error_message(
-                    public_code=ErrorCode.PRACTICE_STREAM_NOT_READY,
-                )
-            )
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
+        runtime = await practice_service.prepare_stream_runtime(db, session_id, user_id)
         runtime.websocket = websocket
 
         while True:
@@ -237,7 +227,7 @@ async def stream_practice_session(
     except WebSocketDisconnect:
         pass
     finally:
-        runtime = practice_runtime_registry.get(session_id)
+        runtime = practice_service.runtime_registry.get(session_id)
         if runtime is not None and runtime.websocket is websocket:
             runtime.websocket = None
         realtime_connection_closed(channel="practice_websocket")

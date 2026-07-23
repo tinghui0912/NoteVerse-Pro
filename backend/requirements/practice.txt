@@ -1,22 +1,17 @@
 -r base.txt
 
-# HTTP/API runtime.
+# Realtime practice HTTP/WebSocket runtime.
 fastapi==0.136.1
 uvicorn[standard]==0.46.0
-python-multipart==0.0.28
 prometheus-client==0.23.1
 opentelemetry-api==1.39.0
 opentelemetry-sdk==1.39.0
 opentelemetry-exporter-otlp-proto-grpc==1.39.0
 opentelemetry-instrumentation-fastapi==0.60b0
 
-# Authentication and security.
+# Cookie access-token verification.
 PyJWT[crypto]==2.12.1
-pwdlib[argon2]==0.3.0
 
-# Account image processing.
-Pillow==12.2.0
-
-# Fingering generation remains an API capability for now.
+# Browser-audio alignment runtime.
 numpy==1.26.4
-pianoplayer==3.0.2
+pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@0d106d07d96f9def77de116b29690c262b51b9ee

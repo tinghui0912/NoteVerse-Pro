@@ -27,8 +27,10 @@ Current Dockerfiles:
 | --- | --- | --- |
 | `docker/backend/Dockerfile.ml-base` | CUDA/Python/PyTorch ML base image | yes, as a base image |
 | `docker/backend/Dockerfile.api` | FastAPI API and migration runtime image | yes |
+| `docker/backend/Dockerfile.practice` | Realtime practice API/WebSocket runtime image | yes |
 | `docker/backend/Dockerfile.beat` | Celery beat scheduler runtime image | yes |
 | `docker/backend/Dockerfile.worker` | Celery worker and model-cache-agent ML runtime image | yes, after ML base is published |
+| `docker/backend/Dockerfile.quality` | Backend quality-check image for local/CI checks | no, not deployed |
 | `docker/frontend/Dockerfile.dev` | Next.js development runtime | no |
 | `docker/frontend/Dockerfile.runtime` | Next.js production runtime | initial production path |
 | `docker/transcoda/*` | Transcoda experimental/runtime images | not part of main deployment path |
@@ -46,6 +48,7 @@ Recommended registry paths:
 
 ```text
 <registry>/noteverse/backend-api
+<registry>/noteverse/backend-practice
 <registry>/noteverse/backend-beat
 <registry>/noteverse/backend-worker
 <registry>/noteverse/frontend
@@ -56,6 +59,7 @@ The current CI workflow uses GitHub Container Registry:
 
 ```text
 ghcr.io/<github-owner>/noteverse/backend-api
+ghcr.io/<github-owner>/noteverse/backend-practice
 ghcr.io/<github-owner>/noteverse/backend-beat
 ghcr.io/<github-owner>/noteverse/backend-worker
 ghcr.io/<github-owner>/noteverse/frontend
@@ -68,12 +72,17 @@ Kubernetes pulls private images through `Secret/noteverse-registry-credentials`.
 The ML base image is a dependency for backend runtime builds, not a directly
 deployed application workload.
 
+The backend quality image is also not a deployed workload. It exists so ruff,
+mypy, pytest, and model-layer checks run in a deterministic Linux environment
+without adding development tooling to runtime images.
+
 ## Tagging Policy
 
 Every deployable image must have an immutable source tag:
 
 ```text
 <registry>/noteverse/backend-api:<git-sha>
+<registry>/noteverse/backend-practice:<git-sha>
 <registry>/noteverse/backend-beat:<git-sha>
 <registry>/noteverse/backend-worker:<git-sha>
 <registry>/noteverse/frontend:<git-sha>
@@ -83,6 +92,7 @@ Recommended additional metadata tags:
 
 ```text
 <registry>/noteverse/backend-api:build-<run-id>
+<registry>/noteverse/backend-practice:build-<run-id>
 <registry>/noteverse/backend-beat:build-<run-id>
 <registry>/noteverse/backend-worker:build-<run-id>
 <registry>/noteverse/frontend:build-<run-id>
@@ -92,10 +102,12 @@ Optional mutable aliases:
 
 ```text
 <registry>/noteverse/backend-api:staging
+<registry>/noteverse/backend-practice:staging
 <registry>/noteverse/backend-beat:staging
 <registry>/noteverse/backend-worker:staging
 <registry>/noteverse/frontend:staging
 <registry>/noteverse/backend-api:production
+<registry>/noteverse/backend-practice:production
 <registry>/noteverse/backend-beat:production
 <registry>/noteverse/backend-worker:production
 <registry>/noteverse/frontend:production
@@ -115,6 +127,7 @@ The safest production reference is an image digest:
 
 ```text
 <registry>/noteverse/backend-api@sha256:<digest>
+<registry>/noteverse/backend-practice@sha256:<digest>
 <registry>/noteverse/backend-beat@sha256:<digest>
 <registry>/noteverse/backend-worker@sha256:<digest>
 <registry>/noteverse/frontend@sha256:<digest>
@@ -129,6 +142,8 @@ Production release records should include:
 - backend API image digest;
 - backend beat image tag;
 - backend beat image digest;
+- backend practice image tag;
+- backend practice image digest;
 - backend worker image tag;
 - backend worker image digest;
 - frontend image tag;
@@ -190,15 +205,29 @@ docker build \
   .
 ```
 
-The API image currently includes the interactive practice and fingering
-dependencies because those endpoints run in the API process:
+The API image includes:
 
-- `pymatchmaker` / `partitura` for realtime practice alignment;
-- `pianoplayer` for synchronous fingering generation;
-- `Pillow` for account avatar processing.
+- `Pillow` for account avatar processing;
+- `pianoplayer` for synchronous fingering generation, until that capability is
+  moved to a dedicated runtime.
 
-If practice realtime or fingering generation are split into dedicated runtimes,
-move these dependencies with that runtime and slim the API image again.
+It does not include realtime practice alignment dependencies, LEGATO, PaddleOCR,
+or worker model-cache tooling.
+
+### Backend Practice Image
+
+`docker/backend/Dockerfile.practice` builds the deployed realtime practice
+runtime image. It installs `backend/requirements/practice.txt` and owns the
+practice HTTP/WebSocket process.
+
+Recommended practice image build:
+
+```bash
+docker build \
+  -f docker/backend/Dockerfile.practice \
+  -t <registry>/noteverse/backend-practice:<git-sha> \
+  .
+```
 
 ### Backend Beat Image
 
@@ -225,7 +254,6 @@ generation, and model-cache-agent runtime checks.
 Inputs:
 
 - `PYTHON_IMAGE`;
-- `INSTALL_DEV_DEPS`;
 - `INSTALL_PADDLE_GPU`;
 - `INSTALL_LEGATO_EXTRA_DEPS`;
 - `PADDLE_CUDA_INDEX`;
@@ -234,7 +262,6 @@ Inputs:
 
 Production build rules:
 
-- `INSTALL_DEV_DEPS=false`;
 - `INSTALL_PADDLE_GPU=false` unless compatibility with the selected PyTorch CUDA
   stack has been validated;
 - `INSTALL_LEGATO_EXTRA_DEPS=false` unless training/debug-only dependencies are
@@ -249,7 +276,6 @@ Recommended worker image build:
 docker build \
   -f docker/backend/Dockerfile.worker \
   --build-arg PYTHON_IMAGE=<registry>/noteverse/ml-base:py312-torch260-cu124 \
-  --build-arg INSTALL_DEV_DEPS=false \
   --build-arg INSTALL_PADDLE_GPU=false \
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
   --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git \
@@ -261,6 +287,13 @@ docker build \
 The standard `Container Images` workflow builds API and frontend images. The
 `Backend Worker Image` workflow builds the ML worker image separately because it
 depends on the heavier ML base image and should be promoted deliberately.
+
+### Backend Quality Image
+
+`docker/backend/Dockerfile.quality` builds a non-deployed quality-check image.
+It installs `backend/requirements/quality.txt`, which intentionally includes all
+backend runtime roles and quality tools. Use it for local and CI checks instead
+of installing ruff, mypy, pytest, or pre-commit in runtime images.
 
 ## Frontend Image Build
 

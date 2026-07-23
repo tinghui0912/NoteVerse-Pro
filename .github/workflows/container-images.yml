@@ -74,6 +74,19 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/backend-beat:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/backend-beat:build-${{ github.run_id }}
+      - name: Build backend practice runtime image
+        id: backend-practice-build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/backend/Dockerfile.practice
+          push: ${{ env.PUSH_IMAGES == 'true' }}
+          load: ${{ env.PUSH_IMAGES != 'true' }}
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.IMAGE_NAMESPACE }}/backend-practice:${{ github.sha }}
+            ${{ env.IMAGE_NAMESPACE }}/backend-practice:build-${{ github.run_id }}
       - name: Build frontend runtime image
         id: frontend-build
         uses: docker/build-push-action@v7
@@ -89,6 +102,7 @@ jobs:
             ${{ env.IMAGE_NAMESPACE }}/frontend:build-${{ github.run_id }}
           build-args: |
             NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000
+            NEXT_PRACTICE_ORIGIN=http://noteverse-backend-practice:8000
             SESSION_COOKIE_NAME=noteverse_session
             SESSION_REFRESH_COOKIE_NAME=noteverse_refresh
 
@@ -111,6 +125,12 @@ jobs:
           image: ${{ env.IMAGE_NAMESPACE }}/backend-beat:${{ github.sha }}
           format: spdx-json
           artifact-name: backend-beat-image-sbom.spdx.json
+      - name: Generate backend practice SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: ${{ env.IMAGE_NAMESPACE }}/backend-practice:${{ github.sha }}
+          format: spdx-json
+          artifact-name: backend-practice-image-sbom.spdx.json
 
       - name: Scan backend API image
         uses: aquasecurity/trivy-action@v0.35.0
@@ -140,6 +160,15 @@ jobs:
           ignore-unfixed: true
           format: table
           exit-code: "1"
+      - name: Scan backend practice image
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-practice:${{ github.sha }}
+          vuln-type: os,library
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
 
       - name: Write image build summary
         run: |
@@ -151,9 +180,11 @@ jobs:
             echo "- Backend API digest: \`${{ steps.backend-api-build.outputs.digest }}\`"
             echo "- Backend beat image: \`${IMAGE_NAMESPACE}/backend-beat:${GITHUB_SHA}\`"
             echo "- Backend beat digest: \`${{ steps.backend-beat-build.outputs.digest }}\`"
+            echo "- Backend practice image: \`${IMAGE_NAMESPACE}/backend-practice:${GITHUB_SHA}\`"
+            echo "- Backend practice digest: \`${{ steps.backend-practice-build.outputs.digest }}\`"
             echo "- Backend worker image: build separately from the ML base image before staging/production rollout"
             echo "- Frontend image: \`${IMAGE_NAMESPACE}/frontend:${GITHUB_SHA}\`"
             echo "- Frontend digest: \`${{ steps.frontend-build.outputs.digest }}\`"
-            echo "- SBOM artifacts: backend-api-image-sbom.spdx.json, backend-beat-image-sbom.spdx.json, frontend-image-sbom.spdx.json"
+            echo "- SBOM artifacts: backend-api-image-sbom.spdx.json, backend-beat-image-sbom.spdx.json, backend-practice-image-sbom.spdx.json, frontend-image-sbom.spdx.json"
             echo "- Vulnerability gate: CRITICAL, ignore unfixed"
           } >> "$GITHUB_STEP_SUMMARY"

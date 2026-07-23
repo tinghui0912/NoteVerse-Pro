@@ -26,6 +26,7 @@ from app.processing.reports.practice_report import (
     practice_report_builder,
 )
 from app.processing.realtime.session_runtime import (
+    PracticeSessionRuntime,
     PracticeSessionRuntimeRegistry,
     practice_runtime_registry,
 )
@@ -89,9 +90,6 @@ class PracticeService:
         source = await self.asset_repository.canonical_source(db, revision_id)
         if not source:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
-        score_file_path = self.storage.materialize_to_local(
-            source.storage_key, self.storage.local_path(source.storage_key)
-        )
 
         session = PracticeSession(
             session_uuid=str(uuid4()),
@@ -107,30 +105,6 @@ class PracticeService:
             report_status=PracticeReportStatus.NOT_REQUESTED,
         )
         session = await self.repository.create_session(db, session)
-        try:
-            self.runtime_registry.register(
-                session_id=session.session_uuid,
-                task_id=access.score.score_uuid,
-                state=session.state.value,
-                score_file_path=score_file_path,
-                sample_rate=sample_rate,
-                channels=channels,
-                frame_format=frame_format,
-            )
-        except Exception as exc:
-            logger.bind(
-                event="practice.session_runtime.registration_failed",
-                score_id=access.score.score_uuid,
-                session_id=session.session_uuid,
-                revision_id=access.revision.revision_uuid,
-            ).opt(exception=exc).warning("Practice session runtime registration failed")
-            session.state = PracticeSessionState.FAILED
-            session.error = str(exc)
-            await self.repository.save_session(db, session)
-            raise ExternalServiceException(
-                service="matchmaker",
-                code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
-            ) from exc
         return self._to_session_summary(session)
 
     async def get_session_detail(
@@ -149,6 +123,69 @@ class PracticeService:
         user_id: int,
     ) -> PracticeSession:
         return await self._require_session_for_user(db, session_uuid, user_id)
+
+    async def prepare_stream_runtime(
+        self,
+        db: AsyncSession,
+        session_uuid: str,
+        user_id: int,
+    ) -> PracticeSessionRuntime:
+        runtime = self.runtime_registry.get(session_uuid)
+        if runtime is not None:
+            return runtime
+
+        session = await self._require_session_for_user(db, session_uuid, user_id)
+        if session.state in {PracticeSessionState.FINISHED, PracticeSessionState.FAILED}:
+            raise ValidationException(
+                code=ErrorCode.PRACTICE_SESSION_INVALID_STATE,
+                field="state",
+            )
+
+        score = await db.get(Score, session.score_id)
+        revision = await db.get(ScoreRevision, session.revision_id)
+        if not score or not revision:
+            raise ResourceNotFoundException(
+                "practice_revision",
+                session_uuid,
+                ErrorCode.REVISION_NOT_FOUND,
+            )
+        revision_id = require_persisted_id(revision.id, entity="score revision")
+        source = await self.asset_repository.canonical_source(db, revision_id)
+        if not source:
+            raise ResourceNotFoundException(
+                "practice_revision_source",
+                revision.revision_uuid,
+                ErrorCode.FILE_NOT_FOUND,
+            )
+        score_file_path = self.storage.materialize_to_local(
+            source.storage_key,
+            self.storage.local_path(source.storage_key),
+        )
+
+        try:
+            return self.runtime_registry.register(
+                session_id=session.session_uuid,
+                task_id=score.score_uuid,
+                state=session.state.value,
+                score_file_path=score_file_path,
+                sample_rate=session.sample_rate,
+                channels=session.channels,
+                frame_format=session.frame_format,
+            )
+        except Exception as exc:
+            logger.bind(
+                event="practice.session_runtime.registration_failed",
+                score_id=score.score_uuid,
+                session_id=session.session_uuid,
+                revision_id=revision.revision_uuid,
+            ).opt(exception=exc).warning("Practice session runtime registration failed")
+            session.state = PracticeSessionState.FAILED
+            session.error = str(exc)
+            await self.repository.save_session(db, session)
+            raise ExternalServiceException(
+                service="practice_alignment",
+                code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+            ) from exc
 
     async def start_session_stream(
         self,

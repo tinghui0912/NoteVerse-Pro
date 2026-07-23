@@ -21,24 +21,27 @@ http://localhost:9002
 ```
 
 The frontend uses same-origin `/api/v1/*` for browser API and realtime traffic.
-In local development, Next.js rewrites that path to the backend API.
-`NEXT_BACKEND_ORIGIN` is required in `.env.docker`:
+In local development, Next.js rewrites regular API traffic to the backend API
+and practice traffic to the practice service. `NEXT_BACKEND_ORIGIN` and
+`NEXT_PRACTICE_ORIGIN` are required in `.env.docker`:
 
 ```text
-http://host.docker.internal:8000
+NEXT_BACKEND_ORIGIN=http://host.docker.internal:8000
+NEXT_PRACTICE_ORIGIN=http://host.docker.internal:8001
 ```
 
 This points to the backend API running on the Windows host or in the backend
 Docker profile published to port `8000`.
 
-In Kubernetes, route `/api/v1` to the backend API at the ingress layer so
-browser requests do not depend on environment-specific public JavaScript
-configuration.
+In Kubernetes, route `/api/v1/practice` to the practice service before the
+broader `/api/v1` backend API route so browser requests do not depend on
+environment-specific public JavaScript configuration.
 
 For LAN device testing, configure the frontend dev server with the LAN host:
 
 ```powershell
 $env:NEXT_BACKEND_ORIGIN='http://localhost:8000'
+$env:NEXT_PRACTICE_ORIGIN='http://localhost:8001'
 $env:NEXT_ALLOWED_DEV_ORIGINS='192.168.31.59'
 npm run dev
 ```
@@ -54,7 +57,7 @@ Copy the example if local overrides are needed:
 Copy-Item .env.docker.example .env.docker
 ```
 
-If `NEXT_BACKEND_ORIGIN` is missing, the Next.js dev server exits during
+If required origin values are missing, the Next.js dev server exits during
 configuration loading.
 
 ## Quality Checks

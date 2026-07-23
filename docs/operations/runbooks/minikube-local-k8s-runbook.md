@@ -126,7 +126,6 @@ docker build `
 docker build `
   -f docker/backend/Dockerfile.worker `
   --build-arg PYTHON_IMAGE=$mlBaseImage `
-  --build-arg INSTALL_DEV_DEPS=false `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
   --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git `
@@ -786,6 +785,7 @@ python scripts/render_k8s_release_overlay.py `
   --output build/k8s-release/minikube `
   --overwrite `
   --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-practice-image ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag `
   --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
   --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
   --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
@@ -897,6 +897,7 @@ python scripts/render_k8s_release_overlay.py `
   --output build/k8s-release/minikube `
   --overwrite `
   --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-practice-image ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag `
   --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
   --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
   --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
@@ -949,6 +950,7 @@ python scripts/render_k8s_release_overlay.py `
   --environment staging `
   --output build/k8s-release/minikube `
   --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
+  --backend-practice-image ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag `
   --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
   --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
   --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `

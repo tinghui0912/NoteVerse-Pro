@@ -11,6 +11,10 @@ on:
         description: Backend beat image tag or digest
         required: true
         type: string
+      backend_practice_image:
+        description: Backend practice image tag or digest
+        required: true
+        type: string
       backend_worker_image:
         description: Backend worker image tag or digest
         required: true
@@ -111,6 +115,7 @@ jobs:
             --output build/k8s-release/staging \
             --backend-api-image "${{ inputs.backend_api_image }}" \
             --backend-beat-image "${{ inputs.backend_beat_image }}" \
+            --backend-practice-image "${{ inputs.backend_practice_image }}" \
             --backend-worker-image "${{ inputs.backend_worker_image }}" \
             --frontend-image "${{ inputs.frontend_image }}" \
             --frontend-host "${{ inputs.frontend_host }}" \

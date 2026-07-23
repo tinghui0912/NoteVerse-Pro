@@ -36,6 +36,9 @@ Frontend routing notes:
 
 - `NEXT_BACKEND_ORIGIN` points to the internal backend Service because it is used
   by Next.js rewrites on the server side.
+- `NEXT_PRACTICE_ORIGIN` points to the internal practice Service for local or
+  server-side rewrites of `/api/v1/practice/*`.
 - Browser API and realtime requests use same-origin `/api/v1`. The ingress path
-  must route `/api/v1` to the backend API and support long-lived responses
-  without buffering.
+  must route `/api/v1/practice` to the practice Service before routing the
+  broader `/api/v1` prefix to the backend API. Long-lived responses and
+  WebSocket upgrades must be supported without buffering.

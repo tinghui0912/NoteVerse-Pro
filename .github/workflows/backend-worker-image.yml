@@ -58,7 +58,6 @@ jobs:
             ${{ env.IMAGE_NAMESPACE }}/backend-worker:build-${{ github.run_id }}
           build-args: |
             PYTHON_IMAGE=${{ inputs.ml_base_image }}
-            INSTALL_DEV_DEPS=false
             INSTALL_PADDLE_GPU=false
             INSTALL_LEGATO_EXTRA_DEPS=false
             LEGATO_REPO_URL=${{ inputs.legato_repo_url }}

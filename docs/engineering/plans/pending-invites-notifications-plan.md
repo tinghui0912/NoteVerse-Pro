@@ -662,11 +662,10 @@ Because pending invite lookup is email-based, once the user registers and logs i
 
 Backend:
 
-```bash
+```powershell
 docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade head
-docker compose -f docker-compose.backend-dev.yml run --rm api ruff check app/modules/notifications app/modules/score_invites app/db/models/notification.py app/db/models/__init__.py app/api/v1/router.py app/shared/constants.py tests/test_score_revision_services.py
-docker compose -f docker-compose.backend-dev.yml run --rm api ruff check app/modules/notifications app/modules/revisions tests/test_score_revision_services.py
-docker compose -f docker-compose.backend-dev.yml run --rm api pytest tests/test_score_revision_services.py -q
+.\scripts\backend_quality_docker.ps1 -Check ruff
+.\scripts\backend_quality_docker.ps1 -Check pytest
 ```
 
 Frontend:

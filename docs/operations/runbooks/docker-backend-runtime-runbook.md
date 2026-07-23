@@ -15,8 +15,10 @@ Windows workspace
 
 Docker services
   api                    -> FastAPI API image
+  practice               -> realtime practice image
   worker                 -> ML worker image
   beat                   -> lightweight Celery beat image
+  quality                -> local quality-check image, not a runtime workload
 ```
 
 This keeps code iteration fast while making the backend runtime Linux-like.
@@ -36,8 +38,9 @@ and update process.
 - `docker/backend/Dockerfile.api`: API and migration runtime image.
 - `docker/backend/Dockerfile.beat`: Celery beat scheduler runtime image.
 - `docker/backend/Dockerfile.worker`: Celery worker and model-cache-agent runtime image.
+- `docker/backend/Dockerfile.quality`: local backend quality-check image.
 - `docker/backend/entrypoint.sh`: service command switch.
-- `docker-compose.backend-dev.yml`: API, worker, and beat only.
+- `docker-compose.backend-dev.yml`: API, practice, worker, beat, and quality services.
 - `backend/.env.docker.example`: Docker-specific backend environment template.
 - `.dockerignore`: prevents caches, data, models, and local external checkouts
   from being copied into images.
@@ -194,10 +197,11 @@ The ML base image installs Python through Miniforge/conda-forge, not Anaconda
 defaults. This keeps the Docker build non-interactive and avoids Anaconda
 channel Terms-of-Service prompts during CI or local image builds.
 
-Then build the API and worker images:
+Then build the runtime images:
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build practice
 docker compose -f docker-compose.backend-dev.yml build worker
 docker compose -f docker-compose.backend-dev.yml build beat
 ```
@@ -230,9 +234,12 @@ PyTorch/CUDA filesystem layer into a reusable base image instead of asking
 Docker Desktop to recreate it for every worker build.
 
 The API image installs API dependencies from `backend/requirements/api.txt`. It
-does not contain LEGATO source, PyTorch, PaddleOCR, or model-cache tooling.
-It currently includes practice/fingering dependencies because those endpoints
-run in the API process.
+does not contain LEGATO source, PyTorch, PaddleOCR, practice realtime alignment,
+or model-cache tooling. Fingering generation remains an API capability for now.
+
+The practice image installs practice dependencies from
+`backend/requirements/practice.txt`. It owns realtime practice HTTP/WebSocket
+runtime dependencies such as `pymatchmaker`.
 
 The beat image installs scheduler dependencies from `backend/requirements/beat.txt`.
 It does not import worker task implementations; scheduled task names are sent to
@@ -248,26 +255,27 @@ The worker image installs worker dependencies from `backend/requirements/worker.
   `CELERY_TASK_TIME_LIMIT` forcibly terminates a stuck worker process.
 - Transformers 4.54.0.
 - Accelerate and LEGATO inference helpers.
-- optional backend test and quality tools from `backend/requirements/dev.txt`
-  when `INSTALL_DEV_DEPS=true`.
+The worker image does not install backend test or quality tools by default.
+Quality checks use `docker/backend/Dockerfile.quality`.
 
 Installation order is intentional:
 
-1. Core backend dependencies are installed first, excluding `pymatchmaker` and
-   `paddleocr`.
-2. `pymatchmaker` is built in a dedicated wheel stage with conservative C
-   compiler flags. The final runtime stage installs the wheel and does not keep
-   build tools such as `build-essential` or `git`.
-3. Python 3.12, PyTorch, and CUDA come from the selected ML base image.
-4. PaddlePaddle CPU is installed for PaddleOCR.
-5. `paddleocr` is installed after PaddlePaddle so it reuses the selected Paddle
+1. Core backend dependencies are installed first, excluding `paddleocr`.
+2. Python 3.12, PyTorch, and CUDA come from the selected ML base image.
+3. PaddlePaddle CPU is installed for PaddleOCR.
+4. `paddleocr` is installed after PaddlePaddle so it reuses the selected Paddle
    runtime.
 
-Production-style worker builds omit development tools:
+Worker builds contain only runtime dependencies:
 
 ```powershell
-$env:INSTALL_DEV_DEPS="false"
 docker compose -f docker-compose.backend-dev.yml build worker
+```
+
+Use the quality image for backend checks:
+
+```powershell
+.\scripts\backend_quality_docker.ps1 -Check all
 ```
 
 The worker Dockerfile keeps only runtime system packages:

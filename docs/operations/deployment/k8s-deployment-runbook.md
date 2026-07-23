@@ -73,6 +73,7 @@ python scripts/render_k8s_release_overlay.py \
   --environment production \
   --output build/k8s-release/production \
   --backend-api-image ghcr.io/<owner>/noteverse/backend-api@sha256:<digest> \
+  --backend-practice-image ghcr.io/<owner>/noteverse/backend-practice@sha256:<digest> \
   --backend-beat-image ghcr.io/<owner>/noteverse/backend-beat@sha256:<digest> \
   --backend-worker-image ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest> \
   --frontend-image ghcr.io/<owner>/noteverse/frontend@sha256:<digest> \

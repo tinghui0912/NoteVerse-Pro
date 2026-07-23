@@ -24,6 +24,7 @@ jobs:
         working-directory: frontend
     env:
       NEXT_BACKEND_ORIGIN: http://127.0.0.1:8000
+      NEXT_PRACTICE_ORIGIN: http://127.0.0.1:8001
       AUTH_COOKIE_NAME: noteverse_session
       REFRESH_COOKIE_NAME: noteverse_refresh
 

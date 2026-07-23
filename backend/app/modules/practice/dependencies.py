@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import WebSocket
 
 from app.shared.constants import ErrorCode
-from app.core import security
 from app.core.config import settings
 from app.core.exceptions import AuthenticationException, ResourceNotFoundException
+from app.core.token_constants import TOKEN_ALGORITHM
 from app.db.models import User
 from app.modules.auth.schemas import TokenPayload
 from app.modules.practice.service import PracticeService
@@ -37,7 +37,7 @@ async def get_websocket_current_user(
         )
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[TOKEN_ALGORITHM])
         token_data = TokenPayload(**payload)
     except (jwt.InvalidTokenError, ValidationError):
         raise AuthenticationException(

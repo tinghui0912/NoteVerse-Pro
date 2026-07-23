@@ -4,11 +4,17 @@ on:
   push:
     paths:
       - "backend/**"
+      - "docker/backend/Dockerfile.quality"
       - ".github/workflows/backend-quality.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "docker/backend/Dockerfile.quality"
       - ".github/workflows/backend-quality.yml"
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   quality:
@@ -40,6 +46,8 @@ jobs:
       run:
         working-directory: backend
     env:
+      QUALITY_IMAGE: noteverse-backend-quality:ci
+      QUALITY_ENV_FILE: ${{ runner.temp }}/backend-quality.env
       SECRET_KEY: ci-test-secret-key-that-is-long-enough
       AUTH_COOKIE_NAME: noteverse_session
       REFRESH_COOKIE_NAME: noteverse_refresh
@@ -66,28 +74,53 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            backend/requirements/*.txt
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: python -m pip install --upgrade pip && pip install -r requirements/dev.txt
+      - name: Build backend quality image
+        run: docker build -f ../docker/backend/Dockerfile.quality -t "$QUALITY_IMAGE" ..
+
+      - name: Write backend quality environment
+        run: |
+          cat > "$QUALITY_ENV_FILE" <<EOF
+          SECRET_KEY=$SECRET_KEY
+          AUTH_COOKIE_NAME=$AUTH_COOKIE_NAME
+          REFRESH_COOKIE_NAME=$REFRESH_COOKIE_NAME
+          CSRF_COOKIE_NAME=$CSRF_COOKIE_NAME
+          CSRF_HEADER_NAME=$CSRF_HEADER_NAME
+          AUTH_COOKIE_SECURE=$AUTH_COOKIE_SECURE
+          AUTH_COOKIE_SAMESITE=$AUTH_COOKIE_SAMESITE
+          LOG_FORMAT=$LOG_FORMAT
+          FRONTEND_BASE_URL=$FRONTEND_BASE_URL
+          PRACTICE_SOUNDFONT_PATH=$PRACTICE_SOUNDFONT_PATH
+          PLAYBACK_SOUNDFONT_PATH=$PLAYBACK_SOUNDFONT_PATH
+          REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS=$REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS
+          REALTIME_EVENT_RETENTION_DAYS=$REALTIME_EVENT_RETENTION_DAYS
+          BACKEND_CORS_ORIGINS=$BACKEND_CORS_ORIGINS
+          DATABASE_URL=$DATABASE_URL
+          SYNC_DATABASE_URL=$SYNC_DATABASE_URL
+          REDIS_URL=$REDIS_URL
+          CELERY_BROKER_URL=$CELERY_BROKER_URL
+          CELERY_RESULT_BACKEND=$CELERY_RESULT_BACKEND
+          HF_MODEL_REPOSITORIES=$HF_MODEL_REPOSITORIES
+          LEGATO_REPO_PATH=$LEGATO_REPO_PATH
+          EOF
 
       - name: Run Ruff
-        run: python -m ruff check app tests
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m ruff check app tests scripts"
 
       - name: Run mypy
-        run: python -m mypy --config-file pyproject.toml
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m mypy --config-file pyproject.toml"
 
       - name: Run model-layer mypy
-        run: python -m mypy --config-file mypy-model-layer.ini
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m mypy --config-file mypy-model-layer.ini"
 
       - name: Run database migrations
-        run: python -m alembic upgrade head
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m alembic upgrade head"
 
       - name: Run pytest
-        run: python -m pytest tests -q
+        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m pytest tests -q"

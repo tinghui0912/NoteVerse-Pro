@@ -42,6 +42,26 @@ services:
       retries: 3
       start_period: 20s
 
+  practice:
+    <<: *backend-common
+    image: noteverse-backend-practice:dev
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.practice
+    command: practice
+    ports:
+      - "${PRACTICE_PORT:-8001}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   worker:
     <<: *backend-common
     image: noteverse-backend-worker:dev
@@ -50,7 +70,6 @@ services:
       dockerfile: docker/backend/Dockerfile.worker
       args:
         PYTHON_IMAGE: ${PYTHON_IMAGE:-ghcr.io/tinghui0912/noteverse/ml-base:py312-torch260-cu124}
-        INSTALL_DEV_DEPS: ${INSTALL_DEV_DEPS:-true}
         INSTALL_PADDLE_GPU: ${INSTALL_PADDLE_GPU:-false}
         INSTALL_LEGATO_EXTRA_DEPS: ${INSTALL_LEGATO_EXTRA_DEPS:-false}
         PADDLE_CUDA_INDEX: ${PADDLE_CUDA_INDEX:-cu126}
@@ -66,3 +85,12 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile.beat
     command: beat
+
+  quality:
+    <<: *backend-common
+    image: noteverse-backend-quality:dev
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.quality
+    command: bash
+    restart: "no"

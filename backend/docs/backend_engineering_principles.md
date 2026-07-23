@@ -1,7 +1,7 @@
 ﻿# NoteVerse Backend Engineering Principles
 
 > Current baseline: score-domain architecture after the completed migration in
-> `../../docs/score-domain-architecture-migration-plan.md`.
+> `../../docs/archive/completed-migrations/score-domain-architecture-migration-plan.md`.
 
 ## 1. Purpose
 
@@ -34,19 +34,28 @@ Current feature modules:
 app/modules/
 |-- account
 |-- auth
+|-- async_operations
+|-- billing
 |-- files
 |-- import_jobs
+|-- library
+|-- mail
 |-- metadata
+|-- my_scores
+|-- notifications
+|-- ops
 |-- playback
 |-- practice
 |-- publications
+|-- realtime
 |-- revisions
 |-- review
 |-- score_access
 |-- score_assets
 |-- score_invites
 |-- score_sharing
-`-- scores
+|-- scores
+`-- storage_usage
 ```
 
 Retired task-as-score modules and contracts must not be recreated:
@@ -443,9 +452,7 @@ is disposable. Use the safe cutover sequence for databases with legacy data.
 Choose validation based on blast radius. For broad backend changes, run:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api ruff check app scripts tests alembic/versions
-docker compose -f docker-compose.backend-dev.yml run --rm api mypy app scripts
-docker compose -f docker-compose.backend-dev.yml run --rm api pytest -q
+..\scripts\backend_quality_docker.ps1 -Check all
 ```
 
 For score-domain changes, add focused coverage for the relevant behavior:

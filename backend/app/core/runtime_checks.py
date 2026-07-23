@@ -24,6 +24,7 @@ class RuntimeRole(StrEnum):
     API = "api"
     WORKER = "worker"
     BEAT = "beat"
+    PRACTICE = "practice"
     ALL = "all"
 
 
@@ -412,8 +413,6 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
         "storage_quota_policy",
         "redis",
         "storage",
-        "soundfont",
-        "practice_alignment",
     ),
     RuntimeRole.WORKER: (
         "settings",
@@ -429,9 +428,22 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
         "huggingface_models",
     ),
     RuntimeRole.BEAT: ("settings", "redis", "beat_state"),
+    RuntimeRole.PRACTICE: (
+        "settings",
+        "database",
+        "storage_quota_policy",
+        "redis",
+        "storage",
+        "soundfont",
+        "practice_alignment",
+    ),
 }
 ROLE_CHECK_NAMES[RuntimeRole.ALL] = tuple(
-    dict.fromkeys(name for role in (RuntimeRole.API, RuntimeRole.WORKER, RuntimeRole.BEAT) for name in ROLE_CHECK_NAMES[role])
+    dict.fromkeys(
+        name
+        for role in (RuntimeRole.API, RuntimeRole.WORKER, RuntimeRole.BEAT, RuntimeRole.PRACTICE)
+        for name in ROLE_CHECK_NAMES[role]
+    )
 )
 
 CHECKS: dict[str, CheckSpec] = {

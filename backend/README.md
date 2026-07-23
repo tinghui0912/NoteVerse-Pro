@@ -7,14 +7,11 @@ profile management, and Celery-based background workflows.
 
 - FastAPI
 - SQLModel / SQLAlchemy
-- MySQL
+- PostgreSQL
 - Redis
 - Celery
 - Pydantic v2
-- pytest
-- ruff
-- mypy
-- pre-commit
+- pytest / ruff / mypy through the backend quality image
 
 ## Current Architecture
 
@@ -30,12 +27,19 @@ Canonical structure:
 
 Main feature modules:
 
+- `account`
 - `auth`
-- `tasks`
-- `shares`
 - `files`
-- `profile`
-- `xml`
+- `import_jobs`
+- `library`
+- `notifications`
+- `practice`
+- `revisions`
+- `score_assets`
+- `score_invites`
+- `score_sharing`
+- `scores`
+- `storage_usage`
 
 ## Quick Start
 
@@ -77,16 +81,29 @@ available.
 Dependency files are split by purpose:
 
 - `requirements/base.txt`: shared backend infrastructure dependencies.
-- `requirements/api.txt`: FastAPI API, beat, and migration runtime dependencies.
+- `requirements/api.txt`: FastAPI API and migration runtime dependencies.
+- `requirements/practice.txt`: practice realtime HTTP/WebSocket runtime
+  dependencies.
+- `requirements/beat.txt`: Celery beat scheduler dependencies.
 - `requirements/worker.txt`: worker-only processing, rendering, playback, OCR,
   and OMR dependencies.
-- `requirements/dev.txt`: test and quality tools plus all runtime roles.
+- `requirements/quality.txt`: backend quality-image dependencies. It includes
+  all runtime roles plus test and static-analysis tools.
 
-Production-style builds can omit development tools with:
+Runtime images do not install development or quality tools by default. The
+supported quality path is the dedicated Docker quality image, not installing
+tooling into API, practice, beat, or worker runtime images.
+The quality image uses the same ML base as the worker so type checks and tests
+see the same heavyweight runtime libraries without copying those tools into
+deployed containers.
+
+Build normal runtime images with:
 
 ```powershell
-$env:INSTALL_DEV_DEPS="false"
 docker compose -f docker-compose.backend-dev.yml build api
+docker compose -f docker-compose.backend-dev.yml build practice
+docker compose -f docker-compose.backend-dev.yml build beat
+docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
 ## API Docs
@@ -99,18 +116,27 @@ docker compose -f docker-compose.backend-dev.yml build api
 Run these before merging backend changes:
 
 ```powershell
+..\scripts\backend_quality_docker.ps1 -Check all
+```
+
+Targeted checks are available when a full run is not needed:
+
+```powershell
+..\scripts\backend_quality_docker.ps1 -Check ruff
+..\scripts\backend_quality_docker.ps1 -Check mypy
+..\scripts\backend_quality_docker.ps1 -Check mypy-model-layer
+..\scripts\backend_quality_docker.ps1 -Check pytest
+```
+
+The repository-wide quality wrapper delegates backend checks to the same
+quality image:
+
+```powershell
 ..\scripts\quality.ps1 -Check backend-ruff
 ..\scripts\quality.ps1 -Check backend-mypy
 ..\scripts\quality.ps1 -Check backend-mypy-model-layer
 ..\scripts\quality.ps1 -Check backend-pytest
 ```
-
-Current verified baseline:
-
-- `ruff` passes
-- `mypy` passes on the current directory-based baseline (`102` source files)
-- `mypy-model-layer.ini` passes on the current ORM-aware database model target set
-- `pytest` passes with `38` tests
 
 ## CI
 
@@ -144,6 +170,6 @@ It runs the same baseline checks for pushes and pull requests that touch
 
 ## Related Docs
 
-- [docs/team_backend_rules.md](/c:/Users/12631/Downloads/NoteVerse-Pro/backend/docs/team_backend_rules.md)
-- [docs/development_conventions.md](/c:/Users/12631/Downloads/NoteVerse-Pro/backend/docs/development_conventions.md)
-- [docs/enterprise_alignment_optimization_plan.md](/c:/Users/12631/Downloads/NoteVerse-Pro/backend/docs/enterprise_alignment_optimization_plan.md)
+- [Backend engineering principles](C:/Users/12631/Downloads/NoteVerse-Pro/backend/docs/backend_engineering_principles.md)
+- [Repository quality checks](C:/Users/12631/Downloads/NoteVerse-Pro/docs/engineering/guides/repository-quality-checks.md)
+- [Docker backend runtime runbook](C:/Users/12631/Downloads/NoteVerse-Pro/docs/operations/runbooks/docker-backend-runtime-runbook.md)

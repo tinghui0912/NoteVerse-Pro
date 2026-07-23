@@ -18,7 +18,8 @@ defined by contract, not by tribal knowledge.
 Purpose:
 
 - FastAPI HTTP API;
-- authentication, score, review, sharing, realtime SSE, and ops endpoints;
+- authentication, score, review, sharing, realtime SSE, ops endpoints, and
+  score fingering generation;
 - Prometheus metrics endpoint.
 
 Runtime:
@@ -60,6 +61,56 @@ Prometheus discovery:
 - attach low-cardinality labels:
   - `app.kubernetes.io/name: noteverse`;
   - `app.kubernetes.io/component: backend-api`;
+  - `app.kubernetes.io/part-of: noteverse`;
+- add a ServiceMonitor for `/metrics`.
+
+### `backend-practice`
+
+Purpose:
+
+- FastAPI HTTP/WebSocket service for realtime practice sessions;
+- browser audio alignment against the selected score revision;
+- practice session state transitions and practice reports.
+
+Runtime:
+
+- container command: `practice`;
+- container port: set `PORT` explicitly and expose the same port through the
+  Service;
+- HTTP paths:
+  - liveness: `/health/live`;
+  - readiness: `/health/ready`;
+  - metrics: `/metrics`;
+  - practice API prefix: `/api/v1/practice`.
+
+Boundary:
+
+- session creation stores only durable database state;
+- realtime alignment runtime is created by the pod that owns the WebSocket
+  connection;
+- the main `backend-api` workload must not import or serve the practice router.
+
+Required runtime dependencies:
+
+- async database connection;
+- Redis broker/result backend for shared readiness expectations;
+- storage access for canonical MusicXML sources;
+- practice soundfont and realtime alignment dependencies.
+
+Ingress:
+
+- route `/api/v1/practice` to `noteverse-backend-practice` before the broader
+  `/api/v1` backend API path;
+- WebSocket upgrades and long-lived responses must be supported without
+  buffering.
+
+Prometheus discovery:
+
+- expose a Service named by the future chart, for example
+  `noteverse-backend-practice`;
+- attach low-cardinality labels:
+  - `app.kubernetes.io/name: noteverse`;
+  - `app.kubernetes.io/component: backend-practice`;
   - `app.kubernetes.io/part-of: noteverse`;
 - add a ServiceMonitor for `/metrics`.
 
@@ -139,6 +190,8 @@ Runtime:
 Required environment variables:
 
 - `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites;
+- `NEXT_PRACTICE_ORIGIN`: practice origin used by Next rewrites for
+  `/api/v1/practice/*`;
 - `AUTH_COOKIE_NAME`;
 - `REFRESH_COOKIE_NAME`.
 
@@ -151,9 +204,11 @@ Production frontend builds must fail fast when required runtime config is
 missing. Do not add fallback API origins, cookie names, or realtime URLs.
 
 Browser API and realtime calls use same-origin `/api/v1`. In production, the
-ingress must route `/api/v1` to the backend API and must support long-lived SSE
-responses without buffering. This keeps frontend images environment-neutral and
-avoids baking public API origins into the browser bundle.
+ingress must route `/api/v1/practice` to the practice Service before routing
+the broader `/api/v1` prefix to the backend API. Long-lived SSE responses and
+WebSocket upgrades must be supported without buffering. This keeps frontend
+images environment-neutral and avoids baking public API origins into the
+browser bundle.
 
 ## Configuration Ownership
 
