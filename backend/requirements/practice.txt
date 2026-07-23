@@ -1,17 +1,2 @@
--r base.txt
-
-# Realtime practice HTTP/WebSocket runtime.
-fastapi==0.136.1
-uvicorn[standard]==0.46.0
-prometheus-client==0.23.1
-opentelemetry-api==1.39.0
-opentelemetry-sdk==1.39.0
-opentelemetry-exporter-otlp-proto-grpc==1.39.0
-opentelemetry-instrumentation-fastapi==0.60b0
-
-# Cookie access-token verification.
-PyJWT[crypto]==2.12.1
-
-# Browser-audio alignment runtime.
-numpy==1.26.4
-pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@0d106d07d96f9def77de116b29690c262b51b9ee
+-r practice-app.txt
+-r practice-runtime.txt

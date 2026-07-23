@@ -1,0 +1,5 @@
+-r db.txt
+-r storage.txt
+-r celery.txt
+-r image.txt
+-r render.txt

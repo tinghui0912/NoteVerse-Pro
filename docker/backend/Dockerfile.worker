@@ -30,8 +30,7 @@ RUN apt-get update -o Acquire::Retries=3 \
 COPY backend/requirements/ /tmp/requirements/
 
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && grep -vE '^paddleocr==' /tmp/requirements/worker.txt > /tmp/requirements/worker-core.txt \
-    && python -m pip install -r /tmp/requirements/worker-core.txt
+    && python -m pip install -r /tmp/requirements/worker-app.txt
 
 ARG INSTALL_PADDLE_GPU=false
 ARG INSTALL_LEGATO_EXTRA_DEPS=false
@@ -41,7 +40,7 @@ RUN if [ "${INSTALL_PADDLE_GPU}" = "true" ]; then \
     else \
       python -m pip install paddlepaddle==3.2.0 -i "https://www.paddlepaddle.org.cn/packages/stable/cpu/"; \
     fi \
-    && PADDLEOCR_REQ="$(grep -E '^paddleocr==' /tmp/requirements/worker.txt)" \
+    && PADDLEOCR_REQ="$(grep -E '^paddleocr==' /tmp/requirements/ocr.txt)" \
     && python -m pip install "${PADDLEOCR_REQ}" \
     && python -m pip install \
       accelerate==1.8.0 \

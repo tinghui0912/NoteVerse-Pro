@@ -38,7 +38,9 @@ and update process.
 - `docker/backend/Dockerfile.api`: API and migration runtime image.
 - `docker/backend/Dockerfile.beat`: Celery beat scheduler runtime image.
 - `docker/backend/Dockerfile.worker`: Celery worker and model-cache-agent runtime image.
-- `docker/backend/Dockerfile.quality`: local backend quality-check image.
+- `docker/backend/Dockerfile.quality`: local core backend quality-check image.
+- `docker/backend/Dockerfile.practice-quality`: local practice quality-check
+  image for realtime alignment tests.
 - `docker/backend/entrypoint.sh`: service command switch.
 - `docker-compose.backend-dev.yml`: API, practice, worker, beat, and quality services.
 - `backend/.env.docker.example`: Docker-specific backend environment template.
@@ -256,7 +258,10 @@ The worker image installs worker dependencies from `backend/requirements/worker.
 - Transformers 4.54.0.
 - Accelerate and LEGATO inference helpers.
 The worker image does not install backend test or quality tools by default.
-Quality checks use `docker/backend/Dockerfile.quality`.
+Core quality checks use `docker/backend/Dockerfile.quality`. Practice realtime
+tests use `docker/backend/Dockerfile.practice-quality` because
+`pymatchmaker` is a Cython extension and should not be part of the generic
+quality image.
 
 Installation order is intentional:
 
@@ -277,6 +282,10 @@ Use the quality image for backend checks:
 ```powershell
 .\scripts\backend_quality_docker.ps1 -Check all
 ```
+
+This command runs compile, ruff, mypy, model-layer mypy, core pytest, and
+practice pytest. Worker-related tests are included in core pytest unless they
+require the full production ML runtime.
 
 The worker Dockerfile keeps only runtime system packages:
 

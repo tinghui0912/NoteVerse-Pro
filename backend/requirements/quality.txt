@@ -1,12 +1,5 @@
--r api.txt
--r practice.txt
--r worker.txt
--r beat.txt
-
-# Backend test and quality tools.
-httpx==0.28.1
-pytest==9.0.3
-pytest-asyncio==1.3.0
-ruff==0.15.12
-mypy==2.0.0
-pre-commit==4.6.0
+# Aggregate for full backend quality environments. Docker quality images use
+# quality-core.txt and quality-practice.txt to keep heavy practice dependencies
+# isolated.
+-r quality-core.txt
+-r quality-practice.txt

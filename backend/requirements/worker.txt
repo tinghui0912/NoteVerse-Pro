@@ -1,14 +1,5 @@
--r base.txt
+-r worker-app.txt
+-r ocr.txt
 
-# Score processing, rendering, playback, imports, and exports.
-numpy==1.26.4
-Pillow==12.2.0
-verovio==6.2.1
-
-# OMR/OCR engines.
-paddleocr==3.7.0
-
-# GPU framework notes:
-# - PyTorch/CUDA is provided by the selected worker base image.
-# - Docker installs PaddlePaddle separately before installing PaddleOCR so the
-#   selected CPU/GPU wheel can be controlled by build args.
+# GPU framework note:
+# PyTorch/CUDA is provided by the selected worker base image.

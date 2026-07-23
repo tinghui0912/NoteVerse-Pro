@@ -5,11 +5,13 @@ on:
     paths:
       - "backend/**"
       - "docker/backend/Dockerfile.quality"
+      - "docker/backend/Dockerfile.practice-quality"
       - ".github/workflows/backend-quality.yml"
   pull_request:
     paths:
       - "backend/**"
       - "docker/backend/Dockerfile.quality"
+      - "docker/backend/Dockerfile.practice-quality"
       - ".github/workflows/backend-quality.yml"
 
 permissions:
@@ -47,6 +49,7 @@ jobs:
         working-directory: backend
     env:
       QUALITY_IMAGE: noteverse-backend-quality:ci
+      PRACTICE_QUALITY_IMAGE: noteverse-backend-practice-quality:ci
       QUALITY_ENV_FILE: ${{ runner.temp }}/backend-quality.env
       SECRET_KEY: ci-test-secret-key-that-is-long-enough
       AUTH_COOKIE_NAME: noteverse_session
@@ -83,6 +86,9 @@ jobs:
 
       - name: Build backend quality image
         run: docker build -f ../docker/backend/Dockerfile.quality -t "$QUALITY_IMAGE" ..
+
+      - name: Build backend practice quality image
+        run: docker build -f ../docker/backend/Dockerfile.practice-quality -t "$PRACTICE_QUALITY_IMAGE" ..
 
       - name: Write backend quality environment
         run: |
@@ -122,5 +128,21 @@ jobs:
       - name: Run database migrations
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m alembic upgrade head"
 
-      - name: Run pytest
-        run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m pytest tests -q"
+      - name: Run core pytest
+        run: >-
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc
+          "python -m pytest tests -q
+          --ignore=tests/test_practice_api_smoke.py
+          --ignore=tests/test_practice_audio_replay_evaluation.py
+          --ignore=tests/test_practice_runtime_regressions.py
+          --ignore=tests/test_practice_websocket_flow.py"
+
+      - name: Run practice pytest
+        run: >-
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc
+          "python -m pytest
+          tests/test_practice_api_smoke.py
+          tests/test_practice_audio_replay_evaluation.py
+          tests/test_practice_runtime_regressions.py
+          tests/test_practice_websocket_flow.py
+          -q"

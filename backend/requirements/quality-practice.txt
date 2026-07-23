@@ -1,0 +1,4 @@
+# Practice quality image. Isolated because pymatchmaker is a Cython extension
+# and should not be part of the generic backend quality image.
+-r practice-app.txt
+-r quality-tools.txt

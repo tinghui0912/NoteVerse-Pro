@@ -1,22 +1,8 @@
--r base.txt
-
-# HTTP/API runtime.
-fastapi==0.136.1
-uvicorn[standard]==0.46.0
-python-multipart==0.0.28
-prometheus-client==0.23.1
-opentelemetry-api==1.39.0
-opentelemetry-sdk==1.39.0
-opentelemetry-exporter-otlp-proto-grpc==1.39.0
-opentelemetry-instrumentation-fastapi==0.60b0
-
-# Authentication and security.
-PyJWT[crypto]==2.12.1
-pwdlib[argon2]==0.3.0
-
-# Account image processing.
-Pillow==12.2.0
-
-# Fingering generation remains an API capability for now.
-numpy==1.26.4
-pianoplayer==3.0.2
+-r http.txt
+-r db.txt
+-r migrations.txt
+-r storage.txt
+-r celery.txt
+-r auth.txt
+-r image.txt
+-r fingering.txt

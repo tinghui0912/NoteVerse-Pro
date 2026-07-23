@@ -386,16 +386,6 @@ def check_playback_renderer(_: bool = False) -> CheckResult:
     path = Path(settings.PLAYBACK_SOUNDFONT_PATH)
     if not path.is_file():
         return _result("playback_renderer", False, f"playback soundfont does not exist: {path}")
-    ensure_partitura_default_soundfont(str(path))
-    try:
-        import numpy  # noqa: F401
-        import partitura  # noqa: F401
-    except Exception as exc:
-        return _result(
-            "playback_renderer",
-            False,
-            f"playback imports failed: {type(exc).__name__}: {exc}",
-        )
     fluidsynth = shutil.which("fluidsynth")
     if not fluidsynth:
         return _result("playback_renderer", False, "fluidsynth executable not found on PATH")

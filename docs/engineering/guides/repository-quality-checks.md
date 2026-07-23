@@ -20,7 +20,7 @@ Available checks:
 | `backend-ruff` | Backend linting inside the dedicated backend quality image |
 | `backend-mypy` | Backend type checking inside the dedicated backend quality image |
 | `backend-mypy-model-layer` | Backend model-layer type boundary checks inside the dedicated backend quality image |
-| `backend-pytest` | Backend test suite inside the dedicated backend quality image |
+| `backend-pytest` | Backend test suites through Docker quality images: core tests in `quality`, practice tests in `practice-quality` |
 | `frontend-lint` | Frontend ESLint |
 | `frontend-typecheck` | Frontend TypeScript type checking |
 | `frontend-i18n` | Frontend error translation key guard |
@@ -95,16 +95,22 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-pytest
 ```
 
-Backend checks intentionally run inside `docker/backend/Dockerfile.quality`.
-That image installs `backend/requirements/quality.txt`, which includes all
-backend runtime roles plus test and static-analysis tools. Runtime images stay
-lean: API, practice, beat, and worker images do not install quality tooling by
-default.
+Backend checks intentionally run inside Docker quality images:
 
-The backend quality GitHub Actions workflow builds the same quality image and
-runs checks through `docker run --env-file ...`. The image inherits the same
-published ML base as the worker so CI validates against the production runtime
-family while keeping quality tools out of deployed images. CI should not install
+| Image | Dockerfile | Purpose |
+| --- | --- | --- |
+| `quality` | `docker/backend/Dockerfile.quality` | compile, ruff, mypy, model-layer mypy, and non-practice pytest |
+| `practice-quality` | `docker/backend/Dockerfile.practice-quality` | practice realtime tests that require `pymatchmaker` |
+
+`pymatchmaker` is an upstream Cython extension, so it is intentionally isolated
+from the generic backend quality image. This keeps ordinary lint, type checks,
+and most tests from depending on the fragile practice alignment build chain.
+
+Runtime images stay lean: API, practice, beat, and worker images do not install
+quality tooling by default.
+
+The backend quality GitHub Actions workflow builds the same two quality images
+and runs checks through `docker run --env-file ...`. CI should not install
 backend quality dependencies directly on the runner Python environment.
 
 You can also call the backend quality image directly:
@@ -120,6 +126,55 @@ You can also call the backend quality image directly:
 The script passes `--build` to Docker Compose, so the first run builds the
 quality image and later runs reuse Docker's cache.
 
+`backend_quality_docker.ps1 -Check pytest` runs two suites:
+
+```text
+pytest-core
+  tests/* except practice realtime tests
+
+pytest-practice
+  tests/test_practice_api_smoke.py
+  tests/test_practice_audio_replay_evaluation.py
+  tests/test_practice_runtime_regressions.py
+  tests/test_practice_websocket_flow.py
+```
+
+Worker-related tests are currently part of `pytest-core`. Examples include
+Celery runtime configuration, import job execution, pipeline deadlines,
+PaddleOCR subprocess timeout contracts, render/playback asset generation, and
+runtime checks. There is no separate `worker-quality` image yet because these
+tests do not require the full Legato/Paddle runtime.
+
 Do not add ruff, mypy, pytest, or pre-commit to runtime requirements only to
 make local checks work. Add quality-only tools to
-`backend/requirements/quality.txt`.
+`backend/requirements/quality-tools.txt`, then reference them through
+`backend/requirements/quality-core.txt` or
+`backend/requirements/quality-practice.txt`.
+
+## Backend Dependency Files
+
+Backend Python requirements are organized by capability, then composed into
+service images:
+
+| File | Purpose |
+| --- | --- |
+| `core.txt` | pydantic settings and shared logging |
+| `db.txt` | SQLModel/SQLAlchemy/PostgreSQL access |
+| `migrations.txt` | Alembic migrations |
+| `storage.txt` | object storage client |
+| `cache.txt` | Redis client |
+| `celery.txt` | Celery task dispatch |
+| `http.txt` | FastAPI/Uvicorn/metrics/tracing HTTP runtime |
+| `auth.txt` | JWT and password hashing |
+| `image.txt` | Pillow image processing |
+| `fingering.txt` | API fingering generation, kept in API for now |
+| `render.txt` | Verovio score rendering |
+| `ocr.txt` | PaddleOCR package only |
+| `practice-runtime.txt` | realtime alignment dependencies |
+| `worker-app.txt` | worker dependencies that must install before PaddleOCR |
+| `practice-app.txt` | practice service dependencies excluding Cython extension source |
+| `quality-core.txt` | generic backend quality dependencies |
+| `quality-practice.txt` | practice quality dependencies |
+
+`base.txt` remains only as a compatibility aggregate. New Dockerfiles and
+service requirements should prefer explicit capability files.

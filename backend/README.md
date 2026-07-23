@@ -80,22 +80,26 @@ available.
 
 Dependency files are split by purpose:
 
-- `requirements/base.txt`: shared backend infrastructure dependencies.
-- `requirements/api.txt`: FastAPI API and migration runtime dependencies.
-- `requirements/practice.txt`: practice realtime HTTP/WebSocket runtime
-  dependencies.
-- `requirements/beat.txt`: Celery beat scheduler dependencies.
-- `requirements/worker.txt`: worker-only processing, rendering, playback, OCR,
-  and OMR dependencies.
-- `requirements/quality.txt`: backend quality-image dependencies. It includes
-  all runtime roles plus test and static-analysis tools.
+- `requirements/core.txt`: shared settings and logging dependencies.
+- `requirements/db.txt`, `storage.txt`, `cache.txt`, `celery.txt`: platform
+  capability dependencies.
+- `requirements/http.txt`, `auth.txt`, `image.txt`: API-facing runtime
+  capabilities.
+- `requirements/fingering.txt`: API fingering generation, kept in API for now.
+- `requirements/render.txt`, `ocr.txt`, `worker-app.txt`, `worker.txt`:
+  worker processing capabilities.
+- `requirements/practice-app.txt`, `practice-runtime.txt`, `practice.txt`:
+  realtime practice capabilities.
+- `requirements/quality-tools.txt`, `quality-core.txt`,
+  `quality-practice.txt`: Docker quality-check dependencies.
 
 Runtime images do not install development or quality tools by default. The
 supported quality path is the dedicated Docker quality image, not installing
 tooling into API, practice, beat, or worker runtime images.
-The quality image uses the same ML base as the worker so type checks and tests
-see the same heavyweight runtime libraries without copying those tools into
-deployed containers.
+The generic quality image intentionally does not use the ML base and does not
+install practice alignment, PaddleOCR, Legato, torch, or transformer
+dependencies. Practice tests run in a separate practice quality image because
+`pymatchmaker` is a Cython extension with a heavier build chain.
 
 Build normal runtime images with:
 
@@ -127,6 +131,11 @@ Targeted checks are available when a full run is not needed:
 ..\scripts\backend_quality_docker.ps1 -Check mypy-model-layer
 ..\scripts\backend_quality_docker.ps1 -Check pytest
 ```
+
+`pytest` is split into `pytest-core` and `pytest-practice`. Core tests include
+worker contracts such as Celery configuration, import execution, rendering,
+playback, and runtime-check behavior. Practice realtime tests run in the
+practice quality image.
 
 The repository-wide quality wrapper delegates backend checks to the same
 quality image:

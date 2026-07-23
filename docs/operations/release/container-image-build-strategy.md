@@ -290,10 +290,18 @@ depends on the heavier ML base image and should be promoted deliberately.
 
 ### Backend Quality Image
 
-`docker/backend/Dockerfile.quality` builds a non-deployed quality-check image.
-It installs `backend/requirements/quality.txt`, which intentionally includes all
-backend runtime roles and quality tools. Use it for local and CI checks instead
-of installing ruff, mypy, pytest, or pre-commit in runtime images.
+Backend quality images are non-deployed check images:
+
+- `docker/backend/Dockerfile.quality` installs
+  `backend/requirements/quality-core.txt` for compile, ruff, mypy, model-layer
+  mypy, and core pytest.
+- `docker/backend/Dockerfile.practice-quality` installs
+  `backend/requirements/quality-practice.txt` plus the prebuilt
+  `pymatchmaker` wheel for practice realtime tests.
+
+`backend/requirements/quality.txt` is only an aggregate reference. Runtime
+images must not install ruff, mypy, pytest, pre-commit, or practice-only Cython
+dependencies just to satisfy quality checks.
 
 ## Frontend Image Build
 

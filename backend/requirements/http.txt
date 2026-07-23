@@ -1,0 +1,11 @@
+-r core.txt
+
+# HTTP/API runtime and observability.
+fastapi==0.136.1
+uvicorn[standard]==0.46.0
+python-multipart==0.0.28
+prometheus-client==0.23.1
+opentelemetry-api==1.39.0
+opentelemetry-sdk==1.39.0
+opentelemetry-exporter-otlp-proto-grpc==1.39.0
+opentelemetry-instrumentation-fastapi==0.60b0

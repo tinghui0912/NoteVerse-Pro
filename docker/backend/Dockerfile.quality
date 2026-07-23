@@ -27,36 +27,6 @@ RUN apt-get update -o Acquire::Retries=3 \
 
 COPY backend/requirements/ /tmp/requirements/
 
-RUN python - <<'PY' > /tmp/requirements/quality-core.txt
-from pathlib import Path
-
-seen: set[Path] = set()
-skip_files = {"practice.txt"}
-skip_prefixes = ("paddleocr==",)
-
-
-def emit_requirements(path: Path) -> None:
-    path = path.resolve()
-    if path in seen:
-        return
-    seen.add(path)
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("-r "):
-            included = line.split(maxsplit=1)[1]
-            if included not in skip_files:
-                emit_requirements(path.parent / included)
-            continue
-        if line.startswith(skip_prefixes):
-            continue
-        print(raw_line)
-
-
-emit_requirements(Path("/tmp/requirements/quality.txt"))
-PY
-
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -r /tmp/requirements/quality-core.txt
 

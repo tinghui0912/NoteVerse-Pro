@@ -152,6 +152,8 @@ switch ($Check) {
     "all" {
         Invoke-BackendQuality "ruff"
         Invoke-BackendQuality "mypy"
+        Invoke-BackendQuality "mypy-model-layer"
+        Invoke-BackendQuality "pytest"
         Invoke-FrontendNpm "lint"
         Invoke-FrontendNpm "typecheck"
         Invoke-FrontendNpm "check:i18n-errors"

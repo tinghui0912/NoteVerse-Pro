@@ -1,0 +1,10 @@
+# Core backend quality image. This intentionally excludes practice alignment,
+# PaddleOCR, Legato, and other ML-only dependencies.
+-r api.txt
+-r beat.txt
+-r db.txt
+-r storage.txt
+-r celery.txt
+-r image.txt
+-r render.txt
+-r quality-tools.txt

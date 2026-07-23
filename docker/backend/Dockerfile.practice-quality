@@ -19,7 +19,7 @@ COPY backend/requirements/ /tmp/requirements/
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install Cython==3.2.8 numpy==1.26.4 \
-    && MATCHMAKER_REQ="$(grep -E '^pymatchmaker @' /tmp/requirements/practice.txt)" \
+    && MATCHMAKER_REQ="$(grep -E '^pymatchmaker @' /tmp/requirements/practice-runtime.txt)" \
     && CFLAGS="-O0 -g0" MAKEFLAGS="-j1" python -m pip wheel --no-build-isolation --no-deps -w /wheels "${MATCHMAKER_REQ}"
 
 
@@ -51,11 +51,9 @@ COPY backend/requirements/ /tmp/requirements/
 COPY --from=matchmaker-wheel /wheels /tmp/wheels
 
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && grep -vE '^pymatchmaker @' /tmp/requirements/practice.txt > /tmp/requirements/practice-core.txt \
-    && python -m pip install -r /tmp/requirements/practice-core.txt \
-    && python -m pip install "pwdlib[argon2]==0.3.0" \
+    && grep -vE '^pymatchmaker @' /tmp/requirements/practice-runtime.txt > /tmp/requirements/practice-runtime-core.txt \
+    && python -m pip install -r /tmp/requirements/quality-practice.txt -r /tmp/requirements/practice-runtime-core.txt \
     && python -m pip install /tmp/wheels/pymatchmaker-*.whl \
-    && python -m pip install httpx==0.28.1 pytest==9.0.3 pytest-asyncio==1.3.0 \
     && rm -rf /tmp/wheels
 
 COPY backend/ /app/

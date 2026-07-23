@@ -1,4 +1,4 @@
--r base.txt
+-r celery.txt
 
 # Celery beat only publishes scheduled task names. It must not import worker
-# task implementations or install API/ML runtime dependencies.
+# task implementations or install API/practice/ML runtime dependencies.

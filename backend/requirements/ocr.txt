@@ -1,0 +1,3 @@
+# OCR engine. Docker installs PaddlePaddle before PaddleOCR so CPU/GPU wheel
+# selection remains controlled by build args.
+paddleocr==3.7.0
