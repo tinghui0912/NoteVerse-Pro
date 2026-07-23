@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -42,6 +42,10 @@ from app.modules.async_operations.diagnostics import (
     classify_async_error,
 )
 from app.utils.timezone import utc_now_naive
+
+
+def _api_utc_datetime(value: datetime) -> str:
+    return f"{value.isoformat()}Z"
 
 
 class AsyncSessionAdapter:
@@ -494,7 +498,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
             "outcome": "succeeded",
             "error_code": None,
             "error_detail": None,
-            "created_at": audit_event.created_at.isoformat(),
+            "created_at": _api_utc_datetime(audit_event.created_at),
         }
     ]
 

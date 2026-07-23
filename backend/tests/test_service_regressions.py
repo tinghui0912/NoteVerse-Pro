@@ -693,7 +693,7 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
         "state": PracticeSessionState.CREATED.value,
         "ws_url": "/api/v1/practice/sessions/session-1/stream",
     }
-    runtime_registry.register.assert_called_once()
+    runtime_registry.register.assert_not_called()
     created_session = repository.create_session.await_args.args[1]
     assert created_session.revision_id == 201
     assert created_session.share_grant_id == 301

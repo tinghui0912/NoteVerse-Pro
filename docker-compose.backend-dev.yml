@@ -92,5 +92,16 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile.quality
+    entrypoint: []
+    command: bash
+    restart: "no"
+
+  practice-quality:
+    <<: *backend-common
+    image: noteverse-backend-practice-quality:dev
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.practice-quality
+    entrypoint: []
     command: bash
     restart: "no"

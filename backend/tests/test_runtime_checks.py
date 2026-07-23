@@ -8,6 +8,16 @@ def test_api_runtime_checks_cover_api_owned_dependencies() -> None:
         "storage_quota_policy",
         "redis",
         "storage",
+    )
+
+
+def test_practice_runtime_checks_cover_practice_owned_dependencies() -> None:
+    assert ROLE_CHECK_NAMES[RuntimeRole.PRACTICE] == (
+        "settings",
+        "database",
+        "storage_quota_policy",
+        "redis",
+        "storage",
         "soundfont",
         "practice_alignment",
     )
@@ -40,7 +50,7 @@ def test_all_runtime_checks_are_a_deduplicated_union() -> None:
     all_checks = ROLE_CHECK_NAMES[RuntimeRole.ALL]
 
     assert len(all_checks) == len(set(all_checks))
-    for role in (RuntimeRole.API, RuntimeRole.WORKER, RuntimeRole.BEAT):
+    for role in (RuntimeRole.API, RuntimeRole.WORKER, RuntimeRole.BEAT, RuntimeRole.PRACTICE):
         assert set(ROLE_CHECK_NAMES[role]).issubset(all_checks)
 
 

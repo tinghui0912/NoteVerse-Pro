@@ -227,7 +227,7 @@ async def stream_practice_session(
     except WebSocketDisconnect:
         pass
     finally:
-        runtime = practice_service.runtime_registry.get(session_id)
-        if runtime is not None and runtime.websocket is websocket:
-            runtime.websocket = None
+        cleanup_runtime = practice_service.runtime_registry.get(session_id)
+        if cleanup_runtime is not None and cleanup_runtime.websocket is websocket:
+            cleanup_runtime.websocket = None
         realtime_connection_closed(channel="practice_websocket")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from types import SimpleNamespace
 
 import pytest
@@ -7,8 +8,8 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import get_current_user
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
-from app.main import app
 from app.modules.practice.dependencies import get_practice_service
+from app.practice_main import app
 from app.shared.constants import ErrorCode
 
 
@@ -83,6 +84,12 @@ def clear_dependency_overrides():
     app.dependency_overrides.clear()
     yield
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_practice_feature_routes_require_authentication(client: TestClient) -> None:

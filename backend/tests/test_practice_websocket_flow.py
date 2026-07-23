@@ -1,19 +1,27 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.modules.practice.dependencies import get_practice_service
+from app.practice_main import app
 from app.processing.realtime.session_runtime import practice_runtime_registry
 
 
 class FakePracticeService:
+    runtime_registry = practice_runtime_registry
+
     async def require_session_access(self, db, session_uuid: str, user_id: int):
         _ = (db, user_id)
         return SimpleNamespace(session_uuid=session_uuid)
+
+    async def prepare_stream_runtime(self, db, session_uuid: str, user_id: int):
+        _ = (db, user_id)
+        return self.runtime_registry.get(session_uuid)
 
     async def start_session_stream(self, db, session_uuid: str, user_id: int):
         _ = (db, user_id)
@@ -73,6 +81,12 @@ class StreamingEngine:
 
     def close(self) -> None:
         pass
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
