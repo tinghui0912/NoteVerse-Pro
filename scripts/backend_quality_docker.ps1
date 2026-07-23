@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $composeFile = Join-Path $repoRoot "docker-compose.backend-dev.yml"
+$practiceDepsBuilt = $false
 
 function Invoke-Quality {
     param([string] $Name, [string] $Command)
@@ -20,6 +21,15 @@ function Invoke-Quality {
 
 function Invoke-PracticeQuality {
     param([string] $Name, [string] $Command)
+
+    if (-not $script:practiceDepsBuilt) {
+        Write-Host "==> backend:practice-deps"
+        docker compose -f $composeFile build practice-deps
+        if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+        }
+        $script:practiceDepsBuilt = $true
+    }
 
     Write-Host "==> backend:$Name"
     docker compose -f $composeFile run --rm --build practice-quality bash -lc $Command

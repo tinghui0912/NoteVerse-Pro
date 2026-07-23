@@ -5,12 +5,14 @@ on:
     paths:
       - "backend/**"
       - "docker/backend/Dockerfile.quality"
+      - "docker/backend/Dockerfile.practice-deps"
       - "docker/backend/Dockerfile.practice-quality"
       - ".github/workflows/backend-quality.yml"
   pull_request:
     paths:
       - "backend/**"
       - "docker/backend/Dockerfile.quality"
+      - "docker/backend/Dockerfile.practice-deps"
       - "docker/backend/Dockerfile.practice-quality"
       - ".github/workflows/backend-quality.yml"
 
@@ -49,8 +51,9 @@ jobs:
         working-directory: backend
     env:
       QUALITY_IMAGE: noteverse-backend-quality:ci
+      PRACTICE_DEPS_IMAGE: noteverse-backend-practice-deps:ci
       PRACTICE_QUALITY_IMAGE: noteverse-backend-practice-quality:ci
-      QUALITY_ENV_FILE: ${{ runner.temp }}/backend-quality.env
+      QUALITY_ENV_FILE: /tmp/backend-quality.env
       SECRET_KEY: ci-test-secret-key-that-is-long-enough
       AUTH_COOKIE_NAME: noteverse_session
       REFRESH_COOKIE_NAME: noteverse_refresh
@@ -87,8 +90,16 @@ jobs:
       - name: Build backend quality image
         run: docker build -f ../docker/backend/Dockerfile.quality -t "$QUALITY_IMAGE" ..
 
+      - name: Build backend practice dependency image
+        run: docker build -f ../docker/backend/Dockerfile.practice-deps -t "$PRACTICE_DEPS_IMAGE" ..
+
       - name: Build backend practice quality image
-        run: docker build -f ../docker/backend/Dockerfile.practice-quality -t "$PRACTICE_QUALITY_IMAGE" ..
+        run: >-
+          docker build
+          -f ../docker/backend/Dockerfile.practice-quality
+          --build-arg PRACTICE_DEPS_IMAGE="$PRACTICE_DEPS_IMAGE"
+          -t "$PRACTICE_QUALITY_IMAGE"
+          ..
 
       - name: Write backend quality environment
         run: |

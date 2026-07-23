@@ -37,6 +37,7 @@ and update process.
 - `docker/backend/Dockerfile.ml-base`: Python 3.12 + CUDA 12.4 + PyTorch 2.6 base image.
 - `docker/backend/Dockerfile.api`: API and migration runtime image.
 - `docker/backend/Dockerfile.beat`: Celery beat scheduler runtime image.
+- `docker/backend/Dockerfile.practice-deps`: shared practice dependency base image.
 - `docker/backend/Dockerfile.worker`: Celery worker and model-cache-agent runtime image.
 - `docker/backend/Dockerfile.quality`: local core backend quality-check image.
 - `docker/backend/Dockerfile.practice-quality`: local practice quality-check
@@ -235,6 +236,17 @@ is the source of truth for Python, PyTorch, and CUDA. This moves the largest
 PyTorch/CUDA filesystem layer into a reusable base image instead of asking
 Docker Desktop to recreate it for every worker build.
 
+CI worker builds pull the selected ML base image before building:
+
+```text
+ghcr.io/<github-owner>/noteverse/ml-base:<ml-base-tag>
+```
+
+If this pull fails, run the `ML Base Image` workflow with the intended
+CUDA/Python/PyTorch inputs and rerun the worker workflow. Do not point
+`Dockerfile.worker` at an ad hoc local image just to make CI pass; the published
+ML base is the contract between worker builds and deployment.
+
 The API image installs API dependencies from `backend/requirements/api.txt`. It
 does not contain LEGATO source, PyTorch, PaddleOCR, practice realtime alignment,
 or model-cache tooling. Fingering generation remains an API capability for now.
@@ -258,10 +270,30 @@ The worker image installs worker dependencies from `backend/requirements/worker.
 - Transformers 4.54.0.
 - Accelerate and LEGATO inference helpers.
 The worker image does not install backend test or quality tools by default.
-Core quality checks use `docker/backend/Dockerfile.quality`. Practice realtime
-tests use `docker/backend/Dockerfile.practice-quality` because
-`pymatchmaker` is a Cython extension and should not be part of the generic
-quality image.
+Core quality checks use `docker/backend/Dockerfile.quality`. Practice runtime
+and practice quality checks both inherit from
+`docker/backend/Dockerfile.practice-deps` because `pymatchmaker` is a Cython
+extension and should not be duplicated in every practice image.
+The practice dependency base uses
+`backend/requirements/practice-runtime-constraints.txt` to keep the heavy
+matchmaker/audio-science dependency graph reproducible.
+
+CI publishes the practice dependency base as:
+
+```text
+ghcr.io/<github-owner>/noteverse/backend-practice-deps:deps-<dependency-hash>
+```
+
+The hash is computed from:
+
+- `docker/backend/Dockerfile.practice-deps`;
+- `backend/requirements/practice-app.txt`;
+- `backend/requirements/practice-runtime.txt`;
+- `backend/requirements/practice-runtime-constraints.txt`.
+
+Normal application image builds pull this image instead of rebuilding native
+practice dependencies. If the image is missing, publish the matching dependency
+base first instead of silently rebuilding it in the application release path.
 
 Installation order is intentional:
 
@@ -286,6 +318,7 @@ Use the quality image for backend checks:
 This command runs compile, ruff, mypy, model-layer mypy, core pytest, and
 practice pytest. Worker-related tests are included in core pytest unless they
 require the full production ML runtime.
+The script builds `practice-deps` before running practice tests.
 
 The worker Dockerfile keeps only runtime system packages:
 

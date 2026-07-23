@@ -27,6 +27,7 @@ Current Dockerfiles:
 | --- | --- | --- |
 | `docker/backend/Dockerfile.ml-base` | CUDA/Python/PyTorch ML base image | yes, as a base image |
 | `docker/backend/Dockerfile.api` | FastAPI API and migration runtime image | yes |
+| `docker/backend/Dockerfile.practice-deps` | Shared realtime practice dependency base image | yes, as a base image |
 | `docker/backend/Dockerfile.practice` | Realtime practice API/WebSocket runtime image | yes |
 | `docker/backend/Dockerfile.beat` | Celery beat scheduler runtime image | yes |
 | `docker/backend/Dockerfile.worker` | Celery worker and model-cache-agent ML runtime image | yes, after ML base is published |
@@ -48,6 +49,7 @@ Recommended registry paths:
 
 ```text
 <registry>/noteverse/backend-api
+<registry>/noteverse/backend-practice-deps
 <registry>/noteverse/backend-practice
 <registry>/noteverse/backend-beat
 <registry>/noteverse/backend-worker
@@ -59,6 +61,7 @@ The current CI workflow uses GitHub Container Registry:
 
 ```text
 ghcr.io/<github-owner>/noteverse/backend-api
+ghcr.io/<github-owner>/noteverse/backend-practice-deps
 ghcr.io/<github-owner>/noteverse/backend-practice
 ghcr.io/<github-owner>/noteverse/backend-beat
 ghcr.io/<github-owner>/noteverse/backend-worker
@@ -82,6 +85,7 @@ Every deployable image must have an immutable source tag:
 
 ```text
 <registry>/noteverse/backend-api:<git-sha>
+<registry>/noteverse/backend-practice-deps:<git-sha>
 <registry>/noteverse/backend-practice:<git-sha>
 <registry>/noteverse/backend-beat:<git-sha>
 <registry>/noteverse/backend-worker:<git-sha>
@@ -92,6 +96,7 @@ Recommended additional metadata tags:
 
 ```text
 <registry>/noteverse/backend-api:build-<run-id>
+<registry>/noteverse/backend-practice-deps:build-<run-id>
 <registry>/noteverse/backend-practice:build-<run-id>
 <registry>/noteverse/backend-beat:build-<run-id>
 <registry>/noteverse/backend-worker:build-<run-id>
@@ -102,11 +107,13 @@ Optional mutable aliases:
 
 ```text
 <registry>/noteverse/backend-api:staging
+<registry>/noteverse/backend-practice-deps:staging
 <registry>/noteverse/backend-practice:staging
 <registry>/noteverse/backend-beat:staging
 <registry>/noteverse/backend-worker:staging
 <registry>/noteverse/frontend:staging
 <registry>/noteverse/backend-api:production
+<registry>/noteverse/backend-practice-deps:production
 <registry>/noteverse/backend-practice:production
 <registry>/noteverse/backend-beat:production
 <registry>/noteverse/backend-worker:production
@@ -127,6 +134,7 @@ The safest production reference is an image digest:
 
 ```text
 <registry>/noteverse/backend-api@sha256:<digest>
+<registry>/noteverse/backend-practice-deps@sha256:<digest>
 <registry>/noteverse/backend-practice@sha256:<digest>
 <registry>/noteverse/backend-beat@sha256:<digest>
 <registry>/noteverse/backend-worker@sha256:<digest>
@@ -140,6 +148,8 @@ Production release records should include:
 - Git commit SHA;
 - backend API image tag;
 - backend API image digest;
+- backend practice dependency image tag;
+- backend practice dependency image digest;
 - backend beat image tag;
 - backend beat image digest;
 - backend practice image tag;
@@ -187,6 +197,17 @@ CI entry point:
 - use the published `ghcr.io/<github-owner>/noteverse/ml-base:<tag>` as the
   `PYTHON_IMAGE` input for the `Backend Worker Image` workflow.
 
+The workflow also publishes a fingerprint tag:
+
+```text
+ghcr.io/<github-owner>/noteverse/ml-base:ml-<hash>
+```
+
+The hash is derived from `Dockerfile.ml-base` plus the selected CUDA image,
+Python version, and PyTorch CUDA wheel index. Human-readable tags such as
+`py312-torch260-cu124` are convenient aliases; release records should still
+capture the resolved digest.
+
 ### Backend API Image
 
 `docker/backend/Dockerfile.api` builds the deployed backend API image. This
@@ -217,17 +238,48 @@ or worker model-cache tooling.
 ### Backend Practice Image
 
 `docker/backend/Dockerfile.practice` builds the deployed realtime practice
-runtime image. It installs `backend/requirements/practice.txt` and owns the
-practice HTTP/WebSocket process.
+runtime image. It inherits from `docker/backend/Dockerfile.practice-deps`, which
+builds and installs the native practice alignment dependency layer. The runtime
+image owns the practice HTTP/WebSocket process and application source.
+
+The dependency base is a slower-moving image. Its canonical tag is derived from
+the files that define the practice dependency layer:
+
+```text
+deps-<sha256(
+  docker/backend/Dockerfile.practice-deps,
+  backend/requirements/practice-app.txt,
+  backend/requirements/practice-runtime.txt,
+  backend/requirements/practice-runtime-constraints.txt
+)>
+```
+
+Build the dependency base only when one of those files changes:
+
+```bash
+docker build \
+  -f docker/backend/Dockerfile.practice-deps \
+  -t <registry>/noteverse/backend-practice-deps:deps-<dependency-hash> \
+  .
+```
 
 Recommended practice image build:
 
 ```bash
 docker build \
   -f docker/backend/Dockerfile.practice \
+  --build-arg PRACTICE_DEPS_IMAGE=<registry>/noteverse/backend-practice-deps:deps-<dependency-hash> \
   -t <registry>/noteverse/backend-practice:<git-sha> \
   .
 ```
+
+The `Container Images` workflow computes this dependency hash. If the practice
+dependency files changed, it builds the dependency base first. For normal
+application-code changes it pulls the matching `backend-practice-deps` image
+from GHCR and fails clearly if that dependency base has not been published yet.
+This keeps normal application image builds fast while making native dependency
+updates deliberate. Dependency base images may be pushed from branch builds;
+deployable application images are pushed only from `main` or manual dispatch.
 
 ### Backend Beat Image
 
@@ -284,9 +336,16 @@ docker build \
   .
 ```
 
-The standard `Container Images` workflow builds API and frontend images. The
-`Backend Worker Image` workflow builds the ML worker image separately because it
-depends on the heavier ML base image and should be promoted deliberately.
+The standard `Container Images` workflow builds API, practice, beat, and
+frontend images. The `Backend Worker Image` workflow builds the ML worker image
+separately because it depends on the heavier ML base image and should be
+promoted deliberately. Pull requests and branch pushes can build the worker
+image for validation. Worker images are pushed only from `main` or manual
+dispatch.
+
+The worker workflow pulls the selected ML base image before building and fails
+clearly if it is missing. Do not let the worker build silently fall back to an
+unpublished local base.
 
 ### Backend Quality Image
 
@@ -296,8 +355,8 @@ Backend quality images are non-deployed check images:
   `backend/requirements/quality-core.txt` for compile, ruff, mypy, model-layer
   mypy, and core pytest.
 - `docker/backend/Dockerfile.practice-quality` installs
-  `backend/requirements/quality-practice.txt` plus the prebuilt
-  `pymatchmaker` wheel for practice realtime tests.
+  `backend/requirements/quality-tools.txt` on top of
+  `docker/backend/Dockerfile.practice-deps` for practice realtime tests.
 
 `backend/requirements/quality.txt` is only an aggregate reference. Runtime
 images must not install ruff, mypy, pytest, pre-commit, or practice-only Cython
@@ -410,14 +469,15 @@ CI/CD should:
 
 1. run quality gates;
 2. build or select the pinned ML base image;
-3. build backend worker image from that ML base;
-4. build backend API, backend beat, and frontend images;
-5. push commit SHA tags;
-6. capture image digests;
-7. render private staging overlay with the captured digests;
-8. run strict manifest validation;
-9. deploy staging and run smoke tests;
-10. promote the same digests to production after approval.
+3. build or select the pinned practice dependency base image;
+4. build backend worker image from that ML base;
+5. build backend API, backend practice, backend beat, and frontend images;
+6. push commit SHA tags;
+7. capture image digests;
+8. render private staging overlay with the captured digests;
+9. run strict manifest validation;
+10. deploy staging and run smoke tests;
+11. promote the same digests to production after approval.
 
 The public templates under `deploy/application/overlays/*` intentionally keep
 placeholder image tags. Deployable overlays must replace them.

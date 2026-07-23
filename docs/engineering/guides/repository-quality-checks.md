@@ -100,6 +100,7 @@ Backend checks intentionally run inside Docker quality images:
 | Image | Dockerfile | Purpose |
 | --- | --- | --- |
 | `quality` | `docker/backend/Dockerfile.quality` | compile, ruff, mypy, model-layer mypy, and non-practice pytest |
+| `practice-deps` | `docker/backend/Dockerfile.practice-deps` | shared practice dependency base with the prebuilt `pymatchmaker` wheel |
 | `practice-quality` | `docker/backend/Dockerfile.practice-quality` | practice realtime tests that require `pymatchmaker` |
 
 `pymatchmaker` is an upstream Cython extension, so it is intentionally isolated
@@ -170,11 +171,20 @@ service images:
 | `fingering.txt` | API fingering generation, kept in API for now |
 | `render.txt` | Verovio score rendering |
 | `ocr.txt` | PaddleOCR package only |
-| `practice-runtime.txt` | realtime alignment dependencies |
+| `practice-runtime.txt` | realtime alignment dependencies installed by `Dockerfile.practice-deps` |
+| `practice-runtime-constraints.txt` | locked transitive dependency set for practice alignment |
 | `worker-app.txt` | worker dependencies that must install before PaddleOCR |
 | `practice-app.txt` | practice service dependencies excluding Cython extension source |
 | `quality-core.txt` | generic backend quality dependencies |
-| `quality-practice.txt` | practice quality dependencies |
+| `quality-practice.txt` | aggregate practice quality reference |
 
 `base.txt` remains only as a compatibility aggregate. New Dockerfiles and
 service requirements should prefer explicit capability files.
+
+The long-lived ownership rules live in
+[`docs/architecture/runtime/runtime-dependency-ownership.md`](../../architecture/runtime/runtime-dependency-ownership.md).
+
+When `practice-runtime.txt` changes, rebuild `practice-deps` and rerun practice
+tests. If pip resolves new versions for `librosa`, `partitura`, `parangonar`,
+`numba`, `scipy`, or related audio-science packages, update
+`practice-runtime-constraints.txt` in the same change.

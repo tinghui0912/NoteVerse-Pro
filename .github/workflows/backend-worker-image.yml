@@ -3,10 +3,10 @@ name: Backend Worker Image
 on:
   workflow_dispatch:
     inputs:
-      ml_base_image:
-        description: "Pinned ML base image used for worker builds"
+      ml_base_tag:
+        description: "Pinned ML base image tag used for worker builds"
         required: true
-        default: "ghcr.io/tinghui0912/noteverse/ml-base:py312-torch260-cu124"
+        default: "py312-torch260-cu124"
       legato_repo_url:
         description: "LEGATO source repository URL"
         required: true
@@ -15,6 +15,16 @@ on:
         description: "Pinned LEGATO commit"
         required: true
         default: "179c228d3d5f67113cf739b44891b3abe046f1dc"
+  push:
+    paths:
+      - "backend/**"
+      - "docker/backend/Dockerfile.worker"
+      - ".github/workflows/backend-worker-image.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "docker/backend/Dockerfile.worker"
+      - ".github/workflows/backend-worker-image.yml"
 
 concurrency:
   group: backend-worker-image-${{ github.ref }}
@@ -26,6 +36,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      PUSH_IMAGES: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+      ML_BASE_TAG: ${{ inputs.ml_base_tag || 'py312-torch260-cu124' }}
+      LEGATO_REPO_URL: ${{ inputs.legato_repo_url || 'https://github.com/guang-yng/legato.git' }}
+      LEGATO_REPO_COMMIT: ${{ inputs.legato_repo_commit || '179c228d3d5f67113cf739b44891b3abe046f1dc' }}
 
     steps:
       - name: Checkout repository
@@ -33,6 +48,9 @@ jobs:
 
       - name: Resolve image namespace
         run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse" >> "$GITHUB_ENV"
+
+      - name: Resolve ML base image
+        run: echo "ML_BASE_IMAGE=${IMAGE_NAMESPACE}/ml-base:${ML_BASE_TAG}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -44,26 +62,35 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Pull ML base image
+        run: |
+          docker pull "${ML_BASE_IMAGE}" || {
+            echo "::error::Missing ${ML_BASE_IMAGE}. Run the ML Base Image workflow first, then rerun this worker image workflow."
+            exit 1
+          }
+
       - name: Build and push backend worker runtime image
         id: backend-worker-build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/backend/Dockerfile.worker
-          push: true
+          push: ${{ env.PUSH_IMAGES == 'true' }}
+          load: ${{ env.PUSH_IMAGES != 'true' }}
           provenance: false
           sbom: false
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/backend-worker:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/backend-worker:build-${{ github.run_id }}
           build-args: |
-            PYTHON_IMAGE=${{ inputs.ml_base_image }}
+            PYTHON_IMAGE=${{ env.ML_BASE_IMAGE }}
             INSTALL_PADDLE_GPU=false
             INSTALL_LEGATO_EXTRA_DEPS=false
-            LEGATO_REPO_URL=${{ inputs.legato_repo_url }}
-            LEGATO_REPO_COMMIT=${{ inputs.legato_repo_commit }}
+            LEGATO_REPO_URL=${{ env.LEGATO_REPO_URL }}
+            LEGATO_REPO_COMMIT=${{ env.LEGATO_REPO_COMMIT }}
 
       - name: Generate backend worker SBOM
+        if: env.PUSH_IMAGES == 'true'
         uses: anchore/sbom-action@v0.24.0
         with:
           image: ${{ env.IMAGE_NAMESPACE }}/backend-worker:${{ github.sha }}
@@ -71,6 +98,7 @@ jobs:
           artifact-name: backend-worker-image-sbom.spdx.json
 
       - name: Scan backend worker image
+        if: env.PUSH_IMAGES == 'true'
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-worker:${{ github.sha }}
@@ -85,10 +113,11 @@ jobs:
           {
             echo "## Backend worker image build"
             echo ""
+            echo "- Push images: \`${PUSH_IMAGES}\`"
             echo "- Worker image: \`${IMAGE_NAMESPACE}/backend-worker:${GITHUB_SHA}\`"
             echo "- Worker digest: \`${{ steps.backend-worker-build.outputs.digest }}\`"
-            echo "- ML base: \`${{ inputs.ml_base_image }}\`"
-            echo "- LEGATO source: \`${{ inputs.legato_repo_url }}@${{ inputs.legato_repo_commit }}\`"
-            echo "- SBOM artifact: backend-worker-image-sbom.spdx.json"
-            echo "- Vulnerability gate: CRITICAL, ignore unfixed"
+            echo "- ML base: \`${ML_BASE_IMAGE}\`"
+            echo "- LEGATO source: \`${LEGATO_REPO_URL}@${LEGATO_REPO_COMMIT}\`"
+            echo "- SBOM artifact: backend-worker-image-sbom.spdx.json when images are pushed"
+            echo "- Vulnerability gate: CRITICAL, ignore unfixed when images are pushed"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -100,6 +100,9 @@ The generic quality image intentionally does not use the ML base and does not
 install practice alignment, PaddleOCR, Legato, torch, or transformer
 dependencies. Practice tests run in a separate practice quality image because
 `pymatchmaker` is a Cython extension with a heavier build chain.
+The practice runtime and practice quality images share
+`docker/backend/Dockerfile.practice-deps`, so native matchmaker dependencies are
+built once per dependency base instead of duplicated in every practice image.
 
 Build normal runtime images with:
 
