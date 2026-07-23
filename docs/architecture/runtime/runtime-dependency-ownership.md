@@ -14,6 +14,7 @@ NoteVerse uses one backend codebase with multiple runtime deployments:
 | Worker | `backend-worker` | Deployment | Import, OMR, render, playback, mail, cleanup, async operation processing |
 | Beat | `backend-beat` | Deployment | Singleton Celery schedule publisher |
 | Practice Deps | `backend-practice-deps` | image base only | Shared practice dependency base with native matchmaker wheel |
+| Worker Deps | `backend-worker-deps` | image base only | Shared worker dependency base with OCR/OMR/runtime ML dependencies |
 | Quality | `backend-quality` | CI/local only | Compile, ruff, mypy, model-layer mypy, and core pytest |
 | Practice Quality | `backend-practice-quality` | CI/local only | Practice realtime tests that require the matchmaker runtime |
 
@@ -75,7 +76,7 @@ Runtime composition files express deployable or checkable execution units.
 | `api.txt` | `Dockerfile.api` | HTTP, DB, migrations, storage, Celery, auth, image, fingering |
 | `practice-app.txt` | `Dockerfile.practice-deps` | HTTP, DB, storage, cache, auth |
 | `practice.txt` | aggregate reference | practice app plus practice runtime |
-| `worker-app.txt` | `Dockerfile.worker` | DB, storage, Celery, image, render |
+| `worker-app.txt` | `Dockerfile.worker-deps` | DB, storage, Celery, image, render |
 | `worker.txt` | aggregate reference | worker app plus OCR package |
 | `beat.txt` | `Dockerfile.beat` | Celery only |
 | `quality-core.txt` | `Dockerfile.quality` | API, beat, shared worker-contract dependencies, render, quality tools |

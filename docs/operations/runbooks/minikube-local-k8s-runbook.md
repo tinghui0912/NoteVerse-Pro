@@ -112,6 +112,7 @@ Build production-style runtime images locally:
 $ghcrOwner = "<github-owner>"
 $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
 $mlBaseImage = "ghcr.io/$ghcrOwner/noteverse/ml-base:py312-torch260-cu124"
+$workerDepsImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker-deps:deps-$imageTag"
 
 docker build `
   -f docker/backend/Dockerfile.api `
@@ -124,12 +125,18 @@ docker build `
   .
 
 docker build `
-  -f docker/backend/Dockerfile.worker `
+  -f docker/backend/Dockerfile.worker-deps `
   --build-arg PYTHON_IMAGE=$mlBaseImage `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
   --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git `
   --build-arg LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc `
+  -t noteverse-backend-worker-deps:$imageTag `
+  .
+
+docker build `
+  -f docker/backend/Dockerfile.worker `
+  --build-arg WORKER_DEPS_IMAGE=noteverse-backend-worker-deps:$imageTag `
   -t noteverse-backend-worker:$imageTag `
   .
 
@@ -171,15 +178,18 @@ Registry (GHCR), the same registry family used by CI:
 ```powershell
 $backendApiImage = "ghcr.io/$ghcrOwner/noteverse/backend-api:$imageTag"
 $backendBeatImage = "ghcr.io/$ghcrOwner/noteverse/backend-beat:$imageTag"
+$backendWorkerDepsImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker-deps:deps-$imageTag"
 $backendWorkerImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker:$imageTag"
 $frontendImage = "ghcr.io/$ghcrOwner/noteverse/frontend:$imageTag"
 
 docker tag noteverse-backend-api:$imageTag $backendApiImage
 docker tag noteverse-backend-beat:$imageTag $backendBeatImage
+docker tag noteverse-backend-worker-deps:$imageTag $backendWorkerDepsImage
 docker tag noteverse-backend-worker:$imageTag $backendWorkerImage
 docker tag noteverse-frontend:$imageTag $frontendImage
 docker push $backendApiImage
 docker push $backendBeatImage
+docker push $backendWorkerDepsImage
 docker push $backendWorkerImage
 docker push $frontendImage
 ```
@@ -190,6 +200,7 @@ images. Push explicit role images under the same namespace:
 ```powershell
 docker push ghcr.io/$ghcrOwner/noteverse/backend-api:<tag>
 docker push ghcr.io/$ghcrOwner/noteverse/backend-beat:<tag>
+docker push ghcr.io/$ghcrOwner/noteverse/backend-worker-deps:<tag>
 docker push ghcr.io/$ghcrOwner/noteverse/backend-worker:<tag>
 docker push ghcr.io/$ghcrOwner/noteverse/frontend:<tag>
 ```

@@ -25,12 +25,13 @@ Current Dockerfiles:
 
 | File | Purpose | Production-ready |
 | --- | --- | --- |
-| `docker/backend/Dockerfile.ml-base` | CUDA/Python/PyTorch ML base image | yes, as a base image |
+| `docker/backend/Dockerfile.ml-base` | Python/PyTorch CUDA wheel ML base image | yes, as a base image |
 | `docker/backend/Dockerfile.api` | FastAPI API and migration runtime image | yes |
 | `docker/backend/Dockerfile.practice-deps` | Shared realtime practice dependency base image | yes, as a base image |
 | `docker/backend/Dockerfile.practice` | Realtime practice API/WebSocket runtime image | yes |
 | `docker/backend/Dockerfile.beat` | Celery beat scheduler runtime image | yes |
-| `docker/backend/Dockerfile.worker` | Celery worker and model-cache-agent ML runtime image | yes, after ML base is published |
+| `docker/backend/Dockerfile.worker-deps` | Shared worker dependency base image | yes, as a base image |
+| `docker/backend/Dockerfile.worker` | Celery worker and model-cache-agent runtime image | yes, after worker deps are published |
 | `docker/backend/Dockerfile.quality` | Backend quality-check image for local/CI checks | no, not deployed |
 | `docker/frontend/Dockerfile.dev` | Next.js development runtime | no |
 | `docker/frontend/Dockerfile.runtime` | Next.js production runtime | initial production path |
@@ -52,6 +53,7 @@ Recommended registry paths:
 <registry>/noteverse/backend-practice-deps
 <registry>/noteverse/backend-practice
 <registry>/noteverse/backend-beat
+<registry>/noteverse/backend-worker-deps
 <registry>/noteverse/backend-worker
 <registry>/noteverse/frontend
 <registry>/noteverse/ml-base
@@ -64,6 +66,7 @@ ghcr.io/<github-owner>/noteverse/backend-api
 ghcr.io/<github-owner>/noteverse/backend-practice-deps
 ghcr.io/<github-owner>/noteverse/backend-practice
 ghcr.io/<github-owner>/noteverse/backend-beat
+ghcr.io/<github-owner>/noteverse/backend-worker-deps
 ghcr.io/<github-owner>/noteverse/backend-worker
 ghcr.io/<github-owner>/noteverse/frontend
 ```
@@ -180,12 +183,12 @@ Production release records should include:
 
 ### ML Base Image
 
-`docker/backend/Dockerfile.ml-base` builds the Python/CUDA/PyTorch base image.
+`docker/backend/Dockerfile.ml-base` builds the Python/PyTorch CUDA wheel base
+image.
 
 Inputs:
 
-- `CUDA_IMAGE`
-- `PYTHON_VERSION`
+- `PYTHON_IMAGE`
 - `TORCH_CUDA_INDEX`
 
 Recommended build:
@@ -206,10 +209,10 @@ Rules:
 
 CI entry point:
 
-- run the `ML Base Image` workflow manually when the CUDA/Python/PyTorch base
+- run the `ML Base Image` workflow manually when the Python/PyTorch CUDA base
   changes or when a fresh environment does not yet have the base image in GHCR;
 - use the published `ghcr.io/<github-owner>/noteverse/ml-base:<tag>` as the
-  `PYTHON_IMAGE` input for the `Backend Worker Image` workflow.
+  base input for the `Backend Worker Image` workflow.
 
 The workflow also publishes a fingerprint tag:
 
@@ -217,8 +220,8 @@ The workflow also publishes a fingerprint tag:
 ghcr.io/<github-owner>/noteverse/ml-base:ml-<hash>
 ```
 
-The hash is derived from `Dockerfile.ml-base` plus the selected CUDA image,
-Python version, and PyTorch CUDA wheel index. Human-readable tags such as
+The hash is derived from `Dockerfile.ml-base` plus the selected Python image and
+PyTorch CUDA wheel index. Human-readable tags such as
 `py312-torch260-cu124` are convenient aliases; release records should still
 capture the resolved digest.
 
@@ -311,11 +314,12 @@ docker build \
   .
 ```
 
-### Backend Worker Image
+### Backend Worker Dependency Image
 
-`docker/backend/Dockerfile.worker` builds the deployed worker image. This image
-contains the ML runtime dependencies needed by OCR/OMR, rendering, playback
-generation, and model-cache-agent runtime checks.
+`docker/backend/Dockerfile.worker-deps` builds the worker dependency base image.
+This image contains the ML runtime dependencies needed by OCR/OMR, rendering,
+playback generation, and model-cache-agent runtime checks. It does not contain
+backend application source.
 
 Inputs:
 
@@ -336,24 +340,40 @@ Production build rules:
   supplied as a tracked submodule/vendor directory. Do not rely on an untracked
   local `external/legato` directory.
 
-Recommended worker image build:
+Recommended worker dependency image build:
 
 ```bash
 docker build \
-  -f docker/backend/Dockerfile.worker \
+  -f docker/backend/Dockerfile.worker-deps \
   --build-arg PYTHON_IMAGE=<registry>/noteverse/ml-base:py312-torch260-cu124 \
   --build-arg INSTALL_PADDLE_GPU=false \
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
   --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git \
   --build-arg LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc \
+  -t <registry>/noteverse/backend-worker-deps:deps-<dependency-hash> \
+  .
+```
+
+### Backend Worker Image
+
+`docker/backend/Dockerfile.worker` builds the deployed worker image. It inherits
+from the published `backend-worker-deps` image and contains only the backend
+application source plus the runtime entrypoint.
+
+Recommended worker image build:
+
+```bash
+docker build \
+  -f docker/backend/Dockerfile.worker \
+  --build-arg WORKER_DEPS_IMAGE=<registry>/noteverse/backend-worker-deps:deps-<dependency-hash> \
   -t <registry>/noteverse/backend-worker:<git-sha> \
   .
 ```
 
 The standard `Container Images` workflow builds API, practice, beat, and
-frontend images. The `Backend Worker Image` workflow builds the ML worker image
-separately because it depends on the heavier ML base image and should be
-promoted deliberately.
+frontend images. The `Backend Worker Image` workflow builds the worker
+dependency image and final worker image separately because they depend on the
+heavier ML base image and should be promoted deliberately.
 
 The worker workflow is manual-only. GitHub-hosted runners have limited
 ephemeral disk space and are not a reliable place to automatically unpack CUDA,
@@ -368,9 +388,9 @@ Do not make normal pull requests depend on a full worker image build. Worker
 contract tests belong in backend quality checks; the full worker image is a
 release artifact.
 
-The worker workflow pulls the selected ML base image before building and fails
-clearly if it is missing. Do not let the worker build silently fall back to an
-unpublished local base.
+The worker workflow pulls the selected ML base image before building
+`backend-worker-deps`, then builds the final worker from that dependency image.
+Do not let the worker build silently fall back to an unpublished local base.
 
 ### Backend Quality Image
 

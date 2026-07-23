@@ -1,74 +1,13 @@
-ARG PYTHON_IMAGE=ghcr.io/tinghui0912/noteverse/ml-base:py312-torch260-cu124
+ARG WORKER_DEPS_IMAGE=ghcr.io/tinghui0912/noteverse/backend-worker-deps:replace-me
 
-FROM ${PYTHON_IMAGE}
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    DEBIAN_FRONTEND=noninteractive
+FROM ${WORKER_DEPS_IMAGE}
 
 WORKDIR /app
 
-RUN apt-get update -o Acquire::Retries=3 \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        ffmpeg \
-        fluid-soundfont-gm \
-        fluidsynth \
-        git \
-        libaio1 \
-        libasound2 \
-        libffi8 \
-        libfluidsynth3 \
-        libglib2.0-0 \
-        libgl1 \
-        libgomp1 \
-        libsndfile1 \
-        tini \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY backend/requirements/ /tmp/requirements/
-
-RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install -r /tmp/requirements/worker-app.txt
-
-ARG INSTALL_PADDLE_GPU=false
-ARG INSTALL_LEGATO_EXTRA_DEPS=false
-ARG PADDLE_CUDA_INDEX=cu126
-RUN if [ "${INSTALL_PADDLE_GPU}" = "true" ]; then \
-      python -m pip install paddlepaddle-gpu==3.2.0 -i "https://www.paddlepaddle.org.cn/packages/stable/${PADDLE_CUDA_INDEX}/"; \
-    else \
-      python -m pip install paddlepaddle==3.2.0 -i "https://www.paddlepaddle.org.cn/packages/stable/cpu/"; \
-    fi \
-    && PADDLEOCR_REQ="$(grep -E '^paddleocr==' /tmp/requirements/ocr.txt)" \
-    && python -m pip install "${PADDLEOCR_REQ}" \
-    && python -m pip install \
-      accelerate==1.8.0 \
-      fire==0.7.0 \
-      Levenshtein \
-      pyparsing \
-      tqdm \
-      transformers==4.54.0 \
-      zss \
-    && if [ "${INSTALL_LEGATO_EXTRA_DEPS}" = "true" ]; then \
-      python -m pip install \
-        datasets==3.2.0 \
-        deepspeed \
-        wandb; \
-    fi
-
-ARG LEGATO_REPO_URL=https://github.com/guang-yng/legato.git
-ARG LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc
-RUN mkdir -p /opt/noteverse/models /opt/noteverse/legato \
-    && git clone --filter=blob:none "${LEGATO_REPO_URL}" /opt/noteverse/legato \
-    && cd /opt/noteverse/legato \
-    && git fetch --depth 1 origin "${LEGATO_REPO_COMMIT}" \
-    && git checkout --detach "${LEGATO_REPO_COMMIT}" \
-    && rm -rf .git
-
 COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
 RUN chmod +x /usr/local/bin/noteverse-entrypoint \
-    && mkdir -p /app/data/storage /app/data/work
+    && mkdir -p /app/data/storage /app/data/work \
+    && rm -rf /tmp/* /var/tmp/*
 
 COPY backend/ /app/
 

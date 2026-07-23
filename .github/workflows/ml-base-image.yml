@@ -3,14 +3,10 @@ name: ML Base Image
 on:
   workflow_dispatch:
     inputs:
-      cuda_image:
-        description: "Pinned CUDA runtime base image"
+      python_image:
+        description: "Pinned Python base image"
         required: true
-        default: "nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04"
-      python_version:
-        description: "Python version installed by Miniforge"
-        required: true
-        default: "3.12"
+        default: "python:3.12-slim-bookworm"
       torch_cuda_index:
         description: "PyTorch CUDA wheel index"
         required: true
@@ -44,8 +40,7 @@ jobs:
           ML_BASE_HASH="$(
             {
               sha256sum docker/backend/Dockerfile.ml-base
-              printf '%s\n' '${{ inputs.cuda_image }}'
-              printf '%s\n' '${{ inputs.python_version }}'
+              printf '%s\n' '${{ inputs.python_image }}'
               printf '%s\n' '${{ inputs.torch_cuda_index }}'
             } | sha256sum | cut -c1-16
           )"
@@ -77,8 +72,7 @@ jobs:
             ${{ env.IMAGE_NAMESPACE }}/ml-base:${{ steps.ml-base-fingerprint.outputs.tag }}
             ${{ env.IMAGE_NAMESPACE }}/ml-base:build-${{ github.run_id }}
           build-args: |
-            CUDA_IMAGE=${{ inputs.cuda_image }}
-            PYTHON_VERSION=${{ inputs.python_version }}
+            PYTHON_IMAGE=${{ inputs.python_image }}
             TORCH_CUDA_INDEX=${{ inputs.torch_cuda_index }}
 
       - name: Generate ML base SBOM
@@ -106,8 +100,7 @@ jobs:
             echo "- ML base image: \`${IMAGE_NAMESPACE}/ml-base:${{ inputs.image_tag }}\`"
             echo "- ML base fingerprint image: \`${IMAGE_NAMESPACE}/ml-base:${ML_BASE_FINGERPRINT_TAG}\`"
             echo "- ML base digest: \`${{ steps.ml-base-build.outputs.digest }}\`"
-            echo "- CUDA image: \`${{ inputs.cuda_image }}\`"
-            echo "- Python version: \`${{ inputs.python_version }}\`"
+            echo "- Python image: \`${{ inputs.python_image }}\`"
             echo "- PyTorch CUDA index: \`${{ inputs.torch_cuda_index }}\`"
             echo "- SBOM artifact: ml-base-image-sbom.spdx.json"
             echo "- Vulnerability gate: CRITICAL, ignore unfixed"
