@@ -1,0 +1,13 @@
+# Envoy Gateway values for NoteVerse production-flow environments.
+#
+# Chart: oci://docker.io/envoyproxy/gateway-helm
+# Namespace: envoy-gateway-system
+
+config:
+  envoyGateway:
+    gateway:
+      controllerName: gateway.envoyproxy.io/gatewayclass-controller
+
+deployment:
+  envoyGateway:
+    replicas: 1

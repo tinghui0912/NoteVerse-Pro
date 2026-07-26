@@ -3,12 +3,11 @@
 This runbook defines how to use a local minikube cluster to validate the
 NoteVerse Kubernetes deployment path before a managed cloud cluster exists.
 
-Minikube is useful for Kubernetes integration tests, but it is not a production
-equivalent. Use it to validate manifest rendering, pod wiring, probes, Services,
-Ingress paths, ConfigMaps, Secrets, PVC references, image startup, and basic
-smoke flows. Do not use it as proof of production capacity, high availability,
-object storage behavior, TLS behavior, GPU scheduling, or managed database
-behavior.
+Minikube is the local staging rehearsal environment for NoteVerse. Keep its
+Kubernetes resource model production-shaped: Gateway API, Envoy Gateway,
+cert-manager, S3-compatible object storage, node-local model cache, managed-like
+PostgreSQL/Redis endpoints, rendered release overlays, and the same Secret and
+ConfigMap contracts used by production.
 
 Related documents:
 
@@ -26,16 +25,13 @@ Good local checks:
 - frontend and backend pods start;
 - migration job wiring is correct;
 - API health endpoints are reachable;
-- frontend can call `/api/v1` through the local ingress or port-forward path;
+- frontend can call `/api/v1` through Gateway API and Envoy Gateway;
 - realtime connections can be manually tested;
 - worker/beat wiring can be tested when Redis, database, model assets, and
   runtime volumes are available locally.
 
 Not representative:
 
-- production ingress controller behavior;
-- production TLS and certificate automation;
-- object storage latency, lifecycle, and permissions;
 - managed PostgreSQL/Redis behavior;
 - GPU node scheduling and model-volume performance;
 - horizontal scaling and node failure behavior.
@@ -45,8 +41,7 @@ Not representative:
 Windows PowerShell:
 
 ```powershell
-minikube start --driver=docker --cpus=6 --memory=12288
-minikube addons enable ingress
+minikube start --driver=docker --cpus=6 --memory=12288 --nodes=1
 kubectl create namespace noteverse-staging
 ```
 
@@ -103,6 +98,41 @@ This is a minikube stability adjustment for a local two-node topology. In a
 managed production cluster, CoreDNS should already run with multiple replicas
 and healthy cluster networking; do not use local minikube patches as a
 substitute for production DNS and CNI health checks.
+
+## Install Platform Entry Point
+
+Use a Cloudflare API token scoped to the test zone and limited to `Zone:Read`
+and `DNS:Edit`. Then run the platform bootstrap script:
+
+```powershell
+$env:CLOUDFLARE_API_TOKEN = "<cloudflare-api-token>"
+.\scripts\minikube_platform_bootstrap.ps1
+```
+
+The script installs and verifies:
+
+- Gateway API CRDs;
+- Envoy Gateway through the official OCI Helm chart;
+- `GatewayClass/envoy-gateway`;
+- cert-manager;
+- `Secret/cert-manager/cloudflare-api-token-secret`;
+- `ClusterIssuer/letsencrypt-staging-dns01`;
+- the application namespace.
+
+If `Secret/cloudflare-api-token-secret` already exists and you only want to
+reconcile platform components, run:
+
+```powershell
+.\scripts\minikube_platform_bootstrap.ps1 -SkipCloudflareSecret
+```
+
+The Envoy Gateway control-plane Service is intentionally `ClusterIP`. The
+browser-facing Service is created later by Envoy Gateway for the NoteVerse
+`Gateway`.
+
+The script installs Gateway API CRDs before Helm and passes
+`--set crds.enabled=false` to the Envoy Gateway chart. Do not let both Helm and
+`kubectl` manage the same Gateway API CRDs.
 
 ## Build And Publish Local Images
 
@@ -221,8 +251,23 @@ should use immutable registry tags or image digests.
 ## Required Local Resources
 
 Create a registry pull Secret only if the rendered overlay references a private
-registry that requires authentication. GHCR images are private by default in this project,
-so create a real read-only GHCR Secret in the namespace:
+registry that requires authentication. GHCR images are private by default in
+this project, so create a real read-only GHCR Secret in the namespace.
+
+The standard scripted path is:
+
+```powershell
+.\scripts\minikube_app_release_prepare.ps1 `
+  -RenderedOverlay build/k8s-release/minikube `
+  -CreateRegistrySecretFromDockerConfig `
+  -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
+```
+
+This validates the rendered overlay, creates or verifies
+`Secret/noteverse-registry-credentials`, and creates or verifies
+`Secret/noteverse-backend-secret` with the required key set.
+
+If you need to create the registry Secret manually, use:
 
 ```powershell
 kubectl -n noteverse-staging create secret docker-registry noteverse-registry-credentials `
@@ -250,6 +295,8 @@ repository, create the Secret from that file, then delete the temporary file.
 Do not commit Docker config files or generated Secret manifests.
 
 Create app Secrets with local-only values. Do not reuse production credentials.
+Prefer the scripted path above so the required key set is checked before
+workloads are applied.
 
 When updating an existing Kubernetes Secret, avoid applying a partial Secret
 manifest unless replacement is intentional. `kubectl apply` treats the Secret as
@@ -257,8 +304,8 @@ the whole desired object; a manifest containing only `S3_ACCESS_KEY_ID` and
 `S3_SECRET_ACCESS_KEY` will remove required keys such as `SECRET_KEY`,
 `DATABASE_URL`, and `REDIS_URL`.
 
-For local minikube, either render the full Secret from `backend/.env.docker`, or
-patch a single key deliberately:
+For local minikube, either create the full Secret from an env file outside the
+repository, or patch a single key deliberately:
 
 ```powershell
 kubectl -n noteverse-staging patch secret noteverse-backend-secret --type merge `
@@ -268,15 +315,29 @@ kubectl -n noteverse-staging patch secret noteverse-backend-secret --type merge 
 Do not print credential values in terminal output or commit generated Secret
 manifests.
 
-Create or bind PVCs for:
+Do not create PVCs for application file storage in the production-shaped
+minikube path. Business uploads, score sources, rendered images, and audio
+assets must use the configured S3-compatible bucket.
 
-- model assets;
-- Legato repository;
-- beat work directory;
-- object/file storage if the selected local storage path requires a volume.
+Verify or create the bucket before deploying workloads:
+
+```powershell
+python scripts/ensure_s3_bucket.py --env-file backend/.env.docker --create
+```
+
+The script can also read S3 settings directly from environment variables. It
+requires `boto3`, which is supplied by `backend/requirements/storage.txt` or by
+the backend runtime images. It does not print access keys.
+
+Model assets are node-local cache data under `/var/lib/noteverse/models`,
+prepared by the model-cache DaemonSet and mounted read-only into worker pods at
+`/opt/noteverse/models`.
+
+Beat uses transient `emptyDir` state. Durable scheduling state lives in
+PostgreSQL-backed outbox tables.
 
 For API/frontend-only smoke tests, it is acceptable to scale worker and beat to
-zero in a dedicated local overlay. For import, render, playback, and cleanup
+zero in a dedicated temporary test. For import, render, playback, and cleanup
 tests, worker and beat must run with their required runtime assets.
 
 ## Bind Host PostgreSQL And Redis Through Stable Services
@@ -649,7 +710,8 @@ The model-cache agent prepares assets from these sources:
 - Hugging Face snapshots are controlled by `HF_MODEL_REPOSITORIES` and are
   downloaded with `huggingface_hub.snapshot_download` into
   `/opt/noteverse/models/huggingface/hub`. The current staging and production
-  overlays intentionally include only `guangyangmusic/legato`.
+  overlays include `guangyangmusic/legato` and
+  `meta-llama/Llama-3.2-11B-Vision`.
 - `FluidR3_GM.sf2` is copied from the backend runtime image system soundfont
   directory into `/opt/noteverse/models/soundfonts/FluidR3_GM.sf2`.
 - PaddleOCR inference models are downloaded explicitly from Paddle's official
@@ -695,81 +757,32 @@ kubectl -n noteverse-model-cache-test get pods -o wide
 The simulation validates DaemonSet scheduling and node-local cache layout only.
 It does not prepare real OMR/playback model assets.
 
-## Local TLS For Production-Shaped Testing
+## Local DNS And TLS For Production-Shaped Testing
 
-For authenticated browser flows, prefer HTTPS through Ingress instead of direct
-Service port-forwarding. The default local smoke path uses `localhost` so it
-does not depend on wildcard DNS providers, router DNS rewriting, or hosts-file
-administrator access.
+For the production-shaped minikube path, use a real test domain with
+cert-manager, Let's Encrypt staging, and Cloudflare DNS-01. This validates the
+same certificate lifecycle shape that production will use, while keeping the
+actual Redis, PostgreSQL, S3, Resend, and domain resources separate from
+production.
 
-Create a local certificate with `mkcert`:
-
-```powershell
-mkcert -install
-mkcert localhost api.localhost 127.0.0.1
-kubectl -n noteverse-staging create secret tls noteverse-staging-tls `
-  --cert .\localhost+2.pem `
-  --key .\localhost+2-key.pem
-```
-
-If `mkcert` is not installed, a short-lived self-signed certificate is enough
-for local smoke testing as long as the browser is allowed to proceed through
-the certificate warning:
-
-```powershell
-New-Item -ItemType Directory -Force -Path build\local-tls | Out-Null
-@'
-[req]
-default_bits = 2048
-prompt = no
-default_md = sha256
-distinguished_name = dn
-x509_extensions = v3_req
-
-[dn]
-CN = localhost
-
-[v3_req]
-subjectAltName = @alt_names
-
-[alt_names]
-DNS.1 = localhost
-DNS.2 = api.localhost
-IP.1 = 127.0.0.1
-'@ | Set-Content build\local-tls\localhost-openssl.cnf -Encoding ascii
-
-openssl req -x509 -nodes -days 30 -newkey rsa:2048 `
-  -keyout build\local-tls\localhost.key `
-  -out build\local-tls\localhost.crt `
-  -config build\local-tls\localhost-openssl.cnf
-
-kubectl -n noteverse-staging create secret tls noteverse-staging-tls `
-  --cert build\local-tls\localhost.crt `
-  --key build\local-tls\localhost.key `
-  --dry-run=client -o yaml | kubectl apply -f -
-```
-
-With the Docker driver on Windows, the most predictable path is an Ingress
-port-forward:
-
-```powershell
-kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8443:443 8080:80
-```
-
-For the port-forward path, the browser target is:
+Example staging hosts:
 
 ```text
-https://localhost:8443/zh/upload
+staging.johnabc.ccwu.cc
+api.staging.johnabc.ccwu.cc
 ```
 
-### Optional Local Domain
+DNS-01 does not require the minikube cluster to be reachable from the public
+internet. Cert-manager creates temporary `_acme-challenge` TXT records through
+Cloudflare. Do not create those TXT records manually.
 
-If you want the browser address bar to look closer to production, use explicit
-hosts-file entries and keep the Ingress port-forward running:
+For browser traffic from the local machine, map the staging hosts to the local
+Gateway entrypoint. With an Envoy Gateway data-plane port-forward, use
+`127.0.0.1`:
 
 ```text
-127.0.0.1 staging.noteverse.local
-127.0.0.1 api.staging.noteverse.local
+127.0.0.1 staging.johnabc.ccwu.cc
+127.0.0.1 api.staging.johnabc.ccwu.cc
 ```
 
 On Windows, edit the hosts file from an elevated PowerShell:
@@ -778,208 +791,81 @@ On Windows, edit the hosts file from an elevated PowerShell:
 notepad C:\Windows\System32\drivers\etc\hosts
 ```
 
-Then create a certificate that includes both hostnames:
-
-```powershell
-mkcert -install
-mkcert staging.noteverse.local api.staging.noteverse.local 127.0.0.1
-kubectl -n noteverse-staging create secret tls noteverse-staging-tls `
-  --cert .\staging.noteverse.local+2.pem `
-  --key .\staging.noteverse.local+2-key.pem `
-  --dry-run=client -o yaml | kubectl apply -f -
-```
-
-Render the overlay for the same origin you will open in the browser:
-
-```powershell
-python scripts/render_k8s_release_overlay.py `
-  --environment staging `
-  --output build/k8s-release/minikube `
-  --overwrite `
-  --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
-  --backend-practice-image ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag `
-  --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
-  --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
-  --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
-  --frontend-host staging.noteverse.local `
-  --api-host api.staging.noteverse.local `
-  --tls-secret noteverse-staging-tls `
-  --frontend-base-url https://staging.noteverse.local:8443 `
-  --backend-cors-origins '["https://staging.noteverse.local:8443"]' `
-  --auth-cookie-secure true `
-  --mail-default-sender 'NoteVerse Pro <no-reply@staging.noteverse.local>' `
-  --s3-endpoint-url https://oss-cn-shenzhen.aliyuncs.com `
-  --s3-region cn-shenzhen `
-  --s3-bucket noteverse `
-  --s3-public-base-url https://noteverse.oss-cn-shenzhen.aliyuncs.com `
-  --s3-force-path-style false `
-  --s3-presign-expire-seconds 900
-```
-
-Open:
-
-```text
-https://staging.noteverse.local:8443/zh/upload
-```
-
-Use custom hosts such as `staging.noteverse.local` only when you intentionally
-want to validate multi-host routing. In that mode, add hosts-file entries for
-the chosen entry point and render `FRONTEND_BASE_URL` and
-`BACKEND_CORS_ORIGINS` to the same origin. Do not rely on public wildcard DNS
-for local smoke tests; corporate DNS or router filtering can resolve those
-names to non-loopback addresses.
-
-### cert-manager With Cloudflare DNS-01
-
-For production-flow rehearsal, use `cert-manager` with Let's Encrypt staging
-and DNS-01 against a real test domain. For example, if the test domain is
-`johnabc.ccwu.cc`, use:
-
-```text
-staging.johnabc.ccwu.cc
-api.staging.johnabc.ccwu.cc
-```
-
-Install cert-manager:
-
-```powershell
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-helm upgrade --install cert-manager jetstack/cert-manager `
-  --namespace cert-manager `
-  --create-namespace `
-  --set crds.enabled=true
-```
-
-Create a Cloudflare API token with:
-
-```text
-Zone.Zone: Read
-Zone.DNS: Edit
-```
-
-Scope the token to the Cloudflare zone that owns `johnabc.ccwu.cc`, then create
-the Kubernetes Secret:
-
-```powershell
-kubectl -n cert-manager create secret generic cloudflare-api-token-secret `
-  --from-literal=api-token='<cloudflare-api-token>'
-```
-
-Set the operator email in the issuer templates before applying them:
-
-```powershell
-kubectl apply -f deploy\platform\cert-manager\clusterissuer-letsencrypt-staging-dns01-cloudflare.yaml
-kubectl apply -f deploy\platform\cert-manager\clusterissuer-letsencrypt-production-dns01-cloudflare.yaml
-```
-
-The staging Ingress is annotated with:
-
-```yaml
-cert-manager.io/cluster-issuer: letsencrypt-staging-dns01
-```
-
-Cert-manager will create temporary ACME TXT records automatically. Do not add
-these manually:
-
-```text
-_acme-challenge.staging.johnabc.ccwu.cc
-_acme-challenge.api.staging.johnabc.ccwu.cc
-```
-
-For local minikube with Ingress port-forward, add only local hosts-file
-entries for browser traffic:
-
-```text
-127.0.0.1 staging.johnabc.ccwu.cc
-127.0.0.1 api.staging.johnabc.ccwu.cc
-```
-
-Open the hosts file from an elevated PowerShell:
-
-```powershell
-notepad C:\Windows\System32\drivers\etc\hosts
-```
-
-Then render the app overlay for the same origin:
-
-```powershell
-python scripts/render_k8s_release_overlay.py `
-  --environment staging `
-  --output build/k8s-release/minikube `
-  --overwrite `
-  --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
-  --backend-practice-image ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag `
-  --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
-  --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
-  --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
-  --frontend-host staging.johnabc.ccwu.cc `
-  --api-host api.staging.johnabc.ccwu.cc `
-  --tls-secret noteverse-staging-tls `
-  --frontend-base-url https://staging.johnabc.ccwu.cc:8443 `
-  --backend-cors-origins '["https://staging.johnabc.ccwu.cc:8443"]' `
-  --auth-cookie-secure true `
-  --mail-default-sender 'NoteVerse Pro <no-reply@staging.johnabc.ccwu.cc>' `
-  --s3-endpoint-url https://oss-cn-shenzhen.aliyuncs.com `
-  --s3-region cn-shenzhen `
-  --s3-bucket noteverse `
-  --s3-public-base-url https://noteverse.oss-cn-shenzhen.aliyuncs.com `
-  --s3-force-path-style false `
-  --s3-presign-expire-seconds 900
-```
-
-Let's Encrypt staging certificates intentionally are not browser-trusted. They
-validate ACME automation. Use Let's Encrypt production only after the flow is
-stable and rate limits are understood.
-
-Validate the certificate flow:
+Apply the rendered application overlay, then wait for cert-manager:
 
 ```powershell
 kubectl -n noteverse-staging get certificate,certificaterequest,order,challenge
-kubectl -n noteverse-staging describe certificate noteverse-staging-tls
+kubectl -n noteverse-staging describe certificate noteverse-tls
 ```
 
-Expected successful staging result:
+Expected ACME rehearsal result:
 
 ```text
-Certificate/noteverse-staging-tls READY=True
+Certificate/noteverse-tls READY=True
 issuer=(STAGING) Let's Encrypt
 ```
 
-For quick development smoke tests that do not validate certificate automation,
-`mkcert` or a short-lived self-signed Secret is still acceptable.
+Let's Encrypt staging certificates are intentionally not browser-trusted. They
+prove ACME automation. Browser smoke can continue through the certificate
+warning, or you can temporarily trust the staging root locally when you
+explicitly want a cleaner browser session. Do not switch minikube rehearsal to
+Let's Encrypt production until the DNS-01 flow is stable and rate limits are
+understood.
 
+Inspect the Gateway and the Envoy data-plane Service created for it:
+
+```powershell
+kubectl -n noteverse-staging get gateway noteverse -o wide
+kubectl -n noteverse-staging get httproute
+kubectl get svc -A | Select-String envoy
+```
+
+With the Docker driver on Windows, if the data-plane LoadBalancer address is not
+host-reachable, port-forward the Envoy data-plane Service selected by the
+Gateway implementation:
+
+```powershell
+kubectl -n <envoy-data-plane-namespace> port-forward svc/<envoy-data-plane-service> 8443:443
+```
+
+The exact Service name is controller-generated. Read it from the cluster rather
+than hard-coding it in scripts or manifests.
+
+Open the application through the same origin rendered into the overlay:
+
+```text
+https://staging.johnabc.ccwu.cc:8443/zh/upload
+```
 ## Render Local Overlay
 
-Use the release overlay renderer with local hosts and immutable local image
-tags. For multi-node minikube, these tags should point at GHCR or the same
-private registry used by CI.
+Use the minikube release wrapper with the test domain, immutable image tags,
+and the S3-compatible test bucket values. Keep these values outside committed
+files. They can come from a local password manager or a GitHub
+Environment-rendered release package.
 
 ```powershell
 $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
 
-python scripts/render_k8s_release_overlay.py `
-  --environment staging `
-  --output build/k8s-release/minikube `
-  --backend-api-image ghcr.io/<github-owner>/noteverse/backend-api:$imageTag `
-  --backend-practice-image ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag `
-  --backend-beat-image ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag `
-  --backend-worker-image ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag `
-  --frontend-image ghcr.io/<github-owner>/noteverse/frontend:$imageTag `
-  --frontend-host localhost `
-  --api-host api.localhost `
-  --tls-secret noteverse-staging-tls `
-  --frontend-base-url https://localhost:8443 `
-  --backend-cors-origins '["https://localhost:8443"]' `
-  --auth-cookie-secure true `
-  --mail-default-sender 'NoteVerse Pro <no-reply@localhost>' `
-  --s3-endpoint-url https://oss-cn-shenzhen.aliyuncs.com `
-  --s3-region cn-shenzhen `
-  --s3-bucket noteverse `
-  --s3-public-base-url https://noteverse.oss-cn-shenzhen.aliyuncs.com `
-  --s3-force-path-style false `
-  --s3-presign-expire-seconds 900
+$env:NOTEVERSE_BACKEND_API_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-api:$imageTag"
+$env:NOTEVERSE_BACKEND_PRACTICE_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag"
+$env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag"
+$env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag"
+$env:NOTEVERSE_FRONTEND_IMAGE = "ghcr.io/<github-owner>/noteverse/frontend:$imageTag"
+
+$env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"
+$env:NOTEVERSE_S3_REGION = "<s3-region>"
+$env:NOTEVERSE_S3_BUCKET = "<s3-bucket>"
+$env:NOTEVERSE_S3_PUBLIC_BASE_URL = "<s3-public-base-url>"
+$env:NOTEVERSE_S3_FORCE_PATH_STYLE = "true"
+
+.\scripts\render_minikube_release_overlay.ps1 `
+  -Output build/k8s-release/minikube `
+  -Overwrite
 ```
+
+The wrapper fails if any required image or S3 value is missing. It then calls
+`scripts/render_k8s_release_overlay.py` with the staging hosts, TLS Secret,
+secure cookie setting, CORS origin, and S3 values.
 
 Validate the rendered overlay:
 
@@ -988,63 +874,81 @@ python scripts/check_k8s_application_manifests.py build/k8s-release/minikube --s
 kubectl kustomize build/k8s-release/minikube
 ```
 
+The application preparation script runs the same strict validation before
+creating Secrets or applying workloads:
+
+```powershell
+.\scripts\minikube_app_release_prepare.ps1 `
+  -RenderedOverlay build/k8s-release/minikube
+```
+
 If local testing intentionally omits production-only objects such as TLS or
 image pull Secrets, use a dedicated local overlay rather than weakening the
 strict validator.
 
 ## Apply And Smoke Test
 
-Apply manifests:
+Apply manifests and wait for core workload readiness:
 
 ```powershell
-kubectl -n noteverse-staging apply -k build/k8s-release/minikube
-kubectl -n noteverse-staging get pods -w
+.\scripts\minikube_app_release_prepare.ps1 `
+  -RenderedOverlay build/k8s-release/minikube `
+  -Apply `
+  -Wait
 ```
 
-Check rollouts:
+The script deletes and recreates `Job/noteverse-db-migrate` before applying the
+overlay. Kubernetes Job pod templates are immutable, so this is the release-safe
+way to run the current migration image and configuration. It does not delete
+database data.
+
+If you need lower-level diagnostics, inspect rollouts directly:
 
 ```powershell
 kubectl -n noteverse-staging rollout status deployment/noteverse-backend-api
+kubectl -n noteverse-staging rollout status deployment/noteverse-backend-practice
+kubectl -n noteverse-staging rollout status deployment/noteverse-backend-beat
+kubectl -n noteverse-staging rollout status deployment/noteverse-backend-worker
 kubectl -n noteverse-staging rollout status deployment/noteverse-frontend
+kubectl -n noteverse-staging rollout status ds/noteverse-model-cache-agent --timeout=7200s
 ```
 
-Port-forward smoke path:
+Wait for certificate and Gateway readiness:
 
 ```powershell
-kubectl -n noteverse-staging port-forward svc/noteverse-backend-api 8000:8000
-curl.exe -f http://127.0.0.1:8000/health/live
-curl.exe -f http://127.0.0.1:8000/health/ready
+kubectl -n noteverse-staging get certificate noteverse-tls
+kubectl -n noteverse-staging get gateway noteverse
+kubectl -n noteverse-staging get httproute
 ```
 
-Frontend service port-forward is only suitable for read-only rendering smoke:
+Port-forward the Envoy data-plane Service for browser smoke if minikube does
+not expose a host-reachable LoadBalancer address:
 
 ```powershell
-kubectl -n noteverse-staging port-forward svc/noteverse-frontend 9002:3000
+kubectl get svc -A | Select-String envoy
+kubectl -n <envoy-data-plane-namespace> port-forward svc/<envoy-data-plane-service> 8443:443
 ```
 
 Open:
 
 ```text
-http://127.0.0.1:9002
+https://staging.johnabc.ccwu.cc:8443/zh/upload
 ```
 
-Use this only when the backend config has been rendered for that exact origin.
 Cookie-authenticated writes such as upload submission are protected by Origin
-and CSRF checks. If the backend is configured with
-`FRONTEND_BASE_URL=https://staging.noteverse.example.invalid` and
-`BACKEND_CORS_ORIGINS=["https://staging.noteverse.example.invalid"]`, then
-accessing the frontend through `http://127.0.0.1:<port>` is expected to fail
-unsafe writes with `request_origin_invalid` or `csrf_token_invalid`.
+and CSRF checks. The browser origin must match the rendered
+`FRONTEND_BASE_URL` and `BACKEND_CORS_ORIGINS`. Service port-forwarding the
+frontend to `127.0.0.1` while the backend is rendered for the staging domain is
+expected to fail unsafe writes.
 
-Ingress smoke should use `https://localhost:8443` by default.
+Backend Service port-forwarding is still useful for diagnostics and scripted
+API smoke tests:
 
-For product flows that perform authenticated writes, prefer the ingress host
-that matches `FRONTEND_BASE_URL` and `BACKEND_CORS_ORIGINS`. Either:
-
-- render the overlay for `https://localhost:8443` and access through that exact
-  origin; or
-- render the overlay for custom local hosts and map them in the hosts file or
-  through local DNS before opening the browser.
+```powershell
+kubectl -n noteverse-staging port-forward svc/noteverse-backend-api 18000:8000
+curl.exe -f http://127.0.0.1:18000/health/live
+curl.exe -f http://127.0.0.1:18000/health/ready
+```
 
 The bucket CORS policy is separate. It matters only for browser-direct S3/OSS
 object reads or downloads from signed object URLs. It does not fix backend CSRF
@@ -1054,20 +958,15 @@ On Windows with the Docker minikube driver, do not confuse these addresses:
 
 - `10.x` Service IPs such as `10.96.166.28` are Kubernetes ClusterIP addresses.
   They are reachable from pods, not directly from the Windows browser.
-- `$(minikube ip)` such as `192.168.49.2` is the minikube node IP. With a
-  NodePort ingress service, the browser would use the node IP plus the NodePort
-  when that path is reachable from the host.
-- `minikube service ingress-nginx-controller -n ingress-nginx --url` may return
-  `http://127.0.0.1:<port>` URLs. Those are temporary SSH forwards created by
-  minikube for Docker-driver networking on Windows; the terminal must remain
-  open while testing them.
+- `$(minikube ip)` such as `192.168.49.2` is the minikube node IP. It is not
+  automatically the Gateway browser endpoint unless the data-plane Service is
+  exposed through a reachable NodePort or LoadBalancer path.
 
-Ingress routing is host-based. If the ingress rule is for
-`staging.noteverse.example.invalid`, the request must carry that host. Typing an
-unmapped `.invalid` domain into the browser address bar can be treated as a
-search query or fail DNS resolution. Add a hosts-file entry or use a local host
-value generated into the overlay. The default `localhost` route avoids this
-problem for normal minikube smoke tests.
+Gateway routing is host-based. If the HTTPRoute hostname is
+`staging.johnabc.ccwu.cc`, the request must carry that host. Typing an unmapped
+domain into the browser address bar can be treated as a search query or fail DNS
+resolution. Add a hosts-file entry or local DNS record for the exact host
+rendered into the overlay.
 
 ## Local Cleanup
 
@@ -1090,8 +989,10 @@ Before moving from minikube to a cloud cluster, still validate:
 - production-grade Secrets and Secret rotation;
 - external PostgreSQL and Redis;
 - object storage permissions and lifecycle;
-- TLS and public ingress behavior;
+- TLS and public Gateway behavior;
 - observability pipeline with Fluent Bit, Loki, Prometheus, Grafana, Tempo, and
   OpenTelemetry Collector;
 - worker runtime assets and scheduling;
 - backup, restore, and disaster recovery procedures.
+
+

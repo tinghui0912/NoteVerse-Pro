@@ -5,7 +5,7 @@ namespace: noteverse-production
 
 resources:
   - ../../base
-  - ingress.yaml
+  - gateway.yaml
   - pdb-backend-api.yaml
   - pdb-backend-practice.yaml
   - pdb-frontend.yaml

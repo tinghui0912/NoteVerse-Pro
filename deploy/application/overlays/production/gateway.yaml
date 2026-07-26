@@ -1,0 +1,109 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: noteverse-tls
+  labels:
+    app.kubernetes.io/component: tls
+spec:
+  secretName: noteverse-production-tls
+  dnsNames:
+    - noteverse.example.invalid
+    - api.noteverse.example.invalid
+  issuerRef:
+    name: letsencrypt-production-dns01
+    kind: ClusterIssuer
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: noteverse
+  labels:
+    app.kubernetes.io/component: gateway
+spec:
+  gatewayClassName: envoy-gateway
+  listeners:
+    - name: web-https
+      hostname: noteverse.example.invalid
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: noteverse-production-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: api-https
+      hostname: api.noteverse.example.invalid
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: noteverse-production-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: noteverse-web
+  labels:
+    app.kubernetes.io/component: routing
+spec:
+  parentRefs:
+    - name: noteverse
+      sectionName: web-https
+  hostnames:
+    - noteverse.example.invalid
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/v1/practice
+      backendRefs:
+        - name: noteverse-backend-practice
+          port: 8000
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/v1
+      backendRefs:
+        - name: noteverse-backend-api
+          port: 8000
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: noteverse-frontend
+          port: 3000
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: noteverse-api
+  labels:
+    app.kubernetes.io/component: routing
+spec:
+  parentRefs:
+    - name: noteverse
+      sectionName: api-https
+  hostnames:
+    - api.noteverse.example.invalid
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/v1/practice
+      backendRefs:
+        - name: noteverse-backend-practice
+          port: 8000
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: noteverse-backend-api
+          port: 8000

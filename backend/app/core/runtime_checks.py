@@ -11,12 +11,8 @@ from pathlib import Path
 from typing import Awaitable, Callable
 
 import redis
-from sqlalchemy import text
 
 from app.core.config import settings
-from app.db.session import engine
-from app.db.worker_session import sync_engine
-from app.modules.storage_usage.service import DEFAULT_PLAN_CODE
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 
 
@@ -150,6 +146,10 @@ def check_settings(_: bool = False) -> CheckResult:
 
 
 async def check_api_database(_: bool = False) -> CheckResult:
+    from sqlalchemy import text
+
+    from app.db.session import engine
+
     try:
         async with engine.connect() as connection:
             await connection.execute(text("select 1"))
@@ -159,6 +159,10 @@ async def check_api_database(_: bool = False) -> CheckResult:
 
 
 def check_worker_database(_: bool = False) -> CheckResult:
+    from sqlalchemy import text
+
+    from app.db.worker_session import sync_engine
+
     try:
         with sync_engine.connect() as connection:
             connection.execute(text("select 1"))
@@ -172,6 +176,11 @@ def check_worker_database(_: bool = False) -> CheckResult:
 
 
 def check_storage_quota_policy(_: bool = False) -> CheckResult:
+    from sqlalchemy import text
+
+    from app.db.worker_session import sync_engine
+    from app.modules.storage_usage.service import DEFAULT_PLAN_CODE
+
     try:
         with sync_engine.connect() as connection:
             row = connection.execute(

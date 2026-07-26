@@ -7,11 +7,9 @@ Platform resources are owned by operators, not application releases.
 
 Included examples:
 
-- `ingress-nginx/values.yaml`: ingress-nginx Helm values with
-  `controller.service.type=LoadBalancer`;
+- `gateway-api/*`: Gateway API and Envoy Gateway installation guidance;
 - `cert-manager/*`: cert-manager `ClusterIssuer` examples for Let's Encrypt
   DNS-01 through Cloudflare.
 
 Apply these before deploying the application overlay when running production or
 production-flow rehearsal.
-

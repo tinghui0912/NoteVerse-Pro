@@ -13,13 +13,13 @@ Before applying:
 5. Apply the staging issuer first and validate certificate issuance.
 6. Apply and use the production issuer only after the staging flow is stable.
 
-The application staging Ingress expects:
+The application staging `Certificate` expects:
 
 ```text
 ClusterIssuer/letsencrypt-staging-dns01
 ```
 
-The application production Ingress expects:
+The application production `Certificate` expects:
 
 ```text
 ClusterIssuer/letsencrypt-production-dns01

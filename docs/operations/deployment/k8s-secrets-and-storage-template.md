@@ -133,7 +133,7 @@ Secret/noteverse-staging-tls
 Rules:
 
 - prefer cert-manager or an external certificate automation path;
-- TLS Secret names must match the application overlay Ingress;
+- TLS Secret names must match the application overlay Gateway;
 - include both frontend and API hosts in the certificate SAN list.
 
 ## Object Storage
@@ -193,7 +193,6 @@ container: /opt/noteverse/models
 
 Used by:
 
-- `backend-api` read-only;
 - `backend-worker` read-only.
 
 Contains:
@@ -315,7 +314,7 @@ Secret rotation:
 TLS rotation:
 
 1. Rotate through cert-manager or update the TLS Secret.
-2. Confirm ingress picks up the new certificate.
+2. Confirm the Gateway serves the new certificate.
 3. Verify browser access to frontend and API hosts.
 
 Model volume update:

@@ -20,7 +20,7 @@ Expected production overlays before launch:
   - Prometheus, Alertmanager, and Grafana persistence;
   - Grafana admin credentials through external secret management;
   - alert routes and receivers;
-  - ingress and TLS policy;
+  - Gateway exposure and TLS policy;
   - resource requests and limits.
 - `tempo.values.yaml`
   - object storage backend;
@@ -34,4 +34,3 @@ Expected production overlays before launch:
   - cluster label if needed;
   - output TLS/auth if Loki is exposed through a secured endpoint;
   - resource limits for high-volume nodes.
-

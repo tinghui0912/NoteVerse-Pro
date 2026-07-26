@@ -102,18 +102,17 @@ Verify:
 - `FRONTEND_BASE_URL` is the public product URL;
 - `BACKEND_CORS_ORIGINS` includes only approved browser origins;
 - `NEXT_BACKEND_ORIGIN` points to the internal backend Service;
-- `/api/v1` is routed by ingress to the backend API;
+- `/api/v1` is routed by Gateway API to the backend API;
 - cookie names match backend and frontend configuration.
 
 Do not use `localhost`, private LAN IPs, or Docker host aliases in deployable
 overlays.
 
-## 4. Ingress And Streaming
+## 4. Gateway And Streaming
 
-Verify the API ingress path supports:
+Verify the API Gateway route supports:
 
 - long-lived SSE responses;
-- disabled proxy buffering for realtime endpoints;
 - read/send timeouts suitable for realtime connections;
 - TLS for both frontend and API hosts.
 
@@ -184,5 +183,5 @@ Do not deploy if:
 - any host is still `example.invalid`;
 - any local dev endpoint appears in manifests;
 - any required Secret/PVC/node label is missing;
-- realtime SSE does not work through the production ingress path;
+- realtime SSE does not work through the production Gateway path;
 - object storage or node-local model cache checks fail.

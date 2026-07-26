@@ -1,8 +1,8 @@
 # Staging Overlay
 
 This overlay is a deployable shape template for the staging environment. It is
-not ready for production without replacing placeholders and creating required
-Secrets/PVCs.
+not ready for deployment without replacing placeholders, creating required
+Secrets, and preparing node-local model-cache labels.
 
 Validate rendering:
 
@@ -22,7 +22,9 @@ Required objects supplied outside this overlay:
   - `S3_ACCESS_KEY_ID`
   - `S3_SECRET_ACCESS_KEY`
   - `RESEND_API_KEY` if mail is enabled
-- `Secret/noteverse-staging-tls` or a cert-manager issuer that owns it
+  - `HF_TOKEN` when gated Hugging Face model repositories are enabled
+- `ClusterIssuer/letsencrypt-staging-dns01` or another cert-manager issuer
+  capable of issuing `Secret/noteverse-staging-tls`
 - node label `noteverse.io/model-cache=enabled` on nodes that may run worker
   pods
 
@@ -38,7 +40,7 @@ Frontend routing notes:
   by Next.js rewrites on the server side.
 - `NEXT_PRACTICE_ORIGIN` points to the internal practice Service for local or
   server-side rewrites of `/api/v1/practice/*`.
-- Browser API and realtime requests use same-origin `/api/v1`. The ingress path
+- Browser API and realtime requests use same-origin `/api/v1`. The HTTPRoute
   must route `/api/v1/practice` to the practice Service before routing the
   broader `/api/v1` prefix to the backend API. Long-lived responses and
   WebSocket upgrades must be supported without buffering.

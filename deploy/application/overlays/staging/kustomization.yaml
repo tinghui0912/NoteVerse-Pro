@@ -5,7 +5,7 @@ namespace: noteverse-staging
 
 resources:
   - ../../base
-  - ingress.yaml
+  - gateway.yaml
 
 labels:
   - includeSelectors: false

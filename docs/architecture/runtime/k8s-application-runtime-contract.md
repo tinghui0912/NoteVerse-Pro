@@ -97,7 +97,7 @@ Required runtime dependencies:
 - storage access for canonical MusicXML sources;
 - practice soundfont and realtime alignment dependencies.
 
-Ingress:
+Gateway routing:
 
 - route `/api/v1/practice` to `noteverse-backend-practice` before the broader
   `/api/v1` backend API path;
@@ -204,11 +204,11 @@ Production frontend builds must fail fast when required runtime config is
 missing. Do not add fallback API origins, cookie names, or realtime URLs.
 
 Browser API and realtime calls use same-origin `/api/v1`. In production, the
-ingress must route `/api/v1/practice` to the practice Service before routing
-the broader `/api/v1` prefix to the backend API. Long-lived SSE responses and
-WebSocket upgrades must be supported without buffering. This keeps frontend
-images environment-neutral and avoids baking public API origins into the
-browser bundle.
+Gateway/HTTPRoute rules must route `/api/v1/practice` to the practice Service
+before routing the broader `/api/v1` prefix to the backend API. Long-lived SSE
+responses and WebSocket upgrades must be supported without buffering. This
+keeps frontend images environment-neutral and avoids baking public API origins
+into the browser bundle.
 
 ## Configuration Ownership
 
@@ -388,7 +388,7 @@ or database-backed ops APIs, not Kubernetes labels.
    - API request logs in Loki;
    - worker logs in Loki;
    - outbox metrics in Prometheus;
-   - realtime SSE over the production ingress path.
+   - realtime SSE over the production Gateway path.
 
 ## Deployment Skeleton
 

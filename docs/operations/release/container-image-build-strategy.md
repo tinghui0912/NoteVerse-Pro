@@ -41,7 +41,7 @@ Frontend runtime path:
 
 - `docker/frontend/Dockerfile.runtime` exists;
 - browser API and realtime traffic use same-origin `/api/v1`;
-- environment-specific backend routing belongs in ingress and
+- environment-specific backend routing belongs in Gateway/HTTPRoute rules and
   `NEXT_BACKEND_ORIGIN`, not in browser-bundled `NEXT_PUBLIC_*` values.
 
 ## Image Names
@@ -430,7 +430,7 @@ Important Next.js config note:
 - staging and production can use a stable internal backend Service origin such
   as `http://noteverse-backend-api:8000`;
 - browser-facing API and realtime traffic use same-origin `/api/v1`, with
-  ingress routing that path to the backend API.
+  Gateway/HTTPRoute rules routing that path to the backend API.
 
 Recommended future build:
 

@@ -161,12 +161,12 @@ def render_overlay(args: argparse.Namespace) -> Path:
         else "noteverse-production-tls"
     )
 
-    ingress_path = output / "ingress.yaml"
-    ingress = ingress_path.read_text(encoding="utf-8")
-    ingress = replace_required(ingress, api_placeholder, args.api_host)
-    ingress = replace_required(ingress, frontend_placeholder, args.frontend_host)
-    ingress = replace_required(ingress, tls_placeholder, args.tls_secret)
-    ingress_path.write_text(ingress, encoding="utf-8")
+    gateway_path = output / "gateway.yaml"
+    gateway = gateway_path.read_text(encoding="utf-8")
+    gateway = replace_required(gateway, api_placeholder, args.api_host)
+    gateway = replace_required(gateway, frontend_placeholder, args.frontend_host)
+    gateway = replace_required(gateway, tls_placeholder, args.tls_secret)
+    gateway_path.write_text(gateway, encoding="utf-8")
 
     backend_config_path = output / "backend-config.env"
     backend_config = backend_config_path.read_text(encoding="utf-8")

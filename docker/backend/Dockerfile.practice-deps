@@ -46,6 +46,8 @@ RUN apt-get update -o Acquire::Retries=3 \
         libgomp1 \
         libsndfile1 \
         tini \
+    && mkdir -p /opt/noteverse/models/soundfonts \
+    && ln -sf /usr/share/sounds/sf2/FluidR3_GM.sf2 /opt/noteverse/models/soundfonts/FluidR3_GM.sf2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements/ /tmp/requirements/

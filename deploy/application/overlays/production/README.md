@@ -31,7 +31,9 @@ Required objects supplied outside this overlay:
   - `S3_ACCESS_KEY_ID`
   - `S3_SECRET_ACCESS_KEY`
   - `RESEND_API_KEY` if mail is enabled
-- `Secret/noteverse-production-tls` or a cert-manager issuer that owns it
+  - `HF_TOKEN` when gated Hugging Face model repositories are enabled
+- `ClusterIssuer/letsencrypt-production-dns01` or another cert-manager issuer
+  capable of issuing `Secret/noteverse-production-tls`
 - node labels/tolerations for GPU worker scheduling:
   - `noteverse.io/model-cache=enabled`
   - `noteverse.io/workload=gpu-worker`
@@ -40,7 +42,7 @@ Required objects supplied outside this overlay:
 Secret, PVC, object storage, TLS, and GPU label ownership is documented in:
 
 ```text
-docs/k8s-secrets-and-storage-template.md
+docs/operations/deployment/k8s-secrets-and-storage-template.md
 ```
 
 Production-specific choices:
@@ -51,7 +53,8 @@ Production-specific choices:
   contention should be benchmarked before horizontal scaling.
 - Beat remains a singleton. Do not scale it until the scheduler is made
   cluster-safe.
-- Ingress disables proxy buffering and uses long read/send timeouts for SSE.
+- Gateway routing must support SSE and WebSocket traffic for API and practice
+  realtime paths.
 
 Replace all `example.invalid` domains and `registry.example.invalid` images in
 a private production overlay or CI/CD substitution step before deployment.

@@ -214,7 +214,7 @@ Recommended production order:
 5. Roll backend worker.
 6. Roll backend beat.
 7. Roll frontend.
-8. Apply or update ingress.
+8. Apply or update Gateway, Certificate, and HTTPRoute resources.
 9. Run production smoke tests.
 
 If the API and worker require schema changes, avoid running old workers against

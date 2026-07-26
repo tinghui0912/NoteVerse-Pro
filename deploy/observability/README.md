@@ -10,7 +10,7 @@ overlay under `deploy/observability/values/minikube/`.
 They are intentionally not a turnkey production deployment. Production should
 reuse this baseline, then add environment-specific overlays under
 `deploy/observability/values/production/` for storage durability, retention,
-credentials, ingress, alert routing, and scale.
+credentials, Gateway exposure, alert routing, and scale.
 
 Do not fork a completely separate observability stack for minikube and
 production. Keep the component choices and label policy shared, and put only
@@ -76,7 +76,7 @@ minikube overlays are intentionally small:
   hits minikube PVC ownership issues.
 
 Production overlays are currently docs-only on purpose. Do not create fake
-production values before the real cluster storage, ingress, secret, and scaling
+production values before the real cluster storage, Gateway exposure, secret, and scaling
 choices are known.
 
 ## Rules

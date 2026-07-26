@@ -40,7 +40,7 @@ environment-specific values for:
 - Prometheus, Alertmanager, and Grafana persistence;
 - retention periods;
 - external secret management for Grafana and alert receivers;
-- ingress/TLS;
+- Gateway/TLS;
 - resource requests, limits, replicas, and topology rules;
 - cluster/environment labels.
 

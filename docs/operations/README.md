@@ -7,7 +7,7 @@ production readiness.
 
 - [Production Deployment Guide](deployment/production-deployment-guide.md)
 - [Kubernetes Deployment Runbook](deployment/k8s-deployment-runbook.md)
-- [Kubernetes Ingress And TLS](deployment/k8s-ingress-and-tls.md)
+- [Kubernetes Gateway API And TLS](deployment/k8s-gateway-and-tls.md)
 - [Kubernetes Production Preflight Checklist](deployment/k8s-production-preflight-checklist.md)
 - [Kubernetes Secrets And Storage Template](deployment/k8s-secrets-and-storage-template.md)
 
@@ -15,6 +15,10 @@ production readiness.
 
 - [CI/CD Release Strategy](release/cicd-release-strategy.md)
 - [Container Image Build Strategy](release/container-image-build-strategy.md)
+
+## Active Plans
+
+- [Production-like Staging Platform Plan](plans/production-like-staging-platform-plan.md)
 
 ## Observability
 

@@ -27,7 +27,7 @@ deploy/application/base/
 
 They intentionally reference placeholder images and pre-existing
 ConfigMaps/Secrets. Environment-specific overlays must provide real images,
-resource classes, ingress, storage, backend secrets, and public origins
+resource classes, Gateway routing, storage, backend secrets, and public origins
 explicitly.
 
 The first environment overlay template lives under:

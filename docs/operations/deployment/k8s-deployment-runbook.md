@@ -171,7 +171,7 @@ Create required external resources before applying manifests:
 - object storage bucket;
 - registry pull Secret for private GHCR images;
 - backend Secret;
-- Ingress Controller exposed through `Service/type=LoadBalancer`;
+- Envoy Gateway exposed through `Service/type=LoadBalancer`;
 - cert-manager issuer or an external certificate automation path;
 - model-capable node labels and node-local model cache;
 - GPU node labels/tolerations if production worker uses GPU.
@@ -233,7 +233,7 @@ Apply order:
 6. Backend worker.
 7. Backend beat.
 8. Frontend.
-9. Ingress.
+9. Gateway and HTTPRoute.
 
 The public template overlay is not directly deployable because it contains
 `example.invalid` domains and placeholder images. Use a private deployable
@@ -295,7 +295,7 @@ Check ServiceMonitor:
 kubectl -n noteverse-production get servicemonitor
 ```
 
-Check realtime through ingress:
+Check realtime through Gateway:
 
 - open the application in a browser;
 - edit a score and save;
@@ -410,7 +410,7 @@ Likely causes:
 Check:
 
 - browser SSE connects to public API origin;
-- ingress disables buffering;
+- Gateway route and data-plane policy support long-lived SSE responses;
 - CORS includes the frontend origin;
 - Redis degraded state in `/health/ready`;
 - realtime cleanup/retention settings.
@@ -465,5 +465,5 @@ Do not proceed to production if:
 - migration status is unknown;
 - API `/health/ready` fails;
 - worker runtime checks fail;
-- realtime SSE fails through ingress;
+- realtime SSE fails through Gateway;
 - logs/metrics are not visible after rollout.

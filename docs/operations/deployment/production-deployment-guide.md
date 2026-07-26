@@ -12,7 +12,7 @@ Read these documents in order:
 
 1. [Kubernetes Deployment Runbook](k8s-deployment-runbook.md)
 2. [Kubernetes Production Preflight Checklist](k8s-production-preflight-checklist.md)
-3. [Kubernetes Ingress And TLS](k8s-ingress-and-tls.md)
+3. [Kubernetes Gateway API And TLS](k8s-gateway-and-tls.md)
 4. [Kubernetes Secrets And Storage Template](k8s-secrets-and-storage-template.md)
 5. [Container Image Build Strategy](../release/container-image-build-strategy.md)
 6. [CI/CD Release Strategy](../release/cicd-release-strategy.md)
@@ -30,7 +30,7 @@ Read these documents in order:
 - metrics: Prometheus -> Grafana;
 - traces: OpenTelemetry Collector -> Tempo -> Grafana;
 - images: immutable registry tags or digests from CI.
-- ingress: Ingress Controller exposed through `Service/type=LoadBalancer`;
+- gateway: Gateway API through Envoy Gateway exposed by a load balancer;
 - TLS: cert-manager DNS-01 issuer or cloud-managed certificate automation.
 
 ## What Is Shared With Minikube
@@ -56,14 +56,14 @@ Production must not copy local-only shortcuts:
 - no test S3 bucket or development database credentials;
 - no placeholder hostnames, TLS names, image tags, or cookie settings;
 - no committed Secret manifests with real values;
-- no relaxed ingress, CORS, or cookie security settings.
+- no relaxed Gateway, CORS, or cookie security settings.
 
 ## Execution Order
 
 1. Confirm infrastructure readiness.
 
-   Managed PostgreSQL, managed Redis, S3-compatible object storage, ingress
-   controller, DNS, TLS automation, Kubernetes nodes, and observability storage
+   Managed PostgreSQL, managed Redis, S3-compatible object storage, Envoy
+   Gateway, DNS, TLS automation, Kubernetes nodes, and observability storage
    must exist before app manifests are applied.
 
 2. Prepare image artifacts.
@@ -104,8 +104,8 @@ Production must not copy local-only shortcuts:
 
 8. Deploy application workloads.
 
-   Apply ConfigMaps, Secrets, PVCs, model initialization, API, frontend, worker,
-   beat, and ingress resources. Roll out workers only after model assets and
+   Apply ConfigMaps, Secrets, model-cache DaemonSet, API, frontend, worker,
+   beat, and Gateway resources. Roll out workers only after model assets and
    runtime checks are ready.
 
    Model assets are prepared by the `model-cache-agent` DaemonSet on nodes
@@ -119,7 +119,7 @@ Production must not copy local-only shortcuts:
 
    - health endpoints;
    - authentication and CSRF cookie behavior;
-   - realtime/SSE path through ingress;
+   - realtime/SSE path through Gateway;
    - S3 object writes and reads;
    - upload/review/confirm/edit derived-asset flow;
    - deletion cleanup and quota release;
@@ -151,6 +151,6 @@ Do not deploy production if any of these are true:
 - backend runtime checks fail;
 - model cache is not ready on worker nodes;
 - object storage writes fail;
-- realtime/SSE does not work through the production ingress path;
+- realtime/SSE does not work through the production Gateway path;
 - Grafana cannot query logs, metrics, and traces;
 - rollback constraints are unknown.

@@ -67,7 +67,7 @@ container images, and production readiness.
 - [CI/CD Release Strategy](operations/release/cicd-release-strategy.md)
 - [Production Deployment Guide](operations/deployment/production-deployment-guide.md)
 - [Kubernetes Deployment Runbook](operations/deployment/k8s-deployment-runbook.md)
-- [Kubernetes Ingress And TLS](operations/deployment/k8s-ingress-and-tls.md)
+- [Kubernetes Gateway API And TLS](operations/deployment/k8s-gateway-and-tls.md)
 - [Kubernetes Production Preflight Checklist](operations/deployment/k8s-production-preflight-checklist.md)
 - [Kubernetes Secrets And Storage Template](operations/deployment/k8s-secrets-and-storage-template.md)
 - [Minikube From Zero Runbook](operations/runbooks/minikube-from-zero.md)
