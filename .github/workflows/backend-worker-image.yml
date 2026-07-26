@@ -6,7 +6,7 @@ on:
       ml_base_tag:
         description: "Pinned ML base image tag used for worker builds"
         required: true
-        default: "py312-torch260-cu124"
+        default: "py312-torch260-cu124-slim"
       worker_deps_tag:
         description: "Optional worker dependency image tag. Leave empty to use a content fingerprint tag."
         required: false
@@ -31,7 +31,7 @@ jobs:
       contents: read
       packages: write
     env:
-      ML_BASE_TAG: ${{ inputs.ml_base_tag || 'py312-torch260-cu124' }}
+      ML_BASE_TAG: ${{ inputs.ml_base_tag || 'py312-torch260-cu124-slim' }}
       WORKER_DEPS_TAG_INPUT: ${{ inputs.worker_deps_tag }}
       LEGATO_REPO_URL: ${{ inputs.legato_repo_url || 'https://github.com/guang-yng/legato.git' }}
       LEGATO_REPO_COMMIT: ${{ inputs.legato_repo_commit || '179c228d3d5f67113cf739b44891b3abe046f1dc' }}
@@ -72,6 +72,16 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
+      - name: Free hosted runner disk space
+        if: runner.environment == 'github-hosted'
+        run: |
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          docker system prune -af || true
+          df -h
 
       - name: Log in to GHCR
         uses: docker/login-action@v4

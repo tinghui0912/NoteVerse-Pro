@@ -111,7 +111,7 @@ Build production-style runtime images locally:
 ```powershell
 $ghcrOwner = "<github-owner>"
 $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
-$mlBaseImage = "ghcr.io/$ghcrOwner/noteverse/ml-base:py312-torch260-cu124"
+$mlBaseImage = "ghcr.io/$ghcrOwner/noteverse/ml-base:py312-torch260-cu124-slim"
 $workerDepsImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker-deps:deps-$imageTag"
 
 docker build `

@@ -197,7 +197,7 @@ driver is provided by the host through the NVIDIA container runtime.
 ```powershell
 docker build `
   -f docker/backend/Dockerfile.ml-base `
-  -t noteverse-ml-base:py312-torch260-cu124 `
+  -t noteverse-ml-base:py312-torch260-cu124-slim `
   .
 ```
 
@@ -210,7 +210,7 @@ Then build the worker dependency image:
 ```powershell
 docker build `
   -f docker/backend/Dockerfile.worker-deps `
-  --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124 `
+  --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124-slim `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
   --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git `
@@ -233,8 +233,8 @@ Python image and retry:
 
 ```powershell
 docker pull python:3.12-slim-bookworm
-docker build -f docker/backend/Dockerfile.ml-base -t noteverse-ml-base:py312-torch260-cu124 .
-docker build -f docker/backend/Dockerfile.worker-deps --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124 -t noteverse-backend-worker-deps:dev .
+docker build -f docker/backend/Dockerfile.ml-base -t noteverse-ml-base:py312-torch260-cu124-slim .
+docker build -f docker/backend/Dockerfile.worker-deps --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124-slim -t noteverse-backend-worker-deps:dev .
 docker compose -f docker-compose.backend-dev.yml build api
 docker compose -f docker-compose.backend-dev.yml build worker
 ```

@@ -15,20 +15,9 @@ RUN apt-get update -o Acquire::Retries=3 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python -m pip install \
-        --upgrade \
-        pip \
-        setuptools \
-        wheel \
-    && python -m pip install \
+        --no-cache-dir \
+        --no-compile \
         torch==2.6.0 \
         --index-url "https://download.pytorch.org/whl/${TORCH_CUDA_INDEX}" \
-    && python - <<'PY'
-import sys
-import torch
-
-assert sys.version_info[:2] == (3, 12), sys.version
-assert torch.__version__.startswith("2.6.0"), torch.__version__
-print("python", sys.version)
-print("torch", torch.__version__)
-print("cuda", torch.version.cuda)
-PY
+    && python -c "import sys, torch; assert sys.version_info[:2] == (3, 12), sys.version; assert torch.__version__.startswith('2.6.0'), torch.__version__; print('python', sys.version); print('torch', torch.__version__); print('cuda', torch.version.cuda)" \
+    && rm -rf /root/.cache /tmp/*

@@ -1,0 +1,89 @@
+name: Backend API Image
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "backend/**"
+      - "docker/backend/Dockerfile.api"
+      - "docker/backend/entrypoint.sh"
+      - ".github/workflows/backend-api-image.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "docker/backend/Dockerfile.api"
+      - "docker/backend/entrypoint.sh"
+      - ".github/workflows/backend-api-image.yml"
+
+concurrency:
+  group: backend-api-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUSH_IMAGE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Resolve image namespace
+        run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME || github.actor }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Build backend API runtime image
+        id: backend-api-build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/backend/Dockerfile.api
+          push: ${{ env.PUSH_IMAGE == 'true' }}
+          load: ${{ env.PUSH_IMAGE != 'true' }}
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.IMAGE_NAMESPACE }}/backend-api:${{ github.sha }}
+            ${{ env.IMAGE_NAMESPACE }}/backend-api:build-${{ github.run_id }}
+
+      - name: Generate backend API SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: ${{ env.IMAGE_NAMESPACE }}/backend-api:${{ github.sha }}
+          format: spdx-json
+          artifact-name: backend-api-image-sbom.spdx.json
+
+      - name: Scan backend API image
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-api:${{ github.sha }}
+          vuln-type: os,library
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+
+      - name: Write image build summary
+        run: |
+          {
+            echo "## Backend API image build"
+            echo ""
+            echo "- Push image: \`${PUSH_IMAGE}\`"
+            echo "- Backend API image: \`${IMAGE_NAMESPACE}/backend-api:${GITHUB_SHA}\`"
+            echo "- Backend API digest: \`${{ steps.backend-api-build.outputs.digest }}\`"
+            echo "- SBOM artifact: backend-api-image-sbom.spdx.json"
+            echo "- Vulnerability gate: CRITICAL, ignore unfixed"
+          } >> "$GITHUB_STEP_SUMMARY"

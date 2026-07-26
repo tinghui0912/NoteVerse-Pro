@@ -36,10 +36,17 @@ Related documents:
 Current repository workflows:
 
 - `.github/workflows/backend-quality.yml`
-- `.github/workflows/container-images.yml`
+- `.github/workflows/backend-api-image.yml`
+- `.github/workflows/backend-beat-image.yml`
+- `.github/workflows/backend-practice-image.yml`
+- `.github/workflows/backend-worker-image.yml`
+- `.github/workflows/frontend-image.yml`
 - `.github/workflows/frontend-quality.yml`
 - `.github/workflows/k8s-application-manifests.yml`
+- `.github/workflows/ml-base-image.yml`
 - `.github/workflows/observability-manifests.yml`
+- `.github/workflows/production-release-package.yml`
+- `.github/workflows/staging-release-package.yml`
 - `.github/workflows/staging-release-overlay.yml`
 
 These workflows are quality/build gates, not production deployers.
@@ -318,10 +325,14 @@ Implemented:
 
 Implemented:
 
-- `.github/workflows/container-images.yml` builds the backend and frontend
-  runtime images for pull requests and branch pushes;
-- the same workflow pushes immutable GHCR images on `main` pushes and manual
-  runs;
+- `.github/workflows/backend-api-image.yml`,
+  `.github/workflows/backend-beat-image.yml`,
+  `.github/workflows/backend-practice-image.yml`, and
+  `.github/workflows/frontend-image.yml` build runtime images only for their
+  relevant path scopes;
+- those workflows push immutable GHCR images on `main` pushes and manual runs;
+- `.github/workflows/ml-base-image.yml` publishes the pinned Python/PyTorch CUDA
+  base image used by the worker dependency image;
 - `.github/workflows/backend-worker-image.yml` is manual-only because the ML
   worker image needs a large CUDA/PyTorch base and should run on controlled
   release infrastructure or a sufficiently provisioned runner;
@@ -341,9 +352,35 @@ Still required:
 
 Partially implemented:
 
+- `.github/workflows/staging-release-package.yml` uses the GitHub `staging`
+  Environment variables plus image tags/refs to render and upload a deployable
+  staging package;
 - `.github/workflows/staging-release-overlay.yml` manually renders a deployable
-  staging overlay from image refs and public environment values;
+  staging overlay from fully supplied image refs and public environment values;
 - the generated overlay is validated in strict mode and uploaded as an artifact.
+
+The `staging` GitHub Environment must define these non-secret variables before
+running `staging-release-package.yml`:
+
+```text
+STAGING_FRONTEND_HOST
+STAGING_API_HOST
+STAGING_TLS_SECRET
+STAGING_FRONTEND_BASE_URL
+STAGING_BACKEND_CORS_ORIGINS
+STAGING_AUTH_COOKIE_SECURE
+STAGING_MAIL_DEFAULT_SENDER
+STAGING_S3_ENDPOINT_URL
+STAGING_S3_REGION
+STAGING_S3_BUCKET
+STAGING_S3_PUBLIC_BASE_URL
+STAGING_S3_FORCE_PATH_STYLE
+STAGING_S3_PRESIGN_EXPIRE_SECONDS
+```
+
+Credentials such as database URLs, Redis URLs, cookie secrets, S3 access keys,
+mail API keys, and Hugging Face tokens are not rendered into this package. They
+must already exist in the target cluster as Kubernetes Secrets.
 
 Still required for actual staging deployment:
 
@@ -353,7 +390,34 @@ Still required for actual staging deployment:
 
 ### Phase 4 - Production Deploy
 
-Add a production deploy workflow that:
+Partially implemented:
+
+- `.github/workflows/production-release-package.yml` uses the GitHub
+  `production` Environment variables plus image tags/refs to render and upload a
+  production release package;
+- GitHub Environment approval rules should be enabled for `production` so this
+  package cannot be generated without explicit approval.
+
+The `production` GitHub Environment must define these non-secret variables
+before running `production-release-package.yml`:
+
+```text
+PRODUCTION_FRONTEND_HOST
+PRODUCTION_API_HOST
+PRODUCTION_TLS_SECRET
+PRODUCTION_FRONTEND_BASE_URL
+PRODUCTION_BACKEND_CORS_ORIGINS
+PRODUCTION_AUTH_COOKIE_SECURE
+PRODUCTION_MAIL_DEFAULT_SENDER
+PRODUCTION_S3_ENDPOINT_URL
+PRODUCTION_S3_REGION
+PRODUCTION_S3_BUCKET
+PRODUCTION_S3_PUBLIC_BASE_URL
+PRODUCTION_S3_FORCE_PATH_STYLE
+PRODUCTION_S3_PRESIGN_EXPIRE_SECONDS
+```
+
+Still required: add a production deploy workflow that:
 
 - requires manual approval;
 - reuses staging-tested image digests;

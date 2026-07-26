@@ -75,10 +75,18 @@ Current GitHub Actions workflows:
 | Workflow | Trigger scope | Purpose |
 | --- | --- | --- |
 | `.github/workflows/backend-quality.yml` | `backend/**` | Backend ruff, mypy, model-layer mypy, pytest |
-| `.github/workflows/container-images.yml` | `backend/**`, `frontend/**`, `docker/**` | Runtime image build guard; pushes GHCR images on `main` and manual runs |
+| `.github/workflows/backend-api-image.yml` | backend API runtime files | Builds and scans the backend API image |
+| `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
+| `.github/workflows/backend-practice-image.yml` | backend practice runtime files | Builds and scans the backend practice image and its dependency base |
+| `.github/workflows/backend-worker-image.yml` | manual | Builds and scans the ML worker image from a pinned ML base |
+| `.github/workflows/frontend-image.yml` | frontend runtime files | Builds and scans the frontend image |
+| `.github/workflows/ml-base-image.yml` | manual | Builds and scans the Python/PyTorch CUDA ML base image |
 | `.github/workflows/frontend-quality.yml` | `frontend/**` and shared API constants | Frontend lint, i18n guard, typecheck, tests, build, e2e |
 | `.github/workflows/k8s-application-manifests.yml` | `deploy/application/**` and K8s guard script | Kustomize rendering and deployment-placeholder guard |
 | `.github/workflows/observability-manifests.yml` | `deploy/observability/**` and observability guard script | Loki/Fluent Bit/Prometheus/Tempo values guard |
+| `.github/workflows/production-release-package.yml` | manual, `production` environment | Renders a downloadable production release package from image refs and environment variables |
+| `.github/workflows/staging-release-package.yml` | manual, `staging` environment | Renders a downloadable staging release package from image refs and environment variables |
+| `.github/workflows/staging-release-overlay.yml` | manual explicit inputs | Renders a downloadable staging release overlay from fully supplied values |
 
 The K8s workflow also verifies that strict mode rejects the public production
 template. A private deployable production overlay should pass strict mode in its

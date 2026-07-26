@@ -194,9 +194,9 @@ Inputs:
 Recommended build:
 
 ```bash
-docker build \
+docker buildx build --push \
   -f docker/backend/Dockerfile.ml-base \
-  -t <registry>/noteverse/ml-base:py312-torch260-cu124 \
+  -t <registry>/noteverse/ml-base:py312-torch260-cu124-slim \
   .
 ```
 
@@ -222,8 +222,8 @@ ghcr.io/<github-owner>/noteverse/ml-base:ml-<hash>
 
 The hash is derived from `Dockerfile.ml-base` plus the selected Python image and
 PyTorch CUDA wheel index. Human-readable tags such as
-`py312-torch260-cu124` are convenient aliases; release records should still
-capture the resolved digest.
+`py312-torch260-cu124-slim` are convenient aliases; release records should
+still capture the resolved digest.
 
 ### Backend API Image
 
@@ -290,13 +290,14 @@ docker build \
   .
 ```
 
-The `Container Images` workflow computes this dependency hash. If the practice
-dependency files changed, it builds the dependency base first. For normal
-application-code changes it pulls the matching `backend-practice-deps` image
-from GHCR and fails clearly if that dependency base has not been published yet.
-This keeps normal application image builds fast while making native dependency
-updates deliberate. Dependency base images may be pushed from branch builds;
-deployable application images are pushed only from `main` or manual dispatch.
+The `Backend Practice Image` workflow computes this dependency hash. If the
+practice dependency files changed, it builds the dependency base first. For
+normal application-code changes it pulls the matching `backend-practice-deps`
+image from GHCR and fails clearly if that dependency base has not been
+published yet. This keeps normal application image builds fast while making
+native dependency updates deliberate. Dependency base images may be pushed from
+branch builds; deployable application images are pushed only from `main` or
+manual dispatch.
 
 ### Backend Beat Image
 
@@ -345,7 +346,7 @@ Recommended worker dependency image build:
 ```bash
 docker build \
   -f docker/backend/Dockerfile.worker-deps \
-  --build-arg PYTHON_IMAGE=<registry>/noteverse/ml-base:py312-torch260-cu124 \
+  --build-arg PYTHON_IMAGE=<registry>/noteverse/ml-base:py312-torch260-cu124-slim \
   --build-arg INSTALL_PADDLE_GPU=false \
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
   --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git \
@@ -370,10 +371,10 @@ docker build \
   .
 ```
 
-The standard `Container Images` workflow builds API, practice, beat, and
-frontend images. The `Backend Worker Image` workflow builds the worker
-dependency image and final worker image separately because they depend on the
-heavier ML base image and should be promoted deliberately.
+The API, beat, practice, and frontend image workflows are split by runtime
+boundary. The `Backend Worker Image` workflow builds the worker dependency image
+and final worker image separately because they depend on the heavier ML base
+image and should be promoted deliberately.
 
 The worker workflow is manual-only. GitHub-hosted runners have limited
 ephemeral disk space and are not a reliable place to automatically unpack CUDA,
@@ -524,7 +525,8 @@ CI/CD should:
 2. build or select the pinned ML base image;
 3. build or select the pinned practice dependency base image;
 4. build backend worker image from that ML base;
-5. build backend API, backend practice, backend beat, and frontend images;
+5. build backend API, backend practice, backend beat, and frontend images with
+   their dedicated image workflows;
 6. push commit SHA tags;
 7. capture image digests;
 8. render private staging overlay with the captured digests;
@@ -542,7 +544,8 @@ P0 before production:
 - connect the pushed GHCR image digests to private staging/production overlay
   generation;
 - record backend/frontend image digests in release metadata;
-- create private staging/production overlay generation path;
+- extend the environment-driven release package workflow from staging to
+  production after approval rules are finalized;
 - run strict manifest validation against private overlays.
 
 P1 hardening:

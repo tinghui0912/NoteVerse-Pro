@@ -1,0 +1,149 @@
+name: Production Release Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Shared immutable image tag. Defaults to the current commit SHA."
+        required: false
+        type: string
+      backend_api_image:
+        description: "Optional full backend API image reference override"
+        required: false
+        type: string
+      backend_beat_image:
+        description: "Optional full backend beat image reference override"
+        required: false
+        type: string
+      backend_practice_image:
+        description: "Optional full backend practice image reference override"
+        required: false
+        type: string
+      backend_worker_image:
+        description: "Optional full backend worker image reference override"
+        required: false
+        type: string
+      frontend_image:
+        description: "Optional full frontend image reference override"
+        required: false
+        type: string
+
+concurrency:
+  group: production-release-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install kubectl
+        run: |
+          KUBECTL_VERSION="$(curl -L -s https://dl.k8s.io/release/stable.txt)"
+          curl -L -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Resolve release inputs
+        run: |
+          set -euo pipefail
+
+          IMAGE_NAMESPACE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse"
+          IMAGE_TAG="${{ inputs.image_tag }}"
+          if [ -z "${IMAGE_TAG}" ]; then
+            IMAGE_TAG="${GITHUB_SHA}"
+          fi
+
+          BACKEND_API_IMAGE="${{ inputs.backend_api_image }}"
+          BACKEND_BEAT_IMAGE="${{ inputs.backend_beat_image }}"
+          BACKEND_PRACTICE_IMAGE="${{ inputs.backend_practice_image }}"
+          BACKEND_WORKER_IMAGE="${{ inputs.backend_worker_image }}"
+          FRONTEND_IMAGE="${{ inputs.frontend_image }}"
+
+          if [ -z "${BACKEND_API_IMAGE}" ]; then
+            BACKEND_API_IMAGE="${IMAGE_NAMESPACE}/backend-api:${IMAGE_TAG}"
+          fi
+          if [ -z "${BACKEND_BEAT_IMAGE}" ]; then
+            BACKEND_BEAT_IMAGE="${IMAGE_NAMESPACE}/backend-beat:${IMAGE_TAG}"
+          fi
+          if [ -z "${BACKEND_PRACTICE_IMAGE}" ]; then
+            BACKEND_PRACTICE_IMAGE="${IMAGE_NAMESPACE}/backend-practice:${IMAGE_TAG}"
+          fi
+          if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
+            BACKEND_WORKER_IMAGE="${IMAGE_NAMESPACE}/backend-worker:${IMAGE_TAG}"
+          fi
+          if [ -z "${FRONTEND_IMAGE}" ]; then
+            FRONTEND_IMAGE="${IMAGE_NAMESPACE}/frontend:${IMAGE_TAG}"
+          fi
+
+          {
+            echo "IMAGE_TAG=${IMAGE_TAG}"
+            echo "BACKEND_API_IMAGE=${BACKEND_API_IMAGE}"
+            echo "BACKEND_BEAT_IMAGE=${BACKEND_BEAT_IMAGE}"
+            echo "BACKEND_PRACTICE_IMAGE=${BACKEND_PRACTICE_IMAGE}"
+            echo "BACKEND_WORKER_IMAGE=${BACKEND_WORKER_IMAGE}"
+            echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}"
+          } >> "$GITHUB_ENV"
+
+      - name: Render production release overlay
+        run: |
+          python scripts/render_k8s_release_overlay.py \
+            --environment production \
+            --output build/k8s-release/production \
+            --backend-api-image "${BACKEND_API_IMAGE}" \
+            --backend-beat-image "${BACKEND_BEAT_IMAGE}" \
+            --backend-practice-image "${BACKEND_PRACTICE_IMAGE}" \
+            --backend-worker-image "${BACKEND_WORKER_IMAGE}" \
+            --frontend-image "${FRONTEND_IMAGE}" \
+            --frontend-host "${{ vars.PRODUCTION_FRONTEND_HOST }}" \
+            --api-host "${{ vars.PRODUCTION_API_HOST }}" \
+            --tls-secret "${{ vars.PRODUCTION_TLS_SECRET }}" \
+            --frontend-base-url "${{ vars.PRODUCTION_FRONTEND_BASE_URL }}" \
+            --backend-cors-origins '${{ vars.PRODUCTION_BACKEND_CORS_ORIGINS }}' \
+            --auth-cookie-secure "${{ vars.PRODUCTION_AUTH_COOKIE_SECURE }}" \
+            --mail-default-sender "${{ vars.PRODUCTION_MAIL_DEFAULT_SENDER }}" \
+            --s3-endpoint-url "${{ vars.PRODUCTION_S3_ENDPOINT_URL }}" \
+            --s3-region "${{ vars.PRODUCTION_S3_REGION }}" \
+            --s3-bucket "${{ vars.PRODUCTION_S3_BUCKET }}" \
+            --s3-public-base-url "${{ vars.PRODUCTION_S3_PUBLIC_BASE_URL }}" \
+            --s3-force-path-style "${{ vars.PRODUCTION_S3_FORCE_PATH_STYLE }}" \
+            --s3-presign-expire-seconds "${{ vars.PRODUCTION_S3_PRESIGN_EXPIRE_SECONDS }}"
+
+      - name: Validate rendered overlay
+        run: python scripts/check_k8s_application_manifests.py build/k8s-release/production --strict
+
+      - name: Render manifest artifact
+        run: kubectl kustomize build/k8s-release/production > build/k8s-release/production.rendered.yaml
+
+      - name: Upload rendered production release package
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-release-package
+          path: |
+            build/k8s-release/production
+            build/k8s-release/production.rendered.yaml
+
+      - name: Write production release package summary
+        run: |
+          {
+            echo "## Production release package"
+            echo ""
+            echo "- Image tag: \`${IMAGE_TAG}\`"
+            echo "- Backend API image: \`${BACKEND_API_IMAGE}\`"
+            echo "- Backend beat image: \`${BACKEND_BEAT_IMAGE}\`"
+            echo "- Backend practice image: \`${BACKEND_PRACTICE_IMAGE}\`"
+            echo "- Backend worker image: \`${BACKEND_WORKER_IMAGE}\`"
+            echo "- Frontend image: \`${FRONTEND_IMAGE}\`"
+            echo "- Artifact: \`production-release-package\`"
+          } >> "$GITHUB_STEP_SUMMARY"
