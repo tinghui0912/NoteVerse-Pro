@@ -21,7 +21,7 @@ import { scoresApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
-import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
+import { isDerivedAssetPreparing, playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
 import { scoreThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
 function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-scores' | null }) {
@@ -68,10 +68,13 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
 
   const score = resources.score;
   const previewAsset = score.derived_assets.preview;
+  const audioAsset = score.derived_assets.audio;
   const audioRevisionId = playableAudioRevisionId(
     score.derived_assets,
     score.capabilities.can_practice
   );
+  const audioPreparing = isDerivedAssetPreparing(audioAsset.status);
+  const imagePreparing = isDerivedAssetPreparing(previewAsset.status);
   const playbackAudioSrc = audioRevisionId
     ? scoresApi.playbackUrl(score.score_id, audioRevisionId)
     : undefined;
@@ -144,6 +147,8 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             thumbnailUrl={scoreThumbnailUrl(previewAsset.asset_id)}
             playbackAudioSrc={playbackAudioSrc}
             playbackEnabled={Boolean(playbackAudioSrc)}
+            playbackLoading={audioPreparing}
+            playbackVisible={score.capabilities.can_practice}
             status={score.publication?.status === 'PUBLISHED' ? (
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
                 {t('publishedStatus')}
@@ -151,6 +156,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
             ) : null}
             actions={(
               <ScoreHeroActions
+                imagePreparing={imagePreparing}
                 revisionAssets={resources.revisionAssets}
                 revisionId={score.head_revision_id}
                 scoreId={score.score_id}

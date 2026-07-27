@@ -22,12 +22,18 @@ import { scoreDownloadAvailability } from '@/lib/score-detail/download-availabil
 import type { ScoreRevisionAssets } from '@/types/api';
 
 interface ScoreHeroActionsProps {
+  imagePreparing?: boolean;
   revisionAssets: ScoreRevisionAssets;
   revisionId?: string | null;
   scoreId: string;
 }
 
-export function ScoreHeroActions({ revisionAssets, revisionId, scoreId }: ScoreHeroActionsProps) {
+export function ScoreHeroActions({
+  imagePreparing = false,
+  revisionAssets,
+  revisionId,
+  scoreId,
+}: ScoreHeroActionsProps) {
   const t = useTranslations('score');
   const common = useTranslations('common');
   const practice = useTranslations('practice');
@@ -39,9 +45,7 @@ export function ScoreHeroActions({ revisionAssets, revisionId, scoreId }: ScoreH
   const isPublished = publication.data?.data?.status === 'PUBLISHED';
   const publishBusy = publish.isPending || unpublish.isPending;
   const downloads = scoreDownloadAvailability(revisionAssets);
-  const downloadAvailable = capabilities.can_download && (
-    downloads.canDownloadImage || downloads.canDownloadXml
-  );
+  const downloadAvailable = capabilities.can_download;
 
   return (
     <>
@@ -55,18 +59,20 @@ export function ScoreHeroActions({ revisionAssets, revisionId, scoreId }: ScoreH
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            {downloads.canDownloadImage ? (
-              <DropdownMenuItem onClick={() => handleDownload('image')}>
-                <FileImage className="mr-2 h-4 w-4" />
-                {t('downloadImage')}
-              </DropdownMenuItem>
-            ) : null}
-            {downloads.canDownloadXml ? (
-              <DropdownMenuItem onClick={() => handleDownload('xml')}>
-                <FileMusic className="mr-2 h-4 w-4" />
-                {t('downloadMusicXML')}
-              </DropdownMenuItem>
-            ) : null}
+            <DropdownMenuItem
+              disabled={!downloads.canDownloadImage || imagePreparing}
+              onClick={() => handleDownload('image')}
+            >
+              {imagePreparing ? <InlineLoading /> : <FileImage className="mr-2 h-4 w-4" />}
+              {t('downloadImage')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!downloads.canDownloadXml}
+              onClick={() => handleDownload('xml')}
+            >
+              <FileMusic className="mr-2 h-4 w-4" />
+              {t('downloadMusicXML')}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}

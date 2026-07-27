@@ -1,10 +1,8 @@
 ﻿from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
-from io import BytesIO
-from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, get_optional_current_user
+from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.score_sharing.dependencies import get_score_sharing_service
@@ -155,21 +153,13 @@ async def bookmark_score_grant(
     return success_response(data=result)
 
 
-def _content_disposition(filename: str, *, attachment: bool) -> str:
-    disposition = "attachment" if attachment else "inline"
-    return f"{disposition}; filename*=UTF-8''{quote(filename)}"
-
-
-def _stream_asset(delivery, service: ScoreSharingService, *, attachment: bool) -> StreamingResponse:
-    return StreamingResponse(
-        BytesIO(service.asset_service.storage.read_bytes(delivery.storage_key)),
+def _stream_asset(delivery, service: ScoreSharingService, *, attachment: bool):
+    return stream_storage_object(
+        storage=service.asset_service.storage,
+        storage_key=delivery.storage_key,
+        filename=delivery.filename,
         media_type=delivery.media_type,
-        headers={
-            "Content-Disposition": _content_disposition(
-                delivery.filename,
-                attachment=attachment,
-            )
-        },
+        attachment=attachment,
     )
 
 

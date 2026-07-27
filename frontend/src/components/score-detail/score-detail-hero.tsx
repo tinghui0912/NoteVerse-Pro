@@ -17,6 +17,8 @@ interface ScoreDetailHeroProps {
   actions?: ReactNode;
   playbackAudioSrc?: string;
   playbackEnabled?: boolean;
+  playbackLoading?: boolean;
+  playbackVisible?: boolean;
 }
 
 export function ScoreDetailHero({
@@ -24,6 +26,8 @@ export function ScoreDetailHero({
   meta,
   playbackAudioSrc,
   playbackEnabled = true,
+  playbackLoading = false,
+  playbackVisible,
   status,
   subtitle,
   thumbnailUrl,
@@ -32,6 +36,7 @@ export function ScoreDetailHero({
   const t = useTranslations('score');
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const showThumbnail = Boolean(thumbnailUrl && !thumbnailFailed);
+  const showPlaybackButton = playbackVisible ?? playbackEnabled;
 
   return (
     <section className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
@@ -54,9 +59,11 @@ export function ScoreDetailHero({
               <Music className="h-12 w-12" />
             </div>
           )}
-          {playbackEnabled && playbackAudioSrc ? (
+          {showPlaybackButton ? (
             <ScoreCoverPlaybackButton
               audioSrc={playbackAudioSrc}
+              disabled={!playbackEnabled || !playbackAudioSrc}
+              loading={playbackLoading}
               className="absolute bottom-3 left-3"
             />
           ) : null}

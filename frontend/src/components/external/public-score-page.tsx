@@ -17,7 +17,7 @@ import { publicationsApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { resolveScoreCapabilities } from '@/lib/score/capabilities';
-import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
+import { isDerivedAssetPreparing, playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
 import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
 import { publicDerivedThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
@@ -63,7 +63,11 @@ function PublicScoreContent({ slug }: { slug: string }) {
 
   const capabilities = resolveScoreCapabilities(data.capabilities);
   const downloads = scoreDownloadAvailability(data.revision_assets);
+  const previewAsset = data.derived_assets.preview;
+  const audioAsset = data.derived_assets.audio;
   const audioRevisionId = playableAudioRevisionId(data.derived_assets, capabilities.can_practice);
+  const audioPreparing = isDerivedAssetPreparing(audioAsset.status);
+  const imagePreparing = isDerivedAssetPreparing(previewAsset.status);
   const scoreId = data.publication.score_id;
 
   return (
@@ -75,12 +79,15 @@ function PublicScoreContent({ slug }: { slug: string }) {
             subtitle={scoreText('publicScore')}
             thumbnailUrl={publicDerivedThumbnailUrl(
               slug,
-              data.derived_assets.preview.asset_id
+              previewAsset.asset_id
             )}
             playbackEnabled={Boolean(audioRevisionId)}
+            playbackLoading={audioPreparing}
+            playbackVisible={capabilities.can_practice}
             playbackAudioSrc={publicationsApi.playbackUrl(slug)}
             actions={(
               <ExternalScoreActions
+                imagePreparing={imagePreparing}
                 openAppHref={isAuthenticated ? `/score/${scoreId}` : undefined}
                 onDownloadImage={downloads.canDownloadImage ? () => void handleDownload('image') : undefined}
                 onDownloadXml={downloads.canDownloadXml ? () => void handleDownload('xml') : undefined}

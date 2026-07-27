@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { scoreSharingApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import { playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
+import { isDerivedAssetPreparing, playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
 import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
 import { shareDerivedThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
@@ -81,10 +81,14 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
 
   const data = page.shareData;
   const downloads = scoreDownloadAvailability(data.revision_assets);
+  const previewAsset = data.derived_assets.preview;
+  const audioAsset = data.derived_assets.audio;
   const audioRevisionId = playableAudioRevisionId(
     data.derived_assets,
     data.capabilities.can_practice
   );
+  const audioPreparing = isDerivedAssetPreparing(audioAsset.status);
+  const imagePreparing = isDerivedAssetPreparing(previewAsset.status);
   const query = searchParams.toString();
   const localizedSharePath = locale === routing.defaultLocale
     ? `/share/${shareId}`
@@ -113,13 +117,16 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
             subtitle={t('sharedScore')}
             thumbnailUrl={shareDerivedThumbnailUrl(
               shareId,
-              data.derived_assets.preview.asset_id
+              previewAsset.asset_id
             )}
             playbackEnabled={Boolean(audioRevisionId)}
+            playbackLoading={audioPreparing}
+            playbackVisible={data.capabilities.can_practice}
             playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}
             actions={(
               <ExternalScoreActions
                 canSave={page.isAuthenticated}
+                imagePreparing={imagePreparing}
                 isSaving={bookmark.isPending}
                 onDownloadImage={downloads.canDownloadImage ? () => void handleDownload('image') : undefined}
                 onDownloadXml={downloads.canDownloadXml ? () => void handleDownload('xml') : undefined}

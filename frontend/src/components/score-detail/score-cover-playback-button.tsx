@@ -7,18 +7,27 @@ import { reportUnexpectedClientError } from '@/lib/observability';
 import { cn } from '@/lib/utils';
 
 interface ScoreCoverPlaybackButtonProps {
-  audioSrc: string;
+  audioSrc?: string | null;
   className?: string;
+  disabled?: boolean;
+  loading?: boolean;
 }
 
-export function ScoreCoverPlaybackButton({ audioSrc, className }: ScoreCoverPlaybackButtonProps) {
+export function ScoreCoverPlaybackButton({
+  audioSrc,
+  className,
+  disabled = false,
+  loading = false,
+}: ScoreCoverPlaybackButtonProps) {
   const t = useTranslations('score');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioBusy, setAudioBusy] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const busy = audioBusy;
+  const unavailable = disabled || !audioSrc;
 
   const togglePlayback = async () => {
+    if (unavailable || loading || !audioSrc) return;
     let audio = audioRef.current;
     if (!audio) {
       audio = new Audio(audioSrc);
@@ -56,15 +65,16 @@ export function ScoreCoverPlaybackButton({ audioSrc, className }: ScoreCoverPlay
     <>
       <button
         type="button"
-        aria-label={audioPlaying ? t('pauseScore') : t('playScore')}
+        aria-label={loading ? t('playbackPreparing') : audioPlaying ? t('pauseScore') : t('playScore')}
+        title={loading ? t('playbackPreparing') : unavailable ? t('playbackUnavailable') : undefined}
         className={cn(
           'inline-flex h-11 w-11 items-center justify-center rounded-xl bg-black/60 text-white shadow-lg backdrop-blur transition hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-70',
           className
         )}
-        disabled={busy}
+        disabled={busy || loading || unavailable}
         onClick={() => void togglePlayback()}
       >
-        {busy ? (
+        {busy || loading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
         ) : audioPlaying ? (
           <Pause className="h-5 w-5 fill-current" />

@@ -1,4 +1,4 @@
-import type { ScoreDerivedAssets } from '@/types/api';
+import type { DerivedAssetStatus, ScoreDerivedAssets } from '@/types/api';
 
 export function playableAudioRevisionId(
   derivedAssets: ScoreDerivedAssets,
@@ -6,6 +6,10 @@ export function playableAudioRevisionId(
 ) {
   if (!canPractice) return null;
   if (!derivedAssets.audio.asset_id) return null;
-  if (derivedAssets.audio.status !== 'ready' && !derivedAssets.audio.is_fallback) return null;
+  if (derivedAssets.audio.status !== 'ready' || derivedAssets.audio.is_fallback) return null;
   return derivedAssets.audio.revision_id;
+}
+
+export function isDerivedAssetPreparing(status: DerivedAssetStatus) {
+  return status === 'pending' || status === 'processing';
 }

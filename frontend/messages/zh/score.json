@@ -5,6 +5,8 @@
   "scoreFallbackTitle": "乐谱 {id}",
   "playScore": "播放乐谱",
   "pauseScore": "暂停播放",
+  "playbackPreparing": "试听生成中",
+  "playbackUnavailable": "试听暂不可用",
   "noImageAvailable": "暂无预览",
   "scoreInfo": "乐谱信息",
   "scoreName": "名称",

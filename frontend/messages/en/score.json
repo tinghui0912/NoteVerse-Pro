@@ -5,6 +5,8 @@
   "scoreFallbackTitle": "Score {id}",
   "playScore": "Play Score",
   "pauseScore": "Pause Score",
+  "playbackPreparing": "Preview audio is being prepared",
+  "playbackUnavailable": "Preview audio is unavailable",
   "noImageAvailable": "No preview available",
   "scoreInfo": "Score Information",
   "scoreName": "Name",

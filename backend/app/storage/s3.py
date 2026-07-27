@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 
 from app.core.config import settings
 from app.storage.base import StoredFile
@@ -92,6 +93,38 @@ class S3CompatibleStorage:
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=normalized_key)
             return response["Body"].read()
+        except Exception as exc:
+            if self._is_not_found_error(exc):
+                raise FileNotFoundError(normalized_key) from exc
+            raise
+
+    def size_bytes(self, key: str) -> int:
+        normalized_key = self._normalize_key(key)
+        try:
+            response = self.client.head_object(Bucket=self.bucket, Key=normalized_key)
+            return int(response["ContentLength"])
+        except Exception as exc:
+            if self._is_not_found_error(exc):
+                raise FileNotFoundError(normalized_key) from exc
+            raise
+
+    def iter_bytes(
+        self,
+        key: str,
+        *,
+        chunk_size: int = 1024 * 1024,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> Iterator[bytes]:
+        normalized_key = self._normalize_key(key)
+        kwargs = {"Bucket": self.bucket, "Key": normalized_key}
+        if start is not None or end is not None:
+            range_start = "" if start is None else str(start)
+            range_end = "" if end is None else str(end)
+            kwargs["Range"] = f"bytes={range_start}-{range_end}"
+        try:
+            response = self.client.get_object(**kwargs)
+            yield from response["Body"].iter_chunks(chunk_size=chunk_size)
         except Exception as exc:
             if self._is_not_found_error(exc):
                 raise FileNotFoundError(normalized_key) from exc

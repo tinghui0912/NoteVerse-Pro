@@ -272,21 +272,12 @@ class ScoreAssetService:
         self, asset: ScoreAssetRecord, asset_uuid: str, route_prefix: str
     ) -> AssetAccessRead:
         self._require_object(asset)
-        if self.storage.backend_name == "local":
-            url = f"{settings.API_V1_STR}/{route_prefix}/{asset_uuid}/download"
-            expires = None
-        else:
-            signed = self.storage.download_url(asset.storage_key)
-            if not signed:
-                raise FileException(ErrorCode.FILE_NOT_FOUND, asset.storage_key)
-            url = signed
-            expires = settings.S3_PRESIGN_EXPIRE_SECONDS
         return AssetAccessRead(
             asset_id=asset_uuid,
-            url=url,
+            url=f"{settings.API_V1_STR}/{route_prefix}/{asset_uuid}/download",
             filename=asset.filename,
             mime_type=asset.mime_type,
-            expires_in=expires,
+            expires_in=None,
         )
 
     def _require_object(self, asset: ScoreAssetRecord) -> None:

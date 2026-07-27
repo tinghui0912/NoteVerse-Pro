@@ -49,8 +49,7 @@ from app.utils.timezone import utc_now_naive
 class ScoreInputAssetDelivery:
     filename: str
     media_type: str
-    path: str | None = None
-    redirect_url: str | None = None
+    storage_key: str
 
 
 class ScoreService:
@@ -202,26 +201,10 @@ class ScoreService:
         if not self.storage.exists(blob.storage_key):
             raise FileException(ErrorCode.FILE_NOT_FOUND, blob.storage_key)
         filename = upload.original_filename or blob.filename
-        if self.storage.backend_name != "local":
-            url = self.storage.download_url(
-                blob.storage_key,
-                filename=filename,
-                content_type=blob.mime_type,
-            )
-            if not url:
-                raise FileException(ErrorCode.FILE_NOT_FOUND, blob.storage_key)
-            return ScoreInputAssetDelivery(
-                filename=filename,
-                media_type=blob.mime_type,
-                redirect_url=url,
-            )
         return ScoreInputAssetDelivery(
             filename=filename,
             media_type=blob.mime_type,
-            path=self.storage.materialize_to_local(
-                blob.storage_key,
-                self.storage.local_path(blob.storage_key),
-            ),
+            storage_key=blob.storage_key,
         )
 
     async def _read(

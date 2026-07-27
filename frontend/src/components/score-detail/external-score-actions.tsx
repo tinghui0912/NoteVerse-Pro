@@ -3,6 +3,7 @@
 import { Bookmark, ChevronDown, Download, ExternalLink, FileImage, FileMusic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
+import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ import type { ReactNode } from 'react';
 
 interface ExternalScoreActionsProps {
   canSave?: boolean;
+  imagePreparing?: boolean;
   isSaving?: boolean;
   openAppHref?: string;
   onDownloadImage?: () => void;
@@ -25,6 +27,7 @@ interface ExternalScoreActionsProps {
 
 export function ExternalScoreActions({
   canSave,
+  imagePreparing = false,
   isSaving,
   onDownloadImage,
   onDownloadXml,
@@ -36,7 +39,7 @@ export function ExternalScoreActions({
   const score = useTranslations('score');
   const share = useTranslations('share');
   const { capabilities } = useScoreCapabilities();
-  const downloadAvailable = capabilities.can_download && (onDownloadImage || onDownloadXml);
+  const downloadAvailable = capabilities.can_download;
 
   const saveContent: ReactNode = (
     <>
@@ -65,18 +68,17 @@ export function ExternalScoreActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            {onDownloadImage ? (
-              <DropdownMenuItem onClick={onDownloadImage}>
-                <FileImage className="mr-2 h-4 w-4" />
-                {score('downloadImage')}
-              </DropdownMenuItem>
-            ) : null}
-            {onDownloadXml ? (
-              <DropdownMenuItem onClick={onDownloadXml}>
-                <FileMusic className="mr-2 h-4 w-4" />
-                {score('downloadMusicXML')}
-              </DropdownMenuItem>
-            ) : null}
+            <DropdownMenuItem
+              disabled={!onDownloadImage || imagePreparing}
+              onClick={onDownloadImage}
+            >
+              {imagePreparing ? <InlineLoading /> : <FileImage className="mr-2 h-4 w-4" />}
+              {score('downloadImage')}
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!onDownloadXml} onClick={onDownloadXml}>
+              <FileMusic className="mr-2 h-4 w-4" />
+              {score('downloadMusicXML')}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}

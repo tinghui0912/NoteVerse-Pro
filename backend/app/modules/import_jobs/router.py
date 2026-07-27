@@ -1,11 +1,8 @@
-from io import BytesIO
-from urllib.parse import quote
-
 from fastapi import APIRouter, Depends, Query, status
-from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.import_jobs.dependencies import get_import_job_service
@@ -99,13 +96,10 @@ async def download_job_artifact(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.artifact_delivery(db, job_id, artifact_id, user_id)
-    headers = {
-        "Content-Disposition": (
-            f"inline; filename*=UTF-8''{quote(delivery.filename)}"
-        )
-    }
-    return StreamingResponse(
-        BytesIO(service.storage.read_bytes(delivery.storage_key)),
+    return stream_storage_object(
+        storage=service.storage,
+        storage_key=delivery.storage_key,
+        filename=delivery.filename,
         media_type=delivery.media_type,
-        headers=headers,
+        attachment=False,
     )

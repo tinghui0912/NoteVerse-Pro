@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from collections.abc import Iterator
 
 from app.core.config import settings
 from app.storage.base import StoredFile
@@ -51,6 +52,33 @@ class LocalFileStorage:
     def read_bytes(self, key: str) -> bytes:
         with open(self.local_path(key), "rb") as file_handle:
             return file_handle.read()
+
+    def size_bytes(self, key: str) -> int:
+        return os.path.getsize(self.local_path(key))
+
+    def iter_bytes(
+        self,
+        key: str,
+        *,
+        chunk_size: int = 1024 * 1024,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> Iterator[bytes]:
+        path = self.local_path(key)
+        with open(path, "rb") as file_handle:
+            if start is not None:
+                file_handle.seek(start)
+            remaining = None if end is None else end - (start or 0) + 1
+            while True:
+                read_size = chunk_size if remaining is None else min(chunk_size, remaining)
+                if read_size <= 0:
+                    break
+                chunk = file_handle.read(read_size)
+                if not chunk:
+                    break
+                yield chunk
+                if remaining is not None:
+                    remaining -= len(chunk)
 
     def delete(self, key: str) -> bool:
         path = self.local_path(key)

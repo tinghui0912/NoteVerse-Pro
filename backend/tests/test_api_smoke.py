@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_db
@@ -64,22 +66,47 @@ def test_external_musicxml_content_routes_are_absent(client: TestClient) -> None
 
 
 def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> None:
+    audio_bytes = b"RIFF\x24\x00\x00\x00WAVEfmt "
     audio_path = tmp_path / "playback.wav"
-    audio_path.write_bytes(b"RIFF\x24\x00\x00\x00WAVEfmt ")
+    audio_path.write_bytes(audio_bytes)
+
+    class FakePlaybackStorage:
+        def read_bytes(self, key: str) -> bytes:
+            assert key in {"playback/share-token.wav", "playback/public-score.wav"}
+            return audio_bytes
+
+        def size_bytes(self, key: str) -> int:
+            assert key in {"playback/share-token.wav", "playback/public-score.wav"}
+            return len(audio_bytes)
+
+        def iter_bytes(
+            self,
+            key: str,
+            *,
+            chunk_size: int = 1024 * 1024,
+            start: int | None = None,
+            end: int | None = None,
+        ) -> Iterator[bytes]:
+            assert key in {"playback/share-token.wav", "playback/public-score.wav"}
+            content = audio_bytes[start : end + 1 if end is not None else None]
+            for index in range(0, len(content), chunk_size):
+                yield content[index : index + chunk_size]
 
     class FakePlaybackService:
+        storage = FakePlaybackStorage()
+
         async def grant_delivery(self, db, token: str, user_id: int | None):
             return PlaybackDelivery(
                 filename=f"{token}.wav",
                 media_type="audio/wav",
-                path=str(audio_path),
+                storage_key=f"playback/{token}.wav",
             )
 
         async def public_delivery(self, db, slug: str, user_id: int | None):
             return PlaybackDelivery(
                 filename=f"{slug}.wav",
                 media_type="audio/wav",
-                path=str(audio_path),
+                storage_key=f"playback/{slug}.wav",
             )
 
     async def fake_get_db():
@@ -89,6 +116,10 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
     app.dependency_overrides[get_playback_service] = lambda: FakePlaybackService()
     try:
         grant_response = client.get("/api/v1/score-grants/share-token/playback")
+        grant_range_response = client.get(
+            "/api/v1/score-grants/share-token/playback",
+            headers={"Range": "bytes=5-8"},
+        )
         public_response = client.get("/api/v1/publications/public-score/playback")
     finally:
         app.dependency_overrides.pop(get_playback_service, None)
@@ -96,8 +127,13 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
 
     assert grant_response.status_code == 200
     assert grant_response.headers["content-type"].startswith("audio/wav")
+    assert grant_response.content == audio_bytes
+    assert grant_range_response.status_code == 206
+    assert grant_range_response.headers["content-range"] == f"bytes 5-8/{len(audio_bytes)}"
+    assert grant_range_response.content == audio_bytes[5:9]
     assert public_response.status_code == 200
     assert public_response.headers["content-type"].startswith("audio/wav")
+    assert public_response.content == audio_bytes
 
 
 def test_protected_endpoints_require_authentication(client: TestClient) -> None:

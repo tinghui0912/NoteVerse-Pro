@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Iterator
 from typing import Protocol
 
 
@@ -35,6 +36,19 @@ class FileStorage(Protocol):
         ...
 
     def read_bytes(self, key: str) -> bytes:
+        ...
+
+    def size_bytes(self, key: str) -> int:
+        ...
+
+    def iter_bytes(
+        self,
+        key: str,
+        *,
+        chunk_size: int = 1024 * 1024,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> Iterator[bytes]:
         ...
 
     def delete(self, key: str) -> bool:

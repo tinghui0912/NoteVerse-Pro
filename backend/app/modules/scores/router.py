@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.revisions.schemas import (
@@ -75,12 +75,12 @@ async def download_score_input_asset(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.input_asset_delivery(db, score_id, asset_id, user_id)
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
+    return stream_storage_object(
+        storage=service.storage,
+        storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,
+        attachment=True,
     )
 
 

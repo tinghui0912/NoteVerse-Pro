@@ -1935,7 +1935,8 @@ async def test_source_delivery_checks_score_access_and_reports_missing_objects(
         revision_source.source_uuid,
         1,  # type: ignore[arg-type]
     )
-    assert delivery.path is not None
+    assert delivery.storage_key == revision_source.storage_key
+    assert storage.read_bytes(delivery.storage_key) == MUSICXML_1
 
     with pytest.raises(UnauthorizedException):
         await service.source_delivery(
@@ -2280,7 +2281,8 @@ async def test_share_detail_exposes_display_assets_without_musicxml_when_downloa
     playback = await PlaybackService(storage=storage).grant_delivery(
         db, created.token, None  # type: ignore[arg-type]
     )
-    assert playback.path == storage.local_path(old_audio.storage_key)
+    assert playback.storage_key == old_audio.storage_key
+    assert storage.read_bytes(playback.storage_key) == b"RIFF....WAVE"
 
     with pytest.raises(UnauthorizedException):
         await sharing_service.grant_revision_source_delivery(
