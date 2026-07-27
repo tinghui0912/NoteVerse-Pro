@@ -7,8 +7,8 @@ metadata:
 spec:
   secretName: noteverse-staging-tls
   dnsNames:
-    - staging.johnabc.ccwu.cc
-    - api.staging.johnabc.ccwu.cc
+    - staging.noteverse.example.invalid
+    - api.staging.noteverse.example.invalid
   issuerRef:
     name: letsencrypt-production-dns01
     kind: ClusterIssuer
@@ -23,7 +23,7 @@ spec:
   gatewayClassName: envoy-gateway
   listeners:
     - name: web-https
-      hostname: staging.johnabc.ccwu.cc
+      hostname: staging.noteverse.example.invalid
       port: 443
       protocol: HTTPS
       tls:
@@ -34,7 +34,7 @@ spec:
         namespaces:
           from: Same
     - name: api-https
-      hostname: api.staging.johnabc.ccwu.cc
+      hostname: api.staging.noteverse.example.invalid
       port: 443
       protocol: HTTPS
       tls:
@@ -56,7 +56,7 @@ spec:
     - name: noteverse
       sectionName: web-https
   hostnames:
-    - staging.johnabc.ccwu.cc
+    - staging.noteverse.example.invalid
   rules:
     - matches:
         - path:
@@ -91,7 +91,7 @@ spec:
     - name: noteverse
       sectionName: api-https
   hostnames:
-    - api.staging.johnabc.ccwu.cc
+    - api.staging.noteverse.example.invalid
   rules:
     - matches:
         - path:

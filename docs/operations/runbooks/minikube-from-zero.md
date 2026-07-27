@@ -72,13 +72,17 @@ python scripts/ensure_s3_bucket.py --env-file backend/.env.docker --create
 
 ## 5. Create Secrets
 
-Create `Secret/noteverse-registry-credentials` from your local Docker config if
-the local Docker client is authenticated to GHCR:
+Create or refresh `Secret/noteverse-registry-credentials` from an explicit
+GHCR token. Do not create it from Docker Desktop's `config.json` when that file
+uses `credsStore`; Kubernetes nodes cannot read the local credential store.
 
 ```powershell
+$env:GHCR_TOKEN = "<github-token-with-read-packages>"
+
 .\scripts\minikube_app_release_prepare.ps1 `
   -RenderedOverlay build/k8s-release/minikube `
-  -CreateRegistrySecretFromDockerConfig `
+  -CreateRegistrySecretFromToken `
+  -RegistryUsername "<github-username>" `
   -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
 ```
 
@@ -106,6 +110,13 @@ $env:NOTEVERSE_S3_FORCE_PATH_STYLE = "false"
 .\scripts\render_minikube_release_overlay.ps1 -Output build/k8s-release/minikube -Overwrite
 ```
 
+The checked-in `deploy/application/overlays/staging` directory is a template.
+It intentionally keeps placeholder hosts such as
+`staging.noteverse.example.invalid` and
+`api.staging.noteverse.example.invalid`. The rendered directory under
+`build/k8s-release/minikube` is the deployable overlay and should contain the
+real test hosts, image tags, and S3 settings.
+
 The rendered origin is `https://staging.johnabc.ccwu.cc`. Do not render `:443`
 or `:8443` into `FRONTEND_BASE_URL` or CORS origins.
 
@@ -124,6 +135,8 @@ and scale the K8s worker to zero:
 ```powershell
 .\scripts\minikube_app_release_prepare.ps1 `
   -RenderedOverlay build/k8s-release/minikube `
+  -CreateRegistrySecretFromToken `
+  -RegistryUsername "<github-username>" `
   -Apply `
   -Wait `
   -ScaleWorkerToZero `
@@ -132,6 +145,14 @@ and scale the K8s worker to zero:
 
 This waits for migration, API, practice API, beat, and frontend, but skips the
 Kubernetes GPU worker/model-cache path.
+
+The core application overlay does not require Prometheus Operator CRDs. After
+the observability stack is installed, apply the optional scrape discovery
+resources:
+
+```powershell
+kubectl -n noteverse-staging apply -k deploy/application/monitoring/prometheus-operator
+```
 
 ## 8. Start Gateway Port Forward
 

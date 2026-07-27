@@ -26,8 +26,7 @@ from app.shared.constants import ErrorCode
 class ImportArtifactDelivery:
     filename: str
     media_type: str
-    path: str | None = None
-    redirect_url: str | None = None
+    storage_key: str
 
 
 @dataclass(frozen=True)
@@ -357,25 +356,10 @@ class ImportJobService:
         if not self.storage.exists(artifact.storage_key):
             raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.storage_key)
         media_type = artifact.mime_type or "application/octet-stream"
-        if self.storage.backend_name != "local":
-            url = self.storage.download_url(
-                artifact.storage_key,
-                filename=artifact.filename,
-                content_type=media_type,
-            )
-            if not url:
-                raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.storage_key)
-            return ImportArtifactDelivery(
-                filename=artifact.filename,
-                media_type=media_type,
-                redirect_url=url,
-            )
         return ImportArtifactDelivery(
             filename=artifact.filename,
             media_type=media_type,
-            path=self.storage.materialize_to_local(
-                artifact.storage_key, self.storage.local_path(artifact.storage_key)
-            ),
+            storage_key=artifact.storage_key,
         )
 
     async def _upload_delivery(
@@ -407,26 +391,10 @@ class ImportJobService:
             raise FileException(ErrorCode.FILE_NOT_FOUND, blob.storage_key)
         media_type = blob.mime_type or "application/octet-stream"
         filename = upload.original_filename or blob.filename
-        if self.storage.backend_name != "local":
-            url = self.storage.download_url(
-                blob.storage_key,
-                filename=filename,
-                content_type=media_type,
-            )
-            if not url:
-                raise FileException(ErrorCode.FILE_NOT_FOUND, blob.storage_key)
-            return ImportArtifactDelivery(
-                filename=filename,
-                media_type=media_type,
-                redirect_url=url,
-            )
         return ImportArtifactDelivery(
             filename=filename,
             media_type=media_type,
-            path=self.storage.materialize_to_local(
-                blob.storage_key,
-                self.storage.local_path(blob.storage_key),
-            ),
+            storage_key=blob.storage_key,
         )
 
 

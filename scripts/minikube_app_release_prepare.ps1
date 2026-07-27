@@ -3,7 +3,11 @@ param(
     [string] $RenderedOverlay = "build/k8s-release/minikube",
     [string] $BackendSecretEnvFile = "",
     [string] $DockerConfigPath = (Join-Path $env:USERPROFILE ".docker\config.json"),
+    [string] $RegistryServer = "ghcr.io",
+    [string] $RegistryUsername = "",
+    [string] $RegistryTokenEnvName = "GHCR_TOKEN",
     [switch] $CreateRegistrySecretFromDockerConfig,
+    [switch] $CreateRegistrySecretFromToken,
     [switch] $SkipBackendSecret,
     [switch] $SkipRegistrySecret,
     [switch] $SkipWorkerWait,
@@ -103,6 +107,68 @@ function Assert-ClusterSecretContainsRequiredKeys {
     }
 }
 
+function Assert-DockerConfigCanBeUsedByKubernetes {
+    param(
+        [string] $Path,
+        [string] $Server
+    )
+
+    $config = Get-Content -Raw $Path | ConvertFrom-Json
+    $auths = $config.auths
+    $serverAuth = $null
+    if ($auths) {
+        $serverAuth = $auths.PSObject.Properties[$Server]
+    }
+
+    if ($null -eq $serverAuth -or [string]::IsNullOrWhiteSpace($serverAuth.Value.auth)) {
+        $usesCredentialStore = $config.PSObject.Properties.Name -contains "credsStore" -or `
+            $config.PSObject.Properties.Name -contains "credHelpers"
+        if ($usesCredentialStore) {
+            throw "Docker config uses a local credential store and does not contain a portable auth token for $Server. Kubernetes cannot read Docker Desktop credential stores. Use -CreateRegistrySecretFromToken with $RegistryTokenEnvName."
+        }
+        throw "Docker config does not contain auth for $Server. Use -CreateRegistrySecretFromToken with $RegistryTokenEnvName."
+    }
+}
+
+function Write-RegistryDockerConfig {
+    param(
+        [string] $Server,
+        [string] $Username,
+        [string] $Token
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Username)) {
+        throw "Registry username is required when using -CreateRegistrySecretFromToken."
+    }
+    if ([string]::IsNullOrWhiteSpace($Token)) {
+        throw "Registry token is required."
+    }
+
+    $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("${Username}:${Token}"))
+    $config = @{
+        auths = @{
+            $Server = @{
+                username = $Username
+                password = $Token
+                auth = $auth
+            }
+        }
+    } | ConvertTo-Json -Depth 5
+
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($tempFile, $config, $utf8NoBom)
+
+    try {
+        Get-Content -Raw $tempFile | ConvertFrom-Json | Out-Null
+    } catch {
+        [System.IO.File]::Delete($tempFile)
+        throw "Generated registry Docker config is not valid JSON."
+    }
+
+    return $tempFile
+}
+
 Test-CommandAvailable "kubectl"
 Test-CommandAvailable "python"
 
@@ -111,10 +177,30 @@ Invoke-Checked "namespace:application" {
 }
 
 if (-not $SkipRegistrySecret) {
-    if ($CreateRegistrySecretFromDockerConfig) {
+    if ($CreateRegistrySecretFromToken) {
+        $registryToken = [Environment]::GetEnvironmentVariable($RegistryTokenEnvName)
+        if ([string]::IsNullOrWhiteSpace($registryToken)) {
+            throw "$RegistryTokenEnvName is required when using -CreateRegistrySecretFromToken."
+        }
+        $tempDockerConfig = Write-RegistryDockerConfig `
+            -Server $RegistryServer `
+            -Username $RegistryUsername `
+            -Token $registryToken
+        try {
+            Invoke-Checked "secret:registry-pull-token" {
+                kubectl -n $AppNamespace create secret generic noteverse-registry-credentials `
+                    --type=kubernetes.io/dockerconfigjson `
+                    --from-file=.dockerconfigjson=$tempDockerConfig `
+                    --dry-run=client -o yaml | kubectl apply -f -
+            }
+        } finally {
+            [System.IO.File]::Delete($tempDockerConfig)
+        }
+    } elseif ($CreateRegistrySecretFromDockerConfig) {
         if (-not (Test-Path $DockerConfigPath)) {
             throw "Docker config file does not exist: $DockerConfigPath"
         }
+        Assert-DockerConfigCanBeUsedByKubernetes -Path $DockerConfigPath -Server $RegistryServer
 
         Invoke-Checked "secret:registry-pull" {
             kubectl -n $AppNamespace create secret generic noteverse-registry-credentials `

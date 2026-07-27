@@ -276,9 +276,12 @@ this project, so create a real read-only GHCR Secret in the namespace.
 The standard scripted path is:
 
 ```powershell
+$env:GHCR_TOKEN = "<github-token-with-read-packages>"
+
 .\scripts\minikube_app_release_prepare.ps1 `
   -RenderedOverlay build/k8s-release/minikube `
-  -CreateRegistrySecretFromDockerConfig `
+  -CreateRegistrySecretFromToken `
+  -RegistryUsername "<github-username>" `
   -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
 ```
 
@@ -296,16 +299,17 @@ kubectl -n noteverse-staging create secret docker-registry noteverse-registry-cr
   --docker-email=<email>
 ```
 
-If the local Docker client is already authenticated to GHCR, prefer creating
-the Secret from Docker's config file instead of putting the token in shell
-history:
+Do not create the Secret from Docker Desktop's config file when it uses
+`credsStore`. Docker can read the local credential store; Kubernetes nodes
+cannot. If you use a portable Docker config that contains an actual `auth`
+entry for `ghcr.io`, the script can validate and use it:
 
 ```powershell
-$dockerConfig = Join-Path $env:USERPROFILE ".docker\config.json"
-kubectl -n noteverse-staging create secret generic noteverse-registry-credentials `
-  --type=kubernetes.io/dockerconfigjson `
-  --from-file=.dockerconfigjson=$dockerConfig `
-  --dry-run=client -o yaml | kubectl apply -f -
+.\scripts\minikube_app_release_prepare.ps1 `
+  -RenderedOverlay build/k8s-release/minikube `
+  -CreateRegistrySecretFromDockerConfig `
+  -DockerConfigPath C:\path\to\portable-docker-config.json `
+  -SkipBackendSecret
 ```
 
 If authentication was performed inside the minikube node rather than the host
@@ -846,6 +850,15 @@ way to run the current migration image and configuration. It does not delete
 database data. `-ScaleWorkerToZero` reflects the current local boundary: Legato
 worker tasks are validated through Docker Compose until a real GPU Kubernetes
 node is available.
+
+The core application overlay intentionally excludes `ServiceMonitor` resources
+so application rollout does not depend on Prometheus Operator CRDs. After the
+observability stack installs the `monitoring.coreos.com/v1` CRDs, apply the
+optional discovery resources:
+
+```powershell
+kubectl -n noteverse-staging apply -k deploy/application/monitoring/prometheus-operator
+```
 
 If you need lower-level diagnostics, inspect rollouts directly:
 

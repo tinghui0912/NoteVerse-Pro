@@ -4,10 +4,8 @@ kind: Kustomization
 resources:
   - backend-api-deployment.yaml
   - backend-api-service.yaml
-  - backend-api-servicemonitor.yaml
   - backend-practice-deployment.yaml
   - backend-practice-service.yaml
-  - backend-practice-servicemonitor.yaml
   - model-cache-agent-daemonset.yaml
   - backend-worker-deployment.yaml
   - backend-beat-deployment.yaml

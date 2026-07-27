@@ -1,14 +1,16 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: noteverse-backend-practice
+  name: noteverse-backend-api
   labels:
-    app.kubernetes.io/component: backend-practice
+    app.kubernetes.io/name: noteverse
+    app.kubernetes.io/part-of: noteverse
+    app.kubernetes.io/component: backend-api
 spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: noteverse
-      app.kubernetes.io/component: backend-practice
+      app.kubernetes.io/component: backend-api
   endpoints:
     - port: http
       path: /metrics
