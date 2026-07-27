@@ -1,5 +1,7 @@
+from io import BytesIO
+
 from fastapi import APIRouter, Depends
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, get_optional_current_user
@@ -24,7 +26,7 @@ async def stream_score_revision_playback(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.score_revision_delivery(db, score_id, revision_id, user_id)
-    return _stream(delivery)
+    return _stream(delivery, service)
 
 
 @router.get("/score-grants/{token}/playback")
@@ -36,7 +38,7 @@ async def stream_score_grant_playback(
 ):
     user_id = current_user.id if current_user else None
     delivery = await service.grant_delivery(db, token, user_id)
-    return _stream(delivery)
+    return _stream(delivery, service)
 
 
 @router.get("/publications/{slug}/playback")
@@ -48,13 +50,11 @@ async def stream_public_score_playback(
 ):
     user_id = current_user.id if current_user else None
     delivery = await service.public_delivery(db, slug, user_id)
-    return _stream(delivery)
+    return _stream(delivery, service)
 
 
-def _stream(delivery):
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
+def _stream(delivery, service: PlaybackService):
+    return StreamingResponse(
+        BytesIO(service.storage.read_bytes(delivery.storage_key)),
         media_type=delivery.media_type,
     )

@@ -36,8 +36,7 @@ from app.storage import FileStorage, file_storage
 class PlaybackDelivery:
     filename: str
     media_type: str
-    path: str | None = None
-    redirect_url: str | None = None
+    storage_key: str
 
 
 class PlaybackService:
@@ -288,22 +287,10 @@ class PlaybackService:
                 asset = fallback
         if asset is None or not self.storage.exists(asset.storage_key):
             raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
-        if self.storage.backend_name != "local":
-            url = self.storage.download_url(
-                asset.storage_key,
-                content_type=asset.mime_type,
-            )
-            if not url:
-                raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
-            return PlaybackDelivery(
-                filename=asset.filename,
-                media_type=asset.mime_type,
-                redirect_url=url,
-            )
         return PlaybackDelivery(
             filename=asset.filename,
             media_type=asset.mime_type,
-            path=self.storage.local_path(asset.storage_key),
+            storage_key=asset.storage_key,
         )
 
     def render_sync(

@@ -61,6 +61,16 @@ spec:
     - matches:
         - path:
             type: PathPrefix
+            value: /api/v1/realtime/events
+      timeouts:
+        request: 0s
+        backendRequest: 0s
+      backendRefs:
+        - name: noteverse-backend-api
+          port: 8000
+    - matches:
+        - path:
+            type: PathPrefix
             value: /api/v1/practice
       backendRefs:
         - name: noteverse-backend-practice
@@ -93,6 +103,16 @@ spec:
   hostnames:
     - api.staging.noteverse.example.invalid
   rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/v1/realtime/events
+      timeouts:
+        request: 0s
+        backendRequest: 0s
+      backendRefs:
+        - name: noteverse-backend-api
+          port: 8000
     - matches:
         - path:
             type: PathPrefix
