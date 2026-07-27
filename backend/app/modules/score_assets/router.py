@@ -1,5 +1,8 @@
+from io import BytesIO
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -28,13 +31,7 @@ async def download_revision_source(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.source_delivery(db, source_id, user_id)
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
-        filename=delivery.filename,
-        media_type=delivery.media_type,
-    )
+    return _stream_asset(delivery, service, attachment=True)
 
 
 @source_router.get("/{source_id}/access-url", response_model=APIResponse[AssetAccessRead])
@@ -58,13 +55,7 @@ async def download_render_asset(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.render_asset_delivery(db, render_asset_id, user_id)
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
-        filename=delivery.filename,
-        media_type=delivery.media_type,
-    )
+    return _stream_asset(delivery, service, attachment=True)
 
 
 @render_asset_router.get("/{render_asset_id}/access-url", response_model=APIResponse[AssetAccessRead])
@@ -117,3 +108,20 @@ async def archive_score_render_assets(
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
+
+def _content_disposition(filename: str, *, attachment: bool) -> str:
+    disposition = "attachment" if attachment else "inline"
+    return f"{disposition}; filename*=UTF-8''{quote(filename)}"
+
+
+def _stream_asset(delivery, service: ScoreAssetService, *, attachment: bool) -> StreamingResponse:
+    return StreamingResponse(
+        BytesIO(service.storage.read_bytes(delivery.storage_key)),
+        media_type=delivery.media_type,
+        headers={
+            "Content-Disposition": _content_disposition(
+                delivery.filename,
+                attachment=attachment,
+            )
+        },
+    )

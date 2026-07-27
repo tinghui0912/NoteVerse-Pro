@@ -1,5 +1,7 @@
 ﻿from fastapi import APIRouter, Depends
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, get_optional_current_user
@@ -79,13 +81,7 @@ async def download_public_revision_source(
     delivery = await service.public_revision_source_delivery(
         db, slug, source_id, user_id
     )
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
-        filename=delivery.filename,
-        media_type=delivery.media_type,
-    )
+    return _stream_asset(delivery, service, attachment=True)
 
 
 @public_router.get("/{slug}/render-assets/{render_asset_id}/download")
@@ -100,13 +96,7 @@ async def download_public_render_asset(
     delivery = await service.public_render_asset_delivery(
         db, slug, render_asset_id, user_id
     )
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
-        filename=delivery.filename,
-        media_type=delivery.media_type,
-    )
+    return _stream_asset(delivery, service, attachment=True)
 
 
 @public_router.get("/{slug}/render-assets/{render_asset_id}/view")
@@ -121,11 +111,23 @@ async def view_public_render_asset(
     delivery = await service.public_render_asset_delivery(
         db, slug, render_asset_id, user_id, download=False
     )
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
-        filename=delivery.filename,
+    return _stream_asset(delivery, service, attachment=False)
+
+
+def _content_disposition(filename: str, *, attachment: bool) -> str:
+    disposition = "attachment" if attachment else "inline"
+    return f"{disposition}; filename*=UTF-8''{quote(filename)}"
+
+
+def _stream_asset(delivery, service: PublicationService, *, attachment: bool) -> StreamingResponse:
+    return StreamingResponse(
+        BytesIO(service.asset_service.storage.read_bytes(delivery.storage_key)),
         media_type=delivery.media_type,
+        headers={
+            "Content-Disposition": _content_disposition(
+                delivery.filename,
+                attachment=attachment,
+            )
+        },
     )
 

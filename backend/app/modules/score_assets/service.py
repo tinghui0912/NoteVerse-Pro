@@ -28,8 +28,7 @@ from app.storage import FileStorage, file_storage
 class ScoreAssetDelivery:
     filename: str
     media_type: str
-    path: str | None = None
-    redirect_url: str | None = None
+    storage_key: str
 
 
 class ScoreAssetService:
@@ -263,26 +262,10 @@ class ScoreAssetService:
 
     def _delivery(self, asset: ScoreAssetRecord) -> ScoreAssetDelivery:
         self._require_object(asset)
-        if self.storage.backend_name != "local":
-            url = self.storage.download_url(
-                asset.storage_key,
-                filename=asset.filename,
-                content_type=asset.mime_type,
-            )
-            if not url:
-                raise FileException(ErrorCode.FILE_NOT_FOUND, asset.storage_key)
-            return ScoreAssetDelivery(
-                filename=asset.filename,
-                media_type=asset.mime_type,
-                redirect_url=url,
-            )
-        path = self.storage.materialize_to_local(
-            asset.storage_key, self.storage.local_path(asset.storage_key)
-        )
         return ScoreAssetDelivery(
             filename=asset.filename,
             media_type=asset.mime_type,
-            path=path,
+            storage_key=asset.storage_key,
         )
 
     def _access_read(

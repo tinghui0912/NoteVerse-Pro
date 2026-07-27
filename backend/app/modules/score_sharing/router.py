@@ -1,5 +1,7 @@
 ﻿from fastapi import APIRouter, Depends, Query
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+from urllib.parse import quote
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, get_optional_current_user
@@ -108,13 +110,7 @@ async def download_score_grant_revision_source(
     delivery = await service.grant_revision_source_delivery(
         db, token, source_id, user_id
     )
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
-        filename=delivery.filename,
-        media_type=delivery.media_type,
-    )
+    return _stream_asset(delivery, service, attachment=True)
 
 
 @grant_router.get("/{token}/render-assets/{render_asset_id}/download")
@@ -129,13 +125,7 @@ async def download_score_grant_render_asset(
     delivery = await service.grant_render_asset_delivery(
         db, token, render_asset_id, user_id
     )
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
-        filename=delivery.filename,
-        media_type=delivery.media_type,
-    )
+    return _stream_asset(delivery, service, attachment=True)
 
 
 @grant_router.get("/{token}/render-assets/{render_asset_id}/view")
@@ -150,13 +140,7 @@ async def view_score_grant_render_asset(
     delivery = await service.grant_render_asset_delivery(
         db, token, render_asset_id, user_id, download=False
     )
-    if delivery.redirect_url:
-        return RedirectResponse(delivery.redirect_url, status_code=302)
-    return FileResponse(
-        delivery.path or "",
-        filename=delivery.filename,
-        media_type=delivery.media_type,
-    )
+    return _stream_asset(delivery, service, attachment=False)
 
 
 @grant_router.post("/{token}/bookmark", response_model=APIResponse[GrantBookmarkRead])
@@ -169,5 +153,23 @@ async def bookmark_score_grant(
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.bookmark_grant(db, token, user_id)
     return success_response(data=result)
+
+
+def _content_disposition(filename: str, *, attachment: bool) -> str:
+    disposition = "attachment" if attachment else "inline"
+    return f"{disposition}; filename*=UTF-8''{quote(filename)}"
+
+
+def _stream_asset(delivery, service: ScoreSharingService, *, attachment: bool) -> StreamingResponse:
+    return StreamingResponse(
+        BytesIO(service.asset_service.storage.read_bytes(delivery.storage_key)),
+        media_type=delivery.media_type,
+        headers={
+            "Content-Disposition": _content_disposition(
+                delivery.filename,
+                attachment=attachment,
+            )
+        },
+    )
 
 
