@@ -1,203 +1,184 @@
 # Minikube From Zero Runbook
 
-This is the operator entry point for rebuilding a local minikube environment
-from scratch. It links to the detailed runbooks instead of duplicating every
-command, and it marks which steps are manual and which are covered by scripts.
+This is the authoritative from-zero path for the NoteVerse local staging
+rehearsal environment.
 
-Use this runbook when:
+Minikube is treated as staging. It should use the production-shaped deployment
+model: GHCR images, Kubernetes Secrets, S3-compatible storage, cert-manager,
+Gateway API, Envoy Gateway, and the same application overlays used by
+production.
 
-- the minikube cluster was deleted;
-- Docker Desktop was reset;
-- local Kubernetes resources need to be recreated from a clean state;
-- a production-like local smoke test is required before cloud Kubernetes exists.
+Current temporary boundary: Legato GPU inference is not validated inside
+minikube. Run `backend-worker` locally through Docker Compose while minikube is
+used for frontend, API, practice API, beat, Gateway, TLS, S3, and release
+package validation.
 
-## Read First
+## 1. Create Cluster
 
-Read these documents in order:
+```powershell
+minikube start --driver=docker --cpus=6 --memory=12288 --nodes=1
+kubectl create namespace noteverse-staging --dry-run=client -o yaml | kubectl apply -f -
+```
 
-1. [Container Image Build Strategy](../release/container-image-build-strategy.md)
-2. [Minikube Local Kubernetes Runbook](minikube-local-k8s-runbook.md)
-3. [Minikube Observability Runbook](../observability/minikube-observability-runbook.md)
-4. [Kubernetes Gateway API And TLS](../deployment/k8s-gateway-and-tls.md)
-5. [Kubernetes Secrets And Storage Template](../deployment/k8s-secrets-and-storage-template.md)
-6. [Kubernetes Application Runtime Contract](../../architecture/runtime/k8s-application-runtime-contract.md)
+## 2. Install Platform
 
-The local environment should stay production-shaped:
+Set a Cloudflare token with `Zone:Read` and `DNS:Edit` for the test zone:
 
-- model assets: node-local model cache prepared by the model-cache DaemonSet;
-- user uploads, score sources, rendered pages, and audio: S3-compatible object
-  storage;
-- PostgreSQL: local managed service on the host machine;
-- Redis: local managed service on the host machine;
-- observability: Fluent Bit, Loki, Prometheus, Grafana, OpenTelemetry Collector,
-  and Tempo in Kubernetes.
+```powershell
+$env:CLOUDFLARE_API_TOKEN = "<cloudflare-api-token>"
+.\scripts\minikube_platform_bootstrap.ps1
+```
 
-## Manual Versus Scripted Steps
+This installs Gateway API CRDs, Envoy Gateway, cert-manager, Let's Encrypt
+DNS-01 issuers, MetalLB prerequisites, and the application namespace.
 
-| Area | Manual | Scripted |
-| --- | --- | --- |
-| Tool installation | Docker Desktop, kubectl, Helm, minikube, PowerShell | none |
-| Cluster creation | `minikube start`, node count | none |
-| Platform entrypoint | review Cloudflare token scope and domain | `scripts/minikube_platform_bootstrap.ps1` |
-| Local DNS stability | verify two-node CoreDNS and remove local-only kube-dns policy if present | `scripts/minikube_bootstrap.ps1 -ApplyDnsFix` |
-| Images | choose registry path, tag, and build args | image commands are documented in the runbook |
-| Application overlay | choose namespace, hostnames, image tags, S3 settings | `scripts/render_minikube_release_overlay.ps1`, `scripts/render_k8s_release_overlay.py` |
-| Manifest validation | review generated manifests | `scripts/check_k8s_application_manifests.py`, `scripts/quality.ps1 -Check k8s-minikube` |
-| Observability overlay | choose minikube or production profile | `scripts/render_observability_helm.py`, `scripts/check_observability_manifests.py` |
-| Secrets | prepare local-only Secret source files outside the repository | `scripts/minikube_app_release_prepare.ps1` validates or creates required Secrets |
-| Smoke tests | choose target URL and smoke account | `scripts/k8s_smoke_storage.py`, `scripts/k8s_smoke_derived_assets.py` |
-| Application apply | review rendered overlay and rollout status | `scripts/minikube_app_release_prepare.ps1 -Apply -Wait` |
-| Runtime checks | inspect failed pods and logs when needed | `scripts/minikube_bootstrap.ps1 -ValidateTracing`, container `scripts/check_runtime.py` |
+## 3. DNS And Local Hosts
 
-## Execution Order
+Use real DNS names for certificate issuance:
 
-1. Start or recreate minikube.
+```text
+staging.johnabc.ccwu.cc
+api.staging.johnabc.ccwu.cc
+```
 
-   Follow the cluster sizing, Gateway, image, and registry guidance in
-   [Minikube Local Kubernetes Runbook](minikube-local-k8s-runbook.md).
+DNS-01 creates temporary `_acme-challenge` TXT records automatically. For local
+browser access through the local Gateway port-forward, add these hosts entries:
 
-2. If testing two minikube nodes, apply the local DNS stability check.
+```text
+127.0.0.1 staging.johnabc.ccwu.cc
+127.0.0.1 api.staging.johnabc.ccwu.cc
+```
 
-   ```powershell
-   .\scripts\minikube_bootstrap.ps1 -ApplyDnsFix
-   ```
+Edit on Windows from an elevated PowerShell:
 
-   This scales CoreDNS and makes sure `kube-dns` keeps normal cluster-wide
-   endpoint routing. Do not set `internalTrafficPolicy: Local` on `kube-dns`.
+```powershell
+notepad C:\Windows\System32\drivers\etc\hosts
+```
 
-3. Build and publish uniquely tagged images.
+## 4. Prepare External Dependencies
 
-   Use GHCR or the same private registry shape used by CI.
-   Do not use `minikube image load` for NoteVerse staging rehearsal.
+Use local or managed-like endpoints behind stable Kubernetes Service names for
+PostgreSQL and Redis. Follow the service/EndpointSlice pattern in
+[minikube-local-k8s-runbook.md](minikube-local-k8s-runbook.md).
 
-4. Bootstrap the Kubernetes platform entrypoint.
+Use the staging S3-compatible bucket for application files. Do not use local
+PVCs for uploads, score sources, render assets, or playback assets.
 
-   ```powershell
-   $env:CLOUDFLARE_API_TOKEN = "<cloudflare-api-token>"
-   .\scripts\minikube_platform_bootstrap.ps1
-   ```
+Create the bucket if needed:
 
-   This installs Gateway API CRDs, Envoy Gateway, cert-manager, the
-   Cloudflare DNS-01 token Secret, and the Let's Encrypt staging ClusterIssuer.
+```powershell
+python scripts/ensure_s3_bucket.py --env-file backend/.env.docker --create
+```
 
-5. Render the application overlay.
+## 5. Create Secrets
 
-   Use the minikube environment, test domain, image tags, S3 test bucket
-   settings, and cookie host settings described in
-   [Minikube Local Kubernetes Runbook](minikube-local-k8s-runbook.md).
+Create `Secret/noteverse-registry-credentials` from your local Docker config if
+the local Docker client is authenticated to GHCR:
 
-6. Verify or create the S3-compatible staging bucket.
+```powershell
+.\scripts\minikube_app_release_prepare.ps1 `
+  -RenderedOverlay build/k8s-release/minikube `
+  -CreateRegistrySecretFromDockerConfig `
+  -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
+```
 
-   Business uploads, score sources, rendered pages, and audio must use object
-   storage in minikube staging. Use:
+The backend secret env file must stay outside the repository and contain the
+full required key set: database URLs, Redis URLs, S3 keys, cookie secrets, mail
+API key, and optional Hugging Face token.
 
-   ```powershell
-   python scripts/ensure_s3_bucket.py --env-file backend/.env.docker --create
-   ```
+## 6. Render Release Overlay
 
-   The script reads the S3 endpoint, region, bucket, and credentials from the
-   environment or env file and does not print credentials.
+Set immutable image references and S3 settings:
 
-7. Prepare and validate application Secrets and the rendered overlay.
+```powershell
+$env:NOTEVERSE_BACKEND_API_IMAGE = "ghcr.io/<owner>/noteverse/backend-api:<tag>"
+$env:NOTEVERSE_BACKEND_PRACTICE_IMAGE = "ghcr.io/<owner>/noteverse/backend-practice:<tag>"
+$env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<owner>/noteverse/backend-beat:<tag>"
+$env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker:<tag>"
+$env:NOTEVERSE_FRONTEND_IMAGE = "ghcr.io/<owner>/noteverse/frontend:<tag>"
 
-   Do not apply partial Secret manifests. Use a full Secret value set derived
-   from local-only values and keep it outside the repository. The required keys
-   are listed in
-   [Kubernetes Secrets And Storage Template](../deployment/k8s-secrets-and-storage-template.md).
+$env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"
+$env:NOTEVERSE_S3_REGION = "<s3-region>"
+$env:NOTEVERSE_S3_BUCKET = "<s3-bucket>"
+$env:NOTEVERSE_S3_PUBLIC_BASE_URL = "<s3-public-base-url>"
+$env:NOTEVERSE_S3_FORCE_PATH_STYLE = "false"
 
-   If the local Docker client is already authenticated to GHCR and the backend
-   Secret env file is prepared, use:
+.\scripts\render_minikube_release_overlay.ps1 -Output build/k8s-release/minikube -Overwrite
+```
 
-   ```powershell
-   .\scripts\minikube_app_release_prepare.ps1 `
-     -RenderedOverlay build/k8s-release/minikube `
-     -CreateRegistrySecretFromDockerConfig `
-     -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
-   ```
+The rendered origin is `https://staging.johnabc.ccwu.cc`. Do not render `:443`
+or `:8443` into `FRONTEND_BASE_URL` or CORS origins.
 
-   If the Secrets already exist and only the overlay should be validated, use:
+Validate:
 
-   ```powershell
-   .\scripts\minikube_app_release_prepare.ps1 `
-     -RenderedOverlay build/k8s-release/minikube
-   ```
+```powershell
+python scripts/check_k8s_application_manifests.py build/k8s-release/minikube --strict
+kubectl kustomize build/k8s-release/minikube
+```
 
-8. Apply node labels, ConfigMaps, Secrets, and workloads.
+## 7. Apply Application
 
-   The model cache is a node-local DaemonSet-managed cache. Label only nodes
-   that should host worker pods with `noteverse.io/model-cache=enabled`.
-   Object assets must continue using S3 so local behavior stays close to
-   production. For production-flow rehearsal, use cert-manager with the
-   Cloudflare DNS-01 staging issuer and a real test domain.
+For the current local staging phase, keep worker execution in Docker Compose
+and scale the K8s worker to zero:
 
-   Apply and wait for the core workloads with the same application release
-   preparation script:
+```powershell
+.\scripts\minikube_app_release_prepare.ps1 `
+  -RenderedOverlay build/k8s-release/minikube `
+  -Apply `
+  -Wait `
+  -ScaleWorkerToZero `
+  -SkipModelCacheWait
+```
 
-   ```powershell
-   .\scripts\minikube_app_release_prepare.ps1 `
-     -RenderedOverlay build/k8s-release/minikube `
-     -Apply `
-     -Wait
-   ```
+This waits for migration, API, practice API, beat, and frontend, but skips the
+Kubernetes GPU worker/model-cache path.
 
-9. Deploy observability.
+## 8. Start Gateway Port Forward
 
-   Follow [Minikube Observability Runbook](../observability/minikube-observability-runbook.md).
-   Validate that Grafana can see Prometheus, Loki, and Tempo.
+If the Envoy data-plane LoadBalancer address is not directly reachable from
+Windows, forward local 443:
 
-10. Run smoke checks.
+```powershell
+.\scripts\start_minikube_gateway_port_forward.ps1
+```
 
-   ```powershell
-   .\scripts\quality.ps1 -Check k8s-minikube
-   .\scripts\minikube_bootstrap.ps1 -ValidateTracing
-   ```
+Open:
 
-   Then run the storage and derived-asset smoke tests from the minikube runbook.
+```text
+https://staging.johnabc.ccwu.cc/zh/upload
+```
 
-11. Manually test the core product path.
+## 9. Smoke Test
 
-   Use a local smoke account and verify:
+Run basic Gateway/API/frontend checks:
 
-   - login;
-   - upload;
-   - review;
-   - confirm score;
-   - edit and save;
-   - derived thumbnail and audio update;
-   - billing storage usage updates;
-   - delete and cleanup release quota.
+```powershell
+.\scripts\minikube_smoke_test.ps1
+```
 
-## Known Pitfalls Already Captured
+Run S3 upload/quota smoke:
 
-- Multi-node minikube can expose DNS instability when CoreDNS has too few
-  replicas, cross-node DNS forwarding is unhealthy, or `kube-dns` was changed
-  to local-only endpoint routing.
-- `minikube image load` is intentionally excluded from the staging rehearsal
-  path because it bypasses production-style image pulls.
-- Local staging uses GHCR for image publication and pulls. Do not run a local
-  registry for NoteVerse production-shaped minikube rehearsal.
-- Do not use fixed `:local` tags for release-like tests; use unique tags or
-  digests.
-- Do not use local filesystem object storage for app assets in minikube when the
-  target production model is S3.
-- Do not access authenticated write flows through a frontend service
-  port-forward unless backend `FRONTEND_BASE_URL`, `BACKEND_CORS_ORIGINS`,
-  `AUTH_COOKIE_SECURE`, and TLS settings were rendered for that exact origin.
-  Prefer HTTPS Gateway testing through the same domain rendered into the
-  application overlay.
-- Hugging Face and model assets are large; validate available local node disk
-  before enabling the model-cache DaemonSet.
-- Do not commit generated Secrets or copied `.env` files.
+```powershell
+.\scripts\minikube_smoke_test.ps1 -RunStorageSmoke -EnsureSmokeUser
+```
 
-## Definition Of Done
+Full OMR import requires the local Docker Compose worker to use the same
+PostgreSQL, Redis, and S3 settings as the Kubernetes API.
 
-The local minikube rebuild is complete only when:
+## 10. Local Worker
 
-- application and observability manifests render and validate;
-- all required application pods are ready;
-- API runtime checks pass;
-- tracing smoke reaches Tempo;
-- storage smoke can create and delete object-backed assets;
-- derived-asset smoke can generate and clean up render/playback assets;
-- the manual upload-to-delete product path works without exposing internal
-  infrastructure details to the UI.
+Run worker locally until a real GPU Kubernetes node is available:
+
+```powershell
+docker compose -f docker-compose.backend-dev.yml up worker beat
+```
+
+The compose worker must point at the same database, Redis, S3 bucket, and model
+paths used by the minikube API.
+
+## Cleanup
+
+```powershell
+kubectl delete namespace noteverse-staging
+minikube delete
+```

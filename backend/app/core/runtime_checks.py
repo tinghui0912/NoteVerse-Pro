@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import os
 import shutil
 from dataclasses import dataclass
@@ -295,6 +296,26 @@ def check_omr_engine(_: bool = False) -> CheckResult:
     return _result("omr_engine", True, f"LEGATO repository found: {repo_path}")
 
 
+def check_omr_cuda_runtime(_: bool = False) -> CheckResult:
+    if settings.OMR_ENGINE != "legato" or settings.LEGATO_DEVICE.lower() != "cuda":
+        return _result("omr_cuda_runtime", True, f"not required for LEGATO_DEVICE={settings.LEGATO_DEVICE}")
+
+    try:
+        torch = importlib.import_module("torch")
+    except Exception as exc:
+        return _result("omr_cuda_runtime", False, f"torch import failed: {type(exc).__name__}: {exc}")
+
+    try:
+        if not torch.cuda.is_available():
+            return _result("omr_cuda_runtime", False, "CUDA is not available to the worker process")
+        device_count = torch.cuda.device_count()
+        device_name = torch.cuda.get_device_name(0) if device_count else "unknown"
+    except Exception as exc:
+        return _result("omr_cuda_runtime", False, f"CUDA runtime check failed: {type(exc).__name__}: {exc}")
+
+    return _result("omr_cuda_runtime", True, f"CUDA ready: devices={device_count}, primary={device_name}")
+
+
 def check_render_engine(_: bool = False) -> CheckResult:
     try:
         import verovio
@@ -421,6 +442,7 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
         "work_root",
         "celery_tasks",
         "omr_engine",
+        "omr_cuda_runtime",
         "render_engine",
         "playback_renderer",
         "paddleocr_models",
@@ -458,6 +480,7 @@ CHECKS: dict[str, CheckSpec] = {
     "work_root": CheckSpec("work_root", check_work_root),
     "celery_tasks": CheckSpec("celery_tasks", check_celery_tasks),
     "omr_engine": CheckSpec("omr_engine", check_omr_engine),
+    "omr_cuda_runtime": CheckSpec("omr_cuda_runtime", check_omr_cuda_runtime),
     "render_engine": CheckSpec("render_engine", check_render_engine),
     "paddleocr_models": CheckSpec("paddleocr_models", check_paddleocr_models),
     "huggingface_models": CheckSpec("huggingface_models", check_huggingface_models),

@@ -131,8 +131,12 @@ Invoke-Checked "cert-manager:staging-clusterissuer" {
     kubectl apply -f deploy/platform/cert-manager/clusterissuer-letsencrypt-staging-dns01-cloudflare.yaml
 }
 
+Invoke-Checked "cert-manager:production-clusterissuer" {
+    kubectl apply -f deploy/platform/cert-manager/clusterissuer-letsencrypt-production-dns01-cloudflare.yaml
+}
+
 Invoke-Checked "cert-manager:clusterissuer-status" {
-    kubectl get clusterissuer letsencrypt-staging-dns01 -o wide
+    kubectl get clusterissuer letsencrypt-staging-dns01 letsencrypt-production-dns01 -o wide
 }
 
 Invoke-Checked "gateway-api:classes" {

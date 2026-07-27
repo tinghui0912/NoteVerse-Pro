@@ -1,4 +1,7 @@
-from app.core.runtime_checks import ROLE_CHECK_NAMES, RuntimeRole, check_omr_engine
+import sys
+from types import SimpleNamespace
+
+from app.core.runtime_checks import ROLE_CHECK_NAMES, RuntimeRole, check_omr_cuda_runtime, check_omr_engine
 
 
 def test_api_runtime_checks_cover_api_owned_dependencies() -> None:
@@ -30,6 +33,7 @@ def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     assert "storage_quota_policy" in checks
     assert "celery_tasks" in checks
     assert "omr_engine" in checks
+    assert "omr_cuda_runtime" in checks
     assert "render_engine" in checks
     assert "playback_renderer" in checks
     assert "paddleocr_models" in checks
@@ -65,3 +69,46 @@ def test_omr_runtime_check_accepts_image_source_without_git_metadata(tmp_path, m
 
     assert result.ok is True
     assert result.message == "LEGATO commit=abc123 (image metadata)"
+
+
+def test_omr_cuda_runtime_check_is_skipped_for_cpu_device(monkeypatch) -> None:
+    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_DEVICE", "cpu")
+
+    result = check_omr_cuda_runtime()
+
+    assert result.ok is True
+    assert result.message == "not required for LEGATO_DEVICE=cpu"
+
+
+def test_omr_cuda_runtime_check_fails_when_cuda_is_unavailable(monkeypatch) -> None:
+    torch_stub = SimpleNamespace(
+        cuda=SimpleNamespace(
+            is_available=lambda: False,
+            device_count=lambda: 0,
+            get_device_name=lambda _: "unused",
+        )
+    )
+    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_DEVICE", "cuda")
+    monkeypatch.setitem(sys.modules, "torch", torch_stub)
+
+    result = check_omr_cuda_runtime()
+
+    assert result.ok is False
+    assert result.message == "CUDA is not available to the worker process"
+
+
+def test_omr_cuda_runtime_check_reports_available_gpu(monkeypatch) -> None:
+    torch_stub = SimpleNamespace(
+        cuda=SimpleNamespace(
+            is_available=lambda: True,
+            device_count=lambda: 1,
+            get_device_name=lambda _: "NVIDIA Test GPU",
+        )
+    )
+    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_DEVICE", "cuda")
+    monkeypatch.setitem(sys.modules, "torch", torch_stub)
+
+    result = check_omr_cuda_runtime()
+
+    assert result.ok is True
+    assert result.message == "CUDA ready: devices=1, primary=NVIDIA Test GPU"

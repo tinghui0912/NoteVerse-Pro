@@ -10,16 +10,19 @@ Before applying:
 3. Verify the token can call the Cloudflare DNS Records API for the intended
    zone.
 4. Replace the operator email if needed.
-5. Apply the staging issuer first and validate certificate issuance.
-6. Apply and use the production issuer only after the staging flow is stable.
+5. Apply both staging and production issuers.
+6. Use the staging issuer for first-time DNS-01 validation or rate-limit-safe
+   troubleshooting.
+7. Use the production issuer for browser-trusted minikube production-flow
+   rehearsal and production.
 
-The application staging `Certificate` expects:
+The staging overlay currently expects:
 
 ```text
-ClusterIssuer/letsencrypt-staging-dns01
+ClusterIssuer/letsencrypt-production-dns01
 ```
 
-The application production `Certificate` expects:
+The production overlay expects:
 
 ```text
 ClusterIssuer/letsencrypt-production-dns01

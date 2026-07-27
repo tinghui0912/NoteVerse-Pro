@@ -6,6 +6,9 @@ param(
     [switch] $CreateRegistrySecretFromDockerConfig,
     [switch] $SkipBackendSecret,
     [switch] $SkipRegistrySecret,
+    [switch] $SkipWorkerWait,
+    [switch] $SkipModelCacheWait,
+    [switch] $ScaleWorkerToZero,
     [switch] $Apply,
     [switch] $Wait
 )
@@ -158,6 +161,12 @@ if ($Apply) {
         kubectl apply -k $RenderedOverlay
     }
 
+    if ($ScaleWorkerToZero) {
+        Invoke-Checked "scale:backend-worker-zero" {
+            kubectl -n $AppNamespace scale deployment/noteverse-backend-worker --replicas=0
+        }
+    }
+
     if ($Wait) {
         Invoke-Checked "job:migration" {
             kubectl -n $AppNamespace wait --for=condition=complete job/noteverse-db-migrate --timeout=300s
@@ -171,14 +180,22 @@ if ($Apply) {
         Invoke-Checked "rollout:backend-beat" {
             kubectl -n $AppNamespace rollout status deployment/noteverse-backend-beat --timeout=300s
         }
-        Invoke-Checked "rollout:backend-worker" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-worker --timeout=300s
+        if (-not $SkipWorkerWait -and -not $ScaleWorkerToZero) {
+            Invoke-Checked "rollout:backend-worker" {
+                kubectl -n $AppNamespace rollout status deployment/noteverse-backend-worker --timeout=300s
+            }
+        } else {
+            Write-Host "==> rollout:backend-worker skipped"
         }
         Invoke-Checked "rollout:frontend" {
             kubectl -n $AppNamespace rollout status deployment/noteverse-frontend --timeout=300s
         }
-        Invoke-Checked "rollout:model-cache-agent" {
-            kubectl -n $AppNamespace rollout status ds/noteverse-model-cache-agent --timeout=7200s
+        if (-not $SkipModelCacheWait) {
+            Invoke-Checked "rollout:model-cache-agent" {
+                kubectl -n $AppNamespace rollout status ds/noteverse-model-cache-agent --timeout=7200s
+            }
+        } else {
+            Write-Host "==> rollout:model-cache-agent skipped"
         }
         Invoke-Checked "gateway:status" {
             kubectl -n $AppNamespace get certificate,gateway,httproute

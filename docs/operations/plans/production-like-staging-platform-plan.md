@@ -108,7 +108,7 @@ Validation:
 
 ## P1 - Minikube From Zero as Production Rehearsal
 
-Status: planned.
+Status: in progress.
 
 Tasks:
 
@@ -123,8 +123,18 @@ Tasks:
 - document model-cache DaemonSet setup;
 - document S3-compatible staging bucket requirements;
 - document release package download and apply flow;
-- add `scripts/minikube_apply_release_package.ps1`;
+- use `scripts/minikube_app_release_prepare.ps1` as the standard release
+  package prepare/apply/wait entry point;
 - add `scripts/minikube_smoke_test.ps1`.
+
+Current temporary boundary:
+
+- Kubernetes GPU worker validation is paused until a real GPU node is
+  available.
+- Minikube staging validates frontend, API, practice API, beat, Gateway, TLS,
+  S3, and release package flow.
+- `backend-worker` can be scaled to zero in minikube and run locally through
+  Docker Compose against the same PostgreSQL, Redis, and S3 settings.
 
 Validation:
 

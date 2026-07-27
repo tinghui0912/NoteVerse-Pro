@@ -4,7 +4,7 @@ param(
     [string] $FrontendHost = "staging.johnabc.ccwu.cc",
     [string] $ApiHost = "api.staging.johnabc.ccwu.cc",
     [string] $TlsSecret = "noteverse-staging-tls",
-    [string] $FrontendBaseUrl = "https://staging.johnabc.ccwu.cc:8443",
+    [string] $FrontendBaseUrl = "https://staging.johnabc.ccwu.cc",
     [string] $AuthCookieSecure = "true",
     [string] $S3PresignExpireSeconds = "900",
     [switch] $Overwrite

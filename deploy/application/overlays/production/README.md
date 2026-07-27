@@ -38,6 +38,8 @@ Required objects supplied outside this overlay:
   - `noteverse.io/model-cache=enabled`
   - `noteverse.io/workload=gpu-worker`
   - `nvidia.com/gpu` taint if GPU nodes are tainted
+- GPU runtime support that exposes `nvidia.com/gpu`. The worker Pod requests one
+  GPU and performs a startup CUDA check when `LEGATO_DEVICE=cuda`.
 
 Secret, PVC, object storage, TLS, and GPU label ownership is documented in:
 

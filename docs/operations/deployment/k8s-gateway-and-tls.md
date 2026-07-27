@@ -90,7 +90,7 @@ Recommended issuer strategy:
 
 | Environment | Issuer | ACME server | Solver |
 | --- | --- | --- | --- |
-| minikube/staging rehearsal | Let's Encrypt staging | `https://acme-staging-v02.api.letsencrypt.org/directory` | DNS-01 |
+| minikube/staging production-flow rehearsal | Let's Encrypt production after staging validation | `https://acme-v02.api.letsencrypt.org/directory` | DNS-01 |
 | staging | Let's Encrypt staging or production | environment-specific | DNS-01 |
 | production | Let's Encrypt production or cloud managed cert | `https://acme-v02.api.letsencrypt.org/directory` | DNS-01 |
 
@@ -148,7 +148,7 @@ spec:
     - staging.johnabc.ccwu.cc
     - api.staging.johnabc.ccwu.cc
   issuerRef:
-    name: letsencrypt-staging-dns01
+    name: letsencrypt-production-dns01
     kind: ClusterIssuer
 ```
 
@@ -186,9 +186,18 @@ staging.johnabc.ccwu.cc      CNAME or A/AAAA -> Gateway load balancer
 api.staging.johnabc.ccwu.cc  CNAME or A/AAAA -> Gateway load balancer
 ```
 
-For minikube, use the address exposed by the Envoy Gateway data-plane service
-or a local port-forward to that service. The request host must match the host
-rendered into the `Gateway` and `HTTPRoute` resources.
+For minikube production-flow rehearsal, enable MetalLB so the Envoy data-plane
+`LoadBalancer` Service receives a stable local external IP. With the Docker
+driver on Windows, that IP can still be unreachable or fail TLS handshakes from
+the host browser. In that case, port-forward the Envoy data-plane Service to
+local port 443 and map the staging hosts to `127.0.0.1`. The request host must
+match the host rendered into the `Gateway` and `HTTPRoute` resources.
+
+Use the repository helper for the current staging rehearsal:
+
+```powershell
+.\scripts\start_minikube_gateway_port_forward.ps1
+```
 
 ## Validation
 
@@ -206,7 +215,7 @@ Check cert-manager status:
 ```powershell
 kubectl get clusterissuer
 kubectl -n noteverse-staging get certificate,certificaterequest,order,challenge
-kubectl -n noteverse-staging describe certificate noteverse-staging-tls
+kubectl -n noteverse-staging describe certificate noteverse-tls
 ```
 
 Smoke through the Gateway entrypoint:
@@ -216,5 +225,14 @@ curl.exe -I https://staging.johnabc.ccwu.cc/zh/upload
 curl.exe -i https://staging.johnabc.ccwu.cc/api/v1/me/profile
 ```
 
-Use Let's Encrypt staging certificates for ACME automation rehearsal. They are
-not browser-trusted end-user certificates.
+Validate the production-flow minikube entrypoint:
+
+```powershell
+kubectl -n envoy-gateway-system get svc
+kubectl -n noteverse-staging get gateway,httproute,certificate
+kubectl -n noteverse-staging describe gateway noteverse
+```
+
+Use Let's Encrypt production certificates for the production-flow minikube
+rehearsal when browser-trusted TLS is required. Avoid unnecessary certificate
+recreation to stay clear of ACME production rate limits.

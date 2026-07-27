@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.cookiejar
 import json
+import mimetypes
 import subprocess
 import sys
 from pathlib import Path
-
-import requests
+from urllib import error, parse, request
 
 
 DEFAULT_EMAIL = "k8s-smoke@example.com"
@@ -87,15 +88,55 @@ with SessionLocal() as db:
     kubectl_exec_python(namespace, deployment, code)
 
 
-def csrf_headers(session: requests.Session) -> dict[str, str]:
-    token = session.cookies.get("noteverse_csrf")
+def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
+    token = next((cookie.value for cookie in cookie_jar if cookie.name == "noteverse_csrf"), None)
     return {"x-csrf-token": token} if token else {}
 
 
-def quota_used(session: requests.Session, api_base: str) -> int:
-    response = session.get(f"{api_base}/me/storage-usage", timeout=30)
-    response.raise_for_status()
-    return int(response.json()["data"]["quota"]["used_bytes"])
+def request_json(
+    opener: request.OpenerDirector,
+    url: str,
+    *,
+    method: str = "GET",
+    data: bytes | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: int = 30,
+) -> dict[str, object]:
+    req = request.Request(url, data=data, headers=headers or {}, method=method)
+    try:
+        with opener.open(req, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"{method} {url} failed with HTTP {exc.code}: {body}") from exc
+
+
+def encode_form(data: dict[str, str]) -> tuple[bytes, dict[str, str]]:
+    body = parse.urlencode(data).encode("utf-8")
+    return body, {"Content-Type": "application/x-www-form-urlencoded"}
+
+
+def encode_multipart_file(field_name: str, file_path: Path) -> tuple[bytes, dict[str, str]]:
+    boundary = "noteverse-smoke-boundary"
+    content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+    body = b"".join(
+        [
+            f"--{boundary}\r\n".encode("utf-8"),
+            (
+                f'Content-Disposition: form-data; name="{field_name}"; '
+                f'filename="{file_path.name}"\r\n'
+            ).encode("utf-8"),
+            f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"),
+            file_path.read_bytes(),
+            f"\r\n--{boundary}--\r\n".encode("utf-8"),
+        ]
+    )
+    return body, {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+
+
+def quota_used(opener: request.OpenerDirector, api_base: str) -> int:
+    response = request_json(opener, f"{api_base}/me/storage-usage")
+    return int(response["data"]["quota"]["used_bytes"])  # type: ignore[index]
 
 
 def main() -> int:
@@ -108,30 +149,40 @@ def main() -> int:
     if args.ensure_user:
         ensure_user(args.namespace, args.backend_deployment, args.email, args.password)
 
-    session = requests.Session()
-    login = session.post(
+    cookie_jar = http.cookiejar.CookieJar()
+    opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
+    login_body, login_headers = encode_form({"username": args.email, "password": args.password})
+    request_json(
+        opener,
         f"{args.api_base}/auth/login",
-        data={"username": args.email, "password": args.password},
-        timeout=30,
+        method="POST",
+        data=login_body,
+        headers=login_headers,
     )
-    login.raise_for_status()
-    headers = csrf_headers(session)
+    headers = csrf_headers(cookie_jar)
 
-    before = quota_used(session, args.api_base)
-    with image_path.open("rb") as handle:
-        uploaded = session.post(
-            f"{args.api_base}/files/upload",
-            files={"file": (image_path.name, handle, "image/jpeg")},
-            headers=headers,
-            timeout=60,
-        )
-    uploaded.raise_for_status()
-    file_id = uploaded.json()["data"]["file_id"]
-    after_upload = quota_used(session, args.api_base)
+    before = quota_used(opener, args.api_base)
+    upload_body, upload_headers = encode_multipart_file("file", image_path)
+    upload_headers.update(headers)
+    uploaded = request_json(
+        opener,
+        f"{args.api_base}/files/upload",
+        method="POST",
+        data=upload_body,
+        headers=upload_headers,
+        timeout=60,
+    )
+    file_id = uploaded["data"]["file_id"]  # type: ignore[index]
+    after_upload = quota_used(opener, args.api_base)
 
-    deleted = session.delete(f"{args.api_base}/files/{file_id}", headers=headers, timeout=60)
-    deleted.raise_for_status()
-    after_delete = quota_used(session, args.api_base)
+    request_json(
+        opener,
+        f"{args.api_base}/files/{file_id}",
+        method="DELETE",
+        headers=headers,
+        timeout=60,
+    )
+    after_delete = quota_used(opener, args.api_base)
 
     result = {
         "file_id": file_id,

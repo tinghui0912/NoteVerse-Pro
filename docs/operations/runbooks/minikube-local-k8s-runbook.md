@@ -11,6 +11,7 @@ ConfigMap contracts used by production.
 
 Related documents:
 
+- `docs/operations/runbooks/minikube-from-zero.md`
 - `docs/operations/deployment/k8s-deployment-runbook.md`
 - `docs/operations/release/container-image-build-strategy.md`
 - `docs/operations/deployment/k8s-secrets-and-storage-template.md`
@@ -117,6 +118,7 @@ The script installs and verifies:
 - cert-manager;
 - `Secret/cert-manager/cloudflare-api-token-secret`;
 - `ClusterIssuer/letsencrypt-staging-dns01`;
+- `ClusterIssuer/letsencrypt-production-dns01`;
 - the application namespace.
 
 If `Secret/cloudflare-api-token-secret` already exists and you only want to
@@ -129,6 +131,23 @@ reconcile platform components, run:
 The Envoy Gateway control-plane Service is intentionally `ClusterIP`. The
 browser-facing Service is created later by Envoy Gateway for the NoteVerse
 `Gateway`.
+
+Enable MetalLB when the minikube driver does not provide a cloud load balancer.
+This gives the Envoy data-plane `LoadBalancer` Service a stable local external
+IP, which is closer to the production traffic model than using a frontend
+Service port-forward:
+
+```powershell
+minikube addons enable metallb
+minikube addons configure metallb
+```
+
+For the current Docker-driver rehearsal, use a pool inside the minikube network,
+for example:
+
+```text
+192.168.49.240-192.168.49.250
+```
 
 The script installs Gateway API CRDs before Helm and passes
 `--set crds.enabled=false` to the Envoy Gateway chart. Do not let both Helm and
@@ -336,9 +355,11 @@ prepared by the model-cache DaemonSet and mounted read-only into worker pods at
 Beat uses transient `emptyDir` state. Durable scheduling state lives in
 PostgreSQL-backed outbox tables.
 
-For API/frontend-only smoke tests, it is acceptable to scale worker and beat to
-zero in a dedicated temporary test. For import, render, playback, and cleanup
-tests, worker and beat must run with their required runtime assets.
+For the current minikube staging phase, Kubernetes GPU worker validation is
+paused until a real GPU node is available. It is acceptable to scale
+`backend-worker` to zero in minikube and run the worker locally through Docker
+Compose against the same PostgreSQL, Redis, and S3 settings. Beat can remain in
+Kubernetes if it points at the same Redis broker.
 
 ## Bind Host PostgreSQL And Redis Through Stable Services
 
@@ -442,12 +463,12 @@ Update the generated local backend ConfigMap so it uses:
 
 ```text
 FILE_STORAGE_BACKEND=s3
-S3_ENDPOINT_URL=<from backend/.env.docker>
-S3_REGION=<from backend/.env.docker>
-S3_BUCKET=<from backend/.env.docker>
-S3_PUBLIC_BASE_URL=<from backend/.env.docker>
-S3_FORCE_PATH_STYLE=<from backend/.env.docker>
-S3_PRESIGN_EXPIRE_SECONDS=<from backend/.env.docker>
+S3_ENDPOINT_URL=https://oss-cn-shenzhen.aliyuncs.com
+S3_REGION=cn-shenzhen
+S3_BUCKET=noteverse
+S3_PUBLIC_BASE_URL=https://noteverse.oss-cn-shenzhen.aliyuncs.com
+S3_FORCE_PATH_STYLE=false
+S3_PRESIGN_EXPIRE_SECONDS=900
 ```
 
 Update `Secret/noteverse-backend-secret` with the full required Secret key set,
@@ -482,97 +503,13 @@ reservation, usage commit, deletion, and quota release path without invoking the
 large OMR model:
 
 ```powershell
-kubectl -n noteverse-staging port-forward svc/noteverse-backend-api 18000:8000
+.\scripts\start_minikube_gateway_port_forward.ps1
+.\scripts\minikube_smoke_test.ps1 -RunStorageSmoke -EnsureSmokeUser
 ```
 
-Use the repository smoke script as the standard entry point:
-
-```powershell
-python scripts/k8s_smoke_storage.py `
-  --api-base http://127.0.0.1:18000/api/v1 `
-  --ensure-user
-```
-
-In another shell, create or reset a local smoke user:
-
-```powershell
-$script = @'
-from sqlalchemy import select
-from app.core.security import get_password_hash
-from app.db.worker_session import SessionLocal
-from app.db.models.user import User
-from app.utils.timezone import utc_now_naive
-
-email = "k8s-smoke@example.com"
-password = "SmokePass123!"
-with SessionLocal() as db:
-    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
-    if user is None:
-        now = utc_now_naive()
-        user = User(
-            email=email,
-            display_name="K8s Smoke",
-            password_hash=get_password_hash(password),
-            is_active=True,
-            email_verified_at=now,
-            password_changed_at=now,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(user)
-    else:
-        user.password_hash = get_password_hash(password)
-        user.is_active = True
-        user.email_verified_at = user.email_verified_at or utc_now_naive()
-    db.commit()
-'@
-$encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($script))
-kubectl -n noteverse-staging exec deploy/noteverse-backend-api -- python -c "import base64; exec(base64.b64decode('$encoded').decode())"
-```
-
-Then run the HTTP smoke from the repository root:
-
-```powershell
-$script = @'
-from pathlib import Path
-import requests
-
-base = "http://127.0.0.1:18000/api/v1"
-session = requests.Session()
-login = session.post(
-    f"{base}/auth/login",
-    data={"username": "k8s-smoke@example.com", "password": "SmokePass123!"},
-    timeout=30,
-)
-login.raise_for_status()
-csrf = session.cookies.get("noteverse_csrf")
-headers = {"x-csrf-token": csrf} if csrf else {}
-
-before = session.get(f"{base}/me/storage-usage", timeout=30).json()["data"]["quota"]["used_bytes"]
-image_path = Path("frontend/public/images/placeholders/score-example.jpg")
-with image_path.open("rb") as fh:
-    uploaded = session.post(
-        f"{base}/files/upload",
-        files={"file": (image_path.name, fh, "image/jpeg")},
-        headers=headers,
-        timeout=60,
-    )
-uploaded.raise_for_status()
-file_id = uploaded.json()["data"]["file_id"]
-after_upload = session.get(f"{base}/me/storage-usage", timeout=30).json()["data"]["quota"]["used_bytes"]
-deleted = session.delete(f"{base}/files/{file_id}", headers=headers, timeout=60)
-deleted.raise_for_status()
-after_delete = session.get(f"{base}/me/storage-usage", timeout=30).json()["data"]["quota"]["used_bytes"]
-print({
-    "file_id": file_id,
-    "upload_delta": after_upload - before,
-    "delete_delta": after_delete - before,
-})
-if after_upload <= before or after_delete != before:
-    raise SystemExit("S3 upload quota smoke failed")
-'@
-python -c $script
-```
+`scripts/k8s_smoke_storage.py` uses only the Python standard library for HTTP,
+Cookie, CSRF, multipart upload, and quota reads. It creates or resets the smoke
+user inside the backend API pod when `-EnsureSmokeUser` is provided.
 
 Expected result:
 
@@ -760,9 +697,9 @@ It does not prepare real OMR/playback model assets.
 ## Local DNS And TLS For Production-Shaped Testing
 
 For the production-shaped minikube path, use a real test domain with
-cert-manager, Let's Encrypt staging, and Cloudflare DNS-01. This validates the
-same certificate lifecycle shape that production will use, while keeping the
-actual Redis, PostgreSQL, S3, Resend, and domain resources separate from
+cert-manager, Let's Encrypt production, and Cloudflare DNS-01. This validates
+the same certificate lifecycle shape that production will use, while keeping
+the actual Redis, PostgreSQL, S3, Resend, and domain resources separate from
 production.
 
 Example staging hosts:
@@ -777,8 +714,8 @@ internet. Cert-manager creates temporary `_acme-challenge` TXT records through
 Cloudflare. Do not create those TXT records manually.
 
 For browser traffic from the local machine, map the staging hosts to the local
-Gateway entrypoint. With an Envoy Gateway data-plane port-forward, use
-`127.0.0.1`:
+Gateway entrypoint. When using an Envoy Gateway data-plane port-forward on
+local port 443, use `127.0.0.1`:
 
 ```text
 127.0.0.1 staging.johnabc.ccwu.cc
@@ -802,15 +739,12 @@ Expected ACME rehearsal result:
 
 ```text
 Certificate/noteverse-tls READY=True
-issuer=(STAGING) Let's Encrypt
+issuer=Let's Encrypt production
 ```
 
-Let's Encrypt staging certificates are intentionally not browser-trusted. They
-prove ACME automation. Browser smoke can continue through the certificate
-warning, or you can temporarily trust the staging root locally when you
-explicitly want a cleaner browser session. Do not switch minikube rehearsal to
-Let's Encrypt production until the DNS-01 flow is stable and rate limits are
-understood.
+The staging rehearsal uses a real browser-trusted Let's Encrypt certificate.
+Avoid repeatedly deleting and recreating Certificates so local testing does not
+burn production ACME rate limits.
 
 Inspect the Gateway and the Envoy data-plane Service created for it:
 
@@ -822,19 +756,26 @@ kubectl get svc -A | Select-String envoy
 
 With the Docker driver on Windows, if the data-plane LoadBalancer address is not
 host-reachable, port-forward the Envoy data-plane Service selected by the
-Gateway implementation:
+Gateway implementation to local port 443:
 
 ```powershell
-kubectl -n <envoy-data-plane-namespace> port-forward svc/<envoy-data-plane-service> 8443:443
+kubectl -n <envoy-data-plane-namespace> port-forward svc/<envoy-data-plane-service> 443:443
 ```
 
 The exact Service name is controller-generated. Read it from the cluster rather
 than hard-coding it in scripts or manifests.
 
+For the current NoteVerse staging rehearsal, use the helper script after the
+Gateway data-plane Service exists:
+
+```powershell
+.\scripts\start_minikube_gateway_port_forward.ps1
+```
+
 Open the application through the same origin rendered into the overlay:
 
 ```text
-https://staging.johnabc.ccwu.cc:8443/zh/upload
+https://staging.johnabc.ccwu.cc/zh/upload
 ```
 ## Render Local Overlay
 
@@ -894,13 +835,17 @@ Apply manifests and wait for core workload readiness:
 .\scripts\minikube_app_release_prepare.ps1 `
   -RenderedOverlay build/k8s-release/minikube `
   -Apply `
-  -Wait
+  -Wait `
+  -ScaleWorkerToZero `
+  -SkipModelCacheWait
 ```
 
 The script deletes and recreates `Job/noteverse-db-migrate` before applying the
 overlay. Kubernetes Job pod templates are immutable, so this is the release-safe
 way to run the current migration image and configuration. It does not delete
-database data.
+database data. `-ScaleWorkerToZero` reflects the current local boundary: Legato
+worker tasks are validated through Docker Compose until a real GPU Kubernetes
+node is available.
 
 If you need lower-level diagnostics, inspect rollouts directly:
 
@@ -926,13 +871,24 @@ not expose a host-reachable LoadBalancer address:
 
 ```powershell
 kubectl get svc -A | Select-String envoy
-kubectl -n <envoy-data-plane-namespace> port-forward svc/<envoy-data-plane-service> 8443:443
+kubectl -n <envoy-data-plane-namespace> port-forward svc/<envoy-data-plane-service> 443:443
+# Or for the current staging rehearsal:
+.\scripts\start_minikube_gateway_port_forward.ps1
 ```
+
+Keep the browser-facing origin production-shaped:
+
+```text
+https://staging.johnabc.ccwu.cc
+```
+
+Do not use `:443` in `FRONTEND_BASE_URL` or `BACKEND_CORS_ORIGINS`; HTTPS port
+443 is the default port and standard origins normally omit it.
 
 Open:
 
 ```text
-https://staging.johnabc.ccwu.cc:8443/zh/upload
+https://staging.johnabc.ccwu.cc/zh/upload
 ```
 
 Cookie-authenticated writes such as upload submission are protected by Origin
@@ -954,6 +910,13 @@ The bucket CORS policy is separate. It matters only for browser-direct S3/OSS
 object reads or downloads from signed object URLs. It does not fix backend CSRF
 or Origin failures on `/api/v1` writes.
 
+If Chrome shows "Not secure" while the certificate detail says the certificate
+is valid, treat it as a page security-state problem rather than a certificate
+issuance problem. Check DevTools Security and Console for mixed content,
+insecure form, stale service worker/cache, or resources loaded from an HTTP URL.
+The expected browser API path is same-origin `/api/v1`; `NEXT_BACKEND_ORIGIN`
+and `NEXT_PRACTICE_ORIGIN` are internal server-side Service origins.
+
 On Windows with the Docker minikube driver, do not confuse these addresses:
 
 - `10.x` Service IPs such as `10.96.166.28` are Kubernetes ClusterIP addresses.
@@ -961,6 +924,10 @@ On Windows with the Docker minikube driver, do not confuse these addresses:
 - `$(minikube ip)` such as `192.168.49.2` is the minikube node IP. It is not
   automatically the Gateway browser endpoint unless the data-plane Service is
   exposed through a reachable NodePort or LoadBalancer path.
+- a MetalLB external IP such as `192.168.49.240` is assigned to the Envoy
+  data-plane `LoadBalancer` Service. On Windows Docker-driver minikube, direct
+  host access to that IP can still be unreliable; use the local 443 Gateway
+  port-forward helper if TLS handshakes fail from the browser.
 
 Gateway routing is host-based. If the HTTPRoute hostname is
 `staging.johnabc.ccwu.cc`, the request must carry that host. Typing an unmapped
