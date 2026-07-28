@@ -138,16 +138,16 @@ Rules:
 
 ## Object Storage
 
-Production bucket:
+Application production bucket:
 
 ```text
-noteverse-production
+noteverse-app-assets-production
 ```
 
-Staging bucket:
+Application staging bucket:
 
 ```text
-noteverse-staging
+noteverse-app-assets-staging
 ```
 
 Required backend config keys:
@@ -174,7 +174,90 @@ Rules:
 - product storage usage is database-backed and must not use bucket listing as
   the billing source of truth.
 
+### Observability Object Storage
+
+Loki and Tempo must use dedicated buckets. Do not share the application asset
+bucket.
+
+Recommended staging buckets:
+
+```text
+noteverse-loki-staging
+noteverse-tempo-staging
+```
+
+Recommended production buckets:
+
+```text
+noteverse-loki-production
+noteverse-tempo-production
+```
+
+Required Secret:
+
+```text
+Namespace: observability
+Secret: observability-s3
+```
+
+Required keys:
+
+| Key | Owner |
+| --- | --- |
+| `LOKI_S3_ENDPOINT` | platform/observability |
+| `LOKI_S3_REGION` | platform/observability |
+| `LOKI_S3_BUCKET` | platform/observability |
+| `LOKI_S3_ACCESS_KEY_ID` | platform/observability |
+| `LOKI_S3_SECRET_ACCESS_KEY` | platform/observability |
+| `TEMPO_S3_ENDPOINT` | platform/observability |
+| `TEMPO_S3_REGION` | platform/observability |
+| `TEMPO_S3_BUCKET` | platform/observability |
+| `TEMPO_S3_ACCESS_KEY_ID` | platform/observability |
+| `TEMPO_S3_SECRET_ACCESS_KEY` | platform/observability |
+
+Rules:
+
+- apply aggressive lifecycle policies to Loki and Tempo buckets according to
+  retention;
+- do not grant application pods access to observability buckets;
+- do not grant Loki or Tempo access to application asset buckets;
+- never promote request IDs, user IDs, score IDs, job IDs, emails, storage
+  keys, or raw paths to Loki labels.
+
 ## PVCs
+
+### Observability PVCs
+
+Prometheus, Alertmanager, and Grafana use PVC-backed storage. Loki and Tempo use
+S3-compatible object storage and should not rely on local filesystem storage in
+staging or production.
+
+Minikube/staging standard:
+
+```text
+StorageClass/noteverse-local-lvm
+```
+
+Implemented by TopoLVM over an LVM volume group on each minikube node.
+
+Production standard:
+
+```text
+managed cloud block storage CSI, or operator-managed local PV for self-managed local SSD clusters
+```
+
+Examples:
+
+```text
+AWS EBS CSI
+GCE PD CSI
+Azure Disk CSI
+Cloud-provider managed disk CSI
+```
+
+For self-managed clusters with local SSDs, use an operator-managed local PV
+provisioner such as TopoLVM or OpenEBS Local PV LVM/ZFS. Do not use direct
+workload `hostPath` mounts for Prometheus.
 
 ### Node-Local Model Cache
 

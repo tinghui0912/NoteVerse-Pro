@@ -2,10 +2,15 @@ param(
     [string] $AppNamespace = "noteverse-staging",
     [string] $CertManagerNamespace = "cert-manager",
     [string] $EnvoyGatewayNamespace = "envoy-gateway-system",
+    [string] $MetalLBNamespace = "metallb-system",
+    [string] $MinikubeProfile = $(if ($env:MINIKUBE_PROFILE) { $env:MINIKUBE_PROFILE } else { "noteverse-lvm" }),
     [string] $GatewayApiVersion = "v1.6.1",
     [string] $EnvoyGatewayChartVersion = "v1.8.3",
+    [string] $MetalLBChartVersion = "0.15.2",
+    [string] $MetalLBAddressPool = $env:NOTEVERSE_METALLB_ADDRESS_POOL,
     [string] $CloudflareApiToken = $env:CLOUDFLARE_API_TOKEN,
-    [switch] $SkipCloudflareSecret
+    [switch] $SkipCloudflareSecret,
+    [switch] $SkipMetalLB
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,13 +70,33 @@ function Ensure-CloudflareToken {
     }
 }
 
+function Get-DefaultMetalLBAddressPool {
+    if (-not [string]::IsNullOrWhiteSpace($MetalLBAddressPool)) {
+        return $MetalLBAddressPool
+    }
+
+    $nodeIp = (
+        kubectl get nodes -o jsonpath="{.items[0].status.addresses[?(@.type=='InternalIP')].address}"
+    ).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($nodeIp)) {
+        throw "Unable to derive MetalLB address pool because the first node InternalIP could not be read. Pass -MetalLBAddressPool or set NOTEVERSE_METALLB_ADDRESS_POOL."
+    }
+
+    $parts = $nodeIp.Split(".")
+    if ($parts.Length -ne 4) {
+        throw "Unexpected minikube ip '$nodeIp'. Pass -MetalLBAddressPool or set NOTEVERSE_METALLB_ADDRESS_POOL."
+    }
+
+    return "$($parts[0]).$($parts[1]).$($parts[2]).240-$($parts[0]).$($parts[1]).$($parts[2]).250"
+}
+
 Test-CommandAvailable "kubectl"
 Test-CommandAvailable "helm"
 Test-CommandAvailable "minikube"
 Ensure-CloudflareToken
 
 Invoke-Checked "minikube:status" {
-    minikube status
+    minikube -p $MinikubeProfile status
 }
 
 Invoke-Checked "cluster:nodes" {
@@ -101,6 +126,63 @@ Invoke-Checked "envoy-gateway:rollout" {
 
 Invoke-Checked "envoy-gateway:gatewayclass" {
     kubectl apply -f deploy/platform/gateway-api/gatewayclass.yaml
+}
+
+if (-not $SkipMetalLB) {
+    $resolvedMetalLBAddressPool = Get-DefaultMetalLBAddressPool
+
+    if (-not (kubectl -n $MetalLBNamespace get secret metallb-memberlist 2>$null)) {
+        $memberlistBytes = New-Object byte[] 128
+        [System.Security.Cryptography.RandomNumberGenerator]::Fill($memberlistBytes)
+        $memberlistSecret = [Convert]::ToBase64String($memberlistBytes)
+        Invoke-Checked "metallb:memberlist-secret" {
+            kubectl create namespace $MetalLBNamespace --dry-run=client -o yaml | kubectl apply -f -
+            kubectl -n $MetalLBNamespace create secret generic metallb-memberlist `
+                --from-literal=secretkey=$memberlistSecret `
+                --dry-run=client -o yaml | kubectl apply -f -
+        }
+    }
+
+    Invoke-WithRetry "metallb:install" {
+        helm repo add metallb https://metallb.github.io/metallb 2>$null
+        helm repo update metallb
+        helm upgrade --install metallb metallb/metallb `
+            --namespace $MetalLBNamespace `
+            --create-namespace `
+            --version $MetalLBChartVersion `
+            --set speaker.frr.enabled=false
+    }
+
+    Invoke-Checked "metallb:rollout" {
+        kubectl -n $MetalLBNamespace rollout status deployment/metallb-controller --timeout=300s
+        kubectl -n $MetalLBNamespace rollout status daemonset/metallb-speaker --timeout=300s
+    }
+
+    $metalLBPoolManifest = @"
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: noteverse-minikube
+  namespace: $MetalLBNamespace
+spec:
+  addresses:
+    - $resolvedMetalLBAddressPool
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: noteverse-minikube
+  namespace: $MetalLBNamespace
+spec:
+  ipAddressPools:
+    - noteverse-minikube
+"@
+
+    Invoke-Checked "metallb:address-pool" {
+        $metalLBPoolManifest | kubectl apply -f -
+    }
+
+    Write-Host "MetalLB address pool: $resolvedMetalLBAddressPool"
 }
 
 Invoke-WithRetry "cert-manager:install" {

@@ -1,7 +1,40 @@
-# Minikube Local Kubernetes Runbook
+# Minikube Local Kubernetes Reference
 
-This runbook defines how to use a local minikube cluster to validate the
-NoteVerse Kubernetes deployment path before a managed cloud cluster exists.
+This document is a legacy reference for local minikube troubleshooting details.
+It is not the authoritative from-zero deployment path.
+
+Use [Minikube From Zero Runbook](minikube-from-zero.md) for staging rehearsal.
+That runbook uses the current production-shaped path:
+
+- GHCR images;
+- real test domains;
+- cert-manager;
+- Gateway API and Envoy Gateway;
+- S3-compatible object storage;
+- qemu2 minikube with extra block disks;
+- LVM and `StorageClass/noteverse-local-lvm`;
+- Docker Compose worker until a Kubernetes GPU worker node is available.
+
+Do not use this document to create a new environment unless the from-zero
+runbook explicitly links to a subsection here.
+
+## Scope
+
+This reference keeps operational notes that are still useful when debugging the
+local staging environment:
+
+- managed-like PostgreSQL and Redis access from minikube;
+- DNS behavior;
+- Gateway and port-forward notes;
+- historical pitfalls.
+
+It no longer defines image publishing, storage, model cache, or the release
+overlay flow.
+
+## Historical Context
+
+This runbook originally defined how to use a local minikube cluster to validate
+the NoteVerse Kubernetes deployment path before a managed cloud cluster existed.
 
 Minikube is the local staging rehearsal environment for NoteVerse. Keep its
 Kubernetes resource model production-shaped: Gateway API, Envoy Gateway,
@@ -37,7 +70,21 @@ Not representative:
 - GPU node scheduling and model-volume performance;
 - horizontal scaling and node failure behavior.
 
-## Start Cluster
+## Historical Docker Driver Start
+
+The Docker driver path below is kept only as historical context and quick
+debugging fallback. It is not production-shaped because Docker-driver minikube
+cannot attach extra block devices for LVM.
+
+For production-like staging, use:
+
+```powershell
+.\scripts\minikube_start_lvm_profile.ps1
+```
+
+from [Minikube From Zero Runbook](minikube-from-zero.md).
+
+### Legacy Command
 
 Windows PowerShell:
 
@@ -665,16 +712,6 @@ Clean stale node-local model cache explicitly after changing the model set:
 
 ```powershell
 minikube ssh -- "sudo rm -rf /var/lib/noteverse/models/huggingface/hub/models--meta-llama--Llama-3.2-11B-Vision"
-```
-
-Older deployments used a PVC/local-path-provisioner directory named
-`noteverse-model-assets`. The current model-cache design does not use that PVC.
-If `kubectl -n noteverse-staging get pvc` no longer shows
-`noteverse-model-assets` and no workload references it, remove the stale local
-directory:
-
-```powershell
-minikube ssh -- "sudo rm -rf /tmp/hostpath-provisioner/noteverse-staging/noteverse-model-assets"
 ```
 
 Wait for the model-cache DaemonSet before relying on worker tasks:

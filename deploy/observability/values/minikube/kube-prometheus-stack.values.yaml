@@ -1,13 +1,39 @@
 # Minikube-only overrides for kube-prometheus-stack.
 #
-# The local two-node minikube profile used for NoteVerse can have asymmetric
-# cross-node Pod IP connectivity. Pin Prometheus to the primary minikube node so
-# it can scrape the current local application pods reliably.
+# The local minikube profile used for NoteVerse is created with qemu2 extra
+# block disks and TopoLVM. Prometheus, Alertmanager, and Grafana use the same
+# PVC/StorageClass shape expected in production.
 #
 # Do not use this file for production.
 
 prometheus:
   prometheusSpec:
-    nodeSelector:
-      kubernetes.io/hostname: minikube
+    retention: 14d
+    retentionSize: 15GB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: noteverse-local-lvm
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
 
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: noteverse-local-lvm
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+
+grafana:
+  persistence:
+    enabled: true
+    storageClassName: noteverse-local-lvm
+    size: 2Gi

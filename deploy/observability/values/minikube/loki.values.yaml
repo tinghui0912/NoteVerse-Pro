@@ -1,0 +1,55 @@
+# Minikube/staging overrides for Loki.
+#
+# Minikube is treated as the staging rehearsal environment. Loki must use the
+# same S3-compatible object storage model as production; only bucket names,
+# credentials, and provider endpoints differ by environment.
+#
+# Required Secret:
+#
+#   observability-s3
+#     LOKI_S3_ENDPOINT
+#     LOKI_S3_REGION
+#     LOKI_S3_BUCKET
+#     LOKI_S3_ACCESS_KEY_ID
+#     LOKI_S3_SECRET_ACCESS_KEY
+#
+# Loki expands the environment placeholders at runtime. Do not render Secret
+# values into this file or into release packages.
+
+loki:
+  commonConfig:
+    path_prefix: /var/loki
+  storage:
+    type: s3
+    bucketNames:
+      chunks: ${LOKI_S3_BUCKET}
+      ruler: ${LOKI_S3_BUCKET}
+      admin: ${LOKI_S3_BUCKET}
+    s3:
+      endpoint: ${LOKI_S3_ENDPOINT}
+      region: ${LOKI_S3_REGION}
+      accessKeyId: ${LOKI_S3_ACCESS_KEY_ID}
+      secretAccessKey: ${LOKI_S3_SECRET_ACCESS_KEY}
+      s3ForcePathStyle: false
+  schemaConfig:
+    configs:
+      - from: "2026-01-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  limits_config:
+    retention_period: 336h
+
+singleBinary:
+  persistence:
+    enabled: true
+    storageClass: noteverse-local-lvm
+    size: 20Gi
+  extraArgs:
+    - -config.expand-env=true
+  extraEnvFrom:
+    - secretRef:
+        name: observability-s3

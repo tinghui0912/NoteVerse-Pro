@@ -1,4 +1,4 @@
-# Minikube/staging overrides for Tempo.
+# Production overrides for Tempo.
 #
 # Required Secret:
 #
@@ -8,12 +8,9 @@
 #     TEMPO_S3_BUCKET
 #     TEMPO_S3_ACCESS_KEY_ID
 #     TEMPO_S3_SECRET_ACCESS_KEY
-#
-# The values use runtime environment expansion. Do not render Secret values into
-# this file or into release packages.
 
 tempo:
-  retention: 168h
+  retention: 336h
   storage:
     trace:
       backend: s3

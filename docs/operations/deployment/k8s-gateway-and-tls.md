@@ -186,12 +186,17 @@ staging.johnabc.ccwu.cc      CNAME or A/AAAA -> Gateway load balancer
 api.staging.johnabc.ccwu.cc  CNAME or A/AAAA -> Gateway load balancer
 ```
 
-For minikube production-flow rehearsal, enable MetalLB so the Envoy data-plane
-`LoadBalancer` Service receives a stable local external IP. With the Docker
-driver on Windows, that IP can still be unreachable or fail TLS handshakes from
-the host browser. In that case, port-forward the Envoy data-plane Service to
-local port 443 and map the staging hosts to `127.0.0.1`. The request host must
-match the host rendered into the `Gateway` and `HTTPRoute` resources.
+For minikube production-flow rehearsal, install MetalLB so the Envoy data-plane
+`LoadBalancer` Service receives a stable local external IP and the `Gateway`
+reaches `PROGRAMMED=True`. The repository bootstrap installs MetalLB in L2 mode
+with FRR disabled and derives the address pool from the current node
+`InternalIP`.
+
+On Windows minikube drivers, the assigned LoadBalancer IP can still be
+inconvenient or unreachable from the host browser. In that case, port-forward
+the Envoy data-plane Service to local port 443 and map the staging hosts to
+`127.0.0.1`. The request host must match the host rendered into the `Gateway`
+and `HTTPRoute` resources.
 
 Use the repository helper for the current staging rehearsal:
 

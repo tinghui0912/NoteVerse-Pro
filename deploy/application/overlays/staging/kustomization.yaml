@@ -44,13 +44,13 @@ generatorOptions:
 
 replicas:
   - name: noteverse-backend-api
-    count: 2
-  - name: noteverse-backend-practice
-    count: 2
-  - name: noteverse-backend-worker
     count: 1
+  - name: noteverse-backend-practice
+    count: 1
+  - name: noteverse-backend-worker
+    count: 0
   - name: noteverse-frontend
-    count: 2
+    count: 1
 
 patches:
   - path: patch-backend-worker-scheduling.yaml

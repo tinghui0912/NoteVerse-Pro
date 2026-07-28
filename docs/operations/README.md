@@ -10,6 +10,7 @@ production readiness.
 - [Kubernetes Gateway API And TLS](deployment/k8s-gateway-and-tls.md)
 - [Kubernetes Production Preflight Checklist](deployment/k8s-production-preflight-checklist.md)
 - [Kubernetes Secrets And Storage Template](deployment/k8s-secrets-and-storage-template.md)
+- [Platform Storage Contract](../../deploy/platform/storage/README.md)
 
 ## Release
 
@@ -35,3 +36,4 @@ production readiness.
 - [Docker Backend Runtime Runbook](runbooks/docker-backend-runtime-runbook.md)
 - [Minikube From Zero Runbook](runbooks/minikube-from-zero.md)
 - [Minikube Local Kubernetes Runbook](runbooks/minikube-local-k8s-runbook.md)
+- [Local VM Kubernetes Lab Runbook](runbooks/local-vm-k8s-lab.md)

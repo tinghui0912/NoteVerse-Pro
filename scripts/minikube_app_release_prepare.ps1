@@ -14,7 +14,8 @@ param(
     [switch] $SkipModelCacheWait,
     [switch] $ScaleWorkerToZero,
     [switch] $Apply,
-    [switch] $Wait
+    [switch] $Wait,
+    [int] $WaitTimeoutSeconds = 1200
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,8 +29,7 @@ $RequiredBackendSecretKeys = @(
     "CELERY_RESULT_BACKEND",
     "S3_ACCESS_KEY_ID",
     "S3_SECRET_ACCESS_KEY",
-    "RESEND_API_KEY",
-    "HF_TOKEN"
+    "RESEND_API_KEY"
 )
 
 function Invoke-Checked {
@@ -255,26 +255,26 @@ if ($Apply) {
 
     if ($Wait) {
         Invoke-Checked "job:migration" {
-            kubectl -n $AppNamespace wait --for=condition=complete job/noteverse-db-migrate --timeout=300s
+            kubectl -n $AppNamespace wait --for=condition=complete job/noteverse-db-migrate --timeout="$($WaitTimeoutSeconds)s"
         }
         Invoke-Checked "rollout:backend-api" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-api --timeout=300s
+            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-api --timeout="$($WaitTimeoutSeconds)s"
         }
         Invoke-Checked "rollout:backend-practice" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-practice --timeout=300s
+            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-practice --timeout="$($WaitTimeoutSeconds)s"
         }
         Invoke-Checked "rollout:backend-beat" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-beat --timeout=300s
+            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-beat --timeout="$($WaitTimeoutSeconds)s"
         }
         if (-not $SkipWorkerWait -and -not $ScaleWorkerToZero) {
             Invoke-Checked "rollout:backend-worker" {
-                kubectl -n $AppNamespace rollout status deployment/noteverse-backend-worker --timeout=300s
+                kubectl -n $AppNamespace rollout status deployment/noteverse-backend-worker --timeout="$($WaitTimeoutSeconds)s"
             }
         } else {
             Write-Host "==> rollout:backend-worker skipped"
         }
         Invoke-Checked "rollout:frontend" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-frontend --timeout=300s
+            kubectl -n $AppNamespace rollout status deployment/noteverse-frontend --timeout="$($WaitTimeoutSeconds)s"
         }
         if (-not $SkipModelCacheWait) {
             Invoke-Checked "rollout:model-cache-agent" {

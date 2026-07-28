@@ -64,10 +64,17 @@ def create_bucket(client, *, bucket: str, region: str) -> None:
     if region in {"", "auto", "us-east-1"}:
         client.create_bucket(Bucket=bucket)
         return
-    client.create_bucket(
-        Bucket=bucket,
-        CreateBucketConfiguration={"LocationConstraint": region},
-    )
+    try:
+        client.create_bucket(
+            Bucket=bucket,
+            CreateBucketConfiguration={"LocationConstraint": region},
+        )
+    except Exception as exc:
+        response = getattr(exc, "response", None)
+        error = response.get("Error") if isinstance(response, dict) else {}
+        if str(error.get("Code") or "") != "InvalidLocationConstraint":
+            raise
+        client.create_bucket(Bucket=bucket)
 
 
 def parse_args() -> argparse.Namespace:

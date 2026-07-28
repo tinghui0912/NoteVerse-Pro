@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TypedDict
 import json
+from typing import TYPE_CHECKING, TypedDict
 
-from app.processing.engines.matchmaker_live import AlignmentUpdate
+if TYPE_CHECKING:
+    from app.processing.engines.matchmaker_live import AlignmentUpdate
 
 
 class RuntimeMessage(TypedDict):

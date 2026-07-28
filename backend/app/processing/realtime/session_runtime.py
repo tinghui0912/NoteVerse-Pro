@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from app.processing.engines.matchmaker_live import (
-    AlignmentEngine,
-    AlignmentUpdate,
-    build_alignment_engine,
-)
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
+
+if TYPE_CHECKING:
+    from app.processing.engines.matchmaker_live import AlignmentEngine, AlignmentUpdate
 
 
 @dataclass
@@ -21,7 +19,7 @@ class PracticeSessionRuntime:
     channels: int
     frame_format: str
     audio_buffer: AudioChunkBuffer
-    engine: AlignmentEngine
+    engine: "AlignmentEngine"
     websocket: object | None = None
     background_task: object | None = None
     last_alignment: Optional[AlignmentUpdate] = None
@@ -76,6 +74,8 @@ class PracticeSessionRuntimeRegistry:
         channels: int = 1,
         frame_format: str = "pcm_s16le",
     ) -> PracticeSessionRuntime:
+        from app.processing.engines.matchmaker_live import build_alignment_engine
+
         runtime = PracticeSessionRuntime(
             session_id=session_id,
             task_id=task_id,

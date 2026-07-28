@@ -1,0 +1,28 @@
+# Minikube/staging TopoLVM values.
+#
+# The minikube staging profile is expected to be created with a VM driver that
+# supports extra block disks, such as qemu2. Each node must have an LVM volume
+# group named `noteverse-local-vg` before this chart is installed.
+
+lvmd:
+  deviceClasses:
+    - name: local-ssd
+      volume-group: noteverse-local-vg
+      default: true
+      spare-gb: 5
+
+storageClasses:
+  - name: noteverse-local-lvm
+    storageClass:
+      fsType: ext4
+      reclaimPolicy: Delete
+      annotations: {}
+      isDefaultClass: false
+      volumeBindingMode: WaitForFirstConsumer
+      allowVolumeExpansion: true
+      additionalParameters:
+        topolvm.io/device-class: local-ssd
+      mountOptions: []
+
+controller:
+  replicaCount: 1

@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.cookiejar
 import json
 import subprocess
 import sys
 import time
 from typing import Any
-
-import requests
+from urllib import error, parse, request
 
 
 DEFAULT_EMAIL = "k8s-smoke@example.com"
@@ -269,30 +269,80 @@ with SessionLocal() as db:
     return dict(json.loads(last_json))
 
 
-def csrf_headers(session: requests.Session) -> dict[str, str]:
-    token = session.cookies.get("noteverse_csrf")
+class HttpError(RuntimeError):
+    def __init__(self, method: str, url: str, status_code: int, body: str) -> None:
+        super().__init__(f"{method} {url} failed with HTTP {status_code}: {body}")
+        self.status_code = status_code
+        self.body = body
+
+
+def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
+    token = next((cookie.value for cookie in cookie_jar if cookie.name == "noteverse_csrf"), None)
     return {"x-csrf-token": token, "content-type": "application/json"} if token else {"content-type": "application/json"}
 
 
-def login(api_base: str, email: str, password: str) -> requests.Session:
-    session = requests.Session()
-    response = session.post(
+def request_json(
+    opener: request.OpenerDirector,
+    url: str,
+    *,
+    method: str = "GET",
+    data: bytes | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: int = 30,
+) -> dict[str, Any]:
+    req = request.Request(url, data=data, headers=headers or {}, method=method)
+    try:
+        with opener.open(req, timeout=timeout) as response:
+            return dict(json.loads(response.read().decode("utf-8")))
+    except error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise HttpError(method, url, exc.code, body) from exc
+
+
+def request_status(
+    opener: request.OpenerDirector,
+    url: str,
+    *,
+    method: str = "GET",
+    data: bytes | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: int = 30,
+) -> int:
+    req = request.Request(url, data=data, headers=headers or {}, method=method)
+    try:
+        with opener.open(req, timeout=timeout) as response:
+            return int(response.status)
+    except error.HTTPError as exc:
+        return exc.code
+
+
+def encode_form(data: dict[str, str]) -> tuple[bytes, dict[str, str]]:
+    body = parse.urlencode(data).encode("utf-8")
+    return body, {"Content-Type": "application/x-www-form-urlencoded"}
+
+
+def login(api_base: str, email: str, password: str) -> tuple[request.OpenerDirector, http.cookiejar.CookieJar]:
+    cookie_jar = http.cookiejar.CookieJar()
+    opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
+    body, headers = encode_form({"username": email, "password": password})
+    request_json(
+        opener,
         f"{api_base}/auth/login",
-        data={"username": email, "password": password},
+        method="POST",
+        data=body,
+        headers=headers,
         timeout=30,
     )
-    response.raise_for_status()
-    return session
+    return opener, cookie_jar
 
 
-def get_score(session: requests.Session, api_base: str, score_id: str) -> dict[str, Any]:
-    response = session.get(f"{api_base}/scores/{score_id}", timeout=30)
-    response.raise_for_status()
-    return dict(response.json()["data"])
+def get_score(opener: request.OpenerDirector, api_base: str, score_id: str) -> dict[str, Any]:
+    response = request_json(opener, f"{api_base}/scores/{score_id}", timeout=30)
+    return dict(response["data"])
 
 
 def wait_for_assets(
-    session: requests.Session,
+    opener: request.OpenerDirector,
     api_base: str,
     score_id: str,
     *,
@@ -304,50 +354,53 @@ def wait_for_assets(
     last_error: str | None = None
     while time.monotonic() < deadline:
         try:
-            last_score = get_score(session, api_base, score_id)
+            last_score = get_score(opener, api_base, score_id)
             assets = last_score["derived_assets"]
             if assets["preview"]["status"] == "ready" and assets["audio"]["status"] == "ready":
                 return last_score
-        except requests.RequestException as exc:
+        except (error.HTTPError, error.URLError, TimeoutError) as exc:
             last_error = str(exc)
         time.sleep(poll_seconds)
     raise TimeoutError(f"Timed out waiting for derived assets: last_score={last_score}; last_error={last_error}")
 
 
-def assert_external_access(api_base: str, session: requests.Session, score: dict[str, Any]) -> dict[str, str]:
+def assert_external_access(
+    api_base: str,
+    opener: request.OpenerDirector,
+    cookie_jar: http.cookiejar.CookieJar,
+    score: dict[str, Any],
+) -> dict[str, str]:
     score_id = str(score["score_id"])
     revision_id = str(score["head_revision_id"])
-    headers = csrf_headers(session)
-    grant = session.post(
+    headers = csrf_headers(cookie_jar)
+    grant = request_json(
+        opener,
         f"{api_base}/scores/{score_id}/grants",
-        json={"allow_download": False, "allow_practice": True, "expires_at": None},
+        method="POST",
+        data=json.dumps({"allow_download": False, "allow_practice": True, "expires_at": None}).encode("utf-8"),
         headers=headers,
         timeout=30,
     )
-    grant.raise_for_status()
-    token = grant.json()["data"]["token"]
+    token = grant["data"]["token"]
 
     slug = f"k8s-smoke-{score_id[:8]}"
-    publication = session.put(
+    request_json(
+        opener,
         f"{api_base}/scores/{score_id}/publication",
-        json={
+        method="PUT",
+        data=json.dumps({
             "revision_id": revision_id,
             "public_slug": slug,
             "allow_download": False,
             "allow_practice": True,
-        },
+        }).encode("utf-8"),
         headers=headers,
         timeout=30,
     )
-    publication.raise_for_status()
 
-    anonymous = requests.Session()
-    share = anonymous.get(f"{api_base}/score-grants/{token}", timeout=30)
-    share.raise_for_status()
-    share_data = share.json()["data"]
-    public = anonymous.get(f"{api_base}/publications/{slug}", timeout=30)
-    public.raise_for_status()
-    public_data = public.json()["data"]
+    anonymous = request.build_opener()
+    share_data = request_json(anonymous, f"{api_base}/score-grants/{token}", timeout=30)["data"]
+    public_data = request_json(anonymous, f"{api_base}/publications/{slug}", timeout=30)["data"]
     for label, payload in (("share", share_data), ("public", public_data)):
         assets = payload["derived_assets"]
         if assets["preview"]["status"] != "ready" or assets["audio"]["status"] != "ready":
@@ -362,21 +415,27 @@ def assert_external_access(api_base: str, session: requests.Session, score: dict
         f"{api_base}/score-grants/{token}/playback",
         f"{api_base}/publications/{slug}/playback",
     ):
-        response = anonymous.get(url, allow_redirects=False, timeout=30)
-        if response.status_code not in {200, 302, 307}:
-            raise AssertionError(f"Playback endpoint failed: {url} -> {response.status_code}")
+        status_code = request_status(anonymous, url, timeout=30)
+        if status_code not in {200, 302, 307}:
+            raise AssertionError(f"Playback endpoint failed: {url} -> {status_code}")
     return {"share_token": token, "public_slug": slug}
 
 
-def delete_score(session: requests.Session, api_base: str, score_id: str) -> None:
-    response = session.post(
+def delete_score(
+    opener: request.OpenerDirector,
+    cookie_jar: http.cookiejar.CookieJar,
+    api_base: str,
+    score_id: str,
+) -> None:
+    response = request_json(
+        opener,
         f"{api_base}/scores/batch-delete",
-        json={"score_ids": [score_id]},
-        headers=csrf_headers(session),
+        method="POST",
+        data=json.dumps({"score_ids": [score_id]}).encode("utf-8"),
+        headers=csrf_headers(cookie_jar),
         timeout=30,
     )
-    response.raise_for_status()
-    removed = response.json()["data"]["removed"]
+    removed = response["data"]["removed"]
     if removed != 1:
         raise AssertionError(f"Expected one score to be deleted, got {removed}")
 
@@ -412,17 +471,17 @@ with SessionLocal() as db:
 
 
 def cleanup_score(
-    session: requests.Session,
+    opener: request.OpenerDirector,
+    cookie_jar: http.cookiejar.CookieJar,
     api_base: str,
     namespace: str,
     worker_deployment: str,
     score_id: str,
 ) -> None:
     try:
-        delete_score(session, api_base, score_id)
-    except requests.HTTPError as exc:
-        response = exc.response
-        if response is None or response.status_code not in {404, 410, 422}:
+        delete_score(opener, cookie_jar, api_base, score_id)
+    except HttpError as exc:
+        if exc.status_code not in {404, 410, 422}:
             raise
     trigger_cleanup(namespace, worker_deployment)
 
@@ -432,25 +491,25 @@ def main() -> int:
     if args.ensure_user:
         ensure_user(args.namespace, args.backend_deployment, args.email, args.password)
 
-    session = login(args.api_base, args.email, args.password)
+    opener, cookie_jar = login(args.api_base, args.email, args.password)
     created = create_and_dispatch_score(args.namespace, args.backend_deployment, args.email)
     score_id = created["score_id"]
     try:
         score = wait_for_assets(
-            session,
+            opener,
             args.api_base,
             score_id,
             timeout_seconds=args.timeout_seconds,
             poll_seconds=args.poll_seconds,
         )
-        external = assert_external_access(args.api_base, session, score)
-        cleanup_score(session, args.api_base, args.namespace, args.worker_deployment, score_id)
+        external = assert_external_access(args.api_base, opener, cookie_jar, score)
+        cleanup_score(opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id)
         assert_owner_usage_zero(args.namespace, args.backend_deployment, args.email)
     except Exception:
         print(json.dumps({"score_id": score_id, "created": created}, indent=2), file=sys.stderr)
         if not args.keep_on_failure:
             try:
-                cleanup_score(session, args.api_base, args.namespace, args.worker_deployment, score_id)
+                cleanup_score(opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id)
                 assert_owner_usage_zero(args.namespace, args.backend_deployment, args.email)
             except Exception as cleanup_error:
                 print(f"cleanup failed: {cleanup_error}", file=sys.stderr)

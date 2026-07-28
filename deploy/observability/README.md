@@ -3,9 +3,9 @@
 This directory contains the shared Helm values baseline for the future
 Kubernetes observability stack.
 
-The files under `deploy/observability/values/` are shared baseline values. They
-are also usable for local minikube validation unless a release has a matching
-overlay under `deploy/observability/values/minikube/`.
+The files under `deploy/observability/values/` are shared baseline values.
+Minikube/staging uses the matching overlays under
+`deploy/observability/values/minikube/` whenever an overlay exists.
 
 They are intentionally not a turnkey production deployment. Production should
 reuse this baseline, then add environment-specific overlays under
@@ -51,9 +51,14 @@ values/
   tempo.values.yaml
   otel-collector.values.yaml
   minikube/
+    loki.values.yaml
     kube-prometheus-stack.values.yaml
     tempo.values.yaml
   production/
+    loki.values.yaml
+    kube-prometheus-stack.values.yaml
+    tempo.values.yaml
+    otel-collector.values.yaml
     README.md
 ```
 
@@ -62,22 +67,39 @@ Current role of these values:
 | File | Current role | Production notes |
 | --- | --- | --- |
 | `fluent-bit.values.yaml` | Base values, also used directly in minikube | Usually reusable as-is except output destination, TLS, resource limits, and cluster labels |
-| `loki.values.yaml` | Local/minikube single-binary filesystem setup | Replace with durable object storage, production retention, and a production deployment mode before launch |
-| `kube-prometheus-stack.values.yaml` | Base metrics/Grafana setup, usable in minikube with its overlay | Add persistent volumes, admin credentials from external secrets, alert routes, and resource requests |
-| `tempo.values.yaml` | Local tracing baseline, usable in minikube with its overlay | Add object storage, retention, resource requests, and a production topology before launch |
-| `otel-collector.values.yaml` | OTLP trace collector baseline | Tune sampling, resource attributes, replica strategy, and resource limits per environment |
+| `loki.values.yaml` | Shared single-binary baseline | Minikube and production overlays switch storage to S3-compatible object storage and set environment retention |
+| `kube-prometheus-stack.values.yaml` | Base metrics/Grafana setup, used with a minikube overlay | Production overlay sets persistent volumes, retention, and PVC sizing; credentials and alert routes come from environment-owned secret management |
+| `tempo.values.yaml` | Shared tracing baseline | Minikube and production overlays use S3-compatible object storage and environment retention |
+| `otel-collector.values.yaml` | OTLP trace collector baseline | Production overlay adds tail sampling for errors, slow requests, and low-rate baseline traces |
 
 Only releases with real environment differences need overlay files. The current
-minikube overlays are intentionally small:
+minikube overlays are intentionally scoped:
 
-- Prometheus is pinned to the primary minikube node because the current local
-  two-node profile has asymmetric Pod IP networking.
-- Tempo persistence is disabled because the local single-binary chart otherwise
-  hits minikube PVC ownership issues.
+- Loki and Tempo use S3-compatible object storage because minikube is the local
+  staging rehearsal environment.
+- Prometheus, Alertmanager, and Grafana use PVCs backed by
+  `StorageClass/noteverse-local-lvm`.
+- The minikube StorageClass is provided by TopoLVM over per-node extra block
+  disks in the qemu2 minikube profile.
 
-Production overlays are currently docs-only on purpose. Do not create fake
-production values before the real cluster storage, Gateway exposure, secret, and scaling
-choices are known.
+Production overlays define durable storage shape, retention, and trace sampling,
+but still reference Kubernetes Secrets instead of committing credentials.
+
+Required Secret contract for Loki and Tempo object storage:
+
+```text
+Secret/observability-s3
+  LOKI_S3_ENDPOINT
+  LOKI_S3_REGION
+  LOKI_S3_BUCKET
+  LOKI_S3_ACCESS_KEY_ID
+  LOKI_S3_SECRET_ACCESS_KEY
+  TEMPO_S3_ENDPOINT
+  TEMPO_S3_REGION
+  TEMPO_S3_BUCKET
+  TEMPO_S3_ACCESS_KEY_ID
+  TEMPO_S3_SECRET_ACCESS_KEY
+```
 
 ## Rules
 

@@ -29,12 +29,14 @@ needs a different setting.
 
 ## Values Scope
 
-This runbook uses the shared values in `deploy/observability/values/` directly
-for minikube. Those files are also the production baseline, but not the final
-production configuration.
+This runbook uses the shared baseline values in `deploy/observability/values/`
+plus the `deploy/observability/values/minikube/` overlay. Minikube is the
+staging rehearsal environment, so it uses production-shaped S3 object storage
+for Loki/Tempo and PVC-backed Prometheus/Grafana state.
 
-Production should keep the same component model and label policy, then layer
-environment-specific values for:
+Production keeps the same component model and label policy, then layers
+environment-specific values under `deploy/observability/values/production/`
+for:
 
 - durable Loki and Tempo object storage;
 - Prometheus, Alertmanager, and Grafana persistence;
@@ -44,8 +46,9 @@ environment-specific values for:
 - resource requests, limits, replicas, and topology rules;
 - cluster/environment labels.
 
-In other words: minikube and production should stay structurally aligned, but
-production must not blindly deploy the minikube storage and credential choices.
+In other words: minikube and production stay structurally aligned, but
+production must not blindly deploy the minikube StorageClass or credential
+choices.
 
 ## Prerequisites
 
@@ -69,6 +72,56 @@ Create the namespace:
 
 ```powershell
 kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Install the minikube StorageClass before installing Prometheus:
+
+```powershell
+.\scripts\minikube_prepare_lvm_vg.ps1 -Profile noteverse-lvm -WipeExtraDisk
+.\scripts\minikube_install_topolvm.ps1
+```
+
+This installs TopoLVM and provides:
+
+```text
+StorageClass/noteverse-local-lvm
+```
+
+The minikube Prometheus/Grafana/Alertmanager overlay uses that StorageClass for
+PVCs. Do not replace this with direct workload `hostPath` mounts.
+
+Create the observability S3 Secret before installing Loki or Tempo. Use
+dedicated buckets; do not share the application asset bucket.
+
+Required keys:
+
+```text
+LOKI_S3_ENDPOINT
+LOKI_S3_REGION
+LOKI_S3_BUCKET
+LOKI_S3_ACCESS_KEY_ID
+LOKI_S3_SECRET_ACCESS_KEY
+TEMPO_S3_ENDPOINT
+TEMPO_S3_REGION
+TEMPO_S3_BUCKET
+TEMPO_S3_ACCESS_KEY_ID
+TEMPO_S3_SECRET_ACCESS_KEY
+```
+
+Example shape:
+
+```powershell
+kubectl -n observability create secret generic observability-s3 `
+  --from-literal=LOKI_S3_ENDPOINT="https://<s3-endpoint>" `
+  --from-literal=LOKI_S3_REGION="<region>" `
+  --from-literal=LOKI_S3_BUCKET="<staging-loki-bucket>" `
+  --from-literal=LOKI_S3_ACCESS_KEY_ID="<access-key>" `
+  --from-literal=LOKI_S3_SECRET_ACCESS_KEY="<secret-key>" `
+  --from-literal=TEMPO_S3_ENDPOINT="https://<s3-endpoint>" `
+  --from-literal=TEMPO_S3_REGION="<region>" `
+  --from-literal=TEMPO_S3_BUCKET="<staging-tempo-bucket>" `
+  --from-literal=TEMPO_S3_ACCESS_KEY_ID="<access-key>" `
+  --from-literal=TEMPO_S3_SECRET_ACCESS_KEY="<secret-key>"
 ```
 
 ## Validate Values Before Installing
@@ -119,7 +172,8 @@ explicitly. Do not weaken the application logging contract.
 ```powershell
 helm upgrade --install loki grafana/loki `
   --namespace observability `
-  -f deploy/observability/values/loki.values.yaml
+  -f deploy/observability/values/loki.values.yaml `
+  -f deploy/observability/values/minikube/loki.values.yaml
 ```
 
 Wait for Loki:
@@ -166,9 +220,8 @@ kubectl wait --for=condition=Ready pod -n observability --all --timeout=300s
 kubectl get pods -n observability -o wide
 ```
 
-The minikube overlay pins Prometheus to the primary `minikube` node. This is a
-local workaround for asymmetric cross-node Pod IP connectivity in the current
-two-node minikube profile, not a production scheduling rule.
+The minikube overlay uses LVM-backed PVCs through TopoLVM. It should not pin
+Prometheus to a hard-coded node name.
 
 If the application was applied before Prometheus Operator CRDs existed, apply
 the backend ServiceMonitor after installing the stack:
@@ -207,9 +260,8 @@ kubectl wait --for=condition=Ready pod -n observability -l app.kubernetes.io/nam
 kubectl get pods -n observability -l app.kubernetes.io/name=tempo -o wide
 ```
 
-The minikube overlay disables Tempo persistence to avoid local PVC ownership
-issues with the single-binary chart. This is a local-only choice. Production
-must use durable trace storage and a production topology.
+The minikube overlay stores Tempo traces in S3-compatible object storage. This
+matches the production storage model while keeping trace retention short.
 
 ## Install OpenTelemetry Collector
 

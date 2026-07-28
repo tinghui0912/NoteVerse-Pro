@@ -1,0 +1,38 @@
+# Production overrides for the OpenTelemetry Collector.
+#
+# Sampling policy:
+# - keep normal successful requests cheap;
+# - keep slow and failed requests richly observable;
+# - do not attach request bodies, MusicXML, OCR text, audio payloads, emails,
+#   tokens, file hashes, or storage keys as span attributes.
+
+replicaCount: 2
+
+alternateConfig:
+  processors:
+    tail_sampling:
+      decision_wait: 10s
+      num_traces: 50000
+      expected_new_traces_per_sec: 100
+      policies:
+        - name: errors
+          type: status_code
+          status_code:
+            status_codes:
+              - ERROR
+        - name: slow_requests
+          type: latency
+          latency:
+            threshold_ms: 1500
+        - name: baseline
+          type: probabilistic
+          probabilistic:
+            sampling_percentage: 1
+  service:
+    pipelines:
+      traces:
+        processors:
+          - memory_limiter
+          - resource
+          - tail_sampling
+          - batch

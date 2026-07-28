@@ -70,6 +70,8 @@ Allowed local state:
 - Kubernetes PVCs needed for Prometheus TSDB;
 - node-local model cache for model assets;
 - temporary work directories that are not durable source-of-truth storage.
+- minikube/staging uses `StorageClass/noteverse-local-lvm` for observability
+  PVCs through TopoLVM and per-node extra block disks.
 
 ### D4. Release packages reference secrets but do not contain secret values
 
@@ -110,22 +112,41 @@ Validation:
 
 Status: in progress.
 
-Tasks:
+Completed so far:
 
-- rewrite `docs/operations/runbooks/minikube-from-zero.md` around Gateway API
-  and Envoy Gateway;
-- document Cloudflare DNS records needed for staging;
-- document cert-manager DNS-01 setup;
-- document local hosts/DNS requirements when minikube does not expose a public
-  load balancer;
-- document GHCR pull Secret creation;
-- document application Secret creation, without committing secret values;
-- document model-cache DaemonSet setup;
-- document S3-compatible staging bucket requirements;
-- document release package download and apply flow;
-- use `scripts/minikube_app_release_prepare.ps1` as the standard release
+- rewrote `docs/operations/runbooks/minikube-from-zero.md` around Gateway API,
+  Envoy Gateway, S3-compatible storage, release overlays, and TopoLVM;
+- documented Cloudflare DNS records, cert-manager DNS-01 setup, and local
+  hosts requirements for the real staging domain;
+- documented GHCR pull Secret creation from an explicit token rather than a
+  Docker Desktop credential-store file;
+- documented application Secret creation without committing secret values;
+- documented dedicated application, Loki, and Tempo bucket requirements;
+- added `scripts/minikube_app_release_prepare.ps1` as the standard release
   package prepare/apply/wait entry point;
-- add `scripts/minikube_smoke_test.ps1`.
+- added `scripts/minikube_smoke_test.ps1`;
+- added qemu2/LVM helper scripts:
+  - `scripts/minikube_start_lvm_profile.ps1`;
+  - `scripts/minikube_start_api_tunnel.ps1`;
+  - `scripts/minikube_prepare_lvm_vg.ps1`;
+  - `scripts/minikube_install_topolvm.ps1`;
+- added `deploy/platform/storage/topolvm/minikube.values.yaml`;
+- added `docs/operations/runbooks/local-vm-k8s-lab.md` for the higher-fidelity
+  block-device and GPU worker rehearsal path;
+- changed `docs/operations/runbooks/minikube-local-k8s-runbook.md` into a
+  legacy troubleshooting reference instead of a from-zero entry point.
+
+Remaining tasks:
+
+- perform a clean from-zero deployment using the current runbook;
+- verify the rendered release overlay with real GHCR image refs and staging S3
+  settings;
+- verify Gateway/TLS through the real staging host;
+- verify upload, import, review, score detail, derived assets, share, realtime,
+  and practice smoke paths;
+- decide whether qemu2 minikube is stable enough for routine two-node LVM
+  rehearsals on Windows or whether routine two-node storage tests should move
+  to the local VM Kubernetes lab.
 
 Current temporary boundary:
 
@@ -135,6 +156,8 @@ Current temporary boundary:
   S3, and release package flow.
 - `backend-worker` can be scaled to zero in minikube and run locally through
   Docker Compose against the same PostgreSQL, Redis, and S3 settings.
+- A local VM Kubernetes lab is the recommended next step for validating real
+  block devices, TopoLVM, GPU worker scheduling, and model-cache behavior.
 
 Validation:
 
@@ -144,7 +167,24 @@ Validation:
 
 ## P2 - Observability Productionization
 
-Status: planned.
+Status: in progress.
+
+Completed so far:
+
+- added minikube and production Loki values that use S3-compatible storage;
+- added minikube and production Tempo values that use S3-compatible storage;
+- added minikube Prometheus/Grafana/Alertmanager PVC values backed by
+  `StorageClass/noteverse-local-lvm`;
+- added production Prometheus retention and PVC sizing values;
+- added production OpenTelemetry tail-sampling values for errors, slow
+  requests, and baseline successful traffic;
+- documented the shared `observability-s3` Secret contract;
+- extended the observability manifest guard so staging/production overlays must
+  use S3-backed Loki and Tempo storage;
+- locally rendered minikube Loki/Tempo Helm manifests and production
+  Loki/Tempo/Prometheus/OpenTelemetry manifests;
+- added TopoLVM values and scripts for qemu2 minikube profiles with per-node
+  LVM volume groups.
 
 Tasks:
 
@@ -190,7 +230,15 @@ Validation:
 
 ## P3 - Release Package Hardening
 
-Status: planned.
+Status: in progress.
+
+Completed so far:
+
+- staging and production release packages now include
+  `release-metadata.json`;
+- release metadata records environment, commit SHA, image refs, render time,
+  workflow run, actor, hosts, and TLS Secret name;
+- release package summaries point to the metadata file.
 
 Tasks:
 
@@ -246,3 +294,10 @@ Validation:
 
 Do not start P4 before P0 and P1 are verified end to end. GitOps should automate
 a deployment model that is already known to work.
+
+Optional node-runtime rehearsal:
+
+- create a local VM Kubernetes lab when LVM and GPU worker behavior need to be
+  tested more faithfully than qemu2 minikube can provide;
+- keep the application release overlay and Secret contracts identical to
+  minikube and production.

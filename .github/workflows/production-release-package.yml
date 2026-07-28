@@ -123,6 +123,41 @@ jobs:
       - name: Validate rendered overlay
         run: python scripts/check_k8s_application_manifests.py build/k8s-release/production --strict
 
+      - name: Write release metadata
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          output = Path("build/k8s-release/production/release-metadata.json")
+          metadata = {
+              "environment": "production",
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "ref": os.environ["GITHUB_REF"],
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "workflow_run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "actor": os.environ["GITHUB_ACTOR"],
+              "rendered_at": datetime.now(timezone.utc).isoformat(),
+              "image_tag": os.environ["IMAGE_TAG"],
+              "images": {
+                  "backend_api": os.environ["BACKEND_API_IMAGE"],
+                  "backend_beat": os.environ["BACKEND_BEAT_IMAGE"],
+                  "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE"],
+                  "backend_worker": os.environ["BACKEND_WORKER_IMAGE"],
+                  "frontend": os.environ["FRONTEND_IMAGE"],
+              },
+              "hosts": {
+                  "frontend": "${{ vars.PRODUCTION_FRONTEND_HOST }}",
+                  "api": "${{ vars.PRODUCTION_API_HOST }}",
+              },
+              "tls_secret": "${{ vars.PRODUCTION_TLS_SECRET }}",
+          }
+          output.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+
       - name: Render manifest artifact
         run: kubectl kustomize build/k8s-release/production > build/k8s-release/production.rendered.yaml
 
@@ -145,5 +180,6 @@ jobs:
             echo "- Backend practice image: \`${BACKEND_PRACTICE_IMAGE}\`"
             echo "- Backend worker image: \`${BACKEND_WORKER_IMAGE}\`"
             echo "- Frontend image: \`${FRONTEND_IMAGE}\`"
+            echo "- Metadata: \`build/k8s-release/production/release-metadata.json\`"
             echo "- Artifact: \`production-release-package\`"
           } >> "$GITHUB_STEP_SUMMARY"

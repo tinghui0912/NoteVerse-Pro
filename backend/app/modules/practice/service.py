@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +21,6 @@ from app.db.models import (
     ScoreRevision,
 )
 from app.db.model_utils import require_persisted_id
-from app.processing.engines.matchmaker_live import AlignmentUpdate
 from app.processing.reports.practice_report import (
     PracticeReportBuilder,
     practice_report_builder,
@@ -43,6 +43,9 @@ from app.modules.library.service import LibraryService
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
+
+if TYPE_CHECKING:
+    from app.processing.engines.matchmaker_live import AlignmentUpdate
 
 
 class PracticeService:

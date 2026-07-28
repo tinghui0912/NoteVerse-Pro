@@ -88,6 +88,8 @@ def scan_file(path: Path) -> list[Finding]:
         if line.lstrip().startswith("#"):
             continue
         for rule, pattern in FORBIDDEN_PATTERNS:
+            if rule == "obvious-secret-value" and "${" in line:
+                continue
             if pattern.search(line):
                 findings.append(
                     Finding(
@@ -95,6 +97,45 @@ def scan_file(path: Path) -> list[Finding]:
                         line=line_no,
                         rule=rule,
                         text=line.strip(),
+                    )
+                )
+    return findings
+
+
+def validate_environment_object_storage(target: Path) -> list[Finding]:
+    target_path = target if target.is_absolute() else REPO_ROOT / target
+    values_dir = target_path / "values"
+    findings: list[Finding] = []
+    for profile in ("minikube", "production"):
+        profile_dir = values_dir / profile
+        if not profile_dir.exists():
+            continue
+        for release_name in ("loki", "tempo"):
+            path = profile_dir / f"{release_name}.values.yaml"
+            if not path.exists():
+                findings.append(
+                    add_file_finding(
+                        profile_dir,
+                        f"{profile}-{release_name}-object-storage-overlay",
+                        f"missing {release_name}.values.yaml object-storage overlay",
+                    )
+                )
+                continue
+            text = path.read_text(encoding="utf-8").lower()
+            if "filesystem" in text:
+                findings.append(
+                    add_file_finding(
+                        path,
+                        f"{profile}-{release_name}-no-filesystem-storage",
+                        "staging/production observability overlays must not use filesystem storage",
+                    )
+                )
+            if "s3" not in text:
+                findings.append(
+                    add_file_finding(
+                        path,
+                        f"{profile}-{release_name}-s3-storage",
+                        "staging/production observability overlays must use S3-compatible object storage",
                     )
                 )
     return findings
@@ -175,6 +216,7 @@ def main() -> int:
     for path in target_files(args.target):
         findings.extend(scan_file(path))
     findings.extend(validate_fluent_bit_values(args.target))
+    findings.extend(validate_environment_object_storage(args.target))
 
     if findings:
         print_findings(findings)
