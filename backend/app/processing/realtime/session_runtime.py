@@ -9,6 +9,24 @@ if TYPE_CHECKING:
     from app.processing.engines.matchmaker_live import AlignmentEngine, AlignmentUpdate
 
 
+def build_alignment_engine(
+    *,
+    score_file_path: str,
+    sample_rate: int,
+    channels: int,
+    frame_format: str,
+) -> "AlignmentEngine":
+    """Create the practice alignment engine without importing heavy runtime deps at module load."""
+    from app.processing.engines.matchmaker_live import build_alignment_engine as build_matchmaker_engine
+
+    return build_matchmaker_engine(
+        score_file_path=score_file_path,
+        sample_rate=sample_rate,
+        channels=channels,
+        frame_format=frame_format,
+    )
+
+
 @dataclass
 class PracticeSessionRuntime:
     session_id: str
@@ -74,8 +92,6 @@ class PracticeSessionRuntimeRegistry:
         channels: int = 1,
         frame_format: str = "pcm_s16le",
     ) -> PracticeSessionRuntime:
-        from app.processing.engines.matchmaker_live import build_alignment_engine
-
         runtime = PracticeSessionRuntime(
             session_id=session_id,
             task_id=task_id,

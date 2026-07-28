@@ -7,9 +7,10 @@ from app.api.health import router as health_router
 from app.api.metrics import router as metrics_router
 from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
-from app.core.lifespan import app_lifespan
+from app.core.lifespan import create_app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
 from app.core.middleware import CsrfProtectionMiddleware, LoggingMiddleware
+from app.core.runtime_checks import RuntimeRole
 from app.core.tracing import configure_api_tracing
 from app.modules.practice.router import router as practice_router
 
@@ -29,7 +30,7 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url=f"{settings.API_V1_STR}/practice/openapi.json",
-        lifespan=app_lifespan,
+        lifespan=create_app_lifespan(RuntimeRole.PRACTICE),
     )
 
     app.add_middleware(LoggingMiddleware)

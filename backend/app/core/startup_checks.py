@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.logger import logger
+from app.core.runtime_checks import RuntimeRole
 
 
 def ensure_runtime_directories() -> None:
@@ -23,8 +24,17 @@ def ensure_runtime_directories() -> None:
         ).info("Runtime directory created")
 
 
-def log_external_tool_status() -> None:
-    """Log whether configured external executables are currently available."""
+def log_external_tool_status(role: RuntimeRole) -> None:
+    """Log role-specific runtime tool configuration."""
+    if role in {RuntimeRole.WORKER, RuntimeRole.ALL}:
+        _log_worker_tool_status()
+    if role in {RuntimeRole.PRACTICE, RuntimeRole.ALL}:
+        logger.bind(
+            event="runtime.practice_alignment_configured",
+        ).info("Practice alignment runtime configured")
+
+
+def _log_worker_tool_status() -> None:
     logger.bind(
         event="runtime.omr_engine_configured",
         engine=settings.OMR_ENGINE,
