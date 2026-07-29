@@ -360,6 +360,8 @@ Partially implemented:
 - `.github/workflows/staging-release-package.yml` uses the GitHub `staging`
   Environment variables plus image tags/refs to render and upload a deployable
   staging package;
+- when `image_tag` is empty, staging package generation inherits unspecified
+  component images from the current staging GitOps `release-metadata.json`;
 - the generated package is digest-pinned, includes release metadata, is
   validated in strict mode, and is uploaded as an artifact;
 - when `open_gitops_pr=true`, the same workflow promotes the package into

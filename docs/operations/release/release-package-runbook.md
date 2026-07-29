@@ -73,9 +73,22 @@ If all component images were built with the same Git SHA, set:
 image_tag=<git-sha>
 ```
 
-If one or more components use different tags, provide explicit image refs for
-those components and set every unchanged component to its intended current
-image ref:
+If you leave `image_tag` empty, the workflow uses the current
+`deploy/gitops/environments/staging/release-metadata.json` image digests for
+every component you did not explicitly override. This is the normal path for a
+small staged rollout where only one or two images changed.
+
+For example, to update only the API image:
+
+```text
+backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<new-sha-or-digest>
+```
+
+The release package will keep the current staging beat, practice, worker, and
+frontend image digests.
+
+If one or more components use different tags and you do not want to inherit
+from current staging, provide explicit image refs for every component:
 
 ```text
 backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<sha-a>
