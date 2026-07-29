@@ -25,6 +25,21 @@ CSRF_EXEMPT_PATHS = (
 )
 
 
+def normalize_origin(origin: str) -> str | None:
+    """Return a canonical origin string for strict same-origin checks."""
+
+    parsed = urlparse(origin)
+    if not parsed.scheme or not parsed.hostname:
+        return None
+
+    scheme = parsed.scheme.lower()
+    hostname = parsed.hostname.lower()
+    port = parsed.port
+    if port is None or (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
+        return f"{scheme}://{hostname}"
+    return f"{scheme}://{hostname}:{port}"
+
+
 class CsrfProtectionMiddleware(BaseHTTPMiddleware):
     """Require a double-submit CSRF token for cookie-authenticated writes."""
 
@@ -119,11 +134,16 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         if not parsed_source.scheme or not parsed_source.netloc:
             return False
 
-        request_origin = f"{request.url.scheme}://{request.url.netloc}"
-        source_origin = f"{parsed_source.scheme}://{parsed_source.netloc}"
-        allowed_origins = {str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS}
-        allowed_origins.add(request_origin)
-        if source_origin in allowed_origins:
+        request_origin = normalize_origin(f"{request.url.scheme}://{request.url.netloc}")
+        source_origin = normalize_origin(source)
+        allowed_origins = {
+            normalized
+            for origin in settings.BACKEND_CORS_ORIGINS
+            if (normalized := normalize_origin(str(origin).rstrip("/"))) is not None
+        }
+        if request_origin is not None:
+            allowed_origins.add(request_origin)
+        if source_origin is not None and source_origin in allowed_origins:
             return True
 
         return settings.DEBUG and self._is_loopback_dev_origin(request, parsed_source)

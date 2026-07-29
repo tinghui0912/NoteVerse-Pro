@@ -103,3 +103,17 @@ kube-state-metrics:
     initialDelaySeconds: 30
     timeoutSeconds: 10
     failureThreshold: 12
+
+prometheus-node-exporter:
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 12
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 12

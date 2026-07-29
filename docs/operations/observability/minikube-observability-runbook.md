@@ -76,9 +76,14 @@ the same storage model:
 - Grafana external update checks, usage reporting, news feed, plugin admin,
   and plugin preinstall are disabled. The staging rehearsal path should not
   block on `grafana.com` or install plugins at runtime.
-- Grafana, Prometheus Operator, OpenTelemetry Collector, kube-state-metrics,
-  and TopoLVM probes are wider than production defaults because qemu2 minikube
-  can pause during image pulls, SQLite migrations, and LVM provisioning.
+- Grafana, Prometheus, Alertmanager, Prometheus Operator, node-exporter,
+  OpenTelemetry Collector, kube-state-metrics, and TopoLVM probes are wider
+  than production defaults because qemu2 minikube can pause during image pulls,
+  SQLite migrations, collector startup, and LVM provisioning.
+- The TopoLVM minikube overlay disables controller leader election and snapshot
+  support, and uses a single-node rolling update shape. This avoids single-node
+  anti-affinity deadlocks and removes the unused CSI snapshotter sidecar from
+  the local rehearsal path.
 
 These are local staging rehearsal settings, not production sizing guidance.
 Production must set resource requests, limits, retention, and PVC sizes from

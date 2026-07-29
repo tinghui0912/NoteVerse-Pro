@@ -150,7 +150,8 @@ if (-not $SkipMetalLB) {
             --namespace $MetalLBNamespace `
             --create-namespace `
             --version $MetalLBChartVersion `
-            --set speaker.frr.enabled=false
+            --set speaker.frr.enabled=false `
+            -f deploy/platform/metallb/minikube.values.yaml
     }
 
     Invoke-Checked "metallb:rollout" {
@@ -192,7 +193,8 @@ Invoke-WithRetry "cert-manager:install" {
         --namespace $CertManagerNamespace `
         --create-namespace `
         --set crds.enabled=true `
-        -f deploy/platform/cert-manager/values.yaml
+        -f deploy/platform/cert-manager/values.yaml `
+        -f deploy/platform/cert-manager/minikube.values.yaml
 }
 
 Invoke-Checked "cert-manager:rollout" {

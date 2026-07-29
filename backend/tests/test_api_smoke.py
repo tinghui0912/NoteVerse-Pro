@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_db
 from app.core.config import settings
 from app.main import app
+from app.core.middleware import normalize_origin
 from app.modules.playback.router import get_playback_service
 from app.modules.playback.service import PlaybackDelivery
 
@@ -346,6 +347,36 @@ def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient
         assert response.headers["X-Request-ID"] == "origin-contract"
     finally:
         client.cookies.delete(settings.REFRESH_COOKIE_NAME)
+
+
+def test_origin_normalization_collapses_default_ports() -> None:
+    assert normalize_origin("https://staging.johnabc.ccwu.cc:443") == "https://staging.johnabc.ccwu.cc"
+    assert normalize_origin("http://localhost:80") == "http://localhost"
+    assert normalize_origin("http://localhost:9002") == "http://localhost:9002"
+    assert normalize_origin("not-a-url") is None
+
+
+def test_cookie_authenticated_writes_allow_configured_origin_with_default_port(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "BACKEND_CORS_ORIGINS", ["https://staging.johnabc.ccwu.cc"])
+    client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
+    client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
+
+    try:
+        response = client.put(
+            "/api/v1/me/profile",
+            json={"display_name": "New Name"},
+            headers={
+                "origin": "https://staging.johnabc.ccwu.cc:443",
+                settings.CSRF_HEADER_NAME: "csrf-token",
+            },
+        )
+        assert response.status_code == 401
+    finally:
+        client.cookies.delete(settings.REFRESH_COOKIE_NAME)
+        client.cookies.delete(settings.CSRF_COOKIE_NAME)
 
 
 def test_login_requires_request_body(client: TestClient) -> None:

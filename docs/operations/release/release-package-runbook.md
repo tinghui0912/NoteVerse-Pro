@@ -115,6 +115,13 @@ Use `-ScaleWorkerToZero` only while the Kubernetes GPU worker path is paused
 and the worker is being tested through Docker Compose against the same
 PostgreSQL, Redis, and S3 settings.
 
+When `-BackendSecretEnvFile` is used, the prepare script filters the env file
+to the required credential keys before creating `Secret/noteverse-backend-secret`.
+The rendered ConfigMaps remain the source of truth for public/runtime settings
+such as `FRONTEND_BASE_URL`, `BACKEND_CORS_ORIGINS`, `LOG_FORMAT`, S3 bucket
+names, and model paths. This prevents a local `.env.docker` file from
+accidentally overriding the release package's production-shaped configuration.
+
 ## Production Package
 
 Run the GitHub workflow:

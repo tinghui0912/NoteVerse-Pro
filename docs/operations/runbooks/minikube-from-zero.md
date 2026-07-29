@@ -94,6 +94,12 @@ $env:CLOUDFLARE_API_TOKEN = "<cloudflare-api-token>"
 This installs Gateway API CRDs, Envoy Gateway, cert-manager, Let's Encrypt
 DNS-01 issuers, MetalLB, and the application namespace.
 
+The minikube platform bootstrap intentionally layers minikube-only Helm values
+for MetalLB and cert-manager. Those values widen readiness/liveness probe
+timeouts and set small resource requests so qemu2 pauses do not cause webhook
+or controller restart loops. Production should use production platform values,
+not the minikube probe overlay.
+
 The bootstrap script targets the `noteverse-lvm` minikube profile by default.
 Override it only when rehearsing against a differently named profile:
 
@@ -141,6 +147,16 @@ Edit on Windows from an elevated PowerShell:
 ```powershell
 notepad C:\Windows\System32\drivers\etc\hosts
 ```
+
+The LoadBalancer IP can still be validated from inside the minikube VM:
+
+```powershell
+minikube -p noteverse-lvm ssh -- "curl -vk --resolve staging.johnabc.ccwu.cc:443:<gateway-address> https://staging.johnabc.ccwu.cc/zh/upload --max-time 20"
+minikube -p noteverse-lvm ssh -- "curl -vk --resolve api.staging.johnabc.ccwu.cc:443:<gateway-address> https://api.staging.johnabc.ccwu.cc/health/live --max-time 20"
+```
+
+On Windows/qemu2, prefer local 443 port-forward for browser testing even when
+the Gateway shows `PROGRAMMED=True`.
 
 ## 4. Prepare External Dependencies
 
@@ -190,6 +206,20 @@ This is the staging rehearsal StorageClass. Production should use a managed
 cloud block storage CSI or an operator-managed local PV provisioner. Direct
 workload `hostPath` mounts are not part of the storage contract.
 
+The minikube TopoLVM overlay is intentionally single-node friendly:
+
+- `controller.replicaCount=1`;
+- controller leader election is disabled;
+- controller rolling update uses `maxUnavailable=1` and `maxSurge=0` so a
+  single-node profile does not get stuck on controller anti-affinity;
+- snapshot support is disabled because NoteVerse does not currently use
+  Kubernetes `VolumeSnapshot` resources;
+- TopoLVM probe timeouts are wider than production defaults to tolerate qemu2
+  pauses and slow LVM operations.
+
+Production TopoLVM or another local PV provisioner should use production HA
+settings instead of this minikube-only overlay.
+
 ## 6. Create Secrets
 
 Create or refresh `Secret/noteverse-registry-credentials` from an explicit
@@ -209,6 +239,14 @@ $env:GHCR_TOKEN = "<github-token-with-read-packages>"
 The backend secret env file must stay outside the repository and contain the
 full required key set: database URLs, Redis URLs, S3 keys, cookie secrets, mail
 API key, and optional Hugging Face token.
+
+`minikube_app_release_prepare.ps1` treats this file as a credential source only:
+it filters the file down to the required Secret keys before writing
+`Secret/noteverse-backend-secret`. Runtime/public configuration such as
+`FRONTEND_BASE_URL`, `BACKEND_CORS_ORIGINS`, `LOG_FORMAT`, S3 bucket names, and
+model paths must come from the rendered release overlay ConfigMaps. Do not put
+those values in the backend Secret or they can override the production-shaped
+release configuration at Pod startup.
 
 `HF_TOKEN` is required for model-cache/worker bootstrap when private or gated
 model repositories are involved. It is not required for the temporary
@@ -335,6 +373,12 @@ After the charts are installed, run the observability smoke:
 This validates Pod readiness, PVC binding, Prometheus, Loki, Tempo, and
 Grafana datasource provisioning.
 
+The minikube observability overlay also widens
+`prometheus-node-exporter` probes. On qemu2, node-exporter can take more than a
+few seconds to enumerate host filesystems and collectors after image pulls or
+storage activity. Production should size node-exporter probes and resources
+from real node behavior instead of copying the minikube overlay.
+
 After Prometheus Operator CRDs exist, apply optional scrape discovery:
 
 ```powershell
@@ -358,16 +402,17 @@ https://staging.johnabc.ccwu.cc/zh/upload
 
 ## 11. Smoke Test
 
-Run basic Gateway/API/frontend checks:
+Run basic Gateway/API/frontend checks from Windows through local 443
+port-forward:
 
 ```powershell
-.\scripts\minikube_smoke_test.ps1
+.\scripts\minikube_smoke_test.ps1 -StartGatewayPortForward
 ```
 
 Run S3 upload/quota smoke:
 
 ```powershell
-.\scripts\minikube_smoke_test.ps1 -RunStorageSmoke -EnsureSmokeUser
+.\scripts\minikube_smoke_test.ps1 -StartGatewayPortForward -RunStorageSmoke -EnsureSmokeUser
 ```
 
 Full OMR import requires the local Docker Compose worker to use the same

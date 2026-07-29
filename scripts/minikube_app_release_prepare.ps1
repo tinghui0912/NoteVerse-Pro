@@ -87,6 +87,42 @@ function Assert-EnvFileContainsRequiredKeys {
     }
 }
 
+function New-FilteredEnvFile {
+    param(
+        [string] $Path,
+        [string[]] $AllowedKeys
+    )
+
+    $allowed = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::Ordinal
+    )
+    $AllowedKeys | ForEach-Object { [void] $allowed.Add($_) }
+
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    $lines = [System.Collections.Generic.List[string]]::new()
+
+    Get-Content $Path | ForEach-Object {
+        $line = $_.Trim()
+        if ($line.Length -eq 0 -or $line.StartsWith("#")) {
+            return
+        }
+
+        $index = $line.IndexOf("=")
+        if ($index -le 0) {
+            return
+        }
+
+        $key = $line.Substring(0, $index).Trim()
+        if ($allowed.Contains($key)) {
+            $lines.Add($_)
+        }
+    }
+
+    [System.IO.File]::WriteAllLines($tempFile, $lines, $utf8NoBom)
+    return $tempFile
+}
+
 function Assert-ClusterSecretContainsRequiredKeys {
     param(
         [string] $Namespace,
@@ -218,10 +254,17 @@ if (-not $SkipRegistrySecret) {
 if (-not $SkipBackendSecret) {
     if (-not [string]::IsNullOrWhiteSpace($BackendSecretEnvFile)) {
         Assert-EnvFileContainsRequiredKeys $BackendSecretEnvFile
-        Invoke-Checked "secret:backend" {
-            kubectl -n $AppNamespace create secret generic noteverse-backend-secret `
-                --from-env-file=$BackendSecretEnvFile `
-                --dry-run=client -o yaml | kubectl apply -f -
+        $filteredBackendSecretEnvFile = New-FilteredEnvFile `
+            -Path $BackendSecretEnvFile `
+            -AllowedKeys $RequiredBackendSecretKeys
+        try {
+            Invoke-Checked "secret:backend" {
+                kubectl -n $AppNamespace create secret generic noteverse-backend-secret `
+                    --from-env-file=$filteredBackendSecretEnvFile `
+                    --dry-run=client -o yaml | kubectl apply -f -
+            }
+        } finally {
+            [System.IO.File]::Delete($filteredBackendSecretEnvFile)
         }
     } else {
         Invoke-Checked "secret:backend-exists" {
