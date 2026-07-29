@@ -396,10 +396,9 @@ Tasks:
 - fill the production GitOps environment directory only after staging GitOps is
   proven and production approval rules are configured;
 - change GitHub Actions from "downloadable package" to "open a GitOps PR";
-- retire `.github/workflows/staging-release-overlay.yml` after the
-  environment-driven release package workflow is proven. The overlay workflow
-  is a manual low-level renderer and does not provide release metadata,
-  environment scoping, or digest pinning;
+- retired `.github/workflows/staging-release-overlay.yml`; staging now uses the
+  environment-driven release package workflow with release metadata,
+  environment scoping, and digest pinning;
 - keep `staging-release-package.yml` and `production-release-package.yml`
   during the GitOps transition as dry-run/package generators, then evolve them
   into workflows that render digest-pinned desired state and open GitOps PRs;

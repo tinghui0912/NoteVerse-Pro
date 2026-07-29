@@ -101,12 +101,12 @@ Keep these workflows during the transition:
 - `.github/workflows/production-release-package.yml`
 
 They are still useful as package generators and validation gates. After Argo CD
-is introduced, evolve them from downloadable artifact producers into workflows
-that open GitOps PRs.
+is introduced, staging can optionally generate a GitOps PR directly from the
+release package workflow.
 
-Retire `.github/workflows/staging-release-overlay.yml` after the package/GitOps
-path is proven. It is a low-level manual renderer and does not provide the same
-environment scoping, digest resolution, or release metadata.
+`.github/workflows/staging-release-overlay.yml` has been retired. It was a
+low-level manual renderer and did not provide the same environment scoping,
+digest resolution, or release metadata as the release package workflow.
 
 ## Current Repository State
 
@@ -126,11 +126,13 @@ Implemented:
   validation;
 - `scripts/argocd_create_repo_secret.ps1` for local creation of Argo CD
   repository credentials without committing tokens;
-- GitHub Actions manifest validation now runs the GitOps guard.
+- GitHub Actions manifest validation now runs the GitOps guard;
+- `.github/workflows/staging-release-package.yml` can open a staging GitOps PR
+  when `open_gitops_pr=true`.
 
 Not implemented yet:
 
-- GitOps PR generation workflow;
+- production GitOps PR generation workflow;
 - production desired-state population;
 - ExternalSecret integration;
 - image signing/admission verification.
@@ -176,5 +178,5 @@ After digest-pinned GitOps deployment is stable, add:
 5. Create Argo CD repository credentials for the private GitHub repository.
 6. Prove sync, drift detection, rollback, and smoke-test workflow.
 7. Add production desired-state path with stricter approval rules.
-8. Convert release package workflows into GitOps PR generators.
-9. Retire manual overlay workflow after the GitOps path is the normal route.
+8. Add production GitOps PR generation after staging promotion is stable.
+9. Keep staging sync manual until smoke tests and rollback rehearsal are proven.

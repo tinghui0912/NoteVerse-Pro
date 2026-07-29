@@ -104,10 +104,11 @@ The renderer does not create Secrets, PVCs, database credentials, Redis
 credentials, S3 access keys, or mail provider keys. Those must already exist in
 the target namespace through the cluster secret-management path.
 
-For staging, the manual GitHub Actions workflow
-`.github/workflows/staging-release-overlay.yml` performs this render and strict
-validation step and uploads the generated overlay as an artifact. It does not
-apply manifests to a cluster.
+For staging, use `.github/workflows/staging-release-package.yml` to render a
+digest-pinned release package from the GitHub `staging` Environment variables
+and image references. The workflow performs strict validation and uploads the
+generated overlay plus release metadata as an artifact. It does not apply
+manifests to a cluster.
 
 ## Observability Bootstrap
 

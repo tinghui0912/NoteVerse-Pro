@@ -8,6 +8,14 @@ configs:
 server:
   service:
     type: ClusterIP
+  readinessProbe:
+    timeoutSeconds: 5
+  livenessProbe:
+    timeoutSeconds: 5
+  startupProbe:
+    enabled: true
+    timeoutSeconds: 5
+    failureThreshold: 30
   resources:
     requests:
       cpu: 100m
@@ -17,6 +25,14 @@ server:
       memory: 512Mi
 
 repoServer:
+  readinessProbe:
+    timeoutSeconds: 5
+  livenessProbe:
+    timeoutSeconds: 5
+  startupProbe:
+    enabled: true
+    timeoutSeconds: 5
+    failureThreshold: 30
   resources:
     requests:
       cpu: 100m

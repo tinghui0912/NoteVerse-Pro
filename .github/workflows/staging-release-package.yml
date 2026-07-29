@@ -27,6 +27,16 @@ on:
         description: "Optional full frontend image reference override"
         required: false
         type: string
+      open_gitops_pr:
+        description: "Open a PR that promotes this package into deploy/gitops/environments/staging"
+        required: false
+        default: false
+        type: boolean
+      gitops_base_branch:
+        description: "Base branch for the optional GitOps PR"
+        required: false
+        default: main
+        type: string
 
 concurrency:
   group: staging-release-package-${{ github.ref }}
@@ -250,4 +260,86 @@ jobs:
             echo "- Frontend image: \`${FRONTEND_IMAGE_PINNED}\`"
             echo "- Metadata: \`build/k8s-release/staging/release-metadata.json\`"
             echo "- Artifact: \`staging-release-package\`"
+            echo "- Open GitOps PR: \`${{ inputs.open_gitops_pr }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  gitops-pr:
+    if: ${{ inputs.open_gitops_pr }}
+    runs-on: ubuntu-latest
+    needs: render
+    environment: staging
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install kubectl
+        run: |
+          KUBECTL_VERSION="$(curl -L -s https://dl.k8s.io/release/stable.txt)"
+          curl -L -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Download rendered staging release package
+        uses: actions/download-artifact@v6
+        with:
+          name: staging-release-package
+          path: build/k8s-release
+
+      - name: Promote package into GitOps desired state
+        run: |
+          python scripts/promote_release_package_to_gitops.py \
+            --source build/k8s-release/staging \
+            --environment staging \
+            --overwrite
+
+      - name: Validate GitOps desired state
+        run: |
+          python scripts/check_gitops_manifests.py
+          kubectl kustomize deploy/gitops/environments/staging > build/k8s-release/staging.gitops.rendered.yaml
+
+      - name: Open GitOps pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_BRANCH: ${{ inputs.gitops_base_branch }}
+          RELEASE_BRANCH: release/staging-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- deploy/gitops/environments/staging; then
+            echo "No GitOps changes to promote."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "${RELEASE_BRANCH}"
+          git add deploy/gitops/environments/staging
+          git commit -m "Promote staging release ${GITHUB_SHA}"
+          git push --set-upstream origin "${RELEASE_BRANCH}"
+
+          {
+            echo "## Staging release promotion"
+            echo ""
+            echo "- Source commit: \`${GITHUB_SHA}\`"
+            echo "- Workflow run: \`${GITHUB_RUN_ID}\`"
+            echo "- Release metadata: \`deploy/gitops/environments/staging/release-metadata.json\`"
+            echo ""
+            echo "This PR promotes the digest-pinned staging release package into GitOps desired state."
+          } > build/k8s-release/staging/gitops-pr-body.md
+
+          gh pr create \
+            --base "${BASE_BRANCH}" \
+            --head "${RELEASE_BRANCH}" \
+            --title "Promote staging release ${GITHUB_SHA}" \
+            --body-file build/k8s-release/staging/gitops-pr-body.md

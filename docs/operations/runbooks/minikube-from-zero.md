@@ -133,9 +133,16 @@ api.staging.johnabc.ccwu.cc
 
 DNS-01 creates temporary `_acme-challenge` TXT records automatically. MetalLB
 assigns an internal minikube LoadBalancer address so the Gateway reaches
-`PROGRAMMED=True`. On Windows/qemu2, that LoadBalancer IP is usually not the
-best browser entrypoint. For local browser access through the local Gateway
-port-forward, add these hosts entries:
+`PROGRAMMED=True`.
+
+On Windows/qemu2, the MetalLB `LoadBalancer` IP and NodePort path can be
+unstable from the Windows host even when the same Envoy Service works through
+`kubectl port-forward`. Treat the MetalLB address as a Kubernetes resource-model
+validation point. Treat local 443 port-forward as the browser entrypoint for
+repeatable staging rehearsal.
+
+For local browser access through the local Gateway port-forward, add these
+hosts entries:
 
 ```text
 127.0.0.1 staging.johnabc.ccwu.cc
@@ -156,7 +163,9 @@ minikube -p noteverse-lvm ssh -- "curl -vk --resolve api.staging.johnabc.ccwu.cc
 ```
 
 On Windows/qemu2, prefer local 443 port-forward for browser testing even when
-the Gateway shows `PROGRAMMED=True`.
+the Gateway shows `PROGRAMMED=True`. Do not add `:443` to
+`FRONTEND_BASE_URL`, `BACKEND_CORS_ORIGINS`, or browser URLs; HTTPS default port
+443 is part of the production-shaped origin contract.
 
 ## 4. Prepare External Dependencies
 
@@ -395,7 +404,9 @@ the same ConfigMap through the `grafana_dashboard=1` sidecar label.
 ## 10. Start Gateway Port Forward
 
 If the Envoy data-plane LoadBalancer address is not directly reachable from
-Windows, forward local 443:
+Windows, forward local 443. The helper discovers the Envoy data-plane Service
+owned by `Gateway/noteverse`, so it is safe after Gateway recreation changes the
+generated Service suffix:
 
 ```powershell
 .\scripts\start_minikube_gateway_port_forward.ps1
@@ -406,6 +417,14 @@ Open:
 ```text
 https://staging.johnabc.ccwu.cc/zh/upload
 ```
+
+Expected result:
+
+- the browser URL has no explicit port;
+- TLS is issued by Let's Encrypt for `staging.johnabc.ccwu.cc`;
+- frontend calls `/api/v1/*` through the same origin;
+- CSRF/CORS checks use `https://staging.johnabc.ccwu.cc`, not
+  `https://staging.johnabc.ccwu.cc:8443` or a Service port-forward host.
 
 ## 11. Smoke Test
 

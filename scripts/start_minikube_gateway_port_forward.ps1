@@ -1,6 +1,8 @@
 param(
     [string]$Namespace = "envoy-gateway-system",
-    [string]$Service = "envoy-noteverse-staging-noteverse-dae78ee9",
+    [string]$Service = "",
+    [string]$GatewayNamespace = "noteverse-staging",
+    [string]$GatewayName = "noteverse",
     [int]$LocalPort = 443,
     [int]$ServicePort = 443,
     [int]$TimeoutSeconds = 20
@@ -11,6 +13,21 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $buildDir = Join-Path $repoRoot "build"
 New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
+
+if ([string]::IsNullOrWhiteSpace($Service)) {
+    $selector = "app.kubernetes.io/managed-by=envoy-gateway,gateway.envoyproxy.io/owning-gateway-namespace=$GatewayNamespace,gateway.envoyproxy.io/owning-gateway-name=$GatewayName"
+    $services = kubectl -n $Namespace get svc -l $selector -o jsonpath="{range .items[*]}{.metadata.name}{'\n'}{end}"
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+
+    $serviceList = @($services -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($serviceList.Count -ne 1) {
+        throw "Expected exactly one Envoy data-plane Service for $GatewayNamespace/$GatewayName in namespace $Namespace, found $($serviceList.Count): $($serviceList -join ', ')"
+    }
+
+    $Service = $serviceList[0]
+}
 
 $existing = Get-NetTCPConnection -LocalPort $LocalPort -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($existing) {

@@ -47,7 +47,6 @@ Current repository workflows:
 - `.github/workflows/observability-manifests.yml`
 - `.github/workflows/production-release-package.yml`
 - `.github/workflows/staging-release-package.yml`
-- `.github/workflows/staging-release-overlay.yml`
 
 These workflows are quality/build gates, not production deployers.
 
@@ -361,9 +360,11 @@ Partially implemented:
 - `.github/workflows/staging-release-package.yml` uses the GitHub `staging`
   Environment variables plus image tags/refs to render and upload a deployable
   staging package;
-- `.github/workflows/staging-release-overlay.yml` manually renders a deployable
-  staging overlay from fully supplied image refs and public environment values;
-- the generated overlay is validated in strict mode and uploaded as an artifact.
+- the generated package is digest-pinned, includes release metadata, is
+  validated in strict mode, and is uploaded as an artifact;
+- when `open_gitops_pr=true`, the same workflow promotes the package into
+  `deploy/gitops/environments/staging`, validates the GitOps desired state, and
+  opens a PR for Argo CD delivery.
 
 The `staging` GitHub Environment must define these non-secret variables before
 running `staging-release-package.yml`:

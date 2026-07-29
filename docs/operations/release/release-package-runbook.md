@@ -99,6 +99,22 @@ Inspect the metadata before applying:
 Get-Content build/k8s-release/staging/release-metadata.json
 ```
 
+If you only want a downloadable package for local inspection or one-off
+minikube testing, leave `open_gitops_pr=false`.
+
+If you want Argo CD to pick up this release through GitOps, run the workflow
+with:
+
+```text
+open_gitops_pr=true
+gitops_base_branch=main
+```
+
+The workflow will promote the digest-pinned package into
+`deploy/gitops/environments/staging`, validate it, push a
+`release/staging-<run-id>-<attempt>` branch, and open a PR. Merge that PR before
+manually syncing Argo CD.
+
 Apply through the repository release prepare script:
 
 ```powershell
@@ -192,10 +208,14 @@ After applying:
 - practice API health passes;
 - logs, metrics, and traces are visible in Grafana.
 
-## Promote A Release Package Into GitOps Desired State
+## Promote A Downloaded Package Into GitOps Desired State
 
-After a staging release package has been applied and verified, promote the same
-package into the in-repository GitOps staging directory:
+Use this manual path only when you downloaded a release package artifact and
+intentionally want to promote it from your workstation. The preferred path is
+`staging-release-package.yml` with `open_gitops_pr=true`.
+
+After a staging release package has been applied and verified, promote the
+same package into the in-repository GitOps staging directory:
 
 ```powershell
 python scripts/promote_release_package_to_gitops.py `
@@ -222,7 +242,7 @@ relative Kustomize base path for the GitOps directory, and preserves
 - missing release metadata.
 
 Do not manually edit generated staging desired state except to repair the
-promotion script itself. Future GitOps workflows should update this directory
+promotion script itself. Normal staging promotion should update this directory
 through a pull request generated from a release package.
 
 ## Hardening Backlog
@@ -232,5 +252,5 @@ Next production-grade improvements:
 - optionally fail production package generation when any input is not already a
   digest ref;
 - sign release package artifacts or attach build provenance;
-- evolve from downloadable package artifacts to GitOps PRs after minikube and
-  production package flow is stable.
+- add production GitOps PR generation after staging GitOps promotion remains
+  stable.
