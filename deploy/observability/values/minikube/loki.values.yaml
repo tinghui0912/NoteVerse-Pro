@@ -17,6 +17,14 @@
 # values into this file or into release packages.
 
 loki:
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: http-metrics
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 12
   commonConfig:
     path_prefix: /var/loki
   storage:
@@ -47,9 +55,19 @@ singleBinary:
   persistence:
     enabled: true
     storageClass: noteverse-local-lvm
-    size: 20Gi
+    size: 8Gi
   extraArgs:
     - -config.expand-env=true
   extraEnvFrom:
     - secretRef:
         name: observability-s3
+
+lokiCanary:
+  enabled: false
+
+memberlist:
+  service:
+    publishNotReadyAddresses: true
+
+test:
+  enabled: false

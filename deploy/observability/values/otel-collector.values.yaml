@@ -70,6 +70,31 @@ alternateConfig:
 serviceMonitor:
   enabled: true
 
+startupProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 12
+  httpGet:
+    port: 13133
+    path: /
+
+livenessProbe:
+  initialDelaySeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 6
+  httpGet:
+    port: 13133
+    path: /
+
+readinessProbe:
+  initialDelaySeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  httpGet:
+    port: 13133
+    path: /
+
 # Sampling is intentionally not enabled in this skeleton. Decide head/tail
 # sampling policy after staging traffic confirms trace volume.
 #

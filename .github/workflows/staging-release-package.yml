@@ -38,6 +38,7 @@ jobs:
     environment: staging
     permissions:
       contents: read
+      packages: read
 
     steps:
       - name: Checkout repository
@@ -96,16 +97,76 @@ jobs:
             echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}"
           } >> "$GITHUB_ENV"
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME || github.actor }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Resolve release image digests
+        run: |
+          set -euo pipefail
+
+          image_name_without_reference() {
+            local image="$1"
+            if [[ "${image}" == *@sha256:* ]]; then
+              echo "${image%@*}"
+              return
+            fi
+
+            local prefix="${image%/*}"
+            local last="${image##*/}"
+            if [[ "${last}" != *:* ]]; then
+              echo "Image reference must include a tag or digest: ${image}" >&2
+              return 1
+            fi
+            echo "${prefix}/${last%%:*}"
+          }
+
+          inspect_digest() {
+            local image="$1"
+            echo "Inspecting ${image}" >&2
+            local output
+            output="$(docker buildx imagetools inspect "${image}")"
+            local digest
+            digest="$(printf "%s\n" "${output}" | awk '/^Digest:/ {print $2; exit}')"
+            if [[ ! "${digest}" =~ ^sha256: ]]; then
+              echo "Could not resolve digest for image: ${image}" >&2
+              return 1
+            fi
+            echo "${digest}"
+          }
+
+          BACKEND_API_IMAGE_DIGEST="$(inspect_digest "${BACKEND_API_IMAGE}")"
+          BACKEND_BEAT_IMAGE_DIGEST="$(inspect_digest "${BACKEND_BEAT_IMAGE}")"
+          BACKEND_PRACTICE_IMAGE_DIGEST="$(inspect_digest "${BACKEND_PRACTICE_IMAGE}")"
+          BACKEND_WORKER_IMAGE_DIGEST="$(inspect_digest "${BACKEND_WORKER_IMAGE}")"
+          FRONTEND_IMAGE_DIGEST="$(inspect_digest "${FRONTEND_IMAGE}")"
+
+          {
+            echo "BACKEND_API_IMAGE_DIGEST=${BACKEND_API_IMAGE_DIGEST}"
+            echo "BACKEND_BEAT_IMAGE_DIGEST=${BACKEND_BEAT_IMAGE_DIGEST}"
+            echo "BACKEND_PRACTICE_IMAGE_DIGEST=${BACKEND_PRACTICE_IMAGE_DIGEST}"
+            echo "BACKEND_WORKER_IMAGE_DIGEST=${BACKEND_WORKER_IMAGE_DIGEST}"
+            echo "FRONTEND_IMAGE_DIGEST=${FRONTEND_IMAGE_DIGEST}"
+            echo "BACKEND_API_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_API_IMAGE}")@${BACKEND_API_IMAGE_DIGEST}"
+            echo "BACKEND_BEAT_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_BEAT_IMAGE}")@${BACKEND_BEAT_IMAGE_DIGEST}"
+            echo "BACKEND_PRACTICE_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_PRACTICE_IMAGE}")@${BACKEND_PRACTICE_IMAGE_DIGEST}"
+            echo "BACKEND_WORKER_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_WORKER_IMAGE}")@${BACKEND_WORKER_IMAGE_DIGEST}"
+            echo "FRONTEND_IMAGE_PINNED=$(image_name_without_reference "${FRONTEND_IMAGE}")@${FRONTEND_IMAGE_DIGEST}"
+          } >> "$GITHUB_ENV"
+
       - name: Render staging release overlay
         run: |
           python scripts/render_k8s_release_overlay.py \
             --environment staging \
             --output build/k8s-release/staging \
-            --backend-api-image "${BACKEND_API_IMAGE}" \
-            --backend-beat-image "${BACKEND_BEAT_IMAGE}" \
-            --backend-practice-image "${BACKEND_PRACTICE_IMAGE}" \
-            --backend-worker-image "${BACKEND_WORKER_IMAGE}" \
-            --frontend-image "${FRONTEND_IMAGE}" \
+            --backend-api-image "${BACKEND_API_IMAGE_PINNED}" \
+            --backend-beat-image "${BACKEND_BEAT_IMAGE_PINNED}" \
+            --backend-practice-image "${BACKEND_PRACTICE_IMAGE_PINNED}" \
+            --backend-worker-image "${BACKEND_WORKER_IMAGE_PINNED}" \
+            --frontend-image "${FRONTEND_IMAGE_PINNED}" \
             --frontend-host "${{ vars.STAGING_FRONTEND_HOST }}" \
             --api-host "${{ vars.STAGING_API_HOST }}" \
             --tls-secret "${{ vars.STAGING_TLS_SECRET }}" \
@@ -143,6 +204,13 @@ jobs:
               "rendered_at": datetime.now(timezone.utc).isoformat(),
               "image_tag": os.environ["IMAGE_TAG"],
               "images": {
+                  "backend_api": os.environ["BACKEND_API_IMAGE_PINNED"],
+                  "backend_beat": os.environ["BACKEND_BEAT_IMAGE_PINNED"],
+                  "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE_PINNED"],
+                  "backend_worker": os.environ["BACKEND_WORKER_IMAGE_PINNED"],
+                  "frontend": os.environ["FRONTEND_IMAGE_PINNED"],
+              },
+              "requested_images": {
                   "backend_api": os.environ["BACKEND_API_IMAGE"],
                   "backend_beat": os.environ["BACKEND_BEAT_IMAGE"],
                   "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE"],
@@ -175,11 +243,11 @@ jobs:
             echo "## Staging release package"
             echo ""
             echo "- Image tag: \`${IMAGE_TAG}\`"
-            echo "- Backend API image: \`${BACKEND_API_IMAGE}\`"
-            echo "- Backend beat image: \`${BACKEND_BEAT_IMAGE}\`"
-            echo "- Backend practice image: \`${BACKEND_PRACTICE_IMAGE}\`"
-            echo "- Backend worker image: \`${BACKEND_WORKER_IMAGE}\`"
-            echo "- Frontend image: \`${FRONTEND_IMAGE}\`"
+            echo "- Backend API image: \`${BACKEND_API_IMAGE_PINNED}\`"
+            echo "- Backend beat image: \`${BACKEND_BEAT_IMAGE_PINNED}\`"
+            echo "- Backend practice image: \`${BACKEND_PRACTICE_IMAGE_PINNED}\`"
+            echo "- Backend worker image: \`${BACKEND_WORKER_IMAGE_PINNED}\`"
+            echo "- Frontend image: \`${FRONTEND_IMAGE_PINNED}\`"
             echo "- Metadata: \`build/k8s-release/staging/release-metadata.json\`"
             echo "- Artifact: \`staging-release-package\`"
           } >> "$GITHUB_STEP_SUMMARY"

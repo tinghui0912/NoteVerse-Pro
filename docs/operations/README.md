@@ -16,6 +16,7 @@ production readiness.
 
 - [CI/CD Release Strategy](release/cicd-release-strategy.md)
 - [Container Image Build Strategy](release/container-image-build-strategy.md)
+- [Release Package Runbook](release/release-package-runbook.md)
 
 ## Active Plans
 

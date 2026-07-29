@@ -26,3 +26,25 @@ storageClasses:
 
 controller:
   replicaCount: 1
+
+livenessProbe:
+  lvmd:
+    initialDelaySeconds: 30
+    timeoutSeconds: 15
+    periodSeconds: 60
+    failureThreshold: 6
+  topolvm_node:
+    initialDelaySeconds: 30
+    timeoutSeconds: 15
+    periodSeconds: 60
+    failureThreshold: 6
+  csi_registrar:
+    initialDelaySeconds: 30
+    timeoutSeconds: 15
+    periodSeconds: 60
+    failureThreshold: 6
+  topolvm_controller:
+    initialDelaySeconds: 30
+    timeoutSeconds: 15
+    periodSeconds: 60
+    failureThreshold: 6

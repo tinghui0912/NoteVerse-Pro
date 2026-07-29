@@ -43,24 +43,27 @@ function Require-Value {
 
 $envValues = Read-DotEnv -Path $EnvFile
 $endpoint = Require-Value -Values $envValues -Key "S3_ENDPOINT_URL"
+$tempoEndpoint = $endpoint -replace "^https?://", ""
 $region = Require-Value -Values $envValues -Key "S3_REGION"
 $accessKey = Require-Value -Values $envValues -Key "S3_ACCESS_KEY_ID"
 $secretKey = Require-Value -Values $envValues -Key "S3_SECRET_ACCESS_KEY"
 
 $tmp = New-TemporaryFile
 try {
-    @(
+    $secretLines = @(
         "LOKI_S3_ENDPOINT=$endpoint",
         "LOKI_S3_REGION=$region",
         "LOKI_S3_BUCKET=$LokiBucket",
         "LOKI_S3_ACCESS_KEY_ID=$accessKey",
         "LOKI_S3_SECRET_ACCESS_KEY=$secretKey",
-        "TEMPO_S3_ENDPOINT=$endpoint",
+        "TEMPO_S3_ENDPOINT=$tempoEndpoint",
         "TEMPO_S3_REGION=$region",
         "TEMPO_S3_BUCKET=$TempoBucket",
         "TEMPO_S3_ACCESS_KEY_ID=$accessKey",
         "TEMPO_S3_SECRET_ACCESS_KEY=$secretKey"
-    ) | Set-Content -LiteralPath $tmp -Encoding utf8
+    )
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllLines($tmp, $secretLines, $utf8NoBom)
 
     kubectl create namespace $Namespace --dry-run=client -o yaml | kubectl apply -f -
     kubectl -n $Namespace create secret generic $SecretName --from-env-file=$tmp --dry-run=client -o yaml | kubectl apply -f -

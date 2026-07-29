@@ -24,13 +24,11 @@ tempo:
         access_key: ${TEMPO_S3_ACCESS_KEY_ID}
         secret_key: ${TEMPO_S3_SECRET_ACCESS_KEY}
         forcepathstyle: false
-
-extraArgs:
-  config.expand-env: true
-
-extraEnvFrom:
-  - secretRef:
-      name: observability-s3
+  extraArgs:
+    config.expand-env: true
+  extraEnvFrom:
+    - secretRef:
+        name: observability-s3
 
 persistence:
   enabled: false

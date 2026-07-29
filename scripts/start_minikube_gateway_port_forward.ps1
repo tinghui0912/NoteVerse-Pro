@@ -2,7 +2,8 @@ param(
     [string]$Namespace = "envoy-gateway-system",
     [string]$Service = "envoy-noteverse-staging-noteverse-dae78ee9",
     [int]$LocalPort = 443,
-    [int]$ServicePort = 443
+    [int]$ServicePort = 443,
+    [int]$TimeoutSeconds = 20
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,5 +28,16 @@ Start-Process `
     -RedirectStandardOutput $log `
     -RedirectStandardError $err
 
-Start-Sleep -Seconds 3
-Get-NetTCPConnection -LocalPort $LocalPort -State Listen -ErrorAction Stop | Select-Object LocalAddress, LocalPort, State, OwningProcess
+$deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+do {
+    $listener = Get-NetTCPConnection -LocalPort $LocalPort -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($listener) {
+        Get-NetTCPConnection -LocalPort $LocalPort -State Listen |
+            Select-Object LocalAddress, LocalPort, State, OwningProcess
+        exit 0
+    }
+    Start-Sleep -Milliseconds 500
+} while ((Get-Date) -lt $deadline)
+
+Write-Error "Timed out waiting for local port $LocalPort to listen. See $log and $err."

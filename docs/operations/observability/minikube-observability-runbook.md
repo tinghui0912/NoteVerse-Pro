@@ -50,6 +50,58 @@ In other words: minikube and production stay structurally aligned, but
 production must not blindly deploy the minikube StorageClass or credential
 choices.
 
+## Minikube Overlay Notes
+
+The minikube overlay is intentionally smaller than production while preserving
+the same storage model:
+
+- Loki uses S3-compatible object storage and an `8Gi` TopoLVM PVC for local
+  single-binary state.
+- Loki canary and chart tests are disabled in the minikube overlay. The canary
+  is useful in larger production setups, but its websocket/tail checks are
+  noisy under qemu2 plus S3-backed single-binary Loki. The repository smoke
+  script validates the local Loki read path instead.
+- Loki readiness is widened and the memberlist headless Service publishes
+  not-ready addresses so single-binary startup does not flap while the Pod is
+  discovering itself.
+- Tempo uses S3-compatible object storage and no durable local trace volume.
+- Prometheus uses an `8Gi` TopoLVM PVC.
+- Grafana and Alertmanager each use a `2Gi` TopoLVM PVC.
+- Grafana uses `Recreate` deployment strategy because it mounts a single RWO
+  PVC.
+- Grafana provisions Prometheus, Loki, and Tempo through static
+  `grafana.datasources` values instead of the datasource sidecar. This keeps
+  the minikube rehearsal deterministic and avoids relying on runtime ConfigMap
+  sidecar synchronization.
+- Grafana external update checks, usage reporting, news feed, plugin admin,
+  and plugin preinstall are disabled. The staging rehearsal path should not
+  block on `grafana.com` or install plugins at runtime.
+- Grafana, Prometheus Operator, OpenTelemetry Collector, kube-state-metrics,
+  and TopoLVM probes are wider than production defaults because qemu2 minikube
+  can pause during image pulls, SQLite migrations, and LVM provisioning.
+
+These are local staging rehearsal settings, not production sizing guidance.
+Production must set resource requests, limits, retention, and PVC sizes from
+real traffic and retention goals.
+
+Current chart notes:
+
+- `grafana/tempo` currently installs successfully but Helm reports the chart as
+  deprecated. Track migration to the current Grafana-supported Tempo
+  deployment shape after the staging path is stable. Do not blindly switch to
+  `tempo-distributed` without rechecking chart metadata, because distributed
+  Tempo chart variants may also be deprecated in the active Grafana chart
+  repository.
+- `fluent/fluent-bit` currently renders with local chart metadata showing
+  `name: fluent-bit`, `version: 0.57.9`, and no `deprecated: true` flag. If a
+  Helm repository update or install warning reports deprecation in a specific
+  environment, track it the same way as Tempo: migrate to the maintained
+  official chart path or to a repository-owned DaemonSet manifest, while
+  preserving the Loki label allowlist and JSON parsing contract.
+- `grafana/loki`, `prometheus-community/kube-prometheus-stack`, and
+  `open-telemetry/opentelemetry-collector` are not marked deprecated in the
+  current local Helm metadata. Re-check this during platform upgrades.
+
 ## Prerequisites
 
 Install Helm before running the chart commands. The repository does not vendor
@@ -73,6 +125,18 @@ Create the namespace:
 ```powershell
 kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
 ```
+
+Install Prometheus Operator CRDs before installing charts or application
+`ServiceMonitor` resources:
+
+```powershell
+$crds = Join-Path $env:TEMP "kube-prometheus-stack-crds.yaml"
+helm show crds prometheus-community/kube-prometheus-stack > $crds
+kubectl apply --server-side -f $crds
+```
+
+This keeps CRD ownership explicit and avoids coupling the application rollout
+to Prometheus Operator CRD installation timing.
 
 Install the minikube StorageClass before installing Prometheus:
 
@@ -167,6 +231,12 @@ tmp/observability-rendered/
 If a chart version changes and the values no longer render, update the values
 explicitly. Do not weaken the application logging contract.
 
+Run the repository guard after values changes:
+
+```powershell
+python scripts/check_observability_manifests.py
+```
+
 ## Install Loki
 
 ```powershell
@@ -223,6 +293,12 @@ kubectl get pods -n observability -o wide
 The minikube overlay uses LVM-backed PVCs through TopoLVM. It should not pin
 Prometheus to a hard-coded node name.
 
+If a previous run created oversized local PVCs, delete the affected
+StatefulSet/Pod/PVC after applying the smaller minikube values. Kubernetes
+cannot shrink existing PVCs in place. Do not remove TopoLVM finalizers by hand;
+wait for TopoLVM to release the PV and `LogicalVolume` or restart the TopoLVM
+controller if its CSI sidecars are stuck.
+
 If the application was applied before Prometheus Operator CRDs existed, apply
 the backend ServiceMonitor after installing the stack:
 
@@ -243,6 +319,22 @@ kubectl port-forward -n observability svc/kube-prometheus-stack-prometheus 19090
 
 Then open `http://127.0.0.1:19090/targets` and confirm
 `noteverse-backend-api` is `UP`.
+
+Run the local observability smoke:
+
+```powershell
+.\scripts\minikube_observability_smoke.ps1 -TimeoutSeconds 180
+```
+
+The smoke checks:
+
+- every observability Pod is Ready;
+- every observability PVC is Bound;
+- Prometheus responds to `/-/ready` and a lightweight `up` query;
+- Loki responds to `/ready` and label discovery;
+- Tempo responds to `/ready`;
+- Grafana is healthy and has `prometheus`, `loki`, and `tempo` datasource
+  types.
 
 ## Install Tempo
 
@@ -340,21 +432,33 @@ Useful LogQL examples:
 
 Do not rewrite those high-cardinality JSON fields into Loki labels.
 
-## Grafana Datasource
+## Grafana Datasources
 
-When Grafana is installed through `kube-prometheus-stack`, Loki is provisioned
-as a declarative datasource by `kube-prometheus-stack.values.yaml`.
+When Grafana is installed through `kube-prometheus-stack`, Prometheus, Loki,
+and Tempo are provisioned as static declarative datasources by
+`kube-prometheus-stack.values.yaml`.
 
 Minimum datasource shape:
 
 ```yaml
 apiVersion: 1
 datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+    isDefault: true
   - name: Loki
+    uid: loki
     type: loki
     access: proxy
     url: http://loki.observability.svc.cluster.local:3100
-    isDefault: false
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo.observability.svc.cluster.local:3200
 ```
 
 Keep datasource configuration declarative so minikube and production stay

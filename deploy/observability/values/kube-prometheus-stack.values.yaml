@@ -8,34 +8,58 @@
 grafana:
   enabled: true
   defaultDashboardsEnabled: true
+  grafana.ini:
+    analytics:
+      check_for_updates: false
+      check_for_plugin_updates: false
+      reporting_enabled: false
+    news:
+      news_feed_enabled: false
+    plugins:
+      preinstall_disabled: true
+      plugin_admin_enabled: false
+      plugin_admin_external_manage_enabled: false
   sidecar:
     dashboards:
       enabled: true
     datasources:
-      enabled: true
-  additionalDataSources:
-    - name: Loki
-      type: loki
-      access: proxy
-      url: http://loki.observability.svc.cluster.local:3100
-      jsonData:
-        derivedFields:
-          - datasourceUid: tempo
-            matcherRegex: '"trace_id":"([a-f0-9]+)"'
-            name: trace_id
-            url: "$${__value.raw}"
-    - name: Tempo
-      uid: tempo
-      type: tempo
-      access: proxy
-      url: http://tempo.observability.svc.cluster.local:3200
-      jsonData:
-        tracesToLogsV2:
-          datasourceUid: Loki
-          tags:
-            - key: namespace
-              value: namespace
-          filterByTraceID: true
+      enabled: false
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          uid: prometheus
+          type: prometheus
+          access: proxy
+          url: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+          isDefault: true
+          jsonData:
+            httpMethod: POST
+            timeInterval: 30s
+        - name: Loki
+          uid: loki
+          type: loki
+          access: proxy
+          url: http://loki.observability.svc.cluster.local:3100
+          jsonData:
+            derivedFields:
+              - datasourceUid: tempo
+                matcherRegex: '"trace_id":"([a-f0-9]+)"'
+                name: trace_id
+                url: "$${__value.raw}"
+        - name: Tempo
+          uid: tempo
+          type: tempo
+          access: proxy
+          url: http://tempo.observability.svc.cluster.local:3200
+          jsonData:
+            tracesToLogsV2:
+              datasourceUid: loki
+              tags:
+                - key: namespace
+                  value: namespace
+              filterByTraceID: true
 
 prometheus:
   prometheusSpec:
@@ -46,6 +70,16 @@ prometheus:
 
 alertmanager:
   enabled: true
+
+prometheusOperator:
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 6
+  readinessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 6
 
 kubeStateMetrics:
   enabled: true

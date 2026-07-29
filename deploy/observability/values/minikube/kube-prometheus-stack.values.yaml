@@ -9,7 +9,33 @@
 prometheus:
   prometheusSpec:
     retention: 14d
-    retentionSize: 15GB
+    retentionSize: 6GB
+    containers:
+      - name: prometheus
+        startupProbe:
+          httpGet:
+            path: /-/ready
+            port: http-web
+            scheme: HTTP
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 120
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: http-web
+            scheme: HTTP
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 12
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: http-web
+            scheme: HTTP
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 12
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -18,7 +44,7 @@ prometheus:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 20Gi
+              storage: 8Gi
 
 alertmanager:
   alertmanagerSpec:
@@ -33,7 +59,47 @@ alertmanager:
               storage: 2Gi
 
 grafana:
+  defaultDashboardsEnabled: false
+  deploymentStrategy:
+    type: Recreate
+  sidecar:
+    dashboards:
+      enabled: false
   persistence:
     enabled: true
     storageClassName: noteverse-local-lvm
     size: 2Gi
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: grafana
+    initialDelaySeconds: 60
+    timeoutSeconds: 10
+    failureThreshold: 30
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: grafana
+    initialDelaySeconds: 300
+    timeoutSeconds: 10
+    failureThreshold: 12
+
+prometheusOperator:
+  tls:
+    enabled: false
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+
+kube-state-metrics:
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 12
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 12

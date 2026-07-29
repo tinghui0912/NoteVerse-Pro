@@ -135,6 +135,11 @@ Completed so far:
   block-device and GPU worker rehearsal path;
 - changed `docs/operations/runbooks/minikube-local-k8s-runbook.md` into a
   legacy troubleshooting reference instead of a from-zero entry point.
+- validated a fresh qemu2 `noteverse-lvm` profile with Gateway API,
+  cert-manager, MetalLB, Envoy Gateway, TopoLVM, and the observability
+  namespace;
+- documented the qemu2 API tunnel recovery path and the cluster-reset replay
+  path.
 
 Remaining tasks:
 
@@ -185,6 +190,29 @@ Completed so far:
   Loki/Tempo/Prometheus/OpenTelemetry manifests;
 - added TopoLVM values and scripts for qemu2 minikube profiles with per-node
   LVM volume groups.
+- installed the minikube observability stack with S3-backed Loki and Tempo,
+  TopoLVM-backed Prometheus/Grafana/Alertmanager PVCs, Fluent Bit,
+  kube-prometheus-stack, and OpenTelemetry Collector;
+- hardened minikube probes for TopoLVM, Prometheus Operator, Grafana,
+  kube-state-metrics, and OpenTelemetry Collector to tolerate qemu2 pauses;
+- disabled Prometheus Operator admission webhook/TLS in the minikube overlay so
+  `--no-hooks` installs do not require the generated admission Secret;
+- resized minikube Loki and Prometheus PVCs to `8Gi` each so a local LVM disk
+  can run the full stack;
+- disabled Loki canary/chart tests in the minikube overlay because the
+  websocket/tail canary is noisy under qemu2 plus S3-backed single-binary Loki;
+- widened Loki readiness and enabled memberlist `publishNotReadyAddresses` for
+  stable single-binary startup;
+- set Grafana to `Recreate` deployment strategy because it uses a single RWO
+  PVC.
+- disabled Grafana external update checks, usage reporting, news feed, plugin
+  admin, and plugin preinstall so staging does not depend on `grafana.com` at
+  runtime;
+- switched Grafana datasource provisioning to static Prometheus/Loki/Tempo
+  datasource files instead of the runtime datasource sidecar;
+- added `scripts/minikube_observability_smoke.ps1` and validated Pod readiness,
+  PVC binding, Prometheus, Loki, Tempo, and Grafana datasource provisioning in
+  the fresh minikube environment.
 
 Tasks:
 
@@ -228,6 +256,24 @@ Validation:
   values;
 - test logs can be queried in Grafana after a smoke test.
 
+Known follow-up:
+
+- migrate from the deprecated `grafana/tempo` chart to the current
+  Grafana-supported Tempo deployment shape after staging deployment is stable.
+  Do not blindly switch to `tempo-distributed` without rechecking chart
+  metadata, because distributed Tempo chart variants may also be deprecated in
+  the active Grafana chart repository;
+- treat the Fluent Bit Helm chart lifecycle as a tracked migration risk. The
+  currently installed `fluent/fluent-bit` chart does not expose
+  `deprecated: true` in local chart metadata, but if Helm reports a deprecation
+  warning in an environment, migrate to the maintained official chart path or a
+  repository-owned DaemonSet manifest without changing the Loki label contract;
+- re-check Loki, kube-prometheus-stack, and OpenTelemetry Collector chart
+  metadata during each platform upgrade and record any deprecation before
+  production rollout;
+- add NoteVerse-specific Grafana dashboards and alert rules after the
+  platform-level datasource smoke remains stable.
+
 ## P3 - Release Package Hardening
 
 Status: in progress.
@@ -239,6 +285,17 @@ Completed so far:
 - release metadata records environment, commit SHA, image refs, render time,
   workflow run, actor, hosts, and TLS Secret name;
 - release package summaries point to the metadata file.
+- release packages are expected to record a coherent release set, but image
+  tags do not need to be identical across components. Partial image upgrades
+  are valid when metadata records the exact image reference for every component.
+- added `docs/operations/release/release-package-runbook.md` to document how to
+  generate, inspect, and apply complete staging/minikube and production release
+  packages.
+- staging and production release package workflows now log in to GHCR and
+  inspect every component image before rendering the release package.
+- release package workflows now resolve every component image to a digest,
+  render the deployable overlay with `image@sha256:...`, and keep the original
+  operator-requested refs under `requested_images` in release metadata.
 
 Tasks:
 
@@ -251,8 +308,6 @@ Tasks:
   - environment;
   - render time;
   - operator/workflow run;
-- prefer digest-based image refs once image build workflows expose digests in a
-  machine-readable way;
 - keep production Environment required reviewers enabled in GitHub;
 - document when to use per-image override inputs.
 
@@ -273,6 +328,13 @@ Tasks:
 - add a GitOps staging environment directory or decide on a separate deploy
   repository;
 - change GitHub Actions from "downloadable package" to "open a GitOps PR";
+- retire `.github/workflows/staging-release-overlay.yml` after the
+  environment-driven release package workflow is proven. The overlay workflow
+  is a manual low-level renderer and does not provide release metadata,
+  environment scoping, or digest pinning;
+- keep `staging-release-package.yml` and `production-release-package.yml`
+  during the GitOps transition as dry-run/package generators, then evolve them
+  into workflows that render digest-pinned desired state and open GitOps PRs;
 - let Argo CD sync staging from Git;
 - keep production sync behind approval and Git review;
 - evaluate image signing and admission verification after digest deployment is

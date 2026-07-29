@@ -69,6 +69,19 @@ The start script opens a local API tunnel on `https://127.0.0.1:18443` and
 rewrites the `noteverse-lvm` kubeconfig server to that endpoint. This avoids the
 unstable automatic localhost tunnel that qemu2 can create on Windows.
 
+If `kubectl` later fails to connect after a host reboot or minikube restart,
+recreate only the API tunnel instead of rebuilding the cluster:
+
+```powershell
+.\scripts\minikube_start_api_tunnel.ps1 -Profile noteverse-lvm
+kubectl get nodes
+```
+
+If minikube reports that it reset the qemu2 profile while recovering the
+control plane, all Kubernetes namespaces and in-cluster PVCs are gone. Re-run
+this runbook from the platform bootstrap step. External PostgreSQL, Redis, S3,
+DNS, and GHCR resources are not deleted by that reset.
+
 ## 2. Install Platform
 
 Set a Cloudflare token with `Zone:Read` and `DNS:Edit` for the test zone:
@@ -282,6 +295,14 @@ Kubernetes GPU worker/model-cache path.
 Install Loki, Fluent Bit, Prometheus/Grafana, Tempo, and OpenTelemetry
 Collector with the minikube profile:
 
+First install Prometheus Operator CRDs:
+
+```powershell
+$crds = Join-Path $env:TEMP "kube-prometheus-stack-crds.yaml"
+helm show crds prometheus-community/kube-prometheus-stack > $crds
+kubectl apply --server-side -f $crds
+```
+
 ```powershell
 python scripts/render_observability_helm.py --profile minikube `
   --release loki `
@@ -302,6 +323,17 @@ The observability stack expects:
 - `StorageClass/noteverse-local-lvm`;
 - `Secret/observability-s3`;
 - dedicated Loki and Tempo buckets.
+- Prometheus Operator CRDs installed before application `ServiceMonitor`
+  resources.
+
+After the charts are installed, run the observability smoke:
+
+```powershell
+.\scripts\minikube_observability_smoke.ps1 -TimeoutSeconds 180
+```
+
+This validates Pod readiness, PVC binding, Prometheus, Loki, Tempo, and
+Grafana datasource provisioning.
 
 After Prometheus Operator CRDs exist, apply optional scrape discovery:
 
