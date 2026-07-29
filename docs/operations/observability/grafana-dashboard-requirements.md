@@ -50,6 +50,34 @@ Suggested alerts:
 - API 5xx rate stays above a small threshold for 5 minutes.
 - p95 latency for core routes stays above the product SLO for 10 minutes.
 
+Implemented first dashboard:
+
+- `Backend Scrape Health`
+- `Request Rate`
+- `5xx Error Ratio`
+- `Request Latency`
+- `Realtime Active Connections`
+- `Import Jobs By State`
+- `Outbox Records By Status`
+- `Score Deletions By Status`
+- `Oldest Async Operation Age`
+- `Completed Async Duration Average`
+
+Implemented first PrometheusRule group:
+
+- `NoteVerseBackendTargetDown`
+- `NoteVerseBackendHigh5xxRate`
+- `NoteVerseBackendHighLatencyP95`
+- `NoteVerseAsyncOperationBacklogOld`
+- `NoteVerseAsyncOperationProcessingStuck`
+- `NoteVerseOutboxFailuresPresent`
+- `NoteVerseScoreDeletionCleanupStuck`
+
+These rules are evaluated by Prometheus and can be viewed through Prometheus,
+Alertmanager, and Grafana. They are not, by themselves, a notification channel.
+No email, Slack, Teams, PagerDuty, Opsgenie, or webhook receiver is currently
+configured in repository-owned values.
+
 ## Async Operations
 
 Panels:
@@ -138,3 +166,40 @@ Suggested alerts:
 
 - Storage quota and cleanup gauges.
 - Mail send latency and delivery outcome counters.
+- Worker-specific task claim, success, retry, failure, and duration metrics.
+- Domain-level async SLO metrics once the initial backlog/age gauges are proven.
+
+## Alert Delivery Model
+
+Dashboard panels are for diagnosis. Alert delivery should be handled by
+Alertmanager or an equivalent incident-routing layer.
+
+Target path:
+
+```text
+PrometheusRule
+  -> Prometheus
+  -> Alertmanager
+  -> receiver route
+  -> on-call / chat / email / webhook
+```
+
+Recommended routing:
+
+- `critical`: page or high-urgency on-call channel, plus team chat.
+- `warning`: team chat or low-urgency operations channel.
+- `info`: dashboard annotation or non-paging notification when it is useful.
+
+Email is acceptable for low-urgency notifications and audit summaries, but it
+should not be the only channel for user-impacting production outages. Receiver
+credentials must live in Kubernetes Secrets, External Secrets, or the future
+cluster secret-management layer. Do not commit contact-point credentials to
+Git.
+
+Every actionable alert should eventually include:
+
+- short summary;
+- stable severity;
+- runbook URL;
+- service/component labels;
+- enough context to start investigation without exposing user data.

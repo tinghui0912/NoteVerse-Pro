@@ -230,11 +230,26 @@ Completed so far:
   runtime;
 - switched Grafana datasource provisioning to static Prometheus/Loki/Tempo
   datasource files instead of the runtime datasource sidecar;
+- enabled production Grafana dashboard sidecar provisioning across namespaces
+  for repository-owned dashboard ConfigMaps;
+- kept minikube Grafana dashboard sidecar disabled and used static
+  `dashboardsConfigMaps` provisioning for the same dashboard ConfigMap because
+  qemu2 rollout stability is poor on Windows;
+- added the first NoteVerse application dashboard ConfigMap covering backend
+  scrape health, request rate, 5xx ratio, request latency, and realtime active
+  connections;
+- added `PrometheusRule/noteverse-application` for backend target down, high
+  5xx ratio, and high p95 latency alerts;
 - added `scripts/minikube_observability_smoke.ps1` and validated Pod readiness,
   PVC binding, Prometheus, Loki, Tempo, and Grafana datasource provisioning in
   the fresh minikube environment;
 - re-ran the observability smoke successfully after applying the digest-pinned
   staging application release package.
+- added runbook URLs to the first NoteVerse application PrometheusRule group;
+- added alert runbooks for backend target down, high 5xx rate, and high p95
+  latency;
+- documented Alertmanager receiver ownership and Secret handling, while leaving
+  receiver credentials out of repository-owned values.
 
 Tasks:
 
@@ -266,8 +281,7 @@ Tasks:
   - high or full sampling for slow requests;
 - document span/log redaction rules for tokens, passwords, emails, MusicXML,
   OCR text, raw audio, and file hashes;
-- ensure dashboards, alert rules, recording rules, and datasource definitions
-  are tracked in Git.
+- ensure recording rules and future domain dashboards are tracked in Git.
 
 Validation:
 
@@ -293,8 +307,16 @@ Known follow-up:
 - re-check Loki, kube-prometheus-stack, and OpenTelemetry Collector chart
   metadata during each platform upgrade and record any deprecation before
   production rollout;
-- add NoteVerse-specific Grafana dashboards and alert rules after the
-  platform-level datasource smoke remains stable.
+- extend the first NoteVerse dashboard beyond RED/realtime into async backlog,
+  storage/quota, mail, deletion cleanup, and worker health metrics;
+- add Alertmanager receiver routing for staging and production. PrometheusRule
+  resources already exist, but notification delivery is not configured until
+  receiver routes and credentials are added;
+- add more `runbook_url` annotations as new actionable alerts are introduced;
+- maintain an observability version matrix. Production must use explicit,
+  tested chart and image versions, but it must not inherit minikube-only
+  compromises such as widened probes, static dashboard mounting, or reduced PVC
+  sizes.
 
 ## P3 - Release Package Hardening
 
@@ -342,13 +364,37 @@ Validation:
 
 ## P4 - GitOps Evolution
 
-Status: planned, after P0-P3 are stable.
+Status: in progress. The initial in-repository GitOps desired-state path is
+created for staging, but Argo CD has not yet been installed or made
+authoritative.
+
+Completed:
+
+- `deploy/gitops/environments/staging` is populated from a verified
+  digest-pinned staging release package;
+- Argo CD is installed in minikube with pinned chart `argo/argo-cd` version
+  `10.2.1`;
+- `noteverse-staging` is created as a manual-sync Argo CD Application under the
+  scoped `noteverse` AppProject;
+- `scripts/promote_release_package_to_gitops.py` promotes a downloaded release
+  package into GitOps desired state without copying Secret values;
+- `scripts/check_gitops_manifests.py` validates GitOps desired state for
+  unresolved placeholders, local-only endpoints, obvious Secret leakage, and
+  mutable image tags;
+- `scripts/argocd_create_repo_secret.ps1` creates the private Git repository
+  credential Secret from a local environment variable;
+- `.github/workflows/k8s-application-manifests.yml` runs the GitOps manifest
+  guard.
 
 Tasks:
 
-- introduce Argo CD in minikube after release package deployment is stable;
-- add a GitOps staging environment directory or decide on a separate deploy
-  repository;
+- commit and push the GitOps desired-state path so Argo CD can read it from
+  GitHub;
+- manually sync `noteverse-staging` and run smoke verification;
+- keep the separate deploy-repository decision deferred until production access
+  control, multi-service ownership, or audit boundaries require it;
+- fill the production GitOps environment directory only after staging GitOps is
+  proven and production approval rules are configured;
 - change GitHub Actions from "downloadable package" to "open a GitOps PR";
 - retire `.github/workflows/staging-release-overlay.yml` after the
   environment-driven release package workflow is proven. The overlay workflow
@@ -359,8 +405,8 @@ Tasks:
   into workflows that render digest-pinned desired state and open GitOps PRs;
 - let Argo CD sync staging from Git;
 - keep production sync behind approval and Git review;
-- evaluate image signing and admission verification after digest deployment is
-  stable.
+- evaluate SBOM publication, image signing, and admission verification after
+  digest deployment is stable.
 
 Validation:
 

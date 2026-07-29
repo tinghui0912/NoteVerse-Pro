@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse-backend-api
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          volumeMounts:
+            - name: work
+              mountPath: /var/lib/noteverse/work
+      volumes:
+        - name: work
+          emptyDir: {}

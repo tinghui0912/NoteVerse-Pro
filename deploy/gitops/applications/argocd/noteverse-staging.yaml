@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: noteverse-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: noteverse
+    app.kubernetes.io/environment: staging
+spec:
+  project: noteverse
+  source:
+    repoURL: https://github.com/tinghui0912/NoteVerse-Pro.git
+    targetRevision: HEAD
+    path: deploy/gitops/environments/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: noteverse-staging
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - PrunePropagationPolicy=foreground

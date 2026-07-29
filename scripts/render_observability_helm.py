@@ -31,21 +31,24 @@ HELM_REPOS = {
 class Release:
     name: str
     chart: str
+    version: str
     values_file: Path
 
 
 RELEASES: tuple[Release, ...] = (
-    Release("loki", "grafana/loki", VALUES_DIR / "loki.values.yaml"),
-    Release("fluent-bit", "fluent/fluent-bit", VALUES_DIR / "fluent-bit.values.yaml"),
+    Release("loki", "grafana/loki", "7.1.0", VALUES_DIR / "loki.values.yaml"),
+    Release("fluent-bit", "fluent/fluent-bit", "2.6.0", VALUES_DIR / "fluent-bit.values.yaml"),
     Release(
         "kube-prometheus-stack",
         "prometheus-community/kube-prometheus-stack",
+        "79.5.0",
         VALUES_DIR / "kube-prometheus-stack.values.yaml",
     ),
-    Release("tempo", "grafana/tempo", VALUES_DIR / "tempo.values.yaml"),
+    Release("tempo", "grafana/tempo", "1.24.4", VALUES_DIR / "tempo.values.yaml"),
     Release(
         "otel-collector",
         "open-telemetry/opentelemetry-collector",
+        "0.165.0",
         VALUES_DIR / "otel-collector.values.yaml",
     ),
 )
@@ -136,6 +139,8 @@ def render_release(release: Release, namespace: str, output_dir: Path, profile: 
         "template",
         release.name,
         release.chart,
+        "--version",
+        release.version,
         "--namespace",
         namespace,
         "-f",

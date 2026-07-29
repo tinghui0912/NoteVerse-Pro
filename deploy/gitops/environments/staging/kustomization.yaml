@@ -1,0 +1,64 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: noteverse-staging
+
+resources:
+  - ../../../application/base
+  - gateway.yaml
+
+labels:
+  - includeSelectors: false
+    includeTemplates: true
+    pairs:
+      app.kubernetes.io/instance: noteverse-staging
+      app.kubernetes.io/environment: staging
+
+images:
+  - name: noteverse-backend-api
+    newName: ghcr.io/tinghui0912/noteverse/backend-api
+    digest: sha256:fe4ee692da91975ec1c54cdcc635f6141e79f7fa50bf1a6b46b4d1ae6371cd24
+  - name: noteverse-backend-practice
+    newName: ghcr.io/tinghui0912/noteverse/backend-practice
+    digest: sha256:8a15848d64528442fa07046b2651e8a96e7c6d8185ebd4e5a954cbe3ebccd50e
+  - name: noteverse-backend-worker
+    newName: ghcr.io/tinghui0912/noteverse/backend-worker
+    digest: sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2
+  - name: noteverse-backend-beat
+    newName: ghcr.io/tinghui0912/noteverse/backend-beat
+    digest: sha256:6416c64e110cf26f348f3bdfefa6d808fe5c880e0b8fbb4ee7715a86a239100d
+  - name: noteverse-frontend
+    newName: ghcr.io/tinghui0912/noteverse/frontend
+    digest: sha256:e1e474beb7728cd08c05423402b988c700a6a8e6534068439593d0aa8eea1b43
+
+  - name: busybox
+    newName: busybox
+    digest: sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
+
+configMapGenerator:
+  - name: noteverse-backend-config
+    envs:
+      - backend-config.env
+  - name: noteverse-frontend-config
+    envs:
+      - frontend-config.env
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+replicas:
+  - name: noteverse-backend-api
+    count: 1
+  - name: noteverse-backend-practice
+    count: 1
+  - name: noteverse-backend-worker
+    count: 0
+  - name: noteverse-frontend
+    count: 1
+
+patches:
+  - path: patch-backend-worker-scheduling.yaml
+  - path: patch-backend-api-runtime-volumes.yaml
+  - path: patch-backend-practice-runtime-volumes.yaml
+  - path: patch-backend-worker-runtime-volumes.yaml
+  - path: patch-backend-beat-runtime-volumes.yaml

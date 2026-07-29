@@ -34,6 +34,29 @@ plus the `deploy/observability/values/minikube/` overlay. Minikube is the
 staging rehearsal environment, so it uses production-shaped S3 object storage
 for Loki/Tempo and PVC-backed Prometheus/Grafana state.
 
+Chart versions are pinned explicitly during rendering and installation. Do not
+use floating `latest` chart or image versions in staging or production. A pinned
+version is a deployment baseline, not a promise to stay on that version
+forever.
+
+The current validated minikube baseline is:
+
+```text
+loki chart: 7.1.0
+fluent-bit chart: 2.6.0
+kube-prometheus-stack chart: 79.5.0
+Grafana image from kube-prometheus-stack baseline: 12.2.1
+tempo chart: 1.24.4
+opentelemetry-collector chart: 0.165.0
+```
+
+Production should also use explicit, reviewed versions, but it must not inherit
+minikube-only compromises such as widened probes, static Grafana dashboard
+mounting, disabled dashboard sidecar, reduced PVC sizes, or disabled webhooks.
+When production needs a newer observability component, rehearse that exact
+version in staging/minikube or a dedicated platform lab, record the version
+matrix, then promote it.
+
 Production keeps the same component model and label policy, then layers
 environment-specific values under `deploy/observability/values/production/`
 for:
@@ -73,6 +96,13 @@ the same storage model:
   `grafana.datasources` values instead of the datasource sidecar. This keeps
   the minikube rehearsal deterministic and avoids relying on runtime ConfigMap
   sidecar synchronization.
+- Production Grafana dashboard provisioning uses the dashboard sidecar with
+  `grafana_dashboard=1` ConfigMaps across namespaces. NoteVerse application
+  dashboard ConfigMaps live under `deploy/observability/dashboards/`.
+- The minikube overlay keeps the dashboard sidecar disabled because qemu2 VM
+  pauses made the extra Grafana sidecar rollout unreliable on Windows.
+  Minikube mounts the same dashboard ConfigMap through static
+  `dashboardsConfigMaps` provisioning instead.
 - Grafana external update checks, usage reporting, news feed, plugin admin,
   and plugin preinstall are disabled. The staging rehearsal path should not
   block on `grafana.com` or install plugins at runtime.
@@ -136,7 +166,7 @@ Install Prometheus Operator CRDs before installing charts or application
 
 ```powershell
 $crds = Join-Path $env:TEMP "kube-prometheus-stack-crds.yaml"
-helm show crds prometheus-community/kube-prometheus-stack > $crds
+helm show crds prometheus-community/kube-prometheus-stack --version 79.5.0 > $crds
 kubectl apply --server-side -f $crds
 ```
 
@@ -199,11 +229,13 @@ Render the Helm manifests locally:
 
 ```powershell
 helm template loki grafana/loki `
+  --version 7.1.0 `
   --namespace observability `
   -f deploy/observability/values/loki.values.yaml `
   > $env:TEMP\noteverse-loki-rendered.yaml
 
 helm template fluent-bit fluent/fluent-bit `
+  --version 2.6.0 `
   --namespace observability `
   -f deploy/observability/values/fluent-bit.values.yaml `
   > $env:TEMP\noteverse-fluent-bit-rendered.yaml
@@ -246,6 +278,7 @@ python scripts/check_observability_manifests.py
 
 ```powershell
 helm upgrade --install loki grafana/loki `
+  --version 7.1.0 `
   --namespace observability `
   -f deploy/observability/values/loki.values.yaml `
   -f deploy/observability/values/minikube/loki.values.yaml
@@ -268,6 +301,7 @@ kubectl get all -n observability
 
 ```powershell
 helm upgrade --install fluent-bit fluent/fluent-bit `
+  --version 2.6.0 `
   --namespace observability `
   -f deploy/observability/values/fluent-bit.values.yaml
 ```
@@ -283,6 +317,7 @@ kubectl get pods -n observability -l app.kubernetes.io/name=fluent-bit -o wide
 
 ```powershell
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack `
+  --version 79.5.0 `
   --namespace observability `
   -f deploy/observability/values/kube-prometheus-stack.values.yaml `
   -f deploy/observability/values/minikube/kube-prometheus-stack.values.yaml
@@ -305,15 +340,11 @@ wait for TopoLVM to release the PV and `LogicalVolume` or restart the TopoLVM
 controller if its CSI sidecars are stuck.
 
 If the application was applied before Prometheus Operator CRDs existed, apply
-the backend ServiceMonitor after installing the stack:
+the optional application monitoring resources after installing the stack:
 
 ```powershell
-kubectl label service noteverse-backend-api -n noteverse-staging `
-  app.kubernetes.io/name=noteverse `
-  app.kubernetes.io/part-of=noteverse `
-  --overwrite
-
-kubectl apply -n noteverse-staging -f deploy/application/base/backend-api-servicemonitor.yaml
+kubectl -n noteverse-staging apply -k deploy/application/monitoring/prometheus-operator
+kubectl apply -k deploy/observability/dashboards
 ```
 
 Verify Prometheus discovery:
@@ -323,7 +354,18 @@ kubectl port-forward -n observability svc/kube-prometheus-stack-prometheus 19090
 ```
 
 Then open `http://127.0.0.1:19090/targets` and confirm
-`noteverse-backend-api` is `UP`.
+`noteverse-backend-api` and `noteverse-backend-practice` are `UP`.
+
+The optional application monitoring package contains:
+
+- `ServiceMonitor` resources for `backend-api` and `backend-practice`;
+- `PrometheusRule/noteverse-application` for target availability, 5xx ratio,
+  and p95 latency alerts.
+
+The dashboard package contains:
+
+- `ConfigMap/noteverse-application-dashboard`, labelled
+  `grafana_dashboard=1`, for the `NoteVerse Application Overview` dashboard.
 
 Run the local observability smoke:
 
@@ -345,6 +387,7 @@ The smoke checks:
 
 ```powershell
 helm upgrade --install tempo grafana/tempo `
+  --version 1.24.4 `
   --namespace observability `
   -f deploy/observability/values/tempo.values.yaml `
   -f deploy/observability/values/minikube/tempo.values.yaml
@@ -364,6 +407,7 @@ matches the production storage model while keeping trace retention short.
 
 ```powershell
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
+  --version 0.165.0 `
   --namespace observability `
   -f deploy/observability/values/otel-collector.values.yaml
 ```
@@ -468,6 +512,39 @@ datasources:
 
 Keep datasource configuration declarative so minikube and production stay
 aligned.
+
+## NoteVerse Dashboards And Alerts
+
+Application dashboards and alert rules are stored in:
+
+```text
+deploy/application/monitoring/prometheus-operator/
+deploy/observability/dashboards/
+```
+
+Apply them only after kube-prometheus-stack has installed the
+`monitoring.coreos.com/v1` CRDs:
+
+```powershell
+kubectl -n noteverse-staging apply -k deploy/application/monitoring/prometheus-operator
+kubectl apply -k deploy/observability/dashboards
+```
+
+Production Grafana discovers dashboard ConfigMaps through the dashboard sidecar.
+Minikube mounts `ConfigMap/noteverse-application-dashboard` through static
+Grafana provisioning. The application dashboard intentionally uses only
+low-cardinality labels:
+
+```text
+namespace
+job
+route
+status_code
+channel
+```
+
+Do not add request IDs, user IDs, score IDs, job IDs, storage keys, raw paths,
+or emails to Prometheus labels or dashboard template variables.
 
 ## Troubleshooting
 

@@ -1,0 +1,107 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: noteverse-application
+  labels:
+    app.kubernetes.io/name: noteverse
+    app.kubernetes.io/component: application-monitoring
+spec:
+  groups:
+    - name: noteverse.application.http
+      rules:
+        - alert: NoteVerseBackendTargetDown
+          expr: |
+            up{namespace=~"noteverse-.*", job=~".*noteverse-backend-(api|practice).*"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "NoteVerse backend target is down"
+            description: "Prometheus has not been able to scrape one of the NoteVerse backend targets for 5 minutes."
+            runbook_url: "docs/operations/runbooks/alerts/backend-target-down.md"
+        - alert: NoteVerseBackendHigh5xxRate
+          expr: |
+            (
+              sum by (namespace, job) (
+                rate(noteverse_http_requests_total{namespace=~"noteverse-.*", job=~".*noteverse-backend-(api|practice).*", status_code=~"5.."}[5m])
+              )
+              /
+              clamp_min(
+                sum by (namespace, job) (
+                  rate(noteverse_http_requests_total{namespace=~"noteverse-.*", job=~".*noteverse-backend-(api|practice).*"}[5m])
+                ),
+                0.001
+              )
+            ) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse backend 5xx rate is high"
+            description: "More than 5% of requests are failing with 5xx responses for 10 minutes."
+            runbook_url: "docs/operations/runbooks/alerts/backend-high-5xx-rate.md"
+        - alert: NoteVerseBackendHighLatencyP95
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (namespace, job, le) (
+                rate(noteverse_http_request_duration_seconds_bucket{namespace=~"noteverse-.*", job=~".*noteverse-backend-(api|practice).*"}[5m])
+              )
+            ) > 2.5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse backend p95 latency is high"
+            description: "The p95 request latency is above 2.5 seconds for 10 minutes."
+            runbook_url: "docs/operations/runbooks/alerts/backend-high-latency-p95.md"
+    - name: noteverse.application.async
+      rules:
+        - alert: NoteVerseAsyncOperationBacklogOld
+          expr: |
+            max by (namespace, kind) (
+              noteverse_async_operation_oldest_open_age_seconds{namespace=~"noteverse-.*"}
+            ) > 1800
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse async operation backlog is old"
+            description: "A NoteVerse async operation kind has had open non-terminal work for more than 30 minutes."
+            runbook_url: "docs/operations/runbooks/alerts/async-operation-backlog.md"
+        - alert: NoteVerseAsyncOperationProcessingStuck
+          expr: |
+            max by (namespace, kind) (
+              noteverse_async_operation_oldest_processing_age_seconds{namespace=~"noteverse-.*"}
+            ) > 1800
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse async operation processing appears stuck"
+            description: "A NoteVerse async operation kind has been processing for more than 30 minutes."
+            runbook_url: "docs/operations/runbooks/alerts/async-operation-processing-stuck.md"
+        - alert: NoteVerseOutboxFailuresPresent
+          expr: |
+            sum by (namespace, kind, status) (
+              noteverse_outbox_records_by_status{namespace=~"noteverse-.*", status=~"failed|permanent_failure"}
+            ) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse outbox failure records are present"
+            description: "One or more NoteVerse render, playback, or mail outbox records have remained in a failure state."
+            runbook_url: "docs/operations/runbooks/alerts/outbox-failures-present.md"
+        - alert: NoteVerseScoreDeletionCleanupStuck
+          expr: |
+            sum by (namespace) (
+              noteverse_score_deletions_by_status{namespace=~"noteverse-.*", status="deleting"}
+            ) > 0
+          for: 2h
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse score deletion cleanup is stuck"
+            description: "One or more scores have remained in deletion cleanup state for more than 2 hours."
+            runbook_url: "docs/operations/runbooks/alerts/score-deletion-cleanup-stuck.md"

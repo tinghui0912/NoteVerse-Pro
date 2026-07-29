@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse-backend-worker
+spec:
+  template:
+    spec:
+      nodeSelector:
+        noteverse.io/model-cache: enabled
+        noteverse.io/workload: gpu-worker
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: worker
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "6"
+              memory: 20Gi
+              nvidia.com/gpu: "1"

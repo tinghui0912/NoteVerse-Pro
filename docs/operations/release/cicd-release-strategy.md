@@ -107,6 +107,12 @@ commit
 Do not rebuild different production images from the same source after staging.
 Promote the tested artifact by immutable tag or digest.
 
+Production should deploy explicit image references. Digest-pinned references are
+preferred for staging and required for production once the release package or
+GitOps path is the normal deployment route. Development and ad hoc local tests
+may use commit SHA tags, but production audit should answer exactly which image
+digest is running.
+
 ## Private Overlays
 
 Public overlays under `deploy/application/overlays/*` are templates.
@@ -427,6 +433,23 @@ Still required: add a production deploy workflow that:
 - runs production smoke tests;
 - records release metadata.
 
+### Phase 5 - GitOps
+
+Planned after the release package path is stable:
+
+- keep GitOps desired state in this repository first;
+- add `deploy/gitops/environments/staging` and
+  `deploy/gitops/environments/production`;
+- use digest-pinned image references and release metadata in desired state;
+- install Argo CD in minikube first and sync staging from Git;
+- keep production behind Git review and environment approval;
+- evolve release package workflows into workflows that open GitOps PRs.
+
+Do not create a separate GitOps repository until deployment ownership,
+production access control, or multi-service platform ownership makes that
+separation useful. The detailed plan lives in
+`docs/operations/release/gitops-evolution-plan.md`.
+
 ## Release Metadata
 
 Every production release should record:
@@ -444,3 +467,16 @@ Every production release should record:
 
 This can start as a release note and later move into a database-backed release
 audit table.
+
+## Supply Chain Hardening
+
+Future production release hardening should add:
+
+- SBOM generation for every runtime image;
+- image signing with Cosign or an equivalent signing tool;
+- admission verification for signed production images;
+- a policy that rejects unsigned or non-digest production image references.
+
+These should come after digest-pinned staging/production deployment is stable.
+Do not block the current GitOps transition on signing infrastructure, but track
+it as a production-readiness item.

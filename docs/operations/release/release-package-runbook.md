@@ -192,6 +192,39 @@ After applying:
 - practice API health passes;
 - logs, metrics, and traces are visible in Grafana.
 
+## Promote A Release Package Into GitOps Desired State
+
+After a staging release package has been applied and verified, promote the same
+package into the in-repository GitOps staging directory:
+
+```powershell
+python scripts/promote_release_package_to_gitops.py `
+  --source tmp/staging-release-package/staging `
+  --environment staging `
+  --overwrite
+```
+
+Then validate:
+
+```powershell
+python scripts/check_gitops_manifests.py
+kubectl kustomize deploy/gitops/environments/staging
+```
+
+The promotion script copies only non-secret declarative files, rewrites the
+relative Kustomize base path for the GitOps directory, and preserves
+`release-metadata.json`. The GitOps guard fails if desired state contains:
+
+- deployment placeholders;
+- local development endpoints;
+- obvious Secret values;
+- mutable image tags instead of digest-pinned image references;
+- missing release metadata.
+
+Do not manually edit generated staging desired state except to repair the
+promotion script itself. Future GitOps workflows should update this directory
+through a pull request generated from a release package.
+
 ## Hardening Backlog
 
 Next production-grade improvements:

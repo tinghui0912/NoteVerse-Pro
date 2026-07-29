@@ -337,7 +337,7 @@ First install Prometheus Operator CRDs:
 
 ```powershell
 $crds = Join-Path $env:TEMP "kube-prometheus-stack-crds.yaml"
-helm show crds prometheus-community/kube-prometheus-stack > $crds
+helm show crds prometheus-community/kube-prometheus-stack --version 79.5.0 > $crds
 kubectl apply --server-side -f $crds
 ```
 
@@ -379,11 +379,18 @@ few seconds to enumerate host filesystems and collectors after image pulls or
 storage activity. Production should size node-exporter probes and resources
 from real node behavior instead of copying the minikube overlay.
 
-After Prometheus Operator CRDs exist, apply optional scrape discovery:
+After Prometheus Operator CRDs exist, apply optional application monitoring
+resources:
 
 ```powershell
 kubectl -n noteverse-staging apply -k deploy/application/monitoring/prometheus-operator
+kubectl apply -k deploy/observability/dashboards
 ```
+
+This installs the backend ServiceMonitors, NoteVerse application alert rules,
+and the Grafana dashboard ConfigMap. In minikube, Grafana mounts that dashboard
+through static dashboard provisioning. In production, Grafana can also discover
+the same ConfigMap through the `grafana_dashboard=1` sidecar label.
 
 ## 10. Start Gateway Port Forward
 

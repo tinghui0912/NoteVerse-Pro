@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Placeholder only. Production GitOps sync is introduced after staging GitOps is
+# proven and production approval boundaries are configured.
+resources: []

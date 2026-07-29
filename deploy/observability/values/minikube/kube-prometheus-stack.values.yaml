@@ -60,6 +60,20 @@ alertmanager:
 
 grafana:
   defaultDashboardsEnabled: false
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: noteverse
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/noteverse
+  dashboardsConfigMaps:
+    noteverse: noteverse-application-dashboard
   deploymentStrategy:
     type: Recreate
   sidecar:

@@ -4,13 +4,19 @@ on:
   push:
     paths:
       - "deploy/application/**"
+      - "deploy/gitops/**"
       - "scripts/check_k8s_application_manifests.py"
+      - "scripts/check_gitops_manifests.py"
+      - "scripts/promote_release_package_to_gitops.py"
       - "scripts/render_k8s_release_overlay.py"
       - ".github/workflows/k8s-application-manifests.yml"
   pull_request:
     paths:
       - "deploy/application/**"
+      - "deploy/gitops/**"
       - "scripts/check_k8s_application_manifests.py"
+      - "scripts/check_gitops_manifests.py"
+      - "scripts/promote_release_package_to_gitops.py"
       - "scripts/render_k8s_release_overlay.py"
       - ".github/workflows/k8s-application-manifests.yml"
 
@@ -40,6 +46,9 @@ jobs:
 
       - name: Validate public application templates
         run: python scripts/check_k8s_application_manifests.py
+
+      - name: Validate GitOps desired state
+        run: python scripts/check_gitops_manifests.py
 
       - name: Verify strict mode rejects public production template
         run: |

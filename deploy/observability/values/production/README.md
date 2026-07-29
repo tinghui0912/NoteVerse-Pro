@@ -9,6 +9,13 @@ Do not create placeholder production values with fake endpoints, fake secrets,
 or minikube storage settings. Add each production override only when the real
 cluster decision is known.
 
+Production should use explicit, tested chart and image versions. It should not
+float to the latest Helm chart during deployment, and it should not blindly copy
+minikube-only compromises. Treat the shared chart versions as the current
+validated baseline. If production needs a newer kube-prometheus-stack, Grafana,
+Loki, Tempo, Fluent Bit, or OpenTelemetry Collector version, validate that exact
+version first and record the promotion decision before rollout.
+
 Expected production overlays before launch:
 
 - `loki.values.yaml`
@@ -34,3 +41,8 @@ Expected production overlays before launch:
   - cluster label if needed;
   - output TLS/auth if Loki is exposed through a secured endpoint;
   - resource limits for high-volume nodes.
+
+Alert receiver values are intentionally not defined here yet. Before launch,
+production must configure Alertmanager or an equivalent notification path
+through non-committed Secrets or External Secrets. Dashboard visibility alone is
+not production alerting.

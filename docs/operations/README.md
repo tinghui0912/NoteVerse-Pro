@@ -14,8 +14,10 @@ production readiness.
 
 ## Release
 
+- [Argo CD Minikube Runbook](release/argocd-minikube-runbook.md)
 - [CI/CD Release Strategy](release/cicd-release-strategy.md)
 - [Container Image Build Strategy](release/container-image-build-strategy.md)
+- [GitOps Evolution Plan](release/gitops-evolution-plan.md)
 - [Release Package Runbook](release/release-package-runbook.md)
 
 ## Active Plans
@@ -30,6 +32,7 @@ production readiness.
 - [Observability And Logging Roadmap](observability/observability-and-logging-roadmap.md)
 - [Grafana Loki Query Runbook](observability/grafana-loki-query-runbook.md)
 - [Grafana Dashboard Requirements](observability/grafana-dashboard-requirements.md)
+- [Alertmanager Receiver Plan](observability/alertmanager-receiver-plan.md)
 - [Minikube Observability Runbook](observability/minikube-observability-runbook.md)
 
 ## Runbooks

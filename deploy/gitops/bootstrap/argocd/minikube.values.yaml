@@ -1,0 +1,56 @@
+global:
+  domain: argocd.staging.johnabc.ccwu.cc
+
+configs:
+  params:
+    server.insecure: false
+
+server:
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+applicationSet:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+controller:
+  extraArgs:
+    - --status-processors=2
+    - --operation-processors=1
+  env:
+    - name: ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT
+      value: "60"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false

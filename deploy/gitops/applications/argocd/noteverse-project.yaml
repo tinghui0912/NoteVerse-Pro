@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: noteverse
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: noteverse
+spec:
+  description: NoteVerse application delivery boundaries
+  sourceRepos:
+    - https://github.com/tinghui0912/NoteVerse-Pro.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: noteverse-staging
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: DaemonSet
+    - group: apps
+      kind: Deployment
+    - group: batch
+      kind: Job
+    - group: cert-manager.io
+      kind: Certificate
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
