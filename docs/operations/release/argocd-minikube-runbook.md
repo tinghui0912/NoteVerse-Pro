@@ -136,7 +136,9 @@ app path does not exist
 ```
 
 then the local GitOps files have not been pushed to the remote branch referenced
-by `spec.source.targetRevision`.
+by `spec.source.targetRevision`. The staging Application uses
+`targetRevision: main` intentionally; avoid `HEAD` here because it is less
+explicit and can make first-time GitOps debugging noisier.
 
 ## Access Argo CD UI
 

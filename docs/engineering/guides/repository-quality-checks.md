@@ -85,8 +85,7 @@ Current GitHub Actions workflows:
 | `.github/workflows/k8s-application-manifests.yml` | `deploy/application/**` and K8s guard script | Kustomize rendering and deployment-placeholder guard |
 | `.github/workflows/observability-manifests.yml` | `deploy/observability/**` and observability guard script | Loki/Fluent Bit/Prometheus/Tempo values guard |
 | `.github/workflows/production-release-package.yml` | manual, `production` environment | Renders a downloadable production release package from image refs and environment variables |
-| `.github/workflows/staging-release-package.yml` | manual, `staging` environment | Renders a downloadable staging release package from image refs and environment variables |
-| `.github/workflows/staging-release-overlay.yml` | manual explicit inputs | Renders a downloadable staging release overlay from fully supplied values |
+| `.github/workflows/staging-release-package.yml` | manual, `staging` environment | Renders a digest-pinned staging release package and can optionally open a GitOps promotion PR |
 
 The K8s workflow also verifies that strict mode rejects the public production
 template. A private deployable production overlay should pass strict mode in its
