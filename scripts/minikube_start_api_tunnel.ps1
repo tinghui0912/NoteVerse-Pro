@@ -33,12 +33,24 @@ function Get-QemuSshPort {
     return [int] $match.Groups["port"].Value
 }
 
+function Set-KubeconfigApiServer {
+    param(
+        [string] $ProfileName,
+        [int] $Port
+    )
+
+    $server = "https://127.0.0.1:$Port"
+    Write-Host "==> kubeconfig:set-cluster:$ProfileName $server" -ForegroundColor Cyan
+    kubectl config set-cluster $ProfileName --server=$server | Out-Host
+}
+
 $sshPort = Get-QemuSshPort -ProfileName $Profile
 
 $existing = Get-NetTCPConnection -LocalPort $LocalPort -State Listen -ErrorAction SilentlyContinue
 if ($existing) {
     Write-Host "==> tunnel:already-listening:$LocalPort" -ForegroundColor Cyan
     $existing | Select-Object LocalAddress, LocalPort, State, OwningProcess | Out-Host
+    Set-KubeconfigApiServer -ProfileName $Profile -Port $LocalPort
     return
 }
 
@@ -69,3 +81,5 @@ Start-Sleep -Seconds 2
 Get-NetTCPConnection -LocalPort $LocalPort -State Listen -ErrorAction Stop |
     Select-Object LocalAddress, LocalPort, State, OwningProcess |
     Out-Host
+
+Set-KubeconfigApiServer -ProfileName $Profile -Port $LocalPort

@@ -404,6 +404,8 @@ Partially implemented:
 - `.github/workflows/production-release-package.yml` uses the GitHub
   `production` Environment variables plus image tags/refs to render and upload a
   production release package;
+- when `image_tag` is empty, production package generation inherits unspecified
+  component images from the current production GitOps `release-metadata.json`;
 - GitHub Environment approval rules should be enabled for `production` so this
   package cannot be generated without explicit approval.
 

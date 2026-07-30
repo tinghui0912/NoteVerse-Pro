@@ -68,6 +68,9 @@ behavior.
 The start script opens a local API tunnel on `https://127.0.0.1:18443` and
 rewrites the `noteverse-lvm` kubeconfig server to that endpoint. This avoids the
 unstable automatic localhost tunnel that qemu2 can create on Windows.
+The helper rewrites kubeconfig even when the tunnel is already listening,
+because a failed `minikube start` can leave kubeconfig pointing at a stale
+ephemeral port.
 
 If `kubectl` later fails to connect after a host reboot or minikube restart,
 recreate only the API tunnel instead of rebuilding the cluster:
