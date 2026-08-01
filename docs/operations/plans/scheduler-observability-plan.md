@@ -36,6 +36,11 @@ minikube cluster.
 Add database-backed scheduler heartbeat metrics so Prometheus can observe Beat
 through the existing API `/metrics` endpoint.
 
+Only the backend API exports these shared database-backed metrics. The practice
+runtime exports its own process and realtime metrics, but must not re-export
+business or scheduler state because that would duplicate series and create
+false scheduler alerts for a non-scheduler service.
+
 Required metrics:
 
 - `noteverse_scheduler_last_success_timestamp_seconds`

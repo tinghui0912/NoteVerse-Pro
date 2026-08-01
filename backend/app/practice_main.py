@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
-from app.api.metrics import router as metrics_router
+from app.api.metrics import create_metrics_router
 from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.lifespan import create_app_lifespan
@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
 
     app.include_router(practice_router, prefix=f"{settings.API_V1_STR}/practice", tags=["Practice"])
     app.include_router(health_router)
-    app.include_router(metrics_router)
+    app.include_router(create_metrics_router(include_database_metrics=False))
 
     @app.get("/")
     def root() -> dict[str, str]:

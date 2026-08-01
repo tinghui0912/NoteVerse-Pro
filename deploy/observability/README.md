@@ -101,6 +101,11 @@ Secret/observability-s3
   TEMPO_S3_SECRET_ACCESS_KEY
 ```
 
+`LOKI_S3_ENDPOINT` is a URL. `TEMPO_S3_ENDPOINT` must be its hostname without
+an `http://` or `https://` scheme because Tempo passes it directly to its S3
+client. Use `scripts/minikube_create_observability_s3_secret.ps1` for the
+minikube/staging Secret so those forms cannot drift.
+
 ## Rules
 
 - Do not commit secrets.

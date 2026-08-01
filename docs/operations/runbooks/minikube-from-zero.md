@@ -317,12 +317,17 @@ kubectl -n observability create secret generic observability-s3 `
   --from-literal=LOKI_S3_BUCKET="<loki-bucket>" `
   --from-literal=LOKI_S3_ACCESS_KEY_ID="<access-key>" `
   --from-literal=LOKI_S3_SECRET_ACCESS_KEY="<secret-key>" `
-  --from-literal=TEMPO_S3_ENDPOINT="<s3-endpoint-url>" `
+  --from-literal=TEMPO_S3_ENDPOINT="<s3-endpoint-hostname>" `
   --from-literal=TEMPO_S3_REGION="<s3-region>" `
   --from-literal=TEMPO_S3_BUCKET="<tempo-bucket>" `
   --from-literal=TEMPO_S3_ACCESS_KEY_ID="<access-key>" `
   --from-literal=TEMPO_S3_SECRET_ACCESS_KEY="<secret-key>"
 ```
+
+For the supported, less error-prone path, use
+`scripts/minikube_create_observability_s3_secret.ps1`. Loki receives the full
+endpoint URL, while Tempo must receive the endpoint hostname without
+`https://`.
 
 ## 7. Render Release Overlay
 
