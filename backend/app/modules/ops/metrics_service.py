@@ -24,6 +24,7 @@ from app.db.models import (
     SchedulerLeaderStatus,
     Score,
 )
+from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 from app.modules.scheduler_observability.service import scheduler_observability_service
 from app.utils.timezone import utc_now_naive
 
@@ -489,7 +490,7 @@ async def _scheduler_heartbeat_lines(db: AsyncSession) -> list[str]:
 
 
 async def _scheduler_leader_lines(db: AsyncSession) -> list[str]:
-    status = await db.get(SchedulerLeaderStatus, "beat")
+    status = await db.get(SchedulerLeaderStatus, BEAT_LEADER_SCHEDULER_NAME)
     if status is None:
         return [
             _metric_line("noteverse_scheduler_leader_last_heartbeat_timestamp_seconds", (), (), 0),

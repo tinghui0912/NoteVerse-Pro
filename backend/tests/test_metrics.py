@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.db.models import SchedulerHeartbeat, SchedulerLeaderStatus
 from app.modules.ops.metrics_service import _scheduler_heartbeat_lines, _scheduler_leader_lines
+from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 
 
 def test_scheduler_heartbeat_metrics_read_orm_entities() -> None:
@@ -23,24 +24,25 @@ def test_scheduler_heartbeat_metrics_read_orm_entities() -> None:
         async def exec(self, _statement: object) -> Result:
             return Result()
 
-    lines = asyncio.run(_scheduler_heartbeat_lines(Session()))  # type: ignore[arg-type]
+    lines = asyncio.run(_scheduler_heartbeat_lines(Session()))
 
     assert 'noteverse_scheduler_lock_acquired_total{job="render_outbox"} 0' in lines
 
 
 def test_scheduler_leader_metrics_read_dedicated_orm_entity() -> None:
     status = SchedulerLeaderStatus(
-        scheduler_name="beat",
+        scheduler_name=BEAT_LEADER_SCHEDULER_NAME,
         acquired_count=2,
         standby_count=3,
         child_exit_count=1,
     )
 
     class Session:
-        async def get(self, _model: object, _identity: object) -> SchedulerLeaderStatus:
+        async def get(self, _model: object, identity: object) -> SchedulerLeaderStatus:
+            assert identity == BEAT_LEADER_SCHEDULER_NAME
             return status
 
-    lines = asyncio.run(_scheduler_leader_lines(Session()))  # type: ignore[arg-type]
+    lines = asyncio.run(_scheduler_leader_lines(Session()))
 
     assert "noteverse_scheduler_leader_acquisitions_total 2" in lines
     assert "noteverse_scheduler_leader_standby_total 3" in lines
