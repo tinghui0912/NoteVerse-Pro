@@ -111,10 +111,12 @@ the same storage model:
   production defaults because qemu2 minikube can pause during image pulls,
   SQLite migrations, collector startup, and PVC provisioning.
 - The OpenEBS Local PV LVM minikube values install only the LVM engine and
-  disable Hostpath, ZFS, rawfile, Mayastor, bundled Loki, and CSI snapshot CRDs.
-  The `StorageClass/noteverse-local-lvm` manifest is owned by this repository
-  so application and observability values depend on a stable storage contract,
-  not provider-specific chart defaults.
+  disable Hostpath, ZFS, rawfile, Mayastor, bundled Loki, and Alloy. CSI
+  snapshot CRDs are installed because the OpenEBS LVM controller includes
+  snapshot sidecars, but NoteVerse does not create application
+  `VolumeSnapshot` resources today. The `StorageClass/noteverse-local-lvm`
+  manifest is owned by this repository so application and observability values
+  depend on a stable storage contract, not provider-specific chart defaults.
 
 These are local staging rehearsal settings, not production sizing guidance.
 Production must set resource requests, limits, retention, and PVC sizes from

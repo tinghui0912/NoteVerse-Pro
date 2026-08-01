@@ -214,7 +214,8 @@ Completed so far:
   Collector to tolerate qemu2 pauses;
 - configured the minikube OpenEBS values to install only the Local PV LVM
   engine and to disable Hostpath, ZFS, rawfile, Mayastor, bundled Loki, and CSI
-  snapshot CRDs;
+  Alloy while keeping the CSI snapshot CRDs required by the OpenEBS LVM
+  controller sidecars;
 - disabled Prometheus Operator admission webhook/TLS in the minikube overlay so
   `--no-hooks` installs do not require the generated admission Secret;
 - resized minikube Loki and Prometheus PVCs to `8Gi` each so a local LVM disk

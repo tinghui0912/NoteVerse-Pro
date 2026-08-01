@@ -223,8 +223,9 @@ The minikube OpenEBS values intentionally install only Local PV LVM:
 - Local PV LVM is enabled;
 - Hostpath, ZFS, rawfile, Mayastor, and the OpenEBS chart's bundled Loki path
   are disabled;
-- CSI snapshot CRDs are disabled because NoteVerse does not currently use
-  Kubernetes `VolumeSnapshot` resources;
+- CSI snapshot CRDs are installed because the OpenEBS LVM controller includes
+  snapshot sidecars; NoteVerse does not create application `VolumeSnapshot`
+  resources today;
 - the repository-owned `StorageClass/noteverse-local-lvm` binds to the
   `noteverse-local-vg` volume group with `WaitForFirstConsumer`.
 
