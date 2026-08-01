@@ -225,12 +225,17 @@ kubectl -n observability create secret generic observability-s3 `
   --from-literal=LOKI_S3_BUCKET="<staging-loki-bucket>" `
   --from-literal=LOKI_S3_ACCESS_KEY_ID="<access-key>" `
   --from-literal=LOKI_S3_SECRET_ACCESS_KEY="<secret-key>" `
-  --from-literal=TEMPO_S3_ENDPOINT="https://<s3-endpoint>" `
+  --from-literal=TEMPO_S3_ENDPOINT="<s3-endpoint-hostname>" `
   --from-literal=TEMPO_S3_REGION="<region>" `
   --from-literal=TEMPO_S3_BUCKET="<staging-tempo-bucket>" `
   --from-literal=TEMPO_S3_ACCESS_KEY_ID="<access-key>" `
   --from-literal=TEMPO_S3_SECRET_ACCESS_KEY="<secret-key>"
 ```
+
+`TEMPO_S3_ENDPOINT` is a hostname only, for example
+`oss-cn-shenzhen.aliyuncs.com`; Tempo's S3 client rejects a URL with
+`https://`. Prefer `scripts/minikube_create_observability_s3_secret.ps1`, which
+derives the correct Loki URL and Tempo hostname forms from `S3_ENDPOINT_URL`.
 
 ## Validate Values Before Installing
 
@@ -436,6 +441,10 @@ The collector currently exposes OTLP on:
 otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317
 otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318
 ```
+
+Its self-observability metrics are also exposed on the chart-managed `metrics`
+service port (`8888`) and scraped by its ServiceMonitor. This is required for
+the platform dashboard to distinguish accepted, exported, and failed spans.
 
 Application services should send traces to that collector endpoint through
 explicit environment configuration. Do not configure fallback trace exporters or

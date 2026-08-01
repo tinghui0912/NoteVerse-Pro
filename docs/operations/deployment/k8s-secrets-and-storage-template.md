@@ -218,6 +218,8 @@ Required keys:
 
 Rules:
 
+- `LOKI_S3_ENDPOINT` is a URL; `TEMPO_S3_ENDPOINT` is the corresponding
+  hostname without an `http://` or `https://` scheme.
 - apply aggressive lifecycle policies to Loki and Tempo buckets according to
   retention;
 - do not grant application pods access to observability buckets;

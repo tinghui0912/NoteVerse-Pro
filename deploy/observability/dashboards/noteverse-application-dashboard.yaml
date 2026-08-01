@@ -551,7 +551,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum by (kind, status) (noteverse_outbox_records_by_status{namespace=~\"$namespace\"})",
+              "expr": "sum by (kind, status) (noteverse_outbox_records_by_status{namespace=~\"$namespace\", job=\"noteverse-backend-api\"})",
               "legendFormat": "{{kind}} {{status}}",
               "refId": "A"
             }
@@ -597,7 +597,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum by (status) (noteverse_score_deletions_by_status{namespace=~\"$namespace\"})",
+              "expr": "sum by (status) (noteverse_score_deletions_by_status{namespace=~\"$namespace\", job=\"noteverse-backend-api\"})",
               "legendFormat": "{{status}}",
               "refId": "A"
             }
@@ -643,7 +643,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "noteverse_async_operation_oldest_open_age_seconds{namespace=~\"$namespace\"}",
+              "expr": "noteverse_async_operation_oldest_open_age_seconds{namespace=~\"$namespace\", job=\"noteverse-backend-api\"}",
               "legendFormat": "open {{kind}}",
               "refId": "A"
             },
@@ -652,7 +652,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "noteverse_async_operation_oldest_processing_age_seconds{namespace=~\"$namespace\"}",
+              "expr": "noteverse_async_operation_oldest_processing_age_seconds{namespace=~\"$namespace\", job=\"noteverse-backend-api\"}",
               "legendFormat": "processing {{kind}}",
               "refId": "B"
             }
@@ -698,7 +698,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "noteverse_async_operation_completed_duration_average_seconds{namespace=~\"$namespace\"}",
+              "expr": "noteverse_async_operation_completed_duration_average_seconds{namespace=~\"$namespace\", job=\"noteverse-backend-api\"}",
               "legendFormat": "{{kind}}",
               "refId": "A"
             }
@@ -744,7 +744,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "noteverse_scheduler_lag_seconds{namespace=~\"$namespace\"}",
+              "expr": "noteverse_scheduler_lag_seconds{namespace=~\"$namespace\", job=\"noteverse-backend-api\"}",
               "legendFormat": "{{kind}}",
               "refId": "A"
             }
@@ -790,8 +790,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "time() - noteverse_scheduler_last_success_timestamp_seconds{namespace=~\"$namespace\"}",
-              "legendFormat": "last success {{job}}",
+              "expr": "time() - noteverse_scheduler_last_success_timestamp_seconds{namespace=~\"$namespace\", job=\"noteverse-backend-api\"}",
+              "legendFormat": "last success {{scheduler_job}}",
               "refId": "A"
             },
             {
@@ -799,8 +799,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "noteverse_scheduler_last_scan_duration_seconds{namespace=~\"$namespace\"}",
-              "legendFormat": "duration {{job}}",
+              "expr": "noteverse_scheduler_last_scan_duration_seconds{namespace=~\"$namespace\", job=\"noteverse-backend-api\"}",
+              "legendFormat": "duration {{scheduler_job}}",
               "refId": "B"
             }
           ],
@@ -889,8 +889,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum by (job) (increase(noteverse_scheduler_lock_acquired_total{namespace=~\"$namespace\"}[$__rate_interval]))",
-              "legendFormat": "{{job}} acquired",
+              "expr": "sum by (scheduler_job) (increase(noteverse_scheduler_lock_acquired_total{namespace=~\"$namespace\", job=\"noteverse-backend-api\"}[$__rate_interval]))",
+              "legendFormat": "{{scheduler_job}} acquired",
               "refId": "A"
             },
             {
@@ -898,8 +898,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum by (job) (increase(noteverse_scheduler_lock_skipped_total{namespace=~\"$namespace\"}[$__rate_interval]))",
-              "legendFormat": "{{job}} skipped",
+              "expr": "sum by (scheduler_job) (increase(noteverse_scheduler_lock_skipped_total{namespace=~\"$namespace\", job=\"noteverse-backend-api\"}[$__rate_interval]))",
+              "legendFormat": "{{scheduler_job}} skipped",
               "refId": "B"
             }
           ],
