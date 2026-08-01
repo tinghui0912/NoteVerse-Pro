@@ -60,7 +60,8 @@ Production-specific choices:
 - Beat remains a lock-aware singleton by default. Scale it to two replicas only
   after the production scheduler-lock rollout checklist passes by rendering the
   `production-ha` overlay; it supplies the RollingUpdate strategy and PDB so
-  the leader supervisor controls handover.
+  the leader supervisor controls handover, and changes Beat topology spreading
+  to `DoNotSchedule` so two replicas land on different nodes.
 - Gateway routing must support SSE and WebSocket traffic for API and practice
   realtime paths.
 

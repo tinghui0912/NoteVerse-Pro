@@ -13,8 +13,17 @@ be unavailable before any individual outbox scanner reports stale work.
 3. Verify `SCHEDULER_LOCK_DATABASE_URL` targets direct PostgreSQL or a
    PgBouncer **session-pooling** endpoint. Transaction pooling cannot hold a
    session advisory lock.
-4. Query PostgreSQL `pg_locks` to confirm that at most one session holds the
-   `beat_leader` advisory lock.
+4. Query PostgreSQL `pg_locks` with `pg_stat_activity` to confirm that at most
+   one `application_name = 'noteverse-beat-leader'` session holds an advisory
+   lock:
+
+   ```sql
+   select activity.pid, activity.application_name, activity.state, lock.granted
+   from pg_locks as lock
+   join pg_stat_activity as activity using (pid)
+   where lock.locktype = 'advisory'
+     and activity.application_name = 'noteverse-beat-leader';
+   ```
 5. Check PostgreSQL availability and network connectivity from the Beat Pod.
 
 ## Resolution

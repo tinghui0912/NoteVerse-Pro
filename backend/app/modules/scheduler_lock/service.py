@@ -3,10 +3,9 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import text
-from sqlalchemy.engine import Connection
+from psycopg import Connection
 
-from app.db.worker_session import sync_engine
+from app.modules.scheduler_lock.connection import open_scheduler_lock_connection
 from app.modules.scheduler_lock.keys import scheduler_lock_key
 
 
@@ -15,7 +14,9 @@ class SchedulerLockService:
 
     @contextmanager
     def try_acquire(self, job_key: str) -> Iterator[bool]:
-        connection = sync_engine.connect()
+        connection = open_scheduler_lock_connection(
+            application_name=f"noteverse-scheduler-{job_key}"
+        )
         acquired = False
         try:
             acquired = self._try_lock(connection, job_key)
@@ -29,23 +30,13 @@ class SchedulerLockService:
         return scheduler_lock_key(job_key)
 
     def _try_lock(self, connection: Connection, job_key: str) -> bool:
-        self._require_postgresql(connection)
-        result = connection.execute(
-            text("select pg_try_advisory_lock(:lock_key)"),
-            {"lock_key": self.lock_key(job_key)},
-        )
-        return bool(result.scalar_one())
+        with connection.cursor() as cursor:
+            cursor.execute("select pg_try_advisory_lock(%s)", (self.lock_key(job_key),))
+            return bool(cursor.fetchone()[0])
 
     def _unlock(self, connection: Connection, job_key: str) -> None:
-        connection.execute(
-            text("select pg_advisory_unlock(:lock_key)"),
-            {"lock_key": self.lock_key(job_key)},
-        )
-
-    @staticmethod
-    def _require_postgresql(connection: Connection) -> None:
-        if connection.dialect.name != "postgresql":
-            raise RuntimeError("Scheduler advisory locks require PostgreSQL")
+        with connection.cursor() as cursor:
+            cursor.execute("select pg_advisory_unlock(%s)", (self.lock_key(job_key),))
 
 
 scheduler_lock_service = SchedulerLockService()

@@ -4,11 +4,9 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import pytest
-from sqlalchemy import text
-
-from app.db.worker_session import sync_engine
 from app.modules.scheduler_observability.service import SchedulerRunStats
-from app.modules.scheduler_lock.beat_leader import BeatLeader, _postgres_dsn, parse_args
+from app.modules.scheduler_lock.beat_leader import BeatLeader, parse_args
+from app.modules.scheduler_lock.connection import open_scheduler_lock_connection
 from app.modules.scheduler_lock.keys import scheduler_lock_key
 from app.modules.scheduler_lock.service import SchedulerLockService
 from app.worker import tasks
@@ -38,36 +36,8 @@ def test_beat_leader_parses_the_child_command() -> None:
         "celery",
         "beat",
     ]
-    assert _postgres_dsn("postgresql+psycopg://user:pass@db/app") == (
-        "postgresql://user:pass@db/app"
-    )
-
-
-def test_postgresql_advisory_lock_allows_only_one_beat_leader() -> None:
-    if sync_engine.dialect.name != "postgresql":
-        pytest.skip("PostgreSQL advisory locks are unavailable outside PostgreSQL")
-
-    lock_key = scheduler_lock_key("beat_leader_test")
-    first = sync_engine.connect()
-    second = sync_engine.connect()
-    try:
-        assert first.execute(
-            text("select pg_try_advisory_lock(:lock_key)"), {"lock_key": lock_key}
-        ).scalar_one()
-        assert not second.execute(
-            text("select pg_try_advisory_lock(:lock_key)"), {"lock_key": lock_key}
-        ).scalar_one()
-    finally:
-        first.execute(text("select pg_advisory_unlock(:lock_key)"), {"lock_key": lock_key})
-        first.close()
-        second.close()
-
-
 def test_beat_leader_uses_a_dedicated_postgresql_session() -> None:
     """The lifetime lock must not be held through the worker SQLAlchemy pool."""
-
-    if sync_engine.dialect.name != "postgresql":
-        pytest.skip("PostgreSQL advisory locks are unavailable outside PostgreSQL")
 
     lock_key = scheduler_lock_key("beat_leader_direct_connection_test")
     first = BeatLeader._connect()
@@ -85,6 +55,22 @@ def test_beat_leader_uses_a_dedicated_postgresql_session() -> None:
             cursor.execute("select pg_advisory_unlock(%s)", (lock_key,))
         first.close()
         second.close()
+
+
+def test_scheduler_scan_lock_uses_the_dedicated_postgresql_session() -> None:
+    service = SchedulerLockService()
+
+    with service.try_acquire("scheduler_scan_direct_connection_test") as acquired:
+        assert acquired
+        with service.try_acquire("scheduler_scan_direct_connection_test") as duplicate:
+            assert not duplicate
+
+
+def test_scheduler_lock_connection_has_diagnostic_application_name() -> None:
+    with open_scheduler_lock_connection(application_name="noteverse-scheduler-test") as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("select current_setting('application_name')")
+            assert cursor.fetchone()[0] == "noteverse-scheduler-test"
 
 
 def test_scheduler_scan_skips_callback_when_lock_is_not_acquired(

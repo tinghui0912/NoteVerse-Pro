@@ -21,17 +21,11 @@ from psycopg import Connection
 
 from app.core.config import settings
 from app.core.logger import logger
+from app.modules.scheduler_lock.connection import open_scheduler_lock_connection
 from app.modules.scheduler_lock.keys import scheduler_lock_key
 
 
 _LEADER_SCOPE = "beat_leader"
-
-
-def _postgres_dsn(database_url: str) -> str:
-    """Convert SQLAlchemy's synchronous PostgreSQL URL to a psycopg DSN."""
-
-    return database_url.replace("postgresql+psycopg://", "postgresql://", 1)
-
 
 class BeatLeader:
     """Active/standby supervisor for a Celery Beat subprocess."""
@@ -115,15 +109,7 @@ class BeatLeader:
     def _connect() -> Connection:
         """Open the dedicated session that owns the PostgreSQL advisory lock."""
 
-        return psycopg.connect(
-            _postgres_dsn(settings.SCHEDULER_LOCK_DATABASE_URL),
-            autocommit=True,
-            connect_timeout=settings.SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS,
-            keepalives=1,
-            keepalives_idle=settings.SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS,
-            keepalives_interval=settings.SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS,
-            keepalives_count=settings.SCHEDULER_LOCK_KEEPALIVES_COUNT,
-        )
+        return open_scheduler_lock_connection(application_name="noteverse-beat-leader")
 
     def _record_leader_acquired(self, connection: Connection) -> None:
         self._upsert_state(
