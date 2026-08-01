@@ -187,6 +187,9 @@ Production requirements before enabling two Beat replicas:
   PostgreSQL or a dedicated PgBouncer session-pooling endpoint; transaction
   pooling is prohibited for this connection;
 - lock connections use a bounded connect timeout and TCP keepalives;
+- lock connections identify themselves through `application_name`, enforce a
+  bounded SQL statement timeout, and use `tcp_user_timeout` on Linux so a dead
+  TCP peer cannot leave a supervisor waiting indefinitely;
 - add a Beat PodDisruptionBudget plus topology spreading or anti-affinity;
 - use a RollingUpdate only after the lock-aware singleton release is proven.
 
@@ -219,3 +222,6 @@ NoteVerse stage.
 - Do not expose high-cardinality IDs as metrics labels.
 - Do not add production multi-replica Beat until the database scheduler lock is
   validated with staging traffic.
+- Do not claim exactly-once scheduling. PostgreSQL advisory locks reduce active
+  scheduler overlap, while scan locks, atomic outbox claims, and idempotent
+  worker state machines remain the final delivery safety boundary.
