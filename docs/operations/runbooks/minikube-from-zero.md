@@ -85,6 +85,15 @@ control plane, all Kubernetes namespaces and in-cluster PVCs are gone. Re-run
 this runbook from the platform bootstrap step. External PostgreSQL, Redis, S3,
 DNS, and GHCR resources are not deleted by that reset.
 
+If the qemu2 VM is not running and its `serial.log` ends with `Kernel panic -
+not syncing: IO-APIC + timer doesn't work`, this is a host hypervisor failure
+before Kubernetes starts. Do not retry application deployment or delete Local
+PV disks as a workaround. Preserve the profile directory for diagnosis, repair
+or replace the Windows/QEMU runtime, then recreate the cluster only through the
+from-zero procedure. qemu2 is explicitly experimental; this condition blocks a
+production-like validation rather than representing a NoteVerse application
+failure.
+
 ## 2. Install Platform
 
 Set a Cloudflare token with `Zone:Read` and `DNS:Edit` for the test zone:
@@ -108,6 +117,19 @@ Override it only when rehearsing against a differently named profile:
 
 ```powershell
 .\scripts\minikube_platform_bootstrap.ps1 -MinikubeProfile noteverse-lvm
+```
+
+The bootstrap checks the active Kubernetes context and the API server's
+`/readyz` endpoint. It deliberately does not use `minikube status`: the qemu2
+API-tunnel helper rewrites kubeconfig to `https://127.0.0.1:18443`, while
+`minikube status` expects its own ephemeral localhost endpoint and can report a
+healthy cluster as failed. Before running bootstrap after a restart, restore
+the tunnel and verify the API directly:
+
+```powershell
+.\scripts\minikube_start_api_tunnel.ps1 -Profile noteverse-lvm
+kubectl config current-context
+kubectl get --raw='/readyz'
 ```
 
 For the qemu2 minikube profile, the bootstrap script installs MetalLB in
@@ -223,8 +245,9 @@ The minikube OpenEBS values intentionally install only Local PV LVM:
 - Local PV LVM is enabled;
 - Hostpath, ZFS, rawfile, Mayastor, and the OpenEBS chart's bundled Loki path
   are disabled;
-- CSI snapshot CRDs are disabled because NoteVerse does not currently use
-  Kubernetes `VolumeSnapshot` resources;
+- CSI snapshot CRDs are installed because the OpenEBS LVM controller includes
+  snapshot sidecars; NoteVerse does not create application `VolumeSnapshot`
+  resources today;
 - the repository-owned `StorageClass/noteverse-local-lvm` binds to the
   `noteverse-local-vg` volume group with `WaitForFirstConsumer`.
 
@@ -234,9 +257,22 @@ actual cluster.
 
 ## 6. Create Secrets
 
-Create or refresh `Secret/noteverse-registry-credentials` from an explicit
-GHCR token. Do not create it from Docker Desktop's `config.json` when that file
-uses `credsStore`; Kubernetes nodes cannot read the local credential store.
+Create or refresh `Secret/noteverse-registry-credentials` without committing a
+token or writing it into a rendered overlay. When Docker Desktop is already
+logged into GHCR, the preferred local path reads its credential helper and
+creates the Kubernetes Secret directly. Kubernetes nodes still cannot read the
+credential store themselves; the release-preparation script converts the local
+credential into a portable image-pull Secret.
+
+```powershell
+.\scripts\minikube_app_release_prepare.ps1 `
+  -RenderedOverlay build/k8s-release/minikube `
+  -CreateRegistrySecretFromDockerCredentialStore `
+  -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
+```
+
+If Docker Desktop is not logged in, use an explicit fine-grained GHCR token
+from the current shell instead:
 
 ```powershell
 $env:GHCR_TOKEN = "<github-token-with-read-packages>"
@@ -329,8 +365,7 @@ and scale the K8s worker to zero:
 ```powershell
 .\scripts\minikube_app_release_prepare.ps1 `
   -RenderedOverlay build/k8s-release/minikube `
-  -CreateRegistrySecretFromToken `
-  -RegistryUsername "<github-username>" `
+  -CreateRegistrySecretFromDockerCredentialStore `
   -Apply `
   -Wait `
   -ScaleWorkerToZero `
@@ -339,6 +374,11 @@ and scale the K8s worker to zero:
 
 This waits for migration, API, practice API, beat, and frontend, but skips the
 Kubernetes GPU worker/model-cache path.
+
+Use `-CreateRegistrySecretFromToken -RegistryUsername "<github-username>"`
+only when Docker Desktop is not logged into GHCR. The credential helper option
+does not place the token in shell history, the rendered release, or this
+repository.
 
 ## 9. Install Observability
 

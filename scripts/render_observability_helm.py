@@ -37,7 +37,7 @@ class Release:
 
 RELEASES: tuple[Release, ...] = (
     Release("loki", "grafana/loki", "7.1.0", VALUES_DIR / "loki.values.yaml"),
-    Release("fluent-bit", "fluent/fluent-bit", "2.6.0", VALUES_DIR / "fluent-bit.values.yaml"),
+    Release("fluent-bit", "fluent/fluent-bit", "0.57.9", VALUES_DIR / "fluent-bit.values.yaml"),
     Release(
         "kube-prometheus-stack",
         "prometheus-community/kube-prometheus-stack",

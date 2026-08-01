@@ -7,6 +7,7 @@ param(
     [string] $RegistryUsername = "",
     [string] $RegistryTokenEnvName = "GHCR_TOKEN",
     [switch] $CreateRegistrySecretFromDockerConfig,
+    [switch] $CreateRegistrySecretFromDockerCredentialStore,
     [switch] $CreateRegistrySecretFromToken,
     [switch] $SkipBackendSecret,
     [switch] $SkipRegistrySecret,
@@ -166,6 +167,46 @@ function Assert-DockerConfigCanBeUsedByKubernetes {
     }
 }
 
+function Get-DockerCredentialStoreCredential {
+    param(
+        [string] $Path,
+        [string] $Server
+    )
+
+    if (-not (Test-Path $Path)) {
+        throw "Docker config file does not exist: $Path"
+    }
+
+    $config = Get-Content -Raw $Path | ConvertFrom-Json
+    $store = [string] $config.credsStore
+    if ([string]::IsNullOrWhiteSpace($store)) {
+        throw "Docker config does not define credsStore. Use -CreateRegistrySecretFromDockerConfig or -CreateRegistrySecretFromToken."
+    }
+
+    $helperName = "docker-credential-$store"
+    $helper = Get-Command $helperName -ErrorAction SilentlyContinue
+    if ($null -eq $helper) {
+        throw "Docker credential helper '$helperName' was not found on PATH. Use -CreateRegistrySecretFromToken."
+    }
+
+    $credentialJson = $Server | & $helper.Source get
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($credentialJson)) {
+        throw "Docker credential helper could not read credentials for $Server. Log in with Docker Desktop or use -CreateRegistrySecretFromToken."
+    }
+
+    try {
+        $credential = $credentialJson | ConvertFrom-Json
+    } catch {
+        throw "Docker credential helper returned invalid JSON for $Server."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($credential.Username) -or [string]::IsNullOrWhiteSpace($credential.Secret)) {
+        throw "Docker credential helper did not return a usable username and token for $Server."
+    }
+
+    return $credential
+}
+
 function Write-RegistryDockerConfig {
     param(
         [string] $Server,
@@ -224,6 +265,22 @@ if (-not $SkipRegistrySecret) {
             -Token $registryToken
         try {
             Invoke-Checked "secret:registry-pull-token" {
+                kubectl -n $AppNamespace create secret generic noteverse-registry-credentials `
+                    --type=kubernetes.io/dockerconfigjson `
+                    --from-file=.dockerconfigjson=$tempDockerConfig `
+                    --dry-run=client -o yaml | kubectl apply -f -
+            }
+        } finally {
+            [System.IO.File]::Delete($tempDockerConfig)
+        }
+    } elseif ($CreateRegistrySecretFromDockerCredentialStore) {
+        $credential = Get-DockerCredentialStoreCredential -Path $DockerConfigPath -Server $RegistryServer
+        $tempDockerConfig = Write-RegistryDockerConfig `
+            -Server $RegistryServer `
+            -Username $credential.Username `
+            -Token $credential.Secret
+        try {
+            Invoke-Checked "secret:registry-pull-credential-store" {
                 kubectl -n $AppNamespace create secret generic noteverse-registry-credentials `
                     --type=kubernetes.io/dockerconfigjson `
                     --from-file=.dockerconfigjson=$tempDockerConfig `

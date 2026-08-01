@@ -43,7 +43,7 @@ The current validated minikube baseline is:
 
 ```text
 loki chart: 7.1.0
-fluent-bit chart: 2.6.0
+fluent-bit chart: 0.57.9
 kube-prometheus-stack chart: 79.5.0
 Grafana image from kube-prometheus-stack baseline: 12.2.1
 tempo chart: 1.24.4
@@ -88,6 +88,8 @@ the same storage model:
   not-ready addresses so single-binary startup does not flap while the Pod is
   discovering itself.
 - Tempo uses S3-compatible object storage and no durable local trace volume.
+  Its minikube profile also reduces the default ballast and widens startup
+  probes; production must size ballast and resources from actual trace volume.
 - Prometheus uses an `8Gi` OpenEBS Local PV LVM PVC.
 - Grafana and Alertmanager each use a `2Gi` OpenEBS Local PV LVM PVC.
 - Grafana uses `Recreate` deployment strategy because it mounts a single RWO
@@ -110,11 +112,17 @@ the same storage model:
   OpenTelemetry Collector, and kube-state-metrics probes are wider than
   production defaults because qemu2 minikube can pause during image pulls,
   SQLite migrations, collector startup, and PVC provisioning.
+- The OpenTelemetry Collector has explicit requests and limits in both the
+  minikube and production profiles. This gives its memory limiter a real
+  process ceiling; production starts with a larger baseline and must be
+  re-sized from observed ingest and tail-sampling pressure.
 - The OpenEBS Local PV LVM minikube values install only the LVM engine and
-  disable Hostpath, ZFS, rawfile, Mayastor, bundled Loki, and CSI snapshot CRDs.
-  The `StorageClass/noteverse-local-lvm` manifest is owned by this repository
-  so application and observability values depend on a stable storage contract,
-  not provider-specific chart defaults.
+  disable Hostpath, ZFS, rawfile, Mayastor, bundled Loki, and Alloy. CSI
+  snapshot CRDs are installed because the OpenEBS LVM controller includes
+  snapshot sidecars, but NoteVerse does not create application
+  `VolumeSnapshot` resources today. The `StorageClass/noteverse-local-lvm`
+  manifest is owned by this repository so application and observability values
+  depend on a stable storage contract, not provider-specific chart defaults.
 
 These are local staging rehearsal settings, not production sizing guidance.
 Production must set resource requests, limits, retention, and PVC sizes from
@@ -236,7 +244,7 @@ helm template loki grafana/loki `
   > $env:TEMP\noteverse-loki-rendered.yaml
 
 helm template fluent-bit fluent/fluent-bit `
-  --version 2.6.0 `
+  --version 0.57.9 `
   --namespace observability `
   -f deploy/observability/values/fluent-bit.values.yaml `
   > $env:TEMP\noteverse-fluent-bit-rendered.yaml
@@ -302,7 +310,7 @@ kubectl get all -n observability
 
 ```powershell
 helm upgrade --install fluent-bit fluent/fluent-bit `
-  --version 2.6.0 `
+  --version 0.57.9 `
   --namespace observability `
   -f deploy/observability/values/fluent-bit.values.yaml
 ```

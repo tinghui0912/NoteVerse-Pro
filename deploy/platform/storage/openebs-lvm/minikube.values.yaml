@@ -7,7 +7,8 @@
 openebs-crds:
   csi:
     volumeSnapshots:
-      enabled: false
+      enabled: true
+      keep: true
 
 engines:
   local:
@@ -26,13 +27,19 @@ engines:
 loki:
   enabled: false
 
+alloy:
+  enabled: false
+
 preUpgradeHook:
   enabled: false
 
 lvm-localpv:
+  analytics:
+    enabled: false
   crds:
     lvmLocalPv:
       enabled: true
     csi:
       volumeSnapshots:
-        enabled: false
+        enabled: true
+        keep: true
