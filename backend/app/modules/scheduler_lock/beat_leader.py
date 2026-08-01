@@ -22,10 +22,9 @@ from psycopg import Connection
 from app.core.config import settings
 from app.core.logger import logger
 from app.modules.scheduler_lock.connection import open_scheduler_lock_connection
+from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 from app.modules.scheduler_lock.keys import scheduler_lock_key
 
-
-_LEADER_SCOPE = "beat_leader"
 
 class BeatLeader:
     """Active/standby supervisor for a Celery Beat subprocess."""
@@ -35,7 +34,7 @@ class BeatLeader:
             raise ValueError("A Celery Beat command is required")
         self._command = command
         self._stop_requested = Event()
-        self._leader_key = scheduler_lock_key(_LEADER_SCOPE)
+        self._leader_key = scheduler_lock_key(BEAT_LEADER_SCHEDULER_NAME)
 
     def run(self) -> int:
         self._install_signal_handlers()
@@ -47,7 +46,7 @@ class BeatLeader:
                         logger.bind(
                             event="scheduler.leader_standby",
                             operation_kind="scheduler",
-                            scheduler_job=_LEADER_SCOPE,
+                            scheduler_job=BEAT_LEADER_SCHEDULER_NAME,
                         ).info("scheduler.leader_standby")
                         self._wait(settings.SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS)
                         continue
@@ -56,7 +55,7 @@ class BeatLeader:
                     logger.bind(
                         event="scheduler.leader_acquired",
                         operation_kind="scheduler",
-                        scheduler_job=_LEADER_SCOPE,
+                        scheduler_job=BEAT_LEADER_SCHEDULER_NAME,
                     ).info("scheduler.leader_acquired")
                     exit_code = self._run_leader_child(connection)
                     if self._stop_requested.is_set():
@@ -67,7 +66,7 @@ class BeatLeader:
                 logger.bind(
                     event="scheduler.leader_database_unavailable",
                     operation_kind="scheduler",
-                    scheduler_job=_LEADER_SCOPE,
+                    scheduler_job=BEAT_LEADER_SCHEDULER_NAME,
                     exception_type=type(exc).__name__,
                 ).warning("scheduler.leader_database_unavailable")
                 self._wait(settings.SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS)
@@ -90,7 +89,7 @@ class BeatLeader:
             logger.bind(
                 event="scheduler.leader_connection_lost",
                 operation_kind="scheduler",
-                scheduler_job=_LEADER_SCOPE,
+                scheduler_job=BEAT_LEADER_SCHEDULER_NAME,
             ).error("scheduler.leader_connection_lost")
             self._terminate(child)
             raise
@@ -112,58 +111,82 @@ class BeatLeader:
         return open_scheduler_lock_connection(application_name="noteverse-beat-leader")
 
     def _record_leader_acquired(self, connection: Connection) -> None:
-        self._upsert_state(
+        self._record_state(
             connection,
-            "acquired_count = scheduler_leader_statuses.acquired_count + 1, "
-            "last_acquired_at = excluded.last_acquired_at, "
-            "last_error = null",
+            """
+            insert into scheduler_leader_statuses (
+                scheduler_name, created_at, updated_at, acquired_count,
+                last_acquired_at, last_heartbeat_at, last_error
+            )
+            values (%s, now(), now(), 1, now(), now(), null)
+            on conflict (scheduler_name) do update
+            set updated_at = now(),
+                acquired_count = scheduler_leader_statuses.acquired_count + 1,
+                last_acquired_at = excluded.last_acquired_at,
+                last_heartbeat_at = excluded.last_heartbeat_at,
+                last_error = null
+            """,
         )
 
     def _record_leader_heartbeat(self, connection: Connection) -> None:
-        self._upsert_state(connection, "last_heartbeat_at = excluded.last_heartbeat_at")
+        self._record_state(
+            connection,
+            """
+            insert into scheduler_leader_statuses (
+                scheduler_name, created_at, updated_at, last_heartbeat_at
+            )
+            values (%s, now(), now(), now())
+            on conflict (scheduler_name) do update
+            set updated_at = now(),
+                last_heartbeat_at = excluded.last_heartbeat_at
+            """,
+        )
 
     def _record_standby(self, connection: Connection) -> None:
-        self._upsert_state(
+        self._record_state(
             connection,
-            "standby_count = scheduler_leader_statuses.standby_count + 1, "
-            "last_standby_at = excluded.last_standby_at",
+            """
+            insert into scheduler_leader_statuses (
+                scheduler_name, created_at, updated_at, standby_count, last_standby_at
+            )
+            values (%s, now(), now(), 1, now())
+            on conflict (scheduler_name) do update
+            set updated_at = now(),
+                standby_count = scheduler_leader_statuses.standby_count + 1,
+                last_standby_at = excluded.last_standby_at
+            """,
         )
 
     def _record_child_exit(self, connection: Connection, exit_code: int) -> None:
-        self._upsert_state(
+        self._record_state(
             connection,
-            "child_exit_count = scheduler_leader_statuses.child_exit_count + 1, "
-            "last_child_exit_at = excluded.last_child_exit_at, "
-            "last_error = excluded.last_error",
+            """
+            insert into scheduler_leader_statuses (
+                scheduler_name, created_at, updated_at, child_exit_count,
+                last_child_exit_at, last_error
+            )
+            values (%s, now(), now(), 1, now(), %s)
+            on conflict (scheduler_name) do update
+            set updated_at = now(),
+                child_exit_count = scheduler_leader_statuses.child_exit_count + 1,
+                last_child_exit_at = excluded.last_child_exit_at,
+                last_error = excluded.last_error
+            """,
             error=f"Celery Beat child exited with status {exit_code}",
         )
 
     @staticmethod
-    def _upsert_state(
+    def _record_state(
         connection: Connection,
-        update_set: str,
+        statement: str,
         *,
         error: str | None = None,
     ) -> None:
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                insert into scheduler_leader_statuses (
-                    scheduler_name,
-                    created_at,
-                    updated_at,
-                    last_acquired_at,
-                    last_heartbeat_at,
-                    last_standby_at,
-                    last_child_exit_at,
-                    last_error
-                )
-                values (%s, now(), now(), now(), now(), now(), now(), %s)
-                on conflict (scheduler_name) do update
-                set updated_at = excluded.updated_at, """
-                + update_set,
-                (_LEADER_SCOPE, error),
-            )
+            parameters: tuple[str, ...] = (BEAT_LEADER_SCHEDULER_NAME,)
+            if error is not None:
+                parameters += (error,)
+            cursor.execute(statement, parameters)
 
     def _install_signal_handlers(self) -> None:
         def request_stop(_signum: int, _frame: object) -> None:
