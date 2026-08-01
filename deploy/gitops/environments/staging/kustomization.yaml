@@ -17,10 +17,10 @@ labels:
 images:
   - name: noteverse-backend-api
     newName: ghcr.io/tinghui0912/noteverse/backend-api
-    digest: sha256:bd6bb60c1e1c5487e2aacf395c47d9f3388779e9fe86071485837454a71abbe8
+    digest: sha256:d395f0bb2963dccc8fe8d6b356829a7491bdc70d6111e3d8f883f2d880a66795
   - name: noteverse-backend-practice
     newName: ghcr.io/tinghui0912/noteverse/backend-practice
-    digest: sha256:531e1c015d7ca3d352cabffcfd2d2ccfe322b4d22ab433cc48ba59c8bba24302
+    digest: sha256:fe8009da634a272f253ee0e47314be67f3c8593c8de660de09fbadd282a99819
   - name: noteverse-backend-worker
     newName: ghcr.io/tinghui0912/noteverse/backend-worker
     digest: sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2
