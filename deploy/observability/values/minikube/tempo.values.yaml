@@ -14,6 +14,26 @@
 
 tempo:
   retention: 168h
+  # The default 1024Mi ballast and 30-second liveness window are unsuitable
+  # for qemu2 cold starts. This remains a minikube-only compromise.
+  memBallastSizeMbs: 128
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+  livenessProbe:
+    initialDelaySeconds: 90
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 12
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 12
   storage:
     trace:
       backend: s3

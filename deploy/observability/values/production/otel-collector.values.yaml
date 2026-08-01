@@ -8,6 +8,16 @@
 
 replicaCount: 2
 
+# Initial production baseline. Re-size from measured ingest rate, batch size,
+# tail-sampling memory, and exporter retry pressure before each promotion.
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
 alternateConfig:
   processors:
     tail_sampling:

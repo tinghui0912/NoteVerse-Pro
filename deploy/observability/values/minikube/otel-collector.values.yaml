@@ -1,0 +1,13 @@
+# Minikube/staging resource baseline for the OpenTelemetry Collector.
+#
+# Keep this intentionally small for the qemu2 rehearsal cluster while setting a
+# real memory limit so the collector's memory_limiter and GOMEMLIMIT policies
+# have an explicit ceiling.
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

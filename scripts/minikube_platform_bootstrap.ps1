@@ -95,8 +95,15 @@ Test-CommandAvailable "helm"
 Test-CommandAvailable "minikube"
 Ensure-CloudflareToken
 
-Invoke-Checked "minikube:status" {
-    minikube -p $MinikubeProfile status
+Invoke-Checked "cluster:context" {
+    $currentContext = (kubectl config current-context).Trim()
+    if ($currentContext -ne $MinikubeProfile) {
+        throw "Current kubeconfig context is '$currentContext'; expected '$MinikubeProfile'. Start the profile API tunnel first, then switch to the intended context."
+    }
+}
+
+Invoke-Checked "cluster:api-ready" {
+    kubectl get --raw='/readyz'
 }
 
 Invoke-Checked "cluster:nodes" {
