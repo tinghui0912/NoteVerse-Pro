@@ -71,7 +71,7 @@ Allowed local state:
 - node-local model cache for model assets;
 - temporary work directories that are not durable source-of-truth storage.
 - minikube/staging uses `StorageClass/noteverse-local-lvm` for observability
-  PVCs through TopoLVM and per-node extra block disks.
+  PVCs through OpenEBS Local PV LVM and per-node extra block disks.
 
 ### D4. Release packages reference secrets but do not contain secret values
 
@@ -115,7 +115,7 @@ Status: baseline completed; full OMR/GPU worker validation remains deferred.
 Completed so far:
 
 - rewrote `docs/operations/runbooks/minikube-from-zero.md` around Gateway API,
-  Envoy Gateway, S3-compatible storage, release overlays, and TopoLVM;
+  Envoy Gateway, S3-compatible storage, release overlays, and OpenEBS Local PV LVM;
 - documented Cloudflare DNS records, cert-manager DNS-01 setup, and local
   hosts requirements for the real staging domain;
 - documented GHCR pull Secret creation from an explicit token rather than a
@@ -129,14 +129,15 @@ Completed so far:
   - `scripts/minikube_start_lvm_profile.ps1`;
   - `scripts/minikube_start_api_tunnel.ps1`;
   - `scripts/minikube_prepare_lvm_vg.ps1`;
-  - `scripts/minikube_install_topolvm.ps1`;
-- added `deploy/platform/storage/topolvm/minikube.values.yaml`;
+  - `scripts/minikube_install_openebs_lvm.ps1`;
+- added `deploy/platform/storage/openebs-lvm/minikube.values.yaml`;
+- added `deploy/platform/storage/openebs-lvm/noteverse-local-lvm-storageclass.yaml`;
 - added `docs/operations/runbooks/local-vm-k8s-lab.md` for the higher-fidelity
   block-device and GPU worker rehearsal path;
 - changed `docs/operations/runbooks/minikube-local-k8s-runbook.md` into a
   legacy troubleshooting reference instead of a from-zero entry point.
 - validated a fresh qemu2 `noteverse-lvm` profile with Gateway API,
-  cert-manager, MetalLB, Envoy Gateway, TopoLVM, and the observability
+  cert-manager, MetalLB, Envoy Gateway, OpenEBS Local PV LVM, and the observability
   namespace;
 - documented the qemu2 API tunnel recovery path and the cluster-reset replay
   path.
@@ -174,7 +175,7 @@ Current temporary boundary:
 - `backend-worker` can be scaled to zero in minikube and run locally through
   Docker Compose against the same PostgreSQL, Redis, and S3 settings.
 - A local VM Kubernetes lab is the recommended next step for validating real
-  block devices, TopoLVM, GPU worker scheduling, and model-cache behavior.
+  block devices, OpenEBS Local PV LVM, GPU worker scheduling, and model-cache behavior.
 
 Validation:
 
@@ -203,18 +204,17 @@ Completed so far:
   use S3-backed Loki and Tempo storage;
 - locally rendered minikube Loki/Tempo Helm manifests and production
   Loki/Tempo/Prometheus/OpenTelemetry manifests;
-- added TopoLVM values and scripts for qemu2 minikube profiles with per-node
-  LVM volume groups.
+- added OpenEBS Local PV LVM values, StorageClass manifest, and scripts for
+  qemu2 minikube profiles with per-node LVM volume groups.
 - installed the minikube observability stack with S3-backed Loki and Tempo,
-  TopoLVM-backed Prometheus/Grafana/Alertmanager PVCs, Fluent Bit,
+  OpenEBS Local PV LVM-backed Prometheus/Grafana/Alertmanager PVCs, Fluent Bit,
   kube-prometheus-stack, and OpenTelemetry Collector;
-- hardened minikube probes for TopoLVM, Prometheus, Alertmanager, Grafana,
+- hardened minikube probes for Prometheus, Alertmanager, Grafana,
   node-exporter, Prometheus Operator, kube-state-metrics, and OpenTelemetry
   Collector to tolerate qemu2 pauses;
-- adjusted the minikube TopoLVM overlay for a single-node rehearsal profile:
-  controller leader election disabled, snapshot support disabled, and
-  `maxUnavailable=1` / `maxSurge=0` rolling updates so anti-affinity does not
-  deadlock controller upgrades;
+- configured the minikube OpenEBS values to install only the Local PV LVM
+  engine and to disable Hostpath, ZFS, rawfile, Mayastor, bundled Loki, and CSI
+  snapshot CRDs;
 - disabled Prometheus Operator admission webhook/TLS in the minikube overlay so
   `--no-hooks` installs do not require the generated admission Secret;
 - resized minikube Loki and Prometheus PVCs to `8Gi` each so a local LVM disk
@@ -233,16 +233,25 @@ Completed so far:
 - enabled production Grafana dashboard sidecar provisioning across namespaces
   for repository-owned dashboard ConfigMaps;
 - kept minikube Grafana dashboard sidecar disabled and used static
-  `dashboardsConfigMaps` provisioning for the same dashboard ConfigMap because
+  `dashboardsConfigMaps` provisioning for the same dashboard ConfigMaps because
   qemu2 rollout stability is poor on Windows;
 - added the first NoteVerse application dashboard ConfigMap covering backend
   scrape health, request rate, 5xx ratio, request latency, and realtime active
   connections;
+- added scheduler heartbeat, lag, duration, due, dispatch, and failure metrics
+  backed by PostgreSQL scheduler state and exposed through API `/metrics`;
+- extended the NoteVerse application dashboard and PrometheusRule with
+  scheduler health panels and alerts;
+- added the first NoteVerse platform observability dashboard for Loki, Tempo,
+  OpenTelemetry Collector, query latency, dropped telemetry, and observability
+  PVC usage;
 - added `PrometheusRule/noteverse-application` for backend target down, high
   5xx ratio, and high p95 latency alerts;
 - added `scripts/minikube_observability_smoke.ps1` and validated Pod readiness,
   PVC binding, Prometheus, Loki, Tempo, and Grafana datasource provisioning in
   the fresh minikube environment;
+- extended the observability smoke script to verify the NoteVerse application
+  and platform dashboards are both loaded in Grafana.
 - re-ran the observability smoke successfully after applying the digest-pinned
   staging application release package.
 - added runbook URLs to the first NoteVerse application PrometheusRule group;

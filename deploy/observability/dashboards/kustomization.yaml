@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - noteverse-application-dashboard.yaml
+  - noteverse-platform-observability-dashboard.yaml

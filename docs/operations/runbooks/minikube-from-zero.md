@@ -196,7 +196,7 @@ noteverse-tempo-staging
 ## 5. Install StorageClass
 
 Initialize the extra disk on every node as an LVM volume group, then install
-TopoLVM:
+OpenEBS Local PV LVM:
 
 ```powershell
 .\scripts\minikube_prepare_lvm_vg.ps1 `
@@ -204,33 +204,33 @@ TopoLVM:
   -VolumeGroup noteverse-local-vg `
   -WipeExtraDisk
 
-.\scripts\minikube_install_topolvm.ps1
+.\scripts\minikube_install_openebs_lvm.ps1
 ```
 
 Verify:
 
 ```powershell
 kubectl get storageclass noteverse-local-lvm
-.\scripts\minikube_smoke_topolvm.ps1
+.\scripts\minikube_smoke_openebs_lvm.ps1
 ```
 
 This is the staging rehearsal StorageClass. Production should use a managed
 cloud block storage CSI or an operator-managed local PV provisioner. Direct
 workload `hostPath` mounts are not part of the storage contract.
 
-The minikube TopoLVM overlay is intentionally single-node friendly:
+The minikube OpenEBS values intentionally install only Local PV LVM:
 
-- `controller.replicaCount=1`;
-- controller leader election is disabled;
-- controller rolling update uses `maxUnavailable=1` and `maxSurge=0` so a
-  single-node profile does not get stuck on controller anti-affinity;
-- snapshot support is disabled because NoteVerse does not currently use
+- Local PV LVM is enabled;
+- Hostpath, ZFS, rawfile, Mayastor, and the OpenEBS chart's bundled Loki path
+  are disabled;
+- CSI snapshot CRDs are disabled because NoteVerse does not currently use
   Kubernetes `VolumeSnapshot` resources;
-- TopoLVM probe timeouts are wider than production defaults to tolerate qemu2
-  pauses and slow LVM operations.
+- the repository-owned `StorageClass/noteverse-local-lvm` binds to the
+  `noteverse-local-vg` volume group with `WaitForFirstConsumer`.
 
-Production TopoLVM or another local PV provisioner should use production HA
-settings instead of this minikube-only overlay.
+Production can use the same StorageClass contract, but the platform team must
+size the VG, node labels, capacity monitoring, and CSI upgrade policy for the
+actual cluster.
 
 ## 6. Create Secrets
 

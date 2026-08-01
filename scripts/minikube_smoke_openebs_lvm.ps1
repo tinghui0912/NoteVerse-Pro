@@ -1,7 +1,7 @@
 param(
     [string] $StorageClassName = "noteverse-local-lvm",
     [string] $Namespace = "default",
-    [string] $Name = "topolvm-smoke",
+    [string] $Name = "openebs-lvm-smoke",
     [string] $Size = "1Gi",
     [int] $TimeoutSeconds = 180
 )
@@ -65,14 +65,14 @@ try {
         }
         if ($phase -eq "Failed") {
             kubectl -n $Namespace describe pod $Name | Out-Host
-            throw "TopoLVM smoke pod failed."
+            throw "OpenEBS LVM smoke pod failed."
         }
         Start-Sleep -Seconds 3
     } while ((Get-Date) -lt $deadline)
 
     if ($phase -ne "Succeeded") {
         kubectl -n $Namespace describe pod $Name | Out-Host
-        throw "Timed out waiting for TopoLVM smoke pod to succeed."
+        throw "Timed out waiting for OpenEBS LVM smoke pod to succeed."
     }
 
     Invoke-Checked "smoke:logs" {

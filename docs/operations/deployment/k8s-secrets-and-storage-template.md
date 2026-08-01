@@ -238,7 +238,7 @@ Minikube/staging standard:
 StorageClass/noteverse-local-lvm
 ```
 
-Implemented by TopoLVM over an LVM volume group on each minikube node.
+Implemented by OpenEBS Local PV LVM over an LVM volume group on each minikube node.
 
 Production standard:
 
@@ -256,7 +256,7 @@ Cloud-provider managed disk CSI
 ```
 
 For self-managed clusters with local SSDs, use an operator-managed local PV
-provisioner such as TopoLVM or OpenEBS Local PV LVM/ZFS. Do not use direct
+provisioner such as OpenEBS Local PV LVM or OpenEBS Local PV ZFS. Do not use direct
 workload `hostPath` mounts for Prometheus.
 
 ### Node-Local Model Cache

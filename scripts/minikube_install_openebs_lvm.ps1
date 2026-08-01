@@ -1,6 +1,7 @@
 param(
-    [string] $Namespace = "topolvm-system",
-    [string] $ValuesFile = "deploy/platform/storage/topolvm/minikube.values.yaml",
+    [string] $Namespace = "openebs",
+    [string] $ValuesFile = "deploy/platform/storage/openebs-lvm/minikube.values.yaml",
+    [string] $StorageClassManifest = "deploy/platform/storage/openebs-lvm/noteverse-local-lvm-storageclass.yaml",
     [string] $StorageClassName = "noteverse-local-lvm",
     [switch] $SetDefault
 )
@@ -30,19 +31,23 @@ Invoke-Checked "namespace" {
 }
 
 Invoke-Checked "helm:repo" {
-    helm repo add topolvm https://topolvm.github.io/topolvm | Out-Host
-    helm repo update topolvm | Out-Host
+    helm repo add openebs https://openebs.github.io/openebs | Out-Host
+    helm repo update openebs | Out-Host
 }
 
-Invoke-Checked "helm:topolvm" {
-    & helm upgrade --install topolvm topolvm/topolvm `
+Invoke-Checked "helm:openebs-lvm" {
+    & helm upgrade --install openebs openebs/openebs `
         --namespace $Namespace `
         -f $ValuesFile `
         --wait `
         --timeout 10m
     if ($LASTEXITCODE -ne 0) {
-        throw "TopoLVM Helm install failed."
+        throw "OpenEBS Local PV LVM Helm install failed."
     }
+}
+
+Invoke-Checked "storageclass:apply" {
+    kubectl apply -f $StorageClassManifest | Out-Host
 }
 
 Invoke-Checked "storageclass:wait" {

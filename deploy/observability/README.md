@@ -79,7 +79,7 @@ minikube overlays are intentionally scoped:
   staging rehearsal environment.
 - Prometheus, Alertmanager, and Grafana use PVCs backed by
   `StorageClass/noteverse-local-lvm`.
-- The minikube StorageClass is provided by TopoLVM over per-node extra block
+- The minikube StorageClass is provided by OpenEBS Local PV LVM over per-node extra block
   disks in the qemu2 minikube profile.
 
 Production overlays define durable storage shape, retention, and trace sampling,

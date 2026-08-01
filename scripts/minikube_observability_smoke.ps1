@@ -179,6 +179,15 @@ try {
         }
     }
 
+    Write-Step "grafana:dashboards"
+    $dashboards = Invoke-JsonWithRetry -Name "Grafana dashboards" -Uri "http://127.0.0.1:$GrafanaPort/api/search?type=dash-db&query=NoteVerse" -Headers $headers
+    $dashboardTitles = @($dashboards | ForEach-Object { $_.title })
+    foreach ($required in @("NoteVerse Application Overview", "NoteVerse Platform Observability")) {
+        if ($dashboardTitles -notcontains $required) {
+            throw "Grafana dashboard missing: $required"
+        }
+    }
+
     Write-Host "[OK] observability smoke passed"
 } finally {
     foreach ($process in $portForwards) {

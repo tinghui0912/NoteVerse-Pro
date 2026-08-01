@@ -1,5 +1,8 @@
 """Celery task entrypoints for score import jobs."""
 
+from collections.abc import Callable
+from time import monotonic
+
 from app.core.logger import logger, set_task_id
 from app.db.models import RenderTargetType
 from app.db.worker_session import get_worker_db
@@ -22,10 +25,16 @@ from app.modules.revisions.derived_asset_retention_service import (
     derived_asset_retention_service,
 )
 from app.modules.review.thumbnail_service import review_thumbnail_service
+from app.modules.scheduler_observability.service import (
+    SchedulerRunStats,
+    scheduler_observability_service,
+)
+from app.modules.scheduler_lock import scheduler_lock_service
 from app.modules.scores.lifecycle_service import score_lifecycle_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
 from app.worker.celery_config import celery_app
+
 
 def _bind_task_context(self: CeleryTaskLike | None) -> None:
     task_id = getattr(getattr(self, "request", None), "id", None)
@@ -38,6 +47,79 @@ def _clear_task_context() -> None:
 
 def _operation_logger(event: str, **context: object):
     return logger.bind(event=event, **context)
+
+
+def _run_scheduler_scan(job_key: str, callback: Callable[[], dict[str, int]]) -> dict[str, int]:
+    started_at = monotonic()
+    with scheduler_lock_service.try_acquire(job_key) as acquired:
+        if not acquired:
+            with get_worker_db() as db:
+                scheduler_observability_service.record_lock_skipped(db, job_key)
+            _operation_logger(
+                "scheduler.scan_skipped",
+                operation_kind="scheduler",
+                scheduler_job=job_key,
+                reason="lock_not_acquired",
+            ).info("scheduler.scan_skipped")
+            return {"due": 0, "dispatched": 0, "lock_skipped": 1}
+
+        with get_worker_db() as db:
+            scheduler_observability_service.record_lock_acquired(db, job_key)
+        return _run_locked_scheduler_scan(job_key, callback, started_at)
+
+
+def _run_locked_scheduler_scan(
+    job_key: str,
+    callback: Callable[[], dict[str, int]],
+    started_at: float,
+) -> dict[str, int]:
+    with get_worker_db() as db:
+        scheduler_observability_service.record_started(db, job_key)
+    try:
+        result = callback()
+    except Exception as exc:
+        duration_seconds = monotonic() - started_at
+        with get_worker_db() as db:
+            scheduler_observability_service.record_failure(
+                db,
+                job_key,
+                duration_seconds=duration_seconds,
+                error=f"{type(exc).__name__}: {exc}",
+            )
+        _operation_logger(
+            "scheduler.scan_failed",
+            operation_kind="scheduler",
+            scheduler_job=job_key,
+            duration_seconds=round(duration_seconds, 3),
+            exception_type=type(exc).__name__,
+        ).opt(exception=True).error("scheduler.scan_failed")
+        raise
+
+    duration_seconds = monotonic() - started_at
+    stats = _scheduler_run_stats(result)
+    with get_worker_db() as db:
+        scheduler_observability_service.record_success(
+            db,
+            job_key,
+            duration_seconds=duration_seconds,
+            stats=stats,
+        )
+    _operation_logger(
+        "scheduler.scan_completed",
+        operation_kind="scheduler",
+        scheduler_job=job_key,
+        duration_seconds=round(duration_seconds, 3),
+        due=stats.due,
+        dispatched=stats.dispatched,
+    ).info("scheduler.scan_completed")
+    return result
+
+
+def _scheduler_run_stats(result: dict[str, int]) -> SchedulerRunStats:
+    return SchedulerRunStats(
+        due=int(result.get("due", 0)),
+        dispatched=int(result.get("dispatched", 0)),
+    )
 
 
 @celery_app.task(
@@ -383,125 +465,157 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
 def run_job_maintenance() -> dict[str, int]:
     """Run periodic import-job/upload maintenance."""
 
-    with get_worker_db() as db:
-        result = job_maintenance_service.run(db)
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            result = job_maintenance_service.run(db)
 
-    return {
-        "orphan_uploads_deleted": result.orphan_uploads_deleted,
-    }
+        return {
+            "orphan_uploads_deleted": result.orphan_uploads_deleted,
+        }
+
+    return _run_scheduler_scan("job_maintenance", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_import_dispatch_maintenance")
 def run_import_dispatch_maintenance() -> dict[str, int]:
     """Recover stale import deliveries and dispatch all due jobs."""
 
-    with get_worker_db() as db:
-        due = import_dispatch_service.recover_and_claim_due(db)
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            due = import_dispatch_service.recover_and_claim_due(db)
 
-    from app.shared.import_dispatcher import dispatch_import_job
+        from app.shared.import_dispatcher import dispatch_import_job
 
-    dispatched = sum(1 for job_uuid in due if dispatch_import_job(job_uuid))
-    return {"due": len(due), "dispatched": dispatched}
+        dispatched = sum(1 for job_uuid in due if dispatch_import_job(job_uuid))
+        return {"due": len(due), "dispatched": dispatched}
+
+    return _run_scheduler_scan("import_dispatch", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_notification_maintenance")
 def run_notification_maintenance() -> dict[str, int]:
     """Run periodic user-notification cleanup."""
 
-    with get_worker_db() as db:
-        result = notification_maintenance_service.run(db)
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            result = notification_maintenance_service.run(db)
 
-    return {
-        "expired_notifications_deleted": result.expired_notifications_deleted,
-    }
+        return {
+            "expired_notifications_deleted": result.expired_notifications_deleted,
+        }
+
+    return _run_scheduler_scan("notification_maintenance", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_realtime_maintenance")
 def run_realtime_maintenance() -> dict[str, int]:
     """Run periodic realtime-event cleanup."""
 
-    with get_worker_db() as db:
-        result = realtime_maintenance_service.run(db)
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            result = realtime_maintenance_service.run(db)
 
-    return {
-        "expired_events_deleted": result.expired_events_deleted,
-    }
+        return {
+            "expired_events_deleted": result.expired_events_deleted,
+        }
+
+    return _run_scheduler_scan("realtime_maintenance", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_derived_asset_cleanup")
 def run_derived_asset_cleanup() -> dict[str, int]:
     """Remove derived preview/audio assets outside the retention window."""
 
-    with get_worker_db() as db:
-        result = derived_asset_retention_service.cleanup_due_scores(db)
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            result = derived_asset_retention_service.cleanup_due_scores(db)
 
-    return {
-        "rendered_pages_deleted": result.rendered_pages_deleted,
-        "playback_assets_deleted": result.playback_assets_deleted,
-        "storage_objects_deleted": result.storage_objects_deleted,
-    }
+        return {
+            "rendered_pages_deleted": result.rendered_pages_deleted,
+            "playback_assets_deleted": result.playback_assets_deleted,
+            "storage_objects_deleted": result.storage_objects_deleted,
+        }
+
+    return _run_scheduler_scan("derived_asset_cleanup", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_score_deletion_cleanup")
 def run_score_deletion_cleanup() -> dict[str, int]:
     """Hard-delete scores that were hidden by a user deletion request."""
 
-    with get_worker_db() as db:
-        result = score_lifecycle_service.cleanup_deleting_scores(db)
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            result = score_lifecycle_service.cleanup_deleting_scores(db)
 
-    _operation_logger(
-        "score_deletion.cleanup_completed",
-        operation_kind="score_deletion",
-        scores_deleted=result.scores_deleted,
-        storage_objects_deleted=result.storage_objects_deleted,
-    ).info("score_deletion.cleanup_completed")
-    return {
-        "scores_deleted": result.scores_deleted,
-        "storage_objects_deleted": result.storage_objects_deleted,
-    }
+        _operation_logger(
+            "score_deletion.cleanup_completed",
+            operation_kind="score_deletion",
+            scores_deleted=result.scores_deleted,
+            storage_objects_deleted=result.storage_objects_deleted,
+        ).info("score_deletion.cleanup_completed")
+        return {
+            "scores_deleted": result.scores_deleted,
+            "storage_objects_deleted": result.storage_objects_deleted,
+        }
+
+    return _run_scheduler_scan("score_deletion_cleanup", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_render_outbox_maintenance")
 def run_render_outbox_maintenance() -> dict[str, int]:
     """Recover stale render deliveries and dispatch all due outbox records."""
 
-    with get_worker_db() as db:
-        due = render_outbox_service.recover_and_list_due(db)
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            due = render_outbox_service.recover_and_list_due(db)
 
-    from app.shared.render_dispatcher import dispatch_render_outbox
+        from app.shared.render_dispatcher import dispatch_render_outbox
 
-    dispatched = sum(1 for outbox_uuid in due if dispatch_render_outbox(outbox_uuid))
-    return {"due": len(due), "dispatched": dispatched}
+        dispatched = sum(1 for outbox_uuid in due if dispatch_render_outbox(outbox_uuid))
+        return {"due": len(due), "dispatched": dispatched}
+
+    return _run_scheduler_scan("render_outbox", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_playback_outbox_maintenance")
 def run_playback_outbox_maintenance() -> dict[str, int]:
     """Recover stale playback deliveries and dispatch all due outbox records."""
 
-    with get_worker_db() as db:
-        due = playback_outbox_service.recover_and_list_due(db)
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            due = playback_outbox_service.recover_and_list_due(db)
 
-    from app.shared.playback_dispatcher import dispatch_playback_outbox
+        from app.shared.playback_dispatcher import dispatch_playback_outbox
 
-    dispatched = sum(1 for outbox_uuid in due if dispatch_playback_outbox(outbox_uuid))
-    return {"due": len(due), "dispatched": dispatched}
+        dispatched = sum(1 for outbox_uuid in due if dispatch_playback_outbox(outbox_uuid))
+        return {"due": len(due), "dispatched": dispatched}
+
+    return _run_scheduler_scan("playback_outbox", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_mail_outbox_maintenance")
 def run_mail_outbox_maintenance() -> dict[str, int]:
     """Recover, dispatch, and expire durable mail records."""
-    with get_worker_db() as db:
-        due = mail_outbox_service.recover_and_list_due(db)
 
-    from app.shared.mail_dispatcher import dispatch_mail_outbox
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            due = mail_outbox_service.recover_and_list_due(db)
 
-    dispatched = sum(1 for outbox_uuid in due if dispatch_mail_outbox(outbox_uuid))
-    return {"due": len(due), "dispatched": dispatched}
+        from app.shared.mail_dispatcher import dispatch_mail_outbox
+
+        dispatched = sum(1 for outbox_uuid in due if dispatch_mail_outbox(outbox_uuid))
+        return {"due": len(due), "dispatched": dispatched}
+
+    return _run_scheduler_scan("mail_outbox", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_mail_outbox_cleanup")
 def run_mail_outbox_cleanup() -> dict[str, int]:
     """Delete terminal mail records after their retention window."""
-    with get_worker_db() as db:
-        deleted = mail_outbox_service.cleanup(db)
-    return {"deleted": deleted}
+
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            deleted = mail_outbox_service.cleanup(db)
+        return {"deleted": deleted}
+
+    return _run_scheduler_scan("mail_outbox_cleanup", scan)

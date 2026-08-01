@@ -15,6 +15,13 @@ def test_metrics_endpoint_exposes_prometheus_text(client: TestClient) -> None:
     assert "noteverse_async_operation_oldest_open_age_seconds" in response.text
     assert "noteverse_async_operation_oldest_processing_age_seconds" in response.text
     assert "noteverse_async_operation_completed_duration_average_seconds" in response.text
+    assert "noteverse_scheduler_last_success_timestamp_seconds" in response.text
+    assert "noteverse_scheduler_last_scan_duration_seconds" in response.text
+    assert "noteverse_scheduler_successes_total" in response.text
+    assert "noteverse_scheduler_dispatched_records_total" in response.text
+    assert "noteverse_scheduler_lock_acquired_total" in response.text
+    assert "noteverse_scheduler_lock_skipped_total" in response.text
+    assert "noteverse_scheduler_lag_seconds" in response.text
     assert 'noteverse_realtime_active_connections{channel="app_sse"} 0.0' in response.text
     assert (
         'noteverse_realtime_active_connections{channel="practice_websocket"} 0.0'

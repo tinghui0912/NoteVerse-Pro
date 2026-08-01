@@ -44,7 +44,7 @@ StorageClass/noteverse-local-lvm
 Provided by:
 
 ```text
-TopoLVM
+OpenEBS Local PV LVM
 ```
 
 The required local shape is:
@@ -53,7 +53,7 @@ The required local shape is:
 qemu2 minikube profile
   -> extra block disk on each node
   -> LVM volume group noteverse-local-vg
-  -> TopoLVM
+  -> OpenEBS Local PV LVM
   -> StorageClass/noteverse-local-lvm
 ```
 
@@ -62,7 +62,7 @@ Install through:
 ```powershell
 .\scripts\minikube_start_lvm_profile.ps1
 .\scripts\minikube_prepare_lvm_vg.ps1 -WipeExtraDisk
-.\scripts\minikube_install_topolvm.ps1
+.\scripts\minikube_install_openebs_lvm.ps1
 ```
 
 The Docker minikube driver cannot provide real extra block disks to the nodes.
@@ -91,7 +91,7 @@ Choose the provisioner based on the cluster substrate:
 | Environment | Recommended provisioner |
 | --- | --- |
 | Managed cloud Kubernetes | Cloud block storage CSI, such as EBS CSI, GCE PD CSI, Azure Disk CSI, or the cloud provider equivalent |
-| Self-managed Kubernetes with local SSDs | TopoLVM, OpenEBS Local PV LVM/ZFS, or another operator-managed local PV provisioner |
+| Self-managed Kubernetes with local SSDs | OpenEBS Local PV LVM, OpenEBS Local PV ZFS, or another operator-managed local PV provisioner |
 | Multi-node shared POSIX filesystem need | CephFS/Rook, EFS, NFS, or another shared filesystem CSI, only when the workload genuinely needs RWX |
 
 For the first NoteVerse production environment, prefer:

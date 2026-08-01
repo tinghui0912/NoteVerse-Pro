@@ -20,7 +20,7 @@ Keep two local Kubernetes paths with clear responsibilities:
 | Path | Purpose |
 | --- | --- |
 | qemu2 minikube profile | Fast production-shaped release rehearsal: Gateway API, TLS, S3, Secrets, release packages, observability, LVM StorageClass |
-| Local VM Kubernetes lab | Full node-runtime rehearsal: real block disks, TopoLVM/OpenEBS LVM, GPU worker, model cache, node failure behavior |
+| Local VM Kubernetes lab | Full node-runtime rehearsal: real block disks, OpenEBS Local PV LVM, GPU worker, model cache, node failure behavior |
 
 Do not use Docker volumes mounted into Docker-driver minikube nodes to simulate
 LVM. Docker volumes are filesystem mounts, not block devices.
@@ -74,7 +74,7 @@ Local block storage is reserved for:
 Recommended local PV provider:
 
 ```text
-TopoLVM
+OpenEBS Local PV LVM
 ```
 
 Provisioning contract:
@@ -83,7 +83,7 @@ Provisioning contract:
 extra virtual disk
   -> LVM physical volume
   -> VG noteverse-local-vg
-  -> TopoLVM
+  -> OpenEBS Local PV LVM
   -> StorageClass/noteverse-local-lvm
   -> PVCs
 ```
@@ -177,7 +177,7 @@ application deployment model identical to minikube and production:
 - Gateway API;
 - Envoy Gateway;
 - S3-compatible object storage;
-- TopoLVM StorageClass;
+- OpenEBS Local PV LVM StorageClass;
 - observability stack with S3-backed Loki/Tempo.
 
 The same rendered release overlay can be used if the hosts, TLS Secret name,

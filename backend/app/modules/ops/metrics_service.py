@@ -6,21 +6,24 @@ from collections.abc import Iterable
 
 from datetime import timedelta
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.models import (
     ImportDispatchStatus,
     ImportJob,
+    ImportJobState,
     MailOutbox,
     MailOutboxStatus,
     PlaybackOutbox,
     PlaybackOutboxStatus,
     RenderOutbox,
     RenderOutboxStatus,
+    SchedulerHeartbeat,
     Score,
 )
+from app.modules.scheduler_observability.service import scheduler_observability_service
 from app.utils.timezone import utc_now_naive
 
 
@@ -76,6 +79,36 @@ async def async_operation_metrics_text(db: AsyncSession) -> str:
         "# HELP noteverse_async_operation_completed_duration_average_seconds Average completed async operation duration in seconds over the last 24 hours.",
         "# TYPE noteverse_async_operation_completed_duration_average_seconds gauge",
         *await _completed_duration_average_lines(db),
+        "# HELP noteverse_scheduler_last_success_timestamp_seconds Unix timestamp of the last successful scheduler scan.",
+        "# TYPE noteverse_scheduler_last_success_timestamp_seconds gauge",
+        "# HELP noteverse_scheduler_last_failure_timestamp_seconds Unix timestamp of the last failed scheduler scan.",
+        "# TYPE noteverse_scheduler_last_failure_timestamp_seconds gauge",
+        "# HELP noteverse_scheduler_last_scan_duration_seconds Duration of the most recent scheduler scan.",
+        "# TYPE noteverse_scheduler_last_scan_duration_seconds gauge",
+        "# HELP noteverse_scheduler_scan_duration_seconds Scheduler scan duration summary.",
+        "# TYPE noteverse_scheduler_scan_duration_seconds summary",
+        "# HELP noteverse_scheduler_last_due_records Number of records due in the most recent scheduler scan.",
+        "# TYPE noteverse_scheduler_last_due_records gauge",
+        "# HELP noteverse_scheduler_last_dispatched_records Number of records dispatched in the most recent scheduler scan.",
+        "# TYPE noteverse_scheduler_last_dispatched_records gauge",
+        "# HELP noteverse_scheduler_successes_total Total successful scheduler scans recorded by the scheduler.",
+        "# TYPE noteverse_scheduler_successes_total counter",
+        "# HELP noteverse_scheduler_failures_total Total failed scheduler scans recorded by the scheduler.",
+        "# TYPE noteverse_scheduler_failures_total counter",
+        "# HELP noteverse_scheduler_due_records_total Total due records observed by successful scheduler scans.",
+        "# TYPE noteverse_scheduler_due_records_total counter",
+        "# HELP noteverse_scheduler_dispatched_records_total Total records dispatched by successful scheduler scans.",
+        "# TYPE noteverse_scheduler_dispatched_records_total counter",
+        "# HELP noteverse_scheduler_lock_acquired_total Total scheduler scans that acquired the database scheduler lock.",
+        "# TYPE noteverse_scheduler_lock_acquired_total counter",
+        "# HELP noteverse_scheduler_lock_skipped_total Total scheduler scans skipped because another scheduler held the database scheduler lock.",
+        "# TYPE noteverse_scheduler_lock_skipped_total counter",
+        "# HELP noteverse_scheduler_last_lock_skipped_timestamp_seconds Unix timestamp of the last scheduler lock skip.",
+        "# TYPE noteverse_scheduler_last_lock_skipped_timestamp_seconds gauge",
+        *await _scheduler_heartbeat_lines(db),
+        "# HELP noteverse_scheduler_lag_seconds Oldest due record delay before scheduler dispatch by async operation kind.",
+        "# TYPE noteverse_scheduler_lag_seconds gauge",
+        *await _scheduler_lag_lines(db),
     ]
     return "\n".join(lines) + "\n"
 
@@ -105,13 +138,22 @@ def _metric_line(
     metric_name: str,
     label_names: Iterable[str],
     label_values: Iterable[str],
-    value: int,
+    value: int | float,
 ) -> str:
     labels = ",".join(
         f'{name}="{_escape_label_value(label_value)}"'
         for name, label_value in zip(label_names, label_values, strict=True)
     )
     return f"{metric_name}{{{labels}}} {value}"
+
+
+def _metric_float_line(
+    metric_name: str,
+    label_names: Iterable[str],
+    label_values: Iterable[str],
+    value: float,
+) -> str:
+    return _metric_line(metric_name, label_names, label_values, round(value, 3))
 
 
 def _escape_label_value(value: str) -> str:
@@ -304,6 +346,198 @@ async def _completed_duration_average_lines(db: AsyncSession) -> list[str]:
     return [
         _metric_line(
             "noteverse_async_operation_completed_duration_average_seconds",
+            ("kind",),
+            (kind,),
+            seconds,
+        )
+        for kind, seconds in rows
+    ]
+
+
+async def _scheduler_heartbeat_lines(db: AsyncSession) -> list[str]:
+    result = await db.exec(select(SchedulerHeartbeat).order_by(SchedulerHeartbeat.job_key))
+    lines: list[str] = []
+    for heartbeat in result.all():
+        labels = ("job",)
+        values = (heartbeat.job_key,)
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_last_success_timestamp_seconds",
+                labels,
+                values,
+                scheduler_observability_service.timestamp_seconds(heartbeat.last_success_at),
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_last_failure_timestamp_seconds",
+                labels,
+                values,
+                scheduler_observability_service.timestamp_seconds(heartbeat.last_failure_at),
+            )
+        )
+        lines.append(
+            _metric_float_line(
+                "noteverse_scheduler_last_scan_duration_seconds",
+                labels,
+                values,
+                heartbeat.last_duration_ms / 1000,
+            )
+        )
+        lines.append(
+            _metric_float_line(
+                "noteverse_scheduler_scan_duration_seconds_sum",
+                labels,
+                values,
+                heartbeat.total_duration_ms / 1000,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_scan_duration_seconds_count",
+                labels,
+                values,
+                heartbeat.success_count + heartbeat.failure_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_last_due_records",
+                labels,
+                values,
+                heartbeat.last_due_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_last_dispatched_records",
+                labels,
+                values,
+                heartbeat.last_dispatched_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_successes_total",
+                labels,
+                values,
+                heartbeat.success_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_failures_total",
+                labels,
+                values,
+                heartbeat.failure_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_due_records_total",
+                labels,
+                values,
+                heartbeat.total_due_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_dispatched_records_total",
+                labels,
+                values,
+                heartbeat.total_dispatched_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_lock_acquired_total",
+                labels,
+                values,
+                heartbeat.lock_acquired_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_lock_skipped_total",
+                labels,
+                values,
+                heartbeat.lock_skipped_count,
+            )
+        )
+        lines.append(
+            _metric_line(
+                "noteverse_scheduler_last_lock_skipped_timestamp_seconds",
+                labels,
+                values,
+                scheduler_observability_service.timestamp_seconds(heartbeat.last_lock_skipped_at),
+            )
+        )
+    return lines
+
+
+async def _scheduler_lag_lines(db: AsyncSession) -> list[str]:
+    now = utc_now_naive()
+    rows = [
+        (
+            "import",
+            await _oldest_age_seconds(
+                db,
+                select(func.min(ImportJob.next_dispatch_at)).where(
+                    ImportJob.state == ImportJobState.PENDING,
+                    ImportJob.dispatch_status.in_(
+                        (ImportDispatchStatus.PENDING, ImportDispatchStatus.FAILED)
+                    ),
+                    ImportJob.next_dispatch_at <= now,
+                    ImportJob.dispatch_attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+                ),
+                now=now,
+            ),
+        ),
+        (
+            "render",
+            await _oldest_age_seconds(
+                db,
+                select(func.min(RenderOutbox.next_attempt_at)).where(
+                    RenderOutbox.status.in_(
+                        (RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED)
+                    ),
+                    RenderOutbox.next_attempt_at <= now,
+                    RenderOutbox.attempt_count < settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+                ),
+                now=now,
+            ),
+        ),
+        (
+            "playback",
+            await _oldest_age_seconds(
+                db,
+                select(func.min(PlaybackOutbox.next_attempt_at)).where(
+                    PlaybackOutbox.status.in_(
+                        (PlaybackOutboxStatus.PENDING, PlaybackOutboxStatus.FAILED)
+                    ),
+                    PlaybackOutbox.next_attempt_at <= now,
+                    PlaybackOutbox.attempt_count < settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+                ),
+                now=now,
+            ),
+        ),
+        (
+            "mail",
+            await _oldest_age_seconds(
+                db,
+                select(func.min(MailOutbox.next_attempt_at)).where(
+                    MailOutbox.status.in_((MailOutboxStatus.PENDING, MailOutboxStatus.FAILED)),
+                    MailOutbox.next_attempt_at <= now,
+                    MailOutbox.attempt_count < settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+                    or_(MailOutbox.expires_at.is_(None), MailOutbox.expires_at > now),
+                ),
+                now=now,
+            ),
+        ),
+    ]
+    return [
+        _metric_line(
+            "noteverse_scheduler_lag_seconds",
             ("kind",),
             (kind,),
             seconds,

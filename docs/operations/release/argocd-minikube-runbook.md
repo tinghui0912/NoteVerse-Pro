@@ -29,7 +29,7 @@ Environment:
 The platform bootstrap must already be complete:
 
 ```powershell
-kubectl get ns cert-manager envoy-gateway-system metallb-system observability topolvm-system
+kubectl get ns cert-manager envoy-gateway-system metallb-system observability openebs
 kubectl get ns noteverse-staging
 ```
 

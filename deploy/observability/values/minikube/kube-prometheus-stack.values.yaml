@@ -1,7 +1,7 @@
 # Minikube-only overrides for kube-prometheus-stack.
 #
 # The local minikube profile used for NoteVerse is created with qemu2 extra
-# block disks and TopoLVM. Prometheus, Alertmanager, and Grafana use the same
+# block disks and OpenEBS Local PV LVM. Prometheus, Alertmanager, and Grafana use the same
 # PVC/StorageClass shape expected in production.
 #
 # Do not use this file for production.
@@ -64,16 +64,25 @@ grafana:
     dashboardproviders.yaml:
       apiVersion: 1
       providers:
-        - name: noteverse
+        - name: noteverse-application
           orgId: 1
-          folder: ""
+          folder: "NoteVerse"
           type: file
           disableDeletion: false
           editable: true
           options:
-            path: /var/lib/grafana/dashboards/noteverse
+            path: /var/lib/grafana/dashboards/noteverse-application
+        - name: noteverse-platform
+          orgId: 1
+          folder: "NoteVerse Platform"
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/noteverse-platform
   dashboardsConfigMaps:
-    noteverse: noteverse-application-dashboard
+    noteverse-application: noteverse-application-dashboard
+    noteverse-platform: noteverse-platform-observability-dashboard
   deploymentStrategy:
     type: Recreate
   sidecar:
