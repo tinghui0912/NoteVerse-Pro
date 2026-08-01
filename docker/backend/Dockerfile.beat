@@ -14,7 +14,13 @@ RUN apt-get update -o Acquire::Retries=3 \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements/ /tmp/requirements/
+# Copy the Beat dependency closure only. This keeps scheduler image rebuilds
+# isolated from API, practice, and worker dependency changes.
+COPY backend/requirements/beat.txt \
+     backend/requirements/cache.txt \
+     backend/requirements/celery.txt \
+     backend/requirements/core.txt \
+     /tmp/requirements/
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -r /tmp/requirements/beat.txt

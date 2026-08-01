@@ -19,6 +19,15 @@ spec:
         app.kubernetes.io/part-of: noteverse
         app.kubernetes.io/component: backend-beat
     spec:
+      terminationGracePeriodSeconds: 45
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: noteverse
+              app.kubernetes.io/component: backend-beat
       imagePullSecrets:
         - name: noteverse-registry-credentials
       containers:
@@ -41,19 +50,18 @@ spec:
           startupProbe:
             exec:
               command:
-                - noteverse-entrypoint
-                - check
-                - --role
-                - beat
+                - /bin/sh
+                - -ec
+                - test -r /proc/1/cmdline && kill -0 1
             periodSeconds: 15
-            timeoutSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 20
           livenessProbe:
             exec:
               command:
                 - /bin/sh
-                - -c
-                - test -w /var/lib/noteverse/work/celerybeat
+                - -ec
+                - test -r /proc/1/cmdline && kill -0 1
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 6

@@ -1,3 +1,6 @@
-from app.modules.scheduler_lock.service import scheduler_lock_service
+"""PostgreSQL scheduler-lock primitives.
 
-__all__ = ["scheduler_lock_service"]
+The package deliberately performs no eager imports.  Beat only needs the
+psycopg-based leader supervisor, while worker scan tasks explicitly import the
+SQLAlchemy-based task lock service.
+"""

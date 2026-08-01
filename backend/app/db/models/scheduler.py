@@ -67,3 +67,34 @@ class SchedulerHeartbeat(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
+
+
+class SchedulerLeaderStatus(SQLModel, table=True):  # type: ignore[call-arg]
+    """Durable observability state for the Beat active/standby supervisor."""
+
+    __tablename__ = "scheduler_leader_statuses"
+
+    scheduler_name: str = Field(
+        sa_column=Column(String(80), primary_key=True),
+    )
+    last_acquired_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    last_heartbeat_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    last_standby_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    last_child_exit_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    acquired_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
+    standby_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
+    child_exit_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
+    last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(
+            DateTime,
+            default=utc_now_naive,
+            onupdate=utc_now_naive,
+            nullable=False,
+        ),
+    )

@@ -30,7 +30,9 @@ case "${1:-api}" in
     ;;
   beat)
     python scripts/check_runtime.py --role beat
-    exec python -m celery -A app.worker.celery_config:celery_app beat --loglevel="${CELERY_LOGLEVEL:-info}"
+    exec python -m app.modules.scheduler_lock.beat_leader -- \
+      python -m celery -A app.worker.celery_config:celery_app beat \
+      --loglevel="${CELERY_LOGLEVEL:-info}"
     ;;
   check)
     shift

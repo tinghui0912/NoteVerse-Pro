@@ -1,6 +1,50 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi.testclient import TestClient
+
+from app.db.models import SchedulerHeartbeat, SchedulerLeaderStatus
+from app.modules.ops.metrics_service import _scheduler_heartbeat_lines, _scheduler_leader_lines
+
+
+def test_scheduler_heartbeat_metrics_read_orm_entities() -> None:
+    heartbeat = SchedulerHeartbeat(job_key="render_outbox")
+
+    class ScalarResult:
+        def all(self) -> list[SchedulerHeartbeat]:
+            return [heartbeat]
+
+    class Result:
+        def scalars(self) -> ScalarResult:
+            return ScalarResult()
+
+    class Session:
+        async def exec(self, _statement: object) -> Result:
+            return Result()
+
+    lines = asyncio.run(_scheduler_heartbeat_lines(Session()))  # type: ignore[arg-type]
+
+    assert 'noteverse_scheduler_lock_acquired_total{job="render_outbox"} 0' in lines
+
+
+def test_scheduler_leader_metrics_read_dedicated_orm_entity() -> None:
+    status = SchedulerLeaderStatus(
+        scheduler_name="beat",
+        acquired_count=2,
+        standby_count=3,
+        child_exit_count=1,
+    )
+
+    class Session:
+        async def get(self, _model: object, _identity: object) -> SchedulerLeaderStatus:
+            return status
+
+    lines = asyncio.run(_scheduler_leader_lines(Session()))  # type: ignore[arg-type]
+
+    assert "noteverse_scheduler_leader_acquisitions_total 2" in lines
+    assert "noteverse_scheduler_leader_standby_total 3" in lines
+    assert "noteverse_scheduler_leader_child_exits_total 1" in lines
 
 
 def test_metrics_endpoint_exposes_prometheus_text(client: TestClient) -> None:
@@ -21,6 +65,7 @@ def test_metrics_endpoint_exposes_prometheus_text(client: TestClient) -> None:
     assert "noteverse_scheduler_dispatched_records_total" in response.text
     assert "noteverse_scheduler_lock_acquired_total" in response.text
     assert "noteverse_scheduler_lock_skipped_total" in response.text
+    assert "noteverse_scheduler_leader_active" in response.text
     assert "noteverse_scheduler_lag_seconds" in response.text
     assert 'noteverse_realtime_active_connections{channel="app_sse"} 0.0' in response.text
     assert (

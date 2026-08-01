@@ -107,6 +107,28 @@ spec:
             runbook_url: "docs/operations/runbooks/alerts/score-deletion-cleanup-stuck.md"
     - name: noteverse.application.scheduler
       rules:
+        - alert: NoteVerseSchedulerLeaderStale
+          expr: |
+            (time() - max by (namespace) (
+              noteverse_scheduler_leader_last_heartbeat_timestamp_seconds{namespace=~"noteverse-.*"}
+            )) > 90
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse scheduler leader is stale"
+            description: "No active Beat leader heartbeat has been observed recently. Periodic dispatch may be unavailable."
+            runbook_url: "docs/operations/runbooks/alerts/scheduler-leader-stale.md"
+        - alert: NoteVerseSchedulerLeaderChildExiting
+          expr: |
+            increase(noteverse_scheduler_leader_child_exits_total{namespace=~"noteverse-.*"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse Celery Beat child is exiting"
+            description: "The active scheduler supervisor observed an unexpected Celery Beat child exit."
+            runbook_url: "docs/operations/runbooks/alerts/scheduler-leader-stale.md"
         - alert: NoteVerseSchedulerScanStale
           expr: |
             (time() - max by (namespace, job) (

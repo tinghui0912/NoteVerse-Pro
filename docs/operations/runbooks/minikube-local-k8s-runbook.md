@@ -494,6 +494,7 @@ Then set backend Secret values to use those service names:
 ```text
 DATABASE_URL=postgresql+asyncpg://...@noteverse-host-postgres:5432/...
 SYNC_DATABASE_URL=postgresql+psycopg://...@noteverse-host-postgres:5432/...
+SCHEDULER_LOCK_DATABASE_URL=postgresql+psycopg://...@noteverse-host-postgres:5432/...
 REDIS_URL=redis://noteverse-host-redis:6379/0
 CELERY_BROKER_URL=redis://noteverse-host-redis:6379/0
 CELERY_RESULT_BACKEND=redis://noteverse-host-redis:6379/1
@@ -529,6 +530,7 @@ including:
 SECRET_KEY
 DATABASE_URL
 SYNC_DATABASE_URL
+SCHEDULER_LOCK_DATABASE_URL
 REDIS_URL
 CELERY_BROKER_URL
 CELERY_RESULT_BACKEND

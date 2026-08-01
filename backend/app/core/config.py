@@ -193,6 +193,12 @@ class Settings(BaseSettings):
         "PADDLEOCR_TIMEOUT_SECONDS",
         "CELERY_TASK_SOFT_TIME_LIMIT",
         "CELERY_TASK_TIME_LIMIT",
+        "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
+        "SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS",
+        "SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS",
+        "SCHEDULER_LOCK_KEEPALIVES_COUNT",
+        "SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS",
+        "SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS",
     )
     @classmethod
     def validate_positive_reliability_setting(cls, v: int) -> int:
@@ -217,12 +223,21 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
     SYNC_DATABASE_URL: str
+    # Dedicated direct/session-pooled PostgreSQL endpoint for the Beat leader
+    # advisory lock. Never point this at a transaction-pooling endpoint.
+    SCHEDULER_LOCK_DATABASE_URL: str
 
     # Redis
     REDIS_URL: str
 
     CELERY_BROKER_URL: str
     CELERY_RESULT_BACKEND: str
+    SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS: int = 5
+    SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS: int = 30
+    SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS: int = 10
+    SCHEDULER_LOCK_KEEPALIVES_COUNT: int = 3
+    SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS: int = 5
+    SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS: int = 15
     IMPORT_DISPATCH_INTERVAL_SECONDS: int = 30
     IMPORT_DISPATCH_TIMEOUT_SECONDS: int = 300
     IMPORT_PROCESSING_TIMEOUT_SECONDS: int = 1200
@@ -426,6 +441,18 @@ class Settings(BaseSettings):
         value = v.strip().lower()
         if value != "legato":
             raise ValueError("OMR_ENGINE must be: legato")
+        return value
+
+    @field_validator("SCHEDULER_LOCK_DATABASE_URL")
+    @classmethod
+    def validate_scheduler_lock_database_url(cls, v: str) -> str:
+        """Require a PostgreSQL DSN suitable for a session advisory lock."""
+
+        value = v.strip()
+        if not value.startswith(("postgresql://", "postgresql+psycopg://")):
+            raise ValueError(
+                "SCHEDULER_LOCK_DATABASE_URL must use a PostgreSQL psycopg-compatible URL"
+            )
         return value
 
     @field_validator("SCORE_RENDER_ENGINE")

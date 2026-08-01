@@ -25,6 +25,7 @@ $RequiredBackendSecretKeys = @(
     "SECRET_KEY",
     "DATABASE_URL",
     "SYNC_DATABASE_URL",
+    "SCHEDULER_LOCK_DATABASE_URL",
     "REDIS_URL",
     "CELERY_BROKER_URL",
     "CELERY_RESULT_BACKEND",

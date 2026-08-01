@@ -21,6 +21,7 @@ from app.db.models import (
     RenderOutbox,
     RenderOutboxStatus,
     SchedulerHeartbeat,
+    SchedulerLeaderStatus,
     Score,
 )
 from app.modules.scheduler_observability.service import scheduler_observability_service
@@ -106,6 +107,17 @@ async def async_operation_metrics_text(db: AsyncSession) -> str:
         "# HELP noteverse_scheduler_last_lock_skipped_timestamp_seconds Unix timestamp of the last scheduler lock skip.",
         "# TYPE noteverse_scheduler_last_lock_skipped_timestamp_seconds gauge",
         *await _scheduler_heartbeat_lines(db),
+        "# HELP noteverse_scheduler_leader_last_heartbeat_timestamp_seconds Unix timestamp of the active Beat leader heartbeat.",
+        "# TYPE noteverse_scheduler_leader_last_heartbeat_timestamp_seconds gauge",
+        "# HELP noteverse_scheduler_leader_active Whether a Beat leader heartbeat is current.",
+        "# TYPE noteverse_scheduler_leader_active gauge",
+        "# HELP noteverse_scheduler_leader_acquisitions_total Total successful Beat leader acquisitions.",
+        "# TYPE noteverse_scheduler_leader_acquisitions_total counter",
+        "# HELP noteverse_scheduler_leader_standby_total Total Beat standby observations.",
+        "# TYPE noteverse_scheduler_leader_standby_total counter",
+        "# HELP noteverse_scheduler_leader_child_exits_total Total unexpected Celery Beat child exits.",
+        "# TYPE noteverse_scheduler_leader_child_exits_total counter",
+        *await _scheduler_leader_lines(db),
         "# HELP noteverse_scheduler_lag_seconds Oldest due record delay before scheduler dispatch by async operation kind.",
         "# TYPE noteverse_scheduler_lag_seconds gauge",
         *await _scheduler_lag_lines(db),
@@ -144,7 +156,8 @@ def _metric_line(
         f'{name}="{_escape_label_value(label_value)}"'
         for name, label_value in zip(label_names, label_values, strict=True)
     )
-    return f"{metric_name}{{{labels}}} {value}"
+    suffix = f"{{{labels}}}" if labels else ""
+    return f"{metric_name}{suffix} {value}"
 
 
 def _metric_float_line(
@@ -357,7 +370,7 @@ async def _completed_duration_average_lines(db: AsyncSession) -> list[str]:
 async def _scheduler_heartbeat_lines(db: AsyncSession) -> list[str]:
     result = await db.exec(select(SchedulerHeartbeat).order_by(SchedulerHeartbeat.job_key))
     lines: list[str] = []
-    for heartbeat in result.all():
+    for heartbeat in result.scalars().all():
         labels = ("job",)
         values = (heartbeat.job_key,)
         lines.append(
@@ -473,6 +486,43 @@ async def _scheduler_heartbeat_lines(db: AsyncSession) -> list[str]:
             )
         )
     return lines
+
+
+async def _scheduler_leader_lines(db: AsyncSession) -> list[str]:
+    status = await db.get(SchedulerLeaderStatus, "beat")
+    if status is None:
+        return [
+            _metric_line("noteverse_scheduler_leader_last_heartbeat_timestamp_seconds", (), (), 0),
+            _metric_line("noteverse_scheduler_leader_active", (), (), 0),
+            _metric_line("noteverse_scheduler_leader_acquisitions_total", (), (), 0),
+            _metric_line("noteverse_scheduler_leader_standby_total", (), (), 0),
+            _metric_line("noteverse_scheduler_leader_child_exits_total", (), (), 0),
+        ]
+
+    heartbeat_timestamp = scheduler_observability_service.timestamp_seconds(
+        status.last_heartbeat_at
+    )
+    active = int(
+        heartbeat_timestamp > 0
+        and utc_now_naive().timestamp() - heartbeat_timestamp
+        <= settings.SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS * 2
+    )
+    return [
+        _metric_line(
+            "noteverse_scheduler_leader_last_heartbeat_timestamp_seconds",
+            (),
+            (),
+            heartbeat_timestamp,
+        ),
+        _metric_line("noteverse_scheduler_leader_active", (), (), active),
+        _metric_line(
+            "noteverse_scheduler_leader_acquisitions_total", (), (), status.acquired_count
+        ),
+        _metric_line("noteverse_scheduler_leader_standby_total", (), (), status.standby_count),
+        _metric_line(
+            "noteverse_scheduler_leader_child_exits_total", (), (), status.child_exit_count
+        ),
+    ]
 
 
 async def _scheduler_lag_lines(db: AsyncSession) -> list[str]:

@@ -16,7 +16,20 @@ RUN apt-get update -o Acquire::Retries=3 \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements/ /tmp/requirements/
+# Copy the API dependency closure only. A Beat/worker-only requirements change
+# must not invalidate this image's dependency layer.
+COPY backend/requirements/api.txt \
+     backend/requirements/auth.txt \
+     backend/requirements/cache.txt \
+     backend/requirements/celery.txt \
+     backend/requirements/core.txt \
+     backend/requirements/db.txt \
+     backend/requirements/fingering.txt \
+     backend/requirements/http.txt \
+     backend/requirements/image.txt \
+     backend/requirements/migrations.txt \
+     backend/requirements/storage.txt \
+     /tmp/requirements/
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -r /tmp/requirements/api.txt
