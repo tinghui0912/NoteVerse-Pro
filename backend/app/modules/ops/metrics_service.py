@@ -372,7 +372,10 @@ async def _scheduler_heartbeat_lines(db: AsyncSession) -> list[str]:
     result = await db.exec(select(SchedulerHeartbeat).order_by(SchedulerHeartbeat.job_key))
     lines: list[str] = []
     for heartbeat in result.scalars().all():
-        labels = ("job",)
+        # Prometheus reserves `job` for the scrape target. Keep the scheduler
+        # domain dimension distinct so dashboards and alerts do not aggregate
+        # by the exporting service instead of the scheduler scan.
+        labels = ("scheduler_job",)
         values = (heartbeat.job_key,)
         lines.append(
             _metric_line(

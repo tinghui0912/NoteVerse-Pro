@@ -442,6 +442,10 @@ otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317
 otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318
 ```
 
+Its self-observability metrics are also exposed on the chart-managed `metrics`
+service port (`8888`) and scraped by its ServiceMonitor. This is required for
+the platform dashboard to distinguish accepted, exported, and failed spans.
+
 Application services should send traces to that collector endpoint through
 explicit environment configuration. Do not configure fallback trace exporters or
 default external endpoints.

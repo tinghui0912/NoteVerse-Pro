@@ -26,7 +26,7 @@ def test_scheduler_heartbeat_metrics_read_orm_entities() -> None:
 
     lines = asyncio.run(_scheduler_heartbeat_lines(Session()))
 
-    assert 'noteverse_scheduler_lock_acquired_total{job="render_outbox"} 0' in lines
+    assert 'noteverse_scheduler_lock_acquired_total{scheduler_job="render_outbox"} 0' in lines
 
 
 def test_scheduler_leader_metrics_read_dedicated_orm_entity() -> None:

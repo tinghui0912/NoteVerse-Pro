@@ -60,7 +60,7 @@ spec:
         - alert: NoteVerseAsyncOperationBacklogOld
           expr: |
             max by (namespace, kind) (
-              noteverse_async_operation_oldest_open_age_seconds{namespace=~"noteverse-.*"}
+              noteverse_async_operation_oldest_open_age_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
             ) > 1800
           for: 10m
           labels:
@@ -72,7 +72,7 @@ spec:
         - alert: NoteVerseAsyncOperationProcessingStuck
           expr: |
             max by (namespace, kind) (
-              noteverse_async_operation_oldest_processing_age_seconds{namespace=~"noteverse-.*"}
+              noteverse_async_operation_oldest_processing_age_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
             ) > 1800
           for: 10m
           labels:
@@ -84,7 +84,7 @@ spec:
         - alert: NoteVerseOutboxFailuresPresent
           expr: |
             sum by (namespace, kind, status) (
-              noteverse_outbox_records_by_status{namespace=~"noteverse-.*", status=~"failed|permanent_failure"}
+              noteverse_outbox_records_by_status{namespace=~"noteverse-.*", job="noteverse-backend-api", status=~"failed|permanent_failure"}
             ) > 0
           for: 15m
           labels:
@@ -96,7 +96,7 @@ spec:
         - alert: NoteVerseScoreDeletionCleanupStuck
           expr: |
             sum by (namespace) (
-              noteverse_score_deletions_by_status{namespace=~"noteverse-.*", status="deleting"}
+              noteverse_score_deletions_by_status{namespace=~"noteverse-.*", job="noteverse-backend-api", status="deleting"}
             ) > 0
           for: 2h
           labels:
@@ -110,7 +110,7 @@ spec:
         - alert: NoteVerseSchedulerLeaderStale
           expr: |
             (time() - max by (namespace) (
-              noteverse_scheduler_leader_last_heartbeat_timestamp_seconds{namespace=~"noteverse-.*"}
+              noteverse_scheduler_leader_last_heartbeat_timestamp_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
             )) > 90
           for: 2m
           labels:
@@ -121,7 +121,7 @@ spec:
             runbook_url: "docs/operations/runbooks/alerts/scheduler-leader-stale.md"
         - alert: NoteVerseSchedulerLeaderChildExiting
           expr: |
-            increase(noteverse_scheduler_leader_child_exits_total{namespace=~"noteverse-.*"}[15m]) > 0
+            increase(noteverse_scheduler_leader_child_exits_total{namespace=~"noteverse-.*", job="noteverse-backend-api"}[15m]) > 0
           for: 5m
           labels:
             severity: warning
@@ -131,8 +131,8 @@ spec:
             runbook_url: "docs/operations/runbooks/alerts/scheduler-leader-stale.md"
         - alert: NoteVerseSchedulerScanStale
           expr: |
-            (time() - max by (namespace, job) (
-              noteverse_scheduler_last_success_timestamp_seconds{namespace=~"noteverse-.*"}
+            (time() - max by (namespace, scheduler_job) (
+              noteverse_scheduler_last_success_timestamp_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
             )) > 900
           for: 10m
           labels:
@@ -144,7 +144,7 @@ spec:
         - alert: NoteVerseSchedulerLagHigh
           expr: |
             max by (namespace, kind) (
-              noteverse_scheduler_lag_seconds{namespace=~"noteverse-.*"}
+              noteverse_scheduler_lag_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
             ) > 900
           for: 10m
           labels:
@@ -155,7 +155,7 @@ spec:
             runbook_url: "docs/operations/runbooks/alerts/scheduler-lag-high.md"
         - alert: NoteVerseSchedulerFailuresIncreasing
           expr: |
-            increase(noteverse_scheduler_failures_total{namespace=~"noteverse-.*"}[15m]) > 0
+            increase(noteverse_scheduler_failures_total{namespace=~"noteverse-.*", job="noteverse-backend-api"}[15m]) > 0
           for: 5m
           labels:
             severity: warning

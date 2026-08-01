@@ -59,7 +59,7 @@ Required metrics:
 The metrics must use low-cardinality labels only:
 
 ```text
-job
+scheduler_job
 kind
 ```
 
@@ -68,8 +68,11 @@ email, object key, or request id as Prometheus labels.
 
 ### P1: Dashboard And Alerts
 
-Status: implemented in repository. Deployment and staging-traffic validation
-are pending observability-stack replay in the recreated minikube cluster.
+Status: implemented in repository. The 2026-08-02 minikube replay verified
+that Prometheus is scraping the API and practice targets, and the alert rule is
+loaded. Final scheduler-alert validation is pending the next API/practice
+release because the metric contract now scopes database state to the API and
+renames the scheduler dimension to `scheduler_job`.
 
 Extend `NoteVerse Application Overview` with scheduler health panels:
 
@@ -235,6 +238,26 @@ multi-cluster, or operator-like workloads. It is not necessary for the current
 NoteVerse stage.
 
 ## Current Implementation Notes
+
+### 2026-08-02 Recreated Minikube Verification
+
+- Prometheus Operator CRDs, both application ServiceMonitors, and the
+  NoteVerse PrometheusRule are present.
+- The API, Beat, practice, frontend, Loki, Tempo, Fluent Bit, Prometheus,
+  Alertmanager, Grafana, and OpenTelemetry Collector pods are Ready.
+- The Collector metrics endpoint is explicitly exposed on port `8888`; its
+  ServiceMonitor target is `up == 1`.
+- Collector self-metrics observed accepted OTLP spans and successful Tempo
+  exports. Tempo `/ready` returned `200`, and Tempo search returned API traces.
+- Loki range queries returned staging application streams. During the compact
+  QEMU rehearsal, Loki briefly hit object-storage TLS timeouts and Fluent Bit
+  retried successfully. Treat this as a local-platform performance signal;
+  repeat the smoke after a stable node window before treating it as a storage
+  SLO result.
+- The pre-release practice runtime still re-exported database scheduler
+  metrics, which created duplicate Prometheus series. The repository now
+  prevents that export and filters the dashboard and alert rules to the API
+  scrape target. Deploy that release before the final P0/P1 alert check.
 
 - Beat periodically sends maintenance tasks.
 - Maintenance tasks scan PostgreSQL state and dispatch Celery tasks.
