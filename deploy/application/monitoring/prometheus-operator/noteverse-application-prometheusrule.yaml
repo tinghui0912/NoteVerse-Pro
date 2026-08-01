@@ -105,3 +105,39 @@ spec:
             summary: "NoteVerse score deletion cleanup is stuck"
             description: "One or more scores have remained in deletion cleanup state for more than 2 hours."
             runbook_url: "docs/operations/runbooks/alerts/score-deletion-cleanup-stuck.md"
+    - name: noteverse.application.scheduler
+      rules:
+        - alert: NoteVerseSchedulerScanStale
+          expr: |
+            (time() - max by (namespace, job) (
+              noteverse_scheduler_last_success_timestamp_seconds{namespace=~"noteverse-.*"}
+            )) > 900
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse scheduler scan is stale"
+            description: "A NoteVerse scheduler job has not completed a successful scan recently."
+            runbook_url: "docs/operations/runbooks/alerts/scheduler-scan-stale.md"
+        - alert: NoteVerseSchedulerLagHigh
+          expr: |
+            max by (namespace, kind) (
+              noteverse_scheduler_lag_seconds{namespace=~"noteverse-.*"}
+            ) > 900
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse scheduler lag is high"
+            description: "A NoteVerse async operation kind has due records that have not been dispatched within the scheduler SLO."
+            runbook_url: "docs/operations/runbooks/alerts/scheduler-lag-high.md"
+        - alert: NoteVerseSchedulerFailuresIncreasing
+          expr: |
+            increase(noteverse_scheduler_failures_total{namespace=~"noteverse-.*"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse scheduler failures are increasing"
+            description: "One or more NoteVerse scheduler scans have failed recently."
+            runbook_url: "docs/operations/runbooks/alerts/scheduler-failures-increasing.md"

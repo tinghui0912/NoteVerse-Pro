@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: noteverse-local-lvm
+provisioner: local.csi.openebs.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  storage: "lvm"
+  volgroup: "noteverse-local-vg"
+  fsType: "ext4"

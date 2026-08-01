@@ -62,6 +62,23 @@ Implemented first dashboard:
 - `Score Deletions By Status`
 - `Oldest Async Operation Age`
 - `Completed Async Duration Average`
+- `Scheduler Lag`
+- `Scheduler Last Success`
+- `Scheduler Scan Duration`
+- `Scheduler Dispatch Outcome`
+- `Scheduler Lock Acquired/Skipped`
+
+Implemented platform dashboard:
+
+- `Loki Scrape Health`
+- `Tempo Scrape Health`
+- `OTel Collector Scrape Health`
+- `Loki Ingestion Rate`
+- `Loki Dropped Samples`
+- `OTel Span Export`
+- `Tempo Span Ingestion`
+- `Query p95 Latency`
+- `Observability PVC Usage`
 
 Implemented first PrometheusRule group:
 
@@ -72,6 +89,13 @@ Implemented first PrometheusRule group:
 - `NoteVerseAsyncOperationProcessingStuck`
 - `NoteVerseOutboxFailuresPresent`
 - `NoteVerseScoreDeletionCleanupStuck`
+- `NoteVerseSchedulerScanStale`
+- `NoteVerseSchedulerLagHigh`
+- `NoteVerseSchedulerFailuresIncreasing`
+
+Scheduler lock skips are not currently alerting conditions. They are expected
+when Beat has multiple replicas. Alert on stale successful scans and high lag
+instead.
 
 These rules are evaluated by Prometheus and can be viewed through Prometheus,
 Alertmanager, and Grafana. They are not, by themselves, a notification channel.
@@ -143,6 +167,36 @@ Suggested alerts:
 - Quota enforcement failures occur.
 - Cleanup backlog grows for more than one retention window.
 
+## Platform Observability
+
+The platform dashboard is separate from the application dashboard. It answers
+whether the observability pipeline itself is healthy:
+
+```text
+Application stdout -> Fluent Bit -> Loki
+Application traces -> OpenTelemetry Collector -> Tempo
+Prometheus scrape -> Grafana panels and alerts
+```
+
+Panels:
+
+- Loki, Tempo, and OpenTelemetry Collector scrape health.
+- Loki ingestion rate and dropped samples.
+- OTel Collector span export throughput and failures.
+- Tempo span ingestion and discarded spans.
+- Loki and Tempo query p95 latency.
+- Observability PVC usage for local stateful components.
+
+The dashboard is stored as
+`deploy/observability/dashboards/noteverse-platform-observability-dashboard.yaml`.
+It intentionally uses low-cardinality platform labels only. Do not add pod
+names, request IDs, trace IDs, user IDs, or storage object keys as dashboard
+variables.
+
+Platform alerts should be added only when they are operator-actionable and have
+a runbook. For now, application alerts remain the first paging surface; the
+platform dashboard is the second-level diagnostic view.
+
 ## Dashboard Layout
 
 1. Overview row:
@@ -168,6 +222,8 @@ Suggested alerts:
 - Mail send latency and delivery outcome counters.
 - Worker-specific task claim, success, retry, failure, and duration metrics.
 - Domain-level async SLO metrics once the initial backlog/age gauges are proven.
+- Platform alert rules for Loki, Tempo, and OpenTelemetry Collector after the
+  platform dashboard has been validated against staging traffic.
 
 ## Alert Delivery Model
 

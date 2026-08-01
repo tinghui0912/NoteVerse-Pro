@@ -1,0 +1,38 @@
+# Minikube/staging OpenEBS values for Local PV LVM only.
+#
+# The minikube staging profile is expected to be created with a VM driver that
+# supports extra block disks, such as qemu2. Each node must have an LVM volume
+# group named `noteverse-local-vg` before this chart is installed.
+
+openebs-crds:
+  csi:
+    volumeSnapshots:
+      enabled: false
+
+engines:
+  local:
+    lvm:
+      enabled: true
+    zfs:
+      enabled: false
+    rawfile:
+      enabled: false
+    hostpath:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+
+loki:
+  enabled: false
+
+preUpgradeHook:
+  enabled: false
+
+lvm-localpv:
+  crds:
+    lvmLocalPv:
+      enabled: true
+    csi:
+      volumeSnapshots:
+        enabled: false

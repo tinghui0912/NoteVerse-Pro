@@ -442,8 +442,10 @@ Check:
 kubectl -n noteverse-production get deploy noteverse-backend-beat -o yaml
 ```
 
-Beat must have one replica unless the scheduler is redesigned for cluster-safe
-leader election or database-backed scheduling.
+Beat should stay at one production replica until the database scheduler lock has
+been validated in staging. The scheduler code path uses PostgreSQL job-scoped
+advisory locks, so staging may run multiple Beat replicas to verify that one
+replica acquires the lock while the others skip without duplicate dispatch.
 
 ### Grafana has no logs
 

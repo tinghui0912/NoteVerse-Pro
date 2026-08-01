@@ -162,8 +162,8 @@ Runtime:
 
 - container command: `beat`;
 - no HTTP Service;
-- exactly one replica unless a distributed scheduler/leader-election design is
-  introduced;
+- exactly one production replica until the database scheduler lock is validated
+  with staging traffic;
 - startup must run `python scripts/check_runtime.py --role beat`;
 - failed runtime checks should fail the pod fast.
 
@@ -172,6 +172,9 @@ State:
 - beat uses an `emptyDir` work directory for Celery's transient schedule file;
 - Postgres/outbox tables are the durable scheduling source of truth;
 - do not use a beat PVC unless the scheduler design changes and a new ADR explains why.
+- scheduler scans are protected by PostgreSQL job-scoped advisory locks so the
+  code path can later support multiple Beat replicas without duplicate
+  dispatch.
 
 ### `frontend`
 
@@ -334,9 +337,11 @@ Worker:
 
 Beat:
 
-- exactly one scheduler;
+- exactly one production scheduler until the database scheduler lock is
+  validated under multi-replica staging traffic;
 - startup runtime checks are the current health gate;
-- future production hardening should add leader election or a database-backed scheduler before multiple replicas become necessary.
+- PostgreSQL job-scoped advisory locks are the preferred HA path before any
+  Kubernetes Lease leader-election model.
 
 ## Fail-Fast Rules
 

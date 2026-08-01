@@ -166,6 +166,16 @@ Production package generation must use the same tested image refs from staging,
 preferably digest refs. Do not rebuild a different production image from the
 same commit after staging has passed.
 
+If `image_tag` is empty, the workflow uses the current
+`deploy/gitops/environments/production/release-metadata.json` image digests for
+every component you did not explicitly override. This supports a production
+patch release where only one image changes while the release package still
+records the full deployed component set.
+
+For a newly initialized production environment that does not yet have
+`release-metadata.json`, provide either a shared `image_tag` for a full release
+or explicit image refs for every component.
+
 The production artifact contains:
 
 ```text

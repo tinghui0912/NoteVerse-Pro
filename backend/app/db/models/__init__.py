@@ -6,6 +6,7 @@ from .ops_audit import OpsAuditEvent
 from .realtime import RealtimeEvent
 from .revision_event import ScoreRevisionEvent
 from .revision_note import ScoreRevisionNote
+from .scheduler import SchedulerHeartbeat
 from .practice import (
     PracticeReportStatus,
     PracticeSession,
@@ -86,6 +87,7 @@ __all__ = [
     "RealtimeEvent",
     "ScoreRevisionEvent",
     "ScoreRevisionNote",
+    "SchedulerHeartbeat",
     "PracticeSession",
     "PracticeSessionState",
     "PracticeReportStatus",

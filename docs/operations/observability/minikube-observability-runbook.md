@@ -78,7 +78,7 @@ choices.
 The minikube overlay is intentionally smaller than production while preserving
 the same storage model:
 
-- Loki uses S3-compatible object storage and an `8Gi` TopoLVM PVC for local
+- Loki uses S3-compatible object storage and an `8Gi` OpenEBS Local PV LVM PVC for local
   single-binary state.
 - Loki canary and chart tests are disabled in the minikube overlay. The canary
   is useful in larger production setups, but its websocket/tail checks are
@@ -88,8 +88,8 @@ the same storage model:
   not-ready addresses so single-binary startup does not flap while the Pod is
   discovering itself.
 - Tempo uses S3-compatible object storage and no durable local trace volume.
-- Prometheus uses an `8Gi` TopoLVM PVC.
-- Grafana and Alertmanager each use a `2Gi` TopoLVM PVC.
+- Prometheus uses an `8Gi` OpenEBS Local PV LVM PVC.
+- Grafana and Alertmanager each use a `2Gi` OpenEBS Local PV LVM PVC.
 - Grafana uses `Recreate` deployment strategy because it mounts a single RWO
   PVC.
 - Grafana provisions Prometheus, Loki, and Tempo through static
@@ -98,22 +98,23 @@ the same storage model:
   sidecar synchronization.
 - Production Grafana dashboard provisioning uses the dashboard sidecar with
   `grafana_dashboard=1` ConfigMaps across namespaces. NoteVerse application
-  dashboard ConfigMaps live under `deploy/observability/dashboards/`.
+  and platform dashboard ConfigMaps live under `deploy/observability/dashboards/`.
 - The minikube overlay keeps the dashboard sidecar disabled because qemu2 VM
   pauses made the extra Grafana sidecar rollout unreliable on Windows.
-  Minikube mounts the same dashboard ConfigMap through static
+  Minikube mounts the same dashboard ConfigMaps through static
   `dashboardsConfigMaps` provisioning instead.
 - Grafana external update checks, usage reporting, news feed, plugin admin,
   and plugin preinstall are disabled. The staging rehearsal path should not
   block on `grafana.com` or install plugins at runtime.
 - Grafana, Prometheus, Alertmanager, Prometheus Operator, node-exporter,
-  OpenTelemetry Collector, kube-state-metrics, and TopoLVM probes are wider
-  than production defaults because qemu2 minikube can pause during image pulls,
-  SQLite migrations, collector startup, and LVM provisioning.
-- The TopoLVM minikube overlay disables controller leader election and snapshot
-  support, and uses a single-node rolling update shape. This avoids single-node
-  anti-affinity deadlocks and removes the unused CSI snapshotter sidecar from
-  the local rehearsal path.
+  OpenTelemetry Collector, and kube-state-metrics probes are wider than
+  production defaults because qemu2 minikube can pause during image pulls,
+  SQLite migrations, collector startup, and PVC provisioning.
+- The OpenEBS Local PV LVM minikube values install only the LVM engine and
+  disable Hostpath, ZFS, rawfile, Mayastor, bundled Loki, and CSI snapshot CRDs.
+  The `StorageClass/noteverse-local-lvm` manifest is owned by this repository
+  so application and observability values depend on a stable storage contract,
+  not provider-specific chart defaults.
 
 These are local staging rehearsal settings, not production sizing guidance.
 Production must set resource requests, limits, retention, and PVC sizes from
@@ -177,10 +178,10 @@ Install the minikube StorageClass before installing Prometheus:
 
 ```powershell
 .\scripts\minikube_prepare_lvm_vg.ps1 -Profile noteverse-lvm -WipeExtraDisk
-.\scripts\minikube_install_topolvm.ps1
+.\scripts\minikube_install_openebs_lvm.ps1
 ```
 
-This installs TopoLVM and provides:
+This installs OpenEBS Local PV LVM and provides:
 
 ```text
 StorageClass/noteverse-local-lvm
@@ -330,13 +331,13 @@ kubectl wait --for=condition=Ready pod -n observability --all --timeout=300s
 kubectl get pods -n observability -o wide
 ```
 
-The minikube overlay uses LVM-backed PVCs through TopoLVM. It should not pin
+The minikube overlay uses LVM-backed PVCs through OpenEBS Local PV LVM. It should not pin
 Prometheus to a hard-coded node name.
 
 If a previous run created oversized local PVCs, delete the affected
 StatefulSet/Pod/PVC after applying the smaller minikube values. Kubernetes
-cannot shrink existing PVCs in place. Do not remove TopoLVM finalizers by hand;
-wait for TopoLVM to release the PV and `LogicalVolume` or restart the TopoLVM
+cannot shrink existing PVCs in place. Do not remove OpenEBS Local PV LVM finalizers by hand;
+wait for OpenEBS Local PV LVM to release the PV and `LogicalVolume` or restart the OpenEBS Local PV LVM
 controller if its CSI sidecars are stuck.
 
 If the application was applied before Prometheus Operator CRDs existed, apply
@@ -366,6 +367,8 @@ The dashboard package contains:
 
 - `ConfigMap/noteverse-application-dashboard`, labelled
   `grafana_dashboard=1`, for the `NoteVerse Application Overview` dashboard.
+- `ConfigMap/noteverse-platform-observability-dashboard`, labelled
+  `grafana_dashboard=1`, for the `NoteVerse Platform Observability` dashboard.
 
 Run the local observability smoke:
 
@@ -531,9 +534,9 @@ kubectl apply -k deploy/observability/dashboards
 ```
 
 Production Grafana discovers dashboard ConfigMaps through the dashboard sidecar.
-Minikube mounts `ConfigMap/noteverse-application-dashboard` through static
-Grafana provisioning. The application dashboard intentionally uses only
-low-cardinality labels:
+Minikube mounts `ConfigMap/noteverse-application-dashboard` and
+`ConfigMap/noteverse-platform-observability-dashboard` through static Grafana
+provisioning. The dashboards intentionally use only low-cardinality labels:
 
 ```text
 namespace

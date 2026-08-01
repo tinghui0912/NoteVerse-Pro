@@ -62,9 +62,6 @@ jobs:
 
           IMAGE_NAMESPACE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse"
           IMAGE_TAG="${{ inputs.image_tag }}"
-          if [ -z "${IMAGE_TAG}" ]; then
-            IMAGE_TAG="${GITHUB_SHA}"
-          fi
 
           BACKEND_API_IMAGE="${{ inputs.backend_api_image }}"
           BACKEND_BEAT_IMAGE="${{ inputs.backend_beat_image }}"
@@ -72,20 +69,51 @@ jobs:
           BACKEND_WORKER_IMAGE="${{ inputs.backend_worker_image }}"
           FRONTEND_IMAGE="${{ inputs.frontend_image }}"
 
-          if [ -z "${BACKEND_API_IMAGE}" ]; then
-            BACKEND_API_IMAGE="${IMAGE_NAMESPACE}/backend-api:${IMAGE_TAG}"
-          fi
-          if [ -z "${BACKEND_BEAT_IMAGE}" ]; then
-            BACKEND_BEAT_IMAGE="${IMAGE_NAMESPACE}/backend-beat:${IMAGE_TAG}"
-          fi
-          if [ -z "${BACKEND_PRACTICE_IMAGE}" ]; then
-            BACKEND_PRACTICE_IMAGE="${IMAGE_NAMESPACE}/backend-practice:${IMAGE_TAG}"
-          fi
-          if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
-            BACKEND_WORKER_IMAGE="${IMAGE_NAMESPACE}/backend-worker:${IMAGE_TAG}"
-          fi
-          if [ -z "${FRONTEND_IMAGE}" ]; then
-            FRONTEND_IMAGE="${IMAGE_NAMESPACE}/frontend:${IMAGE_TAG}"
+          if [ -n "${IMAGE_TAG}" ]; then
+            if [ -z "${BACKEND_API_IMAGE}" ]; then
+              BACKEND_API_IMAGE="${IMAGE_NAMESPACE}/backend-api:${IMAGE_TAG}"
+            fi
+            if [ -z "${BACKEND_BEAT_IMAGE}" ]; then
+              BACKEND_BEAT_IMAGE="${IMAGE_NAMESPACE}/backend-beat:${IMAGE_TAG}"
+            fi
+            if [ -z "${BACKEND_PRACTICE_IMAGE}" ]; then
+              BACKEND_PRACTICE_IMAGE="${IMAGE_NAMESPACE}/backend-practice:${IMAGE_TAG}"
+            fi
+            if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
+              BACKEND_WORKER_IMAGE="${IMAGE_NAMESPACE}/backend-worker:${IMAGE_TAG}"
+            fi
+            if [ -z "${FRONTEND_IMAGE}" ]; then
+              FRONTEND_IMAGE="${IMAGE_NAMESPACE}/frontend:${IMAGE_TAG}"
+            fi
+          else
+            CURRENT_METADATA="deploy/gitops/environments/production/release-metadata.json"
+            if [ ! -f "${CURRENT_METADATA}" ]; then
+              echo "::error::${CURRENT_METADATA} is required when image_tag is empty. Provide image_tag for a full release or keep the current production metadata in GitOps desired state."
+              exit 1
+            fi
+
+            read_current_image() {
+              local key="$1"
+              python -c 'import json, sys; from pathlib import Path; metadata=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); image=metadata.get("images", {}).get(sys.argv[2]); isinstance(image, str) and "@sha256:" in image or (_ for _ in ()).throw(SystemExit(f"missing digest-pinned current image for {sys.argv[2]}")); print(image)' "${CURRENT_METADATA}" "${key}"
+            }
+
+            if [ -z "${BACKEND_API_IMAGE}" ]; then
+              BACKEND_API_IMAGE="$(read_current_image backend_api)"
+            fi
+            if [ -z "${BACKEND_BEAT_IMAGE}" ]; then
+              BACKEND_BEAT_IMAGE="$(read_current_image backend_beat)"
+            fi
+            if [ -z "${BACKEND_PRACTICE_IMAGE}" ]; then
+              BACKEND_PRACTICE_IMAGE="$(read_current_image backend_practice)"
+            fi
+            if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
+              BACKEND_WORKER_IMAGE="$(read_current_image backend_worker)"
+            fi
+            if [ -z "${FRONTEND_IMAGE}" ]; then
+              FRONTEND_IMAGE="$(read_current_image frontend)"
+            fi
+
+            IMAGE_TAG="current-production-plus-overrides"
           fi
 
           {
