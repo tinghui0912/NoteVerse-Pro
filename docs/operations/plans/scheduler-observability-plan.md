@@ -10,9 +10,28 @@ adding scheduler high availability.
 
 ## Priority Order
 
+## Validation Snapshot
+
+As of 2026-08-02, the scheduler implementation has been validated against the
+recreated minikube staging cluster:
+
+- P0 metrics are exported from the API and read the durable PostgreSQL state;
+- P3 Beat restart behavior and the singleton baseline were verified;
+- P4 was exercised with two Beat replicas, a leader Pod deletion, and a
+  successful standby takeover while PostgreSQL retained exactly one granted
+  leader advisory lock.
+
+The recreated cluster currently contains the application and its foundational
+platform services, but not the observability Helm releases. P1 dashboards and
+PrometheusRule alerts and the P2 platform dashboards are implemented in this
+repository, but must be redeployed and validated with staging traffic before
+they can be considered operationally active in this cluster.
+
 ### P0: Scheduler Metrics
 
-Status: implemented.
+Status: implemented and API-export validation complete. Prometheus scrape and
+alert validation are pending observability-stack replay in the recreated
+minikube cluster.
 
 Add database-backed scheduler heartbeat metrics so Prometheus can observe Beat
 through the existing API `/metrics` endpoint.
@@ -44,7 +63,8 @@ email, object key, or request id as Prometheus labels.
 
 ### P1: Dashboard And Alerts
 
-Status: implemented.
+Status: implemented in repository. Deployment and staging-traffic validation
+are pending observability-stack replay in the recreated minikube cluster.
 
 Extend `NoteVerse Application Overview` with scheduler health panels:
 
@@ -62,9 +82,10 @@ Add PrometheusRule alerts:
 
 ### P2: Loki And Tempo Platform Dashboards
 
-Status: implemented as the first platform dashboard. Alert rules for the
-observability stack itself are intentionally deferred until the dashboard has
-been validated with staging traffic and each alert has an actionable runbook.
+Status: implemented as the first platform dashboard, but not currently
+deployed in the recreated minikube cluster. Alert rules for the observability
+stack itself are intentionally deferred until the dashboard has been validated
+with staging traffic and each alert has an actionable runbook.
 
 Add separate platform dashboards after application scheduler health is visible.
 
@@ -92,7 +113,8 @@ Explore by time range and stable correlation IDs.
 
 ### P3: Beat Process Health
 
-Status: implemented for the current single-replica stage.
+Status: implemented and staging-validated for the current single-replica
+stage.
 
 Keep `backend-beat` as a single replica while the product is still early:
 
@@ -111,8 +133,12 @@ so transient dependency incidents do not cause blind restart loops.
 
 ### P4: Database Scheduler Lock
 
-Status: implemented in code. Staging multi-replica validation is pending the
-release of the lock-aware Beat image.
+Status: implemented and staging-validated. The lock-aware API and Beat images
+were deployed on 2026-08-02; a temporary two-replica rollout demonstrated one
+active leader, one standby, a single granted PostgreSQL advisory lock, no new
+scan-lock skip or dispatch duplication, and successful standby takeover after
+the leader Pod was deleted. Staging has been restored to the singleton
+baseline.
 
 When the scheduler needs high availability, prefer PostgreSQL advisory lock or
 a database-backed scheduler lease before Kubernetes Lease leader election.
