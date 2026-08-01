@@ -136,9 +136,11 @@ so transient dependency incidents do not cause blind restart loops.
 Status: implemented and staging-validated. The lock-aware API and Beat images
 were deployed on 2026-08-02; a temporary two-replica rollout demonstrated one
 active leader, one standby, a single granted PostgreSQL advisory lock, no new
-scan-lock skip or dispatch duplication, and successful standby takeover after
-the leader Pod was deleted. Staging has been restored to the singleton
-baseline.
+scan-lock skips or scan-dispatch count changes during the validation window,
+and successful standby takeover after the leader Pod was deleted. Staging has
+been restored to the singleton baseline. A production-like, end-to-end outbox
+consumption exercise remains coupled to the later GPU-worker-in-cluster
+milestone.
 
 When the scheduler needs high availability, prefer PostgreSQL advisory lock or
 a database-backed scheduler lease before Kubernetes Lease leader election.
