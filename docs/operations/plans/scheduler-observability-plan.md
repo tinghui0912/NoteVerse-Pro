@@ -111,8 +111,8 @@ so transient dependency incidents do not cause blind restart loops.
 
 ### P4: Database Scheduler Lock
 
-Status: implemented in code for the single-replica stage. Staging
-multi-replica validation is still pending.
+Status: implemented in code. Staging multi-replica validation is pending the
+release of the lock-aware Beat image.
 
 When the scheduler needs high availability, prefer PostgreSQL advisory lock or
 a database-backed scheduler lease before Kubernetes Lease leader election.
@@ -134,15 +134,20 @@ task state source.
 
 Implementation shape:
 
-- scheduler locks are scoped by scheduler job, not by the whole Beat process;
-- lock keys are stable `sha256`-derived 64-bit integers;
-- the lock uses PostgreSQL session-scoped `pg_try_advisory_lock`;
-- the lock is held on an independent database connection for the full scheduler
-  scan callback;
-- the callback may keep using normal short-lived database sessions;
-- the lock is always released in `finally`;
-- when another scheduler already holds the job lock, the scan is skipped and
-  recorded as scheduler lock telemetry.
+- every Beat replica runs through a lightweight leader supervisor before it
+  starts the Celery Beat child process;
+- the leader supervisor acquires a stable `sha256`-derived 64-bit PostgreSQL
+  advisory lock scoped to `beat_leader` and holds its database session for the
+  child Beat process' full lifetime;
+- a standby replica does not start a Celery Beat child process; it records a
+  lock skip, waits, and attempts to become leader again;
+- loss of the leader database session terminates the local Beat child before it
+  can publish further periodic tasks; PostgreSQL then releases the lock and a
+  standby can take over;
+- task-level advisory locks remain scoped by scheduler job and guard the scan
+  callback as a second, independent fence against duplicate broker delivery;
+- callbacks continue to use normal short-lived database sessions; neither lock
+  is business state, and both are released automatically with their connection.
 
 Implemented lock metrics:
 
@@ -150,9 +155,17 @@ Implemented lock metrics:
 - `noteverse_scheduler_lock_skipped_total`
 - `noteverse_scheduler_last_lock_skipped_timestamp_seconds`
 
+Leader-specific metrics are kept separate from scheduler scan metrics:
+
+- `noteverse_scheduler_leader_last_heartbeat_timestamp_seconds`
+- `noteverse_scheduler_leader_active`
+- `noteverse_scheduler_leader_acquisitions_total`
+- `noteverse_scheduler_leader_standby_total`
+- `noteverse_scheduler_leader_child_exits_total`
+
 Do not treat lock skips as failures once Beat has more than one replica. In a
-two-replica scheduler deployment, one replica acquiring the lock and the other
-replica skipping the same job is expected behavior. The user-impacting alert is
+two-replica scheduler deployment, one replica acquiring `beat_leader` and the
+other replica staying standby is expected behavior. The user-impacting alert is
 still stale scans or high scheduler lag, not lock skips by themselves.
 
 Rollout sequence:
@@ -160,9 +173,22 @@ Rollout sequence:
 1. Deploy the lock-capable code with `backend-beat replicas=1`.
 2. Verify scheduler success, failure, lag, and lock metrics in staging.
 3. Change staging `backend-beat` to `replicas=2`.
-4. Verify duplicate Beat pods produce lock skips but do not duplicate outbox
-   dispatch.
-5. Only then consider production `backend-beat replicas=2`.
+4. Verify one Beat reports the leader acquisition while the other reports a
+   standby skip, then confirm only the active Beat publishes the periodic
+   schedule and outbox dispatch is not duplicated.
+5. Only then consider production `backend-beat replicas=2` by applying the
+   `deploy/application/overlays/production-ha` overlay. It owns the two-replica
+   RollingUpdate and the Beat PDB; the baseline production overlay remains a
+   maintainable singleton.
+
+Production requirements before enabling two Beat replicas:
+
+- `SCHEDULER_LOCK_DATABASE_URL` is a required Secret value and targets direct
+  PostgreSQL or a dedicated PgBouncer session-pooling endpoint; transaction
+  pooling is prohibited for this connection;
+- lock connections use a bounded connect timeout and TCP keepalives;
+- add a Beat PodDisruptionBudget plus topology spreading or anti-affinity;
+- use a RollingUpdate only after the lock-aware singleton release is proven.
 
 ### P5: Kubernetes Lease Leader Election
 

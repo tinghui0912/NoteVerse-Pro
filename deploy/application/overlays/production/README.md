@@ -25,6 +25,7 @@ Required objects supplied outside this overlay:
   - `SECRET_KEY`
   - `DATABASE_URL`
   - `SYNC_DATABASE_URL`
+  - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or a dedicated PgBouncer session-pooling endpoint)
   - `REDIS_URL`
   - `CELERY_BROKER_URL`
   - `CELERY_RESULT_BACKEND`
@@ -50,11 +51,16 @@ docs/operations/deployment/k8s-secrets-and-storage-template.md
 Production-specific choices:
 
 - API and frontend start with three replicas plus HPA.
-- API and frontend have PodDisruptionBudgets.
+- API and frontend have PodDisruptionBudgets. The separate
+  `deploy/application/overlays/production-ha` overlay adds a Beat
+  `minAvailable: 1` PodDisruptionBudget only with its active/standby pair;
+  applying that PDB to a singleton would block ordinary node maintenance.
 - Worker remains one replica by default because OMR/playback GPU and model
   contention should be benchmarked before horizontal scaling.
-- Beat remains a singleton. Do not scale it until the scheduler is made
-  cluster-safe.
+- Beat remains a lock-aware singleton by default. Scale it to two replicas only
+  after the production scheduler-lock rollout checklist passes by rendering the
+  `production-ha` overlay; it supplies the RollingUpdate strategy and PDB so
+  the leader supervisor controls handover.
 - Gateway routing must support SSE and WebSocket traffic for API and practice
   realtime paths.
 

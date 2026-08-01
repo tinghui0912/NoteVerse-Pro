@@ -80,6 +80,7 @@ Required backend Secret keys:
 - `SECRET_KEY`
 - `DATABASE_URL`
 - `SYNC_DATABASE_URL`
+- `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session pooling only)
 - `REDIS_URL`
 - `CELERY_BROKER_URL`
 - `CELERY_RESULT_BACKEND`

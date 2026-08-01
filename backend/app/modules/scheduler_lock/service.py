@@ -2,18 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-import hashlib
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from app.db.worker_session import sync_engine
+from app.modules.scheduler_lock.keys import scheduler_lock_key
 
 
 class SchedulerLockService:
     """PostgreSQL advisory locks for cluster-safe scheduler scans."""
-
-    _namespace = "noteverse:scheduler"
 
     @contextmanager
     def try_acquire(self, job_key: str) -> Iterator[bool]:
@@ -28,8 +26,7 @@ class SchedulerLockService:
             connection.close()
 
     def lock_key(self, job_key: str) -> int:
-        digest = hashlib.sha256(f"{self._namespace}:{job_key}".encode("utf-8")).digest()
-        return int.from_bytes(digest[:8], byteorder="big", signed=True)
+        return scheduler_lock_key(job_key)
 
     def _try_lock(self, connection: Connection, job_key: str) -> bool:
         self._require_postgresql(connection)

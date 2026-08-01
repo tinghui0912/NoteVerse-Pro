@@ -29,7 +29,7 @@ from app.modules.scheduler_observability.service import (
     SchedulerRunStats,
     scheduler_observability_service,
 )
-from app.modules.scheduler_lock import scheduler_lock_service
+from app.modules.scheduler_lock.service import scheduler_lock_service
 from app.modules.scores.lifecycle_service import score_lifecycle_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email

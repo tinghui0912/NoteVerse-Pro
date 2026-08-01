@@ -40,6 +40,7 @@ Required keys:
 | `SECRET_KEY` | platform/security | planned security rotation or suspected compromise |
 | `DATABASE_URL` | platform/database | database credential rotation |
 | `SYNC_DATABASE_URL` | platform/database | database credential rotation |
+| `SCHEDULER_LOCK_DATABASE_URL` | platform/database | database credential rotation; must target direct PostgreSQL or PgBouncer session pooling, never transaction pooling |
 | `REDIS_URL` | platform/cache | Redis credential or endpoint rotation |
 | `CELERY_BROKER_URL` | platform/cache | Redis credential or endpoint rotation |
 | `CELERY_RESULT_BACKEND` | platform/cache | Redis credential or endpoint rotation |

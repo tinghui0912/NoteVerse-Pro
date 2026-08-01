@@ -1,4 +1,9 @@
 -r celery.txt
 
+# The active beat process holds a PostgreSQL advisory lock for its entire
+# lifetime. Keeping this dependency explicit prevents the scheduler image from
+# inheriting API or worker-only packages.
+psycopg[binary]==3.3.4
+
 # Celery beat only publishes scheduled task names. It must not import worker
 # task implementations or install API/practice/ML runtime dependencies.

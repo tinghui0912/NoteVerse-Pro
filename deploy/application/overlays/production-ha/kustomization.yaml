@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Enable only after staging has proven the PostgreSQL Beat leader lock.
+resources:
+  - ../production
+  - pdb-backend-beat.yaml
+
+patches:
+  - path: patch-backend-beat-ha.yaml
