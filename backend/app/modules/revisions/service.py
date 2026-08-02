@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-import xml.etree.ElementTree as ET
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +10,6 @@ from sqlmodel import col
 from app.core.exceptions import (
     ConflictException,
     ResourceNotFoundException,
-    ValidationException,
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
@@ -25,8 +23,6 @@ from app.db.models import (
 )
 from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
 from app.modules.revisions.schemas import (
-    FingeringRequest,
-    FingeringResultRead,
     RevisionActorRead,
     RevisionContentRead,
     RevisionCreateRequest,
@@ -38,7 +34,7 @@ from app.modules.revisions.schemas import (
     RevisionRestoreRequest,
 )
 from app.modules.notifications.service import NotificationService
-from app.processing.engines.fingering import PianoplayerFingeringEngine
+from app.processing.musicxml.validation import validate_musicxml_document
 from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
 from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.revisions.derived_asset_retention_service import (
@@ -60,34 +56,13 @@ class RevisionService:
         asset_repository: ScoreAssetRepository | None = None,
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        fingering_engine: PianoplayerFingeringEngine | None = None,
         notification_service: NotificationService | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.fingering_engine = fingering_engine or PianoplayerFingeringEngine()
         self.notification_service = notification_service or NotificationService()
-
-    async def generate_fingering(
-        self,
-        db: AsyncSession,
-        score_uuid: str,
-        user_id: int,
-        request: FingeringRequest,
-    ) -> FingeringResultRead:
-        await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.EDIT, user_id=user_id
-        )
-        self._validate_musicxml(request.content.encode("utf-8"))
-        generated = self.fingering_engine.generate(
-            score_uuid,
-            request.content,
-            hand_size=request.hand_size,
-        )
-        self._validate_musicxml(generated["xml_content"].encode("utf-8"))
-        return FingeringResultRead(content=generated["xml_content"])
 
     async def create(
         self,
@@ -104,7 +79,7 @@ class RevisionService:
 
         score_id = require_persisted_id(score.id, entity="score")
         content = request.content.encode("utf-8")
-        self._validate_musicxml(content)
+        validate_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
 
         if request.idempotency_key:
@@ -315,7 +290,7 @@ class RevisionService:
                 "source", revision_uuid, ErrorCode.FILE_NOT_FOUND
             )
         content = self.storage.read_bytes(source.storage_key)
-        self._validate_musicxml(content)
+        validate_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
         storage_owner_user_id = score.owner_user_id
         new_revision_uuid = str(uuid.uuid4())
@@ -589,12 +564,3 @@ class RevisionService:
             ) if author else None,
             updated_at=note.updated_at,
         )
-
-    @staticmethod
-    def _validate_musicxml(content: bytes) -> None:
-        try:
-            root = ET.fromstring(content)
-        except ET.ParseError as exc:
-            raise ValidationException(ErrorCode.REVISION_CONTENT_INVALID) from exc
-        if root.tag.split("}")[-1] not in {"score-partwise", "score-timewise"}:
-            raise ValidationException(ErrorCode.REVISION_CONTENT_INVALID)

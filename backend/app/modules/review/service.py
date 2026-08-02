@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -57,6 +56,7 @@ from app.modules.review.schemas import (
     ReviewUpdateRequest,
 )
 from app.modules.scores.repository import ScoreRepository
+from app.processing.musicxml.validation import validate_musicxml_document
 from app.modules.scores.taxonomy import ordered_unique_pairs
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
@@ -195,7 +195,7 @@ class ReviewService:
             )
 
         content = request.content.encode("utf-8")
-        self._validate_musicxml(content)
+        validate_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
@@ -479,7 +479,7 @@ class ReviewService:
             )
 
         content = request.content.encode("utf-8")
-        self._validate_musicxml(content)
+        validate_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
         job_id = require_persisted_id(job.id, entity="import job")
         artifact = (
@@ -607,15 +607,6 @@ class ReviewService:
             )
             for index, (upload, blob) in enumerate(rows)
         ]
-
-    @staticmethod
-    def _validate_musicxml(content: bytes) -> None:
-        try:
-            root = ET.fromstring(content)
-        except ET.ParseError as exc:
-            raise ValidationException(ErrorCode.REVISION_CONTENT_INVALID) from exc
-        if root.tag.split("}")[-1] not in {"score-partwise", "score-timewise"}:
-            raise ValidationException(ErrorCode.REVISION_CONTENT_INVALID)
 
     @staticmethod
     def _confirmed_title(

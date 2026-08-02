@@ -27,6 +27,22 @@ REALTIME_ACTIVE_CONNECTIONS = Gauge(
 REALTIME_ACTIVE_CONNECTIONS.labels("app_sse").set(0)
 REALTIME_ACTIVE_CONNECTIONS.labels("practice_websocket").set(0)
 
+FINGERING_GENERATIONS_TOTAL = Counter(
+    "noteverse_fingering_generations_total",
+    "Interactive fingering generations by terminal outcome.",
+    ("status",),
+)
+
+FINGERING_ACTIVE_GENERATIONS = Gauge(
+    "noteverse_fingering_active_generations",
+    "Interactive fingering generations currently executing.",
+)
+
+FINGERING_QUEUE_REJECTIONS_TOTAL = Counter(
+    "noteverse_fingering_queue_rejections_total",
+    "Interactive fingering requests rejected because execution capacity was unavailable.",
+)
+
 
 def normalize_route_label(path: str | None) -> str:
     """Return a bounded-cardinality route label for metrics."""
@@ -68,9 +84,25 @@ def realtime_connection_closed(*, channel: str) -> None:
     REALTIME_ACTIVE_CONNECTIONS.labels(channel).dec()
 
 
+def fingering_generation_started() -> None:
+    FINGERING_ACTIVE_GENERATIONS.inc()
+
+
+def fingering_generation_completed(*, status: str) -> None:
+    FINGERING_ACTIVE_GENERATIONS.dec()
+    FINGERING_GENERATIONS_TOTAL.labels(status).inc()
+
+
+def fingering_generation_queue_rejected() -> None:
+    FINGERING_QUEUE_REJECTIONS_TOTAL.inc()
+
+
 __all__ = [
     "CONTENT_TYPE_LATEST",
     "metrics_content",
+    "fingering_generation_completed",
+    "fingering_generation_queue_rejected",
+    "fingering_generation_started",
     "record_http_request",
     "realtime_connection_closed",
     "realtime_connection_opened",

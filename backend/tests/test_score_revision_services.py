@@ -63,7 +63,6 @@ from app.db.models.score_access import (
 )
 from app.db.models.user import UserRole
 from app.modules.revisions.schemas import (
-    FingeringRequest,
     RevisionCreateRequest,
     RevisionNoteUpdateRequest,
     RevisionRestoreRequest,
@@ -72,7 +71,6 @@ from app.modules.revisions.derived_asset_retention_service import (
     DerivedAssetRetentionService,
 )
 from app.modules.revisions.service import RevisionService
-from app.processing.engines.fingering.pianoplayer import strip_existing_fingerings
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.score_assets.derived_assets import derived_asset_status
 from app.modules.score_assets.render_outbox_service import RenderOutboxService
@@ -175,22 +173,6 @@ class AsyncSessionAdapter:
 
     def add(self, instance) -> None:
         self.session.add(instance)
-
-
-class FakeFingeringEngine:
-    def __init__(self, xml_content: str = MUSICXML_2) -> None:
-        self.xml_content = xml_content
-        self.calls: list[dict[str, str]] = []
-
-    def generate(self, score_id: str, xml_content: str, hand_size: str = "M"):
-        self.calls.append(
-            {
-                "score_id": score_id,
-                "xml_content": xml_content,
-                "hand_size": hand_size,
-            }
-        )
-        return {"xml_content": self.xml_content, "hand_size": hand_size}
 
 
 def add_active_score_with_head_revision(
@@ -1804,103 +1786,6 @@ async def test_collaborator_revision_save_notifies_score_owner(
         )
         == 1
     )
-
-
-@pytest.mark.asyncio
-async def test_generate_fingering_returns_xml_without_creating_revision(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, storage = score_service_session
-    add_active_score_with_head_revision(
-        session,
-        score_id=301,
-        revision_id=311,
-        score_uuid="fingering-score",
-        revision_uuid="fingering-revision",
-        title="Fingering Score",
-    )
-    fingering_engine = FakeFingeringEngine()
-    service = RevisionService(storage=storage, fingering_engine=fingering_engine)
-    revision_count = count_rows(session, ScoreRevision)
-    source_count = count_rows(session, ScoreRevisionSource)
-
-    result = await service.generate_fingering(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
-        "fingering-score",
-        1,
-        FingeringRequest(content=MUSICXML_1.decode("utf-8"), hand_size="L"),
-    )
-
-    assert result.content == MUSICXML_2
-    assert fingering_engine.calls == [
-        {
-            "score_id": "fingering-score",
-            "xml_content": MUSICXML_1.decode("utf-8"),
-            "hand_size": "L",
-        }
-    ]
-    assert count_rows(session, ScoreRevision) == revision_count
-    assert count_rows(session, ScoreRevisionSource) == source_count
-
-
-@pytest.mark.asyncio
-async def test_generate_fingering_validates_input_and_generated_xml(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, storage = score_service_session
-    add_active_score_with_head_revision(
-        session,
-        score_id=302,
-        revision_id=312,
-        score_uuid="invalid-fingering-score",
-        revision_uuid="invalid-fingering-revision",
-        title="Invalid Fingering Score",
-    )
-    service = RevisionService(
-        storage=storage, fingering_engine=FakeFingeringEngine(xml_content="<bad />")
-    )
-    db = AsyncSessionAdapter(session)
-
-    with pytest.raises(ValidationException):
-        await service.generate_fingering(
-            db,  # type: ignore[arg-type]
-            "invalid-fingering-score",
-            1,
-            FingeringRequest(content="<bad />"),
-        )
-
-    with pytest.raises(ValidationException):
-        await service.generate_fingering(
-            db,  # type: ignore[arg-type]
-            "invalid-fingering-score",
-            1,
-            FingeringRequest(content=MUSICXML_1.decode("utf-8")),
-        )
-
-
-def test_strip_existing_fingerings_before_generation() -> None:
-    xml = """<?xml version="1.0"?>
-<score-partwise version="4.0">
-  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
-  <part id="P1"><measure number="1">
-    <note>
-      <pitch><step>C</step><octave>4</octave></pitch>
-      <duration>1</duration>
-      <notations><technical><fingering>5</fingering></technical></notations>
-    </note>
-    <note>
-      <pitch><step>D</step><octave>4</octave></pitch>
-      <duration>1</duration>
-      <notations><technical><fingering>3</fingering></technical><slur type="start" number="1"/></notations>
-    </note>
-  </measure></part>
-</score-partwise>"""
-
-    stripped = strip_existing_fingerings(xml)
-
-    assert "<fingering>" not in stripped
-    assert "<technical" not in stripped
-    assert "slur" in stripped
 
 
 @pytest.mark.asyncio

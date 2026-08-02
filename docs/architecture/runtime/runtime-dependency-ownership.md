@@ -9,7 +9,7 @@ NoteVerse uses one backend codebase with multiple runtime deployments:
 
 | Runtime | Image | Kubernetes workload | Purpose |
 | --- | --- | --- | --- |
-| API | `backend-api` | Deployment | HTTP API, auth, scores, review, share/public, billing, ops, realtime SSE, fingering |
+| API | `backend-api` | Deployment | HTTP API, auth, scores, review, share/public, billing, ops, realtime SSE, bounded interactive fingering |
 | Practice | `backend-practice` | Deployment | Realtime practice HTTP/WebSocket and browser-audio alignment |
 | Worker | `backend-worker` | Deployment | Import, OMR, render, playback, mail, cleanup, async operation processing |
 | Beat | `backend-beat` | Deployment | Singleton Celery schedule publisher |
@@ -103,7 +103,9 @@ Allowed:
 - database, storage, auth, migrations;
 - Celery client for submitting work;
 - image processing for avatars and lightweight API-side inspection;
-- fingering generation while it remains a synchronous API capability.
+- bounded interactive fingering generation. The blocking engine runs outside
+  the event loop behind a process-local concurrency gate; it returns an
+  unsaved editor suggestion and never creates revisions or derived assets.
 
 Forbidden:
 
@@ -228,7 +230,10 @@ image is published before application release images are built.
 
 ## Known Future Improvements
 
-- Re-evaluate `fingering.txt` after score fingering becomes async. At that
-  point, move fingering generation from API to worker or a dedicated capability.
+- Keep fingering in the API while its bounded execution metrics remain within
+  the interactive latency budget. Move it to a dedicated CPU worker capability
+  only when sustained queue rejections, p95 latency, batch generation, or
+  heavier models make asynchronous work necessary. Do not introduce a separate
+  HTTP microservice merely to isolate this CPU-bound capability.
 - Add a `worker-quality` image only when tests must load real Paddle/Legato
   models or execute production-level worker smoke tests.

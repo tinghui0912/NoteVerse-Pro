@@ -5,9 +5,9 @@ from app.api.deps import get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
+from app.modules.fingering.schemas import FingeringRequest, FingeringResultRead
+from app.modules.fingering.service import FingeringService
 from app.modules.revisions.schemas import (
-    FingeringRequest,
-    FingeringResultRead,
     RevisionContentRead,
     RevisionCreateRequest,
     RevisionListRead,
@@ -16,7 +16,11 @@ from app.modules.revisions.schemas import (
     RevisionRestoreRequest,
 )
 from app.modules.revisions.service import RevisionService
-from app.modules.scores.dependencies import get_revision_service, get_score_service
+from app.modules.scores.dependencies import (
+    get_fingering_service,
+    get_revision_service,
+    get_score_service,
+)
 from app.modules.scores.schemas import (
     ScoreBatchDeleteRequest,
     ScoreRead,
@@ -158,8 +162,8 @@ async def generate_score_fingering(
     request: FingeringRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    service: RevisionService = Depends(get_revision_service),
+    service: FingeringService = Depends(get_fingering_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.generate_fingering(db, score_id, user_id, request)
+    result = await service.generate(db, score_id, user_id, request)
     return success_response(data=result, message=SuccessCode.FINGERING_GENERATED)
