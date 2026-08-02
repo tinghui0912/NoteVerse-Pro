@@ -1,9 +1,10 @@
 """Application settings and configuration validation."""
 
-from pathlib import Path
-from typing import List, Optional
 import json
 import os
+from ipaddress import ip_network
+from pathlib import Path
+from typing import List, Optional
 
 from pydantic import AnyHttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -69,6 +70,7 @@ class Settings(BaseSettings):
     PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR: Optional[str] = None
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl]
+    TRUSTED_PROXY_CIDRS: List[str]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
@@ -77,6 +79,26 @@ class Settings(BaseSettings):
         if isinstance(v, list):
             return v
         raise ValueError("BACKEND_CORS_ORIGINS must be a JSON array")
+
+    @field_validator("TRUSTED_PROXY_CIDRS", mode="before")
+    @classmethod
+    def parse_trusted_proxy_cidrs(cls, value: str | List[str]) -> List[str]:
+        """Require an explicit, valid CIDR allowlist for forwarding headers."""
+
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise ValueError("TRUSTED_PROXY_CIDRS must be a JSON array") from exc
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ValueError("TRUSTED_PROXY_CIDRS must be a JSON array")
+        try:
+            networks = [ip_network(item, strict=False) for item in value]
+        except ValueError as exc:
+            raise ValueError("TRUSTED_PROXY_CIDRS must contain valid IP networks") from exc
+        if any(network.prefixlen == 0 for network in networks):
+            raise ValueError("TRUSTED_PROXY_CIDRS must not trust every address")
+        return [str(network) for network in networks]
 
     @field_validator("DEBUG", mode="before")
     @classmethod

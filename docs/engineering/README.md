@@ -12,6 +12,7 @@ Engineering documents are for developers working in the codebase.
 - [Editor Workbench Plan](plans/editor-workbench-plan.md)
 - [Import Job Reliability](plans/import-job-reliability.md)
 - [Pending Invites And Notifications Plan](plans/pending-invites-notifications-plan.md)
+- [Platform Admin First Vertical Slice Plan](plans/platform-admin-first-vertical-slice.md)
 - [Practice Score Following Optimization Plan](plans/practice-score-following-optimization-plan.md)
 
 Move a plan to `../archive/` after it is complete and the current behavior has
@@ -25,4 +26,3 @@ been captured in product, architecture, operations, or security docs.
 
 Use this folder for future test strategy and QA plans. The current quality entry
 point is documented in [Repository Quality Checks](guides/repository-quality-checks.md).
-

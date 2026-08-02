@@ -201,6 +201,24 @@ PostgreSQL and Redis. Follow the service/EndpointSlice pattern in
 Use the staging S3-compatible bucket for application files. Do not use local
 PVCs for uploads, score sources, render assets, or playback assets.
 
+Set the exact Pod CIDR of the trusted Gateway data plane before rendering the
+application release. This value is an allowlist for forwarding headers, not a
+browser or external-client range. Do not use `0.0.0.0/0`.
+
+```powershell
+$env:NOTEVERSE_TRUSTED_PROXY_CIDRS = '["10.244.0.0/16"]'
+```
+
+Confirm the range against the active cluster before use:
+
+```powershell
+kubectl -n envoy-gateway-system get pods -o wide
+```
+
+For production, set the release environment variable to the concrete CIDR(s)
+assigned to the selected Gateway data-plane workloads. Do not copy the
+minikube range into production.
+
 Create the bucket if needed:
 
 ```powershell

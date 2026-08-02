@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tls-secret", required=True)
     parser.add_argument("--frontend-base-url", required=True)
     parser.add_argument("--backend-cors-origins", required=True)
+    parser.add_argument("--trusted-proxy-cidrs", required=True)
     parser.add_argument("--auth-cookie-secure", choices=("true", "false"), required=True)
     parser.add_argument("--mail-default-sender", required=True)
     parser.add_argument("--s3-endpoint-url", required=True)
@@ -179,6 +180,11 @@ def render_overlay(args: argparse.Namespace) -> Path:
         backend_config,
         "BACKEND_CORS_ORIGINS",
         args.backend_cors_origins,
+    )
+    backend_config = replace_env_value(
+        backend_config,
+        "TRUSTED_PROXY_CIDRS",
+        args.trusted_proxy_cidrs,
     )
     backend_config = replace_env_value(
         backend_config,

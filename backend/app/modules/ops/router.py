@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
+from app.core.client_address import client_address, peer_address
 from app.core.exceptions import AppException
 from app.db.models import User
 from app.modules.ops.schemas import (
@@ -138,7 +139,8 @@ async def retry_async_operation(
             error_code=exc.code,
             reason=command.reason if command is not None else None,
             request_id=getattr(request.state, "request_id", None),
-            peer_address=request.client.host if request.client is not None else None,
+            peer_address=peer_address(request),
+            client_address=client_address(request),
         )
         raise
     await service.record_audit_event(
@@ -150,7 +152,8 @@ async def retry_async_operation(
         outcome="succeeded",
         reason=command.reason if command is not None else None,
         request_id=getattr(request.state, "request_id", None),
-        peer_address=request.client.host if request.client is not None else None,
+        peer_address=peer_address(request),
+        client_address=client_address(request),
         previous_state=result.previous_state,
         new_state=result.operation.raw_status,
     )

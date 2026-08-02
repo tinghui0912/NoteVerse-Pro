@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
+from app.core.client_address import client_address, peer_address
 from app.core.logger import logger, set_trace_id
 from app.core.metrics import record_http_request
 from app.shared.constants import ErrorCode
@@ -169,7 +170,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             request_id=trace_id,
             method=request.method,
             path=request.url.path,
-            client_host=request.client.host if request.client else "unknown",
+            peer_address=peer_address(request) or "unknown",
+            client_address=client_address(request) or "unknown",
         )
         if should_log:
             base_log.bind(event="api.request_started").info("api.request_started")

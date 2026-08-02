@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.core.client_address import client_address
 from app.db.models import User
 from app.modules.auth.dependencies import get_email_change_service
 from app.modules.auth.email_change_service import EmailChangeService
@@ -28,7 +29,7 @@ async def request_my_email_change(
         current_user,
         request,
         user_agent=request_context.headers.get("user-agent"),
-        ip_address=request_context.client.host if request_context.client else None,
+        ip_address=client_address(request_context),
     )
     return success_response(message=SuccessCode.VERIFICATION_SUCCESS)
 

@@ -95,6 +95,7 @@ class OpsAuditEventRead(BaseModel):
     reason: str | None
     request_id: str | None
     peer_address: str | None
+    client_address: str | None
     previous_state: str | None
     new_state: str | None
     created_at: datetime
