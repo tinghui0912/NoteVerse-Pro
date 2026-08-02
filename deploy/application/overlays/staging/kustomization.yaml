@@ -30,6 +30,9 @@ images:
   - name: noteverse-frontend
     newName: registry.example.invalid/noteverse/frontend
     newTag: staging-replace-me
+  - name: noteverse-platform-admin
+    newName: registry.example.invalid/noteverse/platform-admin
+    newTag: staging-replace-me
 
 configMapGenerator:
   - name: noteverse-backend-config
@@ -38,6 +41,9 @@ configMapGenerator:
   - name: noteverse-frontend-config
     envs:
       - frontend-config.env
+  - name: noteverse-control-plane-config
+    envs:
+      - control-plane-config.env
 
 generatorOptions:
   disableNameSuffixHash: true

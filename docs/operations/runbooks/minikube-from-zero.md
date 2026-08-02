@@ -357,6 +357,7 @@ $env:NOTEVERSE_BACKEND_PRACTICE_IMAGE = "ghcr.io/<owner>/noteverse/backend-pract
 $env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<owner>/noteverse/backend-beat:<tag>"
 $env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker:<tag>"
 $env:NOTEVERSE_FRONTEND_IMAGE = "ghcr.io/<owner>/noteverse/frontend:<tag>"
+$env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<owner>/noteverse/platform-admin:<tag>"
 
 $env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"
 $env:NOTEVERSE_S3_REGION = "<s3-region>"

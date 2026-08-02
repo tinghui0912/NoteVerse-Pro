@@ -15,7 +15,7 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class OpsAuditEvent(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "ops_audit_events"
     __table_args__ = (
-        Index("idx_ops_audit_events_actor_created", "actor_user_id", "created_at"),
+        Index("idx_ops_audit_events_actor_created", "actor_operator_id", "created_at"),
         Index("idx_ops_audit_events_operation", "operation_kind", "operation_id"),
         Index("idx_ops_audit_events_action_created", "action", "created_at"),
     )
@@ -28,10 +28,13 @@ class OpsAuditEvent(SQLModel, table=True):  # type: ignore[call-arg]
         default_factory=lambda: str(uuid.uuid4()),
         sa_column=Column(String(36), unique=True, nullable=False),
     )
-    actor_user_id: Optional[int] = Field(
+    actor_operator_id: Optional[int] = Field(
         default=None,
-        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL")),
+        sa_column=Column(BigInteger, ForeignKey("operators.id", ondelete="SET NULL")),
     )
+    actor_identity_provider: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    actor_identity_issuer: Optional[str] = Field(default=None, sa_column=Column(String(255)))
+    actor_identity_subject: Optional[str] = Field(default=None, sa_column=Column(String(255)))
     action: str = Field(sa_column=Column(String(64), nullable=False))
     operation_kind: str = Field(sa_column=Column(String(40), nullable=False))
     operation_id: str = Field(sa_column=Column(String(128), nullable=False))

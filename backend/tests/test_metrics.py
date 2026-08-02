@@ -52,31 +52,21 @@ def test_scheduler_leader_metrics_read_dedicated_orm_entity() -> None:
     assert "noteverse_scheduler_leader_child_exits_total 1" in lines
 
 
-def test_metrics_endpoint_exposes_prometheus_text(client: TestClient) -> None:
-    response = client.get("/metrics")
+def test_exporter_metrics_endpoint_exposes_durable_projection(
+    exporter_client: TestClient,
+    monkeypatch,
+) -> None:
+    async def durable_metrics(_db: object) -> str:
+        return "noteverse_scheduler_lag_seconds{operation_kind=\"render\"} 0\n"
+
+    monkeypatch.setattr("app.api.metrics.async_operation_metrics_text", durable_metrics)
+
+    response = exporter_client.get("/metrics")
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
     assert "noteverse_http_requests_total" in response.text
-    assert "noteverse_import_jobs_by_state" in response.text
-    assert "noteverse_outbox_records_by_status" in response.text
-    assert "noteverse_score_deletions_by_status" in response.text
-    assert "noteverse_async_operation_oldest_open_age_seconds" in response.text
-    assert "noteverse_async_operation_oldest_processing_age_seconds" in response.text
-    assert "noteverse_async_operation_completed_duration_average_seconds" in response.text
-    assert "noteverse_scheduler_last_success_timestamp_seconds" in response.text
-    assert "noteverse_scheduler_last_scan_duration_seconds" in response.text
-    assert "noteverse_scheduler_successes_total" in response.text
-    assert "noteverse_scheduler_dispatched_records_total" in response.text
-    assert "noteverse_scheduler_lock_acquired_total" in response.text
-    assert "noteverse_scheduler_lock_skipped_total" in response.text
-    assert "noteverse_scheduler_leader_active" in response.text
     assert "noteverse_scheduler_lag_seconds" in response.text
-    assert 'noteverse_realtime_active_connections{channel="app_sse"} 0.0' in response.text
-    assert (
-        'noteverse_realtime_active_connections{channel="practice_websocket"} 0.0'
-        in response.text
-    )
 
 
 def test_http_metrics_use_route_template_labels(client: TestClient) -> None:
@@ -87,3 +77,12 @@ def test_http_metrics_use_route_template_labels(client: TestClient) -> None:
     assert response.status_code == 200
     assert 'noteverse_http_requests_total{method="GET",route="/",status_code="200"}' in response.text
     assert 'route="/metrics"' not in response.text
+
+
+def test_customer_metrics_exclude_durable_database_metrics(client: TestClient) -> None:
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "noteverse_http_requests_total" in response.text
+    assert "noteverse_import_jobs_by_state" not in response.text
+    assert "noteverse_scheduler_lag_seconds" not in response.text

@@ -63,6 +63,18 @@ docker compose -f docker-compose.backend-dev.yml run --rm api migrate
 docker compose -f docker-compose.backend-dev.yml up api worker beat
 ```
 
+The control-plane runtime is intentionally opt-in. Before starting it, add all
+`CONTROL_PLANE_*` values from `.env.docker.example` to `backend/.env.docker`;
+they must use names and origins distinct from customer authentication. Then
+start it explicitly:
+
+```powershell
+docker compose -f docker-compose.backend-dev.yml --profile control-plane up control
+```
+
+It listens on `http://localhost:8002` by default. It is a separate API
+audience and is not a customer API or an operator UI.
+
 The runtime check supports process roles:
 
 ```powershell
@@ -71,6 +83,10 @@ docker compose -f docker-compose.backend-dev.yml run --rm api check --role worke
 docker compose -f docker-compose.backend-dev.yml run --rm api check --role beat
 docker compose -f docker-compose.backend-dev.yml run --rm api check --role all
 ```
+
+`--role control` and `--role all` require the independent
+`CONTROL_PLANE_*` configuration described above. This is intentional: a full
+runtime validation must not silently omit the control-plane identity boundary.
 
 Worker and beat run their own required checks before starting. They fail closed;
 there is no environment switch that bypasses the startup gate. The API exposes

@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: noteverse-observability-exporter
+  labels:
+    app.kubernetes.io/name: noteverse
+    app.kubernetes.io/part-of: noteverse
+    app.kubernetes.io/component: observability-exporter
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: observability-exporter
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

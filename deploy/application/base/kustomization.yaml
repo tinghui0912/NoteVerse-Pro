@@ -4,6 +4,10 @@ kind: Kustomization
 resources:
   - backend-api-deployment.yaml
   - backend-api-service.yaml
+  - control-plane-deployment.yaml
+  - control-plane-service.yaml
+  - observability-exporter-deployment.yaml
+  - observability-exporter-service.yaml
   - backend-practice-deployment.yaml
   - backend-practice-service.yaml
   - model-cache-agent-daemonset.yaml
@@ -11,6 +15,8 @@ resources:
   - backend-beat-deployment.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml
+  - platform-admin-deployment.yaml
+  - platform-admin-service.yaml
   - migration-job.yaml
 
 labels:

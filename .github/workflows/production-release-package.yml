@@ -27,6 +27,10 @@ on:
         description: "Optional full frontend image reference override"
         required: false
         type: string
+      platform_admin_image:
+        description: "Optional full Platform Admin image reference override"
+        required: false
+        type: string
 
 concurrency:
   group: production-release-package-${{ github.ref }}
@@ -68,6 +72,7 @@ jobs:
           BACKEND_PRACTICE_IMAGE="${{ inputs.backend_practice_image }}"
           BACKEND_WORKER_IMAGE="${{ inputs.backend_worker_image }}"
           FRONTEND_IMAGE="${{ inputs.frontend_image }}"
+          PLATFORM_ADMIN_IMAGE="${{ inputs.platform_admin_image }}"
 
           if [ -n "${IMAGE_TAG}" ]; then
             if [ -z "${BACKEND_API_IMAGE}" ]; then
@@ -84,6 +89,9 @@ jobs:
             fi
             if [ -z "${FRONTEND_IMAGE}" ]; then
               FRONTEND_IMAGE="${IMAGE_NAMESPACE}/frontend:${IMAGE_TAG}"
+            fi
+            if [ -z "${PLATFORM_ADMIN_IMAGE}" ]; then
+              PLATFORM_ADMIN_IMAGE="${IMAGE_NAMESPACE}/platform-admin:${IMAGE_TAG}"
             fi
           else
             CURRENT_METADATA="deploy/gitops/environments/production/release-metadata.json"
@@ -112,6 +120,9 @@ jobs:
             if [ -z "${FRONTEND_IMAGE}" ]; then
               FRONTEND_IMAGE="$(read_current_image frontend)"
             fi
+            if [ -z "${PLATFORM_ADMIN_IMAGE}" ]; then
+              PLATFORM_ADMIN_IMAGE="$(read_current_image platform_admin)"
+            fi
 
             IMAGE_TAG="current-production-plus-overrides"
           fi
@@ -123,6 +134,7 @@ jobs:
             echo "BACKEND_PRACTICE_IMAGE=${BACKEND_PRACTICE_IMAGE}"
             echo "BACKEND_WORKER_IMAGE=${BACKEND_WORKER_IMAGE}"
             echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}"
+            echo "PLATFORM_ADMIN_IMAGE=${PLATFORM_ADMIN_IMAGE}"
           } >> "$GITHUB_ENV"
 
       - name: Log in to GHCR
@@ -171,6 +183,7 @@ jobs:
           BACKEND_PRACTICE_IMAGE_DIGEST="$(inspect_digest "${BACKEND_PRACTICE_IMAGE}")"
           BACKEND_WORKER_IMAGE_DIGEST="$(inspect_digest "${BACKEND_WORKER_IMAGE}")"
           FRONTEND_IMAGE_DIGEST="$(inspect_digest "${FRONTEND_IMAGE}")"
+          PLATFORM_ADMIN_IMAGE_DIGEST="$(inspect_digest "${PLATFORM_ADMIN_IMAGE}")"
 
           {
             echo "BACKEND_API_IMAGE_DIGEST=${BACKEND_API_IMAGE_DIGEST}"
@@ -178,11 +191,13 @@ jobs:
             echo "BACKEND_PRACTICE_IMAGE_DIGEST=${BACKEND_PRACTICE_IMAGE_DIGEST}"
             echo "BACKEND_WORKER_IMAGE_DIGEST=${BACKEND_WORKER_IMAGE_DIGEST}"
             echo "FRONTEND_IMAGE_DIGEST=${FRONTEND_IMAGE_DIGEST}"
+            echo "PLATFORM_ADMIN_IMAGE_DIGEST=${PLATFORM_ADMIN_IMAGE_DIGEST}"
             echo "BACKEND_API_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_API_IMAGE}")@${BACKEND_API_IMAGE_DIGEST}"
             echo "BACKEND_BEAT_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_BEAT_IMAGE}")@${BACKEND_BEAT_IMAGE_DIGEST}"
             echo "BACKEND_PRACTICE_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_PRACTICE_IMAGE}")@${BACKEND_PRACTICE_IMAGE_DIGEST}"
             echo "BACKEND_WORKER_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_WORKER_IMAGE}")@${BACKEND_WORKER_IMAGE_DIGEST}"
             echo "FRONTEND_IMAGE_PINNED=$(image_name_without_reference "${FRONTEND_IMAGE}")@${FRONTEND_IMAGE_DIGEST}"
+            echo "PLATFORM_ADMIN_IMAGE_PINNED=$(image_name_without_reference "${PLATFORM_ADMIN_IMAGE}")@${PLATFORM_ADMIN_IMAGE_DIGEST}"
           } >> "$GITHUB_ENV"
 
       - name: Render production release overlay
@@ -195,11 +210,13 @@ jobs:
             --backend-practice-image "${BACKEND_PRACTICE_IMAGE_PINNED}" \
             --backend-worker-image "${BACKEND_WORKER_IMAGE_PINNED}" \
             --frontend-image "${FRONTEND_IMAGE_PINNED}" \
+            --platform-admin-image "${PLATFORM_ADMIN_IMAGE_PINNED}" \
             --frontend-host "${{ vars.PRODUCTION_FRONTEND_HOST }}" \
             --api-host "${{ vars.PRODUCTION_API_HOST }}" \
             --tls-secret "${{ vars.PRODUCTION_TLS_SECRET }}" \
             --frontend-base-url "${{ vars.PRODUCTION_FRONTEND_BASE_URL }}" \
             --backend-cors-origins '${{ vars.PRODUCTION_BACKEND_CORS_ORIGINS }}' \
+            --control-plane-cors-origins '${{ vars.PRODUCTION_CONTROL_PLANE_CORS_ORIGINS }}' \
             --trusted-proxy-cidrs '${{ vars.PRODUCTION_TRUSTED_PROXY_CIDRS }}' \
             --auth-cookie-secure "${{ vars.PRODUCTION_AUTH_COOKIE_SECURE }}" \
             --mail-default-sender "${{ vars.PRODUCTION_MAIL_DEFAULT_SENDER }}" \
@@ -238,6 +255,7 @@ jobs:
                   "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE_PINNED"],
                   "backend_worker": os.environ["BACKEND_WORKER_IMAGE_PINNED"],
                   "frontend": os.environ["FRONTEND_IMAGE_PINNED"],
+                  "platform_admin": os.environ["PLATFORM_ADMIN_IMAGE_PINNED"],
               },
               "requested_images": {
                   "backend_api": os.environ["BACKEND_API_IMAGE"],
@@ -245,6 +263,7 @@ jobs:
                   "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE"],
                   "backend_worker": os.environ["BACKEND_WORKER_IMAGE"],
                   "frontend": os.environ["FRONTEND_IMAGE"],
+                  "platform_admin": os.environ["PLATFORM_ADMIN_IMAGE"],
               },
               "hosts": {
                   "frontend": "${{ vars.PRODUCTION_FRONTEND_HOST }}",
@@ -277,6 +296,7 @@ jobs:
             echo "- Backend practice image: \`${BACKEND_PRACTICE_IMAGE_PINNED}\`"
             echo "- Backend worker image: \`${BACKEND_WORKER_IMAGE_PINNED}\`"
             echo "- Frontend image: \`${FRONTEND_IMAGE_PINNED}\`"
+            echo "- Platform Admin image: \`${PLATFORM_ADMIN_IMAGE_PINNED}\`"
             echo "- Metadata: \`build/k8s-release/production/release-metadata.json\`"
             echo "- Artifact: \`production-release-package\`"
           } >> "$GITHUB_STEP_SUMMARY"

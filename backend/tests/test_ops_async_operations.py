@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,8 +9,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from app.core.config import settings
-from app.api.deps import get_current_user, get_db
-from app.main import app
+from app.api.deps import get_db
 from app.db.models import (
     ImportDispatchStatus,
     ImportJob,
@@ -26,8 +26,11 @@ from app.db.models import (
     Score,
     ScoreDeletionStatus,
     ScoreRevision,
-    User,
-    UserRole,
+    Operator,
+    OperatorIdentity,
+    OperatorIdentityProvider,
+    OperatorRole,
+    OperatorSession,
     PlaybackOutboxStatus,
 )
 from app.modules.ops.schemas import (
@@ -44,6 +47,29 @@ from app.modules.async_operations.diagnostics import (
 from app.utils.timezone import utc_now_naive
 
 
+settings.CONTROL_PLANE_AUTH_COOKIE_NAME = "noteverse_control_auth"
+settings.CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_control_csrf"
+settings.CONTROL_PLANE_CSRF_HEADER_NAME = "x-control-csrf-token"
+settings.CONTROL_PLANE_COOKIE_SECURE = False
+settings.CONTROL_PLANE_COOKIE_SAMESITE = "lax"
+settings.CONTROL_PLANE_SESSION_EXPIRE_MINUTES = 30
+settings.CONTROL_PLANE_CORS_ORIGINS = ["http://testserver"]
+
+from app.control_plane_main import create_app  # noqa: E402
+from app.core.control_plane_settings import require_control_plane_settings  # noqa: E402
+from app.modules.platform_operators.dependencies import OperatorPrincipal, get_current_operator  # noqa: E402
+from app.modules.platform_operators.service import OperatorAuthenticationService  # noqa: E402
+
+
+app = create_app()
+
+
+@pytest.fixture
+def client() -> TestClient:
+    with TestClient(app) as test_client:
+        yield test_client
+
+
 def _api_utc_datetime(value: datetime) -> str:
     return f"{value.isoformat()}Z"
 
@@ -52,16 +78,22 @@ class AsyncSessionAdapter:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def add(self, instance) -> None:  # type: ignore[no-untyped-def]
+    def add(self, instance) -> None:
         self.session.add(instance)
 
-    async def execute(self, statement, params=None, *args, **kwargs):  # type: ignore[no-untyped-def]
+    async def execute(self, statement, params=None, *args, **kwargs):
         return self.session.execute(statement, params=params, *args, **kwargs)
 
     async def commit(self) -> None:
         self.session.commit()
 
-    async def refresh(self, instance) -> None:  # type: ignore[no-untyped-def]
+    async def flush(self) -> None:
+        self.session.flush()
+
+    async def get(self, entity, identifier):
+        return self.session.get(entity, identifier)
+
+    async def refresh(self, instance) -> None:
         self.session.refresh(instance)
 
 
@@ -77,23 +109,145 @@ def ops_session() -> Session:
         yield session
 
 
-def _override_ops_dependencies(session: Session, *, role: UserRole) -> None:
+def _override_ops_dependencies(session: Session, *, authorized: bool) -> None:
     async def override_get_db():
         yield AsyncSessionAdapter(session)
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_user] = lambda: User(
+    operator = Operator(
         id=1,
-        email="admin@example.com",
         display_name="Admin",
-        password_hash="hash",
-        role=role,
     )
+    operator.role = (
+        OperatorRole.PLATFORM_OPERATOR
+        if authorized
+        else cast(OperatorRole, "unsupported_test_operator_role")
+    )
+    app.dependency_overrides[get_current_operator] = lambda: OperatorPrincipal(
+        operator=operator,
+        identity=OperatorIdentity(
+            id=1,
+            operator_id=1,
+            provider=OperatorIdentityProvider.LOCAL_PASSWORD,
+            issuer="test",
+            subject="operator-test",
+        ),
+        session=OperatorSession(
+            id=1,
+            operator_id=1,
+            identity_id=1,
+            token_hash="test",
+            expires_at=utc_now_naive() + timedelta(hours=1),
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_local_operator_identity_creates_and_resolves_opaque_session(ops_session: Session) -> None:
+    service = OperatorAuthenticationService()
+    db = AsyncSessionAdapter(ops_session)
+    operator = await service.create_local_operator(
+        db,
+        username="operator@example.test",
+        password="a-long-operator-password",
+        display_name="Platform Operator",
+    )
+    authenticated_operator, identity, token = await service.authenticate_local_password(
+        db,
+        username="operator@example.test",
+        password="a-long-operator-password",
+        user_agent="test-agent",
+        ip_address="198.51.100.10",
+        security_settings=require_control_plane_settings(),
+    )
+    resolved_operator, resolved_identity, resolved_session = await service.resolve_session(db, token=token)
+
+    assert authenticated_operator.id == operator.id
+    assert resolved_operator.id == operator.id
+    assert resolved_identity.id == identity.id
+    assert resolved_session.operator_id == operator.id
+    assert resolved_session.token_hash != token
+
+
+@pytest.mark.asyncio
+async def test_control_plane_login_uses_an_independent_operator_session_cookie(
+    client: TestClient,
+    ops_session: Session,
+) -> None:
+    db = AsyncSessionAdapter(ops_session)
+    service = OperatorAuthenticationService()
+    await service.create_local_operator(
+        db,
+        username="operator@example.test",
+        password="a-long-operator-password",
+        display_name="Platform Operator",
+    )
+
+    async def override_get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "operator@example.test", "password": "a-long-operator-password"},
+        )
+
+        assert response.status_code == 200
+        assert settings.CONTROL_PLANE_AUTH_COOKIE_NAME in response.headers["set-cookie"]
+        assert settings.AUTH_COOKIE_NAME not in response.headers["set-cookie"]
+
+        me_response = client.get("/api/v1/auth/me")
+        assert me_response.status_code == 200
+        assert me_response.json()["operator_id"]
+    finally:
+        _clear_ops_dependency_overrides()
+
+
+@pytest.mark.asyncio
+async def test_control_plane_logout_requires_its_own_csrf_header(
+    client: TestClient,
+    ops_session: Session,
+) -> None:
+    db = AsyncSessionAdapter(ops_session)
+    service = OperatorAuthenticationService()
+    await service.create_local_operator(
+        db,
+        username="operator@example.test",
+        password="a-long-operator-password",
+        display_name="Platform Operator",
+    )
+
+    async def override_get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"username": "operator@example.test", "password": "a-long-operator-password"},
+        )
+        assert login.status_code == 200
+
+        missing_csrf = client.post("/api/v1/auth/logout")
+        assert missing_csrf.status_code == 403
+        assert missing_csrf.json()["public_code"] == "csrf_token_invalid"
+
+        csrf_token = client.cookies.get(settings.CONTROL_PLANE_CSRF_COOKIE_NAME)
+        assert csrf_token
+        logout = client.post(
+            "/api/v1/auth/logout",
+            headers={settings.CONTROL_PLANE_CSRF_HEADER_NAME: csrf_token},
+        )
+        assert logout.status_code == 200
+        assert client.get("/api/v1/auth/me").status_code == 401
+    finally:
+        _clear_ops_dependency_overrides()
 
 
 def _clear_ops_dependency_overrides() -> None:
     app.dependency_overrides.pop(get_db, None)
-    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_current_operator, None)
 
 
 def _create_score_revision(
@@ -230,7 +384,7 @@ async def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -
 
     service = OpsAsyncOperationService()
     summary = await service.summary(
-        AsyncSessionAdapter(ops_session),  # type: ignore[arg-type]
+        AsyncSessionAdapter(ops_session),
         kind=AsyncOperationKind.MAIL,
         error_class=AsyncOperationErrorClass.TRANSIENT,
     )
@@ -256,7 +410,7 @@ def test_ops_api_rejects_non_admin_users_without_diagnostics(
     method: str,
     path: str,
 ) -> None:
-    _override_ops_dependencies(ops_session, role=UserRole.user)
+    _override_ops_dependencies(ops_session, authorized=False)
     try:
         response = getattr(client, method)(path)
     finally:
@@ -308,7 +462,7 @@ def test_ops_api_summary_is_available_to_admin(
         )
     )
     ops_session.commit()
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.get(
             "/api/v1/ops/async-operations/summary",
@@ -373,7 +527,7 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
     audit_fields = set(components["OpsAuditEventRead"]["properties"])
     assert {
         "event_id",
-        "actor_user_id",
+        "actor_operator_id",
         "action",
         "operation_kind",
         "operation_id",
@@ -387,6 +541,7 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
         "new_state",
         "created_at",
     }.issubset(audit_fields)
+    assert "reason" in components["RetryAsyncOperationCommand"]["required"]
 
 
 def test_ops_api_async_operations_supports_offset_pagination(
@@ -435,7 +590,7 @@ def test_ops_api_async_operations_supports_offset_pagination(
     ])
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.get(
             "/api/v1/ops/async-operations",
@@ -483,7 +638,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     ops_session.commit()
     operation_id = outbox.outbox_uuid
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
             f"/api/v1/ops/async-operations/mail/{operation_id}/retry",
@@ -507,7 +662,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     assert outbox.internal_error_class is None
     assert outbox.internal_error_retryable is None
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
-    assert audit_event.actor_user_id == 1
+    assert audit_event.actor_operator_id == 1
     assert audit_event.action == "retry_async_operation"
     assert audit_event.operation_kind == "mail"
     assert audit_event.operation_id == operation_id
@@ -519,7 +674,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     assert audit_event.previous_state == "FAILED"
     assert audit_event.new_state == "PENDING"
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
         audit_response = client.get(
             "/api/v1/ops/audit-events",
@@ -541,7 +696,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     assert audit_payload["data"]["items"] == [
         {
             "event_id": audit_event.event_uuid,
-            "actor_user_id": 1,
+            "actor_operator_id": 1,
             "action": "retry_async_operation",
             "operation_kind": "mail",
             "operation_id": operation_id,
@@ -565,7 +720,7 @@ def test_ops_api_audit_events_supports_offset_pagination(
     now = utc_now_naive()
     ops_session.add_all([
         OpsAuditEvent(
-            actor_user_id=1,
+            actor_operator_id=1,
             action="retry_async_operation",
             operation_kind="mail",
             operation_id="audit-oldest",
@@ -573,7 +728,7 @@ def test_ops_api_audit_events_supports_offset_pagination(
             created_at=now - timedelta(minutes=3),
         ),
         OpsAuditEvent(
-            actor_user_id=1,
+            actor_operator_id=1,
             action="retry_async_operation",
             operation_kind="mail",
             operation_id="audit-middle",
@@ -581,7 +736,7 @@ def test_ops_api_audit_events_supports_offset_pagination(
             created_at=now - timedelta(minutes=2),
         ),
         OpsAuditEvent(
-            actor_user_id=1,
+            actor_operator_id=1,
             action="retry_async_operation",
             operation_kind="mail",
             operation_id="audit-newest",
@@ -591,7 +746,7 @@ def test_ops_api_audit_events_supports_offset_pagination(
     ])
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.get(
             "/api/v1/ops/audit-events",
@@ -626,9 +781,12 @@ def test_ops_api_retry_rejects_completed_mail_and_records_audit(
     ops_session.commit()
     operation_id = outbox.outbox_uuid
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
-        response = client.post(f"/api/v1/ops/async-operations/mail/{operation_id}/retry")
+        response = client.post(
+            f"/api/v1/ops/async-operations/mail/{operation_id}/retry",
+            json={"reason": "Validate the completed operation state."},
+        )
     finally:
         _clear_ops_dependency_overrides()
 
@@ -646,15 +804,33 @@ def test_ops_api_retry_rejects_completed_mail_and_records_audit(
     assert audit_event.error_code == "validation_error"
 
 
+def test_ops_api_retry_requires_a_bounded_reason(
+    client: TestClient,
+    ops_session: Session,
+) -> None:
+    _override_ops_dependencies(ops_session, authorized=True)
+    try:
+        response = client.post("/api/v1/ops/async-operations/mail/missing/retry")
+    finally:
+        _clear_ops_dependency_overrides()
+
+    assert response.status_code == 422
+    assert response.json()["public_code"] == "validation_error"
+    assert ops_session.exec(select(OpsAuditEvent)).all() == []
+
+
 def test_ops_api_retry_unknown_operation_records_audit(
     client: TestClient,
     ops_session: Session,
 ) -> None:
     operation_id = "missing-operation-id"
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
-        response = client.post(f"/api/v1/ops/async-operations/mail/{operation_id}/retry")
+        response = client.post(
+            f"/api/v1/ops/async-operations/mail/{operation_id}/retry",
+            json={"reason": "Validate the missing operation state."},
+        )
     finally:
         _clear_ops_dependency_overrides()
 
@@ -683,9 +859,12 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
     ops_session.add(job)
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
-        response = client.post(f"/api/v1/ops/async-operations/import/{job.job_uuid}/retry")
+        response = client.post(
+            f"/api/v1/ops/async-operations/import/{job.job_uuid}/retry",
+            json={"reason": "Validate the confirmed import state."},
+        )
     finally:
         _clear_ops_dependency_overrides()
 
@@ -723,9 +902,12 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     ops_session.add(outbox)
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
-        response = client.post(f"/api/v1/ops/async-operations/render/{outbox.outbox_uuid}/retry")
+        response = client.post(
+            f"/api/v1/ops/async-operations/render/{outbox.outbox_uuid}/retry",
+            json={"reason": "Validate the completed render state."},
+        )
     finally:
         _clear_ops_dependency_overrides()
 
@@ -754,10 +936,11 @@ def test_ops_api_retry_rejects_active_score_deletion_and_records_audit(
     ops_session.add(score)
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
-            f"/api/v1/ops/async-operations/score_deletion/{score.score_uuid}/retry"
+            f"/api/v1/ops/async-operations/score_deletion/{score.score_uuid}/retry",
+            json={"reason": "Validate the active deletion state."},
         )
     finally:
         _clear_ops_dependency_overrides()
@@ -802,9 +985,12 @@ def test_ops_api_admin_can_retry_failed_import_job(
     ops_session.add(job)
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
-        response = client.post(f"/api/v1/ops/async-operations/import/{job.job_uuid}/retry")
+        response = client.post(
+            f"/api/v1/ops/async-operations/import/{job.job_uuid}/retry",
+            json={"reason": "Retry after import infrastructure recovery."},
+        )
     finally:
         _clear_ops_dependency_overrides()
 
@@ -867,9 +1053,12 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     ops_session.add(outbox)
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
-        response = client.post(f"/api/v1/ops/async-operations/render/{outbox.outbox_uuid}/retry")
+        response = client.post(
+            f"/api/v1/ops/async-operations/render/{outbox.outbox_uuid}/retry",
+            json={"reason": "Retry after rendering infrastructure recovery."},
+        )
     finally:
         _clear_ops_dependency_overrides()
 
@@ -927,10 +1116,11 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
     ops_session.add(outbox)
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
-            f"/api/v1/ops/async-operations/playback/{outbox.outbox_uuid}/retry"
+            f"/api/v1/ops/async-operations/playback/{outbox.outbox_uuid}/retry",
+            json={"reason": "Retry after playback infrastructure recovery."},
         )
     finally:
         _clear_ops_dependency_overrides()
@@ -977,10 +1167,11 @@ def test_ops_api_admin_can_retry_score_deletion_cleanup(
     ops_session.add(score)
     ops_session.commit()
 
-    _override_ops_dependencies(ops_session, role=UserRole.admin)
+    _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
-            f"/api/v1/ops/async-operations/score_deletion/{score.score_uuid}/retry"
+            f"/api/v1/ops/async-operations/score_deletion/{score.score_uuid}/retry",
+            json={"reason": "Retry after deletion cleanup infrastructure recovery."},
         )
     finally:
         _clear_ops_dependency_overrides()

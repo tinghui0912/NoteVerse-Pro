@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.lifespan import create_app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
-from app.core.middleware import CsrfProtectionMiddleware, LoggingMiddleware
+from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware, LoggingMiddleware
 from app.core.runtime_checks import RuntimeRole
 from app.core.tracing import configure_api_tracing
 from app.modules.practice.router import router as practice_router
@@ -20,6 +20,18 @@ configure_uvicorn_logging()
 
 def _cors_origins() -> list[str]:
     return [str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS]
+
+
+def _csrf_settings() -> CookieCsrfSettings:
+    return CookieCsrfSettings(
+        api_prefix=settings.API_V1_STR,
+        session_cookie_names=(settings.AUTH_COOKIE_NAME, settings.REFRESH_COOKIE_NAME),
+        csrf_cookie_name=settings.CSRF_COOKIE_NAME,
+        csrf_header_name=settings.CSRF_HEADER_NAME,
+        exempt_paths=(),
+        allowed_origins=lambda: tuple(_cors_origins()),
+        debug=settings.DEBUG,
+    )
 
 
 def create_app() -> FastAPI:
@@ -34,7 +46,7 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(LoggingMiddleware)
-    app.add_middleware(CsrfProtectionMiddleware)
+    app.add_middleware(CsrfProtectionMiddleware, csrf_settings=_csrf_settings())
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins(),

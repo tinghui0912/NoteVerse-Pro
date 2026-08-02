@@ -14,9 +14,9 @@ def create_metrics_router(*, include_database_metrics: bool) -> APIRouter:
     """Create the metrics endpoint for one independently scraped runtime.
 
     Process metrics belong to every HTTP runtime. Durable business and scheduler
-    metrics describe shared PostgreSQL state, so the API runtime is their single
-    authoritative exporter. Re-exporting them from practice would duplicate
-    time series and make scheduler alerts evaluate a non-scheduler service.
+    metrics describe shared PostgreSQL state, so only the dedicated
+    observability-exporter runtime projects them. Re-exporting them from API or
+    practice would duplicate time series and make scheduler alerts ambiguous.
     """
 
     router = APIRouter(tags=["Metrics"])
@@ -39,6 +39,3 @@ def create_metrics_router(*, include_database_metrics: bool) -> APIRouter:
         return Response(content=content, media_type=CONTENT_TYPE_LATEST)
 
     return router
-
-
-router = create_metrics_router(include_database_metrics=True)

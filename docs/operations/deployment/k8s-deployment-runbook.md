@@ -77,11 +77,13 @@ python scripts/render_k8s_release_overlay.py \
   --backend-beat-image ghcr.io/<owner>/noteverse/backend-beat@sha256:<digest> \
   --backend-worker-image ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest> \
   --frontend-image ghcr.io/<owner>/noteverse/frontend@sha256:<digest> \
+  --platform-admin-image ghcr.io/<owner>/noteverse/platform-admin@sha256:<digest> \
   --frontend-host noteverse.example.com \
   --api-host api.noteverse.example.com \
   --tls-secret noteverse-production-tls \
   --frontend-base-url https://noteverse.example.com \
   --backend-cors-origins '["https://noteverse.example.com"]' \
+  --control-plane-cors-origins '["https://admin.noteverse.example.com"]' \
   --trusted-proxy-cidrs '["<gateway-data-plane-cidr>"]' \
   --auth-cookie-secure true \
   --mail-default-sender 'NoteVerse Pro <no-reply@noteverse.example.com>' \

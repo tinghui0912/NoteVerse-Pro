@@ -12,6 +12,7 @@ write an ADR under `../adr/`.
 ## Control Plane
 
 - [Control Plane API Boundary](../adr/0006-control-plane-api-boundary.md)
+- [Control-Plane Identity Contract](../security/control-plane-identity-contract.md)
 
 ## Integrations
 

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db
 from app.core.client_address import client_address, peer_address
 from app.core.exceptions import AppException
-from app.db.models import User
+from app.modules.platform_operators.dependencies import OperatorPrincipal
 from app.modules.ops.schemas import (
     AsyncOperationErrorClass,
     AsyncOperationKind,
@@ -33,12 +33,12 @@ def get_ops_async_operation_service() -> OpsAsyncOperationService:
 
 @router.get("/audit-events", response_model=APIResponse[OffsetPage[OpsAuditEventRead]])
 async def list_ops_audit_events(
-    _admin_user: User = Depends(require_platform_operation(PlatformOperationAction.READ)),
+    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationService = Depends(get_ops_async_operation_service),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=10000),
-    actor_user_id: int | None = Query(default=None, ge=1),
+    actor_operator_id: int | None = Query(default=None, ge=1),
     action: str | None = Query(default=None, min_length=1, max_length=64),
     operation_kind: AsyncOperationKind | None = Query(default=None),
     operation_id: str | None = Query(default=None, min_length=1, max_length=128),
@@ -50,7 +50,7 @@ async def list_ops_audit_events(
         db,
         limit=limit,
         offset=offset,
-        actor_user_id=actor_user_id,
+        actor_operator_id=actor_operator_id,
         action=action,
         operation_kind=operation_kind,
         operation_id=operation_id,
@@ -63,7 +63,7 @@ async def list_ops_audit_events(
 
 @router.get("/async-operations", response_model=APIResponse[OffsetPage[AsyncOperationRead]])
 async def list_async_operations(
-    _admin_user: User = Depends(require_platform_operation(PlatformOperationAction.READ)),
+    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationService = Depends(get_ops_async_operation_service),
     limit: int = Query(default=100, ge=1, le=500),
@@ -91,7 +91,7 @@ async def list_async_operations(
 
 @router.get("/async-operations/summary", response_model=APIResponse[AsyncOperationsSummaryRead])
 async def async_operations_summary(
-    _admin_user: User = Depends(require_platform_operation(PlatformOperationAction.READ)),
+    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationService = Depends(get_ops_async_operation_service),
     kind: AsyncOperationKind | None = Query(default=None),
@@ -121,8 +121,8 @@ async def retry_async_operation(
     kind: AsyncOperationKind,
     operation_id: str,
     request: Request,
-    command: RetryAsyncOperationCommand | None = Body(default=None),
-    admin_user: User = Depends(require_platform_operation(PlatformOperationAction.RETRY)),
+    command: RetryAsyncOperationCommand = Body(...),
+    operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.RETRY)),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationService = Depends(get_ops_async_operation_service),
 ):
@@ -131,13 +131,16 @@ async def retry_async_operation(
     except AppException as exc:
         await service.record_audit_event(
             db,
-            actor_user_id=admin_user.id,
+            actor_operator_id=operator.operator.id,
+            actor_identity_provider=operator.identity.provider.value,
+            actor_identity_issuer=operator.identity.issuer,
+            actor_identity_subject=operator.identity.subject,
             action="retry_async_operation",
             operation_kind=kind,
             operation_id=operation_id,
             outcome="failed",
             error_code=exc.code,
-            reason=command.reason if command is not None else None,
+            reason=command.reason,
             request_id=getattr(request.state, "request_id", None),
             peer_address=peer_address(request),
             client_address=client_address(request),
@@ -145,12 +148,15 @@ async def retry_async_operation(
         raise
     await service.record_audit_event(
         db,
-        actor_user_id=admin_user.id,
+        actor_operator_id=operator.operator.id,
+        actor_identity_provider=operator.identity.provider.value,
+        actor_identity_issuer=operator.identity.issuer,
+        actor_identity_subject=operator.identity.subject,
         action="retry_async_operation",
         operation_kind=kind,
         operation_id=operation_id,
         outcome="succeeded",
-        reason=command.reason if command is not None else None,
+        reason=command.reason,
         request_id=getattr(request.state, "request_id", None),
         peer_address=peer_address(request),
         client_address=client_address(request),

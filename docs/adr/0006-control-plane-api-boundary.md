@@ -12,12 +12,11 @@ NoteVerse has two distinct internal use cases:
 - the control plane serves platform operators who inspect or remediate asynchronous operations and will
   later manage users, content, subscriptions, and security events.
 
-The current `/api/v1/ops` routes are correctly protected by explicit action policies, but they are
-registered in the customer API application and are covered by the broad customer `/api/v1` Gateway
-route. This is an explicitly accepted transitional state while no formal control-plane client or
-high-impact operator command is exposed. It remains acceptable only while endpoint-level action
-authorization is enforced and its migration is tracked. A path prefix is not a security or deployment
-boundary, and route obscurity is not a security control.
+The `/api/v1/ops` routes are correctly protected by explicit action policies and are registered only
+by the isolated control-plane composition root. A dedicated runtime and Service
+are declared dark-by-default, but no Gateway route exposes a dedicated control
+host yet. A path prefix is not a security or deployment boundary, and route
+obscurity is not a security control.
 
 The current customer authentication cookies are host-only cookies issued by the customer API. They must
 not be widened to `Domain=.noteverse.com` to make a future `admin` host work. Doing so would couple a
@@ -53,10 +52,11 @@ distributed transaction complexity without a present isolation requirement.
    - `support.*` and `security.*` when those responsibilities become concrete.
    Do not introduce a generic permission database until at least two operator roles have real and
    different responsibilities.
-7. A control-plane deployment requires a separate workforce/operator authentication audience, session,
-   and cookie names. It must not accept a customer session as proof of operator identity. Operator
-   authentication requires MFA-capable identity, short session lifetime, and step-up authentication for
-   high-impact actions.
+7. A control-plane deployment requires a separate operator identity domain, session, and cookie names.
+   Its initial provider may be local username/password; a future workforce OIDC provider binds to the
+   same operator domain rather than replacing it. It must not accept a customer session as proof of
+   operator identity. Production exposure requires MFA, short session lifetime, and step-up
+   authentication for high-impact actions.
 8. Control-plane actions that delete, restore, force state transitions, or alter billing require a
    bounded reason, server-side authorization, resource/state validation, idempotency where applicable,
    and append-only audit records with before/after state. "Immutable" means that the application offers
@@ -86,11 +86,12 @@ or an enterprise identity provider.
 
 ## Delivery Sequence
 
-1. Define a provider-neutral workforce identity contract, audience, session model, MFA, and step-up
-   rules. Development may use deterministic test identities, but must not introduce a permissive
-   production bypass.
-2. Create `control_plane_api` and `observability_exporter` composition roots, then deploy both dark or
-   internal-only. Move the existing `ops` router as a clean cut and remove it from the customer API; do
+1. Define a provider-neutral operator identity contract, local-password session model, MFA and
+   step-up rules, and a future OIDC binding model. Development may use deterministic test identities,
+   but must not introduce a permissive production bypass.
+2. Create `control_plane_api` and `observability_exporter` composition roots,
+   then deploy the control plane dark and the exporter internal-only. Move the
+   existing `ops` router as a clean cut and remove it from the customer API; do
    not leave a customer API compatibility route.
 3. Create an independent `platform-admin` Next.js application and separate control-plane OpenAPI client.
 4. Verify authorization, audit semantics, independent rollback, and internal connectivity before adding

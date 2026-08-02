@@ -42,7 +42,7 @@ class AsyncOperationDiagnostic(BaseModel):
 
 
 class RetryAsyncOperationCommand(BaseModel):
-    reason: str | None = Field(default=None, min_length=3, max_length=500)
+    reason: str = Field(min_length=3, max_length=500)
 
 
 class AsyncOperationRead(BaseModel):
@@ -86,7 +86,7 @@ class OpsAuditOutcome(str, enum.Enum):
 
 class OpsAuditEventRead(BaseModel):
     event_id: str
-    actor_user_id: int | None
+    actor_operator_id: int | None
     action: str
     operation_kind: AsyncOperationKind
     operation_id: str

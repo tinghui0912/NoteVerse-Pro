@@ -9,41 +9,52 @@ from app.core.runtime_checks import (
     check_storage_quota_policy_readiness,
 )
 
-router = APIRouter(prefix="/health", tags=["Health"])
 
+def create_health_router(
+    *,
+    include_redis: bool = True,
+    include_storage_quota_policy: bool = True,
+) -> APIRouter:
+    """Create role-appropriate process health endpoints.
 
-@router.get("/live")
-async def liveness() -> dict[str, str]:
-    """Report whether the API process can serve requests."""
-    return {"status": "ok"}
+    An exporter only needs PostgreSQL to project durable metrics. Requiring it
+    to depend on Redis or the storage-quota policy would couple Prometheus
+    scrape availability to unrelated customer-runtime dependencies.
+    """
 
+    router = APIRouter(prefix="/health", tags=["Health"])
 
-@router.get("/ready")
-async def readiness() -> JSONResponse:
-    """Report API readiness without coupling it to optional feature dependencies."""
-    database_ok = await check_database_readiness()
-    redis_ok = await check_redis_readiness()
-    storage_quota_policy_ok = await check_storage_quota_policy_readiness() if database_ok else False
+    @router.get("/live")
+    async def liveness() -> dict[str, str]:
+        """Report whether this process can serve requests."""
+        return {"status": "ok"}
 
-    checks = {
-        "database": "ok" if database_ok else "failed",
-        "storage_quota_policy": "ok" if storage_quota_policy_ok else "failed",
-        "redis": "ok" if redis_ok else "degraded",
-    }
+    @router.get("/ready")
+    async def readiness() -> JSONResponse:
+        """Report readiness for this runtime's declared dependencies."""
+        database_ok = await check_database_readiness()
+        storage_quota_policy_ok = (
+            await check_storage_quota_policy_readiness()
+            if include_storage_quota_policy and database_ok
+            else not include_storage_quota_policy
+        )
+        redis_ok = await check_redis_readiness() if include_redis else True
 
-    if not database_ok or not storage_quota_policy_ok:
+        checks = {"database": "ok" if database_ok else "failed"}
+        if include_storage_quota_policy:
+            checks["storage_quota_policy"] = "ok" if storage_quota_policy_ok else "failed"
+        if include_redis:
+            checks["redis"] = "ok" if redis_ok else "degraded"
+
+        if not database_ok or not storage_quota_policy_ok:
+            return JSONResponse(status_code=503, content={"status": "not_ready", "checks": checks})
+
         return JSONResponse(
-            status_code=503,
-            content={
-                "status": "not_ready",
-                "checks": checks,
-            },
+            status_code=200,
+            content={"status": "ok" if redis_ok else "degraded", "checks": checks},
         )
 
-    return JSONResponse(
-        status_code=200,
-        content={
-            "status": "ok" if redis_ok else "degraded",
-            "checks": checks,
-        },
-    )
+    return router
+
+
+router = create_health_router()

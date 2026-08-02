@@ -12,3 +12,11 @@ def client() -> Iterator[TestClient]:
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(scope="session")
+def exporter_client() -> Iterator[TestClient]:
+    from app.observability_main import app
+
+    with TestClient(app) as test_client:
+        yield test_client

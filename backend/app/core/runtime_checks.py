@@ -14,11 +14,14 @@ from typing import Awaitable, Callable
 import redis
 
 from app.core.config import settings
+from app.core.control_plane_settings import require_control_plane_settings
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 
 
 class RuntimeRole(StrEnum):
     API = "api"
+    CONTROL_PLANE = "control"
+    OBSERVABILITY_EXPORTER = "observability-exporter"
     WORKER = "worker"
     BEAT = "beat"
     PRACTICE = "practice"
@@ -144,6 +147,16 @@ def check_settings(_: bool = False) -> CheckResult:
             f"celery_hard={settings.CELERY_TASK_TIME_LIMIT}s"
         ),
     )
+
+
+def check_control_plane_settings(_: bool = False) -> CheckResult:
+    """Fail closed before the control-plane server imports its route tree."""
+
+    try:
+        require_control_plane_settings()
+    except RuntimeError as exc:
+        return _result("control_plane_settings", False, f"control-plane configuration invalid: {exc}")
+    return _result("control_plane_settings", True, "independent control-plane configuration loaded")
 
 
 async def check_api_database(_: bool = False) -> CheckResult:
@@ -434,6 +447,14 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
         "redis",
         "storage",
     ),
+    RuntimeRole.CONTROL_PLANE: (
+        "settings",
+        "control_plane_settings",
+        "database",
+        "storage_quota_policy",
+        "redis",
+    ),
+    RuntimeRole.OBSERVABILITY_EXPORTER: ("settings", "database"),
     RuntimeRole.WORKER: (
         "settings",
         "worker_database",
@@ -462,13 +483,21 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
 ROLE_CHECK_NAMES[RuntimeRole.ALL] = tuple(
     dict.fromkeys(
         name
-        for role in (RuntimeRole.API, RuntimeRole.WORKER, RuntimeRole.BEAT, RuntimeRole.PRACTICE)
+        for role in (
+            RuntimeRole.API,
+            RuntimeRole.CONTROL_PLANE,
+            RuntimeRole.OBSERVABILITY_EXPORTER,
+            RuntimeRole.WORKER,
+            RuntimeRole.BEAT,
+            RuntimeRole.PRACTICE,
+        )
         for name in ROLE_CHECK_NAMES[role]
     )
 )
 
 CHECKS: dict[str, CheckSpec] = {
     "settings": CheckSpec("settings", check_settings),
+    "control_plane_settings": CheckSpec("control_plane_settings", check_control_plane_settings),
     "database": CheckSpec("database", check_api_database),
     "worker_database": CheckSpec("worker_database", check_worker_database),
     "storage_quota_policy": CheckSpec("storage_quota_policy", check_storage_quota_policy),
