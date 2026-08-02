@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-import os
+from collections.abc import Callable
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import xml.etree.ElementTree as ET
 from typing import TypedDict
 
@@ -16,19 +18,24 @@ class FingeringResult(TypedDict):
 
 
 class PianoplayerFingeringEngine:
+    def __init__(
+        self,
+        *,
+        runner: Callable[..., object] | None = None,
+    ) -> None:
+        self._runner = runner
+
     def generate(self, score_id: str, xml_content: str, hand_size: str = "M") -> FingeringResult:
         try:
-            from pianoplayer.core import run_annotate
-
-            work_dir = os.path.join(settings.WORK_ROOT, score_id)
-            input_path = os.path.join(work_dir, "fingering_input.xml")
-            output_path = os.path.join(work_dir, "fingering_output.xml")
-            os.makedirs(work_dir, exist_ok=True)
-            with open(input_path, "w", encoding="utf-8") as handle:
-                handle.write(strip_existing_fingerings(xml_content))
-            run_annotate(input_path, outputfile=output_path, quiet=True, hand_size=hand_size)
-            with open(output_path, encoding="utf-8") as handle:
-                return {"xml_content": handle.read(), "hand_size": hand_size}
+            runner = self._runner or self._load_runner()
+            work_root = Path(settings.WORK_ROOT) / "fingering"
+            work_root.mkdir(parents=True, exist_ok=True)
+            with TemporaryDirectory(prefix="generation-", dir=work_root) as work_dir:
+                input_path = Path(work_dir) / "input.musicxml"
+                output_path = Path(work_dir) / "output.musicxml"
+                input_path.write_text(strip_existing_fingerings(xml_content), encoding="utf-8")
+                runner(str(input_path), outputfile=str(output_path), quiet=True, hand_size=hand_size)
+                return {"xml_content": output_path.read_text(encoding="utf-8"), "hand_size": hand_size}
         except ImportError as exc:
             raise ExternalServiceException(
                 service="score_fingering",
@@ -45,6 +52,12 @@ class PianoplayerFingeringEngine:
                 service="score_fingering",
                 code=ErrorCode.SCORE_FINGERING_FAILED,
             ) from exc
+
+    @staticmethod
+    def _load_runner() -> Callable[..., object]:
+        from pianoplayer.core import run_annotate
+
+        return run_annotate
 
 
 def strip_existing_fingerings(xml_content: str) -> str:

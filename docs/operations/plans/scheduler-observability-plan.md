@@ -21,17 +21,24 @@ recreated minikube staging cluster:
   successful standby takeover while PostgreSQL retained exactly one granted
   leader advisory lock.
 
-The recreated cluster currently contains the application and its foundational
-platform services, but not the observability Helm releases. P1 dashboards and
-PrometheusRule alerts and the P2 platform dashboards are implemented in this
-repository, but must be redeployed and validated with staging traffic before
-they can be considered operationally active in this cluster.
+The recreated cluster has replayed the observability Helm releases and the
+application monitoring resources. P1 dashboards, PrometheusRule alerts, and
+the P2 platform dashboard are operationally deployed. The current scheduler
+stale alert is expected while the Kubernetes worker remains intentionally
+scaled to zero; end-to-end alert recovery remains coupled to the later
+GPU-worker-in-cluster milestone.
+
+The 2026-08-02 public Gateway smoke is temporarily blocked by the Let's
+Encrypt production exact-identifier-set rate limit for the staging and API
+hostnames. This does not affect in-cluster application or observability
+validation. Re-run the HTTPS Gateway smoke only after the issuer retry window
+opens, rather than replacing the production issuer with a weaker local
+certificate.
 
 ### P0: Scheduler Metrics
 
-Status: implemented and API-export validation complete. Prometheus scrape and
-alert validation are pending observability-stack replay in the recreated
-minikube cluster.
+Status: implemented and staging-validated. Prometheus scrapes the API target,
+and shared scheduler state is exported only once from that target.
 
 Add database-backed scheduler heartbeat metrics so Prometheus can observe Beat
 through the existing API `/metrics` endpoint.
@@ -68,11 +75,10 @@ email, object key, or request id as Prometheus labels.
 
 ### P1: Dashboard And Alerts
 
-Status: implemented in repository. The 2026-08-02 minikube replay verified
-that Prometheus is scraping the API and practice targets, and the alert rule is
-loaded. Final scheduler-alert validation is pending the next API/practice
-release because the metric contract now scopes database state to the API and
-renames the scheduler dimension to `scheduler_job`.
+Status: implemented and staging-validated. The 2026-08-02 minikube replay
+deployed the API/practice release that scopes database state to the API and
+uses `scheduler_job` as the scheduler dimension. The PrometheusRule is loaded
+and the NoteVerse dashboard is discoverable by Grafana.
 
 Extend `NoteVerse Application Overview` with scheduler health panels:
 
@@ -90,10 +96,10 @@ Add PrometheusRule alerts:
 
 ### P2: Loki And Tempo Platform Dashboards
 
-Status: implemented as the first platform dashboard, but not currently
-deployed in the recreated minikube cluster. Alert rules for the observability
-stack itself are intentionally deferred until the dashboard has been validated
-with staging traffic and each alert has an actionable runbook.
+Status: implemented and staging-validated as the first platform dashboard.
+Alert rules for the observability stack itself are intentionally deferred until
+the dashboard has been exercised with sustained staging traffic and each alert
+has an actionable runbook.
 
 Add separate platform dashboards after application scheduler health is visible.
 
@@ -254,10 +260,14 @@ NoteVerse stage.
   retried successfully. Treat this as a local-platform performance signal;
   repeat the smoke after a stable node window before treating it as a storage
   SLO result.
-- The pre-release practice runtime still re-exported database scheduler
-  metrics, which created duplicate Prometheus series. The repository now
-  prevents that export and filters the dashboard and alert rules to the API
-  scrape target. Deploy that release before the final P0/P1 alert check.
+- The deployed API/practice release prevents the practice runtime from
+  re-exporting database scheduler state. Prometheus now exposes scheduler
+  series only from `job="noteverse-backend-api"`, with the low-cardinality
+  `scheduler_job` label.
+- `NoteVerseSchedulerScanStale` is currently pending by design because the
+  Kubernetes worker is scaled to zero for the GPU-worker staging model. Once a
+  worker consumes the maintenance tasks, validate that the alert resolves
+  without manual intervention.
 
 - Beat periodically sends maintenance tasks.
 - Maintenance tasks scan PostgreSQL state and dispatch Celery tasks.

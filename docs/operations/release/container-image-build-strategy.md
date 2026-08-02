@@ -246,8 +246,9 @@ docker build \
 The API image includes:
 
 - `Pillow` for account avatar processing;
-- `pianoplayer` for synchronous fingering generation, until that capability is
-  moved to a dedicated runtime.
+- `pianoplayer` for bounded interactive fingering generation. The API execution
+  gate keeps the blocking engine off the event loop and limits concurrent work;
+  a dedicated CPU worker is a future scale decision, not a second HTTP service.
 
 It does not include realtime practice alignment dependencies, LEGATO, PaddleOCR,
 or worker model-cache tooling.

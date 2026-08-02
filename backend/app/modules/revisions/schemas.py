@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from pydantic import BaseModel, Field
-from typing import Literal
 
 from app.db.models.score import RevisionOrigin
 from app.shared.pagination import CursorPage
@@ -61,12 +60,3 @@ class RevisionListRead(CursorPage[RevisionRead]):
 class RevisionContentRead(RevisionRead):
     content: str
     mime_type: str
-
-
-class FingeringRequest(BaseModel):
-    content: str = Field(min_length=1)
-    hand_size: Literal["XXS", "XS", "S", "M", "L", "XL", "XXL"] = "M"
-
-
-class FingeringResultRead(BaseModel):
-    content: str
