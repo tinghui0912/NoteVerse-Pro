@@ -1,6 +1,6 @@
 {
   "actor": "tinghui0912",
-  "commit_sha": "d1b077b8ece9b17286dc0ce5010452a4de2bdc0e",
+  "commit_sha": "51c70835a20b3704c4b9f34f624d66a65986012a",
   "environment": "staging",
   "hosts": {
     "api": "api.staging.johnabc.ccwu.cc",
@@ -8,23 +8,23 @@
   },
   "image_tag": "current-staging-plus-overrides",
   "images": {
-    "backend_api": "ghcr.io/tinghui0912/noteverse/backend-api@sha256:6b8a2148a353ab9f52e36f7f8475c5e06a5cd9ada201010e2a56d88e525dcfa8",
-    "backend_beat": "ghcr.io/tinghui0912/noteverse/backend-beat@sha256:df896b5758f6140c470dc85b8349236dc5f78d5f5c8e704f9b54a86961ed5241",
-    "backend_practice": "ghcr.io/tinghui0912/noteverse/backend-practice@sha256:fe8009da634a272f253ee0e47314be67f3c8593c8de660de09fbadd282a99819",
+    "backend_api": "ghcr.io/tinghui0912/noteverse/backend-api@sha256:43b83ebae5c40a5e8f4c1d9d397298a70f44e71ffe3154eb1cf7ead9e53c4e32",
+    "backend_beat": "ghcr.io/tinghui0912/noteverse/backend-beat@sha256:6431e801e0b0fbe296d9b6e66d63d7bae23404288f73cdcb3540dbc5e58d54c2",
+    "backend_practice": "ghcr.io/tinghui0912/noteverse/backend-practice@sha256:48617b12c66cfaa5043a1a0a4e939f729910c7bf9fac2f081fb332cb318c3ea7",
     "backend_worker": "ghcr.io/tinghui0912/noteverse/backend-worker@sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2",
     "frontend": "ghcr.io/tinghui0912/noteverse/frontend@sha256:e1e474beb7728cd08c05423402b988c700a6a8e6534068439593d0aa8eea1b43"
   },
   "ref": "refs/heads/main",
-  "rendered_at": "2026-08-02T05:17:27.211200+00:00",
+  "rendered_at": "2026-08-02T07:59:29.195583+00:00",
   "requested_images": {
-    "backend_api": "ghcr.io/tinghui0912/noteverse/backend-api:d1b077b8ece9b17286dc0ce5010452a4de2bdc0e",
-    "backend_beat": "ghcr.io/tinghui0912/noteverse/backend-beat:d1b077b8ece9b17286dc0ce5010452a4de2bdc0e",
-    "backend_practice": "ghcr.io/tinghui0912/noteverse/backend-practice@sha256:fe8009da634a272f253ee0e47314be67f3c8593c8de660de09fbadd282a99819",
+    "backend_api": "ghcr.io/tinghui0912/noteverse/backend-api:644b7a5a98e18b4e7004f0366079819ffad3d6a7",
+    "backend_beat": "ghcr.io/tinghui0912/noteverse/backend-beat:644b7a5a98e18b4e7004f0366079819ffad3d6a7",
+    "backend_practice": "ghcr.io/tinghui0912/noteverse/backend-practice:644b7a5a98e18b4e7004f0366079819ffad3d6a7",
     "backend_worker": "ghcr.io/tinghui0912/noteverse/backend-worker@sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2",
     "frontend": "ghcr.io/tinghui0912/noteverse/frontend@sha256:e1e474beb7728cd08c05423402b988c700a6a8e6534068439593d0aa8eea1b43"
   },
   "tls_secret": "noteverse-staging-tls",
   "workflow": "Staging Release Package",
   "workflow_run_attempt": "1",
-  "workflow_run_id": "30733851337"
+  "workflow_run_id": "30738868723"
 }
