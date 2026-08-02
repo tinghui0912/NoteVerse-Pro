@@ -19,6 +19,15 @@ must not be returned by either surface.
 
 ## Priority Plan
 
+## Delivery Gates
+
+| Gate | Definition | Current interpretation |
+| --- | --- | --- |
+| Required now | Required to safely operate the existing transitional `/api/v1/ops` routes. | Public error contracts, explicit actions, and safe diagnostics are already in place. |
+| Required for first operator UI | Required before a formal platform-admin client is introduced. | ADR 0006 composition root, independent client contract, and control-plane authorization tests. |
+| Required before production exposure | Required before a real workforce audience can use the control plane. | MFA-capable identity, dedicated sessions and host, restrictive Gateway/NetworkPolicy, and rollout verification. |
+| Deferred until demonstrated need | A future capability with no current concrete workflow or risk trigger. | Generic permissions, external tamper-evident audit, and broader access infrastructure. |
+
 ### P0 - Safe Error and Diagnostic Contracts
 
 - [x] Remove path-based `internal_details` responses from all HTTP errors.
@@ -39,8 +48,12 @@ must not be returned by either surface.
   operator actions such as delete, restore, and forced state transitions.
 - [x] Extend retry audit events with request ID, peer address, optional bounded
   reason, and previous/new state without duplicating raw request bodies or logs.
-- [ ] Add a trusted-proxy policy before recording a separately named real
-  client source IP from forwarded headers.
+- [x] Implement a strict trusted-proxy policy: untrusted peers cannot supply a
+  forwarding-header address, while audits retain the proxy peer and resolved
+  client address separately.
+- [ ] Configure and verify the exact Gateway data-plane CIDR allowlist in each
+  rendered environment before relying on resolved client addresses for an
+  operator investigation.
 
 ### P1 - Exposure Review
 
@@ -50,22 +63,29 @@ must not be returned by either surface.
   application authorization rather than network isolation.
 - [ ] Define the production access policy: strong administrator authentication
   now; internal hostname, network policy, and restricted ingress when an
-  operator UI or automation client is introduced. The production preflight
-  checklist now makes these prerequisites explicit.
+  operator UI or automation client is introduced. ADR 0006 defines the target
+  identity, host, and deployment boundaries; implementation remains gated on
+  the first real control-plane vertical slice.
 
 ### P2 - Module Boundary Refinement
 
 - [x] Move Prometheus projection code from `modules/ops` to an
   `observability` package, keeping operator commands and audit services in
   `modules/ops`.
-- [ ] Document the distinction between platform operations, future workspace
-  administration, and customer product APIs.
+- [x] Document the distinction between platform operations, future platform
+  administration, and customer product APIs in ADR 0006.
 
-### P3 - Deployment Isolation When Justified
+### P3 - Dedicated Control-Plane Delivery
 
-- [ ] Evaluate a separate operations Deployment from the same repository only
-  when network isolation, release cadence, resource isolation, or compliance
-  requires it.
+- [ ] Before a formal operator client or high-impact command is exposed, ship
+  the ADR 0006 control-plane vertical slice: separate composition root,
+  workforce identity, `control` host, restrictive Gateway/NetworkPolicy, and
+  independent rollback verification.
+- [ ] Move database-backed scheduler and asynchronous-operation metrics from
+  the customer API into the internal `observability_exporter` composition root
+  as part of that same exercised delivery slice when it does not materially
+  increase delivery risk. Otherwise record an owned, release-bounded migration
+  and complete it before high-impact control-plane commands are introduced.
 - [ ] Do not split repositories or databases solely because an operations API
   exists.
 

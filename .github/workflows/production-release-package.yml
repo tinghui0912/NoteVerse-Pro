@@ -200,6 +200,7 @@ jobs:
             --tls-secret "${{ vars.PRODUCTION_TLS_SECRET }}" \
             --frontend-base-url "${{ vars.PRODUCTION_FRONTEND_BASE_URL }}" \
             --backend-cors-origins '${{ vars.PRODUCTION_BACKEND_CORS_ORIGINS }}' \
+            --trusted-proxy-cidrs '${{ vars.PRODUCTION_TRUSTED_PROXY_CIDRS }}' \
             --auth-cookie-secure "${{ vars.PRODUCTION_AUTH_COOKIE_SECURE }}" \
             --mail-default-sender "${{ vars.PRODUCTION_MAIL_DEFAULT_SENDER }}" \
             --s3-endpoint-url "${{ vars.PRODUCTION_S3_ENDPOINT_URL }}" \

@@ -40,6 +40,7 @@ class OpsAuditEvent(SQLModel, table=True):  # type: ignore[call-arg]
     reason: Optional[str] = Field(default=None, sa_column=Column(String(500)))
     request_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     peer_address: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    client_address: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     previous_state: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     new_state: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     created_at: datetime = Field(

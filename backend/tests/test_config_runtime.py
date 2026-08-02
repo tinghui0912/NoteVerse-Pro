@@ -28,6 +28,18 @@ def test_debug_environment_parsing() -> None:
     assert parse_debug("false") is False
 
 
+def test_trusted_proxy_cidrs_require_an_explicit_valid_json_allowlist() -> None:
+    settings = Settings(TRUSTED_PROXY_CIDRS='["10.0.0.0/8", "2001:db8::/32"]')
+
+    assert settings.TRUSTED_PROXY_CIDRS == ["10.0.0.0/8", "2001:db8::/32"]
+
+    with pytest.raises(ValidationError, match="TRUSTED_PROXY_CIDRS"):
+        Settings(TRUSTED_PROXY_CIDRS="10.0.0.0/8")
+
+    with pytest.raises(ValidationError, match="TRUSTED_PROXY_CIDRS"):
+        Settings(TRUSTED_PROXY_CIDRS='["0.0.0.0/0"]')
+
+
 def test_practice_audio_min_active_frames_uses_stable_floor() -> None:
     settings = Settings(PRACTICE_AUDIO_MIN_ACTIVE_FRAMES=2)
 

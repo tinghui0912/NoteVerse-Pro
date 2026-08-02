@@ -124,6 +124,7 @@ class OpsAsyncOperationService:
         reason: str | None = None,
         request_id: str | None = None,
         peer_address: str | None = None,
+        client_address: str | None = None,
         previous_state: str | None = None,
         new_state: str | None = None,
     ) -> None:
@@ -138,6 +139,7 @@ class OpsAsyncOperationService:
                 reason=reason,
                 request_id=request_id,
                 peer_address=peer_address,
+                client_address=client_address,
                 previous_state=previous_state,
                 new_state=new_state,
             )
@@ -157,6 +159,7 @@ class OpsAsyncOperationService:
             reason=event.reason,
             request_id=event.request_id,
             peer_address=event.peer_address,
+            client_address=event.client_address,
             previous_state=event.previous_state,
             new_state=event.new_state,
             created_at=event.created_at,

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.exceptions import AuthenticationException
+from app.core.client_address import client_address
 from app.modules.auth.dependencies import (
     get_auth_service,
     get_email_verification_service,
@@ -44,7 +45,7 @@ async def login_access_token(
         form_data.username,
         form_data.password,
         user_agent=request.headers.get("user-agent"),
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_address(request),
     )
     set_session_cookies(response, access_token, refresh_token)
     return success_response(message=SuccessCode.LOGIN_SUCCESS)
@@ -82,7 +83,7 @@ async def refresh_access_token(
         db,
         refresh_cookie,
         user_agent=request.headers.get("user-agent"),
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_address(request),
     )
     set_session_cookies(response, access_token, refresh_token)
     return success_response(message=SuccessCode.LOGIN_SUCCESS)
@@ -102,7 +103,7 @@ async def register_user(
         db,
         request,
         user_agent=request_context.headers.get("user-agent"),
-        ip_address=request_context.client.host if request_context.client else None,
+        ip_address=client_address(request_context),
     )
     return success_response(message=SuccessCode.VERIFICATION_SUCCESS)
 
@@ -129,7 +130,7 @@ async def forgot_password(
         db,
         request,
         user_agent=request_context.headers.get("user-agent"),
-        ip_address=request_context.client.host if request_context.client else None,
+        ip_address=client_address(request_context),
     )
     return success_response(message=SuccessCode.VERIFICATION_SUCCESS)
 

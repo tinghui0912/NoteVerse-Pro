@@ -382,6 +382,7 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
         "reason",
         "request_id",
         "peer_address",
+        "client_address",
         "previous_state",
         "new_state",
         "created_at",
@@ -514,6 +515,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     assert audit_event.reason == "Retry after storage access was restored."
     assert audit_event.request_id == "ops-retry-success"
     assert audit_event.peer_address == "testclient"
+    assert audit_event.client_address == "testclient"
     assert audit_event.previous_state == "FAILED"
     assert audit_event.new_state == "PENDING"
 
@@ -548,6 +550,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
             "reason": "Retry after storage access was restored.",
             "request_id": "ops-retry-success",
             "peer_address": "testclient",
+            "client_address": "testclient",
             "previous_state": "FAILED",
             "new_state": "PENDING",
             "created_at": _api_utc_datetime(audit_event.created_at),

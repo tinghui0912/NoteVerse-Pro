@@ -40,6 +40,7 @@ $s3ForcePathStyle = Get-RequiredEnv "NOTEVERSE_S3_FORCE_PATH_STYLE"
 
 $mailDefaultSender = "NoteVerse Pro <no-reply@$FrontendHost>"
 $backendCorsOrigins = "[`"$FrontendBaseUrl`"]"
+$trustedProxyCidrs = Get-RequiredEnv "NOTEVERSE_TRUSTED_PROXY_CIDRS"
 
 $args = @(
     "scripts/render_k8s_release_overlay.py",
@@ -55,6 +56,7 @@ $args = @(
     "--tls-secret", $TlsSecret,
     "--frontend-base-url", $FrontendBaseUrl,
     "--backend-cors-origins", $backendCorsOrigins,
+    "--trusted-proxy-cidrs", $trustedProxyCidrs,
     "--auth-cookie-secure", $AuthCookieSecure,
     "--mail-default-sender", $mailDefaultSender,
     "--s3-endpoint-url", $s3EndpointUrl,

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.core.client_address import client_address
 from app.db.models import User
 from app.modules.auth.dependencies import get_password_service
 from app.modules.auth.password_service import PasswordService
@@ -29,7 +30,7 @@ async def change_my_password(
         current_user,
         request,
         user_agent=request_context.headers.get("user-agent"),
-        ip_address=request_context.client.host if request_context.client else None,
+        ip_address=client_address(request_context),
     )
     set_session_cookies(response, access_token, refresh_token)
     return success_response(message=SuccessCode.PASSWORD_CHANGED)

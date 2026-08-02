@@ -210,6 +210,7 @@ jobs:
             --tls-secret "${{ vars.STAGING_TLS_SECRET }}" \
             --frontend-base-url "${{ vars.STAGING_FRONTEND_BASE_URL }}" \
             --backend-cors-origins '${{ vars.STAGING_BACKEND_CORS_ORIGINS }}' \
+            --trusted-proxy-cidrs '${{ vars.STAGING_TRUSTED_PROXY_CIDRS }}' \
             --auth-cookie-secure "${{ vars.STAGING_AUTH_COOKIE_SECURE }}" \
             --mail-default-sender "${{ vars.STAGING_MAIL_DEFAULT_SENDER }}" \
             --s3-endpoint-url "${{ vars.STAGING_S3_ENDPOINT_URL }}" \
