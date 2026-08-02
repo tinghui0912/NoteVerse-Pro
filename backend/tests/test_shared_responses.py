@@ -43,7 +43,6 @@ def test_error_response_includes_request_id_when_available() -> None:
         public_code="validation_error",
         public_message="validation_error",
         request_id="req-123",
-        internal_details={"field": "name"},
     )
 
     assert response == {
@@ -51,5 +50,4 @@ def test_error_response_includes_request_id_when_available() -> None:
         "public_code": "validation_error",
         "public_message": "validation_error",
         "request_id": "req-123",
-        "internal_details": {"field": "name"},
     }

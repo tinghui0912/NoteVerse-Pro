@@ -35,7 +35,6 @@ class ErrorResponsePayload(TypedDict, total=False):
     public_code: str
     public_message: str
     request_id: str
-    internal_details: dict[str, object]
 
 
 class PaginatedResponsePayload(TypedDict):
@@ -143,7 +142,6 @@ def success_response(
 def error_response(
     public_code: str,
     public_message: Optional[str] = None,
-    internal_details: Optional[dict[str, object]] = None,
     request_id: Optional[str] = None,
 ) -> ErrorResponsePayload:
     response: ErrorResponsePayload = {
@@ -153,8 +151,6 @@ def error_response(
     }
     if request_id:
         response["request_id"] = request_id
-    if internal_details:
-        response["internal_details"] = internal_details
     return response
 
 

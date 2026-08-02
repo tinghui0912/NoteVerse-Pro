@@ -5,7 +5,10 @@ import asyncio
 from fastapi.testclient import TestClient
 
 from app.db.models import SchedulerHeartbeat, SchedulerLeaderStatus
-from app.modules.ops.metrics_service import _scheduler_heartbeat_lines, _scheduler_leader_lines
+from app.observability.async_operation_metrics import (
+    _scheduler_heartbeat_lines,
+    _scheduler_leader_lines,
+)
 from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 
 

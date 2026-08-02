@@ -64,6 +64,12 @@ class AsyncOperationFilters:
         )
 
 
+@dataclass(frozen=True)
+class RetryOperationResult:
+    operation: AsyncOperationRead
+    previous_state: str
+
+
 class OpsAsyncOperationService:
     async def list_audit_events(
         self,
@@ -115,7 +121,11 @@ class OpsAsyncOperationService:
         operation_id: str,
         outcome: str,
         error_code: str | None = None,
-        error_detail: str | None = None,
+        reason: str | None = None,
+        request_id: str | None = None,
+        peer_address: str | None = None,
+        previous_state: str | None = None,
+        new_state: str | None = None,
     ) -> None:
         db.add(
             OpsAuditEvent(
@@ -125,7 +135,11 @@ class OpsAsyncOperationService:
                 operation_id=operation_id,
                 outcome=outcome,
                 error_code=error_code,
-                error_detail=error_detail,
+                reason=reason,
+                request_id=request_id,
+                peer_address=peer_address,
+                previous_state=previous_state,
+                new_state=new_state,
             )
         )
         await db.commit()
@@ -140,7 +154,11 @@ class OpsAsyncOperationService:
             operation_id=event.operation_id,
             outcome=OpsAuditOutcome(event.outcome),
             error_code=event.error_code,
-            error_detail=event.error_detail,
+            reason=event.reason,
+            request_id=event.request_id,
+            peer_address=event.peer_address,
+            previous_state=event.previous_state,
+            new_state=event.new_state,
             created_at=event.created_at,
         )
 
@@ -235,7 +253,7 @@ class OpsAsyncOperationService:
         *,
         kind: AsyncOperationKind,
         operation_id: str,
-    ) -> AsyncOperationRead:
+    ) -> RetryOperationResult:
         if kind == AsyncOperationKind.IMPORT:
             return await self._retry_import(db, operation_id)
         if kind == AsyncOperationKind.RENDER:
@@ -504,7 +522,7 @@ class OpsAsyncOperationService:
         ).scalars()
         return [self._read_score_deletion(score) for score in rows]
 
-    async def _retry_import(self, db: AsyncSession, operation_id: str) -> AsyncOperationRead:
+    async def _retry_import(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
         job = (
             await db.execute(
                 select(ImportJob).where(ImportJob.job_uuid == operation_id).with_for_update()
@@ -512,6 +530,7 @@ class OpsAsyncOperationService:
         ).scalar_one_or_none()
         if job is None:
             raise ResourceNotFoundException("async_operation", operation_id)
+        previous_state = f"{job.state.value}/{job.dispatch_status.value}"
         if job.state in {ImportJobState.RUNNING, ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED}:
             raise ValidationException(
                 code=ErrorCode.VALIDATION_ERROR,
@@ -538,9 +557,9 @@ class OpsAsyncOperationService:
         job.updated_at = now
         await db.commit()
         await db.refresh(job)
-        return self._read_import(job)
+        return RetryOperationResult(operation=self._read_import(job), previous_state=previous_state)
 
-    async def _retry_render(self, db: AsyncSession, operation_id: str) -> AsyncOperationRead:
+    async def _retry_render(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
         outbox = (
             await db.execute(
                 select(RenderOutbox).where(RenderOutbox.outbox_uuid == operation_id).with_for_update()
@@ -548,6 +567,7 @@ class OpsAsyncOperationService:
         ).scalar_one_or_none()
         if outbox is None:
             raise ResourceNotFoundException("async_operation", operation_id)
+        previous_state = outbox.status.value
         if outbox.status in {
             RenderOutboxStatus.PROCESSING,
             RenderOutboxStatus.DISPATCHED,
@@ -570,9 +590,9 @@ class OpsAsyncOperationService:
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
-        return self._read_render(outbox)
+        return RetryOperationResult(operation=self._read_render(outbox), previous_state=previous_state)
 
-    async def _retry_playback(self, db: AsyncSession, operation_id: str) -> AsyncOperationRead:
+    async def _retry_playback(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
         outbox = (
             await db.execute(
                 select(PlaybackOutbox)
@@ -582,6 +602,7 @@ class OpsAsyncOperationService:
         ).scalar_one_or_none()
         if outbox is None:
             raise ResourceNotFoundException("async_operation", operation_id)
+        previous_state = outbox.status.value
         if outbox.status in {
             PlaybackOutboxStatus.PROCESSING,
             PlaybackOutboxStatus.DISPATCHED,
@@ -604,9 +625,9 @@ class OpsAsyncOperationService:
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
-        return self._read_playback(outbox)
+        return RetryOperationResult(operation=self._read_playback(outbox), previous_state=previous_state)
 
-    async def _retry_mail(self, db: AsyncSession, operation_id: str) -> AsyncOperationRead:
+    async def _retry_mail(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
         outbox = (
             await db.execute(
                 select(MailOutbox).where(MailOutbox.outbox_uuid == operation_id).with_for_update()
@@ -614,6 +635,7 @@ class OpsAsyncOperationService:
         ).scalar_one_or_none()
         if outbox is None:
             raise ResourceNotFoundException("async_operation", operation_id)
+        previous_state = outbox.status.value
         if outbox.status in {
             MailOutboxStatus.PROCESSING,
             MailOutboxStatus.DISPATCHED,
@@ -644,9 +666,9 @@ class OpsAsyncOperationService:
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
-        return self._read_mail(outbox)
+        return RetryOperationResult(operation=self._read_mail(outbox), previous_state=previous_state)
 
-    async def _retry_score_deletion(self, db: AsyncSession, operation_id: str) -> AsyncOperationRead:
+    async def _retry_score_deletion(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
         score = (
             await db.execute(
                 select(Score).where(Score.score_uuid == operation_id).with_for_update()
@@ -654,6 +676,7 @@ class OpsAsyncOperationService:
         ).scalar_one_or_none()
         if score is None:
             raise ResourceNotFoundException("async_operation", operation_id)
+        previous_state = score.deletion_status.value
         if score.deletion_status != ScoreDeletionStatus.DELETING:
             raise ValidationException(
                 code=ErrorCode.VALIDATION_ERROR,
@@ -668,7 +691,10 @@ class OpsAsyncOperationService:
         score.updated_at = now
         await db.commit()
         await db.refresh(score)
-        return self._read_score_deletion(score)
+        return RetryOperationResult(
+            operation=self._read_score_deletion(score),
+            previous_state=previous_state,
+        )
 
     def _read_import(self, job: ImportJob) -> AsyncOperationRead:
         return AsyncOperationRead(
@@ -682,7 +708,6 @@ class OpsAsyncOperationService:
             attempts=job.dispatch_attempt_count,
             max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
             next_attempt_at=job.next_dispatch_at,
-            internal_reason=job.error or job.dispatch_error,
             error_class=self._stored_error_class(job),
             diagnostic=self._stored_diagnostic(job),
             created_at=job.created_at,
@@ -707,7 +732,6 @@ class OpsAsyncOperationService:
             attempts=outbox.attempt_count,
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
-            internal_reason=outbox.last_error,
             error_class=self._stored_error_class(outbox),
             diagnostic=self._stored_diagnostic(outbox),
             created_at=outbox.created_at,
@@ -732,7 +756,6 @@ class OpsAsyncOperationService:
             attempts=outbox.attempt_count,
             max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
-            internal_reason=outbox.last_error,
             error_class=self._stored_error_class(outbox),
             diagnostic=self._stored_diagnostic(outbox),
             created_at=outbox.created_at,
@@ -752,7 +775,6 @@ class OpsAsyncOperationService:
             attempts=outbox.attempt_count,
             max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
             next_attempt_at=outbox.next_attempt_at,
-            internal_reason=outbox.last_error,
             error_class=self._stored_error_class(outbox),
             diagnostic=self._stored_diagnostic(outbox),
             created_at=outbox.created_at,
@@ -772,7 +794,6 @@ class OpsAsyncOperationService:
             attempts=score.cleanup_attempt_count,
             max_attempts=settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
             next_attempt_at=score.next_cleanup_at,
-            internal_reason=score.deletion_error,
             error_class=self._stored_error_class(score),
             diagnostic=self._stored_diagnostic(score),
             created_at=score.deletion_requested_at or score.deleted_at,
@@ -950,8 +971,8 @@ class OpsAsyncOperationService:
         ):
             return None
         return AsyncOperationDiagnostic(
-            internal_code=internal_code,
-            internal_stage=internal_stage,
+            code=internal_code,
+            stage=internal_stage,
             retryable=bool(retryable),
         )
 

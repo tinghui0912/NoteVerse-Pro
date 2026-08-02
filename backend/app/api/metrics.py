@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.metrics import CONTENT_TYPE_LATEST, metrics_content
 from app.db.session import get_session
-from app.modules.ops.metrics_service import async_operation_metrics_text
+from app.observability.async_operation_metrics import async_operation_metrics_text
 
 
 

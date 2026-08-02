@@ -91,7 +91,7 @@ def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
     assert "/internal/storage/path" not in str(payload)
 
 
-def test_ops_errors_can_include_internal_details(client: TestClient) -> None:
+def test_ops_errors_do_not_expose_internal_details_before_authorization(client: TestClient) -> None:
     client.cookies.set(settings.AUTH_COOKIE_NAME, "invalid-token")
     client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
     try:
@@ -108,5 +108,5 @@ def test_ops_errors_can_include_internal_details(client: TestClient) -> None:
     payload = response.json()
     assert payload["success"] is False
     assert payload["public_code"] == ErrorCode.CSRF_TOKEN_INVALID
-    assert payload["internal_details"] == {"reason": "csrf_token_mismatch"}
+    assert "internal_details" not in payload
     assert payload["request_id"] == "ops-csrf-contract"

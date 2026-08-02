@@ -182,7 +182,6 @@ def test_ops_filters_match_status_error_class_resource_and_time_window() -> None
         attempts=2,
         max_attempts=5,
         next_attempt_at=now + timedelta(minutes=1),
-        internal_reason="object storage temporarily unavailable",
         error_class=AsyncOperationErrorClass.TRANSIENT,
         created_at=now - timedelta(minutes=5),
         updated_at=now,
@@ -242,15 +241,53 @@ async def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -
     assert summary.kinds[0].statuses[0].count == 1
 
 
-def test_ops_api_rejects_non_admin_user(client: TestClient, ops_session: Session) -> None:
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/api/v1/ops/audit-events"),
+        ("get", "/api/v1/ops/async-operations"),
+        ("get", "/api/v1/ops/async-operations/summary"),
+        ("post", "/api/v1/ops/async-operations/mail/not-a-real-operation/retry"),
+    ],
+)
+def test_ops_api_rejects_non_admin_users_without_diagnostics(
+    client: TestClient,
+    ops_session: Session,
+    method: str,
+    path: str,
+) -> None:
     _override_ops_dependencies(ops_session, role=UserRole.user)
     try:
-        response = client.get("/api/v1/ops/async-operations")
+        response = getattr(client, method)(path)
     finally:
         _clear_ops_dependency_overrides()
 
     assert response.status_code == 403
-    assert response.json()["public_code"] == "no_access"
+    payload = response.json()
+    assert payload["public_code"] == "no_access"
+    assert "internal_details" not in payload
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/api/v1/ops/audit-events"),
+        ("get", "/api/v1/ops/async-operations"),
+        ("get", "/api/v1/ops/async-operations/summary"),
+        ("post", "/api/v1/ops/async-operations/mail/not-a-real-operation/retry"),
+    ],
+)
+def test_ops_api_requires_authentication_without_diagnostics(
+    client: TestClient,
+    method: str,
+    path: str,
+) -> None:
+    response = getattr(client, method)(path)
+
+    assert response.status_code == 401
+    payload = response.json()
+    assert payload["public_code"] == "token_invalid_expired"
+    assert "internal_details" not in payload
 
 
 def test_ops_api_summary_is_available_to_admin(
@@ -327,7 +364,6 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
         "attempts",
         "max_attempts",
         "next_attempt_at",
-        "internal_reason",
         "error_class",
         "diagnostic",
         "created_at",
@@ -343,7 +379,11 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
         "operation_id",
         "outcome",
         "error_code",
-        "error_detail",
+        "reason",
+        "request_id",
+        "peer_address",
+        "previous_state",
+        "new_state",
         "created_at",
     }.issubset(audit_fields)
 
@@ -411,11 +451,10 @@ def test_ops_api_async_operations_supports_offset_pagination(
     assert payload["data"]["has_more"] is True
     assert len(payload["data"]["items"]) == 1
     operation = payload["data"]["items"][0]
-    assert operation["internal_reason"] == "middle error"
     assert operation["error_class"] == "unknown"
     assert operation["diagnostic"] == {
-        "internal_code": "mail_unknown_failure",
-        "internal_stage": "delivery",
+        "code": "mail_unknown_failure",
+        "stage": "delivery",
         "retryable": True,
     }
 
@@ -445,7 +484,11 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
 
     _override_ops_dependencies(ops_session, role=UserRole.admin)
     try:
-        response = client.post(f"/api/v1/ops/async-operations/mail/{operation_id}/retry")
+        response = client.post(
+            f"/api/v1/ops/async-operations/mail/{operation_id}/retry",
+            json={"reason": "Retry after storage access was restored."},
+            headers={"X-Request-ID": "ops-retry-success"},
+        )
     finally:
         _clear_ops_dependency_overrides()
 
@@ -468,6 +511,11 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     assert audit_event.operation_kind == "mail"
     assert audit_event.operation_id == operation_id
     assert audit_event.outcome == "succeeded"
+    assert audit_event.reason == "Retry after storage access was restored."
+    assert audit_event.request_id == "ops-retry-success"
+    assert audit_event.peer_address == "testclient"
+    assert audit_event.previous_state == "FAILED"
+    assert audit_event.new_state == "PENDING"
 
     _override_ops_dependencies(ops_session, role=UserRole.admin)
     try:
@@ -497,7 +545,11 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
             "operation_id": operation_id,
             "outcome": "succeeded",
             "error_code": None,
-            "error_detail": None,
+            "reason": "Retry after storage access was restored.",
+            "request_id": "ops-retry-success",
+            "peer_address": "testclient",
+            "previous_state": "FAILED",
+            "new_state": "PENDING",
             "created_at": _api_utc_datetime(audit_event.created_at),
         }
     ]
@@ -580,7 +632,7 @@ def test_ops_api_retry_rejects_completed_mail_and_records_audit(
     assert response.status_code == 422
     payload = response.json()
     assert payload["public_code"] == "validation_error"
-    assert payload["internal_details"] == {"field": "status", "status": "succeeded"}
+    assert "internal_details" not in payload
     ops_session.refresh(outbox)
     assert outbox.status == MailOutboxStatus.SENT
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
@@ -589,7 +641,6 @@ def test_ops_api_retry_rejects_completed_mail_and_records_audit(
     assert audit_event.operation_id == operation_id
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "validation_error"
-    assert audit_event.error_detail == '{"field": "status", "status": "succeeded"}'
 
 
 def test_ops_api_retry_unknown_operation_records_audit(
@@ -607,19 +658,13 @@ def test_ops_api_retry_unknown_operation_records_audit(
     assert response.status_code == 404
     payload = response.json()
     assert payload["public_code"] == "resource_not_found"
-    assert payload["internal_details"] == {
-        "resource_type": "async_operation",
-        "resource_id": operation_id,
-    }
+    assert "internal_details" not in payload
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.action == "retry_async_operation"
     assert audit_event.operation_kind == "mail"
     assert audit_event.operation_id == operation_id
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "resource_not_found"
-    assert audit_event.error_detail == (
-        '{"resource_id": "missing-operation-id", "resource_type": "async_operation"}'
-    )
 
 
 def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
@@ -643,7 +688,7 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
 
     assert response.status_code == 422
     payload = response.json()
-    assert payload["internal_details"] == {"field": "status", "status": "succeeded"}
+    assert "internal_details" not in payload
     ops_session.refresh(job)
     assert job.state == ImportJobState.CONFIRMED
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
@@ -683,7 +728,7 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
 
     assert response.status_code == 422
     payload = response.json()
-    assert payload["internal_details"] == {"field": "status", "status": "succeeded"}
+    assert "internal_details" not in payload
     ops_session.refresh(outbox)
     assert outbox.status == RenderOutboxStatus.COMPLETED
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
@@ -716,7 +761,7 @@ def test_ops_api_retry_rejects_active_score_deletion_and_records_audit(
 
     assert response.status_code == 422
     payload = response.json()
-    assert payload["internal_details"] == {"field": "status", "status": "ACTIVE"}
+    assert "internal_details" not in payload
     ops_session.refresh(score)
     assert score.deletion_status == ScoreDeletionStatus.ACTIVE
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()

@@ -112,7 +112,8 @@ Remaining gaps:
 
 3. **Public and internal error information are separate contracts.**
    Public APIs return stable `public_code`, `public_message`, and `request_id`.
-   Internal reason/detail belongs in logs and ops-only APIs.
+   Raw internal reason/detail belongs only in logs; operator APIs expose a
+   separate, white-listed diagnostic contract.
 
 4. **Structured logs beat formatted strings.**
    Production logs should be queryable by fields such as `event`, `method`,
@@ -322,14 +323,17 @@ Tasks:
    - `/settings/*`.
 2. Ensure user-visible errors come from `public_code` translation or stable
    frontend fallback messages.
-3. Ensure internal reasons are visible only in logs and ops endpoints.
+3. Ensure raw internal reasons are visible only in logs. Operator endpoints
+   may expose only stable, white-listed diagnostic code, stage, classification,
+   retryability, and lifecycle state.
 4. Remove any remaining direct `error.message` display for ordinary users.
 
 Acceptance criteria:
 
 - ordinary users never see Redis, worker, storage, mail provider, rendering
   engine, OCR engine, stack trace, table name, or exception class names.
-- ops endpoints remain able to expose `internal_reason` and diagnostics.
+- ops endpoints expose only the controlled diagnostic contract and never raw
+  `internal_reason` text.
 
 ### P1 - Metrics Baseline
 

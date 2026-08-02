@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_active_superuser, get_db
+from app.api.deps import get_db
 from app.core.exceptions import AppException
 from app.db.models import User
 from app.modules.ops.schemas import (
@@ -17,7 +16,9 @@ from app.modules.ops.schemas import (
     AsyncOperationStatus,
     OpsAuditEventRead,
     OpsAuditOutcome,
+    RetryAsyncOperationCommand,
 )
+from app.modules.ops.authorization import PlatformOperationAction, require_platform_operation
 from app.modules.ops.service import OpsAsyncOperationService, ops_async_operation_service
 from app.shared.pagination import OffsetPage
 from app.shared.responses import APIResponse, success_response
@@ -31,7 +32,7 @@ def get_ops_async_operation_service() -> OpsAsyncOperationService:
 
 @router.get("/audit-events", response_model=APIResponse[OffsetPage[OpsAuditEventRead]])
 async def list_ops_audit_events(
-    _admin_user: User = Depends(get_current_active_superuser),
+    _admin_user: User = Depends(require_platform_operation(PlatformOperationAction.READ)),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationService = Depends(get_ops_async_operation_service),
     limit: int = Query(default=100, ge=1, le=500),
@@ -61,7 +62,7 @@ async def list_ops_audit_events(
 
 @router.get("/async-operations", response_model=APIResponse[OffsetPage[AsyncOperationRead]])
 async def list_async_operations(
-    _admin_user: User = Depends(get_current_active_superuser),
+    _admin_user: User = Depends(require_platform_operation(PlatformOperationAction.READ)),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationService = Depends(get_ops_async_operation_service),
     limit: int = Query(default=100, ge=1, le=500),
@@ -89,7 +90,7 @@ async def list_async_operations(
 
 @router.get("/async-operations/summary", response_model=APIResponse[AsyncOperationsSummaryRead])
 async def async_operations_summary(
-    _admin_user: User = Depends(get_current_active_superuser),
+    _admin_user: User = Depends(require_platform_operation(PlatformOperationAction.READ)),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationService = Depends(get_ops_async_operation_service),
     kind: AsyncOperationKind | None = Query(default=None),
@@ -118,7 +119,9 @@ async def async_operations_summary(
 async def retry_async_operation(
     kind: AsyncOperationKind,
     operation_id: str,
-    admin_user: User = Depends(get_current_active_superuser),
+    request: Request,
+    command: RetryAsyncOperationCommand | None = Body(default=None),
+    admin_user: User = Depends(require_platform_operation(PlatformOperationAction.RETRY)),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationService = Depends(get_ops_async_operation_service),
 ):
@@ -133,9 +136,9 @@ async def retry_async_operation(
             operation_id=operation_id,
             outcome="failed",
             error_code=exc.code,
-            error_detail=json.dumps(exc.details, ensure_ascii=False, sort_keys=True)
-            if exc.details
-            else None,
+            reason=command.reason if command is not None else None,
+            request_id=getattr(request.state, "request_id", None),
+            peer_address=request.client.host if request.client is not None else None,
         )
         raise
     await service.record_audit_event(
@@ -145,5 +148,10 @@ async def retry_async_operation(
         operation_kind=kind,
         operation_id=operation_id,
         outcome="succeeded",
+        reason=command.reason if command is not None else None,
+        request_id=getattr(request.state, "request_id", None),
+        peer_address=request.client.host if request.client is not None else None,
+        previous_state=result.previous_state,
+        new_state=result.operation.raw_status,
     )
-    return success_response(data=result)
+    return success_response(data=result.operation)

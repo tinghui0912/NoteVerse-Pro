@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AsyncOperationKind(str, enum.Enum):
@@ -36,9 +36,13 @@ class AsyncOperationErrorClass(str, enum.Enum):
 
 
 class AsyncOperationDiagnostic(BaseModel):
-    internal_code: str | None
-    internal_stage: str | None
+    code: str | None
+    stage: str | None
     retryable: bool
+
+
+class RetryAsyncOperationCommand(BaseModel):
+    reason: str | None = Field(default=None, min_length=3, max_length=500)
 
 
 class AsyncOperationRead(BaseModel):
@@ -52,7 +56,6 @@ class AsyncOperationRead(BaseModel):
     attempts: int
     max_attempts: int | None
     next_attempt_at: datetime | None
-    internal_reason: str | None
     error_class: AsyncOperationErrorClass | None
     diagnostic: AsyncOperationDiagnostic | None = None
     created_at: datetime | None
@@ -89,5 +92,9 @@ class OpsAuditEventRead(BaseModel):
     operation_id: str
     outcome: OpsAuditOutcome
     error_code: str | None
-    error_detail: str | None
+    reason: str | None
+    request_id: str | None
+    peer_address: str | None
+    previous_state: str | None
+    new_state: str | None
     created_at: datetime
