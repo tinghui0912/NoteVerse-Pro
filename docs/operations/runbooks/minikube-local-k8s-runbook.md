@@ -841,6 +841,7 @@ $env:NOTEVERSE_S3_REGION = "<s3-region>"
 $env:NOTEVERSE_S3_BUCKET = "<s3-bucket>"
 $env:NOTEVERSE_S3_PUBLIC_BASE_URL = "<s3-public-base-url>"
 $env:NOTEVERSE_S3_FORCE_PATH_STYLE = "true"
+$env:NOTEVERSE_TRUSTED_PROXY_CIDRS = '["10.244.0.0/16"]'
 
 .\scripts\render_minikube_release_overlay.ps1 `
   -Output build/k8s-release/minikube `

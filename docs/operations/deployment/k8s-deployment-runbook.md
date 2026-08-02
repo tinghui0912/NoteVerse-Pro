@@ -82,6 +82,7 @@ python scripts/render_k8s_release_overlay.py \
   --tls-secret noteverse-production-tls \
   --frontend-base-url https://noteverse.example.com \
   --backend-cors-origins '["https://noteverse.example.com"]' \
+  --trusted-proxy-cidrs '["<gateway-data-plane-cidr>"]' \
   --auth-cookie-secure true \
   --mail-default-sender 'NoteVerse Pro <no-reply@noteverse.example.com>' \
   --s3-endpoint-url https://object-storage.example.com \
@@ -103,6 +104,10 @@ python scripts/check_k8s_application_manifests.py \
 The renderer does not create Secrets, PVCs, database credentials, Redis
 credentials, S3 access keys, or mail provider keys. Those must already exist in
 the target namespace through the cluster secret-management path.
+
+`--trusted-proxy-cidrs` must contain only the concrete CIDR ranges assigned to
+the Gateway data-plane workloads that connect to the API. It is not an external
+client range and must never be `0.0.0.0/0`.
 
 For staging, use `.github/workflows/staging-release-package.yml` to render a
 digest-pinned release package from the GitHub `staging` Environment variables

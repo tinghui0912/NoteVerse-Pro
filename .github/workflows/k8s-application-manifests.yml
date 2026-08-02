@@ -73,6 +73,7 @@ jobs:
             --tls-secret noteverse-staging-real-tls \
             --frontend-base-url https://staging.noteverse.test \
             --backend-cors-origins '["https://staging.noteverse.test"]' \
+            --trusted-proxy-cidrs '["10.244.0.0/16"]' \
             --auth-cookie-secure true \
             --mail-default-sender 'NoteVerse Pro <no-reply@staging.noteverse.test>' \
             --s3-endpoint-url https://object-storage.noteverse.test \
