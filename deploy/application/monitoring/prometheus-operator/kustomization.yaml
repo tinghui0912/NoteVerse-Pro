@@ -4,4 +4,5 @@ kind: Kustomization
 resources:
   - backend-api-servicemonitor.yaml
   - backend-practice-servicemonitor.yaml
+  - observability-exporter-servicemonitor.yaml
   - noteverse-application-prometheusrule.yaml

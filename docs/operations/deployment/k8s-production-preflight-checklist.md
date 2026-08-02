@@ -43,11 +43,13 @@ python scripts/render_k8s_release_overlay.py \
   --backend-beat-image ghcr.io/<owner>/noteverse/backend-beat@sha256:<digest> \
   --backend-worker-image ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest> \
   --frontend-image ghcr.io/<owner>/noteverse/frontend@sha256:<digest> \
+  --platform-admin-image ghcr.io/<owner>/noteverse/platform-admin@sha256:<digest> \
   --frontend-host noteverse.example.com \
   --api-host api.noteverse.example.com \
   --tls-secret noteverse-production-tls \
   --frontend-base-url https://noteverse.example.com \
   --backend-cors-origins '["https://noteverse.example.com"]' \
+  --control-plane-cors-origins '["https://admin.noteverse.example.com"]' \
   --trusted-proxy-cidrs '["<gateway-data-plane-cidr>"]' \
   --auth-cookie-secure true \
   --mail-default-sender 'NoteVerse Pro <no-reply@noteverse.example.com>' \
@@ -103,6 +105,7 @@ Verify:
 
 - `FRONTEND_BASE_URL` is the public product URL;
 - `BACKEND_CORS_ORIGINS` includes only approved browser origins;
+- `CONTROL_PLANE_CORS_ORIGINS` includes only the dedicated Platform Admin origin;
 - `NEXT_BACKEND_ORIGIN` points to the internal backend Service;
 - `/api/v1` is routed by Gateway API to the backend API;
 - cookie names match backend and frontend configuration.
@@ -120,10 +123,10 @@ Verify the API Gateway route supports:
 
 ### Platform Operations Control Plane
 
-The current API HTTPRoute forwards the broad `/api/v1` prefix, which includes
-`/api/v1/ops`. Until a dedicated operations client exists, platform operation
-routes rely on application-level operator authorization and must not return raw
-diagnostic details in HTTP responses.
+The customer API does not register `/api/v1/ops`. A dark-by-default dedicated
+Control Plane Service and Platform Admin deployment exist, but no public
+Gateway route may be added until every item below passes in the rendered
+environment.
 
 Before introducing an operator UI, external automation client, or destructive
 platform operation, define and verify all of the following:
@@ -179,7 +182,9 @@ Verify:
 
 - Fluent Bit ships container stdout/stderr to Loki;
 - Loki labels stay low-cardinality;
-- Prometheus scrapes API metrics;
+- Prometheus scrapes customer API process/HTTP metrics and the internal
+  `noteverse-observability-exporter` Service for durable scheduler and
+  asynchronous-operation metrics;
 - Grafana has Prometheus, Loki, and Tempo datasources;
 - no backend pod depends on local log files;
 - no product UI exposes Redis, worker, storage, mail, renderer, model, or trace

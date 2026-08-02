@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     CSRF_HEADER_NAME: str
     AUTH_COOKIE_SECURE: bool
     AUTH_COOKIE_SAMESITE: str
+    CONTROL_PLANE_AUTH_COOKIE_NAME: Optional[str] = None
+    CONTROL_PLANE_CSRF_COOKIE_NAME: Optional[str] = None
+    CONTROL_PLANE_CSRF_HEADER_NAME: Optional[str] = None
+    CONTROL_PLANE_COOKIE_SECURE: Optional[bool] = None
+    CONTROL_PLANE_COOKIE_SAMESITE: Optional[str] = None
+    CONTROL_PLANE_SESSION_EXPIRE_MINUTES: Optional[int] = None
+    CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
     DEBUG: bool = False
     LOG_FORMAT: str
     FRONTEND_BASE_URL: str
@@ -79,6 +86,15 @@ class Settings(BaseSettings):
         if isinstance(v, list):
             return v
         raise ValueError("BACKEND_CORS_ORIGINS must be a JSON array")
+
+    @field_validator("CONTROL_PLANE_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_control_plane_cors_origins(cls, value: str | List[str] | None) -> List[str] | None:
+        if value is None or value == "":
+            return None
+        if isinstance(value, list):
+            return value
+        raise ValueError("CONTROL_PLANE_CORS_ORIGINS must be a JSON array")
 
     @field_validator("TRUSTED_PROXY_CIDRS", mode="before")
     @classmethod

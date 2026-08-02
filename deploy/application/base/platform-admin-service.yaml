@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: noteverse-platform-admin
+  labels:
+    app.kubernetes.io/component: platform-admin
+spec:
+  selector:
+    app.kubernetes.io/name: noteverse
+    app.kubernetes.io/component: platform-admin
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

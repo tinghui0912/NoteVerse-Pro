@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: noteverse-observability-exporter
+  labels:
+    app.kubernetes.io/component: observability-exporter
+spec:
+  selector:
+    app.kubernetes.io/name: noteverse
+    app.kubernetes.io/component: observability-exporter
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

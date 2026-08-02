@@ -7,13 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.health import router as health_router
-from app.api.metrics import router as metrics_router
+from app.api.metrics import create_metrics_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.lifespan import app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
-from app.core.middleware import CsrfProtectionMiddleware, LoggingMiddleware
+from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware, LoggingMiddleware
 from app.core.tracing import configure_api_tracing
 
 
@@ -22,6 +22,25 @@ configure_uvicorn_logging()
 
 def _cors_origins() -> list[str]:
     return [str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS]
+
+
+def _csrf_settings() -> CookieCsrfSettings:
+    prefix = settings.API_V1_STR
+    return CookieCsrfSettings(
+        api_prefix=prefix,
+        session_cookie_names=(settings.AUTH_COOKIE_NAME, settings.REFRESH_COOKIE_NAME),
+        csrf_cookie_name=settings.CSRF_COOKIE_NAME,
+        csrf_header_name=settings.CSRF_HEADER_NAME,
+        exempt_paths=(
+            f"{prefix}/auth/login",
+            f"{prefix}/auth/refresh",
+            f"{prefix}/auth/register",
+            f"{prefix}/auth/email/",
+            f"{prefix}/auth/password/",
+        ),
+        allowed_origins=lambda: tuple(_cors_origins()),
+        debug=settings.DEBUG,
+    )
 
 
 def create_app() -> FastAPI:
@@ -38,7 +57,7 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(LoggingMiddleware)
-    app.add_middleware(CsrfProtectionMiddleware)
+    app.add_middleware(CsrfProtectionMiddleware, csrf_settings=_csrf_settings())
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins(),
@@ -61,7 +80,7 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router, prefix=settings.API_V1_STR)
     app.include_router(health_router)
-    app.include_router(metrics_router)
+    app.include_router(create_metrics_router(include_database_metrics=False))
 
     @app.get("/")
     def root():

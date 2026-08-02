@@ -1,13 +1,14 @@
 """HTTP middleware used by the FastAPI application."""
 
 import time
+from dataclasses import dataclass
+from collections.abc import Callable
 from urllib.parse import urlparse
 
 from fastapi import Request
 from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.core.config import settings
 from app.core.client_address import client_address, peer_address
 from app.core.logger import logger, set_trace_id
 from app.core.metrics import record_http_request
@@ -17,13 +18,17 @@ from app.shared.responses import error_response
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 HEALTH_PATHS = {"/health/live", "/health/ready", "/metrics"}
-CSRF_EXEMPT_PATHS = (
-    f"{settings.API_V1_STR}/auth/login",
-    f"{settings.API_V1_STR}/auth/refresh",
-    f"{settings.API_V1_STR}/auth/register",
-    f"{settings.API_V1_STR}/auth/email/",
-    f"{settings.API_V1_STR}/auth/password/",
-)
+
+
+@dataclass(frozen=True, slots=True)
+class CookieCsrfSettings:
+    api_prefix: str
+    session_cookie_names: tuple[str, ...]
+    csrf_cookie_name: str
+    csrf_header_name: str
+    exempt_paths: tuple[str, ...]
+    allowed_origins: tuple[str, ...] | Callable[[], tuple[str, ...]]
+    debug: bool
 
 
 def normalize_origin(origin: str) -> str | None:
@@ -44,6 +49,10 @@ def normalize_origin(origin: str) -> str | None:
 class CsrfProtectionMiddleware(BaseHTTPMiddleware):
     """Require a double-submit CSRF token for cookie-authenticated writes."""
 
+    def __init__(self, app, *, csrf_settings: CookieCsrfSettings) -> None:
+        super().__init__(app)
+        self.csrf_settings = csrf_settings
+
     async def dispatch(self, request: Request, call_next):
         if self._should_check_origin(request) and not self._has_allowed_origin(request):
             response = JSONResponse(
@@ -57,8 +66,8 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
             return response
 
         if self._should_check(request):
-            csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME)
-            csrf_header = request.headers.get(settings.CSRF_HEADER_NAME)
+            csrf_cookie = request.cookies.get(self.csrf_settings.csrf_cookie_name)
+            csrf_header = request.headers.get(self.csrf_settings.csrf_header_name)
             if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
                 response = JSONResponse(
                     status_code=403,
@@ -98,22 +107,19 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         if request.method.upper() in SAFE_METHODS:
             return False
-        if not path.startswith(settings.API_V1_STR):
+        if not path.startswith(self.csrf_settings.api_prefix):
             return False
-        if any(path == exempt or path.startswith(exempt) for exempt in CSRF_EXEMPT_PATHS):
+        if any(path == exempt or path.startswith(exempt) for exempt in self.csrf_settings.exempt_paths):
             return False
-        return bool(
-            request.cookies.get(settings.AUTH_COOKIE_NAME)
-            or request.cookies.get(settings.REFRESH_COOKIE_NAME)
-        )
+        return any(request.cookies.get(cookie_name) for cookie_name in self.csrf_settings.session_cookie_names)
 
     def _should_check_origin(self, request: Request) -> bool:
         return (
             request.method.upper() not in SAFE_METHODS
-            and request.url.path.startswith(settings.API_V1_STR)
-            and bool(
-                request.cookies.get(settings.AUTH_COOKIE_NAME)
-                or request.cookies.get(settings.REFRESH_COOKIE_NAME)
+            and request.url.path.startswith(self.csrf_settings.api_prefix)
+            and any(
+                request.cookies.get(cookie_name)
+                for cookie_name in self.csrf_settings.session_cookie_names
             )
         )
 
@@ -133,9 +139,14 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
 
         request_origin = normalize_origin(f"{request.url.scheme}://{request.url.netloc}")
         source_origin = normalize_origin(source)
+        configured_origins = (
+            self.csrf_settings.allowed_origins()
+            if callable(self.csrf_settings.allowed_origins)
+            else self.csrf_settings.allowed_origins
+        )
         allowed_origins = {
             normalized
-            for origin in settings.BACKEND_CORS_ORIGINS
+            for origin in configured_origins
             if (normalized := normalize_origin(str(origin).rstrip("/"))) is not None
         }
         if request_origin is not None:
@@ -143,7 +154,7 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         if source_origin is not None and source_origin in allowed_origins:
             return True
 
-        return settings.DEBUG and self._is_loopback_dev_origin(request, parsed_source)
+        return self.csrf_settings.debug and self._is_loopback_dev_origin(request, parsed_source)
 
     def _is_loopback_dev_origin(self, request: Request, parsed_source) -> bool:
         request_host = request.url.hostname

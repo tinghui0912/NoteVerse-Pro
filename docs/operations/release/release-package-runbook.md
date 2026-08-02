@@ -23,6 +23,7 @@ backend-beat
 backend-practice
 backend-worker
 frontend
+platform-admin
 ```
 
 The image tags do not have to be identical. A partial rollout is valid when
@@ -78,14 +79,19 @@ If you leave `image_tag` empty, the workflow uses the current
 every component you did not explicitly override. This is the normal path for a
 small staged rollout where only one or two images changed.
 
+When a newly introduced deployable component has no entry in the current
+metadata yet, provide its immutable image reference explicitly for that first
+promotion. The first Platform Admin release therefore requires
+`platform_admin_image` unless `image_tag` is supplied for a complete release.
+
 For example, to update only the API image:
 
 ```text
 backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<new-sha-or-digest>
 ```
 
-The release package will keep the current staging beat, practice, worker, and
-frontend image digests.
+The release package will keep the current staging beat, practice, worker,
+frontend, and Platform Admin image digests.
 
 If one or more components use different tags and you do not want to inherit
 from current staging, provide explicit image refs for every component:
@@ -96,6 +102,7 @@ backend_beat_image=ghcr.io/<owner>/noteverse/backend-beat:<sha-a>
 backend_practice_image=ghcr.io/<owner>/noteverse/backend-practice:<sha-b>
 backend_worker_image=ghcr.io/<owner>/noteverse/backend-worker:<sha-c>
 frontend_image=ghcr.io/<owner>/noteverse/frontend:<sha-d>
+platform_admin_image=ghcr.io/<owner>/noteverse/platform-admin:<sha-e>
 ```
 
 Download the `staging-release-package` artifact. It contains:
@@ -194,6 +201,7 @@ GitHub Environment variables provide non-secret render values such as:
 *_TLS_SECRET
 *_FRONTEND_BASE_URL
 *_BACKEND_CORS_ORIGINS
+*_CONTROL_PLANE_CORS_ORIGINS
 *_AUTH_COOKIE_SECURE
 *_MAIL_DEFAULT_SENDER
 *_S3_ENDPOINT_URL
@@ -203,6 +211,11 @@ GitHub Environment variables provide non-secret render values such as:
 *_S3_FORCE_PATH_STYLE
 *_S3_PRESIGN_EXPIRE_SECONDS
 ```
+
+`*_CONTROL_PLANE_CORS_ORIGINS` must be JSON with only the intended Platform
+Admin origin, for example `["https://admin.staging.example.com"]`. It is
+required even while the control-plane Deployment is dark so rendering cannot
+silently invent a browser security policy when the runtime is enabled.
 
 Database URLs, Redis URLs, cookie secrets, S3 access keys, mail API keys, and
 Hugging Face tokens must already exist in the target cluster as Kubernetes

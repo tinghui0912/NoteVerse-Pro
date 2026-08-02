@@ -9,9 +9,11 @@ repositories.
 
 ## Current Boundary
 
-`/api/v1/ops` is a platform operator control plane. It is not a customer API
-and is currently protected by the platform administrator dependency. It owns
-asynchronous-operation inspection, retry commands, and operator audit events.
+`/api/v1/ops` is a platform operator control-plane route namespace. It is
+registered only by the isolated `control_plane_api` composition root, never by
+the customer API. It owns asynchronous-operation inspection, retry commands,
+and operator audit events. The database-backed metrics exporter is a separate,
+internal runtime; it is not an operator API.
 
 Prometheus metrics and application telemetry are observability concerns. They
 must not be used as a substitute for an operator API, and raw technical logs
@@ -23,9 +25,9 @@ must not be returned by either surface.
 
 | Gate | Definition | Current interpretation |
 | --- | --- | --- |
-| Required now | Required to safely operate the existing transitional `/api/v1/ops` routes. | Public error contracts, explicit actions, and safe diagnostics are already in place. |
-| Required for first operator UI | Required before a formal platform-admin client is introduced. | ADR 0006 composition root, independent client contract, and control-plane authorization tests. |
-| Required before production exposure | Required before a real workforce audience can use the control plane. | MFA-capable identity, dedicated sessions and host, restrictive Gateway/NetworkPolicy, and rollout verification. |
+| Required now | Required to safely operate the isolated `/api/v1/ops` routes. | Public error contracts, explicit actions, safe diagnostics, and separate operator sessions are in place. |
+| Required for first operator UI | Required before a formal platform-admin client is introduced. | Independent runtime, client, action checks, and bounded diagnostics are implemented; browser E2E and private-routing acceptance remain. |
+| Required before production exposure | Required before real operators can use the control plane. | MFA-capable operator identity, dedicated sessions and host, restrictive Gateway/NetworkPolicy, and rollout verification. |
 | Deferred until demonstrated need | A future capability with no current concrete workflow or risk trigger. | Generic permissions, external tamper-evident audit, and broader access infrastructure. |
 
 ### P0 - Safe Error and Diagnostic Contracts
@@ -37,14 +39,15 @@ must not be returned by either surface.
 - [x] Keep only structured operator diagnostics: stable code, stable stage,
   retryability, error class, operation status, attempts, and timestamps.
 - [x] Stop persisting raw retry error details in the operator audit table.
-- [x] Add contract tests covering unauthenticated and non-admin access to
-  every operator route.
+- [x] Add contract tests covering unauthenticated and insufficient-operator-action
+  access to every operator route.
 
 ### P1 - Operator Authorization and Audit Semantics
 
 - [x] Introduce explicit policy actions for `operations.read` and
   `operations.retry` before adding more operator mutations.
-- [ ] Require a bounded, audited reason for destructive or high-impact
+- [x] Require a bounded, audited reason for asynchronous-operation retry.
+- [ ] Require a bounded, audited reason for future destructive or high-impact
   operator actions such as delete, restore, and forced state transitions.
 - [x] Extend retry audit events with request ID, peer address, optional bounded
   reason, and previous/new state without duplicating raw request bodies or logs.
@@ -57,10 +60,10 @@ must not be returned by either surface.
 
 ### P1 - Exposure Review
 
-- [x] Verify every environment's Gateway/HTTPRoute treatment of `/api/v1/ops`.
-  Current staging and production overlays route the broad public `/api/v1`
-  prefix to the API Deployment, so `/ops` is currently protected by
-  application authorization rather than network isolation.
+- [x] Record the current exposure state: no rendered environment routes the
+  dedicated control host yet, so the isolated runtime is not externally
+  exposed. The future control host must never be routed through the customer
+  `app` or `api` hosts.
 - [ ] Define the production access policy: strong administrator authentication
   now; internal hostname, network policy, and restricted ingress when an
   operator UI or automation client is introduced. ADR 0006 defines the target
@@ -77,17 +80,18 @@ must not be returned by either surface.
 
 ### P3 - Dedicated Control-Plane Delivery
 
-- [ ] Before a formal operator client or high-impact command is exposed, ship
-  the ADR 0006 control-plane vertical slice: separate composition root,
-  workforce identity, `control` host, restrictive Gateway/NetworkPolicy, and
-  independent rollback verification.
-- [ ] Move database-backed scheduler and asynchronous-operation metrics from
-  the customer API into the internal `observability_exporter` composition root
-  as part of that same exercised delivery slice when it does not materially
-  increase delivery risk. Otherwise record an owned, release-bounded migration
-  and complete it before high-impact control-plane commands are introduced.
-- [ ] Do not split repositories or databases solely because an operations API
-  exists.
+- [x] Establish an isolated local-password operator identity domain, opaque
+  server-side operator sessions, and a dedicated `control_plane_api` composition
+  root. Customer sessions and the customer `/api/v1/ops` route are removed from
+  the control-plane authorization path.
+- [x] Ship the internal portions of the ADR 0006 vertical slice: separate
+  composition root, local-password operator identity, independent Platform Admin client,
+  and dark-by-default Deployments. MFA-capable workforce identity binding, private Gateway/NetworkPolicy, browser E2E,
+  and independent rollback verification remain production-exposure gates.
+- [x] Move database-backed scheduler and asynchronous-operation metrics from
+  the customer API into the internal `observability_exporter` composition root.
+- Keep the shared repository, domain modules, PostgreSQL database, and Alembic
+  migration stream. An operations API alone is not a reason to split them.
 
 ## Non-Goals
 

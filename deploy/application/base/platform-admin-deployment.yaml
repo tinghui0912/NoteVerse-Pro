@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse-platform-admin
+  labels:
+    app.kubernetes.io/component: platform-admin
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: platform-admin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: noteverse
+        app.kubernetes.io/part-of: noteverse
+        app.kubernetes.io/component: platform-admin
+    spec:
+      imagePullSecrets:
+        - name: noteverse-registry-credentials
+      containers:
+        - name: platform-admin
+          image: noteverse-platform-admin:replace-me
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /login
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -91,18 +91,25 @@ def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
     assert "/internal/storage/path" not in str(payload)
 
 
-def test_ops_errors_do_not_expose_internal_details_before_authorization(client: TestClient) -> None:
-    client.cookies.set(settings.AUTH_COOKIE_NAME, "invalid-token")
-    client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
-    try:
-        response = client.post(
+def test_control_plane_errors_do_not_expose_internal_details_before_authorization() -> None:
+    settings.CONTROL_PLANE_AUTH_COOKIE_NAME = "noteverse_control_auth"
+    settings.CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_control_csrf"
+    settings.CONTROL_PLANE_CSRF_HEADER_NAME = "x-control-csrf-token"
+    settings.CONTROL_PLANE_COOKIE_SECURE = False
+    settings.CONTROL_PLANE_COOKIE_SAMESITE = "lax"
+    settings.CONTROL_PLANE_SESSION_EXPIRE_MINUTES = 30
+    settings.CONTROL_PLANE_CORS_ORIGINS = ["http://testserver"]
+
+    from app.control_plane_main import create_app
+
+    with TestClient(create_app()) as control_client:
+        control_client.cookies.set(settings.CONTROL_PLANE_AUTH_COOKIE_NAME, "invalid-token")
+        control_client.cookies.set(settings.CONTROL_PLANE_CSRF_COOKIE_NAME, "csrf-token")
+        response = control_client.post(
             "/api/v1/ops/async-operations/retry",
             json={"operation_kind": "render", "operation_id": "op-1"},
             headers={"X-Request-ID": "ops-csrf-contract"},
         )
-    finally:
-        client.cookies.delete(settings.AUTH_COOKIE_NAME)
-        client.cookies.delete(settings.CSRF_COOKIE_NAME)
 
     assert response.status_code == 403
     payload = response.json()

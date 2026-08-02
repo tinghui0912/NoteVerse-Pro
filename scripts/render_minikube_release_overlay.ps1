@@ -3,6 +3,7 @@ param(
     [string] $Environment = "staging",
     [string] $FrontendHost = "staging.johnabc.ccwu.cc",
     [string] $ApiHost = "api.staging.johnabc.ccwu.cc",
+    [string] $AdminHost = "admin.staging.johnabc.ccwu.cc",
     [string] $TlsSecret = "noteverse-staging-tls",
     [string] $FrontendBaseUrl = "https://staging.johnabc.ccwu.cc",
     [string] $AuthCookieSecure = "true",
@@ -31,6 +32,7 @@ $backendPracticeImage = Get-RequiredEnv "NOTEVERSE_BACKEND_PRACTICE_IMAGE"
 $backendBeatImage = Get-RequiredEnv "NOTEVERSE_BACKEND_BEAT_IMAGE"
 $backendWorkerImage = Get-RequiredEnv "NOTEVERSE_BACKEND_WORKER_IMAGE"
 $frontendImage = Get-RequiredEnv "NOTEVERSE_FRONTEND_IMAGE"
+$platformAdminImage = Get-RequiredEnv "NOTEVERSE_PLATFORM_ADMIN_IMAGE"
 
 $s3EndpointUrl = Get-RequiredEnv "NOTEVERSE_S3_ENDPOINT_URL"
 $s3Region = Get-RequiredEnv "NOTEVERSE_S3_REGION"
@@ -40,6 +42,7 @@ $s3ForcePathStyle = Get-RequiredEnv "NOTEVERSE_S3_FORCE_PATH_STYLE"
 
 $mailDefaultSender = "NoteVerse Pro <no-reply@$FrontendHost>"
 $backendCorsOrigins = "[`"$FrontendBaseUrl`"]"
+$controlPlaneCorsOrigins = "[`"https://$AdminHost`"]"
 $trustedProxyCidrs = Get-RequiredEnv "NOTEVERSE_TRUSTED_PROXY_CIDRS"
 
 $args = @(
@@ -51,11 +54,13 @@ $args = @(
     "--backend-beat-image", $backendBeatImage,
     "--backend-worker-image", $backendWorkerImage,
     "--frontend-image", $frontendImage,
+    "--platform-admin-image", $platformAdminImage,
     "--frontend-host", $FrontendHost,
     "--api-host", $ApiHost,
     "--tls-secret", $TlsSecret,
     "--frontend-base-url", $FrontendBaseUrl,
     "--backend-cors-origins", $backendCorsOrigins,
+    "--control-plane-cors-origins", $controlPlaneCorsOrigins,
     "--trusted-proxy-cidrs", $trustedProxyCidrs,
     "--auth-cookie-secure", $AuthCookieSecure,
     "--mail-default-sender", $mailDefaultSender,

@@ -7,6 +7,7 @@ ordinary product behavior in `../product/`, implementation guidance in
 ## Current Documents
 
 - [Codebase Simplification And Security Plan](codebase-simplification-and-security-plan.md)
+- [Control-Plane Identity Contract](control-plane-identity-contract.md)
 
 ## Future Topics
 
@@ -16,4 +17,3 @@ ordinary product behavior in `../product/`, implementation guidance in
 - object storage access control;
 - sharing, publication, and download permissions;
 - security incident response.
-

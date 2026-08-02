@@ -16,6 +16,8 @@ backend/**/__pycache__
 frontend/.next
 frontend/node_modules
 frontend/tsconfig.tsbuildinfo
+apps/**/.next
+apps/**/node_modules
 
 external/*
 logs

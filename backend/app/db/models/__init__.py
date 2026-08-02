@@ -3,6 +3,15 @@ from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshTok
 from .file import StorageBlob, Upload
 from .notification import NotificationEvent
 from .ops_audit import OpsAuditEvent
+from .operator import (
+    Operator,
+    OperatorIdentity,
+    OperatorIdentityProvider,
+    OperatorPasswordCredential,
+    OperatorRole,
+    OperatorSession,
+    OperatorStatus,
+)
 from .realtime import RealtimeEvent
 from .revision_event import ScoreRevisionEvent
 from .revision_note import ScoreRevisionNote
@@ -84,6 +93,13 @@ __all__ = [
     "Upload",
     "NotificationEvent",
     "OpsAuditEvent",
+    "Operator",
+    "OperatorIdentity",
+    "OperatorIdentityProvider",
+    "OperatorPasswordCredential",
+    "OperatorRole",
+    "OperatorSession",
+    "OperatorStatus",
     "RealtimeEvent",
     "ScoreRevisionEvent",
     "ScoreRevisionNote",

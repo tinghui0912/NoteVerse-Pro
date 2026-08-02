@@ -21,6 +21,19 @@ case "${1:-api}" in
     fi
     exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
+  control)
+    python scripts/check_runtime.py --role control
+    uvicorn_args=(app.control_plane_main:app --host 0.0.0.0 --port "${PORT:-8000}")
+    if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
+      uvicorn_args+=(--reload)
+    fi
+    exec python -m uvicorn "${uvicorn_args[@]}"
+    ;;
+  observability-exporter)
+    python scripts/check_runtime.py --role observability-exporter
+    uvicorn_args=(app.observability_main:app --host 0.0.0.0 --port "${PORT:-8000}")
+    exec python -m uvicorn "${uvicorn_args[@]}"
+    ;;
   worker)
     export NOTEVERSE_CELERY_IMPORT_TASKS=true
     python scripts/check_runtime.py --role worker

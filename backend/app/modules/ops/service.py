@@ -77,7 +77,7 @@ class OpsAsyncOperationService:
         *,
         limit: int,
         offset: int = 0,
-        actor_user_id: int | None = None,
+        actor_operator_id: int | None = None,
         action: str | None = None,
         operation_kind: AsyncOperationKind | None = None,
         operation_id: str | None = None,
@@ -86,8 +86,8 @@ class OpsAsyncOperationService:
         created_before: datetime | None = None,
     ) -> OffsetPage[OpsAuditEventRead]:
         statement = select(OpsAuditEvent)
-        if actor_user_id is not None:
-            statement = statement.where(OpsAuditEvent.actor_user_id == actor_user_id)
+        if actor_operator_id is not None:
+            statement = statement.where(OpsAuditEvent.actor_operator_id == actor_operator_id)
         if action is not None:
             statement = statement.where(OpsAuditEvent.action == action)
         if operation_kind is not None:
@@ -115,7 +115,10 @@ class OpsAsyncOperationService:
         self,
         db: AsyncSession,
         *,
-        actor_user_id: int | None,
+        actor_operator_id: int | None,
+        actor_identity_provider: str | None = None,
+        actor_identity_issuer: str | None = None,
+        actor_identity_subject: str | None = None,
         action: str,
         operation_kind: AsyncOperationKind,
         operation_id: str,
@@ -130,7 +133,10 @@ class OpsAsyncOperationService:
     ) -> None:
         db.add(
             OpsAuditEvent(
-                actor_user_id=actor_user_id,
+                actor_operator_id=actor_operator_id,
+                actor_identity_provider=actor_identity_provider,
+                actor_identity_issuer=actor_identity_issuer,
+                actor_identity_subject=actor_identity_subject,
                 action=action,
                 operation_kind=operation_kind.value,
                 operation_id=operation_id,
@@ -150,7 +156,7 @@ class OpsAsyncOperationService:
     def _audit_event_read(event: OpsAuditEvent) -> OpsAuditEventRead:
         return OpsAuditEventRead(
             event_id=event.event_uuid,
-            actor_user_id=event.actor_user_id,
+            actor_operator_id=event.actor_operator_id,
             action=event.action,
             operation_kind=AsyncOperationKind(event.operation_kind),
             operation_id=event.operation_id,

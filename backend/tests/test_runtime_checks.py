@@ -26,6 +26,20 @@ def test_practice_runtime_checks_cover_practice_owned_dependencies() -> None:
     )
 
 
+def test_control_plane_runtime_checks_require_independent_identity_configuration() -> None:
+    assert ROLE_CHECK_NAMES[RuntimeRole.CONTROL_PLANE] == (
+        "settings",
+        "control_plane_settings",
+        "database",
+        "storage_quota_policy",
+        "redis",
+    )
+
+
+def test_observability_exporter_checks_only_its_database_dependency() -> None:
+    assert ROLE_CHECK_NAMES[RuntimeRole.OBSERVABILITY_EXPORTER] == ("settings", "database")
+
+
 def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     checks = ROLE_CHECK_NAMES[RuntimeRole.WORKER]
 
@@ -54,7 +68,14 @@ def test_all_runtime_checks_are_a_deduplicated_union() -> None:
     all_checks = ROLE_CHECK_NAMES[RuntimeRole.ALL]
 
     assert len(all_checks) == len(set(all_checks))
-    for role in (RuntimeRole.API, RuntimeRole.WORKER, RuntimeRole.BEAT, RuntimeRole.PRACTICE):
+    for role in (
+        RuntimeRole.API,
+        RuntimeRole.CONTROL_PLANE,
+        RuntimeRole.OBSERVABILITY_EXPORTER,
+        RuntimeRole.WORKER,
+        RuntimeRole.BEAT,
+        RuntimeRole.PRACTICE,
+    ):
         assert set(ROLE_CHECK_NAMES[role]).issubset(all_checks)
 
 

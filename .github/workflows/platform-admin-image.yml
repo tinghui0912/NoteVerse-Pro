@@ -1,0 +1,91 @@
+name: Platform Admin Image
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "apps/platform-admin/**"
+      - "docker/platform-admin/**"
+      - ".github/workflows/platform-admin-image.yml"
+  pull_request:
+    paths:
+      - "apps/platform-admin/**"
+      - "docker/platform-admin/**"
+      - ".github/workflows/platform-admin-image.yml"
+
+concurrency:
+  group: platform-admin-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUSH_IMAGE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Resolve image namespace
+        run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME || github.actor }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Build Platform Admin runtime image
+        id: platform-admin-build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/platform-admin/Dockerfile.runtime
+          push: ${{ env.PUSH_IMAGE == 'true' }}
+          load: ${{ env.PUSH_IMAGE != 'true' }}
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.IMAGE_NAMESPACE }}/platform-admin:${{ github.sha }}
+            ${{ env.IMAGE_NAMESPACE }}/platform-admin:build-${{ github.run_id }}
+          build-args: |
+            NEXT_CONTROL_PLANE_ORIGIN=http://noteverse-control-plane:8000
+            NEXT_PUBLIC_CONTROL_PLANE_CSRF_COOKIE_NAME=noteverse_operator_csrf
+            NEXT_PUBLIC_CONTROL_PLANE_CSRF_HEADER_NAME=x-operator-csrf-token
+
+      - name: Generate Platform Admin SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: ${{ env.IMAGE_NAMESPACE }}/platform-admin:${{ github.sha }}
+          format: spdx-json
+          artifact-name: platform-admin-image-sbom.spdx.json
+
+      - name: Scan Platform Admin image
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/platform-admin:${{ github.sha }}
+          vuln-type: os,library
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+
+      - name: Write image build summary
+        run: |
+          {
+            echo "## Platform Admin image build"
+            echo ""
+            echo "- Push image: \`${PUSH_IMAGE}\`"
+            echo "- Image: \`${IMAGE_NAMESPACE}/platform-admin:${GITHUB_SHA}\`"
+            echo "- Digest: \`${{ steps.platform-admin-build.outputs.digest }}\`"
+            echo "- SBOM artifact: platform-admin-image-sbom.spdx.json"
+            echo "- Vulnerability gate: CRITICAL, ignore unfixed"
+          } >> "$GITHUB_STEP_SUMMARY"

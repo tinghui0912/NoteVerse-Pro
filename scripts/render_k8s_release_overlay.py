@@ -37,11 +37,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backend-practice-image", required=True)
     parser.add_argument("--backend-worker-image", required=True)
     parser.add_argument("--frontend-image", required=True)
+    parser.add_argument("--platform-admin-image", required=True)
     parser.add_argument("--frontend-host", required=True)
     parser.add_argument("--api-host", required=True)
     parser.add_argument("--tls-secret", required=True)
     parser.add_argument("--frontend-base-url", required=True)
     parser.add_argument("--backend-cors-origins", required=True)
+    parser.add_argument("--control-plane-cors-origins", required=True)
     parser.add_argument("--trusted-proxy-cidrs", required=True)
     parser.add_argument("--auth-cookie-secure", choices=("true", "false"), required=True)
     parser.add_argument("--mail-default-sender", required=True)
@@ -130,6 +132,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     backend_practice_ref = parse_image_ref(args.backend_practice_image)
     backend_worker_ref = parse_image_ref(args.backend_worker_image)
     frontend_ref = parse_image_ref(args.frontend_image)
+    platform_admin_ref = parse_image_ref(args.platform_admin_image)
 
     kustomization_path = output / "kustomization.yaml"
     kustomization = kustomization_path.read_text(encoding="utf-8")
@@ -144,6 +147,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     kustomization = replace_image_block(kustomization, "noteverse-backend-practice", backend_practice_ref)
     kustomization = replace_image_block(kustomization, "noteverse-backend-worker", backend_worker_ref)
     kustomization = replace_image_block(kustomization, "noteverse-frontend", frontend_ref)
+    kustomization = replace_image_block(kustomization, "noteverse-platform-admin", platform_admin_ref)
     kustomization_path.write_text(kustomization, encoding="utf-8")
 
     frontend_placeholder = (
@@ -227,6 +231,15 @@ def render_overlay(args: argparse.Namespace) -> Path:
         args.s3_presign_expire_seconds,
     )
     backend_config_path.write_text(backend_config, encoding="utf-8")
+
+    control_plane_config_path = output / "control-plane-config.env"
+    control_plane_config = control_plane_config_path.read_text(encoding="utf-8")
+    control_plane_config = replace_env_value(
+        control_plane_config,
+        "CONTROL_PLANE_CORS_ORIGINS",
+        args.control_plane_cors_origins,
+    )
+    control_plane_config_path.write_text(control_plane_config, encoding="utf-8")
 
     return output
 
