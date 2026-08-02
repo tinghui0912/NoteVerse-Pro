@@ -50,7 +50,6 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
                 content=self._error_payload(
                     request,
                     ErrorCode.REQUEST_ORIGIN_INVALID,
-                    {"reason": "origin_mismatch"},
                 ),
             )
             self._attach_request_id_header(request, response)
@@ -65,7 +64,6 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
                     content=self._error_payload(
                         request,
                         ErrorCode.CSRF_TOKEN_INVALID,
-                        {"reason": "csrf_token_mismatch"},
                     ),
                 )
                 self._attach_request_id_header(request, response)
@@ -85,12 +83,10 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         self,
         request: Request,
         code: str,
-        details: dict[str, object],
     ):
         return error_response(
             public_code=code,
             public_message=code,
-            internal_details=details if request.url.path.startswith(f"{settings.API_V1_STR}/ops") else None,
             request_id=self._request_id(request),
         )
 

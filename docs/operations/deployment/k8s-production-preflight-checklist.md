@@ -117,6 +117,25 @@ Verify the API Gateway route supports:
 - read/send timeouts suitable for realtime connections;
 - TLS for both frontend and API hosts.
 
+### Platform Operations Control Plane
+
+The current API HTTPRoute forwards the broad `/api/v1` prefix, which includes
+`/api/v1/ops`. Until a dedicated operations client exists, platform operation
+routes rely on application-level operator authorization and must not return raw
+diagnostic details in HTTP responses.
+
+Before introducing an operator UI, external automation client, or destructive
+platform operation, define and verify all of the following:
+
+- a dedicated internal hostname or private Gateway listener for operations;
+- NetworkPolicy and ingress restrictions appropriate to the platform;
+- stronger administrator authentication and any required reauthentication;
+- a trusted-proxy policy before treating forwarded headers as client source IP;
+- audit coverage for every mutation, including bounded reason and request ID.
+
+Do not treat a path prefix such as `/ops` as a network or authorization
+boundary.
+
 ## 5. Storage And Models
 
 Verify:

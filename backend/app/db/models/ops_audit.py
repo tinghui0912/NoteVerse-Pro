@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, Integer, String
 from sqlmodel import Field, SQLModel
 
 from app.utils.timezone import utc_now_naive
@@ -37,7 +37,11 @@ class OpsAuditEvent(SQLModel, table=True):  # type: ignore[call-arg]
     operation_id: str = Field(sa_column=Column(String(128), nullable=False))
     outcome: str = Field(sa_column=Column(String(32), nullable=False))
     error_code: Optional[str] = Field(default=None, sa_column=Column(String(80)))
-    error_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
+    reason: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+    request_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    peer_address: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    previous_state: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    new_state: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     created_at: datetime = Field(
         default_factory=utc_now_naive,
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
