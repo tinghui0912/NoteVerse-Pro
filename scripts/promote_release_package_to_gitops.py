@@ -8,8 +8,9 @@ The output is the corresponding GitOps environment directory, for example:
 
     deploy/gitops/environments/staging
 
-This script copies only declarative, non-secret files and rewrites the base
-resource path so the Kustomize tree renders correctly from the GitOps location.
+This script copies only declarative, non-secret files. Release packages contain
+their own immutable application-base snapshot, so promoted GitOps state never
+references the mutable application manifest tree in this repository.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ GITOPS_ENV_ROOT = REPO_ROOT / "deploy" / "gitops" / "environments"
 ALLOWED_FILES = {
     "README.md",
     "backend-config.env",
+    "control-plane-config.env",
     "frontend-config.env",
     "gateway.yaml",
     "kustomization.yaml",
@@ -35,6 +37,7 @@ ALLOWED_FILES = {
     "patch-backend-worker-scheduling.yaml",
     "release-metadata.json",
 }
+ALLOWED_DIRECTORIES = {"base"}
 AUXILIARY_IMAGES = {
     "busybox": ("busybox", "sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"),
 }
@@ -71,7 +74,7 @@ def load_metadata(source: Path, expected_environment: str) -> dict[str, object]:
     return metadata
 
 
-def copy_allowed_files(source: Path, output: Path, overwrite: bool) -> None:
+def copy_allowed_content(source: Path, output: Path, overwrite: bool) -> None:
     if output.exists():
         if not overwrite:
             raise FileExistsError(f"Output already exists: {output}")
@@ -85,20 +88,23 @@ def copy_allowed_files(source: Path, output: Path, overwrite: bool) -> None:
 
     for item in source.iterdir():
         if item.is_dir():
-            raise RuntimeError(f"release package environment must not contain directories: {item}")
+            if item.name not in ALLOWED_DIRECTORIES:
+                raise RuntimeError(f"unexpected release package directory: {item.name}")
+            if not (item / "kustomization.yaml").is_file():
+                raise RuntimeError(f"release package base snapshot is invalid: {item}")
+            shutil.copytree(item, output / item.name)
+            continue
         if item.name not in ALLOWED_FILES:
             raise RuntimeError(f"unexpected release package file: {item.name}")
         shutil.copy2(item, output / item.name)
+
+    if not (output / "base" / "kustomization.yaml").is_file():
+        raise RuntimeError("release package must include an application base snapshot")
 
 
 def rewrite_kustomization(output: Path) -> None:
     kustomization_path = output / "kustomization.yaml"
     text = kustomization_path.read_text(encoding="utf-8")
-    target_base = REPO_ROOT / "deploy" / "application" / "base"
-    import os
-
-    # pathlib.relative_to cannot compute upward relative paths; use os.path.relpath.
-    relative_base = os.path.relpath(target_base, output).replace(os.sep, "/")
     lines = text.splitlines()
     rewritten = []
     replaced = False
@@ -107,9 +113,10 @@ def rewrite_kustomization(output: Path) -> None:
         if stripped.endswith("deploy/application/base") or stripped in {
             "- ../../base",
             "- ../../../deploy/application/base",
+            "- base",
         }:
             indent = line[: len(line) - len(line.lstrip())]
-            rewritten.append(f"{indent}- {relative_base}")
+            rewritten.append(f"{indent}- base")
             replaced = True
         else:
             rewritten.append(line)
@@ -150,6 +157,7 @@ Rules:
 
 - Do not commit raw Secret values here.
 - Keep image references digest-pinned.
+- The `base/` directory is a release-scoped application manifest snapshot.
 - Update this directory through the release-package promotion flow, not by
   manually editing generated values.
 - Apply only after required cluster Secrets, CRDs, Gateway API, cert-manager,
@@ -165,7 +173,7 @@ def main() -> int:
         raise RuntimeError(f"source directory does not exist: {source}")
     output = resolve_repo_path(args.output) if args.output else GITOPS_ENV_ROOT / args.environment
     metadata = load_metadata(source, args.environment)
-    copy_allowed_files(source, output, args.overwrite)
+    copy_allowed_content(source, output, args.overwrite)
     rewrite_kustomization(output)
     write_gitops_readme(output, metadata)
     print(output.relative_to(REPO_ROOT))

@@ -6,7 +6,7 @@ package for staging/minikube or production.
 A release package is not just rendered YAML. It is the deployment record for a
 specific environment:
 
-- rendered Kubernetes overlay;
+- rendered Kubernetes overlay and a release-local application base snapshot;
 - fully rendered manifest;
 - `release-metadata.json`;
 - exact image references for every deployable component;
@@ -267,9 +267,11 @@ python scripts/check_gitops_manifests.py
 kubectl kustomize deploy/gitops/environments/staging
 ```
 
-The promotion script copies only non-secret declarative files, rewrites the
-relative Kustomize base path for the GitOps directory, and preserves
-`release-metadata.json`. The GitOps guard fails if desired state contains:
+The promotion script copies only non-secret declarative files, including the
+release-local `base/` snapshot, and preserves `release-metadata.json`. GitOps
+desired state must never reference the mutable `deploy/application/base` tree:
+an older release must remain unchanged when application templates evolve. The
+GitOps guard fails if desired state contains:
 
 - deployment placeholders;
 - local development endpoints;

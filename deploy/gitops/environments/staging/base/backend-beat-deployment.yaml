@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse-backend-beat
+  labels:
+    app.kubernetes.io/component: backend-beat
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: backend-beat
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: noteverse
+        app.kubernetes.io/part-of: noteverse
+        app.kubernetes.io/component: backend-beat
+    spec:
+      terminationGracePeriodSeconds: 45
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: noteverse
+              app.kubernetes.io/component: backend-beat
+      imagePullSecrets:
+        - name: noteverse-registry-credentials
+      containers:
+        - name: beat
+          image: ghcr.io/tinghui0912/noteverse/backend-beat@sha256:df896b5758f6140c470dc85b8349236dc5f78d5f5c8e704f9b54a86961ed5241
+          args:
+            - beat
+          envFrom:
+            - configMapRef:
+                name: noteverse-backend-config
+            - secretRef:
+                name: noteverse-backend-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - test -r /proc/1/cmdline && kill -0 1
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - test -r /proc/1/cmdline && kill -0 1
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6

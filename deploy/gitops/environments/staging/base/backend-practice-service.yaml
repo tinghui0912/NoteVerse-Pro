@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: noteverse-backend-practice
+  labels:
+    app.kubernetes.io/component: backend-practice
+spec:
+  selector:
+    app.kubernetes.io/name: noteverse
+    app.kubernetes.io/component: backend-practice
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
