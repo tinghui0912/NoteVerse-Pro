@@ -17,19 +17,22 @@ labels:
 images:
   - name: noteverse-backend-api
     newName: ghcr.io/tinghui0912/noteverse/backend-api
-    digest: sha256:43b83ebae5c40a5e8f4c1d9d397298a70f44e71ffe3154eb1cf7ead9e53c4e32
+    digest: sha256:7e05e3a88f0935687b18c1e92c21dfe2692b615cb2531b818d02873ecc53376f
   - name: noteverse-backend-practice
     newName: ghcr.io/tinghui0912/noteverse/backend-practice
-    digest: sha256:48617b12c66cfaa5043a1a0a4e939f729910c7bf9fac2f081fb332cb318c3ea7
+    digest: sha256:2f59c22d33fafb26ae7f2b74b2a67c54d47f998db0e44ef2a1d7079d849f8ed1
   - name: noteverse-backend-worker
     newName: ghcr.io/tinghui0912/noteverse/backend-worker
     digest: sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2
   - name: noteverse-backend-beat
     newName: ghcr.io/tinghui0912/noteverse/backend-beat
-    digest: sha256:6431e801e0b0fbe296d9b6e66d63d7bae23404288f73cdcb3540dbc5e58d54c2
+    digest: sha256:eab8300db40472901824805519113c4827087e34f76f5738731e7fe4fd7c3b70
   - name: noteverse-frontend
     newName: ghcr.io/tinghui0912/noteverse/frontend
     digest: sha256:e1e474beb7728cd08c05423402b988c700a6a8e6534068439593d0aa8eea1b43
+  - name: noteverse-platform-admin
+    newName: ghcr.io/tinghui0912/noteverse/platform-admin
+    digest: sha256:939e504a20819edadc740e3b0d16978a81be34a32d4bc1d9e0b1a0b835396f1e
 
   - name: busybox
     newName: busybox
@@ -42,6 +45,9 @@ configMapGenerator:
   - name: noteverse-frontend-config
     envs:
       - frontend-config.env
+  - name: noteverse-control-plane-config
+    envs:
+      - control-plane-config.env
 
 generatorOptions:
   disableNameSuffixHash: true

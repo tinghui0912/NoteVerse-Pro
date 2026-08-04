@@ -1,29 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: noteverse-backend-practice
+  name: noteverse-control-plane
   labels:
-    app.kubernetes.io/component: backend-practice
+    app.kubernetes.io/component: control-plane
 spec:
-  replicas: 2
+  replicas: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: noteverse
-      app.kubernetes.io/component: backend-practice
+      app.kubernetes.io/component: control-plane
   template:
     metadata:
       labels:
         app.kubernetes.io/name: noteverse
         app.kubernetes.io/part-of: noteverse
-        app.kubernetes.io/component: backend-practice
+        app.kubernetes.io/component: control-plane
     spec:
       imagePullSecrets:
         - name: noteverse-registry-credentials
       containers:
-        - name: practice
-          image: ghcr.io/tinghui0912/noteverse/backend-practice@sha256:2f59c22d33fafb26ae7f2b74b2a67c54d47f998db0e44ef2a1d7079d849f8ed1
+        - name: control-plane
+          image: ghcr.io/tinghui0912/noteverse/backend-api@sha256:7e05e3a88f0935687b18c1e92c21dfe2692b615cb2531b818d02873ecc53376f
           args:
-            - practice
+            - control
           ports:
             - name: http
               containerPort: 8000
@@ -31,10 +31,12 @@ spec:
             - name: PORT
               value: "8000"
             - name: OTEL_SERVICE_NAME
-              value: noteverse-backend-practice
+              value: noteverse-control-plane
           envFrom:
             - configMapRef:
                 name: noteverse-backend-config
+            - configMapRef:
+                name: noteverse-control-plane-config
             - secretRef:
                 name: noteverse-backend-secret
           readinessProbe:
