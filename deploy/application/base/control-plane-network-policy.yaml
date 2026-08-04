@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-control-plane-ingress
+  labels:
+    app.kubernetes.io/component: control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: control-plane
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: noteverse
+              app.kubernetes.io/component: platform-admin
+      ports:
+        - protocol: TCP
+          port: 8000

@@ -80,6 +80,7 @@ python scripts/render_k8s_release_overlay.py \
   --platform-admin-image ghcr.io/<owner>/noteverse/platform-admin@sha256:<digest> \
   --frontend-host noteverse.example.com \
   --api-host api.noteverse.example.com \
+  --admin-host admin.noteverse.example.com \
   --tls-secret noteverse-production-tls \
   --frontend-base-url https://noteverse.example.com \
   --backend-cors-origins '["https://noteverse.example.com"]' \

@@ -36,6 +36,14 @@ Required objects supplied outside this overlay:
 - Envoy Gateway data-plane exposure through MetalLB or a local port-forward to
   port 443 for minikube production-flow rehearsal
 
+The staging overlay intentionally enables one `control-plane` and one
+`platform-admin` replica. The dedicated `admin.<environment-domain>` Gateway
+listener routes only to Platform Admin; its same-origin BFF is the only
+in-cluster caller admitted to the control-plane Service by NetworkPolicy.
+The control-plane Service itself has no Gateway route. Production remains
+dark-by-default until workforce MFA and the production access review are
+complete.
+
 Replace all `registry.example.invalid` images in an environment-specific branch
 or private overlay before deployment. The staging overlay is intended for the
 production-flow rehearsal domain `staging.johnabc.ccwu.cc`.

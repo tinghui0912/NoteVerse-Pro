@@ -57,6 +57,7 @@ $args = @(
     "--platform-admin-image", $platformAdminImage,
     "--frontend-host", $FrontendHost,
     "--api-host", $ApiHost,
+    "--admin-host", $AdminHost,
     "--tls-secret", $TlsSecret,
     "--frontend-base-url", $FrontendBaseUrl,
     "--backend-cors-origins", $backendCorsOrigins,

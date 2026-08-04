@@ -51,11 +51,15 @@ generatorOptions:
 replicas:
   - name: noteverse-backend-api
     count: 1
+  - name: noteverse-control-plane
+    count: 1
   - name: noteverse-backend-practice
     count: 1
   - name: noteverse-backend-worker
     count: 0
   - name: noteverse-frontend
+    count: 1
+  - name: noteverse-platform-admin
     count: 1
 
 patches:
