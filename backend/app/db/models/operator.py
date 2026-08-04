@@ -16,6 +16,11 @@ from app.utils.timezone import utc_now_naive
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
+def _enum_values(enum_class: type[enum.Enum]) -> list[str]:
+    """Persist explicit enum values so ORM bindings match PostgreSQL enum types."""
+    return [str(member.value) for member in enum_class]
+
+
 class OperatorRole(str, enum.Enum):
     PLATFORM_OPERATOR = "platform_operator"
 
@@ -50,7 +55,7 @@ class Operator(SQLModel, table=True):  # type: ignore[call-arg]
     role: OperatorRole = Field(
         default=OperatorRole.PLATFORM_OPERATOR,
         sa_column=Column(
-            SAEnum(OperatorRole, name="operatorrole"),
+            SAEnum(OperatorRole, name="operatorrole", values_callable=_enum_values),
             default=OperatorRole.PLATFORM_OPERATOR,
             nullable=False,
         ),
@@ -58,7 +63,7 @@ class Operator(SQLModel, table=True):  # type: ignore[call-arg]
     status: OperatorStatus = Field(
         default=OperatorStatus.ACTIVE,
         sa_column=Column(
-            SAEnum(OperatorStatus, name="operatorstatus"),
+            SAEnum(OperatorStatus, name="operatorstatus", values_callable=_enum_values),
             default=OperatorStatus.ACTIVE,
             nullable=False,
         ),
@@ -94,7 +99,14 @@ class OperatorIdentity(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(BigInteger, ForeignKey("operators.id", ondelete="CASCADE"), nullable=False)
     )
     provider: OperatorIdentityProvider = Field(
-        sa_column=Column(SAEnum(OperatorIdentityProvider, name="operatoridentityprovider"), nullable=False)
+        sa_column=Column(
+            SAEnum(
+                OperatorIdentityProvider,
+                name="operatoridentityprovider",
+                values_callable=_enum_values,
+            ),
+            nullable=False,
+        )
     )
     issuer: str = Field(sa_column=Column(String(255), nullable=False))
     subject: str = Field(sa_column=Column(String(255), nullable=False))
