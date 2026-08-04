@@ -166,6 +166,11 @@ jobs:
 
           inspect_digest() {
             local image="$1"
+            if [[ "${image}" =~ [[:space:]] ]]; then
+              echo "Image input must be an image reference only, not a command: ${image}" >&2
+              echo "Use ghcr.io/<owner>/noteverse/<component>:<tag> or a digest-pinned reference." >&2
+              return 1
+            fi
             echo "Inspecting ${image}" >&2
             local output
             output="$(docker buildx imagetools inspect "${image}")"
