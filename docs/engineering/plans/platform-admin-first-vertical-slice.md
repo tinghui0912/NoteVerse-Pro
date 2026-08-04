@@ -58,8 +58,10 @@ or content moderation to the new management UI.
    - a step-up policy for future high-impact commands.
 2. Define the control-plane production access policy:
    - `admin.<environment-domain>` for the management web application;
-   - `control.<environment-domain>` for the control-plane API;
-   - dedicated Gateway/HTTPRoute and NetworkPolicy;
+   - an internal control-plane Service reached by the Admin BFF;
+   - a separate `control.<environment-domain>` only when an automation or
+     direct API client has a concrete need;
+   - dedicated Gateway/HTTPRoute and NetworkPolicy for every exposed path;
    - trusted-proxy configuration before recording a real forwarded source IP.
 
 ## Delivery Steps
@@ -86,10 +88,11 @@ or content moderation to the new management UI.
   is the single authoritative scrape target for scheduler and asynchronous-operation state.
 - [x] Add a `control` runtime command to the existing image entrypoint and deploy
   it as a separate Kubernetes Deployment and Service.
-- Deploy the new runtime dark or internal-only first, verify it, then expose
-  only the dedicated control host and remove the old customer `/api/v1/ops`
-  route in the same bounded rollout. There is no compatibility route because
-  the project is pre-release.
+- Deploy the new runtime dark or internal-only first, verify it through the
+  Platform Admin BFF, then expose only the dedicated Admin host. Keep the
+  control-plane Service internal unless a direct automation client creates a
+  concrete need for a control host. There is no customer API compatibility
+  route because the project is pre-release.
 
 ### 2. OpenAPI And Client Contracts
 
@@ -129,9 +132,10 @@ or content moderation to the new management UI.
   and insufficient-operator-action callers.
 - Add E2E tests for operator login, unauthorized denial, search, pagination,
   and sign-out.
-- Verify Gateway routes only the `control` host to the control-plane Service,
-  with no path on the customer `app` or `api` hosts. Verify NetworkPolicy
-  admits only selected Gateway data-plane workloads plus required egress
+- Verify Gateway routes only the `admin` host to Platform Admin, with no path
+  on the customer `app` or `api` hosts reaching the control-plane Service.
+  Verify NetworkPolicy admits only Platform Admin, selected Gateway data-plane
+  workloads when a direct control host exists, and required egress
   dependencies; endpoint authorization remains mandatory because NetworkPolicy
   cannot identify the originating browser.
 - [x] Verify customer OpenAPI does not list control-plane operations and the

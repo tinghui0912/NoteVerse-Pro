@@ -81,6 +81,43 @@ def parse_image_ref(value: str) -> ImageRef:
     return ImageRef(name=value[:colon_index], field="newTag", value=value[colon_index + 1 :])
 
 
+def require_nonblank_arguments(args: argparse.Namespace) -> None:
+    """Reject empty release inputs before writing a deployable artifact.
+
+    ``argparse(required=True)`` only verifies that an option was present. GitHub
+    Environment variables expand to an empty string when unset, which would
+    otherwise produce an apparently valid but unusable release package.
+    """
+
+    required_fields = (
+        "backend_api_image",
+        "backend_beat_image",
+        "backend_practice_image",
+        "backend_worker_image",
+        "frontend_image",
+        "platform_admin_image",
+        "frontend_host",
+        "api_host",
+        "tls_secret",
+        "frontend_base_url",
+        "backend_cors_origins",
+        "control_plane_cors_origins",
+        "trusted_proxy_cidrs",
+        "auth_cookie_secure",
+        "mail_default_sender",
+        "s3_endpoint_url",
+        "s3_region",
+        "s3_bucket",
+        "s3_public_base_url",
+        "s3_force_path_style",
+        "s3_presign_expire_seconds",
+    )
+    missing = [field for field in required_fields if not str(getattr(args, field, "")).strip()]
+    if missing:
+        formatted = ", ".join(f"--{field.replace('_', '-')}" for field in missing)
+        raise ValueError(f"Release inputs must not be empty: {formatted}")
+
+
 def replace_image_block(text: str, image_name: str, image_ref: ImageRef) -> str:
     replacement = (
         f"  - name: {image_name}\n"
@@ -171,6 +208,7 @@ def materialize_base_images(base: Path, images: dict[str, str]) -> None:
 
 
 def render_overlay(args: argparse.Namespace) -> Path:
+    require_nonblank_arguments(args)
     source = OVERLAYS_ROOT / args.environment
     if not source.is_dir():
         raise FileNotFoundError(f"Overlay template not found: {source}")

@@ -8,16 +8,19 @@ a dedicated local username/password identity domain. A future workforce OIDC
 provider may be bound to the same operator account without changing the
 control-plane authorization, session, or audit model.
 
-The contract applies to `control.<environment-domain>` and
-`admin.<environment-domain>`. It does not apply to customer product hosts.
+The contract applies to the operator surface. The first browser surface is
+`admin.<environment-domain>`; its same-origin BFF reaches the internal
+control-plane Service. `control.<environment-domain>` is optional and exists
+only when a real automation or direct API client requires a separately exposed
+operator API. The contract does not apply to customer product hosts.
 
 ## Security Boundary
 
 Customer identities and operator identities are separate security audiences.
 
 - Customer sessions authenticate a product user to `api.<environment-domain>`.
-- Operator sessions authenticate a platform operator to
-  `control.<environment-domain>`.
+- Operator sessions authenticate a platform operator to the control-plane
+  boundary, initially through `admin.<environment-domain>` and its BFF.
 - A customer access token, refresh token, CSRF cookie, or `UserRole.admin`
   value must never satisfy a control-plane dependency.
 - A control-plane session must not be accepted by customer API routes.

@@ -35,10 +35,12 @@ distributed transaction complexity without a present isolation requirement.
    roots from the same codebase:
    - `customer_api` for customer-facing product APIs;
    - `control_plane_api` for platform administration and operations APIs.
-3. Run the control-plane application as a separate runtime and Kubernetes Deployment when it is exposed
-   to an operator UI or automation client. It may share an image build with the customer API, but it has
-   its own startup command, Service, Gateway/HTTPRoute, OpenAPI document, metrics scrape target, CORS
-   policy, and NetworkPolicy.
+3. Run the control-plane application as a separate runtime and Kubernetes Deployment when it is used
+   by an operator UI or automation client. It may share an image build with the customer API, but it has
+   its own startup command, Service, OpenAPI document, metrics scrape target, CORS policy, and
+   NetworkPolicy. The first human-operated Platform Admin uses a same-origin BFF and reaches this
+   Service internally; a dedicated public API host is added only when a real automation or direct API
+   client needs it.
 4. Do not treat a mounted FastAPI sub-application or a route prefix as network isolation. Mounted
    sub-applications are allowed only as a routing/documentation mechanism, never as the control-plane
    security boundary.
@@ -74,15 +76,18 @@ customer-web             -> app.noteverse.com
 customer-api             -> api.noteverse.com
 
 platform-admin           -> admin.noteverse.com
-control-plane-api        -> control.noteverse.com
+control-plane-api        -> cluster-internal Service by default
+direct control API       -> control.noteverse.com (only for automation/direct clients)
 ```
 
-The Gateway routes only `control.<environment-domain>` to the control-plane Service; neither `app` nor
-`api` host routes may reach it. NetworkPolicy admits traffic only from the selected Gateway data-plane
-workloads and permits only the control plane's required egress dependencies. NetworkPolicy cannot prove
-which browser initiated a request, so the API continues to enforce authorization for every endpoint;
-network controls are defense in depth. Production may additionally require Zero Trust, VPN, WAF policy,
-or an enterprise identity provider.
+The Gateway routes `admin.<environment-domain>` only to the Platform Admin application. Its BFF calls
+the internal control-plane Service; neither `app` nor `api` host routes may reach that Service. When a
+direct control API is required, `control.<environment-domain>` routes only to the control-plane Service
+and has a separately reviewed automation access policy. NetworkPolicy admits only the selected Gateway
+data-plane workloads and required in-cluster callers, plus the control plane's required egress
+dependencies. NetworkPolicy cannot prove which browser initiated a request, so the API continues to
+enforce authorization for every endpoint; network controls are defense in depth. Production may
+additionally require Zero Trust, VPN, WAF policy, or an enterprise identity provider.
 
 ## Delivery Sequence
 
@@ -96,9 +101,9 @@ or an enterprise identity provider.
 3. Create an independent `platform-admin` Next.js application and separate control-plane OpenAPI client.
 4. Verify authorization, audit semantics, independent rollback, and internal connectivity before adding
    any public Gateway route.
-5. Route only the dedicated `control` host to the new service, verify the operator client, then remove
-   any transitional public exposure in the same bounded rollout. Do not maintain two public control
-   surfaces for an extended period.
+5. Route only the dedicated `admin` host to the Platform Admin application and verify its same-origin
+   BFF path. Keep the control-plane Service internal. Add a dedicated `control` host only with a
+   demonstrated automation or direct API client, then verify and authorize that separate access path.
 6. Add low-risk writes before high-impact operations. Add explicit reasons and state transition auditing
    to every high-impact command.
 
