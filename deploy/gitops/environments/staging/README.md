@@ -13,6 +13,8 @@ Rules:
 
 - Do not commit raw Secret values here.
 - Keep image references digest-pinned.
+- Keep `base/` as the release-scoped application manifest snapshot; it must not
+  be replaced with a reference to `deploy/application/base`.
 - Update this directory through the release-package promotion flow, not by
   manually editing generated values.
 - Apply only after required cluster Secrets, CRDs, Gateway API, cert-manager,

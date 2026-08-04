@@ -86,3 +86,12 @@ jobs:
             --s3-presign-expire-seconds 900
 
           python scripts/check_k8s_application_manifests.py build/k8s-release-check/staging --strict
+
+          test -f build/k8s-release-check/staging/base/kustomization.yaml
+          cp deploy/gitops/environments/staging/release-metadata.json build/k8s-release-check/staging/release-metadata.json
+          python scripts/promote_release_package_to_gitops.py \
+            --source build/k8s-release-check/staging \
+            --environment staging \
+            --output build/k8s-release-check/gitops-staging \
+            --overwrite
+          python scripts/check_gitops_manifests.py build/k8s-release-check/gitops-staging

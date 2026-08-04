@@ -1,8 +1,11 @@
 """Render a deployable Kubernetes application overlay.
 
 The public overlays under deploy/application/overlays are templates. This
-script copies one template overlay to a caller-provided output directory and
-injects release-specific values such as image references and public hosts.
+script copies one template overlay and an application-base snapshot to a
+caller-provided output directory, then injects release-specific values such as
+image references and public hosts. The resulting directory is self-contained:
+future changes to ``deploy/application/base`` cannot mutate an already rendered
+release package.
 
 It intentionally does not generate Kubernetes Secrets or credentials.
 """
@@ -10,7 +13,6 @@ It intentionally does not generate Kubernetes Secrets or credentials.
 from __future__ import annotations
 
 import argparse
-import os
 import re
 import shutil
 from dataclasses import dataclass
@@ -19,6 +21,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OVERLAYS_ROOT = REPO_ROOT / "deploy" / "application" / "overlays"
+APPLICATION_BASE_ROOT = REPO_ROOT / "deploy" / "application" / "base"
+BUSYBOX_IMAGE = (
+    "busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +125,51 @@ def copy_template(source: Path, output: Path, overwrite: bool) -> None:
     shutil.copytree(source, output)
 
 
+def materialize_base_images(base: Path, images: dict[str, str]) -> None:
+    """Replace template image placeholders in a release-local base snapshot."""
+
+    replacements = {
+        "backend-api-deployment.yaml": {
+            "noteverse-backend-api:replace-me": images["backend_api"]
+        },
+        "control-plane-deployment.yaml": {
+            "noteverse-backend-api:replace-me": images["backend_api"]
+        },
+        "observability-exporter-deployment.yaml": {
+            "noteverse-backend-api:replace-me": images["backend_api"]
+        },
+        "migration-job.yaml": {
+            "noteverse-backend-api:replace-me": images["backend_api"]
+        },
+        "backend-beat-deployment.yaml": {
+            "noteverse-backend-beat:replace-me": images["backend_beat"]
+        },
+        "backend-practice-deployment.yaml": {
+            "noteverse-backend-practice:replace-me": images["backend_practice"]
+        },
+        "backend-worker-deployment.yaml": {
+            "noteverse-backend-worker:replace-me": images["backend_worker"]
+        },
+        "model-cache-agent-daemonset.yaml": {
+            "noteverse-backend-worker:replace-me": images["backend_worker"],
+            "busybox:1.36": BUSYBOX_IMAGE,
+        },
+        "frontend-deployment.yaml": {
+            "noteverse-frontend:replace-me": images["frontend"]
+        },
+        "platform-admin-deployment.yaml": {
+            "noteverse-platform-admin:replace-me": images["platform_admin"]
+        },
+    }
+
+    for filename, file_replacements in replacements.items():
+        path = base / filename
+        text = path.read_text(encoding="utf-8")
+        for placeholder, image in file_replacements.items():
+            text = replace_required(text, placeholder, image)
+        path.write_text(text, encoding="utf-8")
+
+
 def render_overlay(args: argparse.Namespace) -> Path:
     source = OVERLAYS_ROOT / args.environment
     if not source.is_dir():
@@ -126,6 +177,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
 
     output = args.output if args.output.is_absolute() else REPO_ROOT / args.output
     copy_template(source, output, args.overwrite)
+    shutil.copytree(APPLICATION_BASE_ROOT, output / "base")
 
     backend_api_ref = parse_image_ref(args.backend_api_image)
     backend_beat_ref = parse_image_ref(args.backend_beat_image)
@@ -136,11 +188,10 @@ def render_overlay(args: argparse.Namespace) -> Path:
 
     kustomization_path = output / "kustomization.yaml"
     kustomization = kustomization_path.read_text(encoding="utf-8")
-    base_relative_path = os.path.relpath(REPO_ROOT / "deploy" / "application" / "base", output)
     kustomization = replace_required(
         kustomization,
         "- ../../base",
-        f"- {base_relative_path.replace(os.sep, '/')}",
+        "- base",
     )
     kustomization = replace_image_block(kustomization, "noteverse-backend-api", backend_api_ref)
     kustomization = replace_image_block(kustomization, "noteverse-backend-beat", backend_beat_ref)
@@ -149,6 +200,18 @@ def render_overlay(args: argparse.Namespace) -> Path:
     kustomization = replace_image_block(kustomization, "noteverse-frontend", frontend_ref)
     kustomization = replace_image_block(kustomization, "noteverse-platform-admin", platform_admin_ref)
     kustomization_path.write_text(kustomization, encoding="utf-8")
+
+    materialize_base_images(
+        output / "base",
+        {
+            "backend_api": args.backend_api_image,
+            "backend_beat": args.backend_beat_image,
+            "backend_practice": args.backend_practice_image,
+            "backend_worker": args.backend_worker_image,
+            "frontend": args.frontend_image,
+            "platform_admin": args.platform_admin_image,
+        },
+    )
 
     frontend_placeholder = (
         "staging.noteverse.example.invalid"

@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse-backend-api
+  labels:
+    app.kubernetes.io/component: backend-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: backend-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: noteverse
+        app.kubernetes.io/part-of: noteverse
+        app.kubernetes.io/component: backend-api
+    spec:
+      imagePullSecrets:
+        - name: noteverse-registry-credentials
+      containers:
+        - name: api
+          image: ghcr.io/tinghui0912/noteverse/backend-api@sha256:6b8a2148a353ab9f52e36f7f8475c5e06a5cd9ada201010e2a56d88e525dcfa8
+          args:
+            - api
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+            - name: OTEL_SERVICE_NAME
+              value: noteverse-backend-api
+          envFrom:
+            - configMapRef:
+                name: noteverse-backend-config
+            - secretRef:
+                name: noteverse-backend-secret
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

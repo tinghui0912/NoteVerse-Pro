@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: noteverse-staging
 
 resources:
-  - ../../../application/base
+  - base
   - gateway.yaml
 
 labels:
