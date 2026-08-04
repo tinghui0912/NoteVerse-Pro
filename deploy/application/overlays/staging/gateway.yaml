@@ -9,6 +9,7 @@ spec:
   dnsNames:
     - staging.noteverse.example.invalid
     - api.staging.noteverse.example.invalid
+    - admin.staging.noteverse.example.invalid
   issuerRef:
     name: letsencrypt-production-dns01
     kind: ClusterIssuer
@@ -35,6 +36,17 @@ spec:
           from: Same
     - name: api-https
       hostname: api.staging.noteverse.example.invalid
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: noteverse-staging-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: admin-https
+      hostname: admin.staging.noteverse.example.invalid
       port: 443
       protocol: HTTPS
       tls:
@@ -127,3 +139,24 @@ spec:
       backendRefs:
         - name: noteverse-backend-api
           port: 8000
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: noteverse-platform-admin
+  labels:
+    app.kubernetes.io/component: routing
+spec:
+  parentRefs:
+    - name: noteverse
+      sectionName: admin-https
+  hostnames:
+    - admin.staging.noteverse.example.invalid
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: noteverse-platform-admin
+          port: 3000

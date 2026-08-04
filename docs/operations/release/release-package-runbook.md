@@ -220,6 +220,12 @@ Admin origin, for example `["https://admin.staging.example.com"]`. It is
 required even while the control-plane Deployment is dark so rendering cannot
 silently invent a browser security policy when the runtime is enabled.
 
+`*_ADMIN_HOST` is the dedicated browser host for Platform Admin. It is rendered
+into the certificate SANs, Gateway listener, HTTPRoute, release metadata, and
+Control Plane CORS contract. It must never equal the customer frontend or API
+host. The control-plane Service remains internal; the Admin application reaches
+it through its same-origin BFF.
+
 Database URLs, Redis URLs, cookie secrets, S3 access keys, mail API keys, and
 Hugging Face tokens must already exist in the target cluster as Kubernetes
 Secrets. They are not rendered into release package artifacts.

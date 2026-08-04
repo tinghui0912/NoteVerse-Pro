@@ -371,7 +371,8 @@ $env:NOTEVERSE_S3_FORCE_PATH_STYLE = "false"
 The checked-in `deploy/application/overlays/staging` directory is a template.
 It intentionally keeps placeholder hosts such as
 `staging.noteverse.example.invalid` and
-`api.staging.noteverse.example.invalid`. The rendered directory under
+`api.staging.noteverse.example.invalid`, and
+`admin.staging.noteverse.example.invalid`. The rendered directory under
 `build/k8s-release/minikube` is the deployable overlay and should contain the
 real test hosts, image tags, and S3 settings.
 

@@ -87,6 +87,7 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --platform-admin-image "ghcr.io/example/noteverse/platform-admin@sha256:6666666666666666666666666666666666666666666666666666666666666666" `
             --frontend-host "staging.noteverse.test" `
             --api-host "api.staging.noteverse.test" `
+            --admin-host "admin.staging.noteverse.test" `
             --tls-secret "noteverse-staging-real-tls" `
             --frontend-base-url "https://staging.noteverse.test" `
             --backend-cors-origins '["https://staging.noteverse.test"]' `

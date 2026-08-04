@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-platform-admin-ingress
+  labels:
+    app.kubernetes.io/component: platform-admin
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: noteverse
+      app.kubernetes.io/component: platform-admin
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: proxy
+              app.kubernetes.io/managed-by: envoy-gateway
+      ports:
+        - protocol: TCP
+          port: 3000

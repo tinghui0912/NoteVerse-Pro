@@ -64,11 +64,15 @@ must not be returned by either surface.
   dedicated control host yet, so the isolated runtime is not externally
   exposed. The future control host must never be routed through the customer
   `app` or `api` hosts.
-- [ ] Define the production access policy: strong administrator authentication
-  now; internal hostname, network policy, and restricted ingress when an
-  operator UI or automation client is introduced. ADR 0006 defines the target
-  identity, host, and deployment boundaries; implementation remains gated on
-  the first real control-plane vertical slice.
+- [x] Define the deployment access policy: `admin.<environment-domain>` routes
+  only to Platform Admin, whose same-origin BFF reaches the internal
+  control-plane Service. `control.<environment-domain>` remains absent until a
+  real automation client exists. Ingress NetworkPolicies restrict Platform
+  Admin to the Gateway data plane and the control plane to Platform Admin.
+- [ ] Before production exposure, bind a workforce identity provider with MFA,
+  enforce the production ingress policy, and verify browser E2E over the
+  dedicated admin host. NetworkPolicy is defense in depth, not proof of
+  browser identity.
 
 ### P2 - Module Boundary Refinement
 
@@ -86,8 +90,12 @@ must not be returned by either surface.
   the control-plane authorization path.
 - [x] Ship the internal portions of the ADR 0006 vertical slice: separate
   composition root, local-password operator identity, independent Platform Admin client,
-  and dark-by-default Deployments. MFA-capable workforce identity binding, private Gateway/NetworkPolicy, browser E2E,
-  and independent rollback verification remain production-exposure gates.
+  dedicated Admin Gateway route, and ingress NetworkPolicies. MFA-capable
+  workforce identity binding, browser E2E, and independent rollback verification
+  remain production-exposure gates.
+- [x] Make the staging control-plane and Platform Admin replica counts declarative
+  rather than relying on manual `kubectl scale`; production stays
+  dark-by-default.
 - [x] Move database-backed scheduler and asynchronous-operation metrics from
   the customer API into the internal `observability_exporter` composition root.
 - Keep the shared repository, domain modules, PostgreSQL database, and Alembic

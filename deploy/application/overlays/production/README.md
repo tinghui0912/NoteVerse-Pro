@@ -64,6 +64,12 @@ Production-specific choices:
   to `DoNotSchedule` so two replicas land on different nodes.
 - Gateway routing must support SSE and WebSocket traffic for API and practice
   realtime paths.
+- Platform Admin and the control-plane Deployment remain at zero replicas in
+  the production template. Enable the dedicated `admin.<environment-domain>`
+  route and those workloads only after the workforce MFA, access-policy, and
+  browser acceptance gates in ADR 0006 are complete. The control-plane Service
+  must remain cluster-internal; do not add a `control` host without a real
+  automation client and a separately reviewed access policy.
 
 Replace all `example.invalid` domains and `registry.example.invalid` images in
 a private production overlay or CI/CD substitution step before deployment.

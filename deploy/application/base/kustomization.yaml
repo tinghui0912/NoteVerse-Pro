@@ -6,6 +6,7 @@ resources:
   - backend-api-service.yaml
   - control-plane-deployment.yaml
   - control-plane-service.yaml
+  - control-plane-network-policy.yaml
   - observability-exporter-deployment.yaml
   - observability-exporter-service.yaml
   - backend-practice-deployment.yaml
@@ -17,6 +18,7 @@ resources:
   - frontend-service.yaml
   - platform-admin-deployment.yaml
   - platform-admin-service.yaml
+  - platform-admin-network-policy.yaml
   - migration-job.yaml
 
 labels:
