@@ -5,16 +5,15 @@ desired state promoted from a release package.
 
 Release metadata:
 
-- commit: `51c70835a20b3704c4b9f34f624d66a65986012a`
-- rendered at: `2026-08-02T07:59:29.195583+00:00`
-- workflow run: `30738868723`
+- commit: `300d2dbc947eedcb1a83b7152ffe626b81c616c5`
+- rendered at: `2026-08-04T12:26:36.437975+00:00`
+- workflow run: `30909094575`
 
 Rules:
 
 - Do not commit raw Secret values here.
 - Keep image references digest-pinned.
-- Keep `base/` as the release-scoped application manifest snapshot; it must not
-  be replaced with a reference to `deploy/application/base`.
+- The `base/` directory is a release-scoped application manifest snapshot.
 - Update this directory through the release-package promotion flow, not by
   manually editing generated values.
 - Apply only after required cluster Secrets, CRDs, Gateway API, cert-manager,
