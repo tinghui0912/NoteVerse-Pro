@@ -32,7 +32,7 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: beat
-          image: ghcr.io/tinghui0912/noteverse/backend-beat@sha256:df896b5758f6140c470dc85b8349236dc5f78d5f5c8e704f9b54a86961ed5241
+          image: ghcr.io/tinghui0912/noteverse/backend-beat@sha256:eab8300db40472901824805519113c4827087e34f76f5738731e7fe4fd7c3b70
           args:
             - beat
           envFrom:
