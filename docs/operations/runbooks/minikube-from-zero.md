@@ -459,12 +459,19 @@ few seconds to enumerate host filesystems and collectors after image pulls or
 storage activity. Production should size node-exporter probes and resources
 from real node behavior instead of copying the minikube overlay.
 
-After Prometheus Operator CRDs exist, apply optional application monitoring
-resources:
+Before installing `kube-prometheus-stack`, apply the Dashboard ConfigMaps. The
+minikube Grafana profile mounts them statically, so they must exist before its
+Pod is created:
+
+```powershell
+kubectl apply -k deploy/observability/dashboards
+```
+
+After Prometheus Operator CRDs and `kube-prometheus-stack` exist, apply the
+optional application monitoring resources:
 
 ```powershell
 kubectl -n noteverse-staging apply -k deploy/application/monitoring/prometheus-operator
-kubectl apply -k deploy/observability/dashboards
 ```
 
 This installs the backend ServiceMonitors, NoteVerse application alert rules,

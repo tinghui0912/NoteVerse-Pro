@@ -5,6 +5,7 @@ from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, Session, create_engine, select
 
@@ -167,6 +168,14 @@ async def test_local_operator_identity_creates_and_resolves_opaque_session(ops_s
     assert resolved_identity.id == identity.id
     assert resolved_session.operator_id == operator.id
     assert resolved_session.token_hash != token
+
+
+def test_operator_enums_bind_the_postgresql_values_declared_by_the_migration() -> None:
+    provider_type = OperatorIdentity.__table__.c.provider.type
+    role_type = Operator.__table__.c.role.type
+
+    assert provider_type.bind_processor(postgresql.dialect())(OperatorIdentityProvider.LOCAL_PASSWORD) == "local_password"
+    assert role_type.bind_processor(postgresql.dialect())(OperatorRole.PLATFORM_OPERATOR) == "platform_operator"
 
 
 @pytest.mark.asyncio

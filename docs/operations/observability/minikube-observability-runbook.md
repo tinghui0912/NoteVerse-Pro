@@ -198,6 +198,17 @@ StorageClass/noteverse-local-lvm
 The minikube Prometheus/Grafana/Alertmanager overlay uses that StorageClass for
 PVCs. Do not replace this with direct workload `hostPath` mounts.
 
+Apply the repository-owned Dashboard ConfigMaps **before** installing
+`kube-prometheus-stack`. The minikube Grafana profile mounts these ConfigMaps
+statically at Pod creation time, so reversing this order leaves Grafana stuck
+in `Init` with missing-volume errors. Production's dashboard sidecar does not
+have this ordering constraint, but applying the declarative dashboards first is
+still safe and keeps the release sequence easy to reason about.
+
+```powershell
+kubectl apply -k deploy/observability/dashboards
+```
+
 Create the observability S3 Secret before installing Loki or Tempo. Use
 dedicated buckets; do not share the application asset bucket.
 
@@ -353,12 +364,10 @@ cannot shrink existing PVCs in place. Do not remove OpenEBS Local PV LVM finaliz
 wait for OpenEBS Local PV LVM to release the PV and `LogicalVolume` or restart the OpenEBS Local PV LVM
 controller if its CSI sidecars are stuck.
 
-If the application was applied before Prometheus Operator CRDs existed, apply
-the optional application monitoring resources after installing the stack:
+After the stack is Ready, apply the optional application monitoring resources:
 
 ```powershell
 kubectl -n noteverse-staging apply -k deploy/application/monitoring/prometheus-operator
-kubectl apply -k deploy/observability/dashboards
 ```
 
 Verify Prometheus discovery:
