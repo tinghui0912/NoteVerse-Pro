@@ -90,6 +90,9 @@ For example, to update only the API image:
 backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<new-sha-or-digest>
 ```
 
+Each image input must be a bare image reference. Do not paste a command copied
+from a registry UI, such as `docker pull ghcr.io/...` or `pull ghcr.io/...`.
+
 The release package will keep the current staging beat, practice, worker,
 frontend, and Platform Admin image digests.
 
