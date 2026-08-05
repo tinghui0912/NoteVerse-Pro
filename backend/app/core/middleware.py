@@ -182,7 +182,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             event="api.request",
             request_id=request_id,
             method=request.method,
-            path=request.url.path,
+            http_path=request.url.path,
             peer_address=peer_address(request) or "unknown",
             client_address=client_address(request) or "unknown",
         )

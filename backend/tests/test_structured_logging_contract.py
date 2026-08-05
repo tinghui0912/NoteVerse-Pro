@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from app.core.logger import StructuredLogFieldPolicy, json_format
+
 
 APP_ROOT = Path(__file__).resolve().parents[1] / "app"
 LOGGER_METHODS = {"debug", "info", "warning", "error", "exception", "critical"}
@@ -85,3 +87,51 @@ def test_application_logs_use_structured_logger_contract() -> None:
         violations.extend(visitor.violations)
 
     assert not violations, "Structured logging contract violations:\n" + "\n".join(violations)
+
+
+def test_bound_log_fields_are_classified_by_the_field_policy() -> None:
+    classified = (
+        StructuredLogFieldPolicy.ALLOWED_EXTRA_FIELDS
+        | StructuredLogFieldPolicy.FORBIDDEN_EXTRA_FIELDS
+    )
+    unclassified: list[str] = []
+    for path in _python_files():
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "bind"
+            ):
+                continue
+            for keyword in node.keywords:
+                if keyword.arg and keyword.arg not in classified:
+                    unclassified.append(f"{path.relative_to(APP_ROOT.parent)}:{node.lineno}:{keyword.arg}")
+
+    assert not unclassified, "Unclassified structured log fields:\n" + "\n".join(unclassified)
+
+
+def test_json_logs_omit_unknown_and_sensitive_extra_fields() -> None:
+    record = {
+        "time": __import__("datetime").datetime.now(),
+        "level": type("Level", (), {"name": "ERROR"})(),
+        "name": "test",
+        "message": "failed",
+        "function": "test",
+        "line": 1,
+        "extra": {
+            "event": "test.failed",
+            "score_id": "score-1",
+            "storage_key": "scores/private.musicxml",
+            "image_path": "/tmp/private.png",
+            "unreviewed_field": "must-not-escape",
+        },
+        "exception": None,
+    }
+    payload = __import__("json").loads(json_format(record))
+
+    assert payload["event"] == "test.failed"
+    assert payload["score_id"] == "score-1"
+    assert "storage_key" not in payload
+    assert "image_path" not in payload
+    assert "unreviewed_field" not in payload

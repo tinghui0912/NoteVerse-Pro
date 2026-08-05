@@ -512,9 +512,16 @@ older roadmap entries remain as a record of completed baseline work. Do not
 start asynchronous trace propagation or browser tracing before P0 and P1 have
 passed their acceptance gates.
 
-**Implementation status (2026-08):** P0 is complete in staging. P1 and the
-runtime portions of P2 are implemented in the application source and await the
-next digest-pinned application release for staging confirmation. P3 and P4
+**Implementation status (2026-08):** P0, P1, and the runtime-noise portions of
+P2 are complete and verified in staging. The correlation smoke proves that a
+valid request ID can be found in Loki, that the associated log carries a real
+W3C trace ID that resolves in Tempo, and that successful health checks do not
+create normal application request logs. The P2 event-field privacy allowlist
+is now a default-deny structured-field policy: unreviewed and sensitive fields
+are omitted, raw exception values and stack traces are not written to stdout,
+and a source-level regression test requires every explicit `logger.bind(...)`
+field to be classified. This policy passed the backend quality gate and awaits
+its next digest-pinned staging release for runtime confirmation. P3 and P4
 remain planned work; neither has been represented as complete merely because
 the baseline Collector, Loki, Tempo, and Grafana stack is running.
 

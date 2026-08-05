@@ -30,7 +30,7 @@ def _request_log_context(request: Request) -> dict[str, object]:
     return {
         "request_id": _request_id(request),
         "method": request.method,
-        "path": request.url.path,
+        "http_path": request.url.path,
     }
 
 
