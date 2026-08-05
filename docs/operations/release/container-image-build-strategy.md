@@ -427,7 +427,7 @@ Current state:
 
 Important Next.js config note:
 
-- `frontend/next.config.ts` requires `NEXT_BACKEND_ORIGIN`;
+- `apps/customer-web/next.config.ts` requires `NEXT_BACKEND_ORIGIN`;
 - staging and production can use a stable internal backend Service origin such
   as `http://noteverse-backend-api:8000`;
 - browser-facing API and realtime traffic use same-origin `/api/v1`, with

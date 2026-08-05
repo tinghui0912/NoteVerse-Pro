@@ -81,7 +81,7 @@ Current GitHub Actions workflows:
 | `.github/workflows/backend-worker-image.yml` | manual | Builds and scans the ML worker image from a pinned ML base |
 | `.github/workflows/frontend-image.yml` | frontend runtime files | Builds and scans the frontend image |
 | `.github/workflows/ml-base-image.yml` | manual | Builds and scans the Python/PyTorch CUDA ML base image |
-| `.github/workflows/frontend-quality.yml` | `frontend/**` and shared API constants | Frontend lint, i18n guard, typecheck, tests, build, e2e |
+| `.github/workflows/frontend-quality.yml` | `apps/customer-web/**` and shared API constants | Frontend lint, i18n guard, typecheck, tests, build, e2e |
 | `.github/workflows/k8s-application-manifests.yml` | `deploy/application/**` and K8s guard script | Kustomize rendering and deployment-placeholder guard |
 | `.github/workflows/observability-manifests.yml` | `deploy/observability/**` and observability guard script | Loki/Fluent Bit/Prometheus/Tempo values guard |
 | `.github/workflows/production-release-package.yml` | manual, `production` environment | Renders a downloadable production release package from image refs and environment variables |

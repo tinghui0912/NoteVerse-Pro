@@ -1,4 +1,4 @@
-﻿# Codebase Simplification and Security Plan
+# Codebase Simplification and Security Plan
 
 > Status: active
 > Baseline date: 2026-06-27
@@ -54,9 +54,9 @@ Development note:
 
 Completed:
 
-- Deleted `frontend/src/app/[locale]/history/*`.
-- Deleted `frontend/tests/unit/history-redirect.test.ts`.
-- Removed `/history` from `frontend/src/proxy.ts`.
+- Deleted `apps/customer-web/src/app/[locale]/history/*`.
+- Deleted `apps/customer-web/tests/unit/history-redirect.test.ts`.
+- Removed `/history` from `apps/customer-web/src/proxy.ts`.
 - Updated Library baseline documentation so `/history` is no longer described as a supported redirect.
 
 Acceptance:

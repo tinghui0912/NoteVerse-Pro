@@ -49,7 +49,7 @@
 当前前端应继续维持以下结构语义：
 
 ```text
-frontend/
+apps/customer-web/
 |-- messages/
 |   |-- en/
 |   `-- zh/
@@ -511,7 +511,7 @@ Fallback：
 推荐常规检查：
 
 ```powershell
-cd frontend
+cd apps/customer-web
 npm run lint
 npm run typecheck
 npm run build

@@ -16,7 +16,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 WORKDIR /app
 
-COPY frontend/package.json frontend/package-lock.json ./
+COPY apps/customer-web/package.json apps/customer-web/package-lock.json ./
 RUN npm ci
 
 
@@ -36,7 +36,7 @@ ENV NEXT_BACKEND_ORIGIN=${NEXT_BACKEND_ORIGIN} \
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY frontend/ ./
+COPY apps/customer-web/ ./
 
 RUN test -n "$NEXT_BACKEND_ORIGIN" \
     && test -n "$NEXT_PRACTICE_ORIGIN" \

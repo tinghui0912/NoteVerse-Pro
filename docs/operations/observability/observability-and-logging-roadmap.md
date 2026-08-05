@@ -64,10 +64,10 @@ Implemented:
   `SectionErrorState`, and route-level `error.tsx`.
 - Production source code no longer relies on scattered `console.*` statements.
 - A vendor-neutral frontend observability facade exists under
-  `frontend/src/lib/observability/`.
+  `apps/customer-web/src/lib/observability/`.
 - Route-level error boundaries and API transport failures are wired into the
   facade.
-- ESLint blocks new `console.*` usage in `frontend/src`.
+- ESLint blocks new `console.*` usage in `apps/customer-web/src`.
 
 Missing:
 
@@ -192,22 +192,22 @@ diagnostics.
 
 Status: partially implemented. The frontend has a vendor-neutral observability
 facade, route-level error boundaries report through it, API transport failures
-are captured, and `frontend/src` is guarded against scattered `console.*`
+are captured, and `apps/customer-web/src` is guarded against scattered `console.*`
 calls. Upload, editor load/save, score preview playback, cover audio playback,
 downloads, practice realtime/audio setup, and practice report loading now report
 unexpected client failures through the facade.
 
 Tasks:
 
-1. Add `frontend/src/lib/observability/`.
+1. Add `apps/customer-web/src/lib/observability/`.
 2. Implement a vendor-neutral facade:
    - `reportClientError(error, context)`;
    - `reportClientEvent(event, context)`;
    - optionally `reportClientPerformance(metric, context)`.
 3. Keep the first implementation no-op or development-safe. Do not add a paid
    vendor SDK such as Sentry.
-4. Add an ESLint rule that forbids `console.*` in `frontend/src/**/*`.
-   Development scripts under `frontend/scripts/**` may keep console output.
+4. Add an ESLint rule that forbids `console.*` in `apps/customer-web/src/**/*`.
+   Development scripts under `apps/customer-web/scripts/**` may keep console output.
 5. Wire route-level `error.tsx` files into `reportClientError`.
 6. Wire high-value non-expected client failures:
    - upload workflow unexpected exceptions;
@@ -218,7 +218,7 @@ Tasks:
 
 Acceptance criteria:
 
-- `frontend/src` has no uncontrolled `console.*`.
+- `apps/customer-web/src` has no uncontrolled `console.*`.
 - route crashes are reportable through one facade.
 - expected business errors such as invalid credentials, no access, expired
   share, or quota exceeded are not reported as system exceptions.
@@ -429,7 +429,7 @@ Acceptance criteria:
 
 - missing production observability configuration fails clearly.
 - no events are sent to a test or default project by accident.
-- frontend/browser errors are not sent to Sentry; they are handled by the
+- apps/customer-web/browser errors are not sent to Sentry; they are handled by the
   existing facade and a future self-hosted ingestion path if needed.
 
 ### P2 - Audit and Analytics Event Split

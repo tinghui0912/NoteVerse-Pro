@@ -59,7 +59,7 @@ Non-goals:
 
 ### Frontend
 
-- Review route is currently `frontend/src/app/[locale]/score/[id]/review/page.tsx`.
+- Review route is currently `apps/customer-web/src/app/[locale]/score/[id]/review/page.tsx`.
 - `useReviewPageData(scoreId)` loads:
   - Score detail by `scoreId`
   - head revision content by `scoreId + revisionId`
@@ -252,13 +252,13 @@ Reason: review may allow the user to edit XML through the editor before confirma
 Add:
 
 ```text
-frontend/src/app/[locale]/review/[jobId]/page.tsx
+apps/customer-web/src/app/[locale]/review/[jobId]/page.tsx
 ```
 
 Remove:
 
 ```text
-frontend/src/app/[locale]/score/[id]/review/page.tsx
+apps/customer-web/src/app/[locale]/score/[id]/review/page.tsx
 ```
 
 Review should no longer be rendered inside `ScoreShell`.
@@ -379,7 +379,7 @@ Update active docs:
 - `docs/archive/completed-migrations/score-shell-workspace-migration-plan.md`
 - `docs/archive/completed-migrations/results-to-score-route-migration-plan.md`
 - `docs/engineering/plans/pending-invites-notifications-plan.md`
-- `frontend/docs/frontend_engineering_principles.md`
+- `apps/customer-web/docs/frontend_engineering_principles.md`
 - `backend/docs/backend_engineering_principles.md`
 - `backend/docs/contracts/score-domain-v1.json`
 
@@ -502,7 +502,7 @@ Acceptance:
 ### Phase 6: Documentation and tests
 
 - [x] Add ADR 0005 for pipeline review and mark ADR 0002's review lifecycle as superseded.
-- [ ] Update active frontend/backend engineering docs.
+- [ ] Update active apps/customer-web/backend engineering docs.
 - [x] Run residue searches.
 - [x] Run focused backend and frontend tests.
 

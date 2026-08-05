@@ -25,7 +25,7 @@ DEFAULT_PASSWORD = "SmokePass123!"
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--api-base", required=True, help="Base API URL, for example http://127.0.0.1:18000/api/v1")
-    parser.add_argument("--image", default="frontend/public/images/placeholders/score-example.jpg")
+    parser.add_argument("--image", default="apps/customer-web/public/images/placeholders/score-example.jpg")
     parser.add_argument("--email", default=DEFAULT_EMAIL)
     parser.add_argument("--password", default=DEFAULT_PASSWORD)
     parser.add_argument("--namespace", default="noteverse-staging")

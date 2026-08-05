@@ -147,7 +147,7 @@ staff 2 voices -> voice 1
 
 - Add finer insertion grid controls.
 - Promote the embedded player to a global bottom dock.
-- Rename `frontend/src/lib/musicxml/flatten.ts` to a more accurate filename such as `normalize-voices.ts`.
+- Rename `apps/customer-web/src/lib/musicxml/flatten.ts` to a more accurate filename such as `normalize-voices.ts`.
 - Consider whether endpoint switching should eventually focus a specific chord member inside the Inspector instead of only opening the parent chord event.
 
 ## QA Checklist

@@ -160,7 +160,7 @@ Files:
 - `backend/app/db/models/score_access.py`
 - New Alembic migration to add enum value `DECLINED`
 - `backend/app/modules/score_invites/schemas.py`
-- `frontend/src/types/api/scores.ts`
+- `apps/customer-web/src/types/api/scores.ts`
 
 ### 2. Repository Query For Current User Pending Invites
 
@@ -399,7 +399,7 @@ Add tests for:
 
 ### 1. API Client
 
-Add to `frontend/src/lib/api/score-invites.ts`:
+Add to `apps/customer-web/src/lib/api/score-invites.ts`:
 
 ```typescript
 listMyInvites()
@@ -671,7 +671,7 @@ docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade he
 Frontend:
 
 ```bash
-cd frontend
+cd apps/customer-web
 npm run typecheck
 npm run lint
 npm run test:unit -- tests/unit/notification-queries.test.ts tests/unit/score-collaboration.test.ts tests/unit/query-client.test.ts

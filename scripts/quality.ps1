@@ -20,7 +20,7 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $BackendQualityScript = Join-Path $PSScriptRoot "backend_quality_docker.ps1"
-$FrontendRoot = Join-Path $RepoRoot "frontend"
+$FrontendRoot = Join-Path $RepoRoot "apps/customer-web"
 $K8sManifestCheck = Join-Path $PSScriptRoot "check_k8s_application_manifests.py"
 $K8sReleaseOverlayRenderer = Join-Path $PSScriptRoot "render_k8s_release_overlay.py"
 $MinikubeBootstrap = Join-Path $PSScriptRoot "minikube_bootstrap.ps1"

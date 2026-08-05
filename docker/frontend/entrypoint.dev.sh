@@ -10,7 +10,7 @@ if [ -f "$stamp_file" ]; then
 fi
 
 if [ ! -x node_modules/.bin/next ] || [ "$installed_hash" != "$lock_hash" ]; then
-  echo "package-lock.json changed; refreshing frontend dependencies..."
+  echo "package-lock.json changed; refreshing customer-web dependencies..."
   npm ci --prefer-offline
   printf '%s\n' "$lock_hash" > "$stamp_file"
 fi

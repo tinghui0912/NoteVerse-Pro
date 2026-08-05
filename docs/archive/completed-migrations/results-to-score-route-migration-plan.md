@@ -19,20 +19,20 @@ Because the project is still in active development, this migration should prefer
 
 ### Route
 
-- Current page: `frontend/src/app/[locale]/results/[id]/page.tsx`
-- Current protected path: `/results` in `frontend/src/proxy.ts`
+- Current page: `apps/customer-web/src/app/[locale]/results/[id]/page.tsx`
+- Current protected path: `/results` in `apps/customer-web/src/proxy.ts`
 - Current navigation targets:
-  - Upload completion: `frontend/src/components/upload/upload-types.ts`
-  - Review approval: `frontend/src/hooks/review/use-review-page-data.ts`
-  - Editor save fallback: `frontend/src/hooks/editor/use-editor-document.ts`
-  - Library open score: `frontend/src/app/[locale]/library/page.tsx`
-  - My Scores open score: `frontend/src/app/[locale]/my-scores/page.tsx`
+  - Upload completion: `apps/customer-web/src/components/upload/upload-types.ts`
+  - Review approval: `apps/customer-web/src/hooks/review/use-review-page-data.ts`
+  - Editor save fallback: `apps/customer-web/src/hooks/editor/use-editor-document.ts`
+  - Library open score: `apps/customer-web/src/app/[locale]/library/page.tsx`
+  - My Scores open score: `apps/customer-web/src/app/[locale]/my-scores/page.tsx`
 
 ### Components
 
 Current score detail components live under:
 
-- `frontend/src/components/results/`
+- `apps/customer-web/src/components/results/`
 
 Important files:
 
@@ -46,14 +46,14 @@ Important files:
 
 These components are also reused by public/share pages:
 
-- `frontend/src/components/public/public-score-page.tsx`
-- `frontend/src/components/share/share-score-player.tsx`
+- `apps/customer-web/src/components/public/public-score-page.tsx`
+- `apps/customer-web/src/components/share/share-score-player.tsx`
 
 ### Hooks and Libs
 
-- `frontend/src/hooks/results/use-results-resources.ts`
-- `frontend/src/lib/results/navigation.ts`
-- `frontend/src/lib/results/share.ts`
+- `apps/customer-web/src/hooks/results/use-results-resources.ts`
+- `apps/customer-web/src/lib/results/navigation.ts`
+- `apps/customer-web/src/lib/results/share.ts`
 
 ### I18n
 
@@ -64,7 +64,7 @@ Current namespaces:
 
 Registered in:
 
-- `frontend/src/i18n/request.ts`
+- `apps/customer-web/src/i18n/request.ts`
 
 Current Chinese copy already says `乐谱详情`, so the user-facing wording is mostly aligned with the new `/score` concept. The code namespace is the part that is still semantically stale.
 
@@ -72,8 +72,8 @@ Current Chinese copy already says `乐谱详情`, so the user-facing wording is 
 
 ### Route
 
-- New page: `frontend/src/app/[locale]/score/[id]/page.tsx`
-- Remove: `frontend/src/app/[locale]/results/[id]/page.tsx`
+- New page: `apps/customer-web/src/app/[locale]/score/[id]/page.tsx`
+- Remove: `apps/customer-web/src/app/[locale]/results/[id]/page.tsx`
 - Protected path changes from `/results` to `/score`.
 
 No long-lived `/results` redirect is required for MVP because the project is still under development. If a short development-only redirect is needed during manual testing, keep it out of the final migration.
@@ -83,8 +83,8 @@ No long-lived `/results` redirect is required for MVP because the project is sti
 Move and rename:
 
 ```text
-frontend/src/components/results/
-frontend/src/components/score-detail/
+apps/customer-web/src/components/results/
+apps/customer-web/src/components/score-detail/
 ```
 
 Recommended file/class mapping:
@@ -106,14 +106,14 @@ Reason: avoid overloading `components/score/`, which already contains lower-leve
 Move and rename:
 
 ```text
-frontend/src/hooks/results/use-results-resources.ts
-frontend/src/hooks/score-detail/use-score-detail-resources.ts
+apps/customer-web/src/hooks/results/use-results-resources.ts
+apps/customer-web/src/hooks/score-detail/use-score-detail-resources.ts
 
-frontend/src/lib/results/navigation.ts
-frontend/src/lib/score-detail/navigation.ts
+apps/customer-web/src/lib/results/navigation.ts
+apps/customer-web/src/lib/score-detail/navigation.ts
 
-frontend/src/lib/results/share.ts
-frontend/src/lib/score-detail/share.ts
+apps/customer-web/src/lib/results/share.ts
+apps/customer-web/src/lib/score-detail/share.ts
 ```
 
 Recommended exported names:
@@ -138,13 +138,13 @@ resultsShare -> scoreShare
 Move files:
 
 ```text
-frontend/messages/zh/results.json      -> frontend/messages/zh/score.json
-frontend/messages/en/results.json      -> frontend/messages/en/score.json
-frontend/messages/zh/resultsShare.json -> frontend/messages/zh/scoreShare.json
-frontend/messages/en/resultsShare.json -> frontend/messages/en/scoreShare.json
+apps/customer-web/messages/zh/results.json      -> apps/customer-web/messages/zh/score.json
+apps/customer-web/messages/en/results.json      -> apps/customer-web/messages/en/score.json
+apps/customer-web/messages/zh/resultsShare.json -> apps/customer-web/messages/zh/scoreShare.json
+apps/customer-web/messages/en/resultsShare.json -> apps/customer-web/messages/en/scoreShare.json
 ```
 
-Update `frontend/src/i18n/request.ts` namespaces accordingly.
+Update `apps/customer-web/src/i18n/request.ts` namespaces accordingly.
 
 Update `useTranslations('results')` to `useTranslations('score')`.
 Update `useTranslations('resultsShare')` to `useTranslations('scoreShare')`.
@@ -153,16 +153,16 @@ Update `useTranslations('resultsShare')` to `useTranslations('scoreShare')`.
 
 ### Step 1: Rename Route
 
-1. Create `frontend/src/app/[locale]/score/[id]/page.tsx` from the current results page.
+1. Create `apps/customer-web/src/app/[locale]/score/[id]/page.tsx` from the current results page.
 2. Rename component functions:
    - `ResultsPageContent` -> `ScorePageContent`
    - `ResultsPageWithProvider` -> `ScorePageWithProvider`
 3. Update imports to the new component/hook/lib paths.
-4. Delete `frontend/src/app/[locale]/results/[id]/page.tsx`.
+4. Delete `apps/customer-web/src/app/[locale]/results/[id]/page.tsx`.
 
 ### Step 2: Rename Components
 
-1. Create `frontend/src/components/score-detail/`.
+1. Create `apps/customer-web/src/components/score-detail/`.
 2. Move each `components/results/*` file into `components/score-detail/`.
 3. Rename component symbols from `Results*` to `Score*`.
 4. Update cross-imports:
@@ -174,17 +174,17 @@ Update `useTranslations('resultsShare')` to `useTranslations('scoreShare')`.
 
 ### Step 3: Rename Hook and Lib Modules
 
-1. Create `frontend/src/hooks/score-detail/use-score-detail-resources.ts`.
+1. Create `apps/customer-web/src/hooks/score-detail/use-score-detail-resources.ts`.
 2. Move logic from `useResultsResources`.
 3. Rename exported hook to `useScoreDetailResources`.
-4. Create `frontend/src/lib/score-detail/navigation.ts`.
-5. Create `frontend/src/lib/score-detail/share.ts`.
+4. Create `apps/customer-web/src/lib/score-detail/navigation.ts`.
+5. Create `apps/customer-web/src/lib/score-detail/share.ts`.
 6. Delete the old `hooks/results` and `lib/results` files after imports are updated.
 
 ### Step 4: Rename I18n Namespaces
 
 1. Move message files from `results*.json` to `score*.json`.
-2. Update `frontend/src/i18n/request.ts`.
+2. Update `apps/customer-web/src/i18n/request.ts`.
 3. Update every `useTranslations('results')`.
 4. Update every `useTranslations('resultsShare')`.
 5. Keep translation keys stable unless the wording itself is wrong. This keeps the migration focused on semantic ownership, not copywriting.
@@ -193,17 +193,17 @@ Update `useTranslations('resultsShare')` to `useTranslations('scoreShare')`.
 
 Update all product navigation from `/results/${scoreId}` to `/score/${scoreId}`:
 
-- `frontend/src/components/upload/upload-types.ts`
-- `frontend/src/hooks/review/use-review-page-data.ts`
-- `frontend/src/hooks/editor/use-editor-document.ts`
-- `frontend/src/app/[locale]/library/page.tsx`
-- `frontend/src/app/[locale]/my-scores/page.tsx`
+- `apps/customer-web/src/components/upload/upload-types.ts`
+- `apps/customer-web/src/hooks/review/use-review-page-data.ts`
+- `apps/customer-web/src/hooks/editor/use-editor-document.ts`
+- `apps/customer-web/src/app/[locale]/library/page.tsx`
+- `apps/customer-web/src/app/[locale]/my-scores/page.tsx`
 
 Keep query parameters such as `?from=my-scores` intact.
 
 ### Step 6: Update Auth Protection
 
-In `frontend/src/proxy.ts`:
+In `apps/customer-web/src/proxy.ts`:
 
 - Remove `/results`
 - Add `/score`
@@ -213,7 +213,7 @@ In `frontend/src/proxy.ts`:
 Run:
 
 ```bash
-rg "results|Results|resultsShare|/results|useResults|parseResults|ResultsLibrarySource" frontend/src frontend/messages
+rg "results|Results|resultsShare|/results|useResults|parseResults|ResultsLibrarySource" apps/customer-web/src apps/customer-web/messages
 ```
 
 Expected remaining matches should be zero, except unrelated local variable names where `results` means generic array results. Those should be reviewed case by case.
@@ -223,7 +223,7 @@ Expected remaining matches should be zero, except unrelated local variable names
 Run:
 
 ```bash
-cd frontend
+cd apps/customer-web
 npm run typecheck
 npm run lint
 ```

@@ -69,7 +69,7 @@ preserves a clear boundary:
 
 ```text
 backend/          application code
-frontend/         web application
+apps/customer-web/         web application
 external/legato   third-party source tool
 ```
 
