@@ -21,10 +21,10 @@ Available checks:
 | `backend-mypy` | Backend type checking inside the dedicated backend quality image |
 | `backend-mypy-model-layer` | Backend model-layer type boundary checks inside the dedicated backend quality image |
 | `backend-pytest` | Backend test suites through Docker quality images: core tests in `quality`, practice tests in `practice-quality` |
-| `frontend-lint` | Frontend ESLint |
-| `frontend-typecheck` | Frontend TypeScript type checking |
-| `frontend-i18n` | Frontend error translation key guard |
-| `frontend-test` | Frontend unit tests |
+| `customer-web-lint` | Customer Web ESLint |
+| `customer-web-typecheck` | Customer Web TypeScript type checking |
+| `customer-web-i18n` | Customer Web error translation key guard |
+| `customer-web-test` | Customer Web unit tests |
 | `platform-admin-lint` | Platform Admin ESLint |
 | `platform-admin-typecheck` | Platform Admin TypeScript type checking |
 | `platform-admin-test` | Platform Admin unit tests |
@@ -83,9 +83,9 @@ Current GitHub Actions workflows:
 | `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
 | `.github/workflows/backend-practice-image.yml` | backend practice runtime files | Builds and scans the backend practice image and its dependency base |
 | `.github/workflows/backend-worker-image.yml` | manual | Builds and scans the ML worker image from a pinned ML base |
-| `.github/workflows/frontend-image.yml` | frontend runtime files | Builds and scans the frontend image |
+| `.github/workflows/customer-web-image.yml` | Customer Web runtime files | Builds and scans the Customer Web image |
 | `.github/workflows/ml-base-image.yml` | manual | Builds and scans the Python/PyTorch CUDA ML base image |
-| `.github/workflows/frontend-quality.yml` | `apps/customer-web/**` and shared API constants | Frontend lint, i18n guard, typecheck, tests, build, e2e |
+| `.github/workflows/customer-web-quality.yml` | `apps/customer-web/**` and shared API constants | Customer Web lint, i18n guard, typecheck, tests, build, e2e |
 | `.github/workflows/platform-admin-quality.yml` | `apps/platform-admin/**` | Platform Admin lint, typecheck, unit tests, production build |
 | `.github/workflows/k8s-application-manifests.yml` | `deploy/application/**` and K8s guard script | Kustomize rendering and deployment-placeholder guard |
 | `.github/workflows/observability-manifests.yml` | `deploy/observability/**` and observability guard script | Loki/Fluent Bit/Prometheus/Tempo values guard |

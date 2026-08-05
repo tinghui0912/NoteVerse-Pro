@@ -4,10 +4,10 @@ param(
         "backend-mypy",
         "backend-mypy-model-layer",
         "backend-pytest",
-        "frontend-lint",
-        "frontend-typecheck",
-        "frontend-i18n",
-        "frontend-test",
+        "customer-web-lint",
+        "customer-web-typecheck",
+        "customer-web-i18n",
+        "customer-web-test",
         "platform-admin-lint",
         "platform-admin-typecheck",
         "platform-admin-test",
@@ -24,7 +24,7 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $BackendQualityScript = Join-Path $PSScriptRoot "backend_quality_docker.ps1"
-$FrontendRoot = Join-Path $RepoRoot "apps/customer-web"
+$CustomerWebRoot = Join-Path $RepoRoot "apps/customer-web"
 $PlatformAdminRoot = Join-Path $RepoRoot "apps/platform-admin"
 $K8sManifestCheck = Join-Path $PSScriptRoot "check_k8s_application_manifests.py"
 $K8sReleaseOverlayRenderer = Join-Path $PSScriptRoot "render_k8s_release_overlay.py"
@@ -52,11 +52,11 @@ function Invoke-BackendQuality {
     }
 }
 
-function Invoke-FrontendNpm {
+function Invoke-CustomerWebNpm {
     param([string] $Script)
 
-    Invoke-Step "frontend:$Script" {
-        Push-Location $FrontendRoot
+    Invoke-Step "customer-web:$Script" {
+        Push-Location $CustomerWebRoot
         try {
             npm run $Script
         }
@@ -105,12 +105,12 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --backend-practice-image "ghcr.io/example/noteverse/backend-practice@sha256:5555555555555555555555555555555555555555555555555555555555555555" `
             --backend-beat-image "ghcr.io/example/noteverse/backend-beat@sha256:4444444444444444444444444444444444444444444444444444444444444444" `
             --backend-worker-image "ghcr.io/example/noteverse/backend-worker@sha256:3333333333333333333333333333333333333333333333333333333333333333" `
-            --frontend-image "ghcr.io/example/noteverse/frontend@sha256:2222222222222222222222222222222222222222222222222222222222222222" `
+            --customer-web-image "ghcr.io/example/noteverse/customer-web@sha256:2222222222222222222222222222222222222222222222222222222222222222" `
             --platform-admin-image "ghcr.io/example/noteverse/platform-admin@sha256:6666666666666666666666666666666666666666666666666666666666666666" `
-            --frontend-host "staging.noteverse.test" `
+            --customer-web-host "staging.noteverse.test" `
             --admin-host "admin.staging.noteverse.test" `
             --tls-secret "noteverse-staging-real-tls" `
-            --frontend-base-url "https://staging.noteverse.test" `
+            --customer-web-base-url "https://staging.noteverse.test" `
             --backend-cors-origins '["https://staging.noteverse.test"]' `
             --control-plane-cors-origins '["https://admin.staging.noteverse.test"]' `
             --trusted-proxy-cidrs '["10.244.0.0/16"]' `
@@ -152,17 +152,17 @@ switch ($Check) {
     "backend-pytest" {
         Invoke-BackendQuality "pytest"
     }
-    "frontend-lint" {
-        Invoke-FrontendNpm "lint"
+    "customer-web-lint" {
+        Invoke-CustomerWebNpm "lint"
     }
-    "frontend-typecheck" {
-        Invoke-FrontendNpm "typecheck"
+    "customer-web-typecheck" {
+        Invoke-CustomerWebNpm "typecheck"
     }
-    "frontend-i18n" {
-        Invoke-FrontendNpm "check:i18n-errors"
+    "customer-web-i18n" {
+        Invoke-CustomerWebNpm "check:i18n-errors"
     }
-    "frontend-test" {
-        Invoke-FrontendNpm "test"
+    "customer-web-test" {
+        Invoke-CustomerWebNpm "test"
     }
     "platform-admin-lint" {
         Invoke-PlatformAdminNpm "lint"
@@ -191,9 +191,9 @@ switch ($Check) {
         Invoke-BackendQuality "mypy"
         Invoke-BackendQuality "mypy-model-layer"
         Invoke-BackendQuality "pytest"
-        Invoke-FrontendNpm "lint"
-        Invoke-FrontendNpm "typecheck"
-        Invoke-FrontendNpm "check:i18n-errors"
+        Invoke-CustomerWebNpm "lint"
+        Invoke-CustomerWebNpm "typecheck"
+        Invoke-CustomerWebNpm "check:i18n-errors"
         Invoke-PlatformAdminNpm "lint"
         Invoke-PlatformAdminNpm "typecheck"
         Invoke-PlatformAdminNpm "test"

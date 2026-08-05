@@ -2,7 +2,7 @@
 
 > 基于 2026-04-11 代码审查报告整理，按优先级分为 P0（必须立即修复）、P1（核心改进）、P2（质量提升）、P3（长期优化）四个等级。
 
-> **状态说明（2026-06-18）：** 本文保留早期审查任务和历史完成记录。新的架构优化、测试分层、页面拆分、MusicXML 收口以及 Verovio/OSMD 迁移，以 [`frontend_architecture_optimization_plan.md`](./frontend_architecture_optimization_plan.md) 为唯一权威执行计划；不要在两份文档中重复维护状态。
+> **状态说明（2026-06-18）：** 本文保留早期审查任务和历史完成记录。当前 Customer Web 架构基线位于 [`customer-web_architecture_baseline.md`](../../../apps/customer-web/docs/customer-web_architecture_baseline.md)；不要在两份文档中重复维护状态。
 
 ---
 
@@ -174,7 +174,7 @@
 - Playwright：Next.js 路由、关键用户流程、Verovio WASM 和视觉行为
 - pytest：继续负责 FastAPI 后端测试，不被前端工具替代
 
-具体任务、脚本和验收标准只在 `frontend_architecture_optimization_plan.md` 中维护。
+当前架构基线、脚本和验收标准只在 `customer-web_architecture_baseline.md` 中维护。
 
 ---
 

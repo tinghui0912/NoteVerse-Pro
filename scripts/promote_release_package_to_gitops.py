@@ -27,7 +27,7 @@ ALLOWED_FILES = {
     "README.md",
     "backend-config.env",
     "control-plane-config.env",
-    "frontend-config.env",
+    "customer-web-config.env",
     "gateway.yaml",
     "kustomization.yaml",
     "patch-backend-api-runtime-volumes.yaml",

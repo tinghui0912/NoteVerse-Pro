@@ -93,7 +93,7 @@ Tasks:
 - add environment Gateway, Certificate, and HTTPRoute templates;
 - use Gateway API routing resources in the staging overlay;
 - use Gateway API routing resources in the production overlay;
-- route `/` to `noteverse-frontend`;
+- route `/` to `noteverse-customer-web`;
 - route `/api/v1/*` to `noteverse-backend-api`;
 - route practice realtime/WebSocket paths to `noteverse-backend-practice`;
 - update `scripts/render_k8s_release_overlay.py` to render host and TLS values

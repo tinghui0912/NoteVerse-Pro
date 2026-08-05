@@ -210,7 +210,7 @@ Browser API and realtime calls use same-origin `/api/v1`. In production, the
 Gateway/HTTPRoute rules must route `/api/v1/practice` to the practice Service
 before routing the broader `/api/v1` prefix to the backend API. Long-lived SSE
 responses and WebSocket upgrades must be supported without buffering. This
-keeps frontend images environment-neutral and avoids baking public API origins
+keeps Customer Web images environment-neutral and avoids baking public API origins
 into the browser bundle.
 
 ## Configuration Ownership

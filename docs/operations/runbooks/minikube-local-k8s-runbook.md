@@ -237,12 +237,12 @@ docker build `
   .
 
 docker build `
-  -f docker/frontend/Dockerfile.runtime `
+  -f docker/customer-web/Dockerfile.runtime `
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 `
   --build-arg NEXT_PRACTICE_ORIGIN=http://noteverse-backend-practice:8000 `
   --build-arg SESSION_COOKIE_NAME=noteverse_session `
   --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh `
-  -t noteverse-frontend:$imageTag `
+  -t noteverse-customer-web:$imageTag `
   .
 ```
 
@@ -276,18 +276,18 @@ $backendApiImage = "ghcr.io/$ghcrOwner/noteverse/backend-api:$imageTag"
 $backendBeatImage = "ghcr.io/$ghcrOwner/noteverse/backend-beat:$imageTag"
 $backendWorkerDepsImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker-deps:deps-$imageTag"
 $backendWorkerImage = "ghcr.io/$ghcrOwner/noteverse/backend-worker:$imageTag"
-$frontendImage = "ghcr.io/$ghcrOwner/noteverse/frontend:$imageTag"
+$customerWebImage = "ghcr.io/$ghcrOwner/noteverse/customer-web:$imageTag"
 
 docker tag noteverse-backend-api:$imageTag $backendApiImage
 docker tag noteverse-backend-beat:$imageTag $backendBeatImage
 docker tag noteverse-backend-worker-deps:$imageTag $backendWorkerDepsImage
 docker tag noteverse-backend-worker:$imageTag $backendWorkerImage
-docker tag noteverse-frontend:$imageTag $frontendImage
+docker tag noteverse-customer-web:$imageTag $customerWebImage
 docker push $backendApiImage
 docker push $backendBeatImage
 docker push $backendWorkerDepsImage
 docker push $backendWorkerImage
-docker push $frontendImage
+docker push $customerWebImage
 ```
 
 API/beat/migration and worker/model-cache-agent intentionally use split backend
@@ -298,7 +298,7 @@ docker push ghcr.io/$ghcrOwner/noteverse/backend-api:<tag>
 docker push ghcr.io/$ghcrOwner/noteverse/backend-beat:<tag>
 docker push ghcr.io/$ghcrOwner/noteverse/backend-worker-deps:<tag>
 docker push ghcr.io/$ghcrOwner/noteverse/backend-worker:<tag>
-docker push ghcr.io/$ghcrOwner/noteverse/frontend:<tag>
+docker push ghcr.io/$ghcrOwner/noteverse/customer-web:<tag>
 ```
 
 Kubernetes pulls private GHCR images through
@@ -834,7 +834,7 @@ $env:NOTEVERSE_BACKEND_API_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-api
 $env:NOTEVERSE_BACKEND_PRACTICE_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag"
 $env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag"
 $env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag"
-$env:NOTEVERSE_FRONTEND_IMAGE = "ghcr.io/<github-owner>/noteverse/frontend:$imageTag"
+$env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<github-owner>/noteverse/customer-web:$imageTag"
 $env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<github-owner>/noteverse/platform-admin:$imageTag"
 
 $env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"
@@ -908,7 +908,7 @@ kubectl -n noteverse-staging rollout status deployment/noteverse-backend-api
 kubectl -n noteverse-staging rollout status deployment/noteverse-backend-practice
 kubectl -n noteverse-staging rollout status deployment/noteverse-backend-beat
 kubectl -n noteverse-staging rollout status deployment/noteverse-backend-worker
-kubectl -n noteverse-staging rollout status deployment/noteverse-frontend
+kubectl -n noteverse-staging rollout status deployment/noteverse-customer-web
 kubectl -n noteverse-staging rollout status ds/noteverse-model-cache-agent --timeout=7200s
 ```
 

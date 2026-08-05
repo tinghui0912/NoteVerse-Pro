@@ -27,8 +27,8 @@ images:
   - name: noteverse-backend-beat
     newName: registry.example.invalid/noteverse/backend-beat
     newTag: staging-replace-me
-  - name: noteverse-frontend
-    newName: registry.example.invalid/noteverse/frontend
+  - name: noteverse-customer-web
+    newName: registry.example.invalid/noteverse/customer-web
     newTag: staging-replace-me
   - name: noteverse-platform-admin
     newName: registry.example.invalid/noteverse/platform-admin
@@ -38,9 +38,9 @@ configMapGenerator:
   - name: noteverse-backend-config
     envs:
       - backend-config.env
-  - name: noteverse-frontend-config
+  - name: noteverse-customer-web-config
     envs:
-      - frontend-config.env
+      - customer-web-config.env
   - name: noteverse-control-plane-config
     envs:
       - control-plane-config.env
@@ -57,7 +57,7 @@ replicas:
     count: 1
   - name: noteverse-backend-worker
     count: 0
-  - name: noteverse-frontend
+  - name: noteverse-customer-web
     count: 1
   - name: noteverse-platform-admin
     count: 1

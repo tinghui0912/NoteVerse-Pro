@@ -407,7 +407,7 @@ if ($Apply) {
             } else {
                 Write-Host "==> rollout:backend-worker skipped"
             }
-            Wait-ForActiveDeployment -DeploymentName "noteverse-frontend" -TimeoutSeconds $WaitTimeoutSeconds
+            Wait-ForActiveDeployment -DeploymentName "noteverse-customer-web" -TimeoutSeconds $WaitTimeoutSeconds
             Wait-ForActiveDeployment -DeploymentName "noteverse-control-plane" -TimeoutSeconds $WaitTimeoutSeconds
             Wait-ForActiveDeployment -DeploymentName "noteverse-platform-admin" -TimeoutSeconds $WaitTimeoutSeconds
             Wait-ForActiveDeployment -DeploymentName "noteverse-observability-exporter" -TimeoutSeconds $WaitTimeoutSeconds

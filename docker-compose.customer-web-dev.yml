@@ -1,11 +1,11 @@
-name: noteverse-frontend-dev
+name: noteverse-customer-web-dev
 
 services:
-  frontend:
-    image: noteverse-frontend-runtime:dev
+  customer-web:
+    image: noteverse-customer-web-runtime:dev
     build:
       context: .
-      dockerfile: docker/frontend/Dockerfile.dev
+      dockerfile: docker/customer-web/Dockerfile.dev
     env_file:
       - path: apps/customer-web/.env.docker
         required: true
@@ -15,14 +15,14 @@ services:
       CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
     volumes:
       - ./apps/customer-web:/app
-      - noteverse_frontend_node_modules:/app/node_modules
+      - noteverse_customer_web_node_modules:/app/node_modules
     tmpfs:
       - /app/.next
     ports:
-      - "${FRONTEND_PORT:-9002}:9002"
+      - "${CUSTOMER_WEB_PORT:-9002}:9002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:
-  noteverse_frontend_node_modules:
+  noteverse_customer_web_node_modules:

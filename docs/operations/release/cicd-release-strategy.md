@@ -40,12 +40,18 @@ Current repository workflows:
 - `.github/workflows/backend-beat-image.yml`
 - `.github/workflows/backend-practice-image.yml`
 - `.github/workflows/backend-worker-image.yml`
-- `.github/workflows/frontend-image.yml`
-- `.github/workflows/frontend-quality.yml`
+- `.github/workflows/customer-web-image.yml`
+- `.github/workflows/customer-web-quality.yml`
 - `.github/workflows/k8s-application-manifests.yml`
 - `.github/workflows/ml-base-image.yml`
 - `.github/workflows/observability-manifests.yml`
 - `.github/workflows/production-release-package.yml`
+
+For workflows that listen to both pull requests and pushes, the trigger policy
+is intentionally asymmetric: pull requests validate the proposed change, while
+`push` is restricted to `main` and creates the post-merge verification and
+publishable image. This avoids running the same quality or image workflow once
+for a feature-branch push and again for its pull request.
 - `.github/workflows/staging-release-package.yml`
 
 These workflows are quality/build gates, not production deployers.
@@ -63,7 +69,7 @@ Recommended image tags:
 <registry>/noteverse/backend-api:<git-sha>
 <registry>/noteverse/backend-beat:<git-sha>
 <registry>/noteverse/backend-worker:<git-sha>
-<registry>/noteverse/frontend:<git-sha>
+<registry>/noteverse/customer-web:<git-sha>
 ```
 
 Optional environment aliases:
@@ -72,11 +78,11 @@ Optional environment aliases:
 <registry>/noteverse/backend-api:staging
 <registry>/noteverse/backend-beat:staging
 <registry>/noteverse/backend-worker:staging
-<registry>/noteverse/frontend:staging
+<registry>/noteverse/customer-web:staging
 <registry>/noteverse/backend-api:production
 <registry>/noteverse/backend-beat:production
 <registry>/noteverse/backend-worker:production
-<registry>/noteverse/frontend:production
+<registry>/noteverse/customer-web:production
 ```
 
 Rules:
@@ -94,7 +100,7 @@ Recommended promotion path:
 ```text
 commit
   -> quality checks
-  -> build backend/frontend images
+  -> build backend/Customer Web images
   -> push images with commit SHA tags
   -> deploy staging private overlay
   -> run staging smoke tests
@@ -232,7 +238,7 @@ new outbox states unless compatibility is explicitly verified.
 Rollback frontend deployment:
 
 ```bash
-kubectl -n noteverse-production rollout undo deployment/noteverse-frontend
+kubectl -n noteverse-production rollout undo deployment/noteverse-customer-web
 ```
 
 ### API regression without migration or storage changes
@@ -333,7 +339,7 @@ Implemented:
 - `.github/workflows/backend-api-image.yml`,
   `.github/workflows/backend-beat-image.yml`,
   `.github/workflows/backend-practice-image.yml`, and
-  `.github/workflows/frontend-image.yml` build runtime images only for their
+  `.github/workflows/customer-web-image.yml` build runtime images only for their
   relevant path scopes;
 - those workflows push immutable GHCR images on `main` pushes and manual runs;
 - `.github/workflows/ml-base-image.yml` publishes the pinned Python/PyTorch CUDA
@@ -343,7 +349,7 @@ Implemented:
   release infrastructure or a sufficiently provisioned runner;
 - images are tagged with the full Git commit SHA and `build-<run-id>`;
 - image digests are written to the workflow summary.
-- SBOM artifacts are generated for backend and frontend images;
+- SBOM artifacts are generated for backend and Customer Web images;
 - Trivy blocks images with fixable or already-fixed `CRITICAL`
   vulnerabilities.
 
@@ -372,10 +378,10 @@ The `staging` GitHub Environment must define these non-secret variables before
 running `staging-release-package.yml`:
 
 ```text
-STAGING_FRONTEND_HOST
+STAGING_CUSTOMER_WEB_HOST
 STAGING_ADMIN_HOST
 STAGING_TLS_SECRET
-STAGING_FRONTEND_BASE_URL
+STAGING_CUSTOMER_WEB_BASE_URL
 STAGING_BACKEND_CORS_ORIGINS
 STAGING_CONTROL_PLANE_CORS_ORIGINS
 STAGING_TRUSTED_PROXY_CIDRS
@@ -415,10 +421,10 @@ The `production` GitHub Environment must define these non-secret variables
 before running `production-release-package.yml`:
 
 ```text
-PRODUCTION_FRONTEND_HOST
+PRODUCTION_CUSTOMER_WEB_HOST
 PRODUCTION_ADMIN_HOST
 PRODUCTION_TLS_SECRET
-PRODUCTION_FRONTEND_BASE_URL
+PRODUCTION_CUSTOMER_WEB_BASE_URL
 PRODUCTION_BACKEND_CORS_ORIGINS
 PRODUCTION_CONTROL_PLANE_CORS_ORIGINS
 PRODUCTION_TRUSTED_PROXY_CIDRS
@@ -467,7 +473,7 @@ Every production release should record:
 - Git commit SHA;
 - backend image digest;
 - backend beat image digest;
-- frontend image digest;
+- Customer Web image digest;
 - migration revision before and after;
 - approver;
 - deployment time;

@@ -77,7 +77,7 @@ Secret/noteverse-registry-credentials
 
 Purpose:
 
-- allow Kubernetes nodes to pull private backend/frontend images from GHCR or a
+- allow Kubernetes nodes to pull private backend/Customer Web images from GHCR or a
   future private registry.
 
 Example command shape for GHCR:
@@ -111,7 +111,7 @@ Frontend runtime configuration is public origin and cookie/header naming, so it
 belongs in:
 
 ```text
-ConfigMap/noteverse-frontend-config
+ConfigMap/noteverse-customer-web-config
 ```
 
 Do not add a frontend Secret unless the frontend server starts requiring

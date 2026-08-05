@@ -1,4 +1,4 @@
-# Frontend Architecture Baseline
+# Customer Web Architecture Baseline
 
 > Status: current baseline, not a migration task board.
 > Last updated: 2026-07-13.

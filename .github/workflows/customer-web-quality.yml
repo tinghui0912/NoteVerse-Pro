@@ -1,19 +1,20 @@
-name: Frontend Quality
+name: Customer Web Quality
 
 on:
   push:
+    branches: [main]
     paths:
       - "apps/customer-web/**"
       - "backend/app/shared/error_codes.py"
-      - ".github/workflows/frontend-quality.yml"
+      - ".github/workflows/customer-web-quality.yml"
   pull_request:
     paths:
       - "apps/customer-web/**"
       - "backend/app/shared/error_codes.py"
-      - ".github/workflows/frontend-quality.yml"
+      - ".github/workflows/customer-web-quality.yml"
 
 concurrency:
-  group: frontend-quality-${{ github.ref }}
+  group: customer-web-quality-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

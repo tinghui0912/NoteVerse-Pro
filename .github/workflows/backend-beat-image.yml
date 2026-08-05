@@ -3,6 +3,7 @@ name: Backend Beat Image
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - "backend/**"
       - "docker/backend/Dockerfile.beat"

@@ -42,12 +42,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backend-beat-image", required=True)
     parser.add_argument("--backend-practice-image", required=True)
     parser.add_argument("--backend-worker-image", required=True)
-    parser.add_argument("--frontend-image", required=True)
+    parser.add_argument("--customer-web-image", required=True)
     parser.add_argument("--platform-admin-image", required=True)
-    parser.add_argument("--frontend-host", required=True)
+    parser.add_argument("--customer-web-host", required=True)
     parser.add_argument("--admin-host", required=True)
     parser.add_argument("--tls-secret", required=True)
-    parser.add_argument("--frontend-base-url", required=True)
+    parser.add_argument("--customer-web-base-url", required=True)
     parser.add_argument("--backend-cors-origins", required=True)
     parser.add_argument("--control-plane-cors-origins", required=True)
     parser.add_argument("--trusted-proxy-cidrs", required=True)
@@ -94,12 +94,12 @@ def require_nonblank_arguments(args: argparse.Namespace) -> None:
         "backend_beat_image",
         "backend_practice_image",
         "backend_worker_image",
-        "frontend_image",
+        "customer_web_image",
         "platform_admin_image",
-        "frontend_host",
+        "customer_web_host",
         "admin_host",
         "tls_secret",
-        "frontend_base_url",
+        "customer_web_base_url",
         "backend_cors_origins",
         "control_plane_cors_origins",
         "trusted_proxy_cidrs",
@@ -191,8 +191,8 @@ def materialize_base_images(base: Path, images: dict[str, str]) -> None:
             "noteverse-backend-worker:replace-me": images["backend_worker"],
             "busybox:1.36": BUSYBOX_IMAGE,
         },
-        "frontend-deployment.yaml": {
-            "noteverse-frontend:replace-me": images["frontend"]
+        "customer-web-deployment.yaml": {
+            "noteverse-customer-web:replace-me": images["customer_web"]
         },
         "platform-admin-deployment.yaml": {
             "noteverse-platform-admin:replace-me": images["platform_admin"]
@@ -221,7 +221,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     backend_beat_ref = parse_image_ref(args.backend_beat_image)
     backend_practice_ref = parse_image_ref(args.backend_practice_image)
     backend_worker_ref = parse_image_ref(args.backend_worker_image)
-    frontend_ref = parse_image_ref(args.frontend_image)
+    customer_web_ref = parse_image_ref(args.customer_web_image)
     platform_admin_ref = parse_image_ref(args.platform_admin_image)
 
     kustomization_path = output / "kustomization.yaml"
@@ -235,7 +235,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     kustomization = replace_image_block(kustomization, "noteverse-backend-beat", backend_beat_ref)
     kustomization = replace_image_block(kustomization, "noteverse-backend-practice", backend_practice_ref)
     kustomization = replace_image_block(kustomization, "noteverse-backend-worker", backend_worker_ref)
-    kustomization = replace_image_block(kustomization, "noteverse-frontend", frontend_ref)
+    kustomization = replace_image_block(kustomization, "noteverse-customer-web", customer_web_ref)
     kustomization = replace_image_block(kustomization, "noteverse-platform-admin", platform_admin_ref)
     kustomization_path.write_text(kustomization, encoding="utf-8")
 
@@ -246,12 +246,12 @@ def render_overlay(args: argparse.Namespace) -> Path:
             "backend_beat": args.backend_beat_image,
             "backend_practice": args.backend_practice_image,
             "backend_worker": args.backend_worker_image,
-            "frontend": args.frontend_image,
+            "customer_web": args.customer_web_image,
             "platform_admin": args.platform_admin_image,
         },
     )
 
-    frontend_placeholder = (
+    customer_web_placeholder = (
         "staging.noteverse.example.invalid"
         if args.environment == "staging"
         else "noteverse.example.invalid"
@@ -270,7 +270,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     gateway_path = output / "gateway.yaml"
     gateway = gateway_path.read_text(encoding="utf-8")
     gateway = replace_required(gateway, admin_placeholder, args.admin_host)
-    gateway = replace_required(gateway, frontend_placeholder, args.frontend_host)
+    gateway = replace_required(gateway, customer_web_placeholder, args.customer_web_host)
     gateway = replace_required(gateway, tls_placeholder, args.tls_secret)
     gateway_path.write_text(gateway, encoding="utf-8")
 
@@ -279,7 +279,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     backend_config = replace_env_value(
         backend_config,
         "FRONTEND_BASE_URL",
-        args.frontend_base_url,
+        args.customer_web_base_url,
     )
     backend_config = replace_env_value(
         backend_config,

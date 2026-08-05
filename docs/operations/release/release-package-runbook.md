@@ -104,7 +104,7 @@ backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<sha-a>
 backend_beat_image=ghcr.io/<owner>/noteverse/backend-beat:<sha-a>
 backend_practice_image=ghcr.io/<owner>/noteverse/backend-practice:<sha-b>
 backend_worker_image=ghcr.io/<owner>/noteverse/backend-worker:<sha-c>
-frontend_image=ghcr.io/<owner>/noteverse/frontend:<sha-d>
+customer_web_image=ghcr.io/<owner>/noteverse/customer-web:<sha-d>
 platform_admin_image=ghcr.io/<owner>/noteverse/platform-admin:<sha-e>
 ```
 

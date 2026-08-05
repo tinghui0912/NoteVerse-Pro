@@ -2,6 +2,7 @@ name: K8s Application Manifests
 
 on:
   push:
+    branches: [main]
     paths:
       - "deploy/application/**"
       - "deploy/gitops/**"
@@ -67,12 +68,12 @@ jobs:
             --backend-practice-image ghcr.io/example/noteverse/backend-practice@sha256:5555555555555555555555555555555555555555555555555555555555555555 \
             --backend-beat-image ghcr.io/example/noteverse/backend-beat@sha256:4444444444444444444444444444444444444444444444444444444444444444 \
             --backend-worker-image ghcr.io/example/noteverse/backend-worker@sha256:3333333333333333333333333333333333333333333333333333333333333333 \
-            --frontend-image ghcr.io/example/noteverse/frontend@sha256:2222222222222222222222222222222222222222222222222222222222222222 \
+            --customer-web-image ghcr.io/example/noteverse/customer-web@sha256:2222222222222222222222222222222222222222222222222222222222222222 \
             --platform-admin-image ghcr.io/example/noteverse/platform-admin@sha256:6666666666666666666666666666666666666666666666666666666666666666 \
-            --frontend-host staging.noteverse.test \
+            --customer-web-host staging.noteverse.test \
             --admin-host admin.staging.noteverse.test \
             --tls-secret noteverse-staging-real-tls \
-            --frontend-base-url https://staging.noteverse.test \
+            --customer-web-base-url https://staging.noteverse.test \
             --backend-cors-origins '["https://staging.noteverse.test"]' \
             --control-plane-cors-origins '["https://admin.staging.noteverse.test"]' \
             --trusted-proxy-cidrs '["10.244.0.0/16"]' \
