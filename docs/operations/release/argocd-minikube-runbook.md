@@ -173,6 +173,12 @@ deploy/gitops/environments/staging
 
 Then perform a manual sync.
 
+Argo CD first creates `Job/noteverse-db-migrate` as a `PreSync` hook. The hook
+has `BeforeHookCreation,HookSucceeded` cleanup semantics, so each manual sync
+gets a fresh migration attempt and a failed migration blocks all ordinary
+workload changes. Do not manually bypass this hook or run a broad `kubectl
+apply -k` against GitOps desired state.
+
 Command-line equivalent:
 
 ```powershell
@@ -194,6 +200,9 @@ Then verify app workloads:
 kubectl -n noteverse-staging get pods
 kubectl -n noteverse-staging get gateway,httproute,certificate
 ```
+
+Also confirm the successful hook in the Argo CD operation details or from its
+Job history before treating the release as complete.
 
 ## Rollback Rehearsal
 

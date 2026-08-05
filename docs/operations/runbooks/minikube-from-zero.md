@@ -423,13 +423,39 @@ and scale the K8s worker to zero:
   -SkipModelCacheWait
 ```
 
-This waits for migration, API, practice API, beat, and frontend, but skips the
-Kubernetes GPU worker/model-cache path.
+The script applies the release in deterministic phases:
+
+1. bootstrap configuration, Services, Gateway routes, certificates, and NetworkPolicies;
+2. the one-shot `noteverse-db-migrate` Job and its successful completion;
+3. Deployments and DaemonSets, followed by their readiness checks.
+
+This prevents a new workload set from starting against an unverified schema.
+It waits for migration and every active HTTP/scheduler workload: API, practice
+API, Beat, frontend, Control Plane, Platform Admin, and the observability
+exporter. Deployments intentionally configured with zero replicas are reported
+as skipped. It still skips the Kubernetes GPU worker/model-cache path.
 
 Use `-CreateRegistrySecretFromToken -RegistryUsername "<github-username>"`
 only when Docker Desktop is not logged into GHCR. The credential helper option
 does not place the token in shell history, the rendered release, or this
 repository.
+
+### Verify Control-Plane Network Isolation
+
+The staging profile uses Cilium, so these checks exercise enforced
+`NetworkPolicy` behavior rather than merely inspecting YAML. Run them after an
+application release:
+
+```powershell
+.\scripts\minikube_smoke_network_policies.ps1
+```
+
+The smoke test proves four cases and deletes its temporary Pods afterward:
+
+- Platform Admin can reach the internal Control Plane Service;
+- an unrelated application Pod cannot reach Control Plane;
+- the selected Envoy Gateway data-plane Pods can reach Platform Admin;
+- an unrelated application Pod cannot reach Platform Admin.
 
 ## 9. Install Observability
 

@@ -47,6 +47,28 @@ function Invoke-Checked {
     }
 }
 
+function Wait-ForActiveDeployment {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $DeploymentName,
+        [Parameter(Mandatory = $true)]
+        [int] $TimeoutSeconds
+    )
+
+    $replicas = kubectl -n $AppNamespace get deployment $DeploymentName -o jsonpath='{.spec.replicas}'
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to read desired replicas for deployment/$DeploymentName."
+    }
+    if ([int]$replicas -eq 0) {
+        Write-Host "==> rollout:$DeploymentName skipped (zero desired replicas)"
+        return
+    }
+
+    Invoke-Checked "rollout:$DeploymentName" {
+        kubectl -n $AppNamespace rollout status "deployment/$DeploymentName" --timeout="$($TimeoutSeconds)s"
+    }
+}
+
 function Test-CommandAvailable {
     param([string] $Name)
 
@@ -340,52 +362,69 @@ Invoke-Checked "overlay:kustomize-render" {
 }
 
 if ($Apply) {
+    $phaseDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("noteverse-release-phases-" + [System.Guid]::NewGuid().ToString("N"))
+    try {
+        Invoke-Checked "overlay:release-phases" {
+            python scripts/render_k8s_release_phases.py $RenderedOverlay --output-dir $phaseDirectory
+        }
+
+        Invoke-Checked "overlay:apply-bootstrap" {
+            kubectl apply -f (Join-Path $phaseDirectory "00-bootstrap.yaml")
+        }
+
     Invoke-Checked "migration-job:replace" {
         kubectl -n $AppNamespace delete job noteverse-db-migrate --ignore-not-found --wait=true
     }
 
-    Invoke-Checked "overlay:apply" {
-        kubectl apply -k $RenderedOverlay
-    }
+        Invoke-Checked "migration-job:apply" {
+            kubectl apply -f (Join-Path $phaseDirectory "10-migration.yaml")
+        }
 
-    if ($ScaleWorkerToZero) {
-        Invoke-Checked "scale:backend-worker-zero" {
-            kubectl -n $AppNamespace scale deployment/noteverse-backend-worker --replicas=0
+        if ($Wait) {
+            Invoke-Checked "job:migration" {
+                kubectl -n $AppNamespace wait --for=condition=complete job/noteverse-db-migrate --timeout="$($WaitTimeoutSeconds)s"
+            }
         }
-    }
 
-    if ($Wait) {
-        Invoke-Checked "job:migration" {
-            kubectl -n $AppNamespace wait --for=condition=complete job/noteverse-db-migrate --timeout="$($WaitTimeoutSeconds)s"
+        Invoke-Checked "overlay:apply-workloads" {
+            kubectl apply -f (Join-Path $phaseDirectory "20-workloads.yaml")
         }
-        Invoke-Checked "rollout:backend-api" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-api --timeout="$($WaitTimeoutSeconds)s"
-        }
-        Invoke-Checked "rollout:backend-practice" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-practice --timeout="$($WaitTimeoutSeconds)s"
-        }
-        Invoke-Checked "rollout:backend-beat" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-backend-beat --timeout="$($WaitTimeoutSeconds)s"
-        }
-        if (-not $SkipWorkerWait -and -not $ScaleWorkerToZero) {
-            Invoke-Checked "rollout:backend-worker" {
-                kubectl -n $AppNamespace rollout status deployment/noteverse-backend-worker --timeout="$($WaitTimeoutSeconds)s"
+
+        if ($ScaleWorkerToZero) {
+            Invoke-Checked "scale:backend-worker-zero" {
+                kubectl -n $AppNamespace scale deployment/noteverse-backend-worker --replicas=0
             }
-        } else {
-            Write-Host "==> rollout:backend-worker skipped"
         }
-        Invoke-Checked "rollout:frontend" {
-            kubectl -n $AppNamespace rollout status deployment/noteverse-frontend --timeout="$($WaitTimeoutSeconds)s"
-        }
-        if (-not $SkipModelCacheWait) {
-            Invoke-Checked "rollout:model-cache-agent" {
-                kubectl -n $AppNamespace rollout status ds/noteverse-model-cache-agent --timeout=7200s
+
+        if ($Wait) {
+            Wait-ForActiveDeployment -DeploymentName "noteverse-backend-api" -TimeoutSeconds $WaitTimeoutSeconds
+            Wait-ForActiveDeployment -DeploymentName "noteverse-backend-practice" -TimeoutSeconds $WaitTimeoutSeconds
+            Wait-ForActiveDeployment -DeploymentName "noteverse-backend-beat" -TimeoutSeconds $WaitTimeoutSeconds
+            if (-not $SkipWorkerWait -and -not $ScaleWorkerToZero) {
+                Invoke-Checked "rollout:backend-worker" {
+                    kubectl -n $AppNamespace rollout status deployment/noteverse-backend-worker --timeout="$($WaitTimeoutSeconds)s"
+                }
+            } else {
+                Write-Host "==> rollout:backend-worker skipped"
             }
-        } else {
-            Write-Host "==> rollout:model-cache-agent skipped"
+            Wait-ForActiveDeployment -DeploymentName "noteverse-frontend" -TimeoutSeconds $WaitTimeoutSeconds
+            Wait-ForActiveDeployment -DeploymentName "noteverse-control-plane" -TimeoutSeconds $WaitTimeoutSeconds
+            Wait-ForActiveDeployment -DeploymentName "noteverse-platform-admin" -TimeoutSeconds $WaitTimeoutSeconds
+            Wait-ForActiveDeployment -DeploymentName "noteverse-observability-exporter" -TimeoutSeconds $WaitTimeoutSeconds
+            if (-not $SkipModelCacheWait) {
+                Invoke-Checked "rollout:model-cache-agent" {
+                    kubectl -n $AppNamespace rollout status ds/noteverse-model-cache-agent --timeout=7200s
+                }
+            } else {
+                Write-Host "==> rollout:model-cache-agent skipped"
+            }
+            Invoke-Checked "gateway:status" {
+                kubectl -n $AppNamespace get certificate,gateway,httproute
+            }
         }
-        Invoke-Checked "gateway:status" {
-            kubectl -n $AppNamespace get certificate,gateway,httproute
+    } finally {
+        if (Test-Path $phaseDirectory) {
+            Remove-Item -LiteralPath $phaseDirectory -Recurse -Force
         }
     }
 }

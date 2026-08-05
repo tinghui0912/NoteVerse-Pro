@@ -67,7 +67,11 @@ IMAGE_BLOCK_PATTERN = re.compile(
 RENDERED_IMAGE_PATTERN = re.compile(r"^\s*image:\s*(?P<image>\S+)\s*$")
 
 REQUIRED_FILES = ("kustomization.yaml", "release-metadata.json", "base/kustomization.yaml")
-REQUIRED_RENDERED_SNIPPETS = ("name: noteverse-registry-credentials",)
+REQUIRED_RENDERED_SNIPPETS = (
+    "name: noteverse-registry-credentials",
+    "argocd.argoproj.io/hook: PreSync",
+    "argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded",
+)
 
 
 def parse_args() -> argparse.Namespace:
