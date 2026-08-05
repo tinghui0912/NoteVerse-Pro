@@ -29,3 +29,5 @@ spec:
       kind: Gateway
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
+    - group: networking.k8s.io
+      kind: NetworkPolicy

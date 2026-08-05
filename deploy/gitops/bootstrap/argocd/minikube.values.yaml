@@ -56,7 +56,9 @@ controller:
     - --operation-processors=1
   env:
     - name: ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT
-      value: "60"
+      # Argo CD parses this as a Go duration. The local qemu2 control plane can
+      # take longer than the default while building its OpenAPI cache.
+      value: "60s"
   resources:
     requests:
       cpu: 250m
