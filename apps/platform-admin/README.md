@@ -25,3 +25,19 @@ Create a local operator only in a trusted development environment:
 ```powershell
 docker compose -f docker-compose.backend-dev.yml exec api python scripts/create_operator.py --username <operator>
 ```
+
+## Quality Checks
+
+Run the independent operator application checks with deterministic local Control
+Plane configuration:
+
+```powershell
+.\scripts\quality.ps1 -Check platform-admin-lint
+.\scripts\quality.ps1 -Check platform-admin-typecheck
+.\scripts\quality.ps1 -Check platform-admin-build
+```
+
+`Platform Admin Quality` in GitHub Actions runs the same lint, typecheck, and
+production-build gate whenever this application changes. The application has
+no isolated domain library yet, so it intentionally has no unit-test harness;
+add one only when reusable client-side logic warrants it.
