@@ -108,3 +108,12 @@ def setup_celery_logging(**_: object) -> None:
     """Use the application logging pipeline for Celery framework logs."""
 
     configure_celery_logging()
+
+
+@signals.worker_process_init.connect
+def setup_worker_tracing(**_: object) -> None:
+    """Create a tracer provider inside each forked Celery worker process."""
+
+    from app.core.background_tracing import configure_background_tracing
+
+    configure_background_tracing()

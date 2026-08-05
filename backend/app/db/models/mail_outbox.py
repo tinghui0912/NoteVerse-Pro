@@ -58,6 +58,8 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(String(64), index=True),
     )
+    traceparent: Optional[str] = Field(default=None, sa_column=Column(String(55)))
+    tracestate: Optional[str] = Field(default=None, sa_column=Column(String(512)))
     recipient: str = Field(sa_column=Column(String(320), nullable=False))
     subject: str = Field(sa_column=Column(String(255), nullable=False))
     text_body: Optional[str] = Field(default=None, sa_column=Column(Text))

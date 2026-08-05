@@ -1,7 +1,7 @@
 """OpenTelemetry tracing setup for the API runtime."""
 
 from fastapi import FastAPI
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.resources import Resource
@@ -9,6 +9,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from app.core.config import settings
+from app.core.async_trace_context import set_async_trace_context
 from app.core.logger import logger, set_otel_trace_context
 
 
@@ -21,12 +22,19 @@ def capture_current_trace_context() -> None:
     context = trace.get_current_span().get_span_context()
     if not context.is_valid:
         set_otel_trace_context()
+        set_async_trace_context(traceparent=None)
         return
     set_otel_trace_context(
         {
             "trace_id": f"{context.trace_id:032x}",
             "span_id": f"{context.span_id:016x}",
         }
+    )
+    carrier: dict[str, str] = {}
+    propagate.inject(carrier)
+    set_async_trace_context(
+        traceparent=carrier.get("traceparent"),
+        tracestate=carrier.get("tracestate"),
     )
 
 

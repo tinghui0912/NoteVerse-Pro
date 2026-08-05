@@ -1,10 +1,13 @@
 """Realtime practice routes under the practice module boundary."""
 
+import time
+
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import AppException
+from app.core.logger import logger
 from app.core.metrics import realtime_connection_closed, realtime_connection_opened
 from app.db.models import User
 from app.db.model_utils import require_persisted_id
@@ -125,8 +128,18 @@ async def stream_practice_session(
     db: AsyncSession = Depends(get_db),
     practice_service: PracticeService = Depends(get_practice_service),
 ):
+    started_at = time.monotonic()
+    user_id: int | None = None
+    terminal_event = "practice.websocket.closed"
+    terminal_fields: dict[str, object] = {}
+
     await websocket.accept()
     realtime_connection_opened(channel="practice_websocket")
+    logger.bind(
+        event="practice.websocket.accepted",
+        operation_kind="practice",
+        session_id=session_id,
+    ).info("practice websocket accepted")
 
     try:
         current_user = await get_websocket_current_user(websocket, db)
@@ -135,6 +148,12 @@ async def stream_practice_session(
 
         runtime = await practice_service.prepare_stream_runtime(db, session_id, user_id)
         runtime.websocket = websocket
+        logger.bind(
+            event="practice.websocket.ready",
+            operation_kind="practice",
+            session_id=session_id,
+            user_id=user_id,
+        ).info("practice websocket ready")
 
         while True:
             message = await websocket.receive()
@@ -218,16 +237,36 @@ async def stream_practice_session(
                         break
 
     except AppException as exc:
+        terminal_event = "practice.websocket.failed"
+        terminal_fields = {"public_code": exc.code, "exception_type": type(exc).__name__}
         await websocket.send_json(
             session_error_message(
                 public_code=exc.code,
             )
         )
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-    except WebSocketDisconnect:
-        pass
+    except WebSocketDisconnect as exc:
+        terminal_fields = {"status_code": exc.code}
+    except Exception as exc:
+        terminal_event = "practice.websocket.failed"
+        terminal_fields = {
+            "public_code": ErrorCode.PRACTICE_STREAM_CLOSED,
+            "exception_type": type(exc).__name__,
+        }
+        await websocket.send_json(
+            session_error_message(public_code=ErrorCode.PRACTICE_STREAM_CLOSED)
+        )
+        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
     finally:
         cleanup_runtime = practice_service.runtime_registry.get(session_id)
         if cleanup_runtime is not None and cleanup_runtime.websocket is websocket:
             cleanup_runtime.websocket = None
         realtime_connection_closed(channel="practice_websocket")
+        logger.bind(
+            event=terminal_event,
+            operation_kind="practice",
+            session_id=session_id,
+            user_id=user_id,
+            duration_ms=round((time.monotonic() - started_at) * 1000),
+            **terminal_fields,
+        ).info("practice websocket terminal event")

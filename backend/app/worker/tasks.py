@@ -1,8 +1,10 @@
 """Celery task entrypoints for score import jobs."""
 
 from collections.abc import Callable
+import sys
 from time import monotonic
 
+from app.core.background_tracing import background_attempt_span, record_current_attempt_failure
 from app.core.logger import logger, set_task_id
 from app.db.models import RenderTargetType
 from app.db.worker_session import get_worker_db
@@ -47,6 +49,22 @@ def _clear_task_context() -> None:
 
 def _operation_logger(event: str, **context: object):
     return logger.bind(event=event, **context)
+
+
+def _start_attempt_trace(
+    *, name: str, operation_kind: str, operation_id: str, attempt: int,
+    traceparent: str | None, tracestate: str | None,
+):
+    return background_attempt_span(
+        name=name,
+        traceparent=traceparent,
+        tracestate=tracestate,
+        attributes={
+            "noteverse.operation.kind": operation_kind,
+            "noteverse.operation.id": operation_id,
+            "noteverse.operation.attempt": attempt,
+        },
+    )
 
 
 def _run_scheduler_scan(job_key: str, callback: Callable[[], dict[str, int]]) -> dict[str, int]:
@@ -135,6 +153,7 @@ def process_images_job(
     """Run the score import pipeline for one or more input images."""
 
     _bind_task_context(self)
+    trace_scope = None
     try:
         with get_worker_db() as db:
             payload = import_dispatch_service.claim(db, job_uuid)
@@ -146,6 +165,16 @@ def process_images_job(
                 status="ignored",
             ).info("import.ignored")
             return {"success": True, "job_id": job_uuid}
+
+        trace_scope = _start_attempt_trace(
+            name="noteverse.import.process",
+            operation_kind="import",
+            operation_id=job_uuid,
+            attempt=payload.attempt,
+            traceparent=payload.traceparent,
+            tracestate=payload.tracestate,
+        )
+        trace_scope.__enter__()
 
         task_log = _operation_logger(
             "import.started",
@@ -165,6 +194,7 @@ def process_images_job(
                 payload.options,
             )
         except Exception as exc:
+            record_current_attempt_failure(exc)
             _operation_logger(
                 "import.failed",
                 operation_kind="import",
@@ -191,6 +221,8 @@ def process_images_job(
         ).info("import.completed")
         return result
     finally:
+        if trace_scope is not None:
+            trace_scope.__exit__(*sys.exc_info())
         _clear_task_context()
 
 
@@ -198,6 +230,7 @@ def process_images_job(
 def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str]:
     """Deliver one persistent transactional-mail record."""
     _bind_task_context(self)
+    trace_scope = None
     try:
         with get_worker_db() as db:
             payload = mail_outbox_service.claim(db, outbox_uuid)
@@ -209,6 +242,16 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
                 status="ignored",
             ).info("mail.ignored")
             return {"status": "ignored", "outbox_uuid": outbox_uuid}
+
+        trace_scope = _start_attempt_trace(
+            name="noteverse.mail.deliver",
+            operation_kind="mail",
+            operation_id=outbox_uuid,
+            attempt=payload.attempt,
+            traceparent=payload.traceparent,
+            tracestate=payload.tracestate,
+        )
+        trace_scope.__enter__()
 
         context = {
             "operation_kind": "mail",
@@ -227,6 +270,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
                 html_body=payload.html_body,
             )
         except MailPermanentError as exc:
+            record_current_attempt_failure(exc)
             with get_worker_db() as db:
                 mail_outbox_service.permanent_failure(db, outbox_uuid, str(exc))
             _operation_logger(
@@ -237,6 +281,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
             ).warning("mail.failed")
             return {"status": "permanent_failure", "outbox_uuid": outbox_uuid}
         except MailTransientError as exc:
+            record_current_attempt_failure(exc)
             with get_worker_db() as db:
                 mail_outbox_service.transient_failure(db, outbox_uuid, str(exc))
             _operation_logger(
@@ -256,6 +301,8 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
         ).info("mail.sent")
         return {"status": "sent", "outbox_uuid": outbox_uuid}
     finally:
+        if trace_scope is not None:
+            trace_scope.__exit__(*sys.exc_info())
         _clear_task_context()
 
 
@@ -264,6 +311,7 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
     """Render one durable score-revision or review-thumbnail target."""
 
     _bind_task_context(self)
+    trace_scope = None
     try:
         with get_worker_db() as db:
             payload = render_outbox_service.claim(db, outbox_uuid)
@@ -275,6 +323,16 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
                 status="ignored",
             ).info("render.ignored")
             return {"status": "ignored", "outbox_uuid": outbox_uuid}
+
+        trace_scope = _start_attempt_trace(
+            name="noteverse.render.generate",
+            operation_kind="render",
+            operation_id=outbox_uuid,
+            attempt=payload.attempt,
+            traceparent=payload.traceparent,
+            tracestate=payload.tracestate,
+        )
+        trace_scope.__enter__()
 
         context = {
             "operation_kind": "render",
@@ -319,6 +377,7 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
             else:
                 raise ValueError(f"Unsupported render target: {payload.target_type}")
         except Exception as exc:
+            record_current_attempt_failure(exc)
             with get_worker_db() as db:
                 render_outbox_service.fail(db, outbox_uuid, str(exc))
                 if (
@@ -373,6 +432,8 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
         ).info("render.completed")
         return {"status": "rendered", "outbox_uuid": outbox_uuid, "artifact_id": artifact_id}
     finally:
+        if trace_scope is not None:
+            trace_scope.__exit__(*sys.exc_info())
         _clear_task_context()
 
 
@@ -381,6 +442,7 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
     """Generate one durable score playback asset."""
 
     _bind_task_context(self)
+    trace_scope = None
     try:
         with get_worker_db() as db:
             payload = playback_outbox_service.claim(db, outbox_uuid)
@@ -392,6 +454,16 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
                 status="ignored",
             ).info("playback.ignored")
             return {"status": "ignored", "outbox_uuid": outbox_uuid}
+
+        trace_scope = _start_attempt_trace(
+            name="noteverse.playback.generate",
+            operation_kind="playback",
+            operation_id=outbox_uuid,
+            attempt=payload.attempt,
+            traceparent=payload.traceparent,
+            tracestate=payload.tracestate,
+        )
+        trace_scope.__enter__()
 
         context = {
             "operation_kind": "playback",
@@ -415,6 +487,7 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
                     asset_kind=payload.asset_kind,
                 )
         except Exception as exc:
+            record_current_attempt_failure(exc)
             with get_worker_db() as db:
                 playback_outbox_service.fail(db, outbox_uuid, str(exc))
                 publish_score_event_sync_best_effort(
@@ -458,6 +531,8 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
         ).info("playback.completed")
         return {"status": "generated", "outbox_uuid": outbox_uuid}
     finally:
+        if trace_scope is not None:
+            trace_scope.__exit__(*sys.exc_info())
         _clear_task_context()
 
 
