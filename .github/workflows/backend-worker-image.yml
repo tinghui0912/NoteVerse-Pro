@@ -53,6 +53,7 @@ jobs:
               sha256sum \
                 docker/backend/Dockerfile.worker-deps \
                 backend/requirements/worker-app.txt \
+                backend/requirements/tracing.txt \
                 backend/requirements/ocr.txt
               printf '%s\n' "${ML_BASE_IMAGE}"
               printf '%s\n' "${LEGATO_REPO_URL}"
