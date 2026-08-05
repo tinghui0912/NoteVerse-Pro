@@ -11,6 +11,8 @@ raise the cluster-info timeout. This is a local VM stability setting for qemu2
 and should not be copied blindly into production. The upstream Argo CD
 documentation recommends `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` when slow cluster
 network/API responses make cluster-info updates exceed the default timeout.
+Argo CD accepts Go duration syntax and caps this setting at one minute, so the
+minikube overlay deliberately uses `60s` rather than a bare number.
 
 ## Scope
 
@@ -172,6 +174,11 @@ deploy/gitops/environments/staging
 ```
 
 Then perform a manual sync.
+
+The `noteverse` AppProject explicitly whitelists every namespaced resource used
+by the desired state, including `networking.k8s.io/NetworkPolicy`. Keep that
+allowlist in step with the rendered application manifests. A rejected resource
+is a delivery-boundary failure, not a reason to broaden the project to `*/*`.
 
 Argo CD first creates `Job/noteverse-db-migrate` as a `PreSync` hook. The hook
 has `BeforeHookCreation,HookSucceeded` cleanup semantics, so each manual sync
