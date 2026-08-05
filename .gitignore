@@ -17,6 +17,7 @@ Desktop.ini
 backend/.ruff_cache/
 __pycache__/
 *.pyc
+*.tsbuildinfo
 
 # Python / Node debug logs at repo root
 *.log

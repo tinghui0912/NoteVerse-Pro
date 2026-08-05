@@ -10,6 +10,7 @@ param(
         "frontend-test",
         "platform-admin-lint",
         "platform-admin-typecheck",
+        "platform-admin-test",
         "platform-admin-build",
         "k8s",
         "k8s-minikube",
@@ -169,6 +170,9 @@ switch ($Check) {
     "platform-admin-typecheck" {
         Invoke-PlatformAdminNpm "typecheck"
     }
+    "platform-admin-test" {
+        Invoke-PlatformAdminNpm "test"
+    }
     "platform-admin-build" {
         Invoke-PlatformAdminNpm "build"
     }
@@ -192,6 +196,7 @@ switch ($Check) {
         Invoke-FrontendNpm "check:i18n-errors"
         Invoke-PlatformAdminNpm "lint"
         Invoke-PlatformAdminNpm "typecheck"
+        Invoke-PlatformAdminNpm "test"
         Invoke-K8sManifestCheck
         Invoke-K8sReleaseOverlaySmokeCheck
         Invoke-ObservabilityManifestCheck

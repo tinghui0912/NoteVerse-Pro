@@ -4,6 +4,8 @@ This is the independent operator-facing Next.js application. It only calls the
 Control Plane API through its own same-origin proxy and does not share customer
 authentication cookies, API clients, layouts, or runtime configuration.
 
+Local commands require Node.js 24, matching the CI and runtime image toolchain.
+
 Required environment variable:
 
 ```text
@@ -34,10 +36,11 @@ Plane configuration:
 ```powershell
 .\scripts\quality.ps1 -Check platform-admin-lint
 .\scripts\quality.ps1 -Check platform-admin-typecheck
+.\scripts\quality.ps1 -Check platform-admin-test
 .\scripts\quality.ps1 -Check platform-admin-build
 ```
 
-`Platform Admin Quality` in GitHub Actions runs the same lint, typecheck, and
-production-build gate whenever this application changes. The application has
-no isolated domain library yet, so it intentionally has no unit-test harness;
-add one only when reusable client-side logic warrants it.
+`Platform Admin Quality` in GitHub Actions runs the same lint, typecheck,
+unit-test, and production-build gate whenever this application changes. The
+initial unit coverage protects the Control Plane client contract: same-origin
+routing, operator CSRF, pagination, and safe error mapping.

@@ -27,6 +27,7 @@ export type CurrentOperator = {
 export class ControlPlaneRequestError extends Error {
   constructor(public readonly status: number) {
     super("Control Plane request failed.");
+    this.name = "ControlPlaneRequestError";
   }
 }
 
