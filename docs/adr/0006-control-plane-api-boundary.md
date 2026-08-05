@@ -73,7 +73,7 @@ distributed transaction complexity without a present isolation requirement.
 
 ```text
 customer-web             -> app.noteverse.com
-customer-api             -> api.noteverse.com
+customer-browser-api     -> app.noteverse.com/api/v1/*
 
 platform-admin           -> admin.noteverse.com
 control-plane-api        -> cluster-internal Service by default
@@ -81,7 +81,7 @@ direct control API       -> control.noteverse.com (only for automation/direct cl
 ```
 
 The Gateway routes `admin.<environment-domain>` only to the Platform Admin application. Its BFF calls
-the internal control-plane Service; neither `app` nor `api` host routes may reach that Service. When a
+the internal control-plane Service; the customer host may not reach that Service. When a
 direct control API is required, `control.<environment-domain>` routes only to the control-plane Service
 and has a separately reviewed automation access policy. NetworkPolicy admits only the selected Gateway
 data-plane workloads and required in-cluster callers, plus the control plane's required egress

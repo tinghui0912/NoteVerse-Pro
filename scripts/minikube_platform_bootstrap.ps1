@@ -9,6 +9,7 @@ param(
     [string] $MetalLBChartVersion = "0.15.2",
     [string] $MetalLBAddressPool = $env:NOTEVERSE_METALLB_ADDRESS_POOL,
     [string] $CloudflareApiToken = $env:CLOUDFLARE_API_TOKEN,
+    [string[]] $CoreDnsUpstreams = @("1.1.1.1", "8.8.8.8"),
     [switch] $SkipCloudflareSecret,
     [switch] $SkipMetalLB
 )
@@ -90,6 +91,45 @@ function Get-DefaultMetalLBAddressPool {
     return "$($parts[0]).$($parts[1]).$($parts[2]).240-$($parts[0]).$($parts[1]).$($parts[2]).250"
 }
 
+function Ensure-CoreDnsUpstreams {
+    if ($CoreDnsUpstreams.Count -eq 0 -or ($CoreDnsUpstreams | Where-Object { [string]::IsNullOrWhiteSpace($_) })) {
+        throw "CoreDnsUpstreams must contain at least one non-empty resolver address."
+    }
+
+    $corefile = (kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}') -join "`n"
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($corefile)) {
+        throw "Unable to read the CoreDNS Corefile."
+    }
+
+    $upstreams = $CoreDnsUpstreams -join " "
+    $replacement = "forward . $upstreams {"
+    if ($corefile -match [regex]::Escape($replacement)) {
+        Write-Host "CoreDNS already uses the configured qemu2 upstream resolvers."
+        return
+    }
+
+    $updatedCorefile = $corefile -replace "forward \. /etc/resolv\.conf \{", $replacement
+    if ($updatedCorefile -eq $corefile) {
+        throw "CoreDNS Corefile did not contain the expected /etc/resolv.conf forward rule."
+    }
+
+    $patch = @{ data = @{ Corefile = $updatedCorefile } } | ConvertTo-Json -Compress
+    kubectl -n kube-system patch configmap coredns --type merge --patch $patch | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to update the CoreDNS upstream resolvers."
+    }
+
+    kubectl -n kube-system rollout restart deployment/coredns | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to restart CoreDNS after changing its upstream resolvers."
+    }
+
+    kubectl -n kube-system rollout status deployment/coredns --timeout=300s | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "CoreDNS did not become ready after changing its upstream resolvers."
+    }
+}
+
 Test-CommandAvailable "kubectl"
 Test-CommandAvailable "helm"
 Test-CommandAvailable "minikube"
@@ -108,6 +148,10 @@ Invoke-Checked "cluster:api-ready" {
 
 Invoke-Checked "cluster:nodes" {
     kubectl get nodes -o wide
+}
+
+Invoke-Checked "coredns:qemu2-upstreams" {
+    Ensure-CoreDnsUpstreams
 }
 
 Invoke-Checked "namespace:application" {

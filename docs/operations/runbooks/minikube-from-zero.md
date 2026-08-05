@@ -42,7 +42,8 @@ or external mail/provider resources.
   -Cpus 4 `
   -Memory 8192 `
   -DiskSize 80g `
-  -ExtraDisks 1
+  -ExtraDisks 1 `
+  -Cni cilium
 
 kubectl create namespace noteverse-staging --dry-run=client -o yaml | kubectl apply -f -
 ```
@@ -58,6 +59,14 @@ where.exe qemu-img
 The Docker minikube driver is not the production rehearsal path because it
 cannot attach extra block disks. Docker volumes are not block devices and should
 not be used to simulate LVM.
+
+The profile uses Cilium from cluster creation. Cilium enforces standard
+Kubernetes `NetworkPolicy`, so the staging rehearsal can prove that the
+Control Plane is reachable only from Platform Admin. Do not replace it with the
+minikube bridge CNI: bridge accepts policy objects but does not enforce them.
+For the Windows qemu2 profile only, the start script enables Cilium endpoint
+routes and restarts CoreDNS. This restores host-to-Pod forwarding in the local
+VM; it is not a production Cilium setting.
 
 Start with one qemu2 node for the repeatable from-zero rehearsal. Two-node qemu2
 on Windows can be useful for experiments, but it is more sensitive to SSH
@@ -112,11 +121,25 @@ timeouts and set small resource requests so qemu2 pauses do not cause webhook
 or controller restart loops. Production should use production platform values,
 not the minikube probe overlay.
 
+The qemu2 node's NAT resolver can be unreachable from Pods. The bootstrap
+therefore replaces CoreDNS's `/etc/resolv.conf` forwarding with explicit
+minikube-only public resolvers (`1.1.1.1` and `8.8.8.8`) and waits for CoreDNS.
+Override them only when the local network requires different reachable
+resolvers; production must use its managed-cluster DNS design instead.
+
 The bootstrap script targets the `noteverse-lvm` minikube profile by default.
 Override it only when rehearsing against a differently named profile:
 
 ```powershell
 .\scripts\minikube_platform_bootstrap.ps1 -MinikubeProfile noteverse-lvm
+```
+
+Verify that the policy-capable CNI is ready before installing or releasing the
+application:
+
+```powershell
+kubectl -n kube-system rollout status daemonset/cilium --timeout=300s
+kubectl -n kube-system get pods -l k8s-app=cilium -o wide
 ```
 
 The bootstrap checks the active Kubernetes context and the API server's
@@ -153,7 +176,7 @@ Use real DNS names for certificate issuance:
 
 ```text
 staging.johnabc.ccwu.cc
-api.staging.johnabc.ccwu.cc
+admin.staging.johnabc.ccwu.cc
 ```
 
 DNS-01 creates temporary `_acme-challenge` TXT records automatically. MetalLB
@@ -171,7 +194,7 @@ hosts entries:
 
 ```text
 127.0.0.1 staging.johnabc.ccwu.cc
-127.0.0.1 api.staging.johnabc.ccwu.cc
+127.0.0.1 admin.staging.johnabc.ccwu.cc
 ```
 
 Edit on Windows from an elevated PowerShell:
@@ -184,7 +207,7 @@ The LoadBalancer IP can still be validated from inside the minikube VM:
 
 ```powershell
 minikube -p noteverse-lvm ssh -- "curl -vk --resolve staging.johnabc.ccwu.cc:443:<gateway-address> https://staging.johnabc.ccwu.cc/zh/upload --max-time 20"
-minikube -p noteverse-lvm ssh -- "curl -vk --resolve api.staging.johnabc.ccwu.cc:443:<gateway-address> https://api.staging.johnabc.ccwu.cc/health/live --max-time 20"
+minikube -p noteverse-lvm ssh -- "curl -vk --resolve staging.johnabc.ccwu.cc:443:<gateway-address> https://staging.johnabc.ccwu.cc/health/live --max-time 20"
 ```
 
 On Windows/qemu2, prefer local 443 port-forward for browser testing even when
@@ -371,7 +394,6 @@ $env:NOTEVERSE_S3_FORCE_PATH_STYLE = "false"
 The checked-in `deploy/application/overlays/staging` directory is a template.
 It intentionally keeps placeholder hosts such as
 `staging.noteverse.example.invalid` and
-`api.staging.noteverse.example.invalid`, and
 `admin.staging.noteverse.example.invalid`. The rendered directory under
 `build/k8s-release/minikube` is the deployable overlay and should contain the
 real test hosts, image tags, and S3 settings.

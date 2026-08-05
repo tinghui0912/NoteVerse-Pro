@@ -200,7 +200,6 @@ GitHub Environment variables provide non-secret render values such as:
 
 ```text
 *_FRONTEND_HOST
-*_API_HOST
 *_TLS_SECRET
 *_FRONTEND_BASE_URL
 *_BACKEND_CORS_ORIGINS
@@ -222,8 +221,8 @@ silently invent a browser security policy when the runtime is enabled.
 
 `*_ADMIN_HOST` is the dedicated browser host for Platform Admin. It is rendered
 into the certificate SANs, Gateway listener, HTTPRoute, release metadata, and
-Control Plane CORS contract. It must never equal the customer frontend or API
-host. The control-plane Service remains internal; the Admin application reaches
+Control Plane CORS contract. It must never equal the customer frontend host.
+The control-plane Service remains internal; the Admin application reaches
 it through its same-origin BFF.
 
 Database URLs, Redis URLs, cookie secrets, S3 access keys, mail API keys, and

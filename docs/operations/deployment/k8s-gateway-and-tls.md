@@ -146,7 +146,7 @@ spec:
   secretName: noteverse-staging-tls
   dnsNames:
     - staging.johnabc.ccwu.cc
-    - api.staging.johnabc.ccwu.cc
+    - admin.staging.johnabc.ccwu.cc
   issuerRef:
     name: letsencrypt-production-dns01
     kind: ClusterIssuer
@@ -176,14 +176,14 @@ Cert-manager creates temporary records such as:
 
 ```text
 _acme-challenge.staging.johnabc.ccwu.cc
-_acme-challenge.api.staging.johnabc.ccwu.cc
+_acme-challenge.admin.staging.johnabc.ccwu.cc
 ```
 
 Create browser-facing DNS records for the Gateway entrypoint:
 
 ```text
 staging.johnabc.ccwu.cc      CNAME or A/AAAA -> Gateway load balancer
-api.staging.johnabc.ccwu.cc  CNAME or A/AAAA -> Gateway load balancer
+admin.staging.johnabc.ccwu.cc CNAME or A/AAAA -> Gateway load balancer
 ```
 
 For minikube production-flow rehearsal, install MetalLB so the Envoy data-plane
@@ -212,7 +212,7 @@ Check Gateway API resources:
 kubectl -n noteverse-staging get gateway,httproute
 kubectl -n noteverse-staging describe gateway noteverse
 kubectl -n noteverse-staging describe httproute noteverse-web
-kubectl -n noteverse-staging describe httproute noteverse-api
+kubectl -n noteverse-staging describe httproute noteverse-platform-admin
 ```
 
 Check cert-manager status:

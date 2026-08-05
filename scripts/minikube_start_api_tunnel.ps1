@@ -44,14 +44,45 @@ function Set-KubeconfigApiServer {
     kubectl config set-cluster $ProfileName --server=$server | Out-Host
 }
 
+function Test-ApiTunnel {
+    param([int] $Port)
+
+    try {
+        $response = Invoke-WebRequest `
+            -Uri "https://127.0.0.1:$Port/readyz" `
+            -SkipCertificateCheck `
+            -TimeoutSec 5 `
+            -ErrorAction Stop
+        return $response.StatusCode -eq 200
+    }
+    catch {
+        return $false
+    }
+}
+
 $sshPort = Get-QemuSshPort -ProfileName $Profile
 
 $existing = Get-NetTCPConnection -LocalPort $LocalPort -State Listen -ErrorAction SilentlyContinue
 if ($existing) {
-    Write-Host "==> tunnel:already-listening:$LocalPort" -ForegroundColor Cyan
-    $existing | Select-Object LocalAddress, LocalPort, State, OwningProcess | Out-Host
-    Set-KubeconfigApiServer -ProfileName $Profile -Port $LocalPort
-    return
+    if (Test-ApiTunnel -Port $LocalPort) {
+        Write-Host "==> tunnel:already-healthy:$LocalPort" -ForegroundColor Cyan
+        $existing | Select-Object LocalAddress, LocalPort, State, OwningProcess | Out-Host
+        Set-KubeconfigApiServer -ProfileName $Profile -Port $LocalPort
+        return
+    }
+
+    $processIds = $existing.OwningProcess | Sort-Object -Unique
+    foreach ($processId in $processIds) {
+        $process = Get-Process -Id $processId -ErrorAction Stop
+        if ($process.ProcessName -ne "ssh") {
+            throw "Port $LocalPort is occupied by $($process.ProcessName), not a reusable minikube SSH tunnel."
+        }
+
+        Stop-Process -Id $processId -Force
+    }
+
+    Write-Warning "Replaced an unhealthy minikube API tunnel on local port $LocalPort."
+    Start-Sleep -Seconds 1
 }
 
 Write-Host "==> tunnel:start:$Profile $LocalPort -> $RemotePort via ssh port $sshPort" -ForegroundColor Cyan
@@ -81,5 +112,9 @@ Start-Sleep -Seconds 2
 Get-NetTCPConnection -LocalPort $LocalPort -State Listen -ErrorAction Stop |
     Select-Object LocalAddress, LocalPort, State, OwningProcess |
     Out-Host
+
+if (-not (Test-ApiTunnel -Port $LocalPort)) {
+    throw "The new minikube API tunnel did not become healthy."
+}
 
 Set-KubeconfigApiServer -ProfileName $Profile -Port $LocalPort

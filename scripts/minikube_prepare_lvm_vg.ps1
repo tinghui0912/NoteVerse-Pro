@@ -64,6 +64,9 @@ $nodeScriptTemplate = @'
 set -eu
 
 VG_NAME="__VG_NAME__"
+# The script is streamed from Windows to a Linux shell. Normalize the value
+# defensively so a transport CR can never become part of an LVM identifier.
+VG_NAME="$(printf '%s' "$VG_NAME" | tr -d '\r\n')"
 
 if ! command -v pvcreate >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
