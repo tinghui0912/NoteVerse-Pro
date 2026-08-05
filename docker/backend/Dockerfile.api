@@ -29,6 +29,7 @@ COPY backend/requirements/api.txt \
      backend/requirements/image.txt \
      backend/requirements/migrations.txt \
      backend/requirements/storage.txt \
+     backend/requirements/tracing.txt \
      /tmp/requirements/
 
 RUN python -m pip install --upgrade pip setuptools wheel \
