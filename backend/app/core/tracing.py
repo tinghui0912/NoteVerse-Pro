@@ -12,6 +12,9 @@ from app.core.config import settings
 from app.core.logger import logger
 
 
+EXCLUDED_TRACE_URLS = "/health/live,/health/ready,/metrics"
+
+
 def configure_api_tracing(app: FastAPI) -> None:
     """Configure FastAPI request tracing when explicitly enabled."""
 
@@ -41,5 +44,9 @@ def configure_api_tracing(app: FastAPI) -> None:
     )
     trace.set_tracer_provider(provider)
 
-    FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
+    FastAPIInstrumentor.instrument_app(
+        app,
+        tracer_provider=provider,
+        excluded_urls=EXCLUDED_TRACE_URLS,
+    )
     logger.info("observability.tracing.enabled")

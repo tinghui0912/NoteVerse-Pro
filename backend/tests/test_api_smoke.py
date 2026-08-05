@@ -33,6 +33,23 @@ def test_root_endpoint(client: TestClient) -> None:
     assert "docs" in payload
 
 
+def test_request_correlation_replaces_invalid_external_identifier(client: TestClient) -> None:
+    response = client.get("/", headers={"X-Request-ID": "unsafe identifier"})
+
+    request_id = response.headers["X-Request-ID"]
+    assert response.status_code == 200
+    assert request_id != "unsafe identifier"
+    assert len(request_id) == 32
+    assert all(character in "0123456789abcdef" for character in request_id)
+
+
+def test_request_correlation_preserves_valid_external_identifier(client: TestClient) -> None:
+    response = client.get("/", headers={"X-Request-ID": "release-20260805.1"})
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "release-20260805.1"
+
+
 def test_docs_endpoints(client: TestClient) -> None:
     docs_response = client.get("/docs")
     redoc_response = client.get("/redoc")

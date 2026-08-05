@@ -100,6 +100,27 @@ Remaining gaps:
   `next_retry_at`;
 - audit events, analytics events, and runtime logs are not fully separated.
 
+### Current Runtime Reality
+
+The repository contains Kubernetes manifests and application configuration for
+Fluent Bit, Loki, Tempo, Grafana, and the OpenTelemetry Collector. Those files
+do not, by themselves, prove that the observability runtime is deployed or
+healthy in an environment.
+
+At the time this roadmap was consolidated, staging configured
+`OTEL_TRACING_ENABLED=true` and an OTLP Collector endpoint while the referenced
+`observability` namespace was absent. This is a P0 configuration defect:
+applications must not claim tracing is enabled when no reachable Collector is
+available. Tracing exporters must remain fail-open for customer traffic, but
+the missing pipeline must be visible through deployment validation and platform
+alerts.
+
+There is also a semantic defect in the current application logger:
+`trace_id` is presently used for a short request-correlation value. It is not a
+real OpenTelemetry trace ID and must not be used to link Loki logs to Tempo.
+The implementation work below separates the two concepts before trace links
+are enabled again.
+
 ## Principles
 
 1. **Observability is not console logging.**
@@ -481,8 +502,142 @@ Acceptance criteria:
 14. Add repository quality entry point for Kubernetes application manifest
     guardrails.
 15. Add OpenTelemetry -> Tempo tracing only after the local facades and
-    correlation contracts are stable, following
-    `docs/operations/observability/opentelemetry-tempo-tracing-plan.md`.
+   correlation contracts are stable, following
+   `docs/operations/observability/opentelemetry-tempo-tracing-plan.md`.
+
+## Current Execution Plan
+
+This section supersedes the historical ordering above for remaining work. The
+older roadmap entries remain as a record of completed baseline work. Do not
+start asynchronous trace propagation or browser tracing before P0 and P1 have
+passed their acceptance gates.
+
+**Implementation status (2026-08):** P0 is complete in staging. P1 and the
+runtime portions of P2 are implemented in the application source and await the
+next digest-pinned application release for staging confirmation. P3 and P4
+remain planned work; neither has been represented as complete merely because
+the baseline Collector, Loki, Tempo, and Grafana stack is running.
+
+### P0 - Restore Runtime Truthfulness
+
+**Objective:** eliminate staging configurations that assert a telemetry
+pipeline exists when its runtime is unavailable, and remove invalid log-to-trace
+navigation.
+
+1. Deploy and verify the observability runtime required by the selected
+   environment: OpenTelemetry Collector, Fluent Bit, Loki, Tempo, Grafana, and
+   their required storage and credentials.
+2. Add release/preflight validation that permits `OTEL_TRACING_ENABLED=true`
+   only when the intended Collector Service is rendered and becomes Ready.
+   Environments deliberately without a Collector must explicitly set
+   `OTEL_TRACING_ENABLED=false`; there is no implicit endpoint fallback.
+3. Keep exporter failures fail-open for customer traffic. Bound exporter queues
+   and error logging, export pipeline-health telemetry, and alert when traces
+   or logs are being dropped.
+4. Disable the Loki-to-Tempo derived field until logs contain genuine
+   OpenTelemetry trace IDs. A request correlation ID is queryable in Loki but
+   is never a Tempo link.
+
+**Acceptance gate:** a staging request produces no OTLP `UNAVAILABLE` noise;
+the deployed Collector, Loki, and Tempo are healthy; and the release checker
+rejects tracing enabled against an unavailable pipeline.
+
+### P1 - Correct Correlation and Log Schema
+
+**Objective:** make request correlation, trace correlation, and resource
+identity distinct, stable contracts.
+
+1. Rename `trace_id_var` to `request_id_var`; generate a complete UUID or
+   ULID rather than an eight-character token.
+2. Validate inbound `X-Request-ID` values for bounded length and safe syntax.
+   Reject malformed values and create a server request ID. Preserve a valid
+   client-provided value only under the documented request-ID contract.
+3. Add `trace_id` and `span_id` to JSON logs only by extracting a valid current
+   OpenTelemetry Span Context. `trace_id` is 32 lowercase hexadecimal
+   characters and `span_id` is 16; neither is synthesized when no Span exists.
+4. Version the JSON schema and bind stable resource fields to every first-party
+   service log: `schema_version`, `service_name`, `service_version`, and
+   `environment`. Use `deployment.environment.name` in OTLP resource
+   enrichment.
+5. Restore the Grafana derived field only after it matches a real 32-character
+   trace ID and staging verifies the link into Tempo.
+
+**Acceptance gate:** one API request can be found by `request_id` in Loki and,
+when sampled, its log links to the matching Trace in Tempo. No query, dashboard,
+or alert treats `request_id` as a trace ID.
+
+### P2 - Noise, Privacy, and Query Governance
+
+**Objective:** preserve one useful lifecycle event per request while preventing
+accidental sensitive-data retention or costly Loki indexes.
+
+1. Disable Uvicorn access logging for API, practice, control-plane, and
+   observability-exporter processes. Keep structured application lifecycle
+   events and `uvicorn.error` through the common stdout pipeline.
+2. Exclude successful `/health/*` and `/metrics` requests from application
+   request logs and OpenTelemetry instrumentation. Health failures remain
+   visible through Kubernetes, Gateway, and platform signals.
+3. Replace redaction-only protection with a documented event-field allowlist,
+   denylist, and regression tests. Do not log bodies, credentials, cookies,
+   tokens, MusicXML, media bytes, storage keys, raw exception payloads, or
+   unnecessary personal data.
+4. Curate Loki labels to stable low-cardinality dimensions only:
+   `cluster`, `environment`, `namespace`, `service`, `container`, and `level`.
+   Keep request, trace, user, task, operation, pod, and resource identifiers in
+   the JSON body or structured metadata.
+5. Update dashboard, query, and runbook terminology from `frontend` to
+   `customer-web` and distinguish customer-web, platform-admin, API, practice,
+   worker, beat, control plane, and exporter workloads.
+
+**Acceptance gate:** a normal request yields one lifecycle log event; successful
+probes do not create routine INFO logs or spans; privacy regression tests pass;
+and Loki queries never depend on high-cardinality labels.
+
+### P3 - Outbox and Celery Trace Context Model
+
+**Objective:** trace asynchronous work without confusing durable business
+correlation with transient task execution.
+
+1. Define a durable context model for `request_id`, `operation_id`, `job_id`,
+   `outbox_id`, `task_id`, and `attempt`.
+2. Persist W3C `traceparent` and optional `tracestate` as message-creation
+   context on durable outbox records. Do not persist unreviewed baggage.
+3. Have the relay create producer spans and workers create a fresh consumer
+   span for every attempt. Consumer spans link to the original message context
+   where batching, delay, retry, or fan-out makes a direct parent-child tree
+   misleading.
+4. Instrument Celery initialization explicitly and test context extraction in
+   worker processes. Do not rely on in-memory context or broker-specific
+   behavior as the durable source of truth.
+5. Define independent roots for scheduled maintenance work that has no HTTP
+   origin, while retaining its operation and scheduler identifiers.
+
+**Acceptance gate:** an import or derived-asset operation can be followed from
+the initiating HTTP request to relay and worker attempts in Tempo, with retries
+shown as separate attempts and all business identifiers available in logs.
+
+### P4 - Platform Reliability, Retention, and Cost
+
+**Objective:** operate the observability stack as production infrastructure,
+not merely as a set of installed charts.
+
+1. Add platform dashboards and alerts for Collector acceptance/export failures,
+   Fluent Bit drops, Loki ingestion/query/object-storage failures, Tempo
+   receive/store/query failures, and Prometheus scrape failures.
+2. Define environment-specific sampling, log and trace retention, object-store
+   lifecycle policies, capacity budgets, and an owner for reviewing them.
+3. Evaluate SQLAlchemy, outbound HTTP, Redis, and Celery instrumentation one
+   integration at a time, with explicit attribute allowlists and overhead
+   checks. Do not instrument practice audio chunks or other high-volume payload
+   paths indiscriminately.
+4. Keep browser telemetry behind the existing vendor-neutral facade. Evaluate
+   a self-hosted ingestion path only after backend correlation and retention are
+   stable; Sentry remains out of scope.
+
+**Acceptance gate:** platform dashboards detect an intentional telemetry
+failure, alerts reach the configured operations channel, data retention follows
+the documented lifecycle, and a staging smoke test validates logs, traces,
+metrics, and storage persistence end to end.
 
 ## Non-goals For The Next Iteration
 

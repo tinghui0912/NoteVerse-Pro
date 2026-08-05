@@ -7,7 +7,7 @@ export PYTHONPATH="/app:${PYTHONPATH:-}"
 
 case "${1:-api}" in
   api)
-    uvicorn_args=(app.main:app --host 0.0.0.0 --port "${PORT:-8000}")
+    uvicorn_args=(app.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
     if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
       uvicorn_args+=(--reload)
     fi
@@ -15,7 +15,7 @@ case "${1:-api}" in
     ;;
   practice)
     python scripts/check_runtime.py --role practice
-    uvicorn_args=(app.practice_main:app --host 0.0.0.0 --port "${PORT:-8000}")
+    uvicorn_args=(app.practice_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
     if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
       uvicorn_args+=(--reload)
     fi
@@ -23,7 +23,7 @@ case "${1:-api}" in
     ;;
   control)
     python scripts/check_runtime.py --role control
-    uvicorn_args=(app.control_plane_main:app --host 0.0.0.0 --port "${PORT:-8000}")
+    uvicorn_args=(app.control_plane_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
     if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
       uvicorn_args+=(--reload)
     fi
@@ -31,7 +31,7 @@ case "${1:-api}" in
     ;;
   observability-exporter)
     python scripts/check_runtime.py --role observability-exporter
-    uvicorn_args=(app.observability_main:app --host 0.0.0.0 --port "${PORT:-8000}")
+    uvicorn_args=(app.observability_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
     exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
   worker)

@@ -46,12 +46,10 @@ grafana:
           type: loki
           access: proxy
           url: http://loki.observability.svc.cluster.local:3100
-          jsonData:
-            derivedFields:
-              - datasourceUid: tempo
-                matcherRegex: '"trace_id":"([a-f0-9]+)"'
-                name: trace_id
-                url: "$${__value.raw}"
+          # A Loki-to-Tempo derived field is intentionally not configured yet.
+          # Current application logs use trace_id as a short request correlation
+          # value, not as a W3C/OpenTelemetry trace ID. Re-enable the link only
+          # after logs emit validated 32-character OTel trace IDs.
         - name: Tempo
           uid: tempo
           type: tempo

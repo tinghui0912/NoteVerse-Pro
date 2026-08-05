@@ -2,6 +2,7 @@ param(
     [string] $AppNamespace = "noteverse-staging",
     [string] $ObservabilityNamespace = "observability",
     [string] $ApiDeployment = "noteverse-backend-api",
+    [string] $Profile = $(if ($env:MINIKUBE_PROFILE) { $env:MINIKUBE_PROFILE } else { "noteverse-lvm" }),
     [switch] $ApplyDnsFix,
     [switch] $ValidateTracing
 )
@@ -30,14 +31,16 @@ function Test-CommandAvailable {
 }
 
 Test-CommandAvailable "kubectl"
-Test-CommandAvailable "minikube"
-
-Invoke-Checked "minikube:status" {
-    minikube status
+Invoke-Checked "cluster:nodes" {
+    $currentContext = (kubectl config current-context).Trim()
+    if ($currentContext -ne $Profile) {
+        throw "Current kubeconfig context is '$currentContext'; expected '$Profile'."
+    }
+    kubectl get nodes -o wide
 }
 
-Invoke-Checked "cluster:nodes" {
-    kubectl get nodes -o wide
+Invoke-Checked "cluster:api-ready" {
+    kubectl get --raw='/readyz' | Out-Null
 }
 
 if ($ApplyDnsFix) {
