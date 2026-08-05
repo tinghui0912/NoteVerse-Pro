@@ -154,6 +154,18 @@ Use `-ScaleWorkerToZero` only while the Kubernetes GPU worker path is paused
 and the worker is being tested through Docker Compose against the same
 PostgreSQL, Redis, and S3 settings.
 
+The release-prepare script deliberately applies resources in this order:
+
+1. bootstrap resources such as ConfigMaps, Services, Gateway routes,
+   certificates, and NetworkPolicies;
+2. `noteverse-db-migrate`, waiting for successful completion;
+3. Deployments and DaemonSets, then their readiness checks.
+
+Do not replace this with a single `kubectl apply -k` for a staged release: that
+would allow new application Pods to begin competing for node I/O before the
+schema gate has completed. GitOps uses the equivalent Argo CD `PreSync`
+migration hook: a failed migration blocks ordinary workload synchronization.
+
 When `-BackendSecretEnvFile` is used, the prepare script filters the env file
 to the required credential keys before creating `Secret/noteverse-backend-secret`.
 The rendered ConfigMaps remain the source of truth for public/runtime settings
@@ -245,6 +257,8 @@ Before applying:
 After applying:
 
 - migration job succeeded;
+- the Control Plane and Platform Admin NetworkPolicies pass the allow/deny
+  smoke test in the Cilium-backed staging cluster;
 - frontend is reachable through Gateway/TLS;
 - API health passes;
 - upload/import/review/score/share smoke path passes;

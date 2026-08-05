@@ -2,6 +2,12 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: noteverse-db-migrate
+  annotations:
+    # Argo CD runs the schema gate before synchronizing ordinary workloads.
+    # Direct kubectl release preparation preserves the same ordering itself.
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "-1"
   labels:
     app.kubernetes.io/component: migration
 spec:

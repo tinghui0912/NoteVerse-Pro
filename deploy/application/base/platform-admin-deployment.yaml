@@ -9,6 +9,7 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: noteverse
+      app.kubernetes.io/part-of: noteverse
       app.kubernetes.io/component: platform-admin
   template:
     metadata:
