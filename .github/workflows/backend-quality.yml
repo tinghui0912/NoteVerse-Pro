@@ -2,6 +2,7 @@ name: Backend Quality
 
 on:
   push:
+    branches: [main]
     paths:
       - "backend/**"
       - "docker/backend/Dockerfile.quality"

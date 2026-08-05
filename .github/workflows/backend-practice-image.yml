@@ -3,6 +3,7 @@ name: Backend Practice Image
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - "backend/**"
       - "docker/backend/Dockerfile.practice"

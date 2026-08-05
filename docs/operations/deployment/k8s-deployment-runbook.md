@@ -76,12 +76,12 @@ python scripts/render_k8s_release_overlay.py \
   --backend-practice-image ghcr.io/<owner>/noteverse/backend-practice@sha256:<digest> \
   --backend-beat-image ghcr.io/<owner>/noteverse/backend-beat@sha256:<digest> \
   --backend-worker-image ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest> \
-  --frontend-image ghcr.io/<owner>/noteverse/frontend@sha256:<digest> \
+  --customer-web-image ghcr.io/<owner>/noteverse/customer-web@sha256:<digest> \
   --platform-admin-image ghcr.io/<owner>/noteverse/platform-admin@sha256:<digest> \
-  --frontend-host noteverse.example.com \
+  --customer-web-host noteverse.example.com \
   --admin-host admin.noteverse.example.com \
   --tls-secret noteverse-production-tls \
-  --frontend-base-url https://noteverse.example.com \
+  --customer-web-base-url https://noteverse.example.com \
   --backend-cors-origins '["https://noteverse.example.com"]' \
   --control-plane-cors-origins '["https://admin.noteverse.example.com"]' \
   --trusted-proxy-cidrs '["<gateway-data-plane-cidr>"]' \
@@ -273,7 +273,7 @@ Check workload status:
 kubectl -n noteverse-production rollout status deployment/noteverse-backend-api
 kubectl -n noteverse-production rollout status deployment/noteverse-backend-worker
 kubectl -n noteverse-production rollout status deployment/noteverse-backend-beat
-kubectl -n noteverse-production rollout status deployment/noteverse-frontend
+kubectl -n noteverse-production rollout status deployment/noteverse-customer-web
 ```
 
 Check pods:
@@ -294,7 +294,7 @@ curl -f http://127.0.0.1:8000/metrics
 Check frontend:
 
 ```bash
-kubectl -n noteverse-production port-forward svc/noteverse-frontend 3000:3000
+kubectl -n noteverse-production port-forward svc/noteverse-customer-web 3000:3000
 curl -f http://127.0.0.1:3000/
 ```
 
@@ -361,7 +361,7 @@ Tempo:
 Frontend-only rollback:
 
 ```bash
-kubectl -n noteverse-production rollout undo deployment/noteverse-frontend
+kubectl -n noteverse-production rollout undo deployment/noteverse-customer-web
 ```
 
 API rollback without schema changes:

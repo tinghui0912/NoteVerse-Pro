@@ -3,6 +3,7 @@ name: Platform Admin Image
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - "apps/platform-admin/**"
       - "docker/platform-admin/**"

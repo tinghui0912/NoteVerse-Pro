@@ -1,12 +1,12 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: noteverse-frontend
+  name: noteverse-customer-web
   labels:
-    app.kubernetes.io/component: frontend
+    app.kubernetes.io/component: customer-web
 spec:
   minAvailable: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: noteverse
-      app.kubernetes.io/component: frontend
+      app.kubernetes.io/component: customer-web

@@ -12,7 +12,7 @@ Related documents:
 
 ## Goals
 
-- build immutable backend and frontend images from a Git commit;
+- build immutable backend and Customer Web images from a Git commit;
 - promote the same tested image from staging to production;
 - make image tags traceable to source;
 - keep GPU/ML runtime dependencies explicit;
@@ -33,13 +33,13 @@ Current Dockerfiles:
 | `docker/backend/Dockerfile.worker-deps` | Shared worker dependency base image | yes, as a base image |
 | `docker/backend/Dockerfile.worker` | Celery worker and model-cache-agent runtime image | yes, after worker deps are published |
 | `docker/backend/Dockerfile.quality` | Backend quality-check image for local/CI checks | no, not deployed |
-| `docker/frontend/Dockerfile.dev` | Next.js development runtime | no |
-| `docker/frontend/Dockerfile.runtime` | Next.js production runtime | initial production path |
+| `docker/customer-web/Dockerfile.dev` | Next.js development runtime | no |
+| `docker/customer-web/Dockerfile.runtime` | Next.js production runtime | initial production path |
 | `docker/transcoda/*` | Transcoda experimental/runtime images | not part of main deployment path |
 
 Frontend runtime path:
 
-- `docker/frontend/Dockerfile.runtime` exists;
+- `docker/customer-web/Dockerfile.runtime` exists;
 - browser API and realtime traffic use same-origin `/api/v1`;
 - environment-specific backend routing belongs in Gateway/HTTPRoute rules and
   `NEXT_BACKEND_ORIGIN`, not in browser-bundled `NEXT_PUBLIC_*` values.
@@ -55,7 +55,7 @@ Recommended registry paths:
 <registry>/noteverse/backend-beat
 <registry>/noteverse/backend-worker-deps
 <registry>/noteverse/backend-worker
-<registry>/noteverse/frontend
+<registry>/noteverse/customer-web
 <registry>/noteverse/ml-base
 ```
 
@@ -68,7 +68,7 @@ ghcr.io/<github-owner>/noteverse/backend-practice
 ghcr.io/<github-owner>/noteverse/backend-beat
 ghcr.io/<github-owner>/noteverse/backend-worker-deps
 ghcr.io/<github-owner>/noteverse/backend-worker
-ghcr.io/<github-owner>/noteverse/frontend
+ghcr.io/<github-owner>/noteverse/customer-web
 ```
 
 GHCR package visibility is controlled by GitHub package settings. Keep
@@ -106,7 +106,7 @@ Every deployable image must have an immutable source tag:
 <registry>/noteverse/backend-practice:<git-sha>
 <registry>/noteverse/backend-beat:<git-sha>
 <registry>/noteverse/backend-worker:<git-sha>
-<registry>/noteverse/frontend:<git-sha>
+<registry>/noteverse/customer-web:<git-sha>
 ```
 
 Recommended additional metadata tags:
@@ -117,7 +117,7 @@ Recommended additional metadata tags:
 <registry>/noteverse/backend-practice:build-<run-id>
 <registry>/noteverse/backend-beat:build-<run-id>
 <registry>/noteverse/backend-worker:build-<run-id>
-<registry>/noteverse/frontend:build-<run-id>
+<registry>/noteverse/customer-web:build-<run-id>
 ```
 
 Optional mutable aliases:
@@ -128,13 +128,13 @@ Optional mutable aliases:
 <registry>/noteverse/backend-practice:staging
 <registry>/noteverse/backend-beat:staging
 <registry>/noteverse/backend-worker:staging
-<registry>/noteverse/frontend:staging
+<registry>/noteverse/customer-web:staging
 <registry>/noteverse/backend-api:production
 <registry>/noteverse/backend-practice-deps:production
 <registry>/noteverse/backend-practice:production
 <registry>/noteverse/backend-beat:production
 <registry>/noteverse/backend-worker:production
-<registry>/noteverse/frontend:production
+<registry>/noteverse/customer-web:production
 ```
 
 Rules:
@@ -155,7 +155,7 @@ The safest production reference is an image digest:
 <registry>/noteverse/backend-practice@sha256:<digest>
 <registry>/noteverse/backend-beat@sha256:<digest>
 <registry>/noteverse/backend-worker@sha256:<digest>
-<registry>/noteverse/frontend@sha256:<digest>
+<registry>/noteverse/customer-web@sha256:<digest>
 ```
 
 If using tags in manifests, release metadata must record the resolved digest.
@@ -173,8 +173,8 @@ Production release records should include:
 - backend practice image digest;
 - backend worker image tag;
 - backend worker image digest;
-- frontend image tag;
-- frontend image digest;
+- Customer Web image tag;
+- Customer Web image digest;
 - build run ID;
 - migration revision;
 - approver.
@@ -372,7 +372,7 @@ docker build \
   .
 ```
 
-The API, beat, practice, and frontend image workflows are split by runtime
+The API, beat, practice, and Customer Web image workflows are split by runtime
 boundary. The `Backend Worker Image` workflow builds the worker dependency image
 and final worker image separately because they depend on the heavier ML base
 image and should be promoted deliberately.
@@ -409,12 +409,12 @@ Backend quality images are non-deployed check images:
 images must not install ruff, mypy, pytest, pre-commit, or practice-only Cython
 dependencies just to satisfy quality checks.
 
-## Frontend Image Build
+## Customer Web Image Build
 
 Current state:
 
-- `docker/frontend/Dockerfile.dev` is for local development only;
-- `docker/frontend/Dockerfile.runtime` is the production runtime path;
+- `docker/customer-web/Dockerfile.dev` is for local development only;
+- `docker/customer-web/Dockerfile.runtime` is the production runtime path;
 - frontend Dockerfiles use the Node 24 LTS image line, not `node:latest`;
 - both frontend Dockerfiles use a pinned npm version on top of the Node base
   image so the globally bundled npm dependencies are deterministic and can be
@@ -437,16 +437,16 @@ Recommended future build:
 
 ```bash
 docker build \
-  -f docker/frontend/Dockerfile.runtime \
+  -f docker/customer-web/Dockerfile.runtime \
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 \
   --build-arg NEXT_PRACTICE_ORIGIN=http://noteverse-backend-practice:8000 \
   --build-arg SESSION_COOKIE_NAME=noteverse_session \
   --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh \
-  -t <registry>/noteverse/frontend:<git-sha> \
+  -t <registry>/noteverse/customer-web:<git-sha> \
   .
 ```
 
-The frontend image build uses neutral build argument names for cookie names so
+The Customer Web image build uses neutral build argument names for cookie names so
 Docker does not confuse runtime cookie naming with secret material. Real secrets
 must still be provided through Kubernetes Secrets and must not be passed as
 Docker build args.
@@ -464,7 +464,7 @@ Frontend:
 
 - cache npm dependencies by `package-lock.json`;
 - do not copy local `.next` or `node_modules`;
-- keep npm itself pinned inside frontend images; app-level `package.json`
+- keep npm itself pinned inside Customer Web images; app-level `package.json`
   overrides do not remediate vulnerabilities in the base image's global npm
   installation;
 - keep runtime image smaller than the build image when the production Dockerfile
@@ -526,7 +526,7 @@ CI/CD should:
 2. build or select the pinned ML base image;
 3. build or select the pinned practice dependency base image;
 4. build backend worker image from that ML base;
-5. build backend API, backend practice, backend beat, and frontend images with
+5. build backend API, backend practice, backend beat, and Customer Web images with
    their dedicated image workflows;
 6. push commit SHA tags;
 7. capture image digests;
@@ -544,7 +544,7 @@ P0 before production:
 
 - connect the pushed GHCR image digests to private staging/production overlay
   generation;
-- record backend/frontend image digests in release metadata;
+- record backend/Customer Web image digests in release metadata;
 - extend the environment-driven release package workflow from staging to
   production after approval rules are finalized;
 - run strict manifest validation against private overlays.

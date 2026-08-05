@@ -23,8 +23,8 @@ on:
         description: "Optional full backend worker image reference override"
         required: false
         type: string
-      frontend_image:
-        description: "Optional full frontend image reference override"
+      customer_web_image:
+        description: "Optional full Customer Web image reference override"
         required: false
         type: string
       platform_admin_image:
@@ -71,7 +71,7 @@ jobs:
           BACKEND_BEAT_IMAGE="${{ inputs.backend_beat_image }}"
           BACKEND_PRACTICE_IMAGE="${{ inputs.backend_practice_image }}"
           BACKEND_WORKER_IMAGE="${{ inputs.backend_worker_image }}"
-          FRONTEND_IMAGE="${{ inputs.frontend_image }}"
+          CUSTOMER_WEB_IMAGE="${{ inputs.customer_web_image }}"
           PLATFORM_ADMIN_IMAGE="${{ inputs.platform_admin_image }}"
 
           if [ -n "${IMAGE_TAG}" ]; then
@@ -87,8 +87,8 @@ jobs:
             if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
               BACKEND_WORKER_IMAGE="${IMAGE_NAMESPACE}/backend-worker:${IMAGE_TAG}"
             fi
-            if [ -z "${FRONTEND_IMAGE}" ]; then
-              FRONTEND_IMAGE="${IMAGE_NAMESPACE}/frontend:${IMAGE_TAG}"
+            if [ -z "${CUSTOMER_WEB_IMAGE}" ]; then
+              CUSTOMER_WEB_IMAGE="${IMAGE_NAMESPACE}/customer-web:${IMAGE_TAG}"
             fi
             if [ -z "${PLATFORM_ADMIN_IMAGE}" ]; then
               PLATFORM_ADMIN_IMAGE="${IMAGE_NAMESPACE}/platform-admin:${IMAGE_TAG}"
@@ -117,8 +117,8 @@ jobs:
             if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
               BACKEND_WORKER_IMAGE="$(read_current_image backend_worker)"
             fi
-            if [ -z "${FRONTEND_IMAGE}" ]; then
-              FRONTEND_IMAGE="$(read_current_image frontend)"
+            if [ -z "${CUSTOMER_WEB_IMAGE}" ]; then
+              CUSTOMER_WEB_IMAGE="$(read_current_image customer_web)"
             fi
             if [ -z "${PLATFORM_ADMIN_IMAGE}" ]; then
               PLATFORM_ADMIN_IMAGE="$(read_current_image platform_admin)"
@@ -133,7 +133,7 @@ jobs:
             echo "BACKEND_BEAT_IMAGE=${BACKEND_BEAT_IMAGE}"
             echo "BACKEND_PRACTICE_IMAGE=${BACKEND_PRACTICE_IMAGE}"
             echo "BACKEND_WORKER_IMAGE=${BACKEND_WORKER_IMAGE}"
-            echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}"
+            echo "CUSTOMER_WEB_IMAGE=${CUSTOMER_WEB_IMAGE}"
             echo "PLATFORM_ADMIN_IMAGE=${PLATFORM_ADMIN_IMAGE}"
           } >> "$GITHUB_ENV"
 
@@ -187,7 +187,7 @@ jobs:
           BACKEND_BEAT_IMAGE_DIGEST="$(inspect_digest "${BACKEND_BEAT_IMAGE}")"
           BACKEND_PRACTICE_IMAGE_DIGEST="$(inspect_digest "${BACKEND_PRACTICE_IMAGE}")"
           BACKEND_WORKER_IMAGE_DIGEST="$(inspect_digest "${BACKEND_WORKER_IMAGE}")"
-          FRONTEND_IMAGE_DIGEST="$(inspect_digest "${FRONTEND_IMAGE}")"
+          CUSTOMER_WEB_IMAGE_DIGEST="$(inspect_digest "${CUSTOMER_WEB_IMAGE}")"
           PLATFORM_ADMIN_IMAGE_DIGEST="$(inspect_digest "${PLATFORM_ADMIN_IMAGE}")"
 
           {
@@ -195,13 +195,13 @@ jobs:
             echo "BACKEND_BEAT_IMAGE_DIGEST=${BACKEND_BEAT_IMAGE_DIGEST}"
             echo "BACKEND_PRACTICE_IMAGE_DIGEST=${BACKEND_PRACTICE_IMAGE_DIGEST}"
             echo "BACKEND_WORKER_IMAGE_DIGEST=${BACKEND_WORKER_IMAGE_DIGEST}"
-            echo "FRONTEND_IMAGE_DIGEST=${FRONTEND_IMAGE_DIGEST}"
+            echo "CUSTOMER_WEB_IMAGE_DIGEST=${CUSTOMER_WEB_IMAGE_DIGEST}"
             echo "PLATFORM_ADMIN_IMAGE_DIGEST=${PLATFORM_ADMIN_IMAGE_DIGEST}"
             echo "BACKEND_API_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_API_IMAGE}")@${BACKEND_API_IMAGE_DIGEST}"
             echo "BACKEND_BEAT_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_BEAT_IMAGE}")@${BACKEND_BEAT_IMAGE_DIGEST}"
             echo "BACKEND_PRACTICE_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_PRACTICE_IMAGE}")@${BACKEND_PRACTICE_IMAGE_DIGEST}"
             echo "BACKEND_WORKER_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_WORKER_IMAGE}")@${BACKEND_WORKER_IMAGE_DIGEST}"
-            echo "FRONTEND_IMAGE_PINNED=$(image_name_without_reference "${FRONTEND_IMAGE}")@${FRONTEND_IMAGE_DIGEST}"
+            echo "CUSTOMER_WEB_IMAGE_PINNED=$(image_name_without_reference "${CUSTOMER_WEB_IMAGE}")@${CUSTOMER_WEB_IMAGE_DIGEST}"
             echo "PLATFORM_ADMIN_IMAGE_PINNED=$(image_name_without_reference "${PLATFORM_ADMIN_IMAGE}")@${PLATFORM_ADMIN_IMAGE_DIGEST}"
           } >> "$GITHUB_ENV"
 
@@ -214,12 +214,12 @@ jobs:
             --backend-beat-image "${BACKEND_BEAT_IMAGE_PINNED}" \
             --backend-practice-image "${BACKEND_PRACTICE_IMAGE_PINNED}" \
             --backend-worker-image "${BACKEND_WORKER_IMAGE_PINNED}" \
-            --frontend-image "${FRONTEND_IMAGE_PINNED}" \
+            --customer-web-image "${CUSTOMER_WEB_IMAGE_PINNED}" \
             --platform-admin-image "${PLATFORM_ADMIN_IMAGE_PINNED}" \
-            --frontend-host "${{ vars.PRODUCTION_FRONTEND_HOST }}" \
+            --customer-web-host "${{ vars.PRODUCTION_CUSTOMER_WEB_HOST }}" \
             --admin-host "${{ vars.PRODUCTION_ADMIN_HOST }}" \
             --tls-secret "${{ vars.PRODUCTION_TLS_SECRET }}" \
-            --frontend-base-url "${{ vars.PRODUCTION_FRONTEND_BASE_URL }}" \
+            --customer-web-base-url "${{ vars.PRODUCTION_CUSTOMER_WEB_BASE_URL }}" \
             --backend-cors-origins '${{ vars.PRODUCTION_BACKEND_CORS_ORIGINS }}' \
             --control-plane-cors-origins '${{ vars.PRODUCTION_CONTROL_PLANE_CORS_ORIGINS }}' \
             --trusted-proxy-cidrs '${{ vars.PRODUCTION_TRUSTED_PROXY_CIDRS }}' \
@@ -259,7 +259,7 @@ jobs:
                   "backend_beat": os.environ["BACKEND_BEAT_IMAGE_PINNED"],
                   "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE_PINNED"],
                   "backend_worker": os.environ["BACKEND_WORKER_IMAGE_PINNED"],
-                  "frontend": os.environ["FRONTEND_IMAGE_PINNED"],
+                  "customer_web": os.environ["CUSTOMER_WEB_IMAGE_PINNED"],
                   "platform_admin": os.environ["PLATFORM_ADMIN_IMAGE_PINNED"],
               },
               "requested_images": {
@@ -267,11 +267,11 @@ jobs:
                   "backend_beat": os.environ["BACKEND_BEAT_IMAGE"],
                   "backend_practice": os.environ["BACKEND_PRACTICE_IMAGE"],
                   "backend_worker": os.environ["BACKEND_WORKER_IMAGE"],
-                  "frontend": os.environ["FRONTEND_IMAGE"],
+                  "customer_web": os.environ["CUSTOMER_WEB_IMAGE"],
                   "platform_admin": os.environ["PLATFORM_ADMIN_IMAGE"],
               },
               "hosts": {
-                  "frontend": "${{ vars.PRODUCTION_FRONTEND_HOST }}",
+                  "customer_web": "${{ vars.PRODUCTION_CUSTOMER_WEB_HOST }}",
                   "admin": "${{ vars.PRODUCTION_ADMIN_HOST }}",
               },
               "tls_secret": "${{ vars.PRODUCTION_TLS_SECRET }}",
@@ -300,7 +300,7 @@ jobs:
             echo "- Backend beat image: \`${BACKEND_BEAT_IMAGE_PINNED}\`"
             echo "- Backend practice image: \`${BACKEND_PRACTICE_IMAGE_PINNED}\`"
             echo "- Backend worker image: \`${BACKEND_WORKER_IMAGE_PINNED}\`"
-            echo "- Frontend image: \`${FRONTEND_IMAGE_PINNED}\`"
+            echo "- Customer Web image: \`${CUSTOMER_WEB_IMAGE_PINNED}\`"
             echo "- Platform Admin image: \`${PLATFORM_ADMIN_IMAGE_PINNED}\`"
             echo "- Metadata: \`build/k8s-release/production/release-metadata.json\`"
             echo "- Artifact: \`production-release-package\`"

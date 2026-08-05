@@ -2,6 +2,7 @@ name: Platform Admin Quality
 
 on:
   push:
+    branches: [main]
     paths:
       - "apps/platform-admin/**"
       - ".github/workflows/platform-admin-quality.yml"

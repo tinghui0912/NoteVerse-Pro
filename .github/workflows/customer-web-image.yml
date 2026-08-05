@@ -1,20 +1,21 @@
-name: Frontend Image
+name: Customer Web Image
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - "apps/customer-web/**"
-      - "docker/frontend/**"
-      - ".github/workflows/frontend-image.yml"
+      - "docker/customer-web/**"
+      - ".github/workflows/customer-web-image.yml"
   pull_request:
     paths:
       - "apps/customer-web/**"
-      - "docker/frontend/**"
-      - ".github/workflows/frontend-image.yml"
+      - "docker/customer-web/**"
+      - ".github/workflows/customer-web-image.yml"
 
 concurrency:
-  group: frontend-image-${{ github.ref }}
+  group: customer-web-image-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -43,36 +44,36 @@ jobs:
           username: ${{ secrets.GHCR_USERNAME || github.actor }}
           password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - name: Build frontend runtime image
-        id: frontend-build
+      - name: Build Customer Web runtime image
+        id: customer_web_build
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: docker/frontend/Dockerfile.runtime
+          file: docker/customer-web/Dockerfile.runtime
           push: ${{ env.PUSH_IMAGE == 'true' }}
           load: ${{ env.PUSH_IMAGE != 'true' }}
           provenance: false
           sbom: false
           tags: |
-            ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
-            ${{ env.IMAGE_NAMESPACE }}/frontend:build-${{ github.run_id }}
+            ${{ env.IMAGE_NAMESPACE }}/customer-web:${{ github.sha }}
+            ${{ env.IMAGE_NAMESPACE }}/customer-web:build-${{ github.run_id }}
           build-args: |
             NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000
             NEXT_PRACTICE_ORIGIN=http://noteverse-backend-practice:8000
             SESSION_COOKIE_NAME=noteverse_session
             SESSION_REFRESH_COOKIE_NAME=noteverse_refresh
 
-      - name: Generate frontend SBOM
+      - name: Generate Customer Web SBOM
         uses: anchore/sbom-action@v0.24.0
         with:
-          image: ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
+          image: ${{ env.IMAGE_NAMESPACE }}/customer-web:${{ github.sha }}
           format: spdx-json
-          artifact-name: frontend-image-sbom.spdx.json
+          artifact-name: customer-web-image-sbom.spdx.json
 
-      - name: Scan frontend image
+      - name: Scan Customer Web image
         uses: aquasecurity/trivy-action@v0.35.0
         with:
-          image-ref: ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/customer-web:${{ github.sha }}
           vuln-type: os,library
           severity: CRITICAL
           ignore-unfixed: true
@@ -82,11 +83,11 @@ jobs:
       - name: Write image build summary
         run: |
           {
-            echo "## Frontend image build"
+            echo "## Customer Web image build"
             echo ""
             echo "- Push image: \`${PUSH_IMAGE}\`"
-            echo "- Frontend image: \`${IMAGE_NAMESPACE}/frontend:${GITHUB_SHA}\`"
-            echo "- Frontend digest: \`${{ steps.frontend-build.outputs.digest }}\`"
-            echo "- SBOM artifact: frontend-image-sbom.spdx.json"
+            echo "- Customer Web image: \`${IMAGE_NAMESPACE}/customer-web:${GITHUB_SHA}\`"
+            echo "- Customer Web digest: \`${{ steps.customer_web_build.outputs.digest }}\`"
+            echo "- SBOM artifact: customer-web-image-sbom.spdx.json"
             echo "- Vulnerability gate: CRITICAL, ignore unfixed"
           } >> "$GITHUB_STEP_SUMMARY"

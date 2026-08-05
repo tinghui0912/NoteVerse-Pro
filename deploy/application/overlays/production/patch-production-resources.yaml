@@ -35,12 +35,12 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: noteverse-frontend
+  name: noteverse-customer-web
 spec:
   template:
     spec:
       containers:
-        - name: frontend
+        - name: customer-web
           resources:
             requests:
               cpu: 500m

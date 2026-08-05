@@ -18,10 +18,10 @@ COPY apps/customer-web/package.json apps/customer-web/package-lock.json ./
 RUN npm ci \
     && sha256sum package-lock.json | cut -d ' ' -f 1 > node_modules/.noteverse-package-lock.sha256
 
-COPY docker/frontend/entrypoint.dev.sh /usr/local/bin/frontend-dev-entrypoint
-RUN chmod +x /usr/local/bin/frontend-dev-entrypoint
+COPY docker/customer-web/entrypoint.dev.sh /usr/local/bin/customer-web-dev-entrypoint
+RUN chmod +x /usr/local/bin/customer-web-dev-entrypoint
 
 EXPOSE 9002
 
-ENTRYPOINT ["frontend-dev-entrypoint"]
+ENTRYPOINT ["customer-web-dev-entrypoint"]
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

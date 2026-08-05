@@ -1,10 +1,10 @@
 param(
     [string] $Output = "build/k8s-release/minikube",
     [string] $Environment = "staging",
-    [string] $FrontendHost = "staging.johnabc.ccwu.cc",
+    [string] $CustomerWebHost = "staging.johnabc.ccwu.cc",
     [string] $AdminHost = "admin.staging.johnabc.ccwu.cc",
     [string] $TlsSecret = "noteverse-staging-tls",
-    [string] $FrontendBaseUrl = "https://staging.johnabc.ccwu.cc",
+    [string] $CustomerWebBaseUrl = "https://staging.johnabc.ccwu.cc",
     [string] $AuthCookieSecure = "true",
     [string] $S3PresignExpireSeconds = "900",
     [switch] $Overwrite
@@ -30,7 +30,7 @@ $backendApiImage = Get-RequiredEnv "NOTEVERSE_BACKEND_API_IMAGE"
 $backendPracticeImage = Get-RequiredEnv "NOTEVERSE_BACKEND_PRACTICE_IMAGE"
 $backendBeatImage = Get-RequiredEnv "NOTEVERSE_BACKEND_BEAT_IMAGE"
 $backendWorkerImage = Get-RequiredEnv "NOTEVERSE_BACKEND_WORKER_IMAGE"
-$frontendImage = Get-RequiredEnv "NOTEVERSE_FRONTEND_IMAGE"
+$customerWebImage = Get-RequiredEnv "NOTEVERSE_CUSTOMER_WEB_IMAGE"
 $platformAdminImage = Get-RequiredEnv "NOTEVERSE_PLATFORM_ADMIN_IMAGE"
 
 $s3EndpointUrl = Get-RequiredEnv "NOTEVERSE_S3_ENDPOINT_URL"
@@ -39,8 +39,8 @@ $s3Bucket = Get-RequiredEnv "NOTEVERSE_S3_BUCKET"
 $s3PublicBaseUrl = Get-RequiredEnv "NOTEVERSE_S3_PUBLIC_BASE_URL"
 $s3ForcePathStyle = Get-RequiredEnv "NOTEVERSE_S3_FORCE_PATH_STYLE"
 
-$mailDefaultSender = "NoteVerse Pro <no-reply@$FrontendHost>"
-$backendCorsOrigins = "[`"$FrontendBaseUrl`"]"
+$mailDefaultSender = "NoteVerse Pro <no-reply@$CustomerWebHost>"
+$backendCorsOrigins = "[`"$CustomerWebBaseUrl`"]"
 $controlPlaneCorsOrigins = "[`"https://$AdminHost`"]"
 $trustedProxyCidrs = Get-RequiredEnv "NOTEVERSE_TRUSTED_PROXY_CIDRS"
 
@@ -52,12 +52,12 @@ $args = @(
     "--backend-practice-image", $backendPracticeImage,
     "--backend-beat-image", $backendBeatImage,
     "--backend-worker-image", $backendWorkerImage,
-    "--frontend-image", $frontendImage,
+    "--customer-web-image", $customerWebImage,
     "--platform-admin-image", $platformAdminImage,
-    "--frontend-host", $FrontendHost,
+    "--customer-web-host", $CustomerWebHost,
     "--admin-host", $AdminHost,
     "--tls-secret", $TlsSecret,
-    "--frontend-base-url", $FrontendBaseUrl,
+    "--customer-web-base-url", $CustomerWebBaseUrl,
     "--backend-cors-origins", $backendCorsOrigins,
     "--control-plane-cors-origins", $controlPlaneCorsOrigins,
     "--trusted-proxy-cidrs", $trustedProxyCidrs,

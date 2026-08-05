@@ -8,10 +8,10 @@ resources:
   - gateway.yaml
   - pdb-backend-api.yaml
   - pdb-backend-practice.yaml
-  - pdb-frontend.yaml
+  - pdb-customer-web.yaml
   - hpa-backend-api.yaml
   - hpa-backend-practice.yaml
-  - hpa-frontend.yaml
+  - hpa-customer-web.yaml
 
 labels:
   - includeSelectors: false
@@ -33,8 +33,8 @@ images:
   - name: noteverse-backend-beat
     newName: registry.example.invalid/noteverse/backend-beat
     newTag: production-replace-me
-  - name: noteverse-frontend
-    newName: registry.example.invalid/noteverse/frontend
+  - name: noteverse-customer-web
+    newName: registry.example.invalid/noteverse/customer-web
     newTag: production-replace-me
   - name: noteverse-platform-admin
     newName: registry.example.invalid/noteverse/platform-admin
@@ -44,9 +44,9 @@ configMapGenerator:
   - name: noteverse-backend-config
     envs:
       - backend-config.env
-  - name: noteverse-frontend-config
+  - name: noteverse-customer-web-config
     envs:
-      - frontend-config.env
+      - customer-web-config.env
   - name: noteverse-control-plane-config
     envs:
       - control-plane-config.env
@@ -61,7 +61,7 @@ replicas:
     count: 2
   - name: noteverse-backend-worker
     count: 1
-  - name: noteverse-frontend
+  - name: noteverse-customer-web
     count: 3
 
 patches:

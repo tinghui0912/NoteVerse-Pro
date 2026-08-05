@@ -38,7 +38,7 @@ Application release overlays own:
 - environment-specific `Gateway`;
 - environment-specific `HTTPRoute`;
 - references to cert-manager-owned TLS Secret names;
-- routing to `noteverse-frontend`, `noteverse-backend-api`, and
+- routing to `noteverse-customer-web`, `noteverse-backend-api`, and
   `noteverse-backend-practice`.
 
 ## Platform Installation

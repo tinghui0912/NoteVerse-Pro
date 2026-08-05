@@ -2,6 +2,7 @@ name: Observability Manifests
 
 on:
   push:
+    branches: [main]
     paths:
       - "deploy/observability/**"
       - "scripts/check_observability_manifests.py"

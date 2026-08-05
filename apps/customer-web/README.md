@@ -6,14 +6,14 @@ workflows live separately in `../platform-admin`.
 
 ## Docker Development
 
-The supported local frontend runtime is Docker with source bind mounts. Code
+The supported local Customer Web runtime is Docker with source bind mounts. Code
 changes on the host are reflected inside the container.
 
 Build and start:
 
 ```powershell
-docker compose -f docker-compose.frontend-dev.yml build frontend
-docker compose -f docker-compose.frontend-dev.yml up frontend
+docker compose -f docker-compose.customer-web-dev.yml build customer-web
+docker compose -f docker-compose.customer-web-dev.yml up customer-web
 ```
 
 Open:
@@ -22,7 +22,7 @@ Open:
 http://localhost:9002
 ```
 
-The frontend uses same-origin `/api/v1/*` for browser API and realtime traffic.
+Customer Web uses same-origin `/api/v1/*` for browser API and realtime traffic.
 In local development, Next.js rewrites regular API traffic to the backend API
 and practice traffic to the practice service. `NEXT_BACKEND_ORIGIN` and
 `NEXT_PRACTICE_ORIGIN` are required in `.env.docker`:
@@ -39,7 +39,7 @@ In Kubernetes, route `/api/v1/practice` to the practice service before the
 broader `/api/v1` backend API route so browser requests do not depend on
 environment-specific public JavaScript configuration.
 
-For LAN device testing, configure the frontend dev server with the LAN host:
+For LAN device testing, configure the Customer Web dev server with the LAN host:
 
 ```powershell
 $env:NEXT_BACKEND_ORIGIN='http://localhost:8000'
@@ -48,7 +48,7 @@ $env:NEXT_ALLOWED_DEV_ORIGINS='192.168.31.59'
 npm run dev
 ```
 
-The backend `BACKEND_CORS_ORIGINS` must include the matching frontend origin,
+The backend `BACKEND_CORS_ORIGINS` must include the matching Customer Web origin,
 for example `http://192.168.31.59:9002`.
 
 ## Environment
@@ -64,12 +64,12 @@ configuration loading.
 
 ## Quality Checks
 
-Run inside the frontend container:
+Run inside the Customer Web container:
 
 ```powershell
-docker compose -f docker-compose.frontend-dev.yml run --rm frontend npm run lint
-docker compose -f docker-compose.frontend-dev.yml run --rm frontend npm run check:i18n-errors
-docker compose -f docker-compose.frontend-dev.yml run --rm frontend npm run typecheck
+docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run lint
+docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run check:i18n-errors
+docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run typecheck
 ```
 
 ## Dependency Notes
@@ -83,8 +83,8 @@ docker compose -f docker-compose.frontend-dev.yml run --rm frontend npm run type
 - Rebuild the image after changing `package.json` or `package-lock.json`:
 
 ```powershell
-docker compose -f docker-compose.frontend-dev.yml build frontend
+docker compose -f docker-compose.customer-web-dev.yml build customer-web
 ```
 
-To reset all frontend development state manually, including the dependency
-volume, run `docker compose -f docker-compose.frontend-dev.yml down -v`.
+To reset all Customer Web development state manually, including the dependency
+volume, run `docker compose -f docker-compose.customer-web-dev.yml down -v`.
