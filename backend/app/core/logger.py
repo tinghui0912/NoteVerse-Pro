@@ -8,7 +8,6 @@ sensitive-data filter for common secret fields.
 import json
 import re
 import sys
-import traceback
 import uuid
 from contextvars import ContextVar
 from typing import Optional
@@ -125,6 +124,62 @@ class SensitiveDataFilter:
         return text
 
 
+class StructuredLogFieldPolicy:
+    """Allow only reviewed structured fields in production log records.
+
+    Application logs are exported outside the process.  Treat every bound
+    value as untrusted unless it is deliberately classified here.  This is a
+    stricter boundary than keyword redaction: unknown fields are omitted.
+    """
+
+    ALLOWED_EXTRA_FIELDS = frozenset(
+        {
+            "accepted", "active_streak", "alignment_confidence", "alignment_state",
+            "api_docs_path", "app_version", "armed", "attempt", "attempts",
+            "audio_confidence", "beat", "beat_delta", "beat_velocity", "blob_id",
+            "category", "client_address", "completed", "confidence",
+            "continuity_confidence", "continuity_state", "corrected_length", "count",
+            "current_step", "decision", "device", "due", "duration_ms",
+            "duration_seconds", "effective_start_peak_gate", "effective_start_rms_gate",
+            "engine", "enhanced", "environment", "error_code", "event", "event_type",
+            "exception_type", "exit_code", "feature_confidence", "first_measure_number",
+            "fixes_made", "flux_gate", "frame", "frame_class", "frames", "gate_reason",
+            "hand_size", "head_revision_id", "http_path", "input_policy_confidence",
+            "input_weight", "job_id", "margin", "match_state", "max_attempts",
+            "measure_count", "method", "no_input_streak", "noise_samples",
+            "notification_type", "onset", "operation_kind", "originating_request_id",
+            "original_length",
+            "outbox_id", "page_count", "page_height", "page_index", "page_width",
+            "payload_shape", "payload_type", "peak", "peak_gate", "peak_prominence",
+            "peer_address", "performance_active", "pipeline", "progress", "project_name",
+            "public_code", "queue_decision", "raw_beat", "reason", "recipient_user_id",
+            "region_count", "rejected", "request_id", "resource_id", "resource_type",
+            "retain_recent_revisions", "revision_id", "rms", "rms_gate", "row_count",
+            "row_index", "runtime_reason", "runtime_role", "scheduler_job", "score_id",
+            "session_id", "spectral_flatness", "spectral_flux", "start_feature_confidence",
+            "start_peak_gate", "start_reason", "start_rms_gate", "start_streak", "started",
+            "state", "status", "status_code", "status_label", "step", "task_id",
+            "text_count", "text_index", "text_length", "timeout_seconds", "tonal",
+            "upload_count", "upload_id", "user_id", "validation_confidence",
+            "validation_error_count", "validation_first_location", "validation_first_type",
+            "worker_module",
+        }
+    )
+    FORBIDDEN_EXTRA_FIELDS = frozenset(
+        {
+            "destination_path", "filename", "image_path", "internal_reason", "musicxml_path",
+            "output_path", "path", "source_path", "stderr_tail", "stdout_tail",
+            "storage_key", "stem", "text_summary",
+        }
+    )
+
+    @classmethod
+    def filter_extra(cls, data: dict[str, object]) -> dict[str, object]:
+        """Return reviewed fields only; silently omit forbidden/unknown values."""
+
+        return {key: value for key, value in data.items() if key in cls.ALLOWED_EXTRA_FIELDS}
+
+
 def filtered_format(record):
     """Apply string-level secret filtering to each record message."""
 
@@ -170,7 +225,9 @@ def json_format(record) -> str:
         "schema_version": 1,
     }
 
-    extra = SensitiveDataFilter.filter_dict(dict(record["extra"]))
+    extra = StructuredLogFieldPolicy.filter_extra(
+        SensitiveDataFilter.filter_dict(dict(record["extra"]))
+    )
     explicit_request_id = extra.pop("request_id", None)
     # These names are reserved for their respective context mechanisms. A
     # call site must not be able to create a second, incompatible trace field.
@@ -188,21 +245,10 @@ def json_format(record) -> str:
         log_record["task_id"] = task_id
 
     if record["exception"]:
-        log_record["exception"] = {
-            "type": record["exception"].type.__name__
-            if record["exception"].type
-            else None,
-            "value": str(record["exception"].value)
-            if record["exception"].value
-            else None,
-            "traceback": "".join(
-                traceback.format_exception(
-                    record["exception"].type,
-                    record["exception"].value,
-                    record["exception"].traceback,
-                )
-            ),
-        }
+        log_record.setdefault(
+            "exception_type",
+            record["exception"].type.__name__ if record["exception"].type else None,
+        )
 
     return json.dumps(log_record, ensure_ascii=False, default=str) + "\n"
 
@@ -238,6 +284,7 @@ logger = _logger
 __all__ = [
     "logger",
     "SensitiveDataFilter",
+    "StructuredLogFieldPolicy",
     "get_request_id",
     "set_request_id",
     "get_otel_trace_context",
