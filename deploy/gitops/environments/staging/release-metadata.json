@@ -1,6 +1,6 @@
 {
   "actor": "tinghui0912",
-  "commit_sha": "8e5cfcb6f11909fa2f5373a852ba18d10b7dfd6d",
+  "commit_sha": "0dacc9339b497d3fabc257150089857f48866cd3",
   "environment": "staging",
   "hosts": {
     "admin": "admin.staging.johnabc.ccwu.cc",
@@ -16,7 +16,7 @@
     "platform_admin": "ghcr.io/tinghui0912/noteverse/platform-admin@sha256:939e504a20819edadc740e3b0d16978a81be34a32d4bc1d9e0b1a0b835396f1e"
   },
   "ref": "refs/heads/main",
-  "rendered_at": "2026-08-05T09:31:36.467950+00:00",
+  "rendered_at": "2026-08-05T10:03:18.277391+00:00",
   "requested_images": {
     "backend_api": "ghcr.io/tinghui0912/noteverse/backend-api@sha256:02699120696c47c1da3eca6c053c7f5458776fcd14e9b3fb6143b81cf6ed53a5",
     "backend_beat": "ghcr.io/tinghui0912/noteverse/backend-beat@sha256:eab8300db40472901824805519113c4827087e34f76f5738731e7fe4fd7c3b70",
@@ -28,5 +28,5 @@
   "tls_secret": "noteverse-staging-tls",
   "workflow": "Staging Release Package",
   "workflow_run_attempt": "1",
-  "workflow_run_id": "30993611300"
+  "workflow_run_id": "30995827845"
 }

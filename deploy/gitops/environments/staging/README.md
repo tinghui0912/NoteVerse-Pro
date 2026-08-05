@@ -5,9 +5,9 @@ desired state promoted from a release package.
 
 Release metadata:
 
-- commit: `8e5cfcb6f11909fa2f5373a852ba18d10b7dfd6d`
-- rendered at: `2026-08-05T09:31:36.467950+00:00`
-- workflow run: `30993611300`
+- commit: `0dacc9339b497d3fabc257150089857f48866cd3`
+- rendered at: `2026-08-05T10:03:18.277391+00:00`
+- workflow run: `30995827845`
 
 Rules:
 
