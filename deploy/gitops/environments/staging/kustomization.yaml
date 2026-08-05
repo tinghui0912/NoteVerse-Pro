@@ -17,16 +17,16 @@ labels:
 images:
   - name: noteverse-backend-api
     newName: ghcr.io/tinghui0912/noteverse/backend-api
-    digest: sha256:da080a0696408162ecc96b160031b70519eeeeb40168b929cc7a00be439c2768
+    digest: sha256:093b3231a640a52d67e6bdab46e013f406a0313b5c12dc0cbf0ba92bb386f255
   - name: noteverse-backend-practice
     newName: ghcr.io/tinghui0912/noteverse/backend-practice
-    digest: sha256:e232ca430ca93714f78d530ff374f56b2fd95f21d74701ae6b449127694e7c3f
+    digest: sha256:c2f3cbaece59b614ad5683f0fd44b7b6cc287da87a1277c2a3b682ab966d72d6
   - name: noteverse-backend-worker
     newName: ghcr.io/tinghui0912/noteverse/backend-worker
     digest: sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2
   - name: noteverse-backend-beat
     newName: ghcr.io/tinghui0912/noteverse/backend-beat
-    digest: sha256:61da219c23725adfa96ff23aa1f0871d96d2dd747ff39f18fe57474032e03f36
+    digest: sha256:9b1af605354877f24c880a1714ff5ccdb7619ad685113698df66991620a4b2df
   - name: noteverse-customer-web
     newName: ghcr.io/tinghui0912/noteverse/customer-web
     digest: sha256:ffeb5b91a26099a796368cda8236cf55ceaf562b77d5b19ac545b8c6381c56f0
