@@ -3,3 +3,5 @@
 -r celery.txt
 -r image.txt
 -r render.txt
+-r core.txt
+-r tracing.txt

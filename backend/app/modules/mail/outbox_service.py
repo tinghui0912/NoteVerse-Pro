@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
+from app.core.async_trace_context import get_async_trace_context
 from app.core.config import settings
 from app.core.logger import get_request_id
 from app.db.models import MailOutbox, MailOutboxStatus
@@ -31,6 +32,8 @@ class MailOutboxPayload:
     attempt: int
     max_attempts: int
     originating_request_id: str | None = None
+    traceparent: str | None = None
+    tracestate: str | None = None
 
 
 async def queue_mail(
@@ -49,10 +52,13 @@ async def queue_mail(
     ).scalar_one_or_none()
     if existing is not None:
         return existing
+    traceparent, tracestate = get_async_trace_context()
     outbox = MailOutbox(
         category=category,
         dedupe_key=dedupe_key,
         originating_request_id=get_request_id(),
+        traceparent=traceparent,
+        tracestate=tracestate,
         recipient=recipient.strip().lower(),
         subject=subject,
         text_body=text_body,
@@ -132,6 +138,8 @@ class MailOutboxService:
             attempt=outbox.attempt_count,
             max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
             originating_request_id=outbox.originating_request_id,
+            traceparent=outbox.traceparent,
+            tracestate=outbox.tracestate,
         )
 
     def sent(self, db: Session, outbox_uuid: str, provider_message_id: str | None) -> None:

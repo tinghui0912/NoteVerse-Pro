@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
+from app.core.async_trace_context import get_async_trace_context
 from app.core.config import settings
 from app.core.logger import get_request_id
 from app.db.models import (
@@ -41,6 +42,8 @@ class RenderOutboxPayload:
     attempt: int
     max_attempts: int
     originating_request_id: str | None = None
+    traceparent: str | None = None
+    tracestate: str | None = None
     score_uuid: str | None = None
     revision_uuid: str | None = None
     user_id: int | None = None
@@ -67,6 +70,7 @@ async def create_revision_render_outbox(
     if existing is not None:
         return existing
 
+    traceparent, tracestate = get_async_trace_context()
     outbox = RenderOutbox(
         outbox_uuid=str(uuid.uuid4()),
         target_type=RenderTargetType.SCORE_REVISION,
@@ -74,6 +78,8 @@ async def create_revision_render_outbox(
         revision_id=revision_id,
         requested_by_user_id=requested_by_user_id,
         originating_request_id=get_request_id(),
+        traceparent=traceparent,
+        tracestate=tracestate,
         source_fingerprint=source_fingerprint,
         render_profile=render_profile,
         status=RenderOutboxStatus.PENDING,
@@ -140,11 +146,14 @@ def create_review_thumbnail_render_outbox_sync(
 def _new_review_thumbnail_outbox(
     *, import_job_id: int, source_fingerprint: str, render_profile: str
 ) -> RenderOutbox:
+    traceparent, tracestate = get_async_trace_context()
     return RenderOutbox(
         outbox_uuid=str(uuid.uuid4()),
         target_type=RenderTargetType.REVIEW_THUMBNAIL,
         import_job_id=import_job_id,
         originating_request_id=get_request_id(),
+        traceparent=traceparent,
+        tracestate=tracestate,
         source_fingerprint=source_fingerprint,
         render_profile=render_profile,
         status=RenderOutboxStatus.PENDING,
@@ -205,6 +214,8 @@ class RenderOutboxService:
                     attempt=0,
                     max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
                     originating_request_id=outbox.originating_request_id,
+                    traceparent=outbox.traceparent,
+                    tracestate=outbox.tracestate,
                 )
         elif outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL:
             job = db.get(ImportJob, outbox.import_job_id)
@@ -230,6 +241,8 @@ class RenderOutboxService:
                     attempt=0,
                     max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
                     originating_request_id=outbox.originating_request_id,
+                    traceparent=outbox.traceparent,
+                    tracestate=outbox.tracestate,
                 )
 
         outbox.status = RenderOutboxStatus.FAILED

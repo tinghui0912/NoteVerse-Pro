@@ -107,6 +107,8 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(String(64), index=True),
     )
+    traceparent: Optional[str] = Field(default=None, sa_column=Column(String(55)))
+    tracestate: Optional[str] = Field(default=None, sa_column=Column(String(512)))
     render_profile: str = Field(
         default="default",
         sa_column=Column(String(128), default="default", nullable=False),

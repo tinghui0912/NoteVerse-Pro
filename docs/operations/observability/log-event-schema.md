@@ -40,6 +40,12 @@ instead.
 `outbox_id`), bounded counters/durations, `status_code`, `public_code`, task
 attempt metadata, and scheduler identifiers are allowed when needed.
 
+Practice WebSocket records use `practice.websocket.accepted`,
+`practice.websocket.ready`, and one terminal `practice.websocket.closed` or
+`practice.websocket.failed` event. They may include opaque session/user IDs,
+duration, close status, and a stable public code. They never include control
+payloads, audio bytes, alignment content, or client headers.
+
 This policy concerns logs only. Full diagnostics required for a privileged
 operator workflow remain in the controlled operations data contract and are
 never copied into stdout logs.

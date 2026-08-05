@@ -92,6 +92,8 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(String(64), index=True),
     )
+    traceparent: Optional[str] = Field(default=None, sa_column=Column(String(55)))
+    tracestate: Optional[str] = Field(default=None, sa_column=Column(String(512)))
     requested_options: Optional[dict[str, object]] = Field(
         default=None,
         sa_column=Column(metadata_json_type),

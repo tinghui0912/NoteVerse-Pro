@@ -121,6 +121,8 @@ class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(String(64), index=True),
     )
+    traceparent: Optional[str] = Field(default=None, sa_column=Column(String(55)))
+    tracestate: Optional[str] = Field(default=None, sa_column=Column(String(512)))
     source_fingerprint: str = Field(sa_column=Column(String(64), nullable=False))
     asset_kind: PlaybackAssetKind = Field(
         default=PlaybackAssetKind.AUDIO,

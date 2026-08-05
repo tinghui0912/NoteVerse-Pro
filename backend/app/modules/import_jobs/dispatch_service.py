@@ -30,6 +30,8 @@ class ImportDispatchPayload:
     attempt: int
     max_attempts: int
     originating_request_id: str | None = None
+    traceparent: str | None = None
+    tracestate: str | None = None
 
 
 class ImportDispatchService:
@@ -85,6 +87,8 @@ class ImportDispatchService:
             attempt=job.dispatch_attempt_count,
             max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
             originating_request_id=job.originating_request_id,
+            traceparent=job.traceparent,
+            tracestate=job.tracestate,
         )
 
     def complete(self, db: Session, job_uuid: str) -> None:

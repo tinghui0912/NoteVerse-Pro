@@ -94,6 +94,9 @@ class ImportJobSubmissionService:
         db = get_db_session()
         try:
             now = utc_now_naive()
+            from app.core.async_trace_context import get_async_trace_context
+
+            traceparent, tracestate = get_async_trace_context()
             job = ImportJob(
                 job_uuid=job_uuid,
                 user_id=user_id,
@@ -101,6 +104,8 @@ class ImportJobSubmissionService:
                 progress=0,
                 idempotency_key=idempotency_key,
                 originating_request_id=get_request_id(),
+                traceparent=traceparent,
+                tracestate=tracestate,
                 requested_options=request.options,
                 requested_at=now,
                 created_at=now,

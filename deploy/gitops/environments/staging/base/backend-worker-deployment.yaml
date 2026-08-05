@@ -32,6 +32,9 @@ spec:
                 name: noteverse-backend-config
             - secretRef:
                 name: noteverse-backend-secret
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: noteverse-backend-worker
           resources:
             requests:
               cpu: "1"

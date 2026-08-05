@@ -512,18 +512,25 @@ older roadmap entries remain as a record of completed baseline work. Do not
 start asynchronous trace propagation or browser tracing before P0 and P1 have
 passed their acceptance gates.
 
-**Implementation status (2026-08):** P0, P1, and the runtime-noise portions of
-P2 are complete and verified in staging. The correlation smoke proves that a
+**Implementation status (2026-08):** P0 is complete and verified in staging.
+The P1 correlation data path is verified: the correlation smoke proves that a
 valid request ID can be found in Loki, that the associated log carries a real
 W3C trace ID that resolves in Tempo, and that successful health checks do not
 create normal application request logs. The P2 event-field privacy allowlist
 is now a default-deny structured-field policy: unreviewed and sensitive fields
 are omitted, raw exception values and stack traces are not written to stdout,
 and a source-level regression test requires every explicit `logger.bind(...)`
-field to be classified. This policy passed the backend quality gate and awaits
-its next digest-pinned staging release for runtime confirmation. P3 and P4
-remain planned work; neither has been represented as complete merely because
-the baseline Collector, Loki, Tempo, and Grafana stack is running.
+field to be classified. This policy passed the backend quality gate and its
+digest-pinned staging release: runtime stdout contains the reviewed HTTP event
+fields but no forbidden file/storage/text fields, raw exception value, or stack
+trace. The Loki datasource now derives Tempo navigation only from a validated
+32-character trace ID, and Practice WebSockets record bounded accepted/ready/
+terminal lifecycle events without audio or control payloads. P3 is implemented
+locally: the four durable operation records persist vetted `traceparent` and
+optional `tracestate`, relay dispatches create producer spans, worker attempts
+create fresh consumer spans, and each relay delivery gets a unique Celery task
+ID. P3 still needs a deployed staging migration plus an end-to-end import or
+derived-asset trace smoke. P4 remains planned work.
 
 Use `scripts/minikube_observability_correlation_smoke.ps1` after each staged
 observability release to verify the P1 request-to-log-to-trace contract.
@@ -613,14 +620,18 @@ correlation with transient task execution.
 2. Persist W3C `traceparent` and optional `tracestate` as message-creation
    context on durable outbox records. Do not persist unreviewed baggage.
 3. Have the relay create producer spans and workers create a fresh consumer
-   span for every attempt. Consumer spans link to the original message context
-   where batching, delay, retry, or fan-out makes a direct parent-child tree
-   misleading.
+   span for every attempt. For this project's current one-outbox-to-one-task
+   delivery, use the durable message context as the parent. Use a Span Link
+   instead when batching, fan-out, retry semantics, or an independent ambient
+   context would make a parent-child tree misleading.
 4. Instrument Celery initialization explicitly and test context extraction in
    worker processes. Do not rely on in-memory context or broker-specific
    behavior as the durable source of truth.
 5. Define independent roots for scheduled maintenance work that has no HTTP
    origin, while retaining its operation and scheduler identifiers.
+6. Validate `traceparent` and bounded `tracestate` before persistence. Never
+   persist baggage; a malformed or absent context must create an independent
+   trace rather than fail business work.
 
 **Acceptance gate:** an import or derived-asset operation can be followed from
 the initiating HTTP request to relay and worker attempts in Tempo, with retries
