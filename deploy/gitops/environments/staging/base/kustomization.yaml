@@ -14,8 +14,8 @@ resources:
   - model-cache-agent-daemonset.yaml
   - backend-worker-deployment.yaml
   - backend-beat-deployment.yaml
-  - frontend-deployment.yaml
-  - frontend-service.yaml
+  - customer-web-deployment.yaml
+  - customer-web-service.yaml
   - platform-admin-deployment.yaml
   - platform-admin-service.yaml
   - platform-admin-network-policy.yaml
