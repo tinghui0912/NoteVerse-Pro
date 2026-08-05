@@ -12,6 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.client_address import client_address, peer_address
 from app.core.logger import logger, set_request_id
 from app.core.metrics import record_http_request
+from app.core.tracing import capture_current_trace_context
 from app.shared.constants import ErrorCode
 from app.shared.responses import error_response
 
@@ -174,6 +175,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("X-Request-ID")
         request_id = set_request_id(request_id)
         request.state.request_id = request_id
+        capture_current_trace_context()
 
         should_log = request.url.path not in HEALTH_PATHS
         base_log = logger.bind(
@@ -184,9 +186,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             peer_address=peer_address(request) or "unknown",
             client_address=client_address(request) or "unknown",
         )
-        if should_log:
-            base_log.bind(event="api.request_started").info("api.request_started")
-
         try:
             response = await call_next(request)
 
@@ -212,6 +211,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
             # Log the response result.
             if should_log:
+                capture_current_trace_context()
                 base_log.bind(
                     event="api.request_completed",
                     status_label=status_label,
