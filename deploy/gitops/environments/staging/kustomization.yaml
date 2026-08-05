@@ -17,22 +17,22 @@ labels:
 images:
   - name: noteverse-backend-api
     newName: ghcr.io/tinghui0912/noteverse/backend-api
-    digest: sha256:02699120696c47c1da3eca6c053c7f5458776fcd14e9b3fb6143b81cf6ed53a5
+    digest: sha256:e43db9190e841a1791edd036eba14a8abeb515d9d207c7e22460af6d3b98d594
   - name: noteverse-backend-practice
     newName: ghcr.io/tinghui0912/noteverse/backend-practice
-    digest: sha256:2f59c22d33fafb26ae7f2b74b2a67c54d47f998db0e44ef2a1d7079d849f8ed1
+    digest: sha256:53b9bde7d5dfe8b58286e546218a0644058b0f03bf08e6962362fea1ca8f8b00
   - name: noteverse-backend-worker
     newName: ghcr.io/tinghui0912/noteverse/backend-worker
     digest: sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2
   - name: noteverse-backend-beat
     newName: ghcr.io/tinghui0912/noteverse/backend-beat
-    digest: sha256:eab8300db40472901824805519113c4827087e34f76f5738731e7fe4fd7c3b70
-  - name: noteverse-frontend
-    newName: ghcr.io/tinghui0912/noteverse/frontend
-    digest: sha256:e1e474beb7728cd08c05423402b988c700a6a8e6534068439593d0aa8eea1b43
+    digest: sha256:929bb8bdd94114678e76f2859cb2476ec33230634a6a7befadb174f972140d8f
+  - name: noteverse-customer-web
+    newName: ghcr.io/tinghui0912/noteverse/customer-web
+    digest: sha256:ffeb5b91a26099a796368cda8236cf55ceaf562b77d5b19ac545b8c6381c56f0
   - name: noteverse-platform-admin
     newName: ghcr.io/tinghui0912/noteverse/platform-admin
-    digest: sha256:939e504a20819edadc740e3b0d16978a81be34a32d4bc1d9e0b1a0b835396f1e
+    digest: sha256:9623c108b0632fd36c10efcb95cd814872fd2e30cbb7fc1e0fccfc50bfeb0f36
 
   - name: busybox
     newName: busybox
@@ -42,9 +42,9 @@ configMapGenerator:
   - name: noteverse-backend-config
     envs:
       - backend-config.env
-  - name: noteverse-frontend-config
+  - name: noteverse-customer-web-config
     envs:
-      - frontend-config.env
+      - customer-web-config.env
   - name: noteverse-control-plane-config
     envs:
       - control-plane-config.env
@@ -61,7 +61,7 @@ replicas:
     count: 1
   - name: noteverse-backend-worker
     count: 0
-  - name: noteverse-frontend
+  - name: noteverse-customer-web
     count: 1
   - name: noteverse-platform-admin
     count: 1

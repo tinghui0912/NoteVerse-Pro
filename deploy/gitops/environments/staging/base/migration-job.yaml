@@ -24,7 +24,7 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: migrate
-          image: ghcr.io/tinghui0912/noteverse/backend-api@sha256:02699120696c47c1da3eca6c053c7f5458776fcd14e9b3fb6143b81cf6ed53a5
+          image: ghcr.io/tinghui0912/noteverse/backend-api@sha256:e43db9190e841a1791edd036eba14a8abeb515d9d207c7e22460af6d3b98d594
           args:
             - migrate
           envFrom:

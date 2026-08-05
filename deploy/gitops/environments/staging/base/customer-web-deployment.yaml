@@ -1,28 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: noteverse-frontend
+  name: noteverse-customer-web
   labels:
-    app.kubernetes.io/component: frontend
+    app.kubernetes.io/component: customer-web
 spec:
   replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: noteverse
       app.kubernetes.io/part-of: noteverse
-      app.kubernetes.io/component: frontend
+      app.kubernetes.io/component: customer-web
   template:
     metadata:
       labels:
         app.kubernetes.io/name: noteverse
         app.kubernetes.io/part-of: noteverse
-        app.kubernetes.io/component: frontend
+        app.kubernetes.io/component: customer-web
     spec:
       imagePullSecrets:
         - name: noteverse-registry-credentials
       containers:
-        - name: frontend
-          image: ghcr.io/tinghui0912/noteverse/frontend@sha256:e1e474beb7728cd08c05423402b988c700a6a8e6534068439593d0aa8eea1b43
+        - name: customer-web
+          image: ghcr.io/tinghui0912/noteverse/customer-web@sha256:ffeb5b91a26099a796368cda8236cf55ceaf562b77d5b19ac545b8c6381c56f0
           ports:
             - name: http
               containerPort: 3000
@@ -31,7 +31,7 @@ spec:
               value: "3000"
           envFrom:
             - configMapRef:
-                name: noteverse-frontend-config
+                name: noteverse-customer-web-config
           readinessProbe:
             httpGet:
               path: /
