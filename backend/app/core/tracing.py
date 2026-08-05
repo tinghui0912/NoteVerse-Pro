@@ -9,10 +9,25 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from app.core.config import settings
-from app.core.logger import logger
+from app.core.logger import logger, set_otel_trace_context
 
 
 EXCLUDED_TRACE_URLS = "/health/live,/health/ready,/metrics"
+
+
+def capture_current_trace_context() -> None:
+    """Copy the active W3C span context into the shared log context."""
+
+    context = trace.get_current_span().get_span_context()
+    if not context.is_valid:
+        set_otel_trace_context()
+        return
+    set_otel_trace_context(
+        {
+            "trace_id": f"{context.trace_id:032x}",
+            "span_id": f"{context.span_id:016x}",
+        }
+    )
 
 
 def configure_api_tracing(app: FastAPI) -> None:

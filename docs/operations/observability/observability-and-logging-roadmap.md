@@ -518,6 +518,9 @@ next digest-pinned application release for staging confirmation. P3 and P4
 remain planned work; neither has been represented as complete merely because
 the baseline Collector, Loki, Tempo, and Grafana stack is running.
 
+Use `scripts/minikube_observability_correlation_smoke.ps1` after each staged
+observability release to verify the P1 request-to-log-to-trace contract.
+
 ### P0 - Restore Runtime Truthfulness
 
 **Objective:** eliminate staging configurations that assert a telemetry

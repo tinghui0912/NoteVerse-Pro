@@ -14,7 +14,6 @@ from contextvars import ContextVar
 from typing import Optional
 
 from loguru import logger as _logger
-from opentelemetry import trace
 
 from app.core.config import settings
 
@@ -25,6 +24,10 @@ log_format = settings.LOG_FORMAT
 
 request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
 task_id_var: ContextVar[Optional[str]] = ContextVar("task_id", default=None)
+otel_trace_context_var: ContextVar[dict[str, str]] = ContextVar(
+    "otel_trace_context",
+    default={},
+)
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
@@ -43,16 +46,16 @@ def set_request_id(request_id: Optional[str] = None) -> str:
     return request_id
 
 
-def get_otel_trace_context() -> dict[str, str]:
-    """Return the active W3C trace context when instrumentation created a span."""
+def set_otel_trace_context(context: dict[str, str] | None = None) -> None:
+    """Store a validated W3C trace context captured by an HTTP runtime."""
 
-    context = trace.get_current_span().get_span_context()
-    if not context.is_valid:
-        return {}
-    return {
-        "trace_id": f"{context.trace_id:032x}",
-        "span_id": f"{context.span_id:016x}",
-    }
+    otel_trace_context_var.set(dict(context or {}))
+
+
+def get_otel_trace_context() -> dict[str, str]:
+    """Return the trace context captured by an instrumented HTTP runtime."""
+
+    return otel_trace_context_var.get()
 
 
 def get_task_id() -> Optional[str]:
@@ -167,14 +170,19 @@ def json_format(record) -> str:
         "schema_version": 1,
     }
 
-    reserved_keys = set(log_record) | {"request_id", "trace_id", "span_id"}
     extra = SensitiveDataFilter.filter_dict(dict(record["extra"]))
+    explicit_request_id = extra.pop("request_id", None)
+    # These names are reserved for their respective context mechanisms. A
+    # call site must not be able to create a second, incompatible trace field.
+    extra.pop("trace_id", None)
+    extra.pop("span_id", None)
+    reserved_keys = set(log_record)
     for key, value in extra.items():
         output_key = key if key not in reserved_keys else f"extra_{key}"
         log_record[output_key] = value
 
-    if request_id:
-        log_record["request_id"] = request_id
+    if request_id or isinstance(explicit_request_id, str):
+        log_record["request_id"] = request_id or explicit_request_id
     log_record.update(get_otel_trace_context())
     if task_id:
         log_record["task_id"] = task_id
@@ -233,8 +241,10 @@ __all__ = [
     "get_request_id",
     "set_request_id",
     "get_otel_trace_context",
+    "set_otel_trace_context",
     "get_task_id",
     "set_task_id",
     "request_id_var",
     "task_id_var",
+    "otel_trace_context_var",
 ]
