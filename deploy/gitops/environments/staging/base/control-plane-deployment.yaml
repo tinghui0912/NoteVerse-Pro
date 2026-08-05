@@ -22,7 +22,7 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: control-plane
-          image: ghcr.io/tinghui0912/noteverse/backend-api@sha256:da080a0696408162ecc96b160031b70519eeeeb40168b929cc7a00be439c2768
+          image: ghcr.io/tinghui0912/noteverse/backend-api@sha256:093b3231a640a52d67e6bdab46e013f406a0313b5c12dc0cbf0ba92bb386f255
           args:
             - control
           ports:
