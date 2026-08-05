@@ -96,6 +96,11 @@ must not be returned by either surface.
 - [x] Make the staging control-plane and Platform Admin replica counts declarative
   rather than relying on manual `kubectl scale`; production stays
   dark-by-default.
+- [x] Verify the staging Admin HTTPRoute is accepted and its multi-SAN TLS
+  certificate is issued after adding `admin.<environment-domain>`.
+- [ ] Recreate the local production-like cluster with Cilium, then prove that
+  only Platform Admin reaches the control-plane Service. The previous minikube
+  bridge CNI accepted policy objects but did not enforce them.
 - [x] Move database-backed scheduler and asynchronous-operation metrics from
   the customer API into the internal `observability_exporter` composition root.
 - Keep the shared repository, domain modules, PostgreSQL database, and Alembic

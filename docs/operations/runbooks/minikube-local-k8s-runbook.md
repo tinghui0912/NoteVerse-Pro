@@ -749,7 +749,7 @@ Example staging hosts:
 
 ```text
 staging.johnabc.ccwu.cc
-api.staging.johnabc.ccwu.cc
+admin.staging.johnabc.ccwu.cc
 ```
 
 DNS-01 does not require the minikube cluster to be reachable from the public
@@ -762,7 +762,7 @@ local port 443, use `127.0.0.1`:
 
 ```text
 127.0.0.1 staging.johnabc.ccwu.cc
-127.0.0.1 api.staging.johnabc.ccwu.cc
+127.0.0.1 admin.staging.johnabc.ccwu.cc
 ```
 
 On Windows, edit the hosts file from an elevated PowerShell:

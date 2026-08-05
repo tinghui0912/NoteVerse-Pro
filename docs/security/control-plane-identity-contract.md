@@ -18,7 +18,8 @@ operator API. The contract does not apply to customer product hosts.
 
 Customer identities and operator identities are separate security audiences.
 
-- Customer sessions authenticate a product user to `api.<environment-domain>`.
+- Customer sessions authenticate a product user to same-origin customer
+  `/api/v1/*` routes on the product host.
 - Operator sessions authenticate a platform operator to the control-plane
   boundary, initially through `admin.<environment-domain>` and its BFF.
 - A customer access token, refresh token, CSRF cookie, or `UserRole.admin`

@@ -217,7 +217,6 @@ jobs:
             --frontend-image "${FRONTEND_IMAGE_PINNED}" \
             --platform-admin-image "${PLATFORM_ADMIN_IMAGE_PINNED}" \
             --frontend-host "${{ vars.PRODUCTION_FRONTEND_HOST }}" \
-            --api-host "${{ vars.PRODUCTION_API_HOST }}" \
             --admin-host "${{ vars.PRODUCTION_ADMIN_HOST }}" \
             --tls-secret "${{ vars.PRODUCTION_TLS_SECRET }}" \
             --frontend-base-url "${{ vars.PRODUCTION_FRONTEND_BASE_URL }}" \
@@ -273,7 +272,6 @@ jobs:
               },
               "hosts": {
                   "frontend": "${{ vars.PRODUCTION_FRONTEND_HOST }}",
-                  "api": "${{ vars.PRODUCTION_API_HOST }}",
                   "admin": "${{ vars.PRODUCTION_ADMIN_HOST }}",
               },
               "tls_secret": "${{ vars.PRODUCTION_TLS_SECRET }}",

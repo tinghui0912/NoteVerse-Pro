@@ -1,7 +1,6 @@
 param(
     [string] $AppNamespace = "noteverse-staging",
     [string] $AppHost = "staging.johnabc.ccwu.cc",
-    [string] $ApiHost = "api.staging.johnabc.ccwu.cc",
     [string] $ApiBase = "https://staging.johnabc.ccwu.cc/api/v1",
     [string] $PortForwardService = "",
     [switch] $StartGatewayPortForward,
@@ -48,10 +47,6 @@ if ($StartGatewayPortForward) {
 
 Invoke-Checked "cluster:workloads" {
     kubectl -n $AppNamespace get deploy,ds,job,certificate,gateway,httproute
-}
-
-Invoke-Checked "gateway:api-health-live" {
-    curl.exe --fail --silent --show-error "https://$ApiHost/health/live" | Out-Host
 }
 
 Invoke-Checked "gateway:same-origin-api-route" {

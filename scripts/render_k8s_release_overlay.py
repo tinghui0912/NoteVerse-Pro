@@ -45,7 +45,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--frontend-image", required=True)
     parser.add_argument("--platform-admin-image", required=True)
     parser.add_argument("--frontend-host", required=True)
-    parser.add_argument("--api-host", required=True)
     parser.add_argument("--admin-host", required=True)
     parser.add_argument("--tls-secret", required=True)
     parser.add_argument("--frontend-base-url", required=True)
@@ -98,7 +97,6 @@ def require_nonblank_arguments(args: argparse.Namespace) -> None:
         "frontend_image",
         "platform_admin_image",
         "frontend_host",
-        "api_host",
         "admin_host",
         "tls_secret",
         "frontend_base_url",
@@ -258,11 +256,6 @@ def render_overlay(args: argparse.Namespace) -> Path:
         if args.environment == "staging"
         else "noteverse.example.invalid"
     )
-    api_placeholder = (
-        "api.staging.noteverse.example.invalid"
-        if args.environment == "staging"
-        else "api.noteverse.example.invalid"
-    )
     admin_placeholder = (
         "admin.staging.noteverse.example.invalid"
         if args.environment == "staging"
@@ -276,7 +269,6 @@ def render_overlay(args: argparse.Namespace) -> Path:
 
     gateway_path = output / "gateway.yaml"
     gateway = gateway_path.read_text(encoding="utf-8")
-    gateway = replace_required(gateway, api_placeholder, args.api_host)
     gateway = replace_required(gateway, admin_placeholder, args.admin_host)
     gateway = replace_required(gateway, frontend_placeholder, args.frontend_host)
     gateway = replace_required(gateway, tls_placeholder, args.tls_secret)
