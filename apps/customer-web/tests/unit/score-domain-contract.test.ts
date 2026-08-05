@@ -18,7 +18,7 @@ interface ScoreDomainContract {
 function loadContract() {
   return JSON.parse(
     readFileSync(
-      resolve(process.cwd(), '../backend/docs/contracts/score-domain-v1.json'),
+      resolve(process.cwd(), '../../backend/docs/contracts/score-domain-v1.json'),
       'utf8'
     )
   ) as ScoreDomainContract;

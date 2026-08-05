@@ -40,8 +40,8 @@ flowchart TD
 - 后端实时引擎：[backend/app/processing/engines/matchmaker_live.py](../backend/app/processing/engines/matchmaker_live.py)
 - 音频活动特征与状态：[backend/app/processing/engines/practice_audio_activity.py](../backend/app/processing/engines/practice_audio_activity.py)
 - WebSocket 消息编码：[backend/app/processing/realtime/message_codec.py](../backend/app/processing/realtime/message_codec.py)
-- 前端页面 guard：[frontend/src/app/[locale]/practice/[id]/page.tsx](../frontend/src/app/%5Blocale%5D/practice/%5Bid%5D/page.tsx)
-- 前端高亮控制器：[frontend/src/lib/practice/follow-controller.ts](../frontend/src/lib/practice/follow-controller.ts)
+- 前端页面 guard：[apps/customer-web/src/app/[locale]/practice/[id]/page.tsx](../apps/customer-web/src/app/%5Blocale%5D/practice/%5Bid%5D/page.tsx)
+- 前端高亮控制器：[apps/customer-web/src/lib/practice/follow-controller.ts](../apps/customer-web/src/lib/practice/follow-controller.ts)
 - 当前回放测试雏形：[backend/tests/test_practice_audio_replay_evaluation.py](../backend/tests/test_practice_audio_replay_evaluation.py)
 
 ## 当前已经具备的防线

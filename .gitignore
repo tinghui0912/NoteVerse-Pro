@@ -46,4 +46,4 @@ backend/celerybeat-schedule.*
 
 # Local checkouts for pinned third-party source tools.
 # See docs/external_dependencies.md.
-external/
+/external/

@@ -1,6 +1,8 @@
-# NoteVerse Pro Frontend
+# NoteVerse Customer Web
 
-Next.js frontend for NoteVerse Pro.
+The customer-facing Next.js application for NoteVerse Pro. It owns public,
+authenticated application, and external viewer experiences. Platform operator
+workflows live separately in `../platform-admin`.
 
 ## Docker Development
 

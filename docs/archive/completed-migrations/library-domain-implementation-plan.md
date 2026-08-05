@@ -230,12 +230,12 @@ ownership from `score_library_entries`.
 Current API/type owners:
 
 ```text
-frontend/src/lib/api/library.ts
-frontend/src/lib/api/my-scores.ts
-frontend/src/types/api/library.ts
-frontend/src/types/api/my-scores.ts
-frontend/src/hooks/queries/use-library-queries.ts
-frontend/src/hooks/queries/use-my-scores-queries.ts
+apps/customer-web/src/lib/api/library.ts
+apps/customer-web/src/lib/api/my-scores.ts
+apps/customer-web/src/types/api/library.ts
+apps/customer-web/src/types/api/my-scores.ts
+apps/customer-web/src/hooks/queries/use-library-queries.ts
+apps/customer-web/src/hooks/queries/use-my-scores-queries.ts
 queryKeys.library
 queryKeys.myScores
 ```
@@ -243,9 +243,9 @@ queryKeys.myScores
 Current routes:
 
 ```text
-frontend/src/app/[locale]/library/page.tsx
-frontend/src/app/[locale]/my-scores/page.tsx
-frontend/src/app/[locale]/history/page.tsx
+apps/customer-web/src/app/[locale]/library/page.tsx
+apps/customer-web/src/app/[locale]/my-scores/page.tsx
+apps/customer-web/src/app/[locale]/history/page.tsx
 ```
 
 

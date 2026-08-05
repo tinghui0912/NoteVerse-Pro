@@ -484,7 +484,7 @@ def run_import_dispatch_maintenance() -> dict[str, int]:
         with get_worker_db() as db:
             due = import_dispatch_service.recover_and_claim_due(db)
 
-        from app.shared.import_dispatcher import dispatch_import_job
+        from app.worker.dispatch.import_jobs import dispatch_import_job
 
         dispatched = sum(1 for job_uuid in due if dispatch_import_job(job_uuid))
         return {"due": len(due), "dispatched": dispatched}
@@ -569,7 +569,7 @@ def run_render_outbox_maintenance() -> dict[str, int]:
         with get_worker_db() as db:
             due = render_outbox_service.recover_and_list_due(db)
 
-        from app.shared.render_dispatcher import dispatch_render_outbox
+        from app.worker.dispatch.render_assets import dispatch_render_outbox
 
         dispatched = sum(1 for outbox_uuid in due if dispatch_render_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}
@@ -585,7 +585,7 @@ def run_playback_outbox_maintenance() -> dict[str, int]:
         with get_worker_db() as db:
             due = playback_outbox_service.recover_and_list_due(db)
 
-        from app.shared.playback_dispatcher import dispatch_playback_outbox
+        from app.worker.dispatch.playback_assets import dispatch_playback_outbox
 
         dispatched = sum(1 for outbox_uuid in due if dispatch_playback_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}
@@ -601,7 +601,7 @@ def run_mail_outbox_maintenance() -> dict[str, int]:
         with get_worker_db() as db:
             due = mail_outbox_service.recover_and_list_due(db)
 
-        from app.shared.mail_dispatcher import dispatch_mail_outbox
+        from app.worker.dispatch.mail import dispatch_mail_outbox
 
         dispatched = sum(1 for outbox_uuid in due if dispatch_mail_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}

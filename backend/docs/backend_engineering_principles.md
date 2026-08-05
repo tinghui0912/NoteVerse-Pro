@@ -1,4 +1,4 @@
-﻿# NoteVerse Backend Engineering Principles
+# NoteVerse Backend Engineering Principles
 
 > Current baseline: score-domain architecture after the completed migration in
 > `../../docs/archive/completed-migrations/score-domain-architecture-migration-plan.md`.
@@ -23,7 +23,7 @@ The backend now uses a hybrid architecture:
 - durable storage lives under `app/storage/*`;
 - processing orchestration lives under `app/pipeline/*`;
 - OCR, MusicXML, rendering, realtime, and audio engines live under `app/processing/*`;
-- Celery runtime wiring lives under `app/worker/*`;
+- Celery runtime wiring and durable outbox dispatch adapters live under `app/worker/*`;
 - application runtime concerns live under `app/core/*`;
 - route aggregation lives in `app/api/v1/router.py`;
 - `app/main.py` stays thin.
@@ -405,6 +405,11 @@ Schemas should:
 Shared code should remain low-coupling. Do not put feature-specific ORM-heavy objects in
 `app/shared/*` just because multiple modules currently import them.
 
+Celery submission is a worker adapter, not a shared domain primitive. The modules in
+`app/worker/dispatch/*` bridge already-claimed import, render, playback, and mail records
+to Celery, and release their claims when broker submission fails. Domain services retain
+their state transitions and do not import Celery directly.
+
 ## 10. API And Response Rules
 
 Use the project response and exception conventions:
@@ -469,7 +474,7 @@ For score-domain changes, add focused coverage for the relevant behavior:
 For score-domain cleanup or regression review, run a residue search:
 
 ```powershell
-rg -n "app\.modules\.(tasks|shares|xml)|app\.db\.models\.(task|share)|TaskDetails|current_xml|final_xml|source=(current|final)|tasksApi|xmlApi|sharesApi" backend\app backend\tests frontend\src frontend\tests
+rg -n "app\.modules\.(tasks|shares|xml)|app\.db\.models\.(task|share)|TaskDetails|current_xml|final_xml|source=(current|final)|tasksApi|xmlApi|sharesApi" backend\app backend\tests apps\customer-web\src apps\customer-web\tests
 ```
 
 No runtime code should match that search after the completed cutover.

@@ -8,6 +8,9 @@ param(
         "frontend-typecheck",
         "frontend-i18n",
         "frontend-test",
+        "platform-admin-lint",
+        "platform-admin-typecheck",
+        "platform-admin-build",
         "k8s",
         "k8s-minikube",
         "observability",
@@ -20,7 +23,8 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $BackendQualityScript = Join-Path $PSScriptRoot "backend_quality_docker.ps1"
-$FrontendRoot = Join-Path $RepoRoot "frontend"
+$FrontendRoot = Join-Path $RepoRoot "apps/customer-web"
+$PlatformAdminRoot = Join-Path $RepoRoot "apps/platform-admin"
 $K8sManifestCheck = Join-Path $PSScriptRoot "check_k8s_application_manifests.py"
 $K8sReleaseOverlayRenderer = Join-Path $PSScriptRoot "render_k8s_release_overlay.py"
 $MinikubeBootstrap = Join-Path $PSScriptRoot "minikube_bootstrap.ps1"
@@ -53,6 +57,23 @@ function Invoke-FrontendNpm {
     Invoke-Step "frontend:$Script" {
         Push-Location $FrontendRoot
         try {
+            npm run $Script
+        }
+        finally {
+            Pop-Location
+        }
+    }
+}
+
+function Invoke-PlatformAdminNpm {
+    param([string] $Script)
+
+    Invoke-Step "platform-admin:$Script" {
+        Push-Location $PlatformAdminRoot
+        try {
+            $env:NEXT_CONTROL_PLANE_ORIGIN = "http://127.0.0.1:8002"
+            $env:NEXT_PUBLIC_CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_operator_csrf"
+            $env:NEXT_PUBLIC_CONTROL_PLANE_CSRF_HEADER_NAME = "x-operator-csrf-token"
             npm run $Script
         }
         finally {
@@ -142,6 +163,15 @@ switch ($Check) {
     "frontend-test" {
         Invoke-FrontendNpm "test"
     }
+    "platform-admin-lint" {
+        Invoke-PlatformAdminNpm "lint"
+    }
+    "platform-admin-typecheck" {
+        Invoke-PlatformAdminNpm "typecheck"
+    }
+    "platform-admin-build" {
+        Invoke-PlatformAdminNpm "build"
+    }
     "k8s" {
         Invoke-K8sManifestCheck
         Invoke-K8sReleaseOverlaySmokeCheck
@@ -160,6 +190,8 @@ switch ($Check) {
         Invoke-FrontendNpm "lint"
         Invoke-FrontendNpm "typecheck"
         Invoke-FrontendNpm "check:i18n-errors"
+        Invoke-PlatformAdminNpm "lint"
+        Invoke-PlatformAdminNpm "typecheck"
         Invoke-K8sManifestCheck
         Invoke-K8sReleaseOverlaySmokeCheck
         Invoke-ObservabilityManifestCheck

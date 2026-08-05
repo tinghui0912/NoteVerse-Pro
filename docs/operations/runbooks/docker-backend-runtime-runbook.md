@@ -404,7 +404,7 @@ http://localhost:8000
 Frontend can keep running outside Docker:
 
 ```powershell
-cd frontend
+cd apps/customer-web
 npm run dev
 ```
 

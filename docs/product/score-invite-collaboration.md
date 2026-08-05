@@ -130,31 +130,31 @@ Acceptance behavior:
 Implemented route:
 
 ```text
-frontend/src/app/[locale]/invite/[token]/page.tsx
+apps/customer-web/src/app/[locale]/invite/[token]/page.tsx
 ```
 
 Implemented collaboration UI:
 
 ```text
-frontend/src/components/score-detail/score-collaboration-dialog.tsx
+apps/customer-web/src/components/score-detail/score-collaboration-dialog.tsx
 ```
 
 Implemented frontend API and hooks:
 
 ```text
-frontend/src/lib/api/score-invites.ts
-frontend/src/hooks/queries/use-score-queries.ts
-frontend/src/lib/query-client.ts
-frontend/src/types/api/scores.ts
+apps/customer-web/src/lib/api/score-invites.ts
+apps/customer-web/src/hooks/queries/use-score-queries.ts
+apps/customer-web/src/lib/query-client.ts
+apps/customer-web/src/types/api/scores.ts
 ```
 
 Implemented i18n:
 
 ```text
-frontend/messages/zh/scoreCollaboration.json
-frontend/messages/en/scoreCollaboration.json
-frontend/messages/zh/errors.json
-frontend/messages/en/errors.json
+apps/customer-web/messages/zh/scoreCollaboration.json
+apps/customer-web/messages/en/scoreCollaboration.json
+apps/customer-web/messages/zh/errors.json
+apps/customer-web/messages/en/errors.json
 ```
 
 UI boundaries:
@@ -167,7 +167,7 @@ UI boundaries:
 ## Verified
 
 ```powershell
-cd frontend
+cd apps/customer-web
 npm run typecheck
 npm run lint
 npm run test:unit -- tests/unit/query-client.test.ts

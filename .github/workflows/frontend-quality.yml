@@ -3,12 +3,12 @@ name: Frontend Quality
 on:
   push:
     paths:
-      - "frontend/**"
+      - "apps/customer-web/**"
       - "backend/app/shared/error_codes.py"
       - ".github/workflows/frontend-quality.yml"
   pull_request:
     paths:
-      - "frontend/**"
+      - "apps/customer-web/**"
       - "backend/app/shared/error_codes.py"
       - ".github/workflows/frontend-quality.yml"
 
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: apps/customer-web
     env:
       NEXT_BACKEND_ORIGIN: http://127.0.0.1:8000
       NEXT_PRACTICE_ORIGIN: http://127.0.0.1:8001
@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: 24.18.0
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: apps/customer-web/package-lock.json
 
       - name: Install dependencies
         run: npm ci

@@ -14,7 +14,7 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
 
 WORKDIR /app
 
-COPY frontend/package.json frontend/package-lock.json ./
+COPY apps/customer-web/package.json apps/customer-web/package-lock.json ./
 RUN npm ci \
     && sha256sum package-lock.json | cut -d ' ' -f 1 > node_modules/.noteverse-package-lock.sha256
 

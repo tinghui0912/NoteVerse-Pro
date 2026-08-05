@@ -3,8 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(scriptDir, '../..');
-const frontendDir = path.resolve(rootDir, 'frontend');
+const rootDir = path.resolve(scriptDir, '../../..');
+const frontendDir = path.resolve(rootDir, 'apps/customer-web');
 const errorCodesPath = path.resolve(rootDir, 'backend/app/shared/error_codes.py');
 const locales = ['en', 'zh'];
 

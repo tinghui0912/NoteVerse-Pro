@@ -1179,7 +1179,7 @@ Required focused coverage:
 ### 11.2 Frontend inner loop
 
 ```powershell
-cd frontend
+cd apps/customer-web
 npm run lint
 npm run typecheck
 npm run test

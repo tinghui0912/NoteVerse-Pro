@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "frontend/**"
+      - "apps/customer-web/**"
       - "docker/frontend/**"
       - ".github/workflows/frontend-image.yml"
   pull_request:
     paths:
-      - "frontend/**"
+      - "apps/customer-web/**"
       - "docker/frontend/**"
       - ".github/workflows/frontend-image.yml"
 

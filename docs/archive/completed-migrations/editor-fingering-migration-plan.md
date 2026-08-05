@@ -7,7 +7,7 @@ Status: Historical / Completed
 
 ## 背景
 
-迁移前 `/results` 页面提供“生成指法”按钮，入口位于 `frontend/src/components/results/results-actions.tsx`。点击后调用 `useGenerateScoreFingering()`，进一步调用 `scoresApi.generateFingering(scoreId, { base_revision_id })`，后端 `POST /scores/{score_id}/fingering` 会基于当前 head/base revision 生成带指法的 MusicXML，并立即创建一个新的 `origin=FINGERING` revision。
+迁移前 `/results` 页面提供“生成指法”按钮，入口位于 `apps/customer-web/src/components/results/results-actions.tsx`。点击后调用 `useGenerateScoreFingering()`，进一步调用 `scoresApi.generateFingering(scoreId, { base_revision_id })`，后端 `POST /scores/{score_id}/fingering` 会基于当前 head/base revision 生成带指法的 MusicXML，并立即创建一个新的 `origin=FINGERING` revision。
 
 经过产品职责收敛后，结论是：生成指法会修改 MusicXML 内容，属于编辑行为，应迁移到当前的 `/score/:id/edit` 编辑工作区。`/score/:id` 保留查看、播放、下载、分享、练习、进入编辑等结果消费能力，不再承载会修改乐谱内容的操作。
 
@@ -28,18 +28,18 @@ Status: Historical / Completed
 - `docker compose -f docker-compose.backend-dev.yml run --rm api alembic upgrade head`
 - `docker compose -f docker-compose.backend-dev.yml run --rm api alembic current`
 - `docker compose -f docker-compose.backend-dev.yml run --rm api pytest tests/test_score_revision_services.py -q`
-- `cd frontend && npm run typecheck`
-- `cd frontend && npm run lint`
-- `cd frontend && npm run test:unit`
+- `cd apps/customer-web && npm run typecheck`
+- `cd apps/customer-web && npm run lint`
+- `cd apps/customer-web && npm run test:unit`
 
 ## 迁移前链路
 
 ### Results
 
-- UI：`frontend/src/components/results/results-actions.tsx`
-- Hook：`frontend/src/hooks/queries/use-score-queries.ts`
-- API client：`frontend/src/lib/api/scores.ts`
-- 文案：`frontend/messages/*/results.json`
+- UI：`apps/customer-web/src/components/results/results-actions.tsx`
+- Hook：`apps/customer-web/src/hooks/queries/use-score-queries.ts`
+- API client：`apps/customer-web/src/lib/api/scores.ts`
+- 文案：`apps/customer-web/messages/*/results.json`
 
 现有行为：
 
@@ -65,10 +65,10 @@ Status: Historical / Completed
 
 ### Editor
 
-- 页面：`frontend/src/app/[locale]/editor/[id]/page.tsx`
-- 文档状态：`frontend/src/hooks/editor/use-editor-document.ts`
-- 左侧工具：`frontend/src/components/editor/editor-sidebar.tsx`
-- 顶部工具：`frontend/src/components/editor/editor-toolbar.tsx`
+- 页面：`apps/customer-web/src/app/[locale]/editor/[id]/page.tsx`
+- 文档状态：`apps/customer-web/src/hooks/editor/use-editor-document.ts`
+- 左侧工具：`apps/customer-web/src/components/editor/editor-sidebar.tsx`
+- 顶部工具：`apps/customer-web/src/components/editor/editor-toolbar.tsx`
 - 当前 XML 状态：`ScoreDataProvider`
 - 历史栈：`HistoryProvider`
 - 保存：`useEditorDocument.performSave()` 调用 `useCreateRevision()`。
@@ -279,7 +279,7 @@ Event Inspector 已经支持逐音修改 `<fingering>`。生成指法应视为�
 
 ### 阶段 3：前端 API 与 hook
 
-1. `frontend/src/lib/api/scores.ts` 修改 `generateFingering` 入参和返回类型。
+1. `apps/customer-web/src/lib/api/scores.ts` 修改 `generateFingering` 入参和返回类型。
 2. 类型中增加 response 类型，例如 `FingeringResult`。
 3. 调整 `useGenerateScoreFingering()`：传 `content + hand_size`，不再 invalidate revisions/artifacts。
 4. 错误处理沿用 `ApiError` 和 `errors` 翻译。
@@ -336,7 +336,7 @@ Event Inspector 已经支持逐音修改 `<fingering>`。生成指法应视为�
 回归测试：
 
 ```bash
-cd frontend
+cd apps/customer-web
 npm run typecheck
 npm run lint
 npm run test:unit
