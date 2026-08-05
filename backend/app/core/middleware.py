@@ -10,7 +10,7 @@ from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.client_address import client_address, peer_address
-from app.core.logger import logger, set_trace_id
+from app.core.logger import logger, set_request_id
 from app.core.metrics import record_http_request
 from app.shared.constants import ErrorCode
 from app.shared.responses import error_response
@@ -85,7 +85,7 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         existing = getattr(request.state, "request_id", None)
         if isinstance(existing, str) and existing:
             return existing
-        request_id = set_trace_id(request.headers.get("X-Request-ID"))
+        request_id = set_request_id(request.headers.get("X-Request-ID"))
         request.state.request_id = request_id
         return request_id
 
@@ -172,13 +172,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         # Use an incoming request ID when present, otherwise generate one.
         request_id = request.headers.get("X-Request-ID")
-        trace_id = set_trace_id(request_id)
-        request.state.request_id = trace_id
+        request_id = set_request_id(request_id)
+        request.state.request_id = request_id
 
         should_log = request.url.path not in HEALTH_PATHS
         base_log = logger.bind(
             event="api.request",
-            request_id=trace_id,
+            request_id=request_id,
             method=request.method,
             path=request.url.path,
             peer_address=peer_address(request) or "unknown",
@@ -220,7 +220,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 ).log(level, "api.request_completed")
 
             # Return trace metadata to the caller.
-            response.headers["X-Request-ID"] = trace_id
+            response.headers["X-Request-ID"] = request_id
             response.headers["X-Process-Time"] = f"{process_time:.3f}"
 
             return response

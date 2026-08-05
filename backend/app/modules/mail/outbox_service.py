@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.config import settings
-from app.core.logger import get_trace_id
+from app.core.logger import get_request_id
 from app.db.models import MailOutbox, MailOutboxStatus
 from app.modules.async_operations.diagnostics import (
     AsyncOperationKindValue,
@@ -52,7 +52,7 @@ async def queue_mail(
     outbox = MailOutbox(
         category=category,
         dedupe_key=dedupe_key,
-        originating_request_id=get_trace_id(),
+        originating_request_id=get_request_id(),
         recipient=recipient.strip().lower(),
         subject=subject,
         text_body=text_body,

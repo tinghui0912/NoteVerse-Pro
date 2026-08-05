@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.config import settings
-from app.core.logger import get_trace_id
+from app.core.logger import get_request_id
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     ImportArtifact,
@@ -72,7 +72,7 @@ class ScoreLifecycleService:
         now = utc_now_naive()
         score.deletion_status = ScoreDeletionStatus.DELETING
         score.deletion_requested_at = now
-        score.deletion_request_id = get_trace_id()
+        score.deletion_request_id = get_request_id()
         score.deleted_at = now
         score.cleanup_attempt_count = 0
         score.next_cleanup_at = None

@@ -50,7 +50,7 @@ alternateConfig:
       send_batch_size: 1024
     resource:
       attributes:
-        - key: deployment.environment
+        - key: deployment.environment.name
           from_attribute: k8s.namespace.name
           action: insert
 

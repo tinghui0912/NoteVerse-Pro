@@ -43,6 +43,10 @@ config:
         Path              /var/log/containers/*.log
         Parser            cri
         Tag               kube.*
+        # Operational logs are best-effort diagnostics, not the audit ledger.
+        # Starting from the tail prevents a collector rollout from replaying an
+        # unbounded history of node container logs into Loki.
+        Read_from_Head    Off
         Refresh_Interval  5
         Rotate_Wait       30
         Mem_Buf_Limit     50MB

@@ -14,6 +14,7 @@ from contextvars import ContextVar
 from typing import Optional
 
 from loguru import logger as _logger
+from opentelemetry import trace
 
 from app.core.config import settings
 
@@ -22,23 +23,36 @@ _logger.remove()
 log_format = settings.LOG_FORMAT
 
 
-trace_id_var: ContextVar[Optional[str]] = ContextVar("trace_id", default=None)
+request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
 task_id_var: ContextVar[Optional[str]] = ContextVar("task_id", default=None)
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
-def get_trace_id() -> Optional[str]:
-    """Return the current request trace ID."""
+def get_request_id() -> Optional[str]:
+    """Return the current request correlation identifier."""
 
-    return trace_id_var.get()
+    return request_id_var.get()
 
 
-def set_trace_id(trace_id: Optional[str] = None) -> str:
-    """Set the current request trace ID and return the resolved value."""
+def set_request_id(request_id: Optional[str] = None) -> str:
+    """Set the current request correlation identifier and return it."""
 
-    if trace_id is None:
-        trace_id = str(uuid.uuid4())[:8]
-    trace_id_var.set(trace_id)
-    return trace_id
+    if request_id is None or not REQUEST_ID_PATTERN.fullmatch(request_id):
+        request_id = uuid.uuid4().hex
+    request_id_var.set(request_id)
+    return request_id
+
+
+def get_otel_trace_context() -> dict[str, str]:
+    """Return the active W3C trace context when instrumentation created a span."""
+
+    context = trace.get_current_span().get_span_context()
+    if not context.is_valid:
+        return {}
+    return {
+        "trace_id": f"{context.trace_id:032x}",
+        "span_id": f"{context.span_id:016x}",
+    }
 
 
 def get_task_id() -> Optional[str]:
@@ -119,12 +133,12 @@ def filtered_format(record):
 def console_format(record):
     """Return the colored console formatter for local development."""
 
-    trace_id = get_trace_id()
+    request_id = get_request_id()
     task_id = get_task_id()
 
     extra = ""
-    if trace_id:
-        extra += f"[{trace_id}] "
+    if request_id:
+        extra += f"request={request_id[:8]} "
     if task_id:
         extra += f"task={task_id[:8]} "
 
@@ -140,7 +154,7 @@ def console_format(record):
 def json_format(record) -> str:
     """Serialize a loguru record as newline-delimited JSON."""
 
-    trace_id = get_trace_id()
+    request_id = get_request_id()
     task_id = get_task_id()
 
     log_record = {
@@ -150,16 +164,18 @@ def json_format(record) -> str:
         "message": SensitiveDataFilter.filter_string(str(record["message"])),
         "function": record["function"],
         "line": record["line"],
+        "schema_version": 1,
     }
 
-    reserved_keys = set(log_record)
+    reserved_keys = set(log_record) | {"request_id", "trace_id", "span_id"}
     extra = SensitiveDataFilter.filter_dict(dict(record["extra"]))
     for key, value in extra.items():
         output_key = key if key not in reserved_keys else f"extra_{key}"
         log_record[output_key] = value
 
-    if trace_id:
-        log_record["trace_id"] = trace_id
+    if request_id:
+        log_record["request_id"] = request_id
+    log_record.update(get_otel_trace_context())
     if task_id:
         log_record["task_id"] = task_id
 
@@ -214,10 +230,11 @@ logger = _logger
 __all__ = [
     "logger",
     "SensitiveDataFilter",
-    "get_trace_id",
-    "set_trace_id",
+    "get_request_id",
+    "set_request_id",
+    "get_otel_trace_context",
     "get_task_id",
     "set_task_id",
-    "trace_id_var",
+    "request_id_var",
     "task_id_var",
 ]

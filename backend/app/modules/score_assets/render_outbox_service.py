@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.config import settings
-from app.core.logger import get_trace_id
+from app.core.logger import get_request_id
 from app.db.models import (
     ImportArtifact,
     ImportJob,
@@ -73,7 +73,7 @@ async def create_revision_render_outbox(
         score_id=score_id,
         revision_id=revision_id,
         requested_by_user_id=requested_by_user_id,
-        originating_request_id=get_trace_id(),
+        originating_request_id=get_request_id(),
         source_fingerprint=source_fingerprint,
         render_profile=render_profile,
         status=RenderOutboxStatus.PENDING,
@@ -144,7 +144,7 @@ def _new_review_thumbnail_outbox(
         outbox_uuid=str(uuid.uuid4()),
         target_type=RenderTargetType.REVIEW_THUMBNAIL,
         import_job_id=import_job_id,
-        originating_request_id=get_trace_id(),
+        originating_request_id=get_request_id(),
         source_fingerprint=source_fingerprint,
         render_profile=render_profile,
         status=RenderOutboxStatus.PENDING,

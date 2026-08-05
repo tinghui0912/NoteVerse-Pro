@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
 from app.core.exceptions import AppException
-from app.core.logger import get_trace_id, logger
+from app.core.logger import get_request_id, logger
 from app.shared.constants import ErrorCode
 from app.shared.responses import ErrorResponsePayload, error_response
 
@@ -23,7 +23,7 @@ def _error_payload(
 
 
 def _request_id(request: Request) -> str | None:
-    return get_trace_id() or request.headers.get("X-Request-ID")
+    return get_request_id() or request.headers.get("X-Request-ID")
 
 
 def _request_log_context(request: Request) -> dict[str, object]:
