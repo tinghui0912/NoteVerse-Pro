@@ -8,7 +8,6 @@ spec:
   secretName: noteverse-staging-tls
   dnsNames:
     - staging.johnabc.ccwu.cc
-    - api.staging.johnabc.ccwu.cc
     - admin.staging.johnabc.ccwu.cc
   issuerRef:
     name: letsencrypt-production-dns01
@@ -25,17 +24,6 @@ spec:
   listeners:
     - name: web-https
       hostname: staging.johnabc.ccwu.cc
-      port: 443
-      protocol: HTTPS
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - name: noteverse-staging-tls
-      allowedRoutes:
-        namespaces:
-          from: Same
-    - name: api-https
-      hostname: api.staging.johnabc.ccwu.cc
       port: 443
       protocol: HTTPS
       tls:
@@ -101,44 +89,6 @@ spec:
       backendRefs:
         - name: noteverse-frontend
           port: 3000
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: noteverse-api
-  labels:
-    app.kubernetes.io/component: routing
-spec:
-  parentRefs:
-    - name: noteverse
-      sectionName: api-https
-  hostnames:
-    - api.staging.johnabc.ccwu.cc
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api/v1/realtime/events
-      timeouts:
-        request: 0s
-        backendRequest: 0s
-      backendRefs:
-        - name: noteverse-backend-api
-          port: 8000
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api/v1/practice
-      backendRefs:
-        - name: noteverse-backend-practice
-          port: 8000
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: noteverse-backend-api
-          port: 8000
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
