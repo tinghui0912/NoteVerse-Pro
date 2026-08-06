@@ -529,8 +529,16 @@ terminal lifecycle events without audio or control payloads. P3 is implemented
 locally: the four durable operation records persist vetted `traceparent` and
 optional `tracestate`, relay dispatches create producer spans, worker attempts
 create fresh consumer spans, and each relay delivery gets a unique Celery task
-ID. P3 still needs a deployed staging migration plus an end-to-end import or
-derived-asset trace smoke. P4 remains planned work.
+ID. The P3 schema migration (`0036_async_trace_context`) is deployed in
+staging, and the local GPU worker is running against the same PostgreSQL,
+Redis, and object-storage dependencies while consuming scheduled maintenance
+tasks. The staging correlation smoke now waits for the API, Loki, Fluent Bit,
+and Tempo workloads to be Ready before it sends a request; it verified an API
+request from Loki into Tempo after the migration. P3 acceptance is also
+verified with a real import: the persisted trace context links the initiating
+HTTP server span, the relay's `noteverse.import.dispatch` producer span, and
+the worker's `noteverse.import.process` consumer span in one trace. P4 remains
+planned work.
 
 Use `scripts/minikube_observability_correlation_smoke.ps1` after each staged
 observability release to verify the P1 request-to-log-to-trace contract.
