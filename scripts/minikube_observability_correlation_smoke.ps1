@@ -71,6 +71,20 @@ function Invoke-JsonWithRetry {
     throw "Timed out waiting for ${Name}: $lastError"
 }
 
+function Wait-ObservabilityWorkload {
+    param(
+        [string] $Namespace,
+        [string] $Kind,
+        [string] $Name,
+        [string] $DisplayName
+    )
+
+    & kubectl -n $Namespace rollout status "${Kind}/${Name}" --timeout="${TimeoutSeconds}s"
+    if ($LASTEXITCODE -ne 0) {
+        throw "$DisplayName did not become ready before the correlation smoke test."
+    }
+}
+
 function Get-LokiRecordsForRequest {
     param([object] $LokiResult, [string] $RequestId)
 
@@ -96,6 +110,30 @@ function Get-LokiRecordsForRequest {
 
 $portForwards = @()
 try {
+    # A listening Service port does not mean that the log pipeline can accept
+    # and query records yet. Wait for the complete dependency chain so a cold
+    # start is reported as a platform-readiness failure, not an app failure.
+    Wait-ObservabilityWorkload `
+        -Namespace $ApplicationNamespace `
+        -Kind "deployment" `
+        -Name "noteverse-backend-api" `
+        -DisplayName "NoteVerse API"
+    Wait-ObservabilityWorkload `
+        -Namespace $ObservabilityNamespace `
+        -Kind "statefulset" `
+        -Name "loki" `
+        -DisplayName "Loki"
+    Wait-ObservabilityWorkload `
+        -Namespace $ObservabilityNamespace `
+        -Kind "daemonset" `
+        -Name "fluent-bit" `
+        -DisplayName "Fluent Bit"
+    Wait-ObservabilityWorkload `
+        -Namespace $ObservabilityNamespace `
+        -Kind "statefulset" `
+        -Name "tempo" `
+        -DisplayName "Tempo"
+
     $portForwards += Start-PortForward `
         -Namespace $ApplicationNamespace `
         -Name "api-correlation" `
