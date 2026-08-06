@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from opentelemetry.trace import SpanKind
 
-from app.core.background_tracing import background_attempt_span
+from app.core.background_tracing import background_attempt_span, record_current_attempt_failure
 from app.core.logger import logger
 from app.db.worker_session import get_worker_db
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
@@ -24,18 +24,31 @@ def dispatch_import_job(job_uuid: str) -> bool:
             kind=SpanKind.PRODUCER,
             attributes={"noteverse.operation.kind": "import", "noteverse.operation.id": job_uuid},
         ):
-            celery_app.send_task(
-                "app.worker.tasks.process_images_job",
-                kwargs={"job_uuid": job_uuid},
+            try:
+                celery_app.send_task(
+                    "app.worker.tasks.process_images_job",
+                    kwargs={"job_uuid": job_uuid},
+                    task_id=task_id,
+                )
+            except Exception as exc:
+                record_current_attempt_failure(exc)
+                with get_worker_db() as db:
+                    import_dispatch_service.release_dispatch(db, job_uuid, str(exc))
+                logger.bind(
+                    event="import.dispatch_failed",
+                    operation_kind="import",
+                    job_id=job_uuid,
+                    task_id=task_id,
+                    exception_type=type(exc).__name__,
+                ).warning("import.dispatch_failed")
+                return False
+            logger.bind(
+                event="import.dispatched",
+                operation_kind="import",
+                job_id=job_uuid,
                 task_id=task_id,
-            )
-        logger.bind(
-            event="import.dispatched",
-            operation_kind="import",
-            job_id=job_uuid,
-            task_id=task_id,
-        ).info("import.dispatched")
-        return True
+            ).info("import.dispatched")
+            return True
     except Exception as exc:
         with get_worker_db() as db:
             import_dispatch_service.release_dispatch(db, job_uuid, str(exc))

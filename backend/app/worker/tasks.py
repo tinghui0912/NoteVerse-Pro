@@ -4,7 +4,12 @@ from collections.abc import Callable
 import sys
 from time import monotonic
 
-from app.core.background_tracing import background_attempt_span, record_current_attempt_failure
+from app.core.background_tracing import (
+    background_attempt_span,
+    background_root_span,
+    record_current_attempt_failure,
+    set_scheduler_trace_outcome,
+)
 from app.core.logger import logger, set_task_id
 from app.db.models import RenderTargetType
 from app.db.worker_session import get_worker_db
@@ -83,7 +88,14 @@ def _run_scheduler_scan(job_key: str, callback: Callable[[], dict[str, int]]) ->
 
         with get_worker_db() as db:
             scheduler_observability_service.record_lock_acquired(db, job_key)
-        return _run_locked_scheduler_scan(job_key, callback, started_at)
+        with background_root_span(
+            name="noteverse.scheduler.scan",
+            attributes={
+                "noteverse.operation.kind": "scheduler",
+                "noteverse.scheduler.job": job_key,
+            },
+        ):
+            return _run_locked_scheduler_scan(job_key, callback, started_at)
 
 
 def _run_locked_scheduler_scan(
@@ -115,6 +127,11 @@ def _run_locked_scheduler_scan(
 
     duration_seconds = monotonic() - started_at
     stats = _scheduler_run_stats(result)
+    set_scheduler_trace_outcome(
+        has_activity=any(value != 0 for value in result.values()),
+        due=stats.due,
+        dispatched=stats.dispatched,
+    )
     with get_worker_db() as db:
         scheduler_observability_service.record_success(
             db,
@@ -194,7 +211,6 @@ def process_images_job(
                 payload.options,
             )
         except Exception as exc:
-            record_current_attempt_failure(exc)
             _operation_logger(
                 "import.failed",
                 operation_kind="import",
