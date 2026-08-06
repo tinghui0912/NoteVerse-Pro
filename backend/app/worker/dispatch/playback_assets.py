@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from opentelemetry.trace import SpanKind
 
-from app.core.background_tracing import background_attempt_span
+from app.core.background_tracing import background_attempt_span, record_current_attempt_failure
 from app.core.logger import logger
 from app.db.worker_session import get_worker_db
 from app.modules.playback.outbox_service import playback_outbox_service
@@ -27,18 +27,31 @@ def dispatch_playback_outbox(outbox_uuid: str) -> bool:
             kind=SpanKind.PRODUCER,
             attributes={"noteverse.operation.kind": "playback", "noteverse.operation.id": outbox_uuid},
         ):
-            celery_app.send_task(
-                "app.worker.tasks.playback_outbox_task",
-                kwargs={"outbox_uuid": outbox_uuid},
+            try:
+                celery_app.send_task(
+                    "app.worker.tasks.playback_outbox_task",
+                    kwargs={"outbox_uuid": outbox_uuid},
+                    task_id=task_id,
+                )
+            except Exception as exc:
+                record_current_attempt_failure(exc)
+                with get_worker_db() as db:
+                    playback_outbox_service.release_dispatch(db, outbox_uuid, str(exc))
+                logger.bind(
+                    event="playback.dispatch_failed",
+                    operation_kind="playback",
+                    outbox_id=outbox_uuid,
+                    task_id=task_id,
+                    exception_type=type(exc).__name__,
+                ).warning("playback.dispatch_failed")
+                return False
+            logger.bind(
+                event="playback.dispatched",
+                operation_kind="playback",
+                outbox_id=outbox_uuid,
                 task_id=task_id,
-            )
-        logger.bind(
-            event="playback.dispatched",
-            operation_kind="playback",
-            outbox_id=outbox_uuid,
-            task_id=task_id,
-        ).info("playback.dispatched")
-        return True
+            ).info("playback.dispatched")
+            return True
     except Exception as exc:
         with get_worker_db() as db:
             playback_outbox_service.release_dispatch(db, outbox_uuid, str(exc))

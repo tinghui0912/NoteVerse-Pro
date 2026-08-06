@@ -8,6 +8,7 @@ from app.core.background_tracing import (
     background_attempt_span,
     background_root_span,
     record_current_attempt_failure,
+    set_scheduler_trace_outcome,
 )
 from app.core.logger import logger, set_task_id
 from app.db.models import RenderTargetType
@@ -126,6 +127,11 @@ def _run_locked_scheduler_scan(
 
     duration_seconds = monotonic() - started_at
     stats = _scheduler_run_stats(result)
+    set_scheduler_trace_outcome(
+        has_activity=any(value != 0 for value in result.values()),
+        due=stats.due,
+        dispatched=stats.dispatched,
+    )
     with get_worker_db() as db:
         scheduler_observability_service.record_success(
             db,
@@ -205,7 +211,6 @@ def process_images_job(
                 payload.options,
             )
         except Exception as exc:
-            record_current_attempt_failure(exc)
             _operation_logger(
                 "import.failed",
                 operation_kind="import",

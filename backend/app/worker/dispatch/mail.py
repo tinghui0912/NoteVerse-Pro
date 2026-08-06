@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from opentelemetry.trace import SpanKind
 
-from app.core.background_tracing import background_attempt_span
+from app.core.background_tracing import background_attempt_span, record_current_attempt_failure
 from app.core.logger import logger
 from app.db.worker_session import get_worker_db
 from app.modules.mail.outbox_service import mail_outbox_service
@@ -26,18 +26,31 @@ def dispatch_mail_outbox(outbox_uuid: str) -> bool:
             kind=SpanKind.PRODUCER,
             attributes={"noteverse.operation.kind": "mail", "noteverse.operation.id": outbox_uuid},
         ):
-            celery_app.send_task(
-                "app.worker.tasks.send_mail_outbox_task",
-                kwargs={"outbox_uuid": outbox_uuid},
+            try:
+                celery_app.send_task(
+                    "app.worker.tasks.send_mail_outbox_task",
+                    kwargs={"outbox_uuid": outbox_uuid},
+                    task_id=task_id,
+                )
+            except Exception as exc:
+                record_current_attempt_failure(exc)
+                with get_worker_db() as db:
+                    mail_outbox_service.release_dispatch(db, outbox_uuid, str(exc))
+                logger.bind(
+                    event="mail.dispatch_failed",
+                    operation_kind="mail",
+                    outbox_id=outbox_uuid,
+                    task_id=task_id,
+                    exception_type=type(exc).__name__,
+                ).warning("mail.dispatch_failed")
+                return False
+            logger.bind(
+                event="mail.dispatched",
+                operation_kind="mail",
+                outbox_id=outbox_uuid,
                 task_id=task_id,
-            )
-        logger.bind(
-            event="mail.dispatched",
-            operation_kind="mail",
-            outbox_id=outbox_uuid,
-            task_id=task_id,
-        ).info("mail.dispatched")
-        return True
+            ).info("mail.dispatched")
+            return True
     except Exception as exc:
         with get_worker_db() as db:
             mail_outbox_service.release_dispatch(db, outbox_uuid, str(exc))
