@@ -537,8 +537,16 @@ and Tempo workloads to be Ready before it sends a request; it verified an API
 request from Loki into Tempo after the migration. P3 acceptance is also
 verified with a real import: the persisted trace context links the initiating
 HTTP server span, the relay's `noteverse.import.dispatch` producer span, and
-the worker's `noteverse.import.process` consumer span in one trace. P4 remains
-planned work.
+the worker's `noteverse.import.process` consumer span in one trace. Scheduled
+scans now create an independent `noteverse.scheduler.scan` root only after
+their scan lock is acquired, while lock-skipped scans remain metric/log events
+to avoid high-volume empty traces. Unit coverage verifies durable-parent
+restoration for distinct retry attempts, malformed-context fallback, worker
+process tracing initialization, and scheduler roots. The remaining P3 release
+gate is a controlled retry smoke in staging: it must prove that separate
+worker attempts export separate consumer spans and that the corresponding API,
+relay, and worker logs can be found in Loki by business operation ID and linked
+to the Tempo trace. P4 remains planned work.
 
 Use `scripts/minikube_observability_correlation_smoke.ps1` after each staged
 observability release to verify the P1 request-to-log-to-trace contract.

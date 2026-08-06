@@ -107,6 +107,7 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     events: list[tuple[str, str]] = []
+    trace_roots: list[dict[str, object]] = []
 
     class FakeObservabilityService:
         def record_lock_acquired(self, db: object, job_key: str) -> None:
@@ -133,9 +134,15 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
     def fake_db() -> Iterator[object]:
         yield object()
 
+    @contextmanager
+    def fake_root_span(**kwargs: object) -> Iterator[None]:
+        trace_roots.append(kwargs)
+        yield
+
     monkeypatch.setattr(tasks.scheduler_lock_service, "try_acquire", fake_lock)
     monkeypatch.setattr(tasks, "get_worker_db", fake_db)
     monkeypatch.setattr(tasks, "scheduler_observability_service", FakeObservabilityService())
+    monkeypatch.setattr(tasks, "background_root_span", fake_root_span)
 
     result = tasks._run_scheduler_scan("render_outbox", lambda: {"due": 2, "dispatched": 1})
 
@@ -144,4 +151,13 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
         ("acquired", "render_outbox"),
         ("started", "render_outbox"),
         ("success", "render_outbox"),
+    ]
+    assert trace_roots == [
+        {
+            "name": "noteverse.scheduler.scan",
+            "attributes": {
+                "noteverse.operation.kind": "scheduler",
+                "noteverse.scheduler.job": "render_outbox",
+            },
+        }
     ]

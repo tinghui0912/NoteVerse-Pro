@@ -8,6 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from opentelemetry import propagate, trace
+from opentelemetry.context import Context
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -75,6 +76,43 @@ def background_attempt_span(
     if tracestate is not None:
         carrier["tracestate"] = tracestate
     parent_context = propagate.extract(carrier) if carrier else None
+
+    with _background_span(
+        name=name,
+        parent_context=parent_context,
+        kind=kind,
+        attributes=attributes,
+    ):
+        yield
+
+
+@contextmanager
+def background_root_span(
+    *,
+    name: str,
+    attributes: dict[str, str | int],
+    kind: SpanKind = SpanKind.INTERNAL,
+) -> Iterator[None]:
+    """Scope scheduled or otherwise originless work under a fresh trace root."""
+
+    with _background_span(
+        name=name,
+        parent_context=None,
+        kind=kind,
+        attributes=attributes,
+    ):
+        yield
+
+
+@contextmanager
+def _background_span(
+    *,
+    name: str,
+    parent_context: Context | None,
+    kind: SpanKind,
+    attributes: dict[str, str | int],
+) -> Iterator[None]:
+    """Bind one background span to logging context and record handled failures."""
 
     tracer = trace.get_tracer("noteverse.background")
     with tracer.start_as_current_span(
