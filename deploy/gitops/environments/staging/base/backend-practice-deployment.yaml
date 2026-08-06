@@ -22,7 +22,7 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: practice
-          image: ghcr.io/tinghui0912/noteverse/backend-practice@sha256:1fa9c13e6881375a278cd6480e10256248da5d9ad959e1e908260e69a207e138
+          image: ghcr.io/tinghui0912/noteverse/backend-practice@sha256:cf58daa89cfe58b2b87c19f64ee285beab26ad3c82cbeecf1113fddb1cac8c5b
           args:
             - practice
           ports:

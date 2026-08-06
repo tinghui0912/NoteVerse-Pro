@@ -22,7 +22,7 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: api
-          image: ghcr.io/tinghui0912/noteverse/backend-api@sha256:8a1e5f1cf9230060cbdb7652cb620b8f8d8245b18999212fec28b033d0afb025
+          image: ghcr.io/tinghui0912/noteverse/backend-api@sha256:5e8775ae5f2221d9f5a7827c44a266a3611bde27fb814b5e670923f855880906
           args:
             - api
           ports:
