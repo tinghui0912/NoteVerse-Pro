@@ -1,28 +1,28 @@
-name: noteverse-customer-web-dev
+name: noteverse-platform-admin-dev
 
 services:
-  customer-web:
-    image: noteverse-customer-web-dev:dev
+  platform-admin:
+    image: noteverse-platform-admin-dev:dev
     build:
       context: .
-      dockerfile: docker/customer-web/Dockerfile.dev
+      dockerfile: docker/platform-admin/Dockerfile.dev
     env_file:
-      - path: apps/customer-web/.env.docker
+      - path: apps/platform-admin/.env.docker
         required: true
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
       CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
     volumes:
-      - ./apps/customer-web:/app
-      - noteverse_customer_web_node_modules:/app/node_modules
+      - ./apps/platform-admin:/app
+      - noteverse_platform_admin_node_modules:/app/node_modules
     tmpfs:
       - /app/.next
     ports:
-      - "${CUSTOMER_WEB_PORT:-3000}:3000"
+      - "${PLATFORM_ADMIN_PORT:-3001}:3001"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:
-  noteverse_customer_web_node_modules:
+  noteverse_platform_admin_node_modules:

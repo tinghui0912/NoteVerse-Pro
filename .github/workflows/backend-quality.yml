@@ -63,12 +63,12 @@ jobs:
       AUTH_COOKIE_SECURE: "false"
       AUTH_COOKIE_SAMESITE: lax
       LOG_FORMAT: json
-      FRONTEND_BASE_URL: http://localhost:9002
+      FRONTEND_BASE_URL: http://localhost:3000
       PRACTICE_SOUNDFONT_PATH: /tmp/noteverse/practice.sf2
       PLAYBACK_SOUNDFONT_PATH: /tmp/noteverse/playback.sf2
       REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS: "60"
       REALTIME_EVENT_RETENTION_DAYS: "7"
-      BACKEND_CORS_ORIGINS: '["http://localhost:9002"]'
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
       TRUSTED_PROXY_CIDRS: '[]'
       DATABASE_URL: postgresql+asyncpg://noteverse:noteverse@127.0.0.1:5432/noteverse_test
       SYNC_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@127.0.0.1:5432/noteverse_test

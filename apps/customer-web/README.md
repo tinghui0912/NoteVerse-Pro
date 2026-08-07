@@ -19,8 +19,11 @@ docker compose -f docker-compose.customer-web-dev.yml up customer-web
 Open:
 
 ```text
-http://localhost:9002
+http://localhost:3000
 ```
+
+`npm run dev` uses the same port. Run either the Docker development server or
+the host-process development server, not both at once.
 
 Customer Web uses same-origin `/api/v1/*` for browser API and realtime traffic.
 In local development, Next.js rewrites regular API traffic to the backend API
@@ -49,7 +52,7 @@ npm run dev
 ```
 
 The backend `BACKEND_CORS_ORIGINS` must include the matching Customer Web origin,
-for example `http://192.168.31.59:9002`.
+for example `http://192.168.31.59:3000`.
 
 ## Environment
 
