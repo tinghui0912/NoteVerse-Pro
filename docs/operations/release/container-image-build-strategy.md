@@ -35,6 +35,8 @@ Current Dockerfiles:
 | `docker/backend/Dockerfile.quality` | Backend quality-check image for local/CI checks | no, not deployed |
 | `docker/customer-web/Dockerfile.dev` | Next.js development runtime | no |
 | `docker/customer-web/Dockerfile.runtime` | Next.js production runtime | initial production path |
+| `docker/platform-admin/Dockerfile.dev` | Platform Admin Next.js development runtime | no |
+| `docker/platform-admin/Dockerfile.runtime` | Platform Admin Next.js production runtime | yes |
 | `docker/transcoda/*` | Transcoda experimental/runtime images | not part of main deployment path |
 
 Frontend runtime path:
@@ -424,6 +426,14 @@ Current state:
 - it runs the production server with `npm run start`;
 - it sets `NEXT_TELEMETRY_DISABLED=1`;
 - build/runtime configuration remains explicit and fail-fast.
+
+Platform Admin follows the same Node image pattern. It currently has no
+dedicated quality image: its development image runs `npm ci`, including the
+lint, typecheck, and Vitest toolchain; GitHub Actions installs that toolchain
+in an isolated Node runner. Production runtime images prune development
+dependencies and do not contain test tools. Add a dedicated web quality image
+only if a real native or browser-system dependency requires Docker-specific
+test parity.
 
 Important Next.js config note:
 

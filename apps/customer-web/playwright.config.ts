@@ -8,7 +8,7 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-const port = 9002;
+const port = 3000;
 const host = 'localhost';
 const baseURL = `http://${host}:${port}`;
 const inheritedEnvironment = Object.fromEntries(

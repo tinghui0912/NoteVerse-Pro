@@ -1,0 +1,26 @@
+ARG NODE_IMAGE=node:24-bookworm-slim
+ARG NPM_VERSION=12.0.2
+
+FROM ${NODE_IMAGE}
+
+ARG NPM_VERSION
+
+RUN npm install -g "npm@${NPM_VERSION}" \
+    && npm cache clean --force
+
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=development
+
+WORKDIR /app
+
+COPY apps/platform-admin/package.json apps/platform-admin/package-lock.json ./
+RUN npm ci \
+    && sha256sum package-lock.json | cut -d ' ' -f 1 > node_modules/.noteverse-package-lock.sha256
+
+COPY docker/platform-admin/entrypoint.dev.sh /usr/local/bin/platform-admin-dev-entrypoint
+RUN chmod +x /usr/local/bin/platform-admin-dev-entrypoint
+
+EXPOSE 3001
+
+ENTRYPOINT ["platform-admin-dev-entrypoint"]
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

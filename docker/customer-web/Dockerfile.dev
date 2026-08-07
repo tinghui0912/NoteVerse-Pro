@@ -21,7 +21,7 @@ RUN npm ci \
 COPY docker/customer-web/entrypoint.dev.sh /usr/local/bin/customer-web-dev-entrypoint
 RUN chmod +x /usr/local/bin/customer-web-dev-entrypoint
 
-EXPOSE 9002
+EXPOSE 3000
 
 ENTRYPOINT ["customer-web-dev-entrypoint"]
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

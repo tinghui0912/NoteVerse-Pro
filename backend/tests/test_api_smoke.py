@@ -330,7 +330,7 @@ def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClien
     try:
         response = client.post(
             "/api/v1/auth/refresh",
-            headers={"host": "localhost:8000", "origin": "http://localhost:9002"},
+            headers={"host": "localhost:8000", "origin": "http://localhost:3000"},
         )
         assert response.status_code == 401
     finally:
@@ -340,11 +340,11 @@ def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClien
 def test_cors_origin_header_is_emitted_for_configured_frontend(client: TestClient) -> None:
     response = client.get(
         "/api/v1/me/profile",
-        headers={"origin": "http://localhost:9002"},
+        headers={"origin": "http://localhost:3000"},
     )
 
     assert response.status_code == 401
-    assert response.headers["access-control-allow-origin"] == "http://localhost:9002"
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
     assert response.headers["access-control-allow-credentials"] == "true"
 
 
@@ -369,7 +369,7 @@ def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient
 def test_origin_normalization_collapses_default_ports() -> None:
     assert normalize_origin("https://staging.johnabc.ccwu.cc:443") == "https://staging.johnabc.ccwu.cc"
     assert normalize_origin("http://localhost:80") == "http://localhost"
-    assert normalize_origin("http://localhost:9002") == "http://localhost:9002"
+    assert normalize_origin("http://localhost:3000") == "http://localhost:3000"
     assert normalize_origin("not-a-url") is None
 
 
