@@ -5,8 +5,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.db.models.user import UserRole
-
 
 class TokenPayload(BaseModel):
     sub: str
@@ -81,39 +79,23 @@ class SecurityOverview(BaseModel):
     mfa_available: bool = False
 
 
-class UserBase(BaseModel):
-    email: EmailStr | None = None
-    display_name: str | None = None
-    is_active: bool | None = True
-    role: UserRole = UserRole.user
+class User(BaseModel):
+    """Customer identity returned after email verification.
 
+    Platform authorization belongs exclusively to the isolated control-plane
+    operator principal and is never represented on a customer user.
+    """
 
-class UserCreate(UserBase):
-    email: EmailStr
-    password: str
-    display_name: str
-
-
-class UserUpdate(UserBase):
-    password: str | None = None
-
-
-class UserInDBBase(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int | None = None
+    email: EmailStr | None = None
+    display_name: str | None = None
+    is_active: bool | None = True
     created_at: datetime | None = None
     updated_at: datetime | None = None
     avatar_url: str | None = None
     email_verified_at: datetime | None = None
-
-
-class User(UserInDBBase):
-    pass
-
-
-class UserInDB(UserInDBBase):
-    password_hash: str
 
 
 __all__ = [
@@ -125,10 +107,5 @@ __all__ = [
     "ResetPasswordRequest",
     "TokenPayload",
     "User",
-    "UserBase",
-    "UserCreate",
-    "UserInDB",
-    "UserInDBBase",
-    "UserUpdate",
     "VerifyEmailRequest",
 ]

@@ -11,7 +11,6 @@ export interface User {
   display_name?: string;
   avatar_url?: string;
   is_active: boolean;
-  role?: string;
   created_at?: string;
   email_verified_at?: string;
 }

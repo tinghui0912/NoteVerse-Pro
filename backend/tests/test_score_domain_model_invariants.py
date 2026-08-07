@@ -26,7 +26,7 @@ from app.db.models.score_access import (
     ScoreShareGrant,
 )
 from app.db.models.library import LibraryEntrySourceType, ScoreLibraryEntry
-from app.db.models.user import User, UserRole
+from app.db.models.user import User
 
 
 @pytest.fixture
@@ -48,14 +48,12 @@ def score_session() -> Iterator[Session]:
                     email="owner@example.com",
                     display_name="owner",
                     password_hash="hash",
-                    role=UserRole.user,
                 ),
                 User(
                     id=2,
                     email="member@example.com",
                     display_name="member",
                     password_hash="hash",
-                    role=UserRole.user,
                 ),
             ]
         )

@@ -22,8 +22,8 @@ Customer identities and operator identities are separate security audiences.
   `/api/v1/*` routes on the product host.
 - Operator sessions authenticate a platform operator to the control-plane
   boundary, initially through `admin.<environment-domain>` and its BFF.
-- A customer access token, refresh token, CSRF cookie, or `UserRole.admin`
-  value must never satisfy a control-plane dependency.
+- A customer access token, refresh token, CSRF cookie, or any customer-account
+  attribute must never satisfy a control-plane dependency.
 - A control-plane session must not be accepted by customer API routes.
 
 The existing `users` table remains the customer identity model. It is not an

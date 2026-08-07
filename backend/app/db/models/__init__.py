@@ -1,4 +1,4 @@
-from .user import User, UserRole
+from .user import User
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
 from .file import StorageBlob, Upload
 from .notification import NotificationEvent
@@ -84,7 +84,6 @@ from .storage_usage import (
 
 __all__ = [
     "User",
-    "UserRole",
     "RefreshToken",
     "AuthToken",
     "PendingRegistration",
