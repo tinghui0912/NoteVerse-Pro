@@ -21,10 +21,9 @@ from app.core.exceptions import (
     AuthenticationException,
     ExternalServiceException,
     ResourceNotFoundException,
-    UnauthorizedException,
 )
 from app.db.session import get_session
-from app.db.models.user import User, UserRole
+from app.db.models.user import User
 from app.modules.auth.schemas import TokenPayload
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -127,18 +126,3 @@ async def get_optional_current_user(
         return await get_current_user(session, session_cookie)
     except AuthenticationException:
         return None
-
-
-async def get_current_active_superuser(
-    current_user: User = Depends(get_current_user),
-) -> User:
-    """Require an authenticated admin user."""
-    if current_user.role != UserRole.admin:
-        raise UnauthorizedException(
-            code=ErrorCode.NO_ACCESS,
-            details={
-                "required_role": UserRole.admin.value,
-                "current_role": current_user.role.value,
-            },
-        )
-    return current_user

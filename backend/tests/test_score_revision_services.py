@@ -61,7 +61,6 @@ from app.db.models.score_access import (
     MembershipRole,
     PublicationStatus,
 )
-from app.db.models.user import UserRole
 from app.modules.revisions.schemas import (
     RevisionCreateRequest,
     RevisionNoteUpdateRequest,
@@ -227,14 +226,12 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
                     email="owner@example.com",
                     display_name="owner",
                     password_hash="hash",
-                    role=UserRole.user,
                 ),
                 User(
                     id=2,
                     email="other@example.com",
                     display_name="other",
                     password_hash="hash",
-                    role=UserRole.user,
                 ),
                 StorageQuotaPolicy(
                     plan_code="FREE",

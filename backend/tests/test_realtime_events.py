@@ -8,7 +8,6 @@ from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.db.models import RealtimeEvent, User
-from app.db.models.user import UserRole
 from app.modules.realtime.router import (
     _format_sse,
     _parse_last_event_id,
@@ -38,14 +37,12 @@ def realtime_session() -> Iterator[Session]:
                     email="user-7@example.com",
                     display_name="User 7",
                     password_hash="hash",
-                    role=UserRole.user,
                 ),
                 User(
                     id=8,
                     email="user-8@example.com",
                     display_name="User 8",
                     password_hash="hash",
-                    role=UserRole.user,
                 ),
             ]
         )

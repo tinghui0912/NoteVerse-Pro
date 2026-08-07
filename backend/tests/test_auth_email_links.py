@@ -21,6 +21,7 @@ from app.modules.auth.schemas import (
     RegisterRequest,
     RequestEmailChangeRequest,
     ResetPasswordRequest,
+    User as CustomerUserSchema,
     VerifyEmailRequest,
 )
 from app.modules.auth.sessions_service import SessionService
@@ -218,6 +219,7 @@ async def test_verify_email_creates_user_and_removes_pending_registration(
 
     assert user.email == "user@example.com"
     assert user.email_verified_at is not None
+    assert "role" not in CustomerUserSchema.model_validate(user).model_dump()
     assert len(db.users) == 1
     assert db.pending_registrations == []
 

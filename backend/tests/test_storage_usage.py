@@ -37,7 +37,6 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState
 from app.db.models.score_access import AccessOrigin
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat, ScoreDeletionStatus
-from app.db.models.user import UserRole
 from app.modules.files.service import FilesService
 from app.modules.files.dependencies import get_files_service
 from app.modules.import_jobs.service import ImportJobService
@@ -133,7 +132,6 @@ def storage_usage_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
                 email="owner@example.com",
                 display_name="Owner",
                 password_hash="hash",
-                role=UserRole.user,
             )
         )
         session.add(
@@ -261,7 +259,6 @@ def test_storage_usage_requires_seeded_default_policy() -> None:
                 email="owner@example.com",
                 display_name="Owner",
                 password_hash="hash",
-                role=UserRole.user,
             )
         )
         session.commit()
