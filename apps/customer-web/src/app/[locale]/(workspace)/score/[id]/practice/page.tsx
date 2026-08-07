@@ -1,8 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/page';
 import { practiceApi } from '@/lib/api';
 import {
   useRevisionContent,
@@ -13,7 +11,6 @@ import {
   type PracticeServerMessage,
   type PracticeSessionDetail,
 } from '@/types/api';
-import { ArrowLeft } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePracticeAudioStream } from '@/hooks/practice/use-practice-audio-stream';
@@ -23,12 +20,14 @@ import { usePracticeSocket } from '@/hooks/practice/use-practice-socket';
 import { ClientOnly } from '@/components/client-only';
 import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer';
 import { PracticeControls } from '@/components/practice/practice-controls';
-import { PracticeStatusPanel } from '@/components/practice/practice-status-panel';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
+import { PracticeSettingsPanel } from '@/components/practice/practice-settings-panel';
+import { PracticeSessionStatus } from '@/components/practice/practice-session-status';
 import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { useRouter } from 'next/navigation';
@@ -67,9 +66,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [alignment, setAlignment] = useState<PracticeAlignmentUpdateMessage['payload'] | null>(null);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
+  const [showNextNoteHint, setShowNextNoteHint] = useState(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const displayAlignment = useMemo<PracticeAlignmentUpdateMessage['payload'] | null>(() => {
     if (alignment) {
       return alignment;
+    }
+    if (!showNextNoteHint) {
+      return null;
     }
     if (practiceStatus !== 'arming' && practiceStatus !== 'listening') {
       if (practiceStatus !== 'practicing' && practiceStatus !== 'paused') {
@@ -107,7 +111,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       input_weight: 1,
       input_policy_confidence: 1,
     };
-  }, [alignment, practiceStatus]);
+  }, [alignment, practiceStatus, showNextNoteHint]);
   const scoreQuery = useScoreDetail(id);
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
   const canEnterPractice = scoreCapabilities?.can_practice === true;
@@ -127,6 +131,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const canPreparePractice = canEnterPractice && Boolean(revisionId && xmlContent) && !isResourceLoading && !loadError;
 
   const practiceStatusRef = useRef<PracticeStatus>('idle');
+  const pausedPracticeStatusRef = useRef<'listening' | 'practicing'>('listening');
   const preconnectStartedRef = useRef(false);
   const preparePracticeSessionRef = useRef<() => Promise<void>>(async () => {});
   const socket = usePracticeSocket({ onMessage: handleSocketMessage, onClose: handleSocketClose });
@@ -144,6 +149,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     practiceStatusRef.current = practiceStatus;
   }, [practiceStatus]);
 
+  useEffect(() => {
+    if (practiceStatus === 'arming' || practiceStatus === 'practicing') {
+      setIsSettingsOpen(false);
+    }
+  }, [practiceStatus]);
+
   const updatePracticeStatus = (status: PracticeStatus) => {
     practiceStatusRef.current = status;
     setPracticeStatus(status);
@@ -155,8 +166,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     let timer: NodeJS.Timeout | undefined;
     if (
       practiceClockStarted &&
-      (practiceStatus === 'arming' ||
-        practiceStatus === 'listening' ||
+      (practiceStatus === 'listening' ||
         practiceStatus === 'practicing')
     ) {
       timer = setInterval(() => {
@@ -235,7 +245,21 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
     if (message.type === 'session.armed') {
       if (practiceStatusRef.current !== 'finished') {
+        recording.start();
+        setPracticeClockStarted(true);
         updatePracticeStatus('listening');
+        if (message.payload.environment_quality === 'noisy') {
+          toast({
+            title: t('environmentNoisyTitle'),
+            description: t('environmentNoisyDesc'),
+          });
+        } else if (message.payload.environment_quality === 'poor') {
+          toast({
+            variant: 'destructive',
+            title: t('environmentPoorTitle'),
+            description: t('environmentPoorDesc'),
+          });
+        }
       }
       return;
     }
@@ -259,7 +283,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         return;
       }
 
-      updatePracticeStatus(message.payload.state === 'PAUSED' ? 'paused' : 'practicing');
+      updatePracticeStatus(
+        message.payload.state === 'PAUSED'
+          ? 'paused'
+          : practiceStatusRef.current === 'paused'
+            ? pausedPracticeStatusRef.current
+            : 'practicing'
+      );
       practiceSession.updateState(message.payload.state);
       return;
     }
@@ -279,11 +309,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       audioStream.setStreaming(false);
       toast({
         variant: 'destructive',
-        title: t('analysisFailedTitle'),
+        title: t('prepareFailedTitle'),
         description: translateErrorCode(
           errors,
           message.payload.public_code,
-          t('analysisFailedDesc')
+          t('prepareFailedDesc')
         ),
       });
     }
@@ -302,7 +332,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       updatePracticeStatus('idle');
       toast({
         variant: 'destructive',
-        title: t('analysisFailedTitle'),
+        title: t('prepareFailedTitle'),
         description: t('connectionClosedDesc'),
       });
     } else if (!wasIntentional && !wasActive) {
@@ -384,8 +414,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       const stream = await audioStream.setup();
       recording.attach(stream);
       sendPracticeInit(detail);
-      setPracticeClockStarted(true);
-      recording.start();
     } catch (error) {
       reportUnexpectedClientError(error, {
         area: 'practice',
@@ -394,20 +422,31 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       });
       const isUnsupportedRealtimeAudio =
         error instanceof Error && error.message === 'practice_realtime_audio_unsupported';
+      const isMicrophoneAccessDenied =
+        error instanceof DOMException &&
+        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
       updatePracticeStatus('idle');
       setPracticeClockStarted(false);
-      setConnectionStatus('error');
       audioStream.teardown();
-      socket.close();
-      toast({
-        variant: 'destructive',
-        title: isUnsupportedRealtimeAudio
-          ? t('audioWorkletUnsupportedTitle')
-          : t('analysisFailedTitle'),
-        description: isUnsupportedRealtimeAudio
-          ? t('audioWorkletUnsupportedDesc')
-          : t('analysisFailedDesc'),
-      });
+      if (isMicrophoneAccessDenied) {
+        toast({
+          variant: 'destructive',
+          title: t('micAccessDeniedTitle'),
+          description: t('micAccessDeniedDesc'),
+        });
+      } else {
+        setConnectionStatus('error');
+        socket.close();
+        toast({
+          variant: 'destructive',
+          title: isUnsupportedRealtimeAudio
+            ? t('audioWorkletUnsupportedTitle')
+            : t('prepareFailedTitle'),
+          description: isUnsupportedRealtimeAudio
+            ? t('audioWorkletUnsupportedDesc')
+            : t('prepareFailedDesc'),
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -419,7 +458,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       return;
     }
 
-    if (practiceStatus === 'practicing') {
+    if (practiceStatus === 'listening' || practiceStatus === 'practicing') {
+      pausedPracticeStatusRef.current = practiceStatus;
       audioStream.setStreaming(false);
       recording.pause();
       updatePracticeStatus('paused');
@@ -435,7 +475,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     if (practiceStatus === 'paused') {
       audioStream.setStreaming(true);
       recording.resume();
-      updatePracticeStatus('practicing');
+      updatePracticeStatus(pausedPracticeStatusRef.current);
 
       if (!sendPracticeControl('client.resume')) {
         void practiceSession
@@ -474,17 +514,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     updatePracticeStatus('idle');
     setIsCompletionDialogOpen(false);
     setCompletedSessionId(null);
-    setConnectionStatus('disconnected');
     setAlignment(null);
     setPracticeTime(0);
     setPracticeClockStarted(false);
-    practiceSession.clear();
-    preconnectStartedRef.current = false;
-    audioStream.teardown();
-    socket.close();
-    window.setTimeout(() => {
-      void preparePracticeSession();
-    }, 0);
   };
 
   const handleGetAnalysis = async () => {
@@ -517,21 +549,37 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
   };
 
+  const practiceControls = (
+    <PracticeControls
+      status={practiceStatus}
+      connectionStatus={connectionStatus}
+      isLoading={isLoading}
+      isPreparingSession={isPreparingSession}
+      canPrepareSession={canPreparePractice}
+      audioWorkletSupported={audioWorkletSupported}
+      onStart={() => void handleStart()}
+      onPause={handlePause}
+      onFinish={handleFinish}
+    />
+  );
+
+  const practiceSessionStatus = (
+    <PracticeSessionStatus
+      className="border-0 bg-transparent px-0 py-0 shadow-none"
+      status={practiceStatus}
+      connectionStatus={connectionStatus}
+      isLoading={isLoading}
+      isPreparingSession={isPreparingSession}
+      canPrepareSession={canPreparePractice}
+      audioWorkletSupported={audioWorkletSupported}
+      practiceClockStarted={practiceClockStarted}
+      practiceTime={practiceTime}
+    />
+  );
+
   const renderFrame = (children: React.ReactNode) => (
     <ScoreSurface>
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        <PageHeader
-          title={t('mode')}
-          description={t('subtitle')}
-          actions={
-            <Button variant="outline" onClick={() => router.back()}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t('backToScore')}
-            </Button>
-          }
-        />
-        {children}
-      </div>
+      <div className="w-full">{children}</div>
     </ScoreSurface>
   );
 
@@ -559,49 +607,52 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           title={t('accessDeniedTitle')}
           description={t('accessDeniedDesc')}
           backHref={`/score/${id}`}
-          backLabel={t('backToScore')}
+          backLabel={common('back')}
         />
       ) : (
-
-      <div>
-        <div className="flex flex-col gap-4">
-          <div className="w-full space-y-6">
-            <PracticeStatusPanel
-              status={practiceStatus}
-              hasMicPermission={hasMicPermission}
-              audioWorkletSupported={audioWorkletSupported}
-            />
-
-            <div className="relative">
+      <>
+      <div className="min-h-[calc(100vh-4rem)] xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-[38rem] xl:flex-col">
+        <div className="min-h-0 xl:flex xl:flex-1">
+          <main className="min-w-0 xl:flex xl:h-full xl:min-h-0 xl:flex-1 xl:flex-col">
+            <div className="relative flex min-h-[38rem] flex-col pb-3 xl:h-full xl:min-h-0 xl:flex-1">
               <ClientOnly>
                 <PracticeScoreViewer
+                  className="rounded-none border-0 shadow-none xl:min-h-0 xl:flex-1"
+                  bottomControls={isMaximized ? practiceControls : null}
+                  sessionStatus={practiceSessionStatus}
                   isMaximized={isMaximized}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
                   onToggleMaximize={() => setIsMaximized(!isMaximized)}
                   xmlContent={xmlContent || null}
                   isLoadingXml={isLoadingXml}
-                  toolbar={
-                    <PracticeControls
-                      status={practiceStatus}
-                      connectionStatus={connectionStatus}
-                      isLoading={isLoading}
-                      isPreparingSession={isPreparingSession}
-                      canPrepareSession={canPreparePractice}
-                      audioWorkletSupported={audioWorkletSupported}
-                      practiceClockStarted={practiceClockStarted}
-                      practiceTime={practiceTime}
-                      onStart={() => void handleStart()}
-                      onPause={handlePause}
-                      onFinish={handleFinish}
-                    />
-                  }
                   practiceStatus={practiceStatus}
                   alignment={displayAlignment}
                 />
               </ClientOnly>
+              {!isMaximized ? (
+                <div className="relative z-20 mt-3 w-fit max-w-[calc(100%-1.5rem)] self-center rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-lg">
+                  {practiceControls}
+                </div>
+              ) : null}
             </div>
-          </div>
+          </main>
         </div>
       </div>
+      <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <SheetContent side="right" className="w-full max-w-sm overflow-y-auto p-0 sm:max-w-sm">
+          <SheetTitle className="sr-only">{t('settingsTitle')}</SheetTitle>
+          <SheetDescription className="sr-only">{t('settingsSubtitle')}</SheetDescription>
+          <PracticeSettingsPanel
+            className="min-h-full rounded-none border-0 shadow-none"
+            connectionStatus={connectionStatus}
+            hasMicPermission={hasMicPermission}
+            audioWorkletSupported={audioWorkletSupported}
+            showNextNoteHint={showNextNoteHint}
+            onShowNextNoteHintChange={setShowNextNoteHint}
+          />
+        </SheetContent>
+      </Sheet>
+      </>
       )}
       <PracticeCompletionDialog
         open={isCompletionDialogOpen}

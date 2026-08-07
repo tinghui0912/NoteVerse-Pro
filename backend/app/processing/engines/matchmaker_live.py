@@ -4,7 +4,7 @@ import queue
 import threading
 import time
 from pathlib import Path
-from typing import Callable, NotRequired, Protocol, TypedDict, runtime_checkable
+from typing import Callable, Literal, NotRequired, Protocol, TypedDict, runtime_checkable
 
 from app.core.config import settings
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
@@ -24,8 +24,9 @@ from app.processing.engines.practice_audio_activity import (
 
 DEFAULT_TEMPO_BPM = 120
 
+EnvironmentQuality = Literal["good", "noisy", "poor"]
+
 STREAM_STATE_CALIBRATING = "calibrating"
-STREAM_STATE_ARMING = "arming"
 STREAM_STATE_ARMED = "armed"
 STREAM_STATE_FOLLOWING = "following"
 STREAM_STATE_HOLDING_DECAY = "holding_decay"
@@ -171,6 +172,8 @@ class BrowserAudioStreamAdapter:
         self.last_start_signal_reason = "none"
         self.last_runtime_activity_reason = "not_started"
         self.last_start_feature_confidence: float | None = None
+        self._warmup_rms_values: list[float] = []
+        self._warmup_peak_values: list[float] = []
 
     @property
     def session_keepalive_frames(self) -> int:
@@ -204,21 +207,14 @@ class BrowserAudioStreamAdapter:
             peak,
         )
         if self.total_frames <= self.warmup_frames:
+            self._record_warmup_signal(rms, peak)
             self._collect_noise_floor(rms, peak)
             self.activity_state.reject(STREAM_STATE_CALIBRATING)
+            if self.total_frames == self.warmup_frames:
+                self.activity_state.mark_armed()
             self.last_gate_reason = "warmup_calibration"
             self.last_queue_decision = "warmup"
             self._log_diagnostics("warmup", rms, peak)
-            return False
-
-        if not self.armed:
-            self.stream_state = STREAM_STATE_ARMING
-            if audio_frame.size == 0 or not self._has_enough_signal(rms, peak):
-                self.activity_state.mark_armed()
-            self.activity_state.reject()
-            self.last_gate_reason = "arming_wait_for_quiet_or_ready"
-            self.last_queue_decision = "arming"
-            self._log_diagnostics("arming", rms, peak)
             return False
 
         if not self.started:
@@ -422,9 +418,6 @@ class BrowserAudioStreamAdapter:
     def _noise_peak_values(self) -> list[float]:
         return self.calibrator.noise_peak_values
 
-    def _has_enough_signal(self, rms: float, peak: float) -> bool:
-        return rms >= self._calibrated_rms_gate and peak >= self._calibrated_peak_gate
-
     def _set_last_features(self, features: AudioFrameFeatures) -> None:
         self.last_rms = features.rms
         self.last_peak = features.peak
@@ -529,7 +522,27 @@ class BrowserAudioStreamAdapter:
         return self.calibrator.is_noise_floor_candidate(rms, peak)
 
     def _effective_start_gates(self) -> tuple[float, float]:
-        return self.start_rms_gate, self.start_peak_gate
+        return (
+            max(self.start_rms_gate, self._calibrated_rms_gate * 1.2),
+            max(self.start_peak_gate, self._calibrated_peak_gate * 1.1),
+        )
+
+    def _record_warmup_signal(self, rms: float, peak: float) -> None:
+        self._warmup_rms_values.append(rms)
+        self._warmup_peak_values.append(peak)
+
+    @property
+    def environment_quality(self) -> EnvironmentQuality:
+        if not self._warmup_rms_values or not self._warmup_peak_values:
+            return "good"
+
+        rms_p90 = float(self.np.percentile(self._warmup_rms_values, 90))
+        peak_p90 = float(self.np.percentile(self._warmup_peak_values, 90))
+        if rms_p90 >= self.start_rms_gate * 0.8 or peak_p90 >= self.start_peak_gate * 0.8:
+            return "poor"
+        if rms_p90 >= self.rms_gate * 0.75 or peak_p90 >= self.peak_gate * 0.75:
+            return "noisy"
+        return "good"
 
     def _refresh_calibrated_gates(self) -> None:
         self.calibrator.refresh_gates()
@@ -629,6 +642,7 @@ class MatchmakerLiveEngine:
         try:
             import numpy as np
             import partitura
+            from matchmaker.base import STREAM_END
             from matchmaker.dp import OnlineTimeWarpingArztFrame
             from matchmaker.features.audio import ChromagramProcessor
             from partitura.io.exportmidi import get_ppq
@@ -663,8 +677,10 @@ class MatchmakerLiveEngine:
         self._last_alignment_timestamp_ms: int | None = None
         self._np = np
         self._get_ppq = get_ppq
+        self._stream_end_marker = STREAM_END
         self._error: Exception | None = None
         self._closed = threading.Event()
+        self._follower_finished = False
         self._updates: queue.Queue[AlignmentUpdate] = queue.Queue()
         self._worker: threading.Thread | None = None
         self._alignment_update_log_count = 0
@@ -724,6 +740,7 @@ class MatchmakerLiveEngine:
             self._processor.reset()
         self._reference_features = reference_features
         self._ref_frame_to_beat = self._build_ref_frame_to_beat(reference_features)
+        self._reference_end_beat = float(self._ref_frame_to_beat[-1])
         self._stream.start_feature_validator = self._is_valid_start_feature
         self._stream.start_feature_scorer = self._score_start_feature
         self._score_follower = self._build_score_follower(
@@ -748,14 +765,13 @@ class MatchmakerLiveEngine:
         if not self._stream.ready_to_start:
             return None
 
+        latest = self._latest_pending_alignment()
+        if latest is not None:
+            return self._with_current_audio_state(latest)
+
         self._ensure_worker_started()
 
-        latest: AlignmentUpdate | None = None
-        while True:
-            try:
-                latest = self._updates.get_nowait()
-            except queue.Empty:
-                break
+        latest = self._latest_pending_alignment()
         if latest is not None:
             latest = self._with_current_audio_state(latest)
         return latest
@@ -764,10 +780,17 @@ class MatchmakerLiveEngine:
     def is_ready_for_performance(self) -> bool:
         return self._stream.armed
 
+    @property
+    def environment_quality(self) -> EnvironmentQuality:
+        return self._stream.environment_quality
+
     def close(self) -> None:
         self._closed.set()
+        self._queue.put(self._stream_end_marker)
 
     def _ensure_worker_started(self) -> None:
+        if self._closed.is_set() or self._follower_finished:
+            return
         if self._worker is not None and self._worker.is_alive():
             return
 
@@ -804,11 +827,23 @@ class MatchmakerLiveEngine:
                         completed=alignment["score_completed"],
                     ).info("Practice alignment update")
                 if alignment["score_completed"]:
+                    self._follower_finished = True
                     break
+            else:
+                if not self._closed.is_set():
+                    self._follower_finished = True
         except queue.Empty:
             return
         except Exception as exc:  # pragma: no cover - depends on runtime package internals.
             self._error = exc
+
+    def _latest_pending_alignment(self) -> AlignmentUpdate | None:
+        latest: AlignmentUpdate | None = None
+        while True:
+            try:
+                latest = self._updates.get_nowait()
+            except queue.Empty:
+                return latest
 
     def _pcm_s16le_to_float32(self, chunk: bytes):
         samples = self._np.frombuffer(chunk, dtype=self._np.int16)
@@ -909,13 +944,17 @@ class MatchmakerLiveEngine:
         ref_frame_to_beat=None,
         score_positions=None,
     ):
-        return arzt_follower(
+        follower = arzt_follower(
             reference_features=reference_features,
             score_positions=score_positions,
             queue=feature_queue,
             frame_rate=frame_rate,
             ref_frame_to_beat=ref_frame_to_beat,
         )
+        # A paused browser sends no PCM frames. Keep the follower blocked on the
+        # queue instead of allowing its finite timeout to reset the OLTW path.
+        follower.queue_timeout = None
+        return follower
 
     def _build_ref_frame_to_beat(self, reference_features):
         frame_count = int(reference_features.shape[0])
@@ -1205,7 +1244,8 @@ class MatchmakerLiveEngine:
         return 0.95
 
     def _score_completed(self, beat_position: float) -> bool:
-        return self._score_end_beat > 0 and beat_position >= self._score_end_beat - 0.25
+        end_beat = self._reference_end_beat or self._score_end_beat
+        return end_beat > 0 and beat_position >= end_beat - 0.25
 
     @staticmethod
     def _calculate_score_start_beat(note_array) -> float:

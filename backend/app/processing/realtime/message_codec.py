@@ -30,11 +30,12 @@ def session_ready_message(session_id: str, state: str) -> RuntimeMessage:
     }
 
 
-def session_armed_message(session_id: str) -> RuntimeMessage:
+def session_armed_message(session_id: str, environment_quality: str) -> RuntimeMessage:
     return {
         "type": "session.armed",
         "payload": {
             "session_id": session_id,
+            "environment_quality": environment_quality,
         },
     }
 

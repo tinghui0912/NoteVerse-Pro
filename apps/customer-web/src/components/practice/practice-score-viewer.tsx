@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, Maximize, Minimize } from 'lucide-react';
+import { AlertTriangle, Maximize, Minimize, Settings } from 'lucide-react';
 
 import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
@@ -21,11 +22,14 @@ import { cn } from '@/lib/utils';
 import type { PracticeAlignmentUpdateMessage } from '@/types/api';
 
 type PracticeScoreViewerProps = {
+  className?: string;
+  bottomControls?: ReactNode;
+  sessionStatus?: ReactNode;
   isMaximized: boolean;
+  onOpenSettings: () => void;
   onToggleMaximize: () => void;
   xmlContent: string | null;
   isLoadingXml: boolean;
-  toolbar?: React.ReactNode;
   practiceStatus:
     | 'idle'
     | 'connecting'
@@ -38,11 +42,14 @@ type PracticeScoreViewerProps = {
 };
 
 export function PracticeScoreViewer({
+  className,
+  bottomControls = null,
+  sessionStatus = null,
   isMaximized,
+  onOpenSettings,
   onToggleMaximize,
   xmlContent,
   isLoadingXml,
-  toolbar = null,
   practiceStatus,
   alignment = null,
 }: PracticeScoreViewerProps) {
@@ -113,8 +120,9 @@ export function PracticeScoreViewer({
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-2xl bg-white shadow-lg',
-        isMaximized ? 'fixed inset-0 z-[100] rounded-none' : 'min-h-[60vh]'
+        'relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm',
+        isMaximized ? 'fixed inset-0 z-[45] rounded-none' : 'min-h-[38rem]',
+        className
       )}
     >
       <style jsx global>{`
@@ -152,33 +160,55 @@ export function PracticeScoreViewer({
           width: auto;
           max-width: none;
         }
+        .practice-score-scroll {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .practice-score-scroll::-webkit-scrollbar {
+          display: none;
+        }
       `}</style>
 
-      <div
-        className={cn(
-          'pointer-events-auto absolute right-3 top-3 z-40 flex flex-wrap items-center justify-end gap-2',
-          isMaximized && 'right-4 top-4'
-        )}
-      >
-        {toolbar}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="bg-black/20 text-white hover:bg-black/40 hover:text-white"
-                onClick={onToggleMaximize}
-              >
-                {isMaximized ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{isMaximized ? t('minimize') : t('maximize')}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+      <div className="relative z-40 flex min-h-14 shrink-0 items-center border-b border-slate-200 bg-white/95 px-3 backdrop-blur sm:px-4">
+        <div className="flex min-w-0 flex-1 justify-center px-11 sm:px-14">
+          {sessionStatus}
+        </div>
+        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2 sm:right-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-950"
+                  onClick={onOpenSettings}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={8}>
+                <p>{tPractice('settingsTitle')}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-950"
+                  onClick={onToggleMaximize}
+                >
+                  {isMaximized ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={8}>
+                <p>{isMaximized ? t('minimize') : t('maximize')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       <VerovioScoreViewer
@@ -188,12 +218,14 @@ export function PracticeScoreViewer({
         pageDataAttribute="data-practice-page"
         onRendered={handleRendered}
         className={cn(
-          'h-full overflow-auto bg-stone-100',
-          isMaximized ? 'px-6 pb-8 pt-20' : 'px-4 pb-6 pt-16'
+          'practice-score-scroll min-h-0 flex-1 overflow-auto bg-white',
+          isMaximized ? 'px-6 pb-28 pt-4' : 'px-4 py-4'
         )}
         pageClassName={cn(
-          'rounded-xl border border-stone-200 bg-white shadow-sm',
-          isMaximized ? 'w-fit max-w-full overflow-x-auto' : 'w-full overflow-hidden'
+          'bg-white',
+          isMaximized
+            ? 'w-fit max-w-full overflow-x-auto'
+            : 'w-full overflow-hidden border-0 shadow-none'
         )}
         svgClassName={cn(
           'practice-score-svg',
@@ -213,6 +245,12 @@ export function PracticeScoreViewer({
           </div>
         )}
       />
+
+      {isMaximized && bottomControls ? (
+        <div className="absolute inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:px-6">
+          <div className="mx-auto max-w-5xl">{bottomControls}</div>
+        </div>
+      ) : null}
     </div>
   );
 }

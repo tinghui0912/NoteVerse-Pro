@@ -88,7 +88,7 @@ export function ScoreHeroActions({
         <Button asChild>
           <Link href={`/score/${scoreId}/practice`}>
             <Gamepad2 className="mr-2 h-4 w-4" />
-            {practice('mode')}
+            {practice('start')}
           </Link>
         </Button>
       ) : null}

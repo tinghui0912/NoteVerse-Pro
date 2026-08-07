@@ -60,8 +60,8 @@ export function usePracticeAudioStream(onPcmFrame: (frame: ArrayBuffer) => void)
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: PCM_CHANNELS,
-          echoCancellation: true,
-          noiseSuppression: true,
+          echoCancellation: false,
+          noiseSuppression: false,
           autoGainControl: false,
         },
       });

@@ -139,6 +139,8 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                 assert len(runtime.audio_buffer) == 1
                 assert runtime.state == "PAUSED"
 
+                websocket.send_bytes(b"\x05\x06\x07\x08")
+
                 websocket.send_json({"type": "client.resume"})
                 resumed = websocket.receive_json()
                 assert resumed == {
@@ -146,6 +148,12 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                     "payload": {"state": "STREAMING"},
                 }
                 assert runtime.state == "STREAMING"
+                assert len(runtime.audio_buffer) == 1
+
+                websocket.send_bytes(b"\x09\x0a\x0b\x0c")
+                resumed_update = websocket.receive_json()
+                assert resumed_update["type"] == "alignment.update"
+                assert len(runtime.audio_buffer) == 2
 
                 websocket.send_json({"type": "client.finish"})
                 finished = websocket.receive_json()

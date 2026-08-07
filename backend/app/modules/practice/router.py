@@ -209,6 +209,8 @@ async def stream_practice_session(
                     )
             binary_payload = message.get("bytes")
             if binary_payload is not None:
+                if runtime.state != "STREAMING":
+                    continue
                 try:
                     alignment = runtime.process_audio_chunk(binary_payload)
                 except RuntimeError:
@@ -220,7 +222,12 @@ async def stream_practice_session(
                     break
 
                 if runtime.consume_ready_notification():
-                    await websocket.send_json(session_armed_message(session_id=session_id))
+                    await websocket.send_json(
+                        session_armed_message(
+                            session_id=session_id,
+                            environment_quality=runtime.environment_quality,
+                        )
+                    )
 
                 if alignment is not None:
                     await websocket.send_json(alignment_update_message(alignment))
