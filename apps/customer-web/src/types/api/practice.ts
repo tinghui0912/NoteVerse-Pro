@@ -50,7 +50,7 @@ export interface PracticeSessionReadyMessage {
 
 export interface PracticeSessionArmedMessage {
   type: 'session.armed';
-  payload: { session_id: string };
+  payload: { session_id: string; environment_quality: 'good' | 'noisy' | 'poor' };
 }
 
 export interface PracticeSessionStateChangedMessage {

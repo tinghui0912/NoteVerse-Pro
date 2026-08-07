@@ -2,17 +2,16 @@
 
 import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Mic, Pause, Play, Square } from 'lucide-react';
-import { InlineLoading } from '@/components/loading';
+import { Hand, Mic, Pause, Play, Repeat2, Square, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/practice-types';
-
-function formatTime(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
 
 interface PracticeControlsProps {
   status: PracticeStatus;
@@ -21,8 +20,6 @@ interface PracticeControlsProps {
   isPreparingSession: boolean;
   canPrepareSession: boolean;
   audioWorkletSupported: boolean;
-  practiceClockStarted: boolean;
-  practiceTime: number;
   onStart: () => void;
   onPause: () => void;
   onFinish: () => void;
@@ -35,25 +32,13 @@ export function PracticeControls({
   isPreparingSession,
   canPrepareSession,
   audioWorkletSupported,
-  practiceClockStarted,
-  practiceTime,
   onStart,
   onPause,
   onFinish,
 }: PracticeControlsProps) {
   const t = useTranslations('practice');
   const pointerHandledRef = useRef<string | null>(null);
-  const isPreparing = status === 'connecting' || status === 'arming';
   const isActive = status === 'listening' || status === 'practicing' || status === 'paused';
-  const isRecordingVisible =
-    practiceClockStarted &&
-    (status === 'arming' || status === 'listening' || status === 'practicing' || status === 'paused');
-  const isPreparingConnection =
-    (status === 'idle' || status === 'finished') &&
-    canPrepareSession &&
-    audioWorkletSupported &&
-    !isLoading &&
-    (isPreparingSession || connectionStatus !== 'ready');
   const canStart =
     (status === 'idle' || status === 'finished') &&
     canPrepareSession &&
@@ -61,7 +46,7 @@ export function PracticeControls({
     !isPreparingSession &&
     connectionStatus === 'ready' &&
     audioWorkletSupported;
-  const actionButtonClass = 'h-11 min-w-[8.5rem]';
+  const actionButtonClass = 'h-11 w-32';
 
   const runPointerControl = (
     event: React.PointerEvent<HTMLButtonElement>,
@@ -82,64 +67,82 @@ export function PracticeControls({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      {isPreparingConnection && (
-        <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-sm font-medium text-muted-foreground">
-          <InlineLoading label={t('preparingPractice')} />
-        </div>
-      )}
-      {isPreparing && (
-        <div className="flex items-center gap-2 rounded-full bg-orange-100 px-3 py-2 text-sm font-medium text-orange-700">
-          <InlineLoading label={t('preparingToPlay')} />
-        </div>
-      )}
-      {status === 'listening' && (
-        <div className="flex items-center gap-2 rounded-full bg-orange-100 px-3 py-2 text-sm font-medium text-orange-700">
-          <Mic className="h-4 w-4 animate-pulse" />
-          <span>{t('waitingForFirstNote')}</span>
-        </div>
-      )}
-      {isRecordingVisible && (
-        <div className="flex items-center gap-2 rounded-full bg-destructive/90 px-3 py-2 text-sm font-medium text-destructive-foreground">
-          <Mic className={cn('h-4 w-4', status === 'practicing' && 'animate-pulse')} />
-          <span>{t('recordingDuration', { time: formatTime(practiceTime) })}</span>
-        </div>
-      )}
-      {isActive ? (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2">
+        {isActive ? (
+          <Button
+            type="button"
+            onPointerDown={(event) => runPointerControl(event, 'pause', onPause)}
+            onClick={() => runClickControl('pause', onPause)}
+            size="lg"
+            variant="outline"
+            className={cn('bg-white', actionButtonClass)}
+          >
+            {status === 'paused' ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
+            {t(status === 'paused' ? 'resume' : 'pause')}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={onStart}
+            size="lg"
+            disabled={!canStart}
+            className={cn('bg-orange-500 font-semibold text-white hover:bg-orange-600', actionButtonClass)}
+          >
+            <Mic className="mr-2 h-4 w-4" />
+            {t('start')}
+          </Button>
+        )}
         <Button
           type="button"
-          onPointerDown={(event) => runPointerControl(event, 'pause', onPause)}
-          onClick={() => runClickControl('pause', onPause)}
+          onPointerDown={(event) => isActive && runPointerControl(event, 'finish', onFinish)}
+          onClick={() => isActive && runClickControl('finish', onFinish)}
+          variant="destructive"
           size="lg"
-          variant="outline"
-          className={cn('bg-white', actionButtonClass)}
+          disabled={!isActive}
+          className={actionButtonClass}
         >
-          {status === 'paused' ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
-          {t(status === 'paused' ? 'resume' : 'pause')}
+          <Square className="mr-2 h-4 w-4" /> {t('finish')}
         </Button>
-      ) : (
-        <Button
-          type="button"
-          onClick={onStart}
-          size="lg"
-          disabled={!canStart}
-          className={cn('bg-orange-500 font-semibold text-white hover:bg-orange-600', actionButtonClass)}
-        >
-          <Mic className="mr-2 h-4 w-4" />
-          {t('start')}
-        </Button>
-      )}
-      <Button
-        type="button"
-        onPointerDown={(event) => isActive && runPointerControl(event, 'finish', onFinish)}
-        onClick={() => isActive && runClickControl('finish', onFinish)}
-        variant="destructive"
-        size="lg"
-        disabled={!isActive}
-        className={actionButtonClass}
-      >
-        <Square className="mr-2 h-4 w-4" /> {t('finish')}
-      </Button>
+      </div>
+
+      <div className="hidden h-8 w-px bg-slate-200 lg:block" aria-hidden="true" />
+
+      <TooltipProvider>
+        <div className="flex flex-wrap items-center gap-2">
+          <PracticeToolPlaceholder icon={Timer} label={t('toolMetronome')} unavailableLabel={t('toolUnavailable')} />
+          <PracticeToolPlaceholder icon={Repeat2} label={t('toolLoop')} unavailableLabel={t('toolUnavailable')} />
+          <PracticeToolPlaceholder icon={Hand} label={t('toolHands')} unavailableLabel={t('toolUnavailable')} />
+        </div>
+      </TooltipProvider>
     </div>
+  );
+}
+
+function PracticeToolPlaceholder({
+  icon: Icon,
+  label,
+  unavailableLabel,
+}: {
+  icon: typeof Timer;
+  label: string;
+  unavailableLabel: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>
+          <button
+            type="button"
+            disabled
+            className="flex h-11 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-500 disabled:cursor-not-allowed"
+          >
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {label}
+          </button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{unavailableLabel}</TooltipContent>
+    </Tooltip>
   );
 }

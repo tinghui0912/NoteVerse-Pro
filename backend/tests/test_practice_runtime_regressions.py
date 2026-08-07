@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import builtins
 import queue
+import threading
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ from app.processing.engines.matchmaker_live import (
     build_alignment_engine,
 )
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
+from app.processing.realtime.message_codec import session_armed_message
 from app.processing.realtime.session_runtime import PracticeSessionRuntimeRegistry
 from app.processing.realtime.session_runtime import PracticeSessionRuntime
 
@@ -135,6 +137,27 @@ def test_matchmaker_live_engine_builds_arzt_follower() -> None:
     assert follower.queue is feature_queue
     assert follower.frame_rate == 30
     assert follower.ref_frame_to_beat == [0.0, 0.5, 1.0]
+    assert follower.queue_timeout is None
+
+
+def test_matchmaker_live_engine_uses_reference_feature_endpoint_for_completion() -> None:
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._reference_end_beat = 66.93
+    engine._score_end_beat = 69.0
+
+    assert engine._score_completed(66.67) is False
+    assert engine._score_completed(66.68) is True
+
+
+def test_finished_follower_is_not_restarted() -> None:
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._closed = threading.Event()
+    engine._follower_finished = True
+    engine._worker = None
+
+    engine._ensure_worker_started()
+
+    assert engine._worker is None
 
 
 def test_browser_audio_stream_adapter_rejects_quiet_frames() -> None:
@@ -362,7 +385,7 @@ def test_browser_audio_stream_adapter_exposes_clear_state_transitions() -> None:
     assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
     assert adapter.stream_state == "calibrating"
     assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
-    assert adapter.stream_state == "calibrating"
+    assert adapter.stream_state == "armed"
     assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
     assert adapter.stream_state == "armed"
 
@@ -1219,6 +1242,73 @@ def test_browser_audio_stream_adapter_uses_adaptive_start_gate() -> None:
     assert adapter.ready_to_start is True
 
 
+def test_browser_audio_stream_adapter_raises_start_gate_for_calibrated_noise() -> None:
+    import numpy as np
+
+    adapter = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=DummyQueue(),
+        np=np,
+        hop_length=4,
+        rms_gate=0.015,
+        peak_gate=0.06,
+        start_rms_gate=0.025,
+        start_peak_gate=0.06,
+        min_active_frames=1,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+    adapter._calibrated_rms_gate = 0.04
+    adapter._calibrated_peak_gate = 0.08
+
+    assert adapter._effective_start_gates() == pytest.approx((0.048, 0.088))
+
+
+def test_browser_audio_stream_adapter_reports_warmup_environment_quality() -> None:
+    import numpy as np
+
+    def build_adapter() -> BrowserAudioStreamAdapter:
+        return BrowserAudioStreamAdapter(
+            processor=DummyProcessor(),
+            feature_queue=DummyQueue(),
+            np=np,
+            hop_length=4,
+            rms_gate=0.01,
+            peak_gate=0.04,
+            start_rms_gate=0.08,
+            start_peak_gate=0.18,
+            min_active_frames=1,
+            warmup_frames=3,
+            rms_noise_multiplier=4.0,
+            peak_noise_multiplier=2.5,
+            diagnostics_enabled=False,
+        )
+
+    quiet = build_adapter()
+    noisy = build_adapter()
+    poor = build_adapter()
+    for _ in range(3):
+        quiet.ingest(np.zeros(128, dtype=np.float32))
+        noisy.ingest(np.full(128, 0.012, dtype=np.float32))
+        poor.ingest(np.full(128, 0.07, dtype=np.float32))
+
+    assert quiet.environment_quality == "good"
+    assert noisy.environment_quality == "noisy"
+    assert poor.environment_quality == "poor"
+
+
+def test_session_armed_message_carries_environment_quality() -> None:
+    assert session_armed_message("session-1", "noisy") == {
+        "type": "session.armed",
+        "payload": {
+            "session_id": "session-1",
+            "environment_quality": "noisy",
+        },
+    }
+
+
 def test_browser_audio_stream_adapter_ignores_near_gate_warmup_transients() -> None:
     import numpy as np
 
@@ -1246,7 +1336,7 @@ def test_browser_audio_stream_adapter_ignores_near_gate_warmup_transients() -> N
     assert adapter._calibrated_peak_gate == 0.06
 
 
-def test_browser_audio_stream_adapter_requires_quiet_arming_after_warmup() -> None:
+def test_browser_audio_stream_adapter_arms_after_warmup_without_waiting_for_silence() -> None:
     import numpy as np
 
     feature_queue = DummyQueue()
@@ -1268,15 +1358,15 @@ def test_browser_audio_stream_adapter_requires_quiet_arming_after_warmup() -> No
 
     assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is False
     assert adapter.ready_to_start is False
+    assert adapter.armed is False
 
     assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is False
     assert adapter.ready_to_start is False
+    assert adapter.armed is False
 
     assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is False
     assert adapter.ready_to_start is False
-
-    assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
-    assert adapter.ready_to_start is False
+    assert adapter.armed is True
 
     assert adapter.ingest(voiced_frame(np, 0.25)) is True
     assert adapter.ready_to_start is True

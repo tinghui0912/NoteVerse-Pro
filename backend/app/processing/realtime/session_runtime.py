@@ -63,6 +63,10 @@ class PracticeSessionRuntime:
         self.pending_ready_notification = False
         return True
 
+    @property
+    def environment_quality(self) -> str:
+        return str(getattr(self.engine, "environment_quality", "good"))
+
     def is_score_completed(self) -> bool:
         return bool(self.last_alignment and self.last_alignment["score_completed"])
 
