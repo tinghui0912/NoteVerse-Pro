@@ -20,6 +20,7 @@ from app.processing.engines.practice_audio_activity import (
     PracticeAudioGate,
     PracticeActivityStateMachine,
 )
+from app.processing.engines.practice_audio_profile import DEFAULT_PRACTICE_AUDIO_PROFILE
 
 
 DEFAULT_TEMPO_BPM = 120
@@ -685,13 +686,15 @@ class MatchmakerLiveEngine:
         self._worker: threading.Thread | None = None
         self._alignment_update_log_count = 0
         self._alignment_decision_log_count = 0
+        self._start_alignment_emitted = False
 
         self.score_part = partitura.load_score_as_part(self.score_file_path)
         self._note_array = self.score_part.note_array()
         self._score_start_beat = self._calculate_score_start_beat(self._note_array)
         self._score_end_beat = self._calculate_score_end_beat(self._note_array)
         self.tempo = DEFAULT_TEMPO_BPM
-        self.frame_rate = settings.PRACTICE_MATCHMAKER_FRAME_RATE
+        profile = DEFAULT_PRACTICE_AUDIO_PROFILE
+        self.frame_rate = profile.frame_rate
         self.hop_length = max(int(sample_rate / self.frame_rate), 1)
         self._queue: queue.Queue[object] = queue.Queue()
         self._processor = self._build_audio_processor(
@@ -704,21 +707,21 @@ class MatchmakerLiveEngine:
             feature_queue=self._queue,
             np=np,
             hop_length=self.hop_length,
-            rms_gate=settings.PRACTICE_AUDIO_RMS_GATE,
-            peak_gate=settings.PRACTICE_AUDIO_PEAK_GATE,
-            start_rms_gate=settings.PRACTICE_AUDIO_START_RMS_GATE,
-            start_peak_gate=settings.PRACTICE_AUDIO_START_PEAK_GATE,
-            min_active_frames=settings.PRACTICE_AUDIO_MIN_ACTIVE_FRAMES,
-            warmup_frames=settings.PRACTICE_AUDIO_WARMUP_FRAMES,
-            rms_noise_multiplier=settings.PRACTICE_AUDIO_RMS_NOISE_MULTIPLIER,
-            peak_noise_multiplier=settings.PRACTICE_AUDIO_PEAK_NOISE_MULTIPLIER,
+            rms_gate=profile.rms_gate,
+            peak_gate=profile.peak_gate,
+            start_rms_gate=profile.start_rms_gate,
+            start_peak_gate=profile.start_peak_gate,
+            min_active_frames=profile.min_active_frames,
+            warmup_frames=profile.warmup_frames,
+            rms_noise_multiplier=profile.rms_noise_multiplier,
+            peak_noise_multiplier=profile.peak_noise_multiplier,
             diagnostics_enabled=settings.PRACTICE_AUDIO_DIAGNOSTICS,
-            no_input_frames=settings.PRACTICE_AUDIO_NO_INPUT_FRAMES,
-            tonal_gate_enabled=settings.PRACTICE_AUDIO_TONAL_GATE_ENABLED,
-            max_spectral_flatness=settings.PRACTICE_AUDIO_MAX_SPECTRAL_FLATNESS,
-            min_peak_prominence=settings.PRACTICE_AUDIO_MIN_PEAK_PROMINENCE,
-            onset_flux_gate=settings.PRACTICE_AUDIO_ONSET_FLUX_GATE,
-            onset_hold_frames=settings.PRACTICE_AUDIO_ONSET_HOLD_FRAMES,
+            no_input_frames=profile.no_input_frames,
+            tonal_gate_enabled=profile.tonal_gate_enabled,
+            max_spectral_flatness=profile.max_spectral_flatness,
+            min_peak_prominence=profile.min_peak_prominence,
+            onset_flux_gate=profile.onset_flux_gate,
+            onset_hold_frames=profile.onset_hold_frames,
             diagnostic_frame_interval=settings.PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL,
         )
 
@@ -738,13 +741,16 @@ class MatchmakerLiveEngine:
             raise RuntimeError("Score feature extraction returned no features.")
         if hasattr(self._processor, "reset"):
             self._processor.reset()
-        self._reference_features = reference_features
-        self._ref_frame_to_beat = self._build_ref_frame_to_beat(reference_features)
+        ref_frame_to_beat = self._build_ref_frame_to_beat(reference_features)
+        self._reference_features, self._ref_frame_to_beat = self._trim_reference_to_playable_start(
+            reference_features,
+            ref_frame_to_beat,
+        )
         self._reference_end_beat = float(self._ref_frame_to_beat[-1])
         self._stream.start_feature_validator = self._is_valid_start_feature
         self._stream.start_feature_scorer = self._score_start_feature
         self._score_follower = self._build_score_follower(
-            reference_features=reference_features,
+            reference_features=self._reference_features,
             feature_queue=self._queue,
             frame_rate=self.frame_rate,
             arzt_follower=OnlineTimeWarpingArztFrame,
@@ -764,6 +770,11 @@ class MatchmakerLiveEngine:
             return None
         if not self._stream.ready_to_start:
             return None
+
+        if not getattr(self, "_start_alignment_emitted", True):
+            self._start_alignment_emitted = True
+            self._ensure_worker_started()
+            return self._with_current_audio_state(self._start_alignment())
 
         latest = self._latest_pending_alignment()
         if latest is not None:
@@ -963,6 +974,17 @@ class MatchmakerLiveEngine:
             dtype=self._np.float32,
         )
 
+    def _trim_reference_to_playable_start(self, reference_features, ref_frame_to_beat):
+        """Drop score-only leading rests that the browser never sends to OLTW."""
+        beats = self._np.asarray(ref_frame_to_beat, dtype=self._np.float32)
+        features = self._np.asarray(reference_features)
+        indices = self._np.flatnonzero(beats >= self._score_start_beat)
+        if indices.size == 0:
+            return features, beats
+
+        start_index = int(indices[0])
+        return features[start_index:], beats[start_index:]
+
     def _frame_to_beat(self, current_frame: int) -> float:
         tick = self._get_ppq(self.score_part)
         timeline_time = (current_frame / self.frame_rate) * tick * (self.tempo / 60)
@@ -1006,6 +1028,10 @@ class MatchmakerLiveEngine:
             "continuity_state": continuity_state,
             "beat_velocity": beat_velocity,
         }
+
+    def _start_alignment(self) -> AlignmentUpdate:
+        """Anchor the UI to the first played note once its feature is confirmed."""
+        return self._alignment_from_beat(self._score_start_beat)
 
     def _with_current_audio_state(self, alignment: AlignmentUpdate) -> AlignmentUpdate:
         audio_confidence = self._stream.activity_confidence_ceiling
@@ -1150,12 +1176,16 @@ class MatchmakerLiveEngine:
         size = min(current.size, reference.size)
         current = current[:size]
         reference = reference[:size]
+        if not self._np.isfinite(current).all() or not self._np.isfinite(reference).all():
+            return 0.0
         current_norm = float(self._np.linalg.norm(current))
         reference_norm = float(self._np.linalg.norm(reference))
         if current_norm <= 1e-9 or reference_norm <= 1e-9:
             return 0.0
 
         similarity = float(self._np.dot(current, reference) / (current_norm * reference_norm))
+        if not self._np.isfinite(similarity):
+            return 0.0
         similarity = max(0.0, min(1.0, similarity))
         return max(0.0, min(1.0, (similarity - 0.72) / 0.18))
 

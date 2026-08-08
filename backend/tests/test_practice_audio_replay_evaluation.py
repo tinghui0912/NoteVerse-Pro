@@ -94,7 +94,11 @@ def mix_wav_frames(np, manifest_path: Path, spec: dict, frame_length: int):
         offset = int(float(source.get("offset_seconds", 0.0)) * sample_rate)
         if offset >= duration_samples:
             continue
-        length = min(audio.size, duration_samples - offset)
+        available_samples = duration_samples - offset
+        if bool(source.get("loop", False)) and audio.size:
+            repeats = int(np.ceil(available_samples / audio.size))
+            audio = np.tile(audio, repeats)
+        length = min(audio.size, available_samples)
         mix[offset : offset + length] += audio[:length] * gain
 
     peak = float(np.max(np.abs(mix))) if mix.size else 0.0
@@ -140,6 +144,11 @@ def load_replay_manifest() -> list[dict]:
         scenario["_manifest_path"] = manifest_path
         scenario["_manifest_frame_length"] = int(manifest["frame_length"])
     return scenarios
+
+
+def load_profile_replay_manifest() -> tuple[dict, Path]:
+    manifest_path = Path(__file__).parent / "fixtures" / "practice_audio" / "profile_manifest.json"
+    return json.loads(manifest_path.read_text(encoding="utf-8")), manifest_path
 
 
 def make_adapter(np, **overrides):
@@ -250,6 +259,26 @@ def test_manifest_replay_scenarios() -> None:
         result = replay(adapter, frames)
 
         assert_manifest_expectations(result, adapter, scenario)
+
+
+def test_profile_replay_manifest_builds_finite_audio_frames() -> None:
+    import numpy as np
+
+    manifest, manifest_path = load_profile_replay_manifest()
+    frame_length = int(manifest["sample_rate"] / 30)
+
+    for scenario in manifest["scenarios"]:
+        frames = manifest_frames(
+            np,
+            manifest_path,
+            {
+                **scenario,
+                "_manifest_frame_length": frame_length,
+            },
+        )
+        assert frames, scenario["id"]
+        assert all(frame.size == frame_length for frame in frames), scenario["id"]
+        assert all(np.isfinite(frame).all() for frame in frames), scenario["id"]
 
 
 def test_replay_weak_sustain_keeps_following_before_decay_window_expires() -> None:

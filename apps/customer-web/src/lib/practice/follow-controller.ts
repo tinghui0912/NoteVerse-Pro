@@ -319,7 +319,11 @@ export class PracticeFollowController {
   }
 
   private isPromptAlignment(alignment: PracticeAlignmentUpdateMessage['payload']) {
-    return alignment.gate_reason === 'first_note_prompt' || alignment.timestamp_ms === 0;
+    return (
+      alignment.gate_reason === 'first_note_prompt' ||
+      alignment.gate_reason === 'start_confirmed' ||
+      alignment.timestamp_ms === 0
+    );
   }
 
   private clampToSequentialPrompt(

@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "sample_rate": 16000,
+  "calibration_seconds": 1,
+  "scenarios": [
+    {
+      "id": "wrong_piano_start_note_does_not_start",
+      "description": "A tonal piano C4 must not start a score whose first played note is A5.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 4,
+          "sources": [
+            { "path": "public_samples/piano_uiowa_mf_c4_16k.wav", "gain_db": 18 }
+          ]
+        }
+      ],
+      "expect": { "starts": false }
+    },
+    {
+      "id": "once_again_loudspeaker_recording_starts",
+      "description": "The real local loudspeaker recording starts after its natural leading silence.",
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "pause_after_seconds": 2,
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.5,
+        "first_alignment_beat": 3.0,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "speech_does_not_start",
+      "description": "Short spoken audio alone must not start a practice session.",
+      "frames": [{ "type": "wav", "path": "public_samples/speech_fsd_0_jackson_0_16k.wav" }],
+      "expect": { "starts": false }
+    },
+    {
+      "id": "cough_does_not_start",
+      "description": "A human cough alone must not start a practice session.",
+      "frames": [{ "type": "wav", "path": "public_samples/cough_esc50_16k.wav" }],
+      "expect": { "starts": false }
+    },
+    {
+      "id": "keyboard_does_not_start",
+      "description": "Keyboard typing alone must not start a practice session.",
+      "frames": [{ "type": "wav", "path": "public_samples/keyboard_esc50_typing_16k.wav" }],
+      "expect": { "starts": false }
+    },
+    {
+      "id": "desk_knock_does_not_start",
+      "description": "Desk-like wood knocks alone must not start a practice session.",
+      "frames": [{ "type": "wav", "path": "public_samples/desk_knock_esc50_16k.wav" }],
+      "expect": { "starts": false }
+    },
+    {
+      "id": "mixed_non_music_does_not_start",
+      "description": "Speech, typing, and desk knocks together must not start a practice session.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 8,
+          "sources": [
+            {
+              "path": "public_samples/speech_fsd_0_jackson_0_16k.wav",
+              "offset_seconds": 0,
+              "loop": true
+            },
+            {
+              "path": "public_samples/keyboard_esc50_typing_16k.wav",
+              "gain_db": -6,
+              "offset_seconds": 0.8,
+              "loop": true
+            },
+            {
+              "path": "public_samples/desk_knock_esc50_16k.wav",
+              "gain_db": -6,
+              "offset_seconds": 2.2
+            }
+          ]
+        }
+      ],
+      "expect": { "starts": false }
+    },
+    {
+      "id": "speaker_piano_with_speech_starts",
+      "description": "The real piano recording with repeating background speech starts and remains in session.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 8,
+          "sources": [
+            { "path": "local_recordings/once_again_excerpt_16k.wav" },
+            {
+              "path": "public_samples/speech_fsd_0_jackson_0_16k.wav",
+              "gain_db": -12,
+              "offset_seconds": 1,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_max": 1.8,
+        "first_alignment_beat": 3.0,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "speaker_piano_with_keyboard_starts",
+      "description": "The real piano recording with keyboard typing starts and remains in session.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 8,
+          "sources": [
+            { "path": "local_recordings/once_again_excerpt_16k.wav" },
+            {
+              "path": "public_samples/keyboard_esc50_typing_16k.wav",
+              "gain_db": -12,
+              "offset_seconds": 1,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_max": 1.8,
+        "first_alignment_beat": 3.0,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "speaker_piano_with_desk_knocks_starts",
+      "description": "Short desk knocks during the real piano recording do not end the session.",
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 8,
+          "sources": [
+            { "path": "local_recordings/once_again_excerpt_16k.wav" },
+            {
+              "path": "public_samples/desk_knock_esc50_16k.wav",
+              "gain_db": -9,
+              "offset_seconds": 2.5
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_max": 1.8,
+        "first_alignment_beat": 3.0,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    }
+  ]
+}

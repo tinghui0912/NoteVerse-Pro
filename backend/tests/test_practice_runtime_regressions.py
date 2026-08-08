@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 import pytest
 
-from app.core.config import Settings
 from app.processing.engines.matchmaker_live import (
     BrowserAudioStreamAdapter,
     MatchmakerLiveEngine,
@@ -105,12 +104,6 @@ def import_without_matchmaker(name, *args, **kwargs):
     return ORIGINAL_IMPORT(name, *args, **kwargs)
 
 
-def test_practice_audio_min_active_frames_has_safe_floor() -> None:
-    settings = Settings(PRACTICE_AUDIO_MIN_ACTIVE_FRAMES=1)
-
-    assert settings.PRACTICE_AUDIO_MIN_ACTIVE_FRAMES == 3
-
-
 def test_matchmaker_live_engine_builds_chroma_processor() -> None:
     processor = MatchmakerLiveEngine._build_audio_processor(
         sample_rate=16000,
@@ -147,6 +140,40 @@ def test_matchmaker_live_engine_uses_reference_feature_endpoint_for_completion()
 
     assert engine._score_completed(66.67) is False
     assert engine._score_completed(66.68) is True
+
+
+def test_matchmaker_live_engine_trims_reference_before_first_playable_note() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._score_start_beat = 3.0
+
+    features, beats = engine._trim_reference_to_playable_start(
+        np.array([[0.0], [1.0], [2.0], [3.0], [4.0]], dtype=np.float32),
+        np.array([0.0, 1.0, 2.0, 3.0, 4.0], dtype=np.float32),
+    )
+
+    assert features.tolist() == [[3.0], [4.0]]
+    assert beats.tolist() == [3.0, 4.0]
+
+
+def test_matchmaker_live_engine_start_alignment_anchors_to_first_played_note() -> None:
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._score_start_beat = 3.0
+    engine._last_beat_position = None
+    engine._last_alignment_timestamp_ms = None
+    engine._timestamp_ms = lambda: 1000
+    engine._confidence_for_beat = lambda _beat: 0.95
+    engine._continuity_confidence_for_beat = lambda _beat: 0.95
+    engine._beat_velocity = lambda **_kwargs: None
+    engine._continuity_state = lambda _delta: "initial"
+    engine._score_completed = lambda _beat: False
+
+    alignment = engine._start_alignment()
+
+    assert alignment["beat_position"] == 3.0
+    assert alignment["continuity_state"] == "initial"
 
 
 def test_finished_follower_is_not_restarted() -> None:
@@ -1001,6 +1028,20 @@ def test_matchmaker_live_engine_scores_broad_feature_matches_conservatively() ->
     broad_feature = np.array([0.75, 0.45, 0.35], dtype=np.float32)
 
     assert engine._feature_confidence_for_beat(0.0, current_feature=broad_feature) < 0.55
+
+
+def test_matchmaker_live_engine_rejects_non_finite_start_features() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._reference_features = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
+    engine._ref_frame_to_beat = np.array([0.0], dtype=np.float32)
+    engine._stream = SimpleNamespace(last_feature_vector=None)
+
+    nan_feature = np.array([np.nan, 0.0, 0.0], dtype=np.float32)
+
+    assert engine._feature_confidence_for_beat(0.0, current_feature=nan_feature) == 0.0
 
 
 def test_browser_audio_stream_adapter_rejects_start_when_feature_validator_fails() -> None:

@@ -39,21 +39,6 @@ class Settings(BaseSettings):
     OTEL_SERVICE_NAME: Optional[str] = None
     OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None
     OTEL_EXPORTER_OTLP_INSECURE: bool = True
-    PRACTICE_MATCHMAKER_FRAME_RATE: int = 30
-    PRACTICE_AUDIO_RMS_GATE: float = 0.015
-    PRACTICE_AUDIO_PEAK_GATE: float = 0.06
-    PRACTICE_AUDIO_START_RMS_GATE: float = 0.025
-    PRACTICE_AUDIO_START_PEAK_GATE: float = 0.06
-    PRACTICE_AUDIO_MIN_ACTIVE_FRAMES: int = 3
-    PRACTICE_AUDIO_WARMUP_FRAMES: int = 30
-    PRACTICE_AUDIO_RMS_NOISE_MULTIPLIER: float = 4.0
-    PRACTICE_AUDIO_PEAK_NOISE_MULTIPLIER: float = 2.5
-    PRACTICE_AUDIO_NO_INPUT_FRAMES: int = 24
-    PRACTICE_AUDIO_TONAL_GATE_ENABLED: bool = True
-    PRACTICE_AUDIO_MAX_SPECTRAL_FLATNESS: float = 0.35
-    PRACTICE_AUDIO_MIN_PEAK_PROMINENCE: float = 8.0
-    PRACTICE_AUDIO_ONSET_FLUX_GATE: float = 0.35
-    PRACTICE_AUDIO_ONSET_HOLD_FRAMES: int = 45
     PRACTICE_AUDIO_DIAGNOSTICS: bool = False
     PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL: int = 15
     PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL: int = 15
@@ -159,16 +144,6 @@ class Settings(BaseSettings):
                 return parsed
             return [item.strip() for item in value.split(",") if item.strip()]
         raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
-
-    @field_validator("PRACTICE_AUDIO_MIN_ACTIVE_FRAMES")
-    @classmethod
-    def validate_practice_audio_min_active_frames(cls, v: int) -> int:
-        return max(v, 3)
-
-    @field_validator("PRACTICE_AUDIO_ONSET_HOLD_FRAMES")
-    @classmethod
-    def validate_practice_audio_onset_hold_frames(cls, v: int) -> int:
-        return max(v, 1)
 
     @field_validator(
         "PRACTICE_SOUNDFONT_PATH",
