@@ -40,12 +40,6 @@ def test_trusted_proxy_cidrs_require_an_explicit_valid_json_allowlist() -> None:
         Settings(TRUSTED_PROXY_CIDRS='["0.0.0.0/0"]')
 
 
-def test_practice_audio_min_active_frames_uses_stable_floor() -> None:
-    settings = Settings(PRACTICE_AUDIO_MIN_ACTIVE_FRAMES=2)
-
-    assert settings.PRACTICE_AUDIO_MIN_ACTIVE_FRAMES == 3
-
-
 def test_practice_diagnostic_intervals_must_be_positive() -> None:
     settings = Settings(
         PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=15,

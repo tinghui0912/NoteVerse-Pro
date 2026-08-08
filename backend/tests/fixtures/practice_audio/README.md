@@ -59,6 +59,12 @@ or forbid `lost`.
 Keep negative examples such as desk taps, keyboard clicks, and speech alongside
 positive piano examples so threshold changes can be evaluated against both sides.
 
+`profile_manifest.json` is the score-specific real-engine matrix. It is replayed
+by `scripts/evaluate_practice_replay.py` inside the `practice` container, where
+Matchmaker's real Chroma processor and first-note score validation are available.
+It includes calibration silence before every scenario and validates starts,
+negative non-starts, mixed inputs, the first emitted beat, and pause/resume.
+
 ## Public Samples
 
 The `public_samples/` directory contains small, converted 16 kHz mono PCM WAV
@@ -68,10 +74,14 @@ fixtures downloaded from public datasets. The manifest uses only the converted
 | Fixture | Source | License note | Manifest role |
 | --- | --- | --- | --- |
 | `piano_uiowa_mf_c5_16k.wav` | University of Iowa Musical Instrument Samples, `Piano.mf.C5.aiff` | Public research sample collection | Positive piano start |
+| `piano_uiowa_mf_c4_16k.wav` | University of Iowa Musical Instrument Samples, `Piano.mf.C4.aiff` | Public research sample collection | Wrong-pitch piano negative for Once Again |
 | `noise_esc50_rain_16k.wav` | ESC-50, `1-17367-A-10.wav` | ESC-50 public dataset | Noise negative |
 | `keyboard_esc50_typing_16k.wav` | ESC-50, `1-137-A-32.wav` | ESC-50 public dataset | Keyboard negative |
 | `tap_esc50_mouse_click_16k.wav` | ESC-50, `1-118206-A-31.wav` | ESC-50 public dataset | Tap/click negative |
+| `cough_esc50_16k.wav` | ESC-50, `1-19111-A-24.wav` | ESC-50 public dataset | Cough negative |
+| `desk_knock_esc50_16k.wav` | ESC-50, `1-101336-A-30.wav` | ESC-50 public dataset | Desk-knock negative |
 | `speech_fsd_0_jackson_0_16k.wav` | Free Spoken Digit Dataset, `0_jackson_0.wav` | Public GitHub dataset | Speech negative |
+| `local_recordings/once_again_excerpt_16k.wav` | Derived from the local Once Again recording | Local test fixture | Real loudspeaker positive and mixed-input base |
 
 Speech is included as a negative example because spoken vowels can look tonal in
 short FFT windows. This guards against overly permissive low-level start paths.
@@ -112,3 +122,20 @@ first gate-level mixed tests:
 They are not enough to evaluate full score-following quality. For that, add
 longer real piano phrases, multiple pitches, tempo variation, pauses, and
 recordings captured through the actual `/practice` microphone path.
+
+## Real-Engine Replay
+
+Run the score-specific matrix against the same Matchmaker engine used by the
+practice service:
+
+```powershell
+docker compose -f docker-compose.backend-dev.yml exec -T practice python `
+  scripts/evaluate_practice_replay.py `
+  --score /app/data/work/storage-cache/scores/<score-id>/revisions/<revision-id>/score.musicxml
+```
+
+The command exits nonzero when any scenario violates its manifest expectation.
+Use it after every change to `practice_audio_profile.py`, start validation, or
+the OLTW input policy. The lightweight `practice-quality` test suite continues
+to cover deterministic gate and manifest behavior without running Matchmaker's
+native Chroma implementation.
