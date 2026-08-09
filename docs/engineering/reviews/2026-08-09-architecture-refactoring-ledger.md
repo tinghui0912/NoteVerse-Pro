@@ -365,9 +365,19 @@ session ownership.
 - Added a focused 80% quality gate for import worker execution. The existing
   reliability tests cover durable input materialization, timeout classification,
   and failure finalization; the focused result is 86% across 5 passing tests.
-- The API-facing import-job service (63%) and worker status coordinator (54%)
-  remain explicitly outside this gate. They require authorization and state
-  transition tests before a credible threshold can be introduced.
+- At this measurement point, the API-facing import-job service (63%) and worker
+  status coordinator (54%) were outside this gate. They required authorization
+  and state-transition tests before a credible threshold could be introduced.
+
+### 2026-08-09: Import-job ownership and state gate
+
+- Added direct tests for the import-job API service: job lookup exposes stable
+  not-found and access-denied responses, retry accepts only failed jobs and
+  reconstructs its original request, and running jobs cannot be deleted.
+- The focused import-job service result increased from 63% to 72% across 68
+  relevant passing tests. It now has a 70% independent quality threshold.
+- The worker status coordinator remains outside a threshold at 54%; its state
+  transitions need direct tests before it can become a credible release gate.
 
 ## Completion checklist for every refactor
 
