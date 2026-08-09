@@ -273,6 +273,41 @@ sub-shapes removed in this change.
   generated directories are committed; this is the desired release safeguard,
   not a runtime or type-check failure.
 
+### 2026-08-09: Contract migration and quality-baseline completion
+
+- Committed the generated Customer and Practice API types, OpenAPI documents,
+  contract exporters, response-contract tests, and repository/documentation
+  indexes in `fd05a63`.
+- Removed the remaining Customer Web hand-maintained HTTP DTO modules. HTTP
+  representations now come from the generated Customer or Practice contract;
+  frontend interaction and view-state types stay at their owning UI boundary.
+- Corrected backend response-model return types and migrated regression tests
+  from obsolete dictionary assertions to explicit Pydantic-model assertions in
+  `dae05cf`.
+- Ran the CI-equivalent quality suite: backend Ruff, both mypy configurations,
+  all three OpenAPI checks, 311 core tests, and 66 Practice tests; Customer Web
+  lint, generated-type check, typecheck, i18n check, 194 tests, and production
+  build; Platform Admin lint, typecheck, 3 tests, and production build; plus
+  documentation, Kubernetes, and observability manifest checks.
+
+ARC-001, ARC-002, ARC-007, ARC-009, and ARC-010 are complete. ARC-013 is
+partially complete: `CODEOWNERS` exists, but automated reviewed dependency
+updates are still absent. ARC-005, ARC-006, ARC-008, ARC-011, and ARC-012 are
+not completed by this work.
+
+### 2026-08-09: Frontend dependency-security baseline
+
+- Pinned non-breaking production dependency fixes for `postcss` and `nanoid`
+  in `b2619b2`, then updated compatible development-tool dependency patches in
+  `36dfc07`.
+- Both Customer Web and Platform Admin production dependency audits are clean;
+  the complete Customer Web dependency graph is also clean after `npm ci`.
+- Customer Web lint, generated API contract validation, typecheck, 194 tests,
+  and production build passed after the development-tool patch update.
+
+Dependency updates remain a manual, reviewed process until ARC-013 gains a
+Dependabot or Renovate policy.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
