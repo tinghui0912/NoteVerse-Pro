@@ -360,6 +360,18 @@ ARC-005 remains partially complete. Future gates must cover other critical
 domains independently, beginning with import-job authorization and Practice
 session ownership.
 
+### 2026-08-09: Real Customer Web and backend integration foundation
+
+- Added an isolated Docker Compose environment with disposable PostgreSQL and
+  Redis services, migration and deterministic-user seed jobs, the real backend
+  API, and Customer Web. It does not reuse development data stores.
+- Added an external Playwright configuration and first real browser-facing
+  integration scenario for Next rewrite proxying, login cookies, authenticated
+  API reads, and CSRF enforcement.
+- The remaining ARC-006 scope is the real score flow and Practice WebSocket
+  handshake. They will be added to this same isolated environment rather than
+  extending mocked browser suites.
+
 ### 2026-08-09: Import execution coverage gate
 
 - Added a focused 80% quality gate for import worker execution. The existing

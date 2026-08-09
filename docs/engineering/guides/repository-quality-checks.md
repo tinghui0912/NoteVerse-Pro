@@ -46,6 +46,27 @@ Available checks:
 `all` intentionally does not run every long test suite. Full test suites should
 still run before release or in dedicated CI jobs.
 
+## Customer Web and Backend Integration
+
+Run the isolated real-service integration check from the repository root:
+
+```powershell
+.\scripts\run_customer_web_backend_integration.ps1
+```
+
+The command starts a dedicated PostgreSQL database, Redis, migration job,
+deterministic integration user, backend API, and Customer Web container. Its
+Playwright test uses the browser-facing Customer Web origin, so calls traverse
+the Next rewrite before reaching the real API. It verifies login cookies, an
+authenticated profile read, rejected CSRF-less logout, and accepted logout with
+the issued CSRF token.
+
+The stack uses only the `noteverse-integration` Compose project and removes its
+containers and named volumes on completion. It never uses the development
+database or Redis URL from `backend/.env.docker`; those two addresses are
+overridden to isolated Compose services. The seeded email and password exist
+only in the disposable test database and are not application credentials.
+
 ## Kubernetes Manifest Guard
 
 The K8s guard can also be run directly:
