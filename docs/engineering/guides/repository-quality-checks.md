@@ -26,7 +26,7 @@ Available checks:
 | `backend-critical-import-execution-coverage` | Enforces the import worker execution service's focused 80% coverage threshold |
 | `backend-critical-import-job-service-coverage` | Enforces the import-job API service's focused 70% coverage threshold |
 | `backend-critical-import-worker-service-coverage` | Enforces the import worker state coordinator's focused 80% coverage threshold |
-| `backend-critical-practice-service-coverage` | Enforces the Practice session service's focused 65% coverage threshold |
+| `backend-critical-practice-service-coverage` | Enforces the Practice session service's focused 80% coverage threshold |
 | `backend-contracts` | Verifies that committed customer, practice, and control-plane OpenAPI documents match runtime routes and schemas |
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
@@ -191,11 +191,11 @@ and failed terminal states, diagnostic fields, owner notifications, and named
 step creation or updates. Artifact replacement and public detail shaping remain
 covered by their owning service tests rather than being folded into this gate.
 
-`critical-practice-service-coverage` requires 65% coverage for the Practice
+`critical-practice-service-coverage` requires 80% coverage for the Practice
 session service. It runs in the isolated Practice quality image and covers
 session ownership, cached-runtime authorization, state transitions, reports,
-and alignment persistence. Raise it when session creation and runtime
-registration have equivalent direct coverage.
+alignment persistence, session creation, and runtime registration. Remaining
+detail and report parsing paths need direct coverage before raising it again.
 
 `backend_quality_docker.ps1 -Check pytest` runs two suites:
 

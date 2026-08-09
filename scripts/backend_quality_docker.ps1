@@ -87,7 +87,7 @@ switch ($Check) {
         Invoke-Quality "critical-import-worker-service-coverage" "python -m pytest tests/test_import_job_worker_service_state.py tests/test_score_revision_services.py -q --cov=app.modules.import_jobs.worker_service --cov-report=term-missing --cov-fail-under=80"
     }
     "critical-practice-service-coverage" {
-        Invoke-PracticeQuality "critical-practice-service-coverage" "python -m pytest tests/test_practice_service_access.py $practiceTestArgs -q --cov=app.modules.practice.service --cov-report=term-missing --cov-fail-under=65"
+        Invoke-PracticeQuality "critical-practice-service-coverage" "python -m pytest tests/test_practice_service_access.py $practiceTestArgs -q --cov=app.modules.practice.service --cov-report=term-missing --cov-fail-under=80"
     }
     "all" {
         Invoke-Quality "compile" "python -m compileall -q app scripts tests"

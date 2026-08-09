@@ -399,9 +399,19 @@ session ownership.
   lifecycle transitions, invalid terminal states, report success and failure,
   and alignment persistence.
 - The focused Practice service result rose from 20% to 68% across 74 relevant
-  passing tests. It now has a 65% threshold in the isolated Practice quality
-  image; session creation and runtime-registration failures remain the next
-  coverage priority.
+  passing tests. It initially received a 65% threshold in the isolated Practice
+  quality image; session creation and runtime-registration failures remained the
+  next coverage priority.
+
+### 2026-08-09: Practice creation and runtime-registration coverage
+
+- Added direct tests for session creation authorization and canonical-source
+  validation, runtime registration, terminal-session rejection, and the
+  persisted failure state when the alignment runtime cannot be registered.
+- The focused Practice service result is now 85% across 77 relevant passing
+  tests, so its threshold was raised from 65% to 80%. Session-detail lookup and
+  report-payload parsing remain outside these scenarios and should be covered
+  before the next threshold increase.
 
 ## Completion checklist for every refactor
 

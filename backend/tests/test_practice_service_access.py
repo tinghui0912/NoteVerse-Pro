@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.core.exceptions import (
+    ExternalServiceException,
     ResourceNotFoundException,
     UnauthorizedException,
     ValidationException,
@@ -204,3 +205,135 @@ async def test_persist_alignment_updates_only_an_existing_session() -> None:
         await missing_service.persist_alignment(Mock(), "missing-session", alignment)
 
     assert error.value.code == ErrorCode.PRACTICE_SESSION_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_create_session_requires_a_canonical_revision_source() -> None:
+    repository = Mock()
+    repository.create_session = AsyncMock(side_effect=lambda _db, value: value)
+    access_policy = Mock()
+    access_policy.authorize = AsyncMock(
+        return_value=SimpleNamespace(
+            score=SimpleNamespace(id=11),
+            revision=SimpleNamespace(id=12),
+            origin="OWNER",
+            grant=None,
+        )
+    )
+    asset_repository = Mock()
+    asset_repository.canonical_source = AsyncMock(
+        return_value=SimpleNamespace(storage_key="scores/score-1.musicxml")
+    )
+    service = PracticeService(
+        repository=repository,
+        access_policy=access_policy,
+        asset_repository=asset_repository,
+    )
+
+    summary = await service.create_session(
+        Mock(),
+        score_uuid="score-1",
+        user_id=7,
+        revision_uuid="revision-1",
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+    )
+
+    assert summary.state == PracticeSessionState.CREATED
+    assert summary.ws_url == f"/api/v1/practice/sessions/{summary.session_id}/stream"
+    created_session = repository.create_session.await_args.args[1]
+    assert created_session.score_id == 11
+    assert created_session.revision_id == 12
+    assert created_session.user_id == 7
+    assert created_session.sample_rate == 16000
+
+    asset_repository.canonical_source = AsyncMock(return_value=None)
+    with pytest.raises(ResourceNotFoundException) as error:
+        await service.create_session(
+            Mock(),
+            score_uuid="score-1",
+            user_id=7,
+            revision_uuid="revision-1",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+        )
+
+    assert error.value.code == ErrorCode.FILE_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_prepare_runtime_registers_the_authorized_session() -> None:
+    session = _session()
+    service, repository, runtime_registry, _library = _service_with_session(session)
+    database = Mock()
+    database.get = AsyncMock(
+        side_effect=[
+            SimpleNamespace(score_uuid="score-1"),
+            SimpleNamespace(id=12, revision_uuid="revision-1"),
+        ]
+    )
+    service.asset_repository = Mock()
+    service.asset_repository.canonical_source = AsyncMock(
+        return_value=SimpleNamespace(storage_key="scores/score-1.musicxml")
+    )
+    service.storage = Mock()
+    service.storage.local_path.return_value = "/cache/score-1.musicxml"
+    service.storage.materialize_to_local.return_value = "/materialized/score-1.musicxml"
+    runtime = SimpleNamespace()
+    runtime_registry.get.return_value = None
+    runtime_registry.register.return_value = runtime
+
+    assert await service.prepare_stream_runtime(database, "session-1", 7) is runtime
+
+    repository.get_session_by_uuid.assert_awaited_once_with(database, "session-1")
+    runtime_registry.register.assert_called_once_with(
+        session_id="session-1",
+        task_id="score-1",
+        state="CREATED",
+        score_file_path="/materialized/score-1.musicxml",
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+    )
+
+
+@pytest.mark.asyncio
+async def test_prepare_runtime_rejects_terminal_sessions_and_persists_registration_failures() -> None:
+    terminal_service, _repository, terminal_runtime, _library = _service_with_session(
+        _session(state=PracticeSessionState.FINISHED)
+    )
+    terminal_runtime.get.return_value = None
+
+    with pytest.raises(ValidationException) as terminal_error:
+        await terminal_service.prepare_stream_runtime(Mock(), "session-1", 7)
+
+    assert terminal_error.value.code == ErrorCode.PRACTICE_SESSION_INVALID_STATE
+
+    session = _session()
+    service, repository, runtime_registry, _library = _service_with_session(session)
+    database = Mock()
+    database.get = AsyncMock(
+        side_effect=[
+            SimpleNamespace(score_uuid="score-1"),
+            SimpleNamespace(id=12, revision_uuid="revision-1"),
+        ]
+    )
+    service.asset_repository = Mock()
+    service.asset_repository.canonical_source = AsyncMock(
+        return_value=SimpleNamespace(storage_key="scores/score-1.musicxml")
+    )
+    service.storage = Mock()
+    service.storage.local_path.return_value = "/cache/score-1.musicxml"
+    service.storage.materialize_to_local.return_value = "/materialized/score-1.musicxml"
+    runtime_registry.get.return_value = None
+    runtime_registry.register.side_effect = RuntimeError("alignment engine unavailable")
+
+    with pytest.raises(ExternalServiceException) as registration_error:
+        await service.prepare_stream_runtime(database, "session-1", 7)
+
+    assert registration_error.value.code == ErrorCode.PRACTICE_ALIGNMENT_FAILED
+    assert session.state == PracticeSessionState.FAILED
+    assert session.error == "alignment engine unavailable"
+    repository.save_session.assert_awaited_once_with(database, session)
