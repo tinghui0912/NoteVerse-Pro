@@ -430,6 +430,22 @@ session ownership.
   report-payload parsing remain outside these scenarios and should be covered
   before the next threshold increase.
 
+### 2026-08-10: Real score-import entry integration flow
+
+- Extended the disposable Customer Web/backend browser suite from auth-only
+  coverage to the actual score-import entry flow: authenticated image upload,
+  import-job submission, and pending-job readback through the Next proxy.
+- The Compose environment now explicitly overrides asynchronous and synchronous
+  database URLs, scheduler-lock database URL, Celery Redis URLs, and object
+  storage to ensure the suite cannot use development or external services.
+- Verified from an empty disposable PostgreSQL database: migrations, user seed,
+  health checks, auth/CSRF scenario, and score-import entry scenario all pass
+  (two Playwright tests).
+
+ARC-006 now covers the real score-import entry boundary but not worker-based
+score generation or the Practice WebSocket handshake. Worker completion remains
+deferred until the required offline models are available.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
