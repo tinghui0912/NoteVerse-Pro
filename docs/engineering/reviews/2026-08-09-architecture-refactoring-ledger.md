@@ -308,6 +308,19 @@ not completed by this work.
 Dependency updates remain a manual, reviewed process until ARC-013 gains a
 Dependabot or Renovate policy.
 
+### 2026-08-09: CI dependency-update and Action-pinning policy
+
+- Added Dependabot configuration for both npm applications, backend pip
+  requirements, GitHub Actions, and Dockerfile directories in `a24c5e7`.
+  Updates are weekly, reviewed, capped at three open version-update PRs per
+  ecosystem, and never auto-merged.
+- Replaced every GitHub Actions tag reference with the immutable commit SHA of
+  the same currently selected action release. Inline release comments preserve
+  readable version intent; Dependabot now owns later SHA update PRs.
+
+ARC-008 is complete. ARC-013 remains partially complete until Dependabot alerts
+and security updates are enabled in the repository's GitHub security settings.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
