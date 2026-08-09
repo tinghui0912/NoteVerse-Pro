@@ -446,6 +446,16 @@ ARC-006 now covers the real score-import entry boundary but not worker-based
 score generation or the Practice WebSocket handshake. Worker completion remains
 deferred until the required offline models are available.
 
+### 2026-08-10: Import request JSON-boundary correction
+
+- Fixed the production import path for taxonomy-tagged uploads. Validated
+  Pydantic taxonomy-tag objects were previously assigned directly to the
+  `import_jobs.requested_options` JSON column, causing PostgreSQL JSON
+  serialization to fail before an import job could be queued.
+- The submission boundary now stores JSON-compatible tag dictionaries while
+  retaining the validated request model at the HTTP boundary. A regression test
+  and the real Customer Web upload/import integration scenario cover the case.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
