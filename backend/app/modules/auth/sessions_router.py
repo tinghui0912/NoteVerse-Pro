@@ -12,7 +12,7 @@ from app.modules.auth.session_cookies import clear_session_cookies
 from app.modules.auth.schemas import SessionsRead
 from app.modules.auth.sessions_service import SessionService
 from app.shared.constants import SuccessCode
-from app.shared.responses import APIResponse, EmptyResponse, success_response
+from app.shared.responses import APIResponse, EmptyResponse
 
 router = APIRouter()
 SESSION_LIST_DEFAULT_LIMIT = 100
@@ -34,7 +34,7 @@ async def list_my_sessions(
         current_refresh_token=refresh_cookie,
         limit=limit,
     )
-    return success_response(data=SessionsRead(sessions=sessions))
+    return APIResponse(success=True, data=SessionsRead(sessions=sessions))
 
 
 @router.delete("/sessions/{session_id}", response_model=EmptyResponse)
@@ -55,7 +55,7 @@ async def revoke_my_session(
     )
     if revoked_current:
         clear_session_cookies(response)
-    return success_response(message=SuccessCode.SESSION_REVOKED)
+    return EmptyResponse(success=True, message=SuccessCode.SESSION_REVOKED)
 
 
 @router.delete("/sessions", response_model=EmptyResponse)
@@ -71,4 +71,4 @@ async def revoke_my_other_sessions(
         user_id,
         current_refresh_token=refresh_cookie,
     )
-    return success_response(message=SuccessCode.SESSIONS_REVOKED)
+    return EmptyResponse(success=True, message=SuccessCode.SESSIONS_REVOKED)

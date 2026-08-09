@@ -140,13 +140,10 @@ class ImportJobSubmitRequest(BaseModel):
             return None
         taxonomy_tags = value.get("taxonomy_tags")
         if taxonomy_tags is not None:
-            normalized_tags: list[dict[str, str]] = []
+            normalized_tags: list[ScoreTaxonomyTagInput] = []
             for tag in taxonomy_tags:
                 normalized = ScoreTaxonomyTagInput.model_validate(tag)
-                normalized_tags.append({
-                    "category": normalized.category,
-                    "code": normalized.code,
-                })
+                normalized_tags.append(normalized)
             value["taxonomy_tags"] = normalized_tags
         return value
 

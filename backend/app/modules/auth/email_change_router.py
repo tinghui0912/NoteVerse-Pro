@@ -14,7 +14,7 @@ from app.modules.auth.schemas import (
     RequestEmailChangeRequest,
 )
 from app.shared.constants import SuccessCode
-from app.shared.responses import APIResponse, EmptyResponse, success_response
+from app.shared.responses import APIResponse, EmptyResponse
 
 me_router = APIRouter()
 auth_router = APIRouter()
@@ -35,7 +35,7 @@ async def request_my_email_change(
         user_agent=request_context.headers.get("user-agent"),
         ip_address=client_address(request_context),
     )
-    return success_response(message=SuccessCode.VERIFICATION_SUCCESS)
+    return EmptyResponse(success=True, message=SuccessCode.VERIFICATION_SUCCESS)
 
 
 @auth_router.post("/email/change/confirm", response_model=APIResponse[EmailChangeConfirmedRead])
@@ -45,7 +45,8 @@ async def confirm_email_change(
     email_change_service: EmailChangeService = Depends(get_email_change_service),
 ) -> APIResponse[EmailChangeConfirmedRead]:
     user = await email_change_service.confirm_email_change(db, request)
-    return success_response(
+    return APIResponse(
+        success=True,
         data=EmailChangeConfirmedRead(email=user.email),
         message=SuccessCode.EMAIL_VERIFIED,
     )

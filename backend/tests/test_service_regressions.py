@@ -517,7 +517,9 @@ async def test_file_upload_rehomes_existing_blob_when_storage_backend_changes() 
         with patch("app.modules.files.service.storage_usage_service.commit_reservation") as commit_mock:
             result = await FilesService(repository=repository, storage=storage).upload_file(db, user, upload)
 
-    assert result == {"file_id": "upload-1", "filename": "score.png", "size": 5}
+    assert result.file_id == "upload-1"
+    assert result.filename == "score.png"
+    assert result.size == 5
     storage.exists.assert_not_called()
     storage.save_blob.assert_called_once()
     repository.create_blob.assert_not_called()
@@ -587,7 +589,7 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
         with patch("app.modules.files.service.storage_usage_service.record_release") as release_usage:
             result = await service.delete_uploaded_file(db, current_user, "owned.png")
 
-    assert result == {"filename": "owned.png"}
+    assert result.filename == "owned.png"
     repository.delete_upload_by_id.assert_awaited_once_with(db, 7)
     repository.delete_blob_by_id.assert_awaited_once_with(db, 5)
     release_usage.assert_awaited_once()
@@ -688,11 +690,9 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
         frame_format="pcm_s16le",
     )
 
-    assert result == {
-        "session_id": "session-1",
-        "state": PracticeSessionState.CREATED.value,
-        "ws_url": "/api/v1/practice/sessions/session-1/stream",
-    }
+    assert result.session_id == "session-1"
+    assert result.state == PracticeSessionState.CREATED
+    assert result.ws_url == "/api/v1/practice/sessions/session-1/stream"
     runtime_registry.register.assert_not_called()
     created_session = repository.create_session.await_args.args[1]
     assert created_session.revision_id == 201
@@ -732,14 +732,14 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
     ))
 
     paused = await service.pause_session(db, "session-1", user_id=1)
-    assert paused["state"] == PracticeSessionState.PAUSED.value
+    assert paused.state == PracticeSessionState.PAUSED
 
     resumed = await service.resume_session(db, "session-1", user_id=1)
-    assert resumed["state"] == PracticeSessionState.STREAMING.value
+    assert resumed.state == PracticeSessionState.STREAMING
     assert session.started_at is not None
 
     finished = await service.finish_session(db, "session-1", user_id=1)
-    assert finished["state"] == PracticeSessionState.FINISHED.value
+    assert finished.state == PracticeSessionState.FINISHED
     assert session.finished_at is not None
 
 
@@ -815,9 +815,9 @@ async def test_practice_service_request_report_persists_structured_payload() -> 
 
     result = await service.request_report(AsyncMock(), "session-1", user_id=1)
 
-    assert result["report_status"] == PracticeReportStatus.READY.value
-    assert result["report_payload"] is not None
-    assert result["report_payload"]["metrics"]["confidence_label"] == "Strong"
+    assert result.report_status == PracticeReportStatus.READY
+    assert result.report_payload is not None
+    assert result.report_payload.metrics["confidence_label"] == "Strong"
     assert session.report_status == PracticeReportStatus.READY
     assert session.report_payload is not None
     assert repository.save_report.await_count == 2
@@ -837,13 +837,10 @@ async def test_practice_service_get_report_parses_existing_payload() -> None:
 
     result = await service.get_report(AsyncMock(), "session-1", user_id=1)
 
-    assert result == {
-        "session_id": "session-1",
-        "report_status": PracticeReportStatus.READY.value,
-        "report_payload": {
-            "summary": "done",
-            "metrics": {"state": "FINISHED"},
-            "recommendations": ["keep going"],
-        },
-    }
+    assert result.session_id == "session-1"
+    assert result.report_status == PracticeReportStatus.READY
+    assert result.report_payload is not None
+    assert result.report_payload.summary == "done"
+    assert result.report_payload.metrics == {"state": "FINISHED"}
+    assert result.report_payload.recommendations == ["keep going"]
 
