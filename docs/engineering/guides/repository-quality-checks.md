@@ -25,6 +25,7 @@ Available checks:
 | `backend-critical-coverage` | Enforces the score-access policy's focused 80% coverage threshold |
 | `backend-critical-import-execution-coverage` | Enforces the import worker execution service's focused 80% coverage threshold |
 | `backend-critical-import-job-service-coverage` | Enforces the import-job API service's focused 70% coverage threshold |
+| `backend-critical-import-worker-service-coverage` | Enforces the import worker state coordinator's focused 80% coverage threshold |
 | `backend-contracts` | Verifies that committed customer, practice, and control-plane OpenAPI documents match runtime routes and schemas |
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
@@ -118,6 +119,7 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-critical-coverage
 .\scripts\quality.ps1 -Check backend-critical-import-execution-coverage
 .\scripts\quality.ps1 -Check backend-critical-import-job-service-coverage
+.\scripts\quality.ps1 -Check backend-critical-import-worker-service-coverage
 .\scripts\quality.ps1 -Check backend-contracts
 ```
 
@@ -152,6 +154,7 @@ You can also call the backend quality image directly:
 .\scripts\backend_quality_docker.ps1 -Check critical-coverage
 .\scripts\backend_quality_docker.ps1 -Check critical-import-execution-coverage
 .\scripts\backend_quality_docker.ps1 -Check critical-import-job-service-coverage
+.\scripts\backend_quality_docker.ps1 -Check critical-import-worker-service-coverage
 .\scripts\backend_quality_docker.ps1 -Check contracts
 ```
 
@@ -178,6 +181,12 @@ before it gains its own threshold.
 API-facing import-job service. Its scenarios cover owner-only access, retry
 eligibility and request reconstruction, and the rule that running jobs cannot
 be deleted. Raise it alongside additional state-transition or cleanup tests.
+
+`critical-import-worker-service-coverage` requires 80% coverage for the
+worker-side state coordinator. Its scenarios assert progress updates, successful
+and failed terminal states, diagnostic fields, owner notifications, and named
+step creation or updates. Artifact replacement and public detail shaping remain
+covered by their owning service tests rather than being folded into this gate.
 
 `backend_quality_docker.ps1 -Check pytest` runs two suites:
 

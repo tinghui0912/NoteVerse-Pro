@@ -376,8 +376,19 @@ session ownership.
   reconstructs its original request, and running jobs cannot be deleted.
 - The focused import-job service result increased from 63% to 72% across 68
   relevant passing tests. It now has a 70% independent quality threshold.
-- The worker status coordinator remains outside a threshold at 54%; its state
-  transitions need direct tests before it can become a credible release gate.
+- At this measurement point, the worker status coordinator was outside a
+  threshold at 54%; its state transitions needed direct tests before it could
+  become a credible release gate.
+
+### 2026-08-09: Import worker state-coordination gate
+
+- Added direct state-transition tests for the synchronous import worker service:
+  progress updates, missing jobs, successful and failed completion, internal
+  diagnostics, owner notifications, and creating or updating named steps.
+- The focused worker service result rose from 54% to 83% across 52 relevant
+  passing tests. It now has an independent 80% quality threshold.
+- Artifact replacement and public detail shaping remain tested at their owning
+  boundaries and are intentionally not mixed into the state-coordination gate.
 
 ## Completion checklist for every refactor
 
