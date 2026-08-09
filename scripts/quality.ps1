@@ -6,6 +6,7 @@ param(
         "backend-pytest",
         "backend-coverage",
         "backend-critical-coverage",
+        "backend-critical-import-execution-coverage",
         "backend-contracts",
         "customer-web-lint",
         "customer-web-typecheck",
@@ -169,6 +170,9 @@ switch ($Check) {
     }
     "backend-critical-coverage" {
         Invoke-BackendQuality "critical-coverage"
+    }
+    "backend-critical-import-execution-coverage" {
+        Invoke-BackendQuality "critical-import-execution-coverage"
     }
     "backend-contracts" {
         Invoke-BackendQuality "contracts"

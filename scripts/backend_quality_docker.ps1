@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "ruff", "mypy", "mypy-model-layer", "pytest", "coverage", "critical-coverage", "compile", "contracts")]
+    [ValidateSet("all", "ruff", "mypy", "mypy-model-layer", "pytest", "coverage", "critical-coverage", "critical-import-execution-coverage", "compile", "contracts")]
     [string] $Check = "all"
 )
 
@@ -76,6 +76,9 @@ switch ($Check) {
     }
     "critical-coverage" {
         Invoke-Quality "critical-score-access-coverage" "python -m pytest tests/test_score_revision_services.py -q --cov=app.modules.score_access --cov-report=term-missing --cov-fail-under=80"
+    }
+    "critical-import-execution-coverage" {
+        Invoke-Quality "critical-import-execution-coverage" "python -m pytest tests/test_import_job_execution_service.py tests/test_import_job_reliability_contract.py -q --cov=app.modules.import_jobs.execution_service --cov-report=term-missing --cov-fail-under=80"
     }
     "all" {
         Invoke-Quality "compile" "python -m compileall -q app scripts tests"

@@ -23,6 +23,7 @@ Available checks:
 | `backend-pytest` | Backend test suites through Docker quality images: core tests in `quality`, practice tests in `practice-quality` |
 | `backend-coverage` | Backend coverage baseline report through the same core and practice quality images |
 | `backend-critical-coverage` | Enforces the score-access policy's focused 80% coverage threshold |
+| `backend-critical-import-execution-coverage` | Enforces the import worker execution service's focused 80% coverage threshold |
 | `backend-contracts` | Verifies that committed customer, practice, and control-plane OpenAPI documents match runtime routes and schemas |
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
@@ -114,6 +115,7 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-pytest
 .\scripts\quality.ps1 -Check backend-coverage
 .\scripts\quality.ps1 -Check backend-critical-coverage
+.\scripts\quality.ps1 -Check backend-critical-import-execution-coverage
 .\scripts\quality.ps1 -Check backend-contracts
 ```
 
@@ -146,6 +148,7 @@ You can also call the backend quality image directly:
 .\scripts\backend_quality_docker.ps1 -Check pytest
 .\scripts\backend_quality_docker.ps1 -Check coverage
 .\scripts\backend_quality_docker.ps1 -Check critical-coverage
+.\scripts\backend_quality_docker.ps1 -Check critical-import-execution-coverage
 .\scripts\backend_quality_docker.ps1 -Check contracts
 ```
 
@@ -161,6 +164,12 @@ untested critical flows behind generated or low-risk code.
 policy scenarios and requires at least 80% coverage for that focused domain.
 Raise this threshold only alongside tests for newly introduced authorization
 branches; add other critical-domain gates independently.
+
+`critical-import-execution-coverage` applies the same policy to the import
+worker execution service: it requires 80% coverage for error classification,
+durable input materialization, and failure finalization. It deliberately does
+not include the less-tested API-facing import-job service or worker status
+coordinator; those need targeted tests before they gain their own thresholds.
 
 `backend_quality_docker.ps1 -Check pytest` runs two suites:
 

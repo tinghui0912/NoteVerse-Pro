@@ -360,6 +360,15 @@ ARC-005 remains partially complete. Future gates must cover other critical
 domains independently, beginning with import-job authorization and Practice
 session ownership.
 
+### 2026-08-09: Import execution coverage gate
+
+- Added a focused 80% quality gate for import worker execution. The existing
+  reliability tests cover durable input materialization, timeout classification,
+  and failure finalization; the focused result is 86% across 5 passing tests.
+- The API-facing import-job service (63%) and worker status coordinator (54%)
+  remain explicitly outside this gate. They require authorization and state
+  transition tests before a credible threshold can be introduced.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
