@@ -5,6 +5,7 @@ param(
         "backend-mypy-model-layer",
         "backend-pytest",
         "backend-coverage",
+        "backend-critical-coverage",
         "backend-contracts",
         "customer-web-lint",
         "customer-web-typecheck",
@@ -165,6 +166,9 @@ switch ($Check) {
     }
     "backend-coverage" {
         Invoke-BackendQuality "coverage"
+    }
+    "backend-critical-coverage" {
+        Invoke-BackendQuality "critical-coverage"
     }
     "backend-contracts" {
         Invoke-BackendQuality "contracts"

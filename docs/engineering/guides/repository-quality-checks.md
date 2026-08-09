@@ -22,6 +22,7 @@ Available checks:
 | `backend-mypy-model-layer` | Backend model-layer type boundary checks inside the dedicated backend quality image |
 | `backend-pytest` | Backend test suites through Docker quality images: core tests in `quality`, practice tests in `practice-quality` |
 | `backend-coverage` | Backend coverage baseline report through the same core and practice quality images |
+| `backend-critical-coverage` | Enforces the score-access policy's focused 80% coverage threshold |
 | `backend-contracts` | Verifies that committed customer, practice, and control-plane OpenAPI documents match runtime routes and schemas |
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
@@ -112,6 +113,7 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-mypy-model-layer
 .\scripts\quality.ps1 -Check backend-pytest
 .\scripts\quality.ps1 -Check backend-coverage
+.\scripts\quality.ps1 -Check backend-critical-coverage
 .\scripts\quality.ps1 -Check backend-contracts
 ```
 
@@ -143,6 +145,7 @@ You can also call the backend quality image directly:
 .\scripts\backend_quality_docker.ps1 -Check mypy-model-layer
 .\scripts\backend_quality_docker.ps1 -Check pytest
 .\scripts\backend_quality_docker.ps1 -Check coverage
+.\scripts\backend_quality_docker.ps1 -Check critical-coverage
 .\scripts\backend_quality_docker.ps1 -Check contracts
 ```
 
@@ -153,6 +156,11 @@ Coverage commands report current baselines but do not enforce a global
 `fail-under` threshold. Set domain-specific thresholds only after the initial
 reports are reviewed; do not use a single repository-wide number to conceal
 untested critical flows behind generated or low-risk code.
+
+`critical-coverage` is the first such gate. It runs the existing score-access
+policy scenarios and requires at least 80% coverage for that focused domain.
+Raise this threshold only alongside tests for newly introduced authorization
+branches; add other critical-domain gates independently.
 
 `backend_quality_docker.ps1 -Check pytest` runs two suites:
 

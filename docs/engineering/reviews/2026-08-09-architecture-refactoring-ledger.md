@@ -348,6 +348,18 @@ ARC-005 is partially complete. The remaining work is to add coverage around
 critical domain flows, and introduce domain-specific thresholds and
 architecture-boundary checks rather than an unrepresentative global threshold.
 
+### 2026-08-09: First critical-domain coverage gate
+
+- Promoted the existing score-access policy test suite into an explicit quality
+  gate: it measures only `app.modules.score_access` and requires at least 80%
+  coverage. The current focused result is 83% across 44 passing tests.
+- Kept the threshold independent from the repository-wide report, so unrelated
+  modules cannot conceal regressions in score authorization behavior.
+
+ARC-005 remains partially complete. Future gates must cover other critical
+domains independently, beginning with import-job authorization and Practice
+session ownership.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
