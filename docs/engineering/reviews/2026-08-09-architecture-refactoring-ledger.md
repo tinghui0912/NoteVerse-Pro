@@ -331,6 +331,23 @@ and security updates are enabled in the repository's GitHub security settings.
 
 ARC-011 is complete.
 
+### 2026-08-09: Coverage-report baseline
+
+- Added explicit Customer Web V8 coverage reporting and Docker-based backend
+  coverage commands to the unified quality entry points. Backend coverage is
+  configured with branch measurement and the `app` package as its source.
+- Added the pinned `pytest-cov` quality-only dependency. Runtime images remain
+  free of test tooling.
+- Established initial passing reports without a repository-wide fail-under:
+  Customer Web has 70.57% statements, 58.64% branches, 64.65% functions, and
+  72.20% lines; the backend core suite has 64% total coverage (311 passing
+  tests); the isolated Practice suite has 25% total coverage (66 passing
+  tests).
+
+ARC-005 is partially complete. The remaining work is to add coverage around
+critical domain flows, and introduce domain-specific thresholds and
+architecture-boundary checks rather than an unrepresentative global threshold.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

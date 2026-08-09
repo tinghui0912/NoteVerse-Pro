@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "ruff", "mypy", "mypy-model-layer", "pytest", "compile", "contracts")]
+    [ValidateSet("all", "ruff", "mypy", "mypy-model-layer", "pytest", "coverage", "compile", "contracts")]
     [string] $Check = "all"
 )
 
@@ -69,6 +69,10 @@ switch ($Check) {
     "pytest" {
         Invoke-Quality "pytest-core" "python -m pytest tests -q $practiceTestIgnoreArgs"
         Invoke-PracticeQuality "pytest-practice" "python -m pytest $practiceTestArgs -q"
+    }
+    "coverage" {
+        Invoke-Quality "coverage-core" "python -m pytest tests -q $practiceTestIgnoreArgs --cov=app --cov-report=term-missing"
+        Invoke-PracticeQuality "coverage-practice" "python -m pytest $practiceTestArgs -q --cov=app --cov-report=term-missing"
     }
     "all" {
         Invoke-Quality "compile" "python -m compileall -q app scripts tests"

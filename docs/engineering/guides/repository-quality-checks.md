@@ -21,12 +21,14 @@ Available checks:
 | `backend-mypy` | Backend type checking inside the dedicated backend quality image |
 | `backend-mypy-model-layer` | Backend model-layer type boundary checks inside the dedicated backend quality image |
 | `backend-pytest` | Backend test suites through Docker quality images: core tests in `quality`, practice tests in `practice-quality` |
+| `backend-coverage` | Backend coverage baseline report through the same core and practice quality images |
 | `backend-contracts` | Verifies that committed customer, practice, and control-plane OpenAPI documents match runtime routes and schemas |
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
 | `customer-web-i18n` | Customer Web error translation key guard |
 | `customer-web-api-types` | Customer Web generated API DTO freshness check |
 | `customer-web-test` | Customer Web unit tests |
+| `customer-web-coverage` | Customer Web V8 coverage baseline report |
 | `platform-admin-lint` | Platform Admin ESLint |
 | `platform-admin-typecheck` | Platform Admin TypeScript type checking |
 | `platform-admin-test` | Platform Admin unit tests |
@@ -109,6 +111,7 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-mypy
 .\scripts\quality.ps1 -Check backend-mypy-model-layer
 .\scripts\quality.ps1 -Check backend-pytest
+.\scripts\quality.ps1 -Check backend-coverage
 .\scripts\quality.ps1 -Check backend-contracts
 ```
 
@@ -139,11 +142,17 @@ You can also call the backend quality image directly:
 .\scripts\backend_quality_docker.ps1 -Check mypy
 .\scripts\backend_quality_docker.ps1 -Check mypy-model-layer
 .\scripts\backend_quality_docker.ps1 -Check pytest
+.\scripts\backend_quality_docker.ps1 -Check coverage
 .\scripts\backend_quality_docker.ps1 -Check contracts
 ```
 
 The script passes `--build` to Docker Compose, so the first run builds the
 quality image and later runs reuse Docker's cache.
+
+Coverage commands report current baselines but do not enforce a global
+`fail-under` threshold. Set domain-specific thresholds only after the initial
+reports are reviewed; do not use a single repository-wide number to conceal
+untested critical flows behind generated or low-risk code.
 
 `backend_quality_docker.ps1 -Check pytest` runs two suites:
 

@@ -4,12 +4,14 @@ param(
         "backend-mypy",
         "backend-mypy-model-layer",
         "backend-pytest",
+        "backend-coverage",
         "backend-contracts",
         "customer-web-lint",
         "customer-web-typecheck",
         "customer-web-i18n",
         "customer-web-api-types",
         "customer-web-test",
+        "customer-web-coverage",
         "platform-admin-lint",
         "platform-admin-typecheck",
         "platform-admin-test",
@@ -161,6 +163,9 @@ switch ($Check) {
     "backend-pytest" {
         Invoke-BackendQuality "pytest"
     }
+    "backend-coverage" {
+        Invoke-BackendQuality "coverage"
+    }
     "backend-contracts" {
         Invoke-BackendQuality "contracts"
     }
@@ -178,6 +183,9 @@ switch ($Check) {
     }
     "customer-web-test" {
         Invoke-CustomerWebNpm "test"
+    }
+    "customer-web-coverage" {
+        Invoke-CustomerWebNpm "test:coverage"
     }
     "platform-admin-lint" {
         Invoke-PlatformAdminNpm "lint"

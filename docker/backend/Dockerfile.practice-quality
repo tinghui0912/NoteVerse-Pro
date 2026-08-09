@@ -4,6 +4,8 @@ FROM ${PRACTICE_DEPS_IMAGE}
 
 WORKDIR /app
 
+COPY backend/requirements/quality-tools.txt /tmp/requirements/quality-tools.txt
+
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -r /tmp/requirements/quality-tools.txt
 
