@@ -321,6 +321,16 @@ Dependabot or Renovate policy.
 ARC-008 is complete. ARC-013 remains partially complete until Dependabot alerts
 and security updates are enabled in the repository's GitHub security settings.
 
+### 2026-08-09: Verovio playback naming cleanup
+
+- Renamed the production `VerovioPlaybackPrototype` implementation to
+  `VerovioPlaybackController` and its source module from
+  `playback-prototype.ts` to `playback-controller.ts`.
+- Updated all production imports and tests directly; no deprecated export or
+  compatibility alias remains.
+
+ARC-011 is complete.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -1,5 +1,5 @@
 export { createVerovioPlaybackTimeline, findVisualEventAtTime } from './playback-timeline';
-export { VerovioPlaybackPrototype } from './playback-prototype';
+export { VerovioPlaybackController } from './playback-controller';
 export { SoundfontAudioEngine } from './soundfont-audio-engine';
 export type {
   VerovioPlaybackNote,
@@ -9,4 +9,4 @@ export type {
 export type {
   VerovioAudioEngine,
   VerovioPlaybackCursorSnapshot,
-} from './playback-prototype';
+} from './playback-controller';

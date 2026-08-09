@@ -10,7 +10,7 @@ import { VerovioScoreAdapter } from '@/lib/score/verovio';
 import { VerovioScorePreviewController } from '@/lib/score-preview/verovio-score-preview-controller';
 import {
   createVerovioPlaybackTimeline,
-  VerovioPlaybackPrototype,
+  VerovioPlaybackController,
   type VerovioAudioEngine,
   type VerovioPlaybackNote,
 } from '@/lib/score/verovio/playback';
@@ -154,11 +154,11 @@ describe('Verovio playback timeline', () => {
   );
 });
 
-describe('VerovioPlaybackPrototype', () => {
+describe('VerovioPlaybackController', () => {
   it('supports playback, pause, seek, tempo, multi-page cursor lookup, and disposal', async () => {
     const adapter = new StubAdapter();
     const audio = new StubAudioEngine();
-    const controller = new VerovioPlaybackPrototype(adapter, audio);
+    const controller = new VerovioPlaybackController(adapter, audio);
 
     await controller.loadScore('<score-partwise />');
     expect(audio.prepared).toEqual(['acoustic_grand_piano']);
@@ -208,7 +208,7 @@ describe('VerovioPlaybackPrototype', () => {
   it('emits iteration and natural completion events without leaking timers', async () => {
     vi.useFakeTimers();
     try {
-      const controller = new VerovioPlaybackPrototype(new StubAdapter(), new StubAudioEngine());
+      const controller = new VerovioPlaybackController(new StubAdapter(), new StubAudioEngine());
       const states: string[] = [];
       const iterations: unknown[][] = [];
       controller.onPlaybackStateChange((state) => states.push(state));

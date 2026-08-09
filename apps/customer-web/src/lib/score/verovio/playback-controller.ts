@@ -27,7 +27,7 @@ export type VerovioPlaybackCursorSnapshot = {
   pageNumbers: number[];
 };
 
-export class VerovioPlaybackPrototype implements ScorePlaybackController {
+export class VerovioPlaybackController implements ScorePlaybackController {
   private timeline: VerovioPlaybackTimeline | null = null;
   private state: ScorePlaybackState = 'IDLE';
   private position = 0;
