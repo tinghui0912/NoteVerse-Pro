@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { LibraryFolder, LibraryPracticeState, UserSettableLibraryPracticeState } from '@/types/api';
+import type { LibraryFolderRead, LibraryPracticeState } from '@/generated/api';
+import type { UserSettableLibraryPracticeState } from '@/lib/library/state';
 
 interface SharedDialogProps {
   count: number;
@@ -42,7 +43,7 @@ interface LibraryMoveEntriesDialogProps extends SharedDialogProps {
   open: boolean;
   folderId: string;
   rootFolderValue: string;
-  folders: LibraryFolder[];
+  folders: LibraryFolderRead[];
   onOpenChange: (open: boolean) => void;
   onFolderChange: (folderId: string) => void;
   onConfirm: () => void;

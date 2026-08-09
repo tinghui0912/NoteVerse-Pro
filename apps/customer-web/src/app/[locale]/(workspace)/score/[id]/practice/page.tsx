@@ -9,8 +9,8 @@ import {
 import {
   type PracticeAlignmentUpdateMessage,
   type PracticeServerMessage,
-  type PracticeSessionDetail,
-} from '@/types/api';
+} from '@/lib/practice/protocol';
+import type { PracticeSessionDetailRead } from '@/generated/practice-api';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePracticeAudioStream } from '@/hooks/practice/use-practice-audio-stream';
@@ -200,7 +200,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     return socket.sendJson({ type, payload: { t: Date.now() } });
   };
 
-  const sendPracticeInit = (detail: PracticeSessionDetail) => {
+  const sendPracticeInit = (detail: PracticeSessionDetailRead) => {
     if (
       !socket.sendJson({
         type: 'client.init',

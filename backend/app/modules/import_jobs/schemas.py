@@ -11,7 +11,7 @@ from app.modules.scores.schemas import ScoreTaxonomyTagInput
 
 class ImportJobProcessingOptions(TypedDict, total=False):
     title: str
-    taxonomy_tags: list[dict[str, str]]
+    taxonomy_tags: list[ScoreTaxonomyTagInput]
 
 
 class ImportJobSubmitRequestLike(Protocol):
@@ -29,6 +29,51 @@ class ImportJobSubmitResult(TypedDict):
     job_id: str
     count: int
     state: ImportJobState
+
+
+class ImportArtifactRead(BaseModel):
+    artifact_id: str
+    filename: str
+    page_number: int | None = None
+    size: int | None = None
+    mime_type: str | None = None
+    upload_id: str | None = None
+    original_filename: str | None = None
+
+
+class ImportJobRead(BaseModel):
+    job_id: str
+    state: ImportJobState
+    progress: int
+    score_id: str | None = None
+    title: str | None = None
+    taxonomy_tags: list[ScoreTaxonomyTagInput] = []
+    thumbnail: ImportArtifactRead | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    public_code: str | None = None
+    public_message: str | None = None
+    original_images: list[ImportArtifactRead] = []
+
+
+class ImportJobSubmitRead(BaseModel):
+    job_id: str
+    count: int
+    state: ImportJobState
+
+
+class ImportJobStatusRead(BaseModel):
+    state: ImportJobState
+    progress: int
+    public_code: str | None = None
+    public_message: str | None = None
+    score_id: str | None = None
+
+
+class ImportJobBatchStatusRead(BaseModel):
+    jobs: dict[str, ImportJobStatusRead]
 
 
 class ImportJobStatusEntry(TypedDict):

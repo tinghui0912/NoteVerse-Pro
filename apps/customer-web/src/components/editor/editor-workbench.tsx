@@ -8,12 +8,12 @@ import { useEditorState } from '@/contexts/editor-provider';
 import { cn } from '@/lib/utils';
 import { EditorWorkbenchCenter } from './editor-workbench-center';
 import { EventInspector } from './event-inspector';
-import type { FingeringHandSize } from '@/types/api';
+import type { FingeringRequest } from '@/generated/api';
 
 interface EditorWorkbenchProps {
   currentXml: string | null;
   fingeringPending?: boolean;
-  onGenerateFingering?: (handSize: FingeringHandSize) => void;
+  onGenerateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void;
   onNormalizeVoices: () => void;
 }
 

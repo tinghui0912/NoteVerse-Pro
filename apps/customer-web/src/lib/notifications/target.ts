@@ -1,10 +1,10 @@
-import type { NotificationEvent } from '@/types/api';
+import type { NotificationEventRead } from '@/generated/api';
 
 function stringData(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
-export function notificationHref(notification: NotificationEvent): string | null {
+export function notificationHref(notification: NotificationEventRead): string | null {
   if (notification.type === 'import.failed') {
     const jobId = stringData(notification.data.job_id);
     return jobId ? `/upload?job_id=${encodeURIComponent(jobId)}` : null;

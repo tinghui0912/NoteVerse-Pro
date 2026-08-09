@@ -15,11 +15,11 @@ import { useToast } from '@/hooks/use-toast';
 import { profileApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
-import type { AccountSession } from '@/types/api';
+import type { SessionSummary } from '@/generated/api';
 
 const sessionsQueryKey = ['account', 'sessions'];
 
-function deviceLabel(session: AccountSession, fallback: string): string {
+function deviceLabel(session: SessionSummary, fallback: string): string {
   const agent = session.user_agent ?? '';
   if (!agent) return fallback;
   if (/iPhone|Android|Mobile/i.test(agent)) return 'Mobile browser';
@@ -31,7 +31,7 @@ function deviceLabel(session: AccountSession, fallback: string): string {
   return fallback;
 }
 
-function SessionIcon({ session }: { session: AccountSession }) {
+function SessionIcon({ session }: { session: SessionSummary }) {
   const agent = session.user_agent ?? '';
   if (/iPhone|Android|Mobile|iPad|Tablet/i.test(agent)) {
     return <Smartphone className="h-5 w-5 text-gray-500" />;

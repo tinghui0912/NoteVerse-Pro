@@ -4,29 +4,30 @@
 import { API_BASE_URL } from '@/lib/app-protocol';
 import { apiClient, ApiResponse } from '../api-client';
 import type {
-    AccountSecurityResponse,
-    AccountSessionsResponse,
+    AvatarRead,
+    ProfileRead,
+    ProfileUpdateRead,
     RequestEmailChangeRequest,
-    UserProfile,
+    SecurityRead,
+    SessionsRead,
     UpdateProfileRequest,
-    AvatarResponse,
-} from '@/types/api';
+} from '@/generated/api';
 
 // ============ API 函数 ============
 
 /**
  * 获取当前用户资料
  */
-export async function getProfile(options?: { suppressAuthRedirect?: boolean }): Promise<ApiResponse<UserProfile>> {
-    return apiClient.get<ApiResponse<UserProfile>>('/me/profile', undefined, options);
+export async function getProfile(options?: { suppressAuthRedirect?: boolean }): Promise<ApiResponse<ProfileRead>> {
+    return apiClient.get<ApiResponse<ProfileRead>>('/me/profile', undefined, options);
 }
 
 /**
  * 更新用户资料
  * @param data 更新数据
  */
-export async function updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<{ updated_fields: string[] }>> {
-    return apiClient.put<ApiResponse<{ updated_fields: string[] }>>('/me/profile', data);
+export async function updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<ProfileUpdateRead>> {
+    return apiClient.put<ApiResponse<ProfileUpdateRead>>('/me/profile', data);
 }
 
 /**
@@ -48,8 +49,8 @@ export async function changePassword(
  * 上传头像
  * @param file 头像文件
  */
-export async function uploadAvatar(file: File): Promise<ApiResponse<AvatarResponse>> {
-    return apiClient.upload<ApiResponse<AvatarResponse>>('/me/avatar', file);
+export async function uploadAvatar(file: File): Promise<ApiResponse<AvatarRead>> {
+    return apiClient.upload<ApiResponse<AvatarRead>>('/me/avatar', file);
 }
 
 /**
@@ -59,12 +60,12 @@ export async function deleteAvatar(): Promise<ApiResponse> {
     return apiClient.delete<ApiResponse>('/me/avatar');
 }
 
-export async function getSessions(params?: { limit?: number }): Promise<ApiResponse<AccountSessionsResponse>> {
-    return apiClient.get<ApiResponse<AccountSessionsResponse>>('/me/sessions', params);
+export async function getSessions(params?: { limit?: number }): Promise<ApiResponse<SessionsRead>> {
+    return apiClient.get<ApiResponse<SessionsRead>>('/me/sessions', params);
 }
 
-export async function getSecurityOverview(): Promise<ApiResponse<AccountSecurityResponse>> {
-    return apiClient.get<ApiResponse<AccountSecurityResponse>>('/me/security');
+export async function getSecurityOverview(): Promise<ApiResponse<SecurityRead>> {
+    return apiClient.get<ApiResponse<SecurityRead>>('/me/security');
 }
 
 export async function requestEmailChange(data: RequestEmailChangeRequest): Promise<ApiResponse> {

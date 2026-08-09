@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libraryApi, myScoresApi, publicationsApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { MyScoresSort, MyScoresView } from '@/types/api';
+import type { MyScoresSort, MyScoresView } from '@/generated/api';
 
 export function useMyScores(params: {
   view?: MyScoresView;

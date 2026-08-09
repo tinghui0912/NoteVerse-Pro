@@ -41,7 +41,7 @@ import {
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { cn } from '@/lib/utils';
-import type { ScoreRevision } from '@/types/api';
+import type { RevisionRead } from '@/generated/api';
 
 interface ScoreVersionsPanelProps {
   scoreId: string;
@@ -285,7 +285,7 @@ function VersionRow({
   onEditNote,
   onRestore,
 }: {
-  revision: ScoreRevision;
+  revision: RevisionRead;
   isCurrent: boolean;
   canRestore: boolean;
   isExpanded: boolean;

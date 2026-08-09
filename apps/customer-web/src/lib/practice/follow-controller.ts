@@ -3,7 +3,7 @@ import {
   keepElementInViewport,
   shouldFocusPage,
 } from './practice-scroll';
-import type { PracticeAlignmentUpdateMessage } from '@/types/api';
+import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
 import type { PracticeVerovioAdapter, PracticeVisualTimelineEntry } from './verovio-adapter';
 
 type FollowControllerState = {

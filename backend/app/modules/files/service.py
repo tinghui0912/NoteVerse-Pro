@@ -8,7 +8,7 @@ from app.core.exceptions import ConflictException, FileException, ResourceNotFou
 from app.db.model_utils import require_persisted_id
 from app.db.models import StorageBlob, StorageUsageCategory, User
 from app.modules.files.repository import FilesRepository
-from app.modules.files.schemas import DeleteUploadedFileResult, UploadFileResult
+from app.modules.files.schemas import DeleteUploadedFileRead, UploadFileRead
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
@@ -25,7 +25,7 @@ class FilesService:
     def allowed_file(filename: str) -> bool:
         return "." in filename and filename.rsplit(".", 1)[1].lower() in settings.ALLOWED_EXTENSIONS
 
-    async def upload_file(self, db: AsyncSession, current_user: User, file: UploadFile) -> UploadFileResult:
+    async def upload_file(self, db: AsyncSession, current_user: User, file: UploadFile) -> UploadFileRead:
         if not file.filename:
             raise ValidationException(code=ErrorCode.NO_FILE_SELECTED, field="file")
         if not self.allowed_file(file.filename):
@@ -122,7 +122,7 @@ class FilesService:
 
     async def delete_uploaded_file(
         self, db: AsyncSession, current_user: User, filename: str
-    ) -> DeleteUploadedFileResult:
+    ) -> DeleteUploadedFileRead:
         upload = await self.repository.get_upload_by_uuid(db, filename)
         if not upload:
             raise ResourceNotFoundException("file", filename, ErrorCode.FILE_NOT_FOUND)

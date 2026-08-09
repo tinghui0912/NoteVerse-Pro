@@ -12,14 +12,14 @@ import {
   normalizeLibrarySort,
   normalizePage,
 } from '@/lib/library/state';
-import type { LibraryFolder } from '@/types/api';
+import type { LibraryFolderRead } from '@/generated/api';
 
 function folder(
   folderId: string,
   name: string,
   parentFolderId: string | null,
   position = 0
-): LibraryFolder {
+): LibraryFolderRead {
   return {
     folder_id: folderId,
     parent_folder_id: parentFolderId,

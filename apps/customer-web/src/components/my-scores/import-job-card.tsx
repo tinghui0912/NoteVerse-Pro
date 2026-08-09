@@ -16,14 +16,14 @@ import { importJobsApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/date-time';
 import { cn } from '@/lib/utils';
 import { isImportJob } from '@/lib/my-scores/state';
-import type { ImportJob } from '@/types/api';
+import type { ImportJobRead } from '@/generated/api';
 
-function jobTitle(job: ImportJob) {
+function jobTitle(job: ImportJobRead) {
   return job.title || job.original_images?.[0]?.original_filename || job.job_id;
 }
 
 interface ImportJobCardProps {
-  job: ImportJob;
+  job: ImportJobRead;
   deletePending: boolean;
   batchMode: boolean;
   selected: boolean;

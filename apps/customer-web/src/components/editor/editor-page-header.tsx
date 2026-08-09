@@ -5,14 +5,14 @@ import { useTranslations } from 'next-intl';
 import { InlineLoading } from '@/components/loading';
 import { EditorMobileToolSheet } from '@/components/editor/editor-mobile-tool-sheet';
 import { EditorToolbar } from '@/components/editor/editor-toolbar';
-import type { FingeringHandSize } from '@/types/api';
+import type { FingeringRequest } from '@/generated/api';
 
 interface EditorPageHeaderProps {
   currentXml: string | null;
   fingeringPending?: boolean;
   isAutoSaving: boolean;
   savePending: boolean;
-  onGenerateFingering?: (handSize: FingeringHandSize) => void;
+  onGenerateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void;
   onSave: () => void;
   onNormalizeVoices: () => void;
 }

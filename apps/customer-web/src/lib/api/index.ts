@@ -1,6 +1,6 @@
 /**
- * API 模块统一导出
- * 类型定义请从 @/types/api 导入
+ * API 模块统一导出。
+ * 通用传输类型从 `@/lib/api-client` 导入，HTTP DTO 从生成契约导入。
  */
 
 // API 客户端

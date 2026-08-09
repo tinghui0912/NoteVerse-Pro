@@ -8,9 +8,9 @@ import { importJobsApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
-import type { ReviewArtifact } from '@/types/api';
+import type { ReviewArtifactRead } from '@/generated/api';
 
-function useReviewArtifacts(jobId: string | null, artifacts: ReviewArtifact[]) {
+function useReviewArtifacts(jobId: string | null, artifacts: ReviewArtifactRead[]) {
   const [urls, setUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const ownedUrls = useRef(new Set<string>());

@@ -33,9 +33,9 @@ Planned stack:
 
 Reference documents:
 
-- `docs/k8s-deployment-runbook.md`
-- `docs/k8s-observability-deployment-skeleton.md`
-- `docs/k8s-logging-loki-fluent-bit-plan.md`
+- [`docs/operations/deployment/k8s-deployment-runbook.md`](../../docs/operations/deployment/k8s-deployment-runbook.md)
+- [`docs/operations/observability/k8s-observability-deployment-skeleton.md`](../../docs/operations/observability/k8s-observability-deployment-skeleton.md)
+- [`docs/operations/observability/k8s-logging-loki-fluent-bit-plan.md`](../../docs/operations/observability/k8s-logging-loki-fluent-bit-plan.md)
 - `docs/minikube-observability-runbook.md`
 - `docs/grafana-dashboard-requirements.md`
 - `docs/grafana-loki-query-runbook.md`

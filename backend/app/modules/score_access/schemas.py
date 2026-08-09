@@ -4,14 +4,14 @@ from app.db.models.score_access import AccessOrigin
 
 
 class ScoreCapabilities(BaseModel):
-    can_view: bool = False
-    can_edit: bool = False
-    can_delete: bool = False
-    can_manage_sharing: bool = False
-    can_manage_members: bool = False
-    can_download: bool = False
-    can_practice: bool = False
-    can_publish: bool = False
+    can_view: bool
+    can_edit: bool
+    can_delete: bool
+    can_manage_sharing: bool
+    can_manage_members: bool
+    can_download: bool
+    can_practice: bool
+    can_publish: bool
 
 
 class ScoreAccessRead(BaseModel):

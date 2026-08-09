@@ -1,35 +1,32 @@
 import { apiClient, apiUrl } from '@/lib/api-client';
+import type { ApiResponse } from '@/lib/api-client';
 import type {
-  ApiResponse,
-  CreatedScoreGrant,
-  ScoreGrant,
-  ScoreGrantBookmark,
-  ScoreGrantAccess,
-} from '@/types/api';
+  GrantAccessRead,
+  GrantBookmarkRead,
+  GrantCreatedRead,
+  GrantCreateRequest,
+  GrantRead,
+} from '@/generated/api';
 
 export const scoreSharingApi = {
   listGrants: (scoreId: string, options?: { limit?: number; signal?: AbortSignal }) =>
-    apiClient.get<ApiResponse<ScoreGrant[]>>(
+    apiClient.get<ApiResponse<GrantRead[]>>(
       `/scores/${scoreId}/grants`,
       { limit: options?.limit },
       { signal: options?.signal }
     ),
   createGrant: (
     scoreId: string,
-    input: {
-      allow_download: boolean;
-      allow_practice: boolean;
-      expires_at?: string | null;
-    }
-  ) => apiClient.post<ApiResponse<CreatedScoreGrant>>(`/scores/${scoreId}/grants`, input),
+    input: GrantCreateRequest
+  ) => apiClient.post<ApiResponse<GrantCreatedRead>>(`/scores/${scoreId}/grants`, input),
   revokeGrant: (grantId: string) =>
-    apiClient.post<ApiResponse<ScoreGrant>>(`/scores/grants/${grantId}/revoke`),
+    apiClient.post<ApiResponse<GrantRead>>(`/scores/grants/${grantId}/revoke`),
   restoreGrant: (grantId: string) =>
-    apiClient.post<ApiResponse<ScoreGrant>>(`/scores/grants/${grantId}/restore`),
+    apiClient.post<ApiResponse<GrantRead>>(`/scores/grants/${grantId}/restore`),
   deleteGrant: (grantId: string) =>
     apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/scores/grants/${grantId}`),
   access: (token: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreGrantAccess>>(`/score-grants/${token}`, undefined, {
+    apiClient.get<ApiResponse<GrantAccessRead>>(`/score-grants/${token}`, undefined, {
       signal,
       suppressAuthRedirect: true,
     }),
@@ -43,5 +40,5 @@ export const scoreSharingApi = {
       suppressAuthRedirect: true,
     }),
   bookmark: (token: string) =>
-    apiClient.post<ApiResponse<ScoreGrantBookmark>>(`/score-grants/${token}/bookmark`),
+    apiClient.post<ApiResponse<GrantBookmarkRead>>(`/score-grants/${token}/bookmark`),
 };

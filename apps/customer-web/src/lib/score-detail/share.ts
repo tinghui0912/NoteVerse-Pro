@@ -1,8 +1,8 @@
-import type { ScoreGrant } from '@/types/api';
+import type { GrantRead } from '@/generated/api';
 
 export type ScoreShareStatus = 'active' | 'revoked' | 'expired';
 
-export function getScoreShareStatus(share: ScoreGrant, now = new Date()): ScoreShareStatus {
+export function getScoreShareStatus(share: GrantRead, now = new Date()): ScoreShareStatus {
   if (share.revoked_at) return 'revoked';
   if (share.expires_at && new Date(share.expires_at) < now) return 'expired';
   return 'active';

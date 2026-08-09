@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { API_BASE_URL } from '@/lib/app-protocol';
 import { reportUnexpectedClientError } from '@/lib/observability';
-import type { PracticeServerMessage } from '@/types/api';
+import type { PracticeServerMessage } from '@/lib/practice/protocol';
 
 function buildPracticeWebSocketUrl(path: string) {
   const pageUrl = new URL(window.location.href);

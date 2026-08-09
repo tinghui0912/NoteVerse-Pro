@@ -1,33 +1,37 @@
 import { apiClient, type ApiResponse, type PaginatedResponse } from '../api-client';
-import type { ImportJob, ImportJobState } from '@/types/api';
-
-type ImportJobSubmission = { job_id: string; state: ImportJobState };
+import type {
+  ImportJobProcessingOptions,
+  ImportJobRead,
+  ImportJobSubmitRead,
+  ImportJobSubmitRequest,
+} from '@/generated/api';
 
 export async function submitImportJob(
   fileIds: string[],
-  options?: Record<string, unknown>,
+  options?: ImportJobProcessingOptions,
   idempotencyKey?: string
-): Promise<ApiResponse<ImportJobSubmission>> {
-  return apiClient.post<ApiResponse<ImportJobSubmission>>('/import-jobs', {
+): Promise<ApiResponse<ImportJobSubmitRead>> {
+  const request: ImportJobSubmitRequest = {
     file_ids: fileIds,
     idempotency_key: idempotencyKey,
     options,
-  });
+  };
+  return apiClient.post<ApiResponse<ImportJobSubmitRead>>('/import-jobs', request);
 }
 
 export async function getImportJob(
   jobId: string,
   signal?: AbortSignal
-): Promise<ApiResponse<ImportJob>> {
-  return apiClient.get<ApiResponse<ImportJob>>(`/import-jobs/${jobId}`, undefined, { signal });
+): Promise<ApiResponse<ImportJobRead>> {
+  return apiClient.get<ApiResponse<ImportJobRead>>(`/import-jobs/${jobId}`, undefined, { signal });
 }
 
 export async function listImportJobs(
   page: number,
   pageSize: number,
   signal?: AbortSignal
-): Promise<PaginatedResponse<ImportJob>> {
-  return apiClient.get<PaginatedResponse<ImportJob>>(
+): Promise<PaginatedResponse<ImportJobRead>> {
+  return apiClient.get<PaginatedResponse<ImportJobRead>>(
     '/import-jobs',
     { page, page_size: pageSize },
     { signal }

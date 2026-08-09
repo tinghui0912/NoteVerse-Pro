@@ -3,7 +3,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libraryApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { FolderDeleteMode, LibrarySort, LibraryView } from '@/types/api';
+import type {
+  FolderDeleteMode,
+  LibraryEntryBatchMoveRequest,
+  LibraryEntryBatchPracticeStateRequest,
+  LibraryEntryBatchUpdateRequest,
+  LibraryFolderCreateRequest,
+  LibraryFolderUpdateRequest,
+  LibrarySort,
+  LibraryView,
+} from '@/generated/api';
 
 export function useLibraryFolders() {
   return useQuery({
@@ -40,7 +49,7 @@ export function useLibraryEntries(params: {
 export function useCreateLibraryFolder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: libraryApi.createFolder,
+    mutationFn: (input: LibraryFolderCreateRequest) => libraryApi.createFolder(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
@@ -50,10 +59,7 @@ export function useUpdateLibraryFolder() {
   return useMutation({
     mutationFn: ({ folderId, ...input }: {
       folderId: string;
-      name?: string;
-      parent_folder_id?: string | null;
-      position?: number;
-    }) => libraryApi.updateFolder(folderId, input),
+    } & LibraryFolderUpdateRequest) => libraryApi.updateFolder(folderId, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
@@ -70,7 +76,7 @@ export function useDeleteLibraryFolder() {
 export function useMoveLibraryEntries() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: libraryApi.batchMove,
+    mutationFn: (input: LibraryEntryBatchMoveRequest) => libraryApi.batchMove(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
@@ -78,7 +84,7 @@ export function useMoveLibraryEntries() {
 export function useTrashLibraryEntries() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: libraryApi.batchTrash,
+    mutationFn: (input: LibraryEntryBatchUpdateRequest) => libraryApi.batchTrash(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
@@ -86,7 +92,8 @@ export function useTrashLibraryEntries() {
 export function useSetLibraryEntriesPracticeState() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: libraryApi.batchPracticeState,
+    mutationFn: (input: LibraryEntryBatchPracticeStateRequest) =>
+      libraryApi.batchPracticeState(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }

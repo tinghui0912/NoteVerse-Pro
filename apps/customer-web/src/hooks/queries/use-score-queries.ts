@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { publicationsApi, scoreInvitesApi, scoreSharingApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { FingeringHandSize } from '@/types/api';
+import type { FingeringRequest } from '@/generated/api';
 
 export function useScoreDetail(scoreId: string, enabled = true) {
   return useQuery({
@@ -26,7 +26,7 @@ export function useScoreRevisions(scoreId: string, enabled = true) {
     queryKey: queryKeys.scores.revisions(scoreId),
     queryFn: ({ pageParam, signal }) =>
       scoresApi.revisions(scoreId, { limit: 20, cursor: pageParam }, signal),
-    initialPageParam: null as number | null,
+    initialPageParam: null as number | string | null,
     getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
     enabled: enabled && Boolean(scoreId),
   });
@@ -120,7 +120,7 @@ export function useGenerateScoreFingering() {
     mutationFn: ({ scoreId, ...input }: {
       scoreId: string;
       content: string;
-      hand_size?: FingeringHandSize;
+      hand_size?: FingeringRequest['hand_size'];
     }) => scoresApi.generateFingering(scoreId, input),
   });
 }

@@ -51,20 +51,27 @@ import {
   buildLibraryHref,
   normalizeLibrarySort,
   normalizePage,
+  type UserSettableLibraryPracticeState,
 } from '@/lib/library/state';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import type { FolderDeleteMode, LibraryEntry, LibraryFolder, LibraryPracticeState, LibraryView, UserSettableLibraryPracticeState } from '@/types/api';
+import type {
+  FolderDeleteMode,
+  LibraryEntryRead,
+  LibraryFolderRead,
+  LibraryPracticeState,
+  LibraryView,
+} from '@/generated/api';
 
 const ROOT_FOLDER_VALUE = '__root__';
 
 type FolderFormState =
   | { mode: 'create'; folder: null }
-  | { mode: 'edit'; folder: LibraryFolder };
+  | { mode: 'edit'; folder: LibraryFolderRead };
 
 type EntryActionState =
-  | { type: 'practice'; entry: LibraryEntry | null }
-  | { type: 'move'; entry: LibraryEntry | null }
-  | { type: 'delete'; entry: LibraryEntry | null }
+  | { type: 'practice'; entry: LibraryEntryRead | null }
+  | { type: 'move'; entry: LibraryEntryRead | null }
+  | { type: 'delete'; entry: LibraryEntryRead | null }
   | null;
 
 export default function LibraryPage({
@@ -88,7 +95,7 @@ export default function LibraryPage({
   const [folderForm, setFolderForm] = useState<FolderFormState | null>(null);
   const [folderName, setFolderName] = useState('');
   const [folderParentId, setFolderParentId] = useState<string>(ROOT_FOLDER_VALUE);
-  const [deleteTarget, setDeleteTarget] = useState<LibraryFolder | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LibraryFolderRead | null>(null);
   const [deleteMode, setDeleteMode] = useState<FolderDeleteMode>('MOVE_CONTENTS_TO_PARENT');
   const [searchInput, setSearchInput] = useState(params.search ?? '');
   const [entryAction, setEntryAction] = useState<EntryActionState>(null);
@@ -226,7 +233,7 @@ export default function LibraryPage({
         : ROOT_FOLDER_VALUE
     );
   };
-  const openEditFolderDialog = (folder: LibraryFolder) => {
+  const openEditFolderDialog = (folder: LibraryFolderRead) => {
     setFolderForm({ mode: 'edit', folder });
     setFolderName(folder.name);
     setFolderParentId(folder.parent_folder_id ?? ROOT_FOLDER_VALUE);
@@ -282,15 +289,15 @@ export default function LibraryPage({
   const closeEntryAction = () => setEntryAction(null);
   const entryActionIds = entryAction?.entry ? [entryAction.entry.entry_id] : selectedEntryIds;
   const entryActionCount = entryActionIds.length;
-  const openPracticeStateAction = (entry: LibraryEntry | null) => {
+  const openPracticeStateAction = (entry: LibraryEntryRead | null) => {
     setPracticeState(entry?.practice_state === 'MASTERED' ? 'MASTERED' : 'TO_PRACTICE');
     setEntryAction({ type: 'practice', entry });
   };
-  const openMoveAction = (entry: LibraryEntry | null) => {
+  const openMoveAction = (entry: LibraryEntryRead | null) => {
     setMoveTargetFolderId(entry?.folder_id ?? ROOT_FOLDER_VALUE);
     setEntryAction({ type: 'move', entry });
   };
-  const openDeleteAction = (entry: LibraryEntry | null) => {
+  const openDeleteAction = (entry: LibraryEntryRead | null) => {
     setEntryAction({ type: 'delete', entry });
   };
   const onEntryActionSuccess = () => {

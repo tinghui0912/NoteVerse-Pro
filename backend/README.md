@@ -198,6 +198,6 @@ It runs the same baseline checks for pushes and pull requests that touch
 
 ## Related Docs
 
-- [Backend engineering principles](C:/Users/12631/Downloads/NoteVerse-Pro/backend/docs/backend_engineering_principles.md)
-- [Repository quality checks](C:/Users/12631/Downloads/NoteVerse-Pro/docs/engineering/guides/repository-quality-checks.md)
-- [Docker backend runtime runbook](C:/Users/12631/Downloads/NoteVerse-Pro/docs/operations/runbooks/docker-backend-runtime-runbook.md)
+- [Backend engineering principles](docs/backend_engineering_principles.md)
+- [Repository quality checks](../docs/engineering/guides/repository-quality-checks.md)
+- [Docker backend runtime runbook](../docs/operations/runbooks/docker-backend-runtime-runbook.md)

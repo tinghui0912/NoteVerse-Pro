@@ -21,14 +21,17 @@ Available checks:
 | `backend-mypy` | Backend type checking inside the dedicated backend quality image |
 | `backend-mypy-model-layer` | Backend model-layer type boundary checks inside the dedicated backend quality image |
 | `backend-pytest` | Backend test suites through Docker quality images: core tests in `quality`, practice tests in `practice-quality` |
+| `backend-contracts` | Verifies that committed customer, practice, and control-plane OpenAPI documents match runtime routes and schemas |
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
 | `customer-web-i18n` | Customer Web error translation key guard |
+| `customer-web-api-types` | Customer Web generated API DTO freshness check |
 | `customer-web-test` | Customer Web unit tests |
 | `platform-admin-lint` | Platform Admin ESLint |
 | `platform-admin-typecheck` | Platform Admin TypeScript type checking |
 | `platform-admin-test` | Platform Admin unit tests |
 | `platform-admin-build` | Platform Admin production build |
+| `docs-links` | Validates checked-in local Markdown links |
 | `k8s` | Kubernetes application manifest guard and release overlay renderer smoke test |
 | `observability` | Observability values guard |
 | `all` | Fast broad gate: backend ruff/mypy, customer-web lint/typecheck/i18n, platform-admin lint/typecheck/tests, K8s and observability guards |
@@ -78,7 +81,7 @@ Current GitHub Actions workflows:
 
 | Workflow | Trigger scope | Purpose |
 | --- | --- | --- |
-| `.github/workflows/backend-quality.yml` | `backend/**` | Backend ruff, mypy, model-layer mypy, pytest |
+| `.github/workflows/backend-quality.yml` | `backend/**`, backend-quality wrappers, and quality Dockerfiles | Backend ruff, mypy, model-layer mypy, OpenAPI contract verification, pytest |
 | `.github/workflows/backend-api-image.yml` | backend API runtime files | Builds and scans the backend API image |
 | `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
 | `.github/workflows/backend-practice-image.yml` | backend practice runtime files | Builds and scans the backend practice image and its dependency base |
@@ -89,6 +92,7 @@ Current GitHub Actions workflows:
 | `.github/workflows/platform-admin-quality.yml` | `apps/platform-admin/**` | Platform Admin lint, typecheck, unit tests, production build |
 | `.github/workflows/k8s-application-manifests.yml` | `deploy/application/**` and K8s guard script | Kustomize rendering and deployment-placeholder guard |
 | `.github/workflows/observability-manifests.yml` | `deploy/observability/**` and observability guard script | Loki/Fluent Bit/Prometheus/Tempo values guard |
+| `.github/workflows/docs-quality.yml` | Checked-in Markdown and link checker | Validates repository-local Markdown links |
 | `.github/workflows/production-release-package.yml` | manual, `production` environment | Renders a downloadable production release package from image refs and environment variables |
 | `.github/workflows/staging-release-package.yml` | manual, `staging` environment | Renders a digest-pinned staging release package and can optionally open a GitOps promotion PR |
 
@@ -105,6 +109,7 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-mypy
 .\scripts\quality.ps1 -Check backend-mypy-model-layer
 .\scripts\quality.ps1 -Check backend-pytest
+.\scripts\quality.ps1 -Check backend-contracts
 ```
 
 Backend checks intentionally run inside Docker quality images:
@@ -134,6 +139,7 @@ You can also call the backend quality image directly:
 .\scripts\backend_quality_docker.ps1 -Check mypy
 .\scripts\backend_quality_docker.ps1 -Check mypy-model-layer
 .\scripts\backend_quality_docker.ps1 -Check pytest
+.\scripts\backend_quality_docker.ps1 -Check contracts
 ```
 
 The script passes `--build` to Docker Compose, so the first run builds the

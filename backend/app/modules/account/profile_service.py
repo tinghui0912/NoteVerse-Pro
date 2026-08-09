@@ -1,7 +1,7 @@
 """Current-user profile management."""
 
 from app.db.models import User
-from app.modules.account.schemas import UpdateProfileRequest
+from app.modules.account.schemas import ProfileRead, ProfileUserRead, UpdateProfileRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -11,17 +11,17 @@ class ProfileService:
     def profile_payload(
         self,
         user: User,
-    ) -> dict[str, object]:
-        return {
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "display_name": user.display_name or user.email.split("@")[0],
-                "created_at": user.created_at.isoformat() if user.created_at else None,
-                "is_active": user.is_active,
-                "avatar_url": user.avatar_url,
-            }
-        }
+    ) -> ProfileRead:
+        return ProfileRead(
+            user=ProfileUserRead(
+                id=user.id,
+                email=user.email,
+                display_name=user.display_name or user.email.split("@")[0],
+                created_at=user.created_at,
+                is_active=user.is_active,
+                avatar_url=user.avatar_url,
+            )
+        )
 
     async def update_profile(
         self,

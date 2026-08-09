@@ -8,6 +8,8 @@ on:
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.practice-deps"
       - "docker/backend/Dockerfile.practice-quality"
+      - "scripts/backend_quality_docker.ps1"
+      - "scripts/quality.ps1"
       - ".github/workflows/backend-quality.yml"
   pull_request:
     paths:
@@ -15,6 +17,8 @@ on:
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.practice-deps"
       - "docker/backend/Dockerfile.practice-quality"
+      - "scripts/backend_quality_docker.ps1"
+      - "scripts/quality.ps1"
       - ".github/workflows/backend-quality.yml"
 
 permissions:
@@ -62,6 +66,13 @@ jobs:
       CSRF_HEADER_NAME: x-csrf-token
       AUTH_COOKIE_SECURE: "false"
       AUTH_COOKIE_SAMESITE: lax
+      CONTROL_PLANE_AUTH_COOKIE_NAME: noteverse_control_session
+      CONTROL_PLANE_CSRF_COOKIE_NAME: noteverse_control_csrf
+      CONTROL_PLANE_CSRF_HEADER_NAME: x-control-csrf-token
+      CONTROL_PLANE_COOKIE_SECURE: "false"
+      CONTROL_PLANE_COOKIE_SAMESITE: lax
+      CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
+      CONTROL_PLANE_CORS_ORIGINS: '["http://localhost:3001"]'
       LOG_FORMAT: json
       FRONTEND_BASE_URL: http://localhost:3000
       PRACTICE_SOUNDFONT_PATH: /tmp/noteverse/practice.sf2
@@ -114,6 +125,13 @@ jobs:
           CSRF_HEADER_NAME=$CSRF_HEADER_NAME
           AUTH_COOKIE_SECURE=$AUTH_COOKIE_SECURE
           AUTH_COOKIE_SAMESITE=$AUTH_COOKIE_SAMESITE
+          CONTROL_PLANE_AUTH_COOKIE_NAME=$CONTROL_PLANE_AUTH_COOKIE_NAME
+          CONTROL_PLANE_CSRF_COOKIE_NAME=$CONTROL_PLANE_CSRF_COOKIE_NAME
+          CONTROL_PLANE_CSRF_HEADER_NAME=$CONTROL_PLANE_CSRF_HEADER_NAME
+          CONTROL_PLANE_COOKIE_SECURE=$CONTROL_PLANE_COOKIE_SECURE
+          CONTROL_PLANE_COOKIE_SAMESITE=$CONTROL_PLANE_COOKIE_SAMESITE
+          CONTROL_PLANE_SESSION_EXPIRE_MINUTES=$CONTROL_PLANE_SESSION_EXPIRE_MINUTES
+          CONTROL_PLANE_CORS_ORIGINS=$CONTROL_PLANE_CORS_ORIGINS
           LOG_FORMAT=$LOG_FORMAT
           FRONTEND_BASE_URL=$FRONTEND_BASE_URL
           PRACTICE_SOUNDFONT_PATH=$PRACTICE_SOUNDFONT_PATH
@@ -140,6 +158,12 @@ jobs:
 
       - name: Run model-layer mypy
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m mypy --config-file mypy-model-layer.ini"
+
+      - name: Verify OpenAPI contracts
+        run: |
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py customer-api --check"
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py control-plane-api --check"
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py practice-api --check"
 
       - name: Run database migrations
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m alembic upgrade head"

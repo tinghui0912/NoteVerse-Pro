@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatApiDateTime, parseApiDate } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { getShareExpirationDays } from '@/lib/score-detail/share';
-import type { ScoreGrant } from '@/types/api';
+import type { GrantRead } from '@/generated/api';
 
 function absoluteShareUrl(token: string, locale: string) {
   const path = locale === routing.defaultLocale ? `/share/${token}` : `/${locale}/share/${token}`;
@@ -121,16 +121,16 @@ export function ScoreSharePanel({
     );
   };
 
-  const isActive = (grant: ScoreGrant) =>
+  const isActive = (grant: GrantRead) =>
     !grant.revoked_at && (!grant.expires_at || (parseApiDate(grant.expires_at)?.getTime() ?? 0) > now);
-  const isExpired = (grant: ScoreGrant) =>
+  const isExpired = (grant: GrantRead) =>
     Boolean(grant.expires_at && (parseApiDate(grant.expires_at)?.getTime() ?? 0) <= now);
-  const daysUntilExpiration = (grant: ScoreGrant) => {
+  const daysUntilExpiration = (grant: GrantRead) => {
     const expiresAt = parseApiDate(grant.expires_at ?? undefined);
     if (!expiresAt) return null;
     return Math.max(0, Math.ceil((expiresAt.getTime() - now) / 86_400_000));
   };
-  const formatExpirationSummary = (grant: ScoreGrant) => {
+  const formatExpirationSummary = (grant: GrantRead) => {
     if (grant.revoked_at) return t('disabled');
     if (isExpired(grant)) return t('expired');
     const days = daysUntilExpiration(grant);
@@ -138,7 +138,7 @@ export function ScoreSharePanel({
     if (days === 0) return t('expiresToday');
     return t('expiresInDays', { count: days });
   };
-  const formatExpirationDetail = (grant: ScoreGrant) =>
+  const formatExpirationDetail = (grant: GrantRead) =>
     grant.expires_at ? t('expiresAt', { date: formatApiDateTime(grant.expires_at, locale) }) : null;
   const mutationBusy = revokeGrant.isPending || restoreGrant.isPending || deleteGrant.isPending;
 

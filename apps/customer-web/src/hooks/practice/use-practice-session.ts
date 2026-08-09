@@ -7,7 +7,7 @@ import {
   PCM_FRAME_FORMAT,
   PCM_SAMPLE_RATE,
 } from '@/lib/practice/audio-stream';
-import type { PracticeSessionDetail, PracticeSessionState } from '@/types/api';
+import type { PracticeSessionDetailRead, PracticeSessionState } from '@/generated/practice-api';
 
 interface UsePracticeSessionOptions {
   scoreId: string;
@@ -15,10 +15,10 @@ interface UsePracticeSessionOptions {
 }
 
 export function usePracticeSession({ scoreId, revisionId }: UsePracticeSessionOptions) {
-  const [session, setSession] = useState<PracticeSessionDetail | null>(null);
-  const detailRef = useRef<PracticeSessionDetail | null>(null);
+  const [session, setSession] = useState<PracticeSessionDetailRead | null>(null);
+  const detailRef = useRef<PracticeSessionDetailRead | null>(null);
 
-  const sync = useCallback((detail: PracticeSessionDetail) => {
+  const sync = useCallback((detail: PracticeSessionDetailRead) => {
     detailRef.current = detail;
     setSession(detail);
     return detail;

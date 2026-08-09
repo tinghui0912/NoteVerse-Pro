@@ -1,47 +1,4 @@
-export type PracticeSessionState = 'CREATED' | 'STREAMING' | 'PAUSED' | 'FINISHED' | 'FAILED';
-export type PracticeReportStatus = 'NOT_REQUESTED' | 'PENDING' | 'READY' | 'FAILED';
-
-export interface CreatePracticeSessionRequest {
-  score_id: string;
-  revision_id?: string;
-  sample_rate?: number;
-  channels?: number;
-  frame_format?: string;
-}
-
-export interface PracticeSessionSummary {
-  session_id: string;
-  state: PracticeSessionState;
-  ws_url?: string;
-}
-
-export interface PracticeSessionDetail {
-  session_id: string;
-  score_id: string;
-  revision_id: string;
-  access_origin: 'OWNER' | 'MEMBERSHIP' | 'SHARE' | 'PUBLICATION';
-  state: PracticeSessionState;
-  sample_rate: number;
-  channels: number;
-  frame_format: string;
-  started_at?: string | null;
-  finished_at?: string | null;
-  last_beat_position?: number | null;
-  last_confidence?: number | null;
-  report_status: PracticeReportStatus;
-}
-
-export interface PracticeReportPayload {
-  summary: string;
-  metrics: Record<string, string | number | null>;
-  recommendations: string[];
-}
-
-export interface PracticeReportResponse {
-  session_id: string;
-  report_status: PracticeReportStatus;
-  report_payload?: PracticeReportPayload | null;
-}
+import type { PracticeSessionState } from '@/generated/practice-api';
 
 export interface PracticeSessionReadyMessage {
   type: 'session.ready';

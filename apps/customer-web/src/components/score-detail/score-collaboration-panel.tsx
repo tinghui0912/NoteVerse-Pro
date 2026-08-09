@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api-client';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
-import type { MembershipRole } from '@/types/api';
+import type { MembershipRole } from '@/generated/api';
 
 function absoluteInviteUrl(token: string, locale: string) {
   const path = locale === routing.defaultLocale ? `/invite/${token}` : `/${locale}/invite/${token}`;

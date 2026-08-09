@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "ruff", "mypy", "mypy-model-layer", "pytest", "compile")]
+    [ValidateSet("all", "ruff", "mypy", "mypy-model-layer", "pytest", "compile", "contracts")]
     [string] $Check = "all"
 )
 
@@ -49,6 +49,11 @@ $practiceTestIgnoreArgs = ($practiceTestFiles | ForEach-Object { "--ignore=$_" }
 $practiceTestArgs = $practiceTestFiles -join " "
 
 switch ($Check) {
+    "contracts" {
+        Invoke-Quality "openapi-customer" "python scripts/export_openapi.py customer-api --check"
+        Invoke-Quality "openapi-control-plane" "python scripts/export_openapi.py control-plane-api --check"
+        Invoke-PracticeQuality "openapi-practice" "python scripts/export_openapi.py practice-api --check"
+    }
     "compile" {
         Invoke-Quality "compile" "python -m compileall -q app scripts tests"
     }
@@ -70,7 +75,10 @@ switch ($Check) {
         Invoke-Quality "ruff" "python -m ruff check app tests scripts"
         Invoke-Quality "mypy" "python -m mypy --config-file pyproject.toml"
         Invoke-Quality "mypy-model-layer" "python -m mypy --config-file mypy-model-layer.ini"
+        Invoke-Quality "openapi-customer" "python scripts/export_openapi.py customer-api --check"
+        Invoke-Quality "openapi-control-plane" "python scripts/export_openapi.py control-plane-api --check"
         Invoke-Quality "pytest-core" "python -m pytest tests -q $practiceTestIgnoreArgs"
+        Invoke-PracticeQuality "openapi-practice" "python scripts/export_openapi.py practice-api --check"
         Invoke-PracticeQuality "pytest-practice" "python -m pytest $practiceTestArgs -q"
     }
 }

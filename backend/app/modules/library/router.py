@@ -7,6 +7,8 @@ from app.db.models import User
 from app.modules.library.dependencies import get_library_service
 from app.modules.library.schemas import (
     FolderDeleteMode,
+    LibraryBatchMoveRead,
+    LibraryBatchUpdateRead,
     LibraryEntryBatchMoveRequest,
     LibraryEntryBatchPracticeStateRequest,
     LibraryEntryBatchUpdateRequest,
@@ -18,6 +20,7 @@ from app.modules.library.schemas import (
     LibraryFolderTreeRead,
     LibraryFolderUpdateRequest,
     LibraryOwnedScoreBatchRequest,
+    LibraryOwnedScoreBatchRead,
     LibrarySort,
     LibraryView,
 )
@@ -103,7 +106,7 @@ async def list_library_entries(
     return paginated_response(items, page, page_size, total)
 
 
-@router.post("/entries/batch-move", response_model=APIResponse[dict[str, int]])
+@router.post("/entries/batch-move", response_model=APIResponse[LibraryBatchMoveRead])
 async def batch_move_library_entries(
     request: LibraryEntryBatchMoveRequest,
     current_user: User = Depends(get_current_user),
@@ -112,10 +115,10 @@ async def batch_move_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     moved = await service.batch_move(db, user_id, request)
-    return success_response(data={"moved": moved}, message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(data=LibraryBatchMoveRead(moved=moved), message=SuccessCode.UPDATE_SUCCESS)
 
 
-@router.post("/entries/batch-favorite", response_model=APIResponse[dict[str, int]])
+@router.post("/entries/batch-favorite", response_model=APIResponse[LibraryBatchUpdateRead])
 async def batch_favorite_library_entries(
     request: LibraryEntryBatchUpdateRequest,
     current_user: User = Depends(get_current_user),
@@ -124,10 +127,10 @@ async def batch_favorite_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_set_favorite(db, user_id, request)
-    return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS)
 
 
-@router.post("/entries/batch-trash", response_model=APIResponse[dict[str, int]])
+@router.post("/entries/batch-trash", response_model=APIResponse[LibraryBatchUpdateRead])
 async def batch_trash_library_entries(
     request: LibraryEntryBatchUpdateRequest,
     current_user: User = Depends(get_current_user),
@@ -136,10 +139,10 @@ async def batch_trash_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_trash(db, user_id, request)
-    return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS)
 
 
-@router.post("/entries/batch-add-owned", response_model=APIResponse[dict[str, int]])
+@router.post("/entries/batch-add-owned", response_model=APIResponse[LibraryOwnedScoreBatchRead])
 async def batch_add_owned_scores_to_library(
     request: LibraryOwnedScoreBatchRequest,
     current_user: User = Depends(get_current_user),
@@ -148,10 +151,12 @@ async def batch_add_owned_scores_to_library(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     added = await service.batch_add_owned_scores(db, user_id, request)
-    return success_response(data={"added": added}, message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(
+        data=LibraryOwnedScoreBatchRead(added=added), message=SuccessCode.UPDATE_SUCCESS
+    )
 
 
-@router.post("/entries/batch-practice-state", response_model=APIResponse[dict[str, int]])
+@router.post("/entries/batch-practice-state", response_model=APIResponse[LibraryBatchUpdateRead])
 async def batch_practice_state_library_entries(
     request: LibraryEntryBatchPracticeStateRequest,
     current_user: User = Depends(get_current_user),
@@ -160,7 +165,7 @@ async def batch_practice_state_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_set_practice_state(db, user_id, request)
-    return success_response(data={"updated": updated}, message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS)
 
 
 @router.patch("/entries/{entry_id}", response_model=APIResponse[LibraryEntryRead])

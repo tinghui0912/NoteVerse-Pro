@@ -286,7 +286,7 @@ def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
 
     payload = ProfileService().profile_payload(user)
 
-    assert payload["user"]["avatar_url"] == "/api/v1/uploads/avatars/missing.jpg"
+    assert payload.user.avatar_url == "/api/v1/uploads/avatars/missing.jpg"
     assert user.avatar_url == "/api/v1/uploads/avatars/missing.jpg"
 
 

@@ -32,9 +32,10 @@ from app.processing.realtime.session_runtime import (
 )
 from app.modules.practice.repository import PracticeRepository
 from app.modules.practice.schemas import (
-    PracticeReportResult,
-    PracticeSessionDetailResult,
-    PracticeSessionSummaryResult,
+    PracticeReportPayloadRead,
+    PracticeReportRead,
+    PracticeSessionDetailRead,
+    PracticeSessionSummaryRead,
 )
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
@@ -80,7 +81,7 @@ class PracticeService:
         sample_rate: int,
         channels: int,
         frame_format: str,
-    ) -> PracticeSessionSummaryResult:
+    ) -> PracticeSessionSummaryRead:
         access = await self.access_policy.authorize(
             db,
             score_uuid,
@@ -115,7 +116,7 @@ class PracticeService:
         db: AsyncSession,
         session_uuid: str,
         user_id: int,
-    ) -> PracticeSessionDetailResult:
+    ) -> PracticeSessionDetailRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
         return await self._to_session_detail(db, session)
 
@@ -195,7 +196,7 @@ class PracticeService:
         db: AsyncSession,
         session_uuid: str,
         user_id: int,
-    ) -> PracticeSessionDetailResult:
+    ) -> PracticeSessionDetailRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
         if session.state not in {PracticeSessionState.CREATED, PracticeSessionState.STREAMING}:
             raise ValidationException(
@@ -214,7 +215,7 @@ class PracticeService:
         db: AsyncSession,
         session_uuid: str,
         user_id: int,
-    ) -> PracticeSessionDetailResult:
+    ) -> PracticeSessionDetailRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
         if session.state not in {PracticeSessionState.CREATED, PracticeSessionState.STREAMING}:
             raise ValidationException(
@@ -231,7 +232,7 @@ class PracticeService:
         db: AsyncSession,
         session_uuid: str,
         user_id: int,
-    ) -> PracticeSessionDetailResult:
+    ) -> PracticeSessionDetailRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
         if session.state != PracticeSessionState.PAUSED:
             raise ValidationException(
@@ -250,7 +251,7 @@ class PracticeService:
         db: AsyncSession,
         session_uuid: str,
         user_id: int,
-    ) -> PracticeSessionDetailResult:
+    ) -> PracticeSessionDetailRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
         if session.state in {PracticeSessionState.FINISHED, PracticeSessionState.FAILED}:
             raise ValidationException(
@@ -272,7 +273,7 @@ class PracticeService:
         db: AsyncSession,
         session_uuid: str,
         user_id: int,
-    ) -> PracticeReportResult:
+    ) -> PracticeReportRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
         if session.state != PracticeSessionState.FINISHED:
             raise ValidationException(
@@ -324,7 +325,7 @@ class PracticeService:
         db: AsyncSession,
         session_uuid: str,
         user_id: int,
-    ) -> PracticeReportResult:
+    ) -> PracticeReportRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
         return self._to_report_result(session)
 
@@ -354,47 +355,47 @@ class PracticeService:
             runtime.state = state
 
     @staticmethod
-    def _to_session_summary(session: PracticeSession) -> PracticeSessionSummaryResult:
-        return {
-            "session_id": session.session_uuid,
-            "state": session.state.value,
-            "ws_url": f"/api/v1/practice/sessions/{session.session_uuid}/stream",
-        }
+    def _to_session_summary(session: PracticeSession) -> PracticeSessionSummaryRead:
+        return PracticeSessionSummaryRead(
+            session_id=session.session_uuid,
+            state=session.state,
+            ws_url=f"/api/v1/practice/sessions/{session.session_uuid}/stream",
+        )
 
     @staticmethod
     async def _to_session_detail(
         db: AsyncSession,
         session: PracticeSession,
-    ) -> PracticeSessionDetailResult:
+    ) -> PracticeSessionDetailRead:
         score = await db.get(Score, session.score_id)
         revision = await db.get(ScoreRevision, session.revision_id)
         if not score or not revision or not session.access_origin:
             raise ResourceNotFoundException(
                 "practice_revision", session.session_uuid, ErrorCode.REVISION_NOT_FOUND
             )
-        return {
-            "session_id": session.session_uuid,
-            "score_id": score.score_uuid,
-            "revision_id": revision.revision_uuid,
-            "access_origin": session.access_origin.value,
-            "state": session.state.value,
-            "sample_rate": session.sample_rate,
-            "channels": session.channels,
-            "frame_format": session.frame_format,
-            "started_at": session.started_at.isoformat() if session.started_at else None,
-            "finished_at": session.finished_at.isoformat() if session.finished_at else None,
-            "last_beat_position": session.last_beat_position,
-            "last_confidence": session.last_confidence,
-            "report_status": session.report_status.value,
-        }
+        return PracticeSessionDetailRead(
+            session_id=session.session_uuid,
+            score_id=score.score_uuid,
+            revision_id=revision.revision_uuid,
+            access_origin=session.access_origin,
+            state=session.state,
+            sample_rate=session.sample_rate,
+            channels=session.channels,
+            frame_format=session.frame_format,
+            started_at=session.started_at.isoformat() if session.started_at else None,
+            finished_at=session.finished_at.isoformat() if session.finished_at else None,
+            last_beat_position=session.last_beat_position,
+            last_confidence=session.last_confidence,
+            report_status=session.report_status,
+        )
 
     @staticmethod
-    def _to_report_result(session: PracticeSession) -> PracticeReportResult:
-        parsed_payload: dict[str, object] | None = None
+    def _to_report_result(session: PracticeSession) -> PracticeReportRead:
+        parsed_payload: PracticeReportPayloadRead | None = None
         if session.report_payload:
-            parsed_payload = json.loads(session.report_payload)
-        return {
-            "session_id": session.session_uuid,
-            "report_status": session.report_status.value,
-            "report_payload": parsed_payload,
-        }
+            parsed_payload = PracticeReportPayloadRead.model_validate(json.loads(session.report_payload))
+        return PracticeReportRead(
+            session_id=session.session_uuid,
+            report_status=session.report_status,
+            report_payload=parsed_payload,
+        )

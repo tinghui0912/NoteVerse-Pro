@@ -22,7 +22,7 @@ import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-stor
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { queryKeys } from '@/lib/query-client';
-import type { FingeringHandSize } from '@/types/api';
+import type { FingeringRequest } from '@/generated/api';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
 export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; returnUrl?: string }): EditorWorkspaceDocument {
@@ -157,7 +157,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     setPendingDraft(null);
     toast({ title: t('draftDiscarded'), description: t('draftDiscardedDesc') });
   };
-  const generateFingering = (handSize: FingeringHandSize) => {
+  const generateFingering = (handSize: NonNullable<FingeringRequest['hand_size']>) => {
     if (!currentXml) return;
 
     generateFingeringMutation.mutate(

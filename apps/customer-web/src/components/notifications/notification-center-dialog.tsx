@@ -33,7 +33,7 @@ import {
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { notificationHref } from '@/lib/notifications/target';
-import type { NotificationEvent, PendingScoreInvite } from '@/types/api';
+import type { NotificationEventRead, PendingInviteRead } from '@/generated/api';
 
 interface NotificationCenterDialogProps {
   open: boolean;
@@ -72,7 +72,7 @@ export function NotificationCenterDialog({
       : notifications;
   const groupedVisibleNotifications = groupNotificationsByDate(visibleNotifications);
 
-  const handleAccept = (invite: PendingScoreInvite) => {
+  const handleAccept = (invite: PendingInviteRead) => {
     acceptInvite.mutate(invite.invite_id, {
       onSuccess: (response) => {
         toast({ title: t('accepted'), description: t('acceptedDescription') });
@@ -89,7 +89,7 @@ export function NotificationCenterDialog({
     });
   };
 
-  const handleDecline = (invite: PendingScoreInvite) => {
+  const handleDecline = (invite: PendingInviteRead) => {
     declineInvite.mutate(invite.invite_id, {
       onSuccess: () => {
         toast({ title: t('declined'), description: t('declinedDescription') });
@@ -104,7 +104,7 @@ export function NotificationCenterDialog({
     });
   };
 
-  const handleOpenNotification = (notification: NotificationEvent) => {
+  const handleOpenNotification = (notification: NotificationEventRead) => {
     const openTarget = () => {
       const href = notificationHref(notification);
       if (href) {
@@ -123,7 +123,7 @@ export function NotificationCenterDialog({
     });
   };
 
-  const renderNotificationTitle = (notification: NotificationEvent) => {
+  const renderNotificationTitle = (notification: NotificationEventRead) => {
     const actorName =
       notification.actor?.display_name || notification.actor?.email || t('unknownActor');
     if (notification.type === 'score_invite.accepted') {
@@ -144,7 +144,7 @@ export function NotificationCenterDialog({
     return notification.title || t('system');
   };
 
-  const renderNotificationSubtitle = (notification: NotificationEvent) => {
+  const renderNotificationSubtitle = (notification: NotificationEventRead) => {
     const resourceTitle =
       stringData(notification.data.score_title) ?? stringData(notification.data.job_title);
     return resourceTitle ?? notification.body ?? t('scoreTitleFallback');

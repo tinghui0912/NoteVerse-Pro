@@ -139,3 +139,40 @@ def test_get_practice_report_returns_structured_payload(client: TestClient) -> N
     assert payload["success"] is True
     assert payload["data"]["report_status"] == "READY"
     assert payload["data"]["report_payload"]["metrics"]["confidence_label"] == "Strong"
+
+
+def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
+    schema = app.openapi()
+    components = schema["components"]["schemas"]
+    paths = schema["paths"]
+
+    assert paths["/api/v1/practice/sessions"]["post"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"] == {"$ref": "#/components/schemas/APIResponse_PracticeSessionSummaryRead_"}
+    assert paths["/api/v1/practice/sessions/{session_id}"]["get"]["responses"]["200"][
+        "content"
+    ]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/APIResponse_PracticeSessionDetailRead_"
+    }
+
+    expected_required_fields = {
+        "PracticeSessionSummaryRead": {"session_id", "state", "ws_url"},
+        "PracticeSessionDetailRead": {
+            "session_id",
+            "score_id",
+            "revision_id",
+            "access_origin",
+            "state",
+            "sample_rate",
+            "channels",
+            "frame_format",
+            "started_at",
+            "finished_at",
+            "last_beat_position",
+            "last_confidence",
+            "report_status",
+        },
+        "PracticeReportRead": {"session_id", "report_status", "report_payload"},
+    }
+    for schema_name, fields in expected_required_fields.items():
+        assert fields.issubset(components[schema_name]["required"])

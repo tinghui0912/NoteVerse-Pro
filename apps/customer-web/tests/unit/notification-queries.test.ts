@@ -4,9 +4,10 @@ import {
   markAllNotificationsReadInList,
   markNotificationReadInList,
 } from '@/hooks/queries/use-notification-queries';
-import type { ApiResponse, NotificationEvent } from '@/types/api';
+import type { NotificationEventRead } from '@/generated/api';
+import type { ApiResponse } from '@/lib/api-client';
 
-const baseNotification: NotificationEvent = {
+const baseNotification: NotificationEventRead = {
   notification_id: 'notification-1',
   type: 'score_invite.accepted',
   title: 'Invite accepted',
@@ -18,7 +19,7 @@ const baseNotification: NotificationEvent = {
   created_at: '2026-07-01T00:00:00Z',
 };
 
-function response(data: NotificationEvent[]): ApiResponse<NotificationEvent[]> {
+function response(data: NotificationEventRead[]): ApiResponse<NotificationEventRead[]> {
   return { success: true, data };
 }
 

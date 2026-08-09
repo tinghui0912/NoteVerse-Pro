@@ -13,6 +13,20 @@ The frontend should stay organized around stable product domains, explicit route
 typed API contracts, and reusable state components. The goal is to make feature work easy
 to place without recreating historical compatibility paths.
 
+## API Contract Ownership
+
+The generated Customer API DTOs in `src/generated/api/` come from
+`../../backend/docs/contracts/openapi/customer-api.json` and must not be edited
+manually. Run `npm run generate:api-types` after an approved backend contract
+change; CI runs `npm run check:api-types` to reject stale output.
+
+Keep `src/lib/api/*` as the application request boundary.
+Frontend view models, form state, browser-only protocol messages, and display
+helpers remain frontend-owned. HTTP DTO consumers must import the generated
+types directly; do not add aliases, compatibility re-exports, or parallel
+hand-maintained DTO declarations. Replace and delete each domain's former DTOs
+in the same change.
+
 ## Route Shells
 
 Routes are grouped by user intent, not simply by login state:

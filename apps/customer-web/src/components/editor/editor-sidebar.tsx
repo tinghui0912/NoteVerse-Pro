@@ -31,7 +31,7 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { type EditorMode } from '@/contexts/editor-provider';
-import type { FingeringHandSize } from '@/types/api';
+import type { FingeringRequest } from '@/generated/api';
 import { SlurSymbol, TieSymbol } from './music-symbols';
 import { VoiceLayer } from './voice-layer';
 
@@ -48,7 +48,7 @@ const tieTools: ToolItem[] = [
     { icon: SlurSymbol, label: 'addSlur', mode: 'addSlur' },
 ];
 
-const fingeringHandSizes: FingeringHandSize[] = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const fingeringHandSizes: NonNullable<FingeringRequest['hand_size']>[] = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 const ToolButton = ({ tool, isActive, onToolSelect }: { tool: ToolItem, isActive: boolean, onToolSelect: (mode: EditorMode) => void }) => {
     const isMobile = useIsMobile();
@@ -108,14 +108,14 @@ export function EditorSidebar({
 }: {
     editorMode: EditorMode,
     fingeringPending?: boolean,
-    onGenerateFingering?: (handSize: FingeringHandSize) => void,
+    onGenerateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void,
     onToolSelect: (mode: EditorMode) => void,
     onNormalizeVoices?: () => void
 }) {
     const t = useTranslations('editor');
     const common = useTranslations('common');
     const [fingeringDialogOpen, setFingeringDialogOpen] = useState(false);
-    const [selectedHandSize, setSelectedHandSize] = useState<FingeringHandSize>('M');
+    const [selectedHandSize, setSelectedHandSize] = useState<NonNullable<FingeringRequest['hand_size']>>('M');
 
     const confirmGenerateFingering = () => {
         onGenerateFingering?.(selectedHandSize);

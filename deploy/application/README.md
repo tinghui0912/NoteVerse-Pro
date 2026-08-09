@@ -94,13 +94,13 @@ python scripts/check_k8s_application_manifests.py deploy/application/overlays/pr
 Production preflight checklist:
 
 ```text
-docs/k8s-production-preflight-checklist.md
+../../docs/operations/deployment/k8s-production-preflight-checklist.md
 ```
 
 Deployment runbook:
 
 ```text
-docs/k8s-deployment-runbook.md
+../../docs/operations/deployment/k8s-deployment-runbook.md
 ```
 
 Do not put observability stack manifests here. Platform observability lives in:

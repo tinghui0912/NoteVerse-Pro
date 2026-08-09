@@ -1,4 +1,6 @@
-import type { MyScoresPageView, MyScoresSort, MyScoresView, ImportJob } from '@/types/api';
+import type { ImportJobRead, MyScoresSort, MyScoresView } from '@/generated/api';
+
+export type MyScoresPageView = MyScoresView | 'importing' | 'review' | 'failed';
 
 export const MY_SCORE_VIEWS: MyScoresView[] = [
   'all',
@@ -38,11 +40,11 @@ export function scoreBackedView(view: MyScoresPageView): MyScoresView {
   return isMyScoreView(view) ? view : 'all';
 }
 
-export function isImportJob(job: ImportJob) {
+export function isImportJob(job: ImportJobRead) {
   return job.state === 'PENDING' || job.state === 'RUNNING';
 }
 
-export function visibleMyScoreJobs(jobs: ImportJob[], view: MyScoresPageView) {
+export function visibleMyScoreJobs(jobs: ImportJobRead[], view: MyScoresPageView) {
   return jobs.filter((job) => {
     if (view === 'importing') return isImportJob(job);
     if (view === 'review') return job.state === 'PENDING_REVIEW';

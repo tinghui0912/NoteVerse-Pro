@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { LibraryFolder } from '@/types/api';
+import type { LibraryFolderRead } from '@/generated/api';
 
 interface LibraryFolderDialogProps {
   open: boolean;
@@ -25,7 +25,7 @@ interface LibraryFolderDialogProps {
   folderName: string;
   folderParentId: string;
   rootFolderValue: string;
-  parentFolders: LibraryFolder[];
+  parentFolders: LibraryFolderRead[];
   createPending: boolean;
   updatePending: boolean;
   onOpenChange: (open: boolean) => void;

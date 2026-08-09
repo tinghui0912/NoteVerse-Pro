@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { MyScoresSort } from '@/types/api';
+import type { MyScoresSort } from '@/generated/api';
 
 interface MyScoresFilterBarProps {
   searchInput: string;

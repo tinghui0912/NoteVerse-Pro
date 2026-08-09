@@ -4,14 +4,17 @@ param(
         "backend-mypy",
         "backend-mypy-model-layer",
         "backend-pytest",
+        "backend-contracts",
         "customer-web-lint",
         "customer-web-typecheck",
         "customer-web-i18n",
+        "customer-web-api-types",
         "customer-web-test",
         "platform-admin-lint",
         "platform-admin-typecheck",
         "platform-admin-test",
         "platform-admin-build",
+        "docs-links",
         "k8s",
         "k8s-minikube",
         "observability",
@@ -133,6 +136,12 @@ function Invoke-ObservabilityManifestCheck {
     }
 }
 
+function Invoke-DocumentationLinkCheck {
+    Invoke-Step "docs:links" {
+        python (Join-Path $PSScriptRoot "check_markdown_links.py")
+    }
+}
+
 function Invoke-MinikubeBootstrapCheck {
     Invoke-Step "k8s:minikube-bootstrap" {
         powershell -NoProfile -ExecutionPolicy Bypass -File $MinikubeBootstrap -ValidateTracing
@@ -152,6 +161,9 @@ switch ($Check) {
     "backend-pytest" {
         Invoke-BackendQuality "pytest"
     }
+    "backend-contracts" {
+        Invoke-BackendQuality "contracts"
+    }
     "customer-web-lint" {
         Invoke-CustomerWebNpm "lint"
     }
@@ -160,6 +172,9 @@ switch ($Check) {
     }
     "customer-web-i18n" {
         Invoke-CustomerWebNpm "check:i18n-errors"
+    }
+    "customer-web-api-types" {
+        Invoke-CustomerWebNpm "check:api-types"
     }
     "customer-web-test" {
         Invoke-CustomerWebNpm "test"
@@ -175,6 +190,9 @@ switch ($Check) {
     }
     "platform-admin-build" {
         Invoke-PlatformAdminNpm "build"
+    }
+    "docs-links" {
+        Invoke-DocumentationLinkCheck
     }
     "k8s" {
         Invoke-K8sManifestCheck
@@ -192,11 +210,13 @@ switch ($Check) {
         Invoke-BackendQuality "mypy-model-layer"
         Invoke-BackendQuality "pytest"
         Invoke-CustomerWebNpm "lint"
+        Invoke-CustomerWebNpm "check:api-types"
         Invoke-CustomerWebNpm "typecheck"
         Invoke-CustomerWebNpm "check:i18n-errors"
         Invoke-PlatformAdminNpm "lint"
         Invoke-PlatformAdminNpm "typecheck"
         Invoke-PlatformAdminNpm "test"
+        Invoke-DocumentationLinkCheck
         Invoke-K8sManifestCheck
         Invoke-K8sReleaseOverlaySmokeCheck
         Invoke-ObservabilityManifestCheck

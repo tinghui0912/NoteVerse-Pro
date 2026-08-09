@@ -1,6 +1,8 @@
-import type { LibraryView } from '@/types/api';
+import type { LibraryPracticeState, LibrarySort, LibraryView } from '@/generated/api';
 
-export type LibrarySortValue = 'updated_desc' | 'name_asc';
+export type UserSettableLibraryPracticeState = Exclude<LibraryPracticeState, 'IN_PROGRESS'>;
+
+export type LibrarySortValue = Extract<LibrarySort, 'updated_desc' | 'name_asc'>;
 
 export function normalizeLibrarySort(value?: string): LibrarySortValue {
   return value === 'name_asc' ? 'name_asc' : 'updated_desc';
