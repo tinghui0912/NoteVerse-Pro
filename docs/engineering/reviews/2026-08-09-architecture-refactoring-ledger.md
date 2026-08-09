@@ -368,6 +368,11 @@ session ownership.
 - Added an external Playwright configuration and first real browser-facing
   integration scenario for Next rewrite proxying, login cookies, authenticated
   API reads, and CSRF enforcement.
+- Verified the complete disposable environment from an empty PostgreSQL
+  database: migrations, test-user seed, API and Customer Web health checks, and
+  the real Playwright authentication scenario all pass. During this validation,
+  migration `0017` was corrected to commit its PostgreSQL enum addition before
+  migration `0018` references the new value.
 - The remaining ARC-006 scope is the real score flow and Practice WebSocket
   handshake. They will be added to this same isolated environment rather than
   extending mocked browser suites.
