@@ -9,6 +9,7 @@ param(
         "backend-critical-import-execution-coverage",
         "backend-critical-import-job-service-coverage",
         "backend-critical-import-worker-service-coverage",
+        "backend-critical-practice-service-coverage",
         "backend-contracts",
         "customer-web-lint",
         "customer-web-typecheck",
@@ -181,6 +182,9 @@ switch ($Check) {
     }
     "backend-critical-import-worker-service-coverage" {
         Invoke-BackendQuality "critical-import-worker-service-coverage"
+    }
+    "backend-critical-practice-service-coverage" {
+        Invoke-BackendQuality "critical-practice-service-coverage"
     }
     "backend-contracts" {
         Invoke-BackendQuality "contracts"

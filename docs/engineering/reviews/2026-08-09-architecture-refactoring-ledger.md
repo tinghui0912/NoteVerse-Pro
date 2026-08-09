@@ -390,6 +390,19 @@ session ownership.
 - Artifact replacement and public detail shaping remain tested at their owning
   boundaries and are intentionally not mixed into the state-coordination gate.
 
+### 2026-08-09: Practice ownership and lifecycle gate
+
+- Tightened `prepare_stream_runtime` so every caller must pass session ownership
+  validation even when a runtime is already cached. The WebSocket router had an
+  earlier check, but the service boundary now enforces the rule itself.
+- Added direct Practice service tests for missing and cross-user sessions,
+  lifecycle transitions, invalid terminal states, report success and failure,
+  and alignment persistence.
+- The focused Practice service result rose from 20% to 68% across 74 relevant
+  passing tests. It now has a 65% threshold in the isolated Practice quality
+  image; session creation and runtime-registration failures remain the next
+  coverage priority.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

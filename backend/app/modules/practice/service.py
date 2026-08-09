@@ -134,11 +134,11 @@ class PracticeService:
         session_uuid: str,
         user_id: int,
     ) -> PracticeSessionRuntime:
+        session = await self._require_session_for_user(db, session_uuid, user_id)
         runtime = self.runtime_registry.get(session_uuid)
         if runtime is not None:
             return runtime
 
-        session = await self._require_session_for_user(db, session_uuid, user_id)
         if session.state in {PracticeSessionState.FINISHED, PracticeSessionState.FAILED}:
             raise ValidationException(
                 code=ErrorCode.PRACTICE_SESSION_INVALID_STATE,
