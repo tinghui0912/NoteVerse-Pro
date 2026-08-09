@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import json
 import os
 import shutil
 from dataclasses import dataclass
@@ -371,11 +372,33 @@ def check_paddleocr_models(include_sizes: bool = False) -> CheckResult:
     return _result("paddleocr_models", True, "; ".join(summaries))
 
 
-def _snapshot_has_model_files(snapshot: Path) -> bool:
+def _snapshot_missing_model_files(snapshot: Path) -> list[str]:
     if not (snapshot / "config.json").is_file():
-        return False
-    patterns = ("*.safetensors", "*.bin", "*.safetensors.index.json", "*.bin.index.json")
-    return any(any(snapshot.glob(pattern)) for pattern in patterns)
+        return ["config.json"]
+
+    index_paths = [
+        *snapshot.glob("*.safetensors.index.json"),
+        *snapshot.glob("*.bin.index.json"),
+    ]
+    if index_paths:
+        required_files: set[str] = set()
+        for index_path in index_paths:
+            try:
+                payload = json.loads(index_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                return [f"valid {index_path.name}"]
+            weight_map = payload.get("weight_map")
+            if not isinstance(weight_map, dict):
+                return [f"weight_map in {index_path.name}"]
+            required_files.update(
+                filename for filename in weight_map.values() if isinstance(filename, str)
+            )
+        return sorted(filename for filename in required_files if not (snapshot / filename).is_file())
+
+    patterns = ("*.safetensors", "*.bin")
+    if any(any(snapshot.glob(pattern)) for pattern in patterns):
+        return []
+    return ["model checkpoint"]
 
 
 def _hf_repo_cache_dir(repo_id: str) -> str:
@@ -391,13 +414,19 @@ def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
         repo_dir = _hf_repo_cache_dir(repo_id)
         path = hub / repo_dir
         snapshots = path / "snapshots"
-        valid_snapshots = (
-            [item for item in snapshots.iterdir() if item.is_dir() and _snapshot_has_model_files(item)]
+        snapshot_statuses = (
+            [(item, _snapshot_missing_model_files(item)) for item in snapshots.iterdir() if item.is_dir()]
             if snapshots.is_dir()
             else []
         )
+        valid_snapshots = [item for item, absent in snapshot_statuses if not absent]
         if not valid_snapshots:
-            missing.append(f"{repo_id}: no complete model snapshot in {path}")
+            incomplete = [
+                f"{item.name}: missing {', '.join(absent[:5])}"
+                for item, absent in snapshot_statuses
+            ]
+            detail = "; ".join(incomplete) or "no model snapshot"
+            missing.append(f"{repo_id}: no complete model snapshot in {path} ({detail})")
             continue
         summaries.append(f"{repo_id}={path}{_size_suffix(path, include_sizes)}")
 

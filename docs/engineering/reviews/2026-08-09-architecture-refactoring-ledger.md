@@ -456,6 +456,15 @@ deferred until the required offline models are available.
   retaining the validated request model at the HTTP boundary. A regression test
   and the real Customer Web upload/import integration scenario cover the case.
 
+### 2026-08-10: Worker model-cache completeness validation
+
+- Strengthened the Worker Hugging Face runtime check: it now parses sharded
+  model indexes and verifies every declared checkpoint shard, rather than
+  accepting a snapshot with any single weight file.
+- This prevents an incomplete offline model cache from passing startup checks
+  only to fail later inside a user-triggered LEGATO inference subprocess. The
+  failure message identifies the missing shard names for operational recovery.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
