@@ -1,5 +1,6 @@
 from sqlmodel import SQLModel, Session, create_engine, select
 
+from app.db.execution_manifests import manifest_sha256
 from app.db.models import ExecutionManifest, ImportJob, ImportJobState
 from app.modules.import_jobs import execution_manifest
 from app.modules.import_jobs.worker_service import SyncImportJobService
@@ -21,7 +22,7 @@ def _manifest(commit: str = "abc123") -> dict[str, object]:
 
 
 def test_execution_manifest_digest_is_stable_for_equivalent_content() -> None:
-    assert execution_manifest.manifest_sha256(_manifest()) == execution_manifest.manifest_sha256(
+    assert manifest_sha256(_manifest()) == manifest_sha256(
         dict(reversed(list(_manifest().items())))
     )
 
@@ -69,7 +70,5 @@ def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(mon
         execution_manifest.bind_import_job_execution_manifest(session, job.job_uuid)
 
         detail = SyncImportJobService().get_detail(session, job.job_uuid)
-        assert detail["execution_manifest_sha256"] == execution_manifest.manifest_sha256(
-            _manifest()
-        )
+        assert detail["execution_manifest_sha256"] == manifest_sha256(_manifest())
         assert "execution_manifest" not in detail

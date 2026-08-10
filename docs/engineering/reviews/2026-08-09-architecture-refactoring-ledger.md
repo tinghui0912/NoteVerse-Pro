@@ -946,8 +946,20 @@ deferred until the required offline models are available.
   Removed stale LEGATO identity variables from those deployment manifests too.
 - The persisted `render_profile` string remains an artifact-variant selector
   (for example, `default` or `review-thumbnail`); it is not a substitute for
-  the algorithm profile. Attaching the immutable profile identity to rendered
-  artifacts remains the next provenance step.
+  the algorithm profile.
+
+### 2026-08-10: Rendered-asset provenance linked to execution manifests
+
+- `ScoreRenderAsset` now references the same normalized, immutable
+  `execution_manifests` registry used by ImportJob. The render manifest contains
+  the Verovio engine and complete `VerovioRenderProfile v1`; rendered SVG pages
+  store only its foreign key, never a duplicated JSON snapshot.
+- Moved canonical JSON SHA-256 and sync/async get-or-create behavior into one
+  shared database helper. Import and rendering therefore use identical hashing,
+  de-duplication, and transaction-ownership rules.
+- Added migration `0039_score_render_asset_execution_manifest`. Existing assets
+  intentionally remain nullable/unknown because their historical rendering
+  profile cannot be inferred safely after the fact.
 
 ## Completion checklist for every refactor
 

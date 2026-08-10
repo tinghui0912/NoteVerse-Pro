@@ -10,6 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.db.execution_manifests import (
+    get_or_create_execution_manifest,
+    get_or_create_execution_manifest_async,
+)
 from app.core.exceptions import (
     ResourceNotFoundException,
     ScoreRenderFailedException,
@@ -28,6 +32,7 @@ from app.db.models import (
 from app.db.models.score import RenderAssetKind, RevisionSourceFormat
 from app.db.models.score_access import MembershipRole
 from app.modules.score_assets.repository import ScoreAssetRepository
+from app.modules.score_assets.render_execution_manifest import build_render_execution_manifest
 from app.modules.score_assets.schemas import RenderAssetRead
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.repository import ScoreRepository
@@ -82,24 +87,30 @@ class RevisionRenderService:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
         uploaded_keys: list[str] = []
-        new_records = self._render_records(
-            score_uuid=score_uuid,
-            revision_uuid=revision_uuid,
-            revision_id=revision_id,
-            canonical_storage_key=source.storage_key,
-            profile=profile,
-            uploaded_keys=uploaded_keys,
-        )
+        try:
+            manifest = await get_or_create_execution_manifest_async(
+                db, build_render_execution_manifest()
+            )
+            execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
+            new_records = self._render_records(
+                score_uuid=score_uuid,
+                revision_uuid=revision_uuid,
+                revision_id=revision_id,
+                canonical_storage_key=source.storage_key,
+                profile=profile,
+                execution_manifest_id=execution_manifest_id,
+                uploaded_keys=uploaded_keys,
+            )
+        except Exception:
+            await db.rollback()
+            raise
 
         previous = [
             item
             for item in await self.repository.list_render_assets(db, revision_id)
             if isinstance(item, ScoreRenderAsset) and item.render_profile == profile
         ]
-        previous_usage = [
-            (item.asset_uuid, item.storage_key, item.size_bytes)
-            for item in previous
-        ]
+        previous_usage = [(item.asset_uuid, item.storage_key, item.size_bytes) for item in previous]
         try:
             for item in previous:
                 await db.delete(item)
@@ -170,14 +181,21 @@ class RevisionRenderService:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
         uploaded_keys: list[str] = []
-        new_records = self._render_records(
-            score_uuid=score.score_uuid,
-            revision_uuid=revision.revision_uuid,
-            revision_id=revision_id,
-            canonical_storage_key=source.storage_key,
-            profile=profile,
-            uploaded_keys=uploaded_keys,
-        )
+        try:
+            manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
+            execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
+            new_records = self._render_records(
+                score_uuid=score.score_uuid,
+                revision_uuid=revision.revision_uuid,
+                revision_id=revision_id,
+                canonical_storage_key=source.storage_key,
+                profile=profile,
+                execution_manifest_id=execution_manifest_id,
+                uploaded_keys=uploaded_keys,
+            )
+        except Exception:
+            db.rollback()
+            raise
         previous = list(
             db.execute(
                 select(ScoreRenderAsset).where(
@@ -188,10 +206,7 @@ class RevisionRenderService:
             ).scalars()
         )
         old_keys = [item.storage_key for item in previous]
-        previous_usage = [
-            (item.asset_uuid, item.storage_key, item.size_bytes)
-            for item in previous
-        ]
+        previous_usage = [(item.asset_uuid, item.storage_key, item.size_bytes) for item in previous]
         try:
             for item in previous:
                 db.delete(item)
@@ -259,9 +274,7 @@ class RevisionRenderService:
             )
         ).scalar_one_or_none()
         if revision is None:
-            raise ResourceNotFoundException(
-                "revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND
-            )
+            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
         if user_id == score.owner_user_id:
             return score, revision
         membership = db.execute(
@@ -283,6 +296,7 @@ class RevisionRenderService:
         revision_id: int,
         canonical_storage_key: str,
         profile: str,
+        execution_manifest_id: int,
         uploaded_keys: list[str],
     ) -> list[ScoreRenderAsset]:
         new_records: list[ScoreRenderAsset] = []
@@ -327,6 +341,7 @@ class RevisionRenderService:
                         mime_type=output["mime_type"],
                         size_bytes=stored.size_bytes,
                         sha256=hashlib.sha256(content).hexdigest(),
+                        execution_manifest_id=execution_manifest_id,
                         page_number=page,
                         render_profile=profile,
                         generator=generator,
