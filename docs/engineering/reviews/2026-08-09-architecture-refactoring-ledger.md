@@ -782,6 +782,14 @@ deferred until the required offline models are available.
   `TrustedProxySettings` as the next safe extraction because its CIDR parser
   and anti-`/0` validation already form a self-contained contract.
 
+### 2026-08-10: Trusted proxy policy ownership extracted
+
+- Moved trusted proxy CIDR JSON parsing, normalization, CIDR validation, and
+  the anti-`/0` guard into `TrustedProxySettings`, with direct group tests.
+- Revalidated client-address forwarding behavior and API safety coverage. The
+  migration also removed the obsolete `json` import from the shared config
+  module; no environment name, manifest, alias, or fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

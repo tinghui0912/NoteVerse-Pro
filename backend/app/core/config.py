@@ -1,8 +1,6 @@
 """Application settings and configuration validation."""
 
-import json
 from functools import lru_cache
-from ipaddress import ip_network
 from pathlib import Path
 from typing import List, Optional
 
@@ -29,6 +27,7 @@ from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSet
 from app.core.settings.storage import StorageSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
 from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
+from app.core.settings.trusted_proxy import TrustedProxySettings
 from app.core.settings.upload_admission import UploadAdmissionSettings
 from app.core.settings.worker_database import WorkerDatabaseSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
@@ -37,7 +36,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TransactionalMailProviderSettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -52,7 +51,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
     FRONTEND_BASE_URL: str
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl]
-    TRUSTED_PROXY_CIDRS: List[str]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
@@ -70,26 +68,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
         if isinstance(value, list):
             return value
         raise ValueError("CONTROL_PLANE_CORS_ORIGINS must be a JSON array")
-
-    @field_validator("TRUSTED_PROXY_CIDRS", mode="before")
-    @classmethod
-    def parse_trusted_proxy_cidrs(cls, value: str | List[str]) -> List[str]:
-        """Require an explicit, valid CIDR allowlist for forwarding headers."""
-
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError as exc:
-                raise ValueError("TRUSTED_PROXY_CIDRS must be a JSON array") from exc
-        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-            raise ValueError("TRUSTED_PROXY_CIDRS must be a JSON array")
-        try:
-            networks = [ip_network(item, strict=False) for item in value]
-        except ValueError as exc:
-            raise ValueError("TRUSTED_PROXY_CIDRS must contain valid IP networks") from exc
-        if any(network.prefixlen == 0 for network in networks):
-            raise ValueError("TRUSTED_PROXY_CIDRS must not trust every address")
-        return [str(network) for network in networks]
 
     @field_validator("DEBUG", mode="before")
     @classmethod

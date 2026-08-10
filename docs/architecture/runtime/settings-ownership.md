@@ -150,9 +150,11 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Upload admission policy. `UploadAdmissionSettings` owns the
   immutable generic file-extension allowlist and rejects invalid allowlists;
   the narrower account-avatar policy remains an independent domain rule.
-- **Next:** Measure the remaining platform HTTP and security configuration
-  (`PROJECT_NAME`, API prefix, public URL, CORS/proxy trust, secret, debug) as
-  cohesive policy candidates before any further extraction.
+- **Complete:** Trusted proxy policy. `TrustedProxySettings` owns CIDR parsing,
+  normalization, and the prohibition on trusting every address for forwarded
+  client-address resolution.
+- **Next:** Extract browser CORS policy. Keep it separate from trusted proxies,
+  public frontend URL, and the control-plane-specific CORS allowlist.
 
 ## Worker runtime-loader migration boundary
 

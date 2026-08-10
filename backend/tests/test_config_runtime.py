@@ -28,16 +28,10 @@ def test_debug_environment_parsing() -> None:
     assert parse_debug("false") is False
 
 
-def test_trusted_proxy_cidrs_require_an_explicit_valid_json_allowlist() -> None:
-    settings = Settings(TRUSTED_PROXY_CIDRS='["10.0.0.0/8", "2001:db8::/32"]')
+def test_settings_compose_trusted_proxy_policy() -> None:
+    settings = Settings(TRUSTED_PROXY_CIDRS='["10.0.0.0/8"]')
 
-    assert settings.TRUSTED_PROXY_CIDRS == ["10.0.0.0/8", "2001:db8::/32"]
-
-    with pytest.raises(ValidationError, match="TRUSTED_PROXY_CIDRS"):
-        Settings(TRUSTED_PROXY_CIDRS="10.0.0.0/8")
-
-    with pytest.raises(ValidationError, match="TRUSTED_PROXY_CIDRS"):
-        Settings(TRUSTED_PROXY_CIDRS='["0.0.0.0/0"]')
+    assert settings.TRUSTED_PROXY_CIDRS == ["10.0.0.0/8"]
 
 
 def test_practice_diagnostic_intervals_must_be_positive() -> None:
