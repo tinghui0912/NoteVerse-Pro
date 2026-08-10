@@ -693,6 +693,17 @@ deferred until the required offline models are available.
   sender identity. Added shared-settings and Beat scheduling coverage; no
   deployment manifest, environment name, alias, or fallback behavior changed.
 
+### 2026-08-10: Notification and realtime policy ownership extracted
+
+- Moved notification cleanup/retention into `NotificationLifecycleSettings`.
+  Split realtime configuration into `RealtimeStreamSettings` for HTTP SSE
+  catch-up, heartbeat, and batching, and `RealtimeRetentionSettings` for
+  background cleanup and retention.
+- Preserved the existing strict deployment contract: realtime cleanup cadence
+  and retention days remain required environment inputs rather than gaining
+  newly invented defaults. Added direct group tests plus shared-settings,
+  Celery, and SSE regression coverage without aliases or fallback behavior.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

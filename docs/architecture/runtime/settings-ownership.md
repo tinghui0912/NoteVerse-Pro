@@ -125,8 +125,12 @@ configuration through a separately coordinated credential-rotation task.
   cadence, leases, retry/backoff, batch limits, and completed-mail retention.
   It remains separate from account email-provider credentials and sender
   identity.
-- **Next:** Extract notification and realtime lifecycle policy, keeping HTTP
-  stream cadence separate from background retention scheduling.
+- **Complete:** Notification and realtime policy. `NotificationLifecycleSettings`
+  owns notification cleanup/retention; `RealtimeStreamSettings` owns HTTP SSE
+  catch-up, heartbeat, and batch parameters; `RealtimeRetentionSettings` owns
+  realtime cleanup/retention and preserves its required deployment inputs.
+- **Next:** Extract Score deletion lifecycle policy, including cleanup cadence,
+  batch size, retry backoff, and retry limit.
 
 ## Worker runtime-loader migration boundary
 

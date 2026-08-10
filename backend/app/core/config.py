@@ -14,11 +14,14 @@ from app.core.settings.async_database import AsyncDatabaseSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
 from app.core.settings.import_dispatch import ImportDispatchSettings
 from app.core.settings.mail_delivery import MailDeliverySettings
+from app.core.settings.notification_lifecycle import NotificationLifecycleSettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.playback_delivery import PlaybackDeliverySettings
 from app.core.settings.queue import QueueSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
+from app.core.settings.realtime_retention import RealtimeRetentionSettings
+from app.core.settings.realtime_stream import RealtimeStreamSettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
 from app.core.settings.worker_database import WorkerDatabaseSettings
@@ -28,7 +31,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, MailDeliverySettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RenderAssetDeliverySettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -49,11 +52,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
     CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
     DEBUG: bool = False
     FRONTEND_BASE_URL: str
-    REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS: int = 2
-    REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS: int = 15
-    REALTIME_EVENT_BATCH_SIZE: int = 100
-    REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS: int
-    REALTIME_EVENT_RETENTION_DAYS: int
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl]
     TRUSTED_PROXY_CIDRS: List[str]
@@ -111,13 +109,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
         return v
 
     @field_validator(
-        "NOTIFICATION_CLEANUP_INTERVAL_SECONDS",
-        "NOTIFICATION_RETENTION_DAYS",
-        "REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS",
-        "REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS",
-        "REALTIME_EVENT_BATCH_SIZE",
-        "REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS",
-        "REALTIME_EVENT_RETENTION_DAYS",
         "SCORE_DELETION_CLEANUP_INTERVAL_SECONDS",
         "SCORE_DELETION_CLEANUP_BATCH_SIZE",
         "SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS",
@@ -145,8 +136,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
     FINGERING_MAX_CONCURRENCY: int = 2
     FINGERING_QUEUE_WAIT_SECONDS: int = 5
     FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
-    NOTIFICATION_CLEANUP_INTERVAL_SECONDS: int = 86400
-    NOTIFICATION_RETENTION_DAYS: int = 90
     SCORE_DELETION_CLEANUP_INTERVAL_SECONDS: int = 60
     SCORE_DELETION_CLEANUP_BATCH_SIZE: int = 20
     SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS: int = 60
