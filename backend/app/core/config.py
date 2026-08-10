@@ -11,16 +11,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.async_database import AsyncDatabaseSettings
+from app.core.settings.beat_scheduler import BeatSchedulerSettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.storage import StorageSettings
+from app.core.settings.worker_database import WorkerDatabaseSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, ObservabilitySettings, PlaybackSettings, StorageSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettings, PlaybackSettings, StorageSettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -169,24 +171,12 @@ class Settings(AsyncDatabaseSettings, ObservabilitySettings, PlaybackSettings, S
         return v
 
     # Database
-    SYNC_DATABASE_URL: str
-    # Dedicated direct/session-pooled PostgreSQL endpoint for the Beat leader
-    # advisory lock. Never point this at a transaction-pooling endpoint.
-    SCHEDULER_LOCK_DATABASE_URL: str
 
     # Redis
     REDIS_URL: str
 
     CELERY_BROKER_URL: str
     CELERY_RESULT_BACKEND: str
-    SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS: int = 5
-    SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS: int = 30
-    SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS: int = 10
-    SCHEDULER_LOCK_KEEPALIVES_COUNT: int = 3
-    SCHEDULER_LOCK_STATEMENT_TIMEOUT_MILLISECONDS: int = 5000
-    SCHEDULER_LOCK_TCP_USER_TIMEOUT_MILLISECONDS: int = 30000
-    SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS: int = 5
-    SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS: int = 15
     FINGERING_MAX_CONCURRENCY: int = 2
     FINGERING_QUEUE_WAIT_SECONDS: int = 5
     FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
@@ -271,18 +261,6 @@ class Settings(AsyncDatabaseSettings, ObservabilitySettings, PlaybackSettings, S
                 "SECRET_KEY must be at least 32 characters long for security"
             )
         return v
-
-    @field_validator("SCHEDULER_LOCK_DATABASE_URL")
-    @classmethod
-    def validate_scheduler_lock_database_url(cls, v: str) -> str:
-        """Require a PostgreSQL DSN suitable for a session advisory lock."""
-
-        value = v.strip()
-        if not value.startswith(("postgresql://", "postgresql+psycopg://")):
-            raise ValueError(
-                "SCHEDULER_LOCK_DATABASE_URL must use a PostgreSQL psycopg-compatible URL"
-            )
-        return value
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
