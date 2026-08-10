@@ -744,6 +744,15 @@ deferred until the required offline models are available.
   error-contract coverage; no environment name, manifest, alias, fallback, or
   control-plane configuration behavior changed.
 
+### 2026-08-10: Account email-link lifetime ownership extracted
+
+- Moved password-reset and email-verification/change link expiry into
+  `AccountEmailLinkSettings`, with direct positive-value validation and tests.
+- Revalidated registration, verification, email-change, and password-reset
+  workflows. `FRONTEND_BASE_URL`, mail provider settings, and Mail Outbox
+  delivery policy remain independent; no environment name, manifest, alias, or
+  fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.async_database import AsyncDatabaseSettings
+from app.core.settings.account_email_link import AccountEmailLinkSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
 from app.core.settings.customer_session_security import CustomerSessionSecuritySettings
 from app.core.settings.fingering_execution import FingeringExecutionSettings
@@ -34,7 +35,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -137,10 +138,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecu
     MAIL_DEFAULT_SENDER: Optional[str] = None
     RESEND_API_KEY: Optional[str] = None
     RESEND_API_URL: str = "https://api.resend.com/emails"
-
-    # Auth email links
-    EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS: int = 300
-    EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS: int = 900
 
     @field_validator("SECRET_KEY")
     @classmethod

@@ -188,6 +188,13 @@ def test_settings_compose_customer_session_security_policy() -> None:
     assert settings.AUTH_COOKIE_SAMESITE in {"lax", "strict", "none"}
 
 
+def test_settings_compose_account_email_link_policy() -> None:
+    settings = Settings()
+
+    assert settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS > 0
+    assert settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS > 0
+
+
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(

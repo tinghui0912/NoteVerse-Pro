@@ -140,8 +140,11 @@ configuration through a separately coordinated credential-rotation task.
   customer Cookie/CSRF contract; it fails fast for invalid lifetimes, blank
   names, and unsupported `SameSite` policy, independently of control-plane
   identity.
-- **Next:** Extract account email-link lifetime policy. Do not combine it with
-  `FRONTEND_BASE_URL`, Resend provider credentials, or file-extension policy.
+- **Complete:** Account email-link lifetime policy.
+  `AccountEmailLinkSettings` owns password-reset and email-verification/change
+  expiry, independently of `FRONTEND_BASE_URL` and mail-provider credentials.
+- **Next:** Extract transactional mail-provider settings. Keep this transport
+  and credential boundary separate from Mail Outbox delivery policy.
 
 ## Worker runtime-loader migration boundary
 
