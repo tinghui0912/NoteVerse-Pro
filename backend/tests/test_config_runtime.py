@@ -195,6 +195,12 @@ def test_settings_compose_account_email_link_policy() -> None:
     assert settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS > 0
 
 
+def test_settings_compose_transactional_mail_provider_policy() -> None:
+    settings = Settings()
+
+    assert settings.RESEND_API_URL.startswith(("http://", "https://"))
+
+
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(

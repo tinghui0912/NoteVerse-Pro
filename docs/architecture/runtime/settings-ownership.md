@@ -143,8 +143,12 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Account email-link lifetime policy.
   `AccountEmailLinkSettings` owns password-reset and email-verification/change
   expiry, independently of `FRONTEND_BASE_URL` and mail-provider credentials.
-- **Next:** Extract transactional mail-provider settings. Keep this transport
-  and credential boundary separate from Mail Outbox delivery policy.
+- **Complete:** Transactional mail-provider configuration.
+  `TransactionalMailProviderSettings` owns Resend connection credentials and
+  endpoint, accepts an explicit disabled state, and rejects partial provider
+  configuration before a delivery task runs.
+- **Next:** Extract upload admission policy, keeping file-extension allowlists
+  separate from storage backend and object lifecycle configuration.
 
 ## Worker runtime-loader migration boundary
 

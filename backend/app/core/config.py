@@ -28,6 +28,7 @@ from app.core.settings.realtime_stream import RealtimeStreamSettings
 from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
+from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
 from app.core.settings.worker_database import WorkerDatabaseSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
@@ -35,7 +36,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TransactionalMailProviderSettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -133,11 +134,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
         "tiff",
         "tif",
     }
-
-    # Email
-    MAIL_DEFAULT_SENDER: Optional[str] = None
-    RESEND_API_KEY: Optional[str] = None
-    RESEND_API_URL: str = "https://api.resend.com/emails"
 
     @field_validator("SECRET_KEY")
     @classmethod

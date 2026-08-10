@@ -753,6 +753,15 @@ deferred until the required offline models are available.
   delivery policy remain independent; no environment name, manifest, alias, or
   fallback behavior changed.
 
+### 2026-08-10: Transactional mail-provider ownership extracted
+
+- Moved Resend API endpoint, key, and default sender into
+  `TransactionalMailProviderSettings`, with direct validation and tests.
+- Preserved the explicit disabled-provider state for local development while
+  rejecting a sender-only or key-only partial configuration at startup. Mail
+  Outbox delivery policy remains separate; no environment name, manifest,
+  alias, or fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
