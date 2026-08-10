@@ -27,6 +27,10 @@ not inherit API, practice, fingering, or ML dependencies. The worker uses the
 worker dependency image because it runs OCR/OMR, rendering, playback generation,
 and model-cache checks.
 
+When `UVICORN_RELOAD=true`, HTTP services watch `/app/app` only. Runtime data
+under `/app/data` is intentionally excluded: Worker uploads and inference
+artifacts must never restart the API, Practice, or control-plane process.
+
 LEGATO is a pinned external source dependency cloned into the backend worker
 image at `/opt/noteverse/legato` during image build. See
 `docs/architecture/integrations/external-dependencies.md` for the pinned commit

@@ -465,6 +465,15 @@ deferred until the required offline models are available.
   only to fail later inside a user-triggered LEGATO inference subprocess. The
   failure message identifies the missing shard names for operational recovery.
 
+### 2026-08-10: Development reload and Worker artifact isolation
+
+- Narrowed Uvicorn development reload watches from the whole bind-mounted
+  application directory to `/app/app`. Worker uploads and inference artifacts
+  are written below `/app/data`, so they can no longer restart API, Practice,
+  or control-plane processes during active processing.
+- Documented the boundary in the Docker backend runtime runbook. The production
+  startup path remains unchanged because it does not enable Uvicorn reload.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
