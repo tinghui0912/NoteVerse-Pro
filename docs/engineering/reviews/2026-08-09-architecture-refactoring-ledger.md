@@ -24,7 +24,7 @@ historical finding is not an indication that the item is still open.
 | ARC-002 | Complete | Maintain OpenAPI generation and generated TypeScript freshness checks for HTTP contracts. |
 | ARC-003 | Open | Split only measured hotspots by stable responsibilities, with direct tests for each extraction. |
 | ARC-004 | Open | Continue replacing broad orchestration hubs with intent-named units when a concrete cohesion boundary is identified. |
-| ARC-005 | Partially complete | Add focused gates for import-job authorization and Practice-session ownership, then introduce architecture-boundary checks. |
+| ARC-005 | Complete | Critical score access, import execution/job lifecycle, import worker, and Practice session service have focused coverage gates; score-access architecture boundaries are also checked. |
 | ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission, and authenticated Practice WebSocket handshake. |
 | ARC-007 | Complete | Generated OpenAPI documents are the cross-stack trigger; backend contract freshness checks prevent an unsynchronised source change from passing. Reassess only if a new contract surface is not represented by a generated artifact. |
 | ARC-008 | Complete | Keep Action SHAs immutable and let Dependabot propose reviewed updates. |
@@ -1101,6 +1101,23 @@ compatibility-governance model.
 
 ARC-006 is complete. The isolated real-service suite now covers proxy auth,
 CSRF, import submission, and Practice WebSocket authentication/handshake.
+
+### 2026-08-11: Practice session-service coverage gate enforced in CI
+
+- Revalidated the focused Practice service suite in the Practice dependency
+  image: 77 tests pass and `app.modules.practice.service` has 85.37% coverage,
+  above the 80% required threshold. The suite includes missing-session and
+  foreign-user denial cases, and verifies that a cached runtime is never read
+  before session ownership is authorized.
+- Added the same thresholded command to Backend Quality CI. A local-only
+  wrapper is therefore no longer the sole enforcement point.
+- Corrected the remaining outdated `session.armed` regression assertion to
+  require `protocol_version: 1`, matching the source-owned realtime protocol
+  contract. This is a test correction, not a legacy compatibility exception.
+
+ARC-005 is complete. Future quality work should add a focused threshold only
+when a new critical boundary has a representative, intentionally scoped suite;
+do not use an arbitrary repository-wide fail-under value.
 
 ## Reusable completion checklist for every refactor
 
