@@ -10,6 +10,7 @@ from pydantic import AnyHttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
+from app.core.settings.async_database import AsyncDatabaseSettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.storage import StorageSettings
@@ -19,7 +20,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(ObservabilitySettings, PlaybackSettings, StorageSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, ObservabilitySettings, PlaybackSettings, StorageSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -168,7 +169,6 @@ class Settings(ObservabilitySettings, PlaybackSettings, StorageSettings, BaseSet
         return v
 
     # Database
-    DATABASE_URL: str
     SYNC_DATABASE_URL: str
     # Dedicated direct/session-pooled PostgreSQL endpoint for the Beat leader
     # advisory lock. Never point this at a transaction-pooling endpoint.
@@ -269,29 +269,6 @@ class Settings(ObservabilitySettings, PlaybackSettings, StorageSettings, BaseSet
         if len(v) < 32:
             raise ValueError(
                 "SECRET_KEY must be at least 32 characters long for security"
-            )
-        return v
-
-    @field_validator("DATABASE_URL", "SYNC_DATABASE_URL")
-    @classmethod
-    def validate_database_url(cls, v: str) -> str:
-        """Allow only supported database URL schemes."""
-
-        supported_prefixes = (
-            "postgresql://",
-            "postgresql+asyncpg://",
-            "postgresql+psycopg://",
-            "mysql://",
-            "mysql+asyncmy://",
-            "mysql+aiomysql://",
-            "mysql+pymysql://",
-            "sqlite://",
-            "sqlite+aiosqlite://",
-        )
-        if not v.startswith(supported_prefixes):
-            raise ValueError(
-                f"Unsupported database URL format: {v}\n"
-                "Supported engines: PostgreSQL, MySQL, SQLite"
             )
         return v
 
