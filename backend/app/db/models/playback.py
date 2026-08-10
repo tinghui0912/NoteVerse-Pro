@@ -71,6 +71,15 @@ class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
     mime_type: str = Field(sa_column=Column(String(128), nullable=False))
     size_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
     sha256: str = Field(sa_column=Column(String(64), nullable=False))
+    execution_manifest_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("execution_manifests.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+    )
     duration_ms: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     source_fingerprint: str = Field(sa_column=Column(String(64), nullable=False))
     generator: str = Field(sa_column=Column(String(64), nullable=False))

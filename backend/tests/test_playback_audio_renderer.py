@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from app.modules.playback.audio_renderer import FluidSynthAudioRenderer
 from app.modules.playback.audio_synthesizer import FluidSynthAudioSynthesizer
 from app.modules.playback.midi_compiler import CompiledMidi
+from app.modules.playback.playback_profile import PlaybackProfile
 
 
 MUSICXML = b"""<?xml version='1.0'?><score-partwise version='4.0'>
@@ -84,13 +85,14 @@ def test_fluidsynth_synthesizer_uses_configured_soundfont_and_sample_rate(
         "app.modules.playback.audio_synthesizer.ensure_partitura_default_soundfont",
         lambda _: None,
     )
-    monkeypatch.setattr("app.modules.playback.audio_synthesizer.settings.WORK_ROOT", str(tmp_path / "work"))
+    monkeypatch.setattr(
+        "app.modules.playback.audio_synthesizer.settings.WORK_ROOT", str(tmp_path / "work")
+    )
     monkeypatch.setattr("app.modules.playback.audio_synthesizer.subprocess.run", fake_run)
 
     rendered = FluidSynthAudioSynthesizer(
         soundfont_path=str(soundfont),
-        sample_rate=8,
-        max_duration_seconds=2,
+        profile=PlaybackProfile(sample_rate=8, max_duration_seconds=2),
     ).synthesize(b"MThd-midi")
 
     args = calls["args"]

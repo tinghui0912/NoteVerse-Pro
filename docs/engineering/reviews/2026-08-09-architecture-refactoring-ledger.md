@@ -961,6 +961,18 @@ deferred until the required offline models are available.
   intentionally remain nullable/unknown because their historical rendering
   profile cannot be inferred safely after the fact.
 
+### 2026-08-10: Playback output profile and provenance linked
+
+- Added immutable `PlaybackProfile v1` for the Verovio-to-FluidSynth output
+  semantics. Sample rate and maximum generated duration now change only through
+  source review and release, not environment promotion.
+- Kept `PLAYBACK_SOUNDFONT_PATH` as deployment configuration because it selects
+  a mounted runtime resource; a future enhancement should add the resolved
+  SoundFont SHA-256 to the playback execution manifest.
+- `ScorePlaybackAsset` now references the normalized execution-manifest registry
+  through migration `0040_score_playback_asset_execution_manifest`. Historical
+  rows remain nullable/unknown rather than receiving invented provenance.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

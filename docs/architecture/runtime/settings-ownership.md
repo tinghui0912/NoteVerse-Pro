@@ -102,8 +102,9 @@ configuration through a separately coordinated credential-rotation task.
 ## Extraction status
 
 - **Complete:** Observability, Practice diagnostics, Playback synthesis, and
-  Worker model/engine configuration. `PlaybackSettings` owns the SoundFont,
-  sample rate, and duration limit used by API delivery and Worker generation.
+  Worker model/engine configuration. `PlaybackSettings` owns only the deployed
+  SoundFont location used by API delivery and Worker generation; sample rate
+  and output duration live in the versioned `PlaybackProfile`.
   `WorkerModelEngineSettings` owns Hugging Face/PaddleOCR model locations and
   offline mode, LEGATO selection/runtime parameters, and Verovio rendering.
   It intentionally does not own either playback or Practice soundfonts.

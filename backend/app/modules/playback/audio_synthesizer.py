@@ -6,6 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from app.core.config import settings
+from app.modules.playback.playback_profile import DEFAULT_PLAYBACK_PROFILE, PlaybackProfile
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 
 
@@ -29,14 +30,10 @@ class FluidSynthAudioSynthesizer:
         self,
         *,
         soundfont_path: str | None = None,
-        sample_rate: int | None = None,
-        max_duration_seconds: float | None = None,
+        profile: PlaybackProfile = DEFAULT_PLAYBACK_PROFILE,
     ) -> None:
         self.soundfont_path = soundfont_path or settings.PLAYBACK_SOUNDFONT_PATH
-        self.sample_rate = sample_rate or settings.PLAYBACK_SAMPLE_RATE
-        self.max_duration_seconds = (
-            max_duration_seconds or settings.PLAYBACK_MAX_DURATION_SECONDS
-        )
+        self.profile = profile
 
     def synthesize(self, midi: bytes) -> SynthesizedAudio:
         soundfont = self._soundfont()
@@ -69,7 +66,7 @@ class FluidSynthAudioSynthesizer:
         return path
 
     def _run_fluidsynth(self, soundfont: Path, midi_path: Path, wav_path: Path) -> None:
-        timeout = max(30.0, self.max_duration_seconds + 30.0)
+        timeout = max(30.0, self.profile.max_duration_seconds + 30.0)
         result = subprocess.run(
             [
                 "fluidsynth",
@@ -77,7 +74,7 @@ class FluidSynthAudioSynthesizer:
                 "-F",
                 str(wav_path),
                 "-r",
-                str(self.sample_rate),
+                str(self.profile.sample_rate),
                 str(soundfont),
                 str(midi_path),
             ],
@@ -109,7 +106,7 @@ class FluidSynthAudioSynthesizer:
 
         with wave.open(str(path), "rb") as source:
             params = source.getparams()
-            max_frames = int(self.max_duration_seconds * params.framerate)
+            max_frames = int(self.profile.max_duration_seconds * params.framerate)
             frame_count = source.getnframes()
             frames = source.readframes(min(frame_count, max_frames))
         if frame_count <= max_frames:
