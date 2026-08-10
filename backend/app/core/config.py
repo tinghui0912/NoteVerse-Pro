@@ -16,6 +16,7 @@ from app.core.settings.import_dispatch import ImportDispatchSettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.queue import QueueSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
+from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
 from app.core.settings.worker_database import WorkerDatabaseSettings
@@ -25,7 +26,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, ObservabilitySettings, PlaybackSettings, QueueSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, ObservabilitySettings, PlaybackSettings, QueueSettings, RenderAssetDeliverySettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -110,12 +111,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
     @field_validator(
         "NOTIFICATION_CLEANUP_INTERVAL_SECONDS",
         "NOTIFICATION_RETENTION_DAYS",
-        "RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS",
-        "RENDER_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
-        "RENDER_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
-        "RENDER_OUTBOX_RETRY_BASE_SECONDS",
-        "RENDER_OUTBOX_MAX_ATTEMPTS",
-        "RENDER_OUTBOX_DISPATCH_BATCH_SIZE",
         "PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS",
         "PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
         "PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
@@ -134,7 +129,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
         "MAIL_OUTBOX_MAX_ATTEMPTS",
         "MAIL_OUTBOX_DISPATCH_BATCH_SIZE",
         "MAIL_OUTBOX_RETENTION_DAYS",
-        "DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS",
         "SCORE_DELETION_CLEANUP_INTERVAL_SECONDS",
         "SCORE_DELETION_CLEANUP_BATCH_SIZE",
         "SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS",
@@ -157,13 +151,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
             raise ValueError("task timing settings must be positive integers")
         return v
 
-    @field_validator("DERIVED_ASSET_RETAIN_RECENT_REVISIONS")
-    @classmethod
-    def validate_derived_asset_retention_count(cls, v: int) -> int:
-        if v < 0:
-            raise ValueError("DERIVED_ASSET_RETAIN_RECENT_REVISIONS must be non-negative")
-        return v
-
     # Database
 
     FINGERING_MAX_CONCURRENCY: int = 2
@@ -171,12 +158,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
     FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
     NOTIFICATION_CLEANUP_INTERVAL_SECONDS: int = 86400
     NOTIFICATION_RETENTION_DAYS: int = 90
-    RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS: int = 30
-    RENDER_OUTBOX_DISPATCH_TIMEOUT_SECONDS: int = 300
-    RENDER_OUTBOX_PROCESSING_TIMEOUT_SECONDS: int = 1200
-    RENDER_OUTBOX_RETRY_BASE_SECONDS: int = 60
-    RENDER_OUTBOX_MAX_ATTEMPTS: int = 5
-    RENDER_OUTBOX_DISPATCH_BATCH_SIZE: int = 50
     PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS: int = 30
     PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS: int = 300
     PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS: int = 1200
@@ -190,8 +171,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
     MAIL_OUTBOX_MAX_ATTEMPTS: int = 5
     MAIL_OUTBOX_DISPATCH_BATCH_SIZE: int = 50
     MAIL_OUTBOX_RETENTION_DAYS: int = 7
-    DERIVED_ASSET_RETAIN_RECENT_REVISIONS: int = 10
-    DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS: int = 86400
     SCORE_DELETION_CLEANUP_INTERVAL_SECONDS: int = 60
     SCORE_DELETION_CLEANUP_BATCH_SIZE: int = 20
     SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS: int = 60

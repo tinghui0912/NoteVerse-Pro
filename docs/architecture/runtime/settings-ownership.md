@@ -114,8 +114,12 @@ configuration through a separately coordinated credential-rotation task.
   cadence, leases, retry/batch limits, and orphan-upload retention. The group
   remains shared because import services, Ops, metrics, and Beat all enforce
   the same delivery policy.
-- **Next:** Extract Render asset delivery policy, using its measured outbox,
-  retention, Ops, metrics, and Beat consumers as one atomic change.
+- **Complete:** Render asset delivery policy. `RenderAssetDeliverySettings`
+  owns render Outbox cadence, leases, retry/batch limits, and derived-asset
+  retention/cleanup. A zero historical-revision retention count remains valid;
+  every delivery deadline and batch/retry limit remains strictly positive.
+- **Next:** Extract Playback delivery policy, using its measured Outbox, Ops,
+  metrics, and Beat consumers as one atomic change.
 
 ## Worker runtime-loader migration boundary
 

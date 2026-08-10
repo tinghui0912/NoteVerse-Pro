@@ -663,6 +663,17 @@ deferred until the required offline models are available.
   the generic quality container; it now supplies its explicit test environment
   input and clears the cached loader, without adding runtime fallback behavior.
 
+### 2026-08-10: Render asset delivery policy ownership extracted
+
+- Moved render Outbox cadence, dispatch/processing leases, retry and batch
+  policy, derived-asset retention, and cleanup cadence into
+  `RenderAssetDeliverySettings`. The group retains its distinct non-negative
+  retention rule: zero historical revisions is an intentional valid policy,
+  while delivery values remain strictly positive.
+- Added direct group tests and Beat schedule coverage for both render delivery
+  and derived-asset cleanup. Shared `Settings` continues to compose the group;
+  no environment names, manifests, aliases, or fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
