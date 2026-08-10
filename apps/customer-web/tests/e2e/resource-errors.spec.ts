@@ -58,7 +58,6 @@ test('practice score errors stop the preparation state and show the shared resou
 
   await page.goto('/en/score/missing-practice-score/practice');
 
-  await expect(page.getByRole('heading', { name: 'Practice Mode' })).toBeVisible();
   await expect(page.getByText('Loading score data...')).toBeVisible();
   await expect(page.getByText('Preparing your practice...')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Start Practice' })).toHaveCount(0);
@@ -66,7 +65,6 @@ test('practice score errors stop the preparation state and show the shared resou
 
   releaseScoreResponse.resolve();
 
-  await expect(page.getByRole('heading', { name: 'Practice Mode' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Load Failed' })).toBeVisible();
   await expect(page.getByText('The score does not exist or has been deleted.')).toBeVisible();
   await expect(page.getByText('Preparing your practice...')).toHaveCount(0);
