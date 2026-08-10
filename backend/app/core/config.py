@@ -1,7 +1,6 @@
 """Application settings and configuration validation."""
 
 import json
-import os
 from functools import lru_cache
 from ipaddress import ip_network
 from pathlib import Path
@@ -13,13 +12,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
+from app.core.settings.storage import StorageSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(ObservabilitySettings, PlaybackSettings, BaseSettings):
+class Settings(ObservabilitySettings, PlaybackSettings, StorageSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -224,18 +224,6 @@ class Settings(ObservabilitySettings, PlaybackSettings, BaseSettings):
     SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS: int = 60
     SCORE_DELETION_CLEANUP_MAX_ATTEMPTS: int = 10
 
-    # File storage
-    FILE_STORAGE_BACKEND: str = "local"
-    S3_ENDPOINT_URL: Optional[str] = None
-    S3_REGION: str = "auto"
-    S3_BUCKET: Optional[str] = None
-    S3_ACCESS_KEY_ID: Optional[str] = None
-    S3_SECRET_ACCESS_KEY: Optional[str] = None
-    S3_PUBLIC_BASE_URL: Optional[str] = None
-    S3_FORCE_PATH_STYLE: bool = True
-    S3_PRESIGN_EXPIRE_SECONDS: int = 900
-    STORAGE_ROOT: str = "data/storage"
-    WORK_ROOT: str = "data/work"
     MAX_PROCESSING_TIME: int = 900
     CELERY_TASK_SOFT_TIME_LIMIT: int = 960
     CELERY_TASK_TIME_LIMIT: int = 1020
@@ -272,44 +260,6 @@ class Settings(ObservabilitySettings, PlaybackSettings, BaseSettings):
                 "CELERY_TASK_SOFT_TIME_LIMIT must be lower than CELERY_TASK_TIME_LIMIT"
             )
         return self
-
-    @field_validator("STORAGE_ROOT", "WORK_ROOT")
-    @classmethod
-    def resolve_runtime_folders(cls, v: str) -> str:
-        """Resolve runtime paths to absolute directory paths without creating them."""
-
-        if not os.path.isabs(v):
-            backend_dir = Path(__file__).parent.parent.parent
-            path = (backend_dir / v).resolve()
-        else:
-            path = Path(v)
-
-        if path.exists() and not path.is_dir():
-            raise ValueError(f"{v} exists but is not a directory")
-
-        return str(path)
-
-    @field_validator("FILE_STORAGE_BACKEND")
-    @classmethod
-    def validate_file_storage_backend(cls, v: str) -> str:
-        """Validate the configured file storage backend."""
-
-        value = v.strip().lower()
-        if value not in {"local", "s3"}:
-            raise ValueError("FILE_STORAGE_BACKEND must be one of: local, s3")
-        return value
-
-    @field_validator("S3_ENDPOINT_URL", "S3_PUBLIC_BASE_URL")
-    @classmethod
-    def normalize_optional_url(cls, v: Optional[str]) -> Optional[str]:
-        """Normalize optional storage URLs."""
-
-        if not v:
-            return None
-        value = v.strip().rstrip("/")
-        if value and not value.startswith(("http://", "https://")):
-            value = f"https://{value}"
-        return value
 
     @field_validator("SECRET_KEY")
     @classmethod
@@ -356,27 +306,6 @@ class Settings(ObservabilitySettings, PlaybackSettings, BaseSettings):
                 "SCHEDULER_LOCK_DATABASE_URL must use a PostgreSQL psycopg-compatible URL"
             )
         return value
-
-    @model_validator(mode="after")
-    def validate_storage_settings(self) -> "Settings":
-        """Validate storage-specific settings."""
-
-        if self.FILE_STORAGE_BACKEND == "s3":
-            missing = [
-                name
-                for name, value in (
-                    ("S3_ENDPOINT_URL", self.S3_ENDPOINT_URL),
-                    ("S3_BUCKET", self.S3_BUCKET),
-                    ("S3_ACCESS_KEY_ID", self.S3_ACCESS_KEY_ID),
-                    ("S3_SECRET_ACCESS_KEY", self.S3_SECRET_ACCESS_KEY),
-                )
-                if not value
-            ]
-            if missing:
-                raise ValueError(
-                    "Missing required S3 storage settings: " + ", ".join(missing)
-                )
-        return self
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
