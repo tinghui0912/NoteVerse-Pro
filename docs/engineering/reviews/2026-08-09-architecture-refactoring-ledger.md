@@ -626,6 +626,18 @@ deferred until the required offline models are available.
   until typed setting groups and their fail-fast validation move with the
   measured consumers.
 
+### 2026-08-10: Task deadline configuration ownership extracted
+
+- Moved `MAX_PROCESSING_TIME`, `CELERY_TASK_SOFT_TIME_LIMIT`, and
+  `CELERY_TASK_TIME_LIMIT` into `TaskReliabilitySettings`, including positive
+  value and ordered shutdown-envelope validation. Shared `Settings` and
+  `WorkerRuntimeSettings` now compose this one owner rather than duplicating
+  declarations and ordering checks.
+- Retained the Worker-specific invariant that PaddleOCR's subprocess deadline
+  cannot exceed the shared processing deadline. The Celery runtime test now
+  reads OCR timing through the strict Worker loader, so API and Beat no longer
+  implicitly require Worker model configuration.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -23,9 +23,9 @@ or supply compatibility aliases.
 
 ## Measured constraints
 
-- `Settings` has cross-field validation for task deadlines, storage backend,
-  model engines, secret values, URLs, and runtime paths. Moving a field without
-  its validation can weaken a fail-fast guarantee.
+- Setting groups own their validation: task deadlines, storage backend, model
+  engines, secret values, URLs, and runtime paths must move with their
+  fail-fast validation rather than being reimplemented by a caller.
 - Database, queue, storage, and Worker-reliability fields cross runtime
   boundaries. They cannot be assigned to a single deployment merely because
   one caller reads them most often.
@@ -106,9 +106,12 @@ configuration through a separately coordinated credential-rotation task.
   `WorkerModelEngineSettings` owns Hugging Face/PaddleOCR model locations and
   offline mode, LEGATO selection/runtime parameters, and Verovio rendering.
   It intentionally does not own either playback or Practice soundfonts.
-- **Next:** Practice soundfont/alignment runtime configuration, followed by the
-  release-critical Storage and database/queue settings only after their runtime
-  projections are explicitly separated.
+- **Complete:** Task-reliability deadline configuration. `TaskReliabilitySettings`
+  owns the ordered processing, Celery soft-limit, and Celery hard-limit
+  envelope. It remains shared because API pipeline contexts, Worker execution,
+  and Beat/Celery configuration must enforce the same deadline contract.
+- **Next:** Split the remaining per-domain Worker scheduling and outbox policy
+  settings only after their consumers are mapped to stable owner modules.
 
 ## Worker runtime-loader migration boundary
 

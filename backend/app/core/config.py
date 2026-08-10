@@ -16,6 +16,7 @@ from app.core.settings.playback import PlaybackSettings
 from app.core.settings.queue import QueueSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.storage import StorageSettings
+from app.core.settings.task_reliability import TaskReliabilitySettings
 from app.core.settings.worker_database import WorkerDatabaseSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
@@ -23,7 +24,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettings, PlaybackSettings, QueueSettings, StorageSettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettings, PlaybackSettings, QueueSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -143,9 +144,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettin
         "SCORE_DELETION_CLEANUP_BATCH_SIZE",
         "SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS",
         "SCORE_DELETION_CLEANUP_MAX_ATTEMPTS",
-        "MAX_PROCESSING_TIME",
-        "CELERY_TASK_SOFT_TIME_LIMIT",
-        "CELERY_TASK_TIME_LIMIT",
         "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
         "SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS",
         "SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS",
@@ -210,9 +208,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettin
     SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS: int = 60
     SCORE_DELETION_CLEANUP_MAX_ATTEMPTS: int = 10
 
-    MAX_PROCESSING_TIME: int = 900
-    CELERY_TASK_SOFT_TIME_LIMIT: int = 960
-    CELERY_TASK_TIME_LIMIT: int = 1020
     ALLOWED_EXTENSIONS: set = {
         "png",
         "jpg",
@@ -232,20 +227,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettin
     # Auth email links
     EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS: int = 300
     EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS: int = 900
-
-    @model_validator(mode="after")
-    def validate_task_time_limits(self) -> "Settings":
-        """Keep component timeouts inside the task shutdown envelope."""
-
-        if self.MAX_PROCESSING_TIME >= self.CELERY_TASK_SOFT_TIME_LIMIT:
-            raise ValueError(
-                "MAX_PROCESSING_TIME must be lower than CELERY_TASK_SOFT_TIME_LIMIT"
-            )
-        if self.CELERY_TASK_SOFT_TIME_LIMIT >= self.CELERY_TASK_TIME_LIMIT:
-            raise ValueError(
-                "CELERY_TASK_SOFT_TIME_LIMIT must be lower than CELERY_TASK_TIME_LIMIT"
-            )
-        return self
 
     @field_validator("SECRET_KEY")
     @classmethod
@@ -267,21 +248,13 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettin
 settings = Settings()
 
 
-class WorkerRuntimeSettings(WorkerModelEngineSettings, BaseSettings):
+class WorkerRuntimeSettings(WorkerModelEngineSettings, TaskReliabilitySettings, BaseSettings):
     """Strict Worker-only model and engine environment contract."""
 
-    MAX_PROCESSING_TIME: int = 900
-    CELERY_TASK_SOFT_TIME_LIMIT: int = 960
-    CELERY_TASK_TIME_LIMIT: int = 1020
-
     @model_validator(mode="after")
-    def validate_task_time_limits(self) -> "WorkerRuntimeSettings":
+    def validate_worker_task_time_limits(self) -> "WorkerRuntimeSettings":
         if self.PADDLEOCR_TIMEOUT_SECONDS > self.MAX_PROCESSING_TIME:
             raise ValueError("PADDLEOCR_TIMEOUT_SECONDS must not exceed MAX_PROCESSING_TIME")
-        if self.MAX_PROCESSING_TIME >= self.CELERY_TASK_SOFT_TIME_LIMIT:
-            raise ValueError("MAX_PROCESSING_TIME must be lower than CELERY_TASK_SOFT_TIME_LIMIT")
-        if self.CELERY_TASK_SOFT_TIME_LIMIT >= self.CELERY_TASK_TIME_LIMIT:
-            raise ValueError("CELERY_TASK_SOFT_TIME_LIMIT must be lower than CELERY_TASK_TIME_LIMIT")
         return self
 
     model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
