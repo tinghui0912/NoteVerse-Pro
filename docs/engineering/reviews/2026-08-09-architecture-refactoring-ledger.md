@@ -606,6 +606,13 @@ deferred until the required offline models are available.
   variables into the Worker manifest and validates each non-Worker service can
   start without them.
 
+### 2026-08-10: Worker model configuration role isolation completed
+
+- Worker model, OCR, LEGATO, and Verovio configuration now resides in the
+  Worker-only Docker manifest and is loaded only through `WorkerRuntimeSettings`.
+  API, Practice, and Beat checks pass without those variables; Worker validates
+  CUDA and complete offline model snapshots successfully.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
