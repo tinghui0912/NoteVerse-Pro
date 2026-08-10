@@ -27,6 +27,7 @@ from app.core.settings.realtime_stream import RealtimeStreamSettings
 from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
+from app.core.settings.token_signing import TokenSigningSettings
 from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
 from app.core.settings.trusted_proxy import TrustedProxySettings
 from app.core.settings.upload_admission import UploadAdmissionSettings
@@ -37,10 +38,9 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, BrowserCorsSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, BrowserCorsSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TokenSigningSettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str
     CONTROL_PLANE_AUTH_COOKIE_NAME: Optional[str] = None
     CONTROL_PLANE_CSRF_COOKIE_NAME: Optional[str] = None
     CONTROL_PLANE_CSRF_HEADER_NAME: Optional[str] = None
@@ -94,17 +94,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
 
     # Database
 
-
-    @field_validator("SECRET_KEY")
-    @classmethod
-    def validate_secret_key(cls, v: str) -> str:
-        """Require a sufficiently strong secret key."""
-
-        if len(v) < 32:
-            raise ValueError(
-                "SECRET_KEY must be at least 32 characters long for security"
-            )
-        return v
 
     model_config = SettingsConfigDict(
         case_sensitive=True,

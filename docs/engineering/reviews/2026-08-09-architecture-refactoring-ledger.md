@@ -801,6 +801,15 @@ deferred until the required offline models are available.
   schema after 37 tests; this is a test-runtime stability issue, not an
   assertion failure or an accepted substitute for full API regression coverage.
 
+### 2026-08-10: Token signing secret ownership extracted
+
+- Moved `SECRET_KEY` and its strength validation into `TokenSigningSettings`.
+  The group preserves the existing 32-character minimum and additionally
+  rejects a pure-whitespace value at startup.
+- Added direct settings and JWT sign/decode regression coverage. No algorithm,
+  environment name, manifest, alias, fallback, or control-plane behavior
+  changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

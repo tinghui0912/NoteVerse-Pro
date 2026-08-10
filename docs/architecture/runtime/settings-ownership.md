@@ -157,8 +157,12 @@ configuration through a separately coordinated credential-rotation task.
   API/Practice origin list and retains the valid explicit-empty-list state.
   It is independent of trusted proxies, public frontend URL, and control-plane
   CORS.
-- **Next:** Extract token signing secret settings, moving its length validation
-  with the field while keeping it separate from browser and routing policy.
+- **Complete:** Token signing secret. `TokenSigningSettings` owns `SECRET_KEY`
+  and its fail-fast strength validation, independently of browser and routing
+  policy.
+- **Next:** Extract public frontend URL settings, moving its absolute-URL
+  validation with the field while retaining its shared account-link and invite
+  consumers.
 
 ## Worker runtime-loader migration boundary
 
