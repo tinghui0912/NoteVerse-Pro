@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Callable, Literal, NotRequired, Protocol, TypedDict, runtime_checkable
 
-from app.core.config import settings
+from app.core.config import get_practice_runtime_settings
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 from app.core.logger import logger
 from app.processing.engines.practice_audio_activity import (
@@ -639,7 +639,7 @@ class MatchmakerLiveEngine:
         if frame_format != "pcm_s16le":
             raise RuntimeError("Matchmaker practice sessions require pcm_s16le audio.")
 
-        ensure_partitura_default_soundfont(settings.PRACTICE_SOUNDFONT_PATH)
+        ensure_partitura_default_soundfont(get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH)
         try:
             import numpy as np
             import partitura
@@ -655,7 +655,7 @@ class MatchmakerLiveEngine:
                 f"dependencies before starting live practice sessions. Original error: {exc}"
             ) from exc
         score_audio_generator = None
-        if not settings.PRACTICE_SOUNDFONT_PATH:
+        if not get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH:
             try:
                 from matchmaker.utils import misc as matchmaker_misc
 
@@ -702,6 +702,7 @@ class MatchmakerLiveEngine:
             hop_length=self.hop_length,
             chroma_processor=ChromagramProcessor,
         )
+        settings = get_practice_runtime_settings()
         self._stream = BrowserAudioStreamAdapter(
             processor=self._processor,
             feature_queue=self._queue,
@@ -902,7 +903,7 @@ class MatchmakerLiveEngine:
         partitura,
         generate_score_audio,
     ):
-        soundfont_path = settings.PRACTICE_SOUNDFONT_PATH
+        soundfont_path = get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH
         if not soundfont_path:
             if generate_score_audio is None:
                 raise RuntimeError("matchmaker score audio generator is not available.")
@@ -1122,6 +1123,7 @@ class MatchmakerLiveEngine:
         return update
 
     def _should_log_alignment_update(self) -> bool:
+        settings = get_practice_runtime_settings()
         if not settings.PRACTICE_AUDIO_DIAGNOSTICS:
             return False
         update_count = getattr(self, "_alignment_update_log_count", 0) + 1
@@ -1130,6 +1132,7 @@ class MatchmakerLiveEngine:
         return update_count == 1 or update_count % interval == 0
 
     def _should_log_alignment_decision(self) -> bool:
+        settings = get_practice_runtime_settings()
         if not settings.PRACTICE_AUDIO_DIAGNOSTICS:
             return False
         decision_count = getattr(self, "_alignment_decision_log_count", 0) + 1

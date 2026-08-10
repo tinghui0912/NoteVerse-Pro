@@ -33,6 +33,7 @@ logs/
 .env.*.local
 backend/.env.docker
 backend/.env.docker.worker
+backend/.env.docker.practice
 
 # Temporary scratch files at repo root
 tmp/

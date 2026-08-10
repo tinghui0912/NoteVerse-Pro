@@ -16,6 +16,7 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
+from app.core.config import get_practice_runtime_settings
 from app.processing.engines.matchmaker_live import (
     AlignmentUpdate,
     BrowserAudioStreamAdapter,
@@ -105,7 +106,8 @@ def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_
     soundfont_path = tmp_path / "practice.sf2"
     soundfont_path.write_bytes(b"soundfont")
     monkeypatch.setattr(
-        "app.processing.engines.matchmaker_live.settings.PRACTICE_SOUNDFONT_PATH",
+        get_practice_runtime_settings(),
+        "PRACTICE_SOUNDFONT_PATH",
         str(soundfont_path),
     )
 

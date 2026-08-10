@@ -613,6 +613,12 @@ deferred until the required offline models are available.
   API, Practice, and Beat checks pass without those variables; Worker validates
   CUDA and complete offline model snapshots successfully.
 
+### 2026-08-10: Practice runtime configuration role isolation completed
+
+- Moved Practice SoundFont and diagnostics to `PracticeRuntimeSettings` and a
+  Practice-only Docker manifest. API no longer receives Practice alignment
+  configuration; API and Practice runtime checks both pass after the split.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

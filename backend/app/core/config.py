@@ -19,7 +19,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(ObservabilitySettings, PlaybackSettings, PracticeDiagnosticsSettings, BaseSettings):
+class Settings(ObservabilitySettings, PlaybackSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -40,7 +40,6 @@ class Settings(ObservabilitySettings, PlaybackSettings, PracticeDiagnosticsSetti
     CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
     DEBUG: bool = False
     FRONTEND_BASE_URL: str
-    PRACTICE_SOUNDFONT_PATH: str
     REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS: int = 2
     REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS: int = 15
     REALTIME_EVENT_BATCH_SIZE: int = 100
@@ -101,13 +100,6 @@ class Settings(ObservabilitySettings, PlaybackSettings, PracticeDiagnosticsSetti
             if value in {"0", "false", "no", "off", "release", "production", "prod"}:
                 return False
         return v
-
-    @field_validator("PRACTICE_SOUNDFONT_PATH")
-    @classmethod
-    def normalize_practice_soundfont_path(cls, v: Optional[str]) -> Optional[str]:
-        if not v:
-            return None
-        return str(Path(v).expanduser())
 
     @field_validator(
         "IMPORT_DISPATCH_INTERVAL_SECONDS",
@@ -420,3 +412,23 @@ def get_worker_runtime_settings() -> WorkerRuntimeSettings:
     """Load model/engine configuration only in Worker-owned execution paths."""
 
     return WorkerRuntimeSettings()
+
+
+class PracticeRuntimeSettings(PracticeDiagnosticsSettings, BaseSettings):
+    """Strict Practice-only audio alignment environment contract."""
+
+    PRACTICE_SOUNDFONT_PATH: str
+
+    @field_validator("PRACTICE_SOUNDFONT_PATH")
+    @classmethod
+    def normalize_soundfont_path(cls, value: str) -> str:
+        return str(Path(value).expanduser())
+
+    model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
+
+
+@lru_cache
+def get_practice_runtime_settings() -> PracticeRuntimeSettings:
+    """Load Practice alignment configuration only in Practice-owned paths."""
+
+    return PracticeRuntimeSettings()

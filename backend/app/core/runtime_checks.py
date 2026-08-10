@@ -14,7 +14,7 @@ from typing import Awaitable, Callable
 
 import redis
 
-from app.core.config import get_worker_runtime_settings, settings
+from app.core.config import get_practice_runtime_settings, get_worker_runtime_settings, settings
 from app.core.control_plane_settings import require_control_plane_settings
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 
@@ -355,9 +355,10 @@ def check_render_engine(_: bool = False) -> CheckResult:
 
 
 def check_soundfont(_: bool = False) -> CheckResult:
-    if not settings.PRACTICE_SOUNDFONT_PATH:
+    practice_settings = get_practice_runtime_settings()
+    if not practice_settings.PRACTICE_SOUNDFONT_PATH:
         return _result("soundfont", False, "PRACTICE_SOUNDFONT_PATH is not configured")
-    path = Path(settings.PRACTICE_SOUNDFONT_PATH)
+    path = Path(practice_settings.PRACTICE_SOUNDFONT_PATH)
     if not path.is_file():
         return _result("soundfont", False, f"soundfont does not exist: {path}")
     return _result("soundfont", True, f"soundfont found: {path} ({_format_size(path.stat().st_size)})")
@@ -454,7 +455,7 @@ def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
 
 
 def check_practice_alignment(_: bool = False) -> CheckResult:
-    ensure_partitura_default_soundfont(settings.PRACTICE_SOUNDFONT_PATH)
+    ensure_partitura_default_soundfont(get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH)
     try:
         import numpy  # noqa: F401
         import partitura  # noqa: F401

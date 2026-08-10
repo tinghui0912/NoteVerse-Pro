@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings, WorkerRuntimeSettings
+from app.core.config import PracticeRuntimeSettings, Settings, WorkerRuntimeSettings
 
 
 def test_settings_do_not_implicitly_load_an_env_file() -> None:
@@ -41,7 +41,8 @@ def test_trusted_proxy_cidrs_require_an_explicit_valid_json_allowlist() -> None:
 
 
 def test_practice_diagnostic_intervals_must_be_positive() -> None:
-    settings = Settings(
+    settings = PracticeRuntimeSettings(
+        PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2",
         PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=15,
         PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=15,
     )
@@ -50,33 +51,29 @@ def test_practice_diagnostic_intervals_must_be_positive() -> None:
     assert settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL == 15
 
     with pytest.raises(ValidationError, match="task timing settings must be positive"):
-        Settings(PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=0)
+        PracticeRuntimeSettings(PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2", PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=0)
 
     with pytest.raises(ValidationError, match="task timing settings must be positive"):
-        Settings(PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=0)
+        PracticeRuntimeSettings(PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2", PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=0)
 
 
 def test_practice_soundfont_path_expands_user_home() -> None:
-    settings = Settings(
+    settings = PracticeRuntimeSettings(
         PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2",
-        PLAYBACK_SOUNDFONT_PATH="~/sounds/playback.sf2",
     )
 
     assert settings.PRACTICE_SOUNDFONT_PATH == str(Path("~/sounds/default.sf2").expanduser())
-    assert settings.PLAYBACK_SOUNDFONT_PATH == str(Path("~/sounds/playback.sf2").expanduser())
 
 
 def test_playback_soundfont_path_is_required() -> None:
     with pytest.raises(ValidationError, match="PLAYBACK_SOUNDFONT_PATH"):
         Settings(
-            PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2",
             PLAYBACK_SOUNDFONT_PATH=None,
         )
 
 
 def test_playback_soundfont_path_can_be_configured_independently() -> None:
     settings = Settings(
-        PRACTICE_SOUNDFONT_PATH="~/sounds/practice.sf2",
         PLAYBACK_SOUNDFONT_PATH="~/sounds/playback.sf2",
     )
 

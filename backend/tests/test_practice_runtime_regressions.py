@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
+from app.core.config import get_practice_runtime_settings
+
 from app.processing.engines.matchmaker_live import (
     BrowserAudioStreamAdapter,
     MatchmakerLiveEngine,
@@ -978,11 +980,13 @@ def test_matchmaker_live_engine_samples_alignment_diagnostics(monkeypatch) -> No
     engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
 
     monkeypatch.setattr(
-        "app.processing.engines.matchmaker_live.settings.PRACTICE_AUDIO_DIAGNOSTICS",
+        get_practice_runtime_settings(),
+        "PRACTICE_AUDIO_DIAGNOSTICS",
         True,
     )
     monkeypatch.setattr(
-        "app.processing.engines.matchmaker_live.settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL",
+        get_practice_runtime_settings(),
+        "PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL",
         3,
     )
 

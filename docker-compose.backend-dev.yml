@@ -66,6 +66,11 @@ services:
 
   practice:
     <<: *backend-common
+    env_file:
+      - path: backend/.env.docker
+        required: true
+      - path: backend/.env.docker.practice
+        required: true
     image: noteverse-backend-practice:dev
     build:
       context: .
@@ -152,6 +157,11 @@ services:
 
   practice-quality:
     <<: *backend-common
+    env_file:
+      - path: backend/.env.docker
+        required: true
+      - path: backend/.env.docker.practice
+        required: true
     image: noteverse-backend-practice-quality:dev
     build:
       context: .
