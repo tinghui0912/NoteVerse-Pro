@@ -253,7 +253,6 @@ def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
 
 def prepare_paddleocr_models() -> None:
     from app.core.config import settings
-    from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES
 
     model_root = _require_path(settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
     _ensure_directory(model_root)
@@ -294,6 +293,7 @@ async def main() -> int:
     args = parse_args()
 
     from app.core.config import settings
+    from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES
 
     model_root = _require_path(settings.MODEL_ROOT, "MODEL_ROOT")
     _ensure_directory(model_root)

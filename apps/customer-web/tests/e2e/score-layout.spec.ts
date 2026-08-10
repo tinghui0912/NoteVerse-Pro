@@ -28,6 +28,6 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
   await expect(page.getByRole('tab', { name: 'Version History' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Create Share' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Edit' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Practice Mode' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Start Practice' })).toBeVisible();
   await expect(page.getByTestId('score-preview-viewport')).toHaveCount(0);
 });
