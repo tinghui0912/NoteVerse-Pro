@@ -11,12 +11,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
+from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings):
+class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, WorkerModelEngineSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -38,23 +39,11 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
     DEBUG: bool = False
     FRONTEND_BASE_URL: str
     PRACTICE_SOUNDFONT_PATH: str
-    PLAYBACK_SOUNDFONT_PATH: str
-    PLAYBACK_SAMPLE_RATE: int = 44100
-    PLAYBACK_MAX_DURATION_SECONDS: float = 180.0
     REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS: int = 2
     REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS: int = 15
     REALTIME_EVENT_BATCH_SIZE: int = 100
     REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS: int
     REALTIME_EVENT_RETENTION_DAYS: int
-    MODEL_ROOT: Optional[str] = None
-    HF_HOME: Optional[str] = None
-    HF_MODEL_REPOSITORIES: List[str]
-    HF_HUB_OFFLINE: bool = False
-    TRANSFORMERS_OFFLINE: bool = False
-    PADDLEOCR_MODEL_ROOT: Optional[str] = None
-    PADDLEOCR_DETECTION_MODEL_DIR: Optional[str] = None
-    PADDLEOCR_RECOGNITION_MODEL_DIR: Optional[str] = None
-    PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR: Optional[str] = None
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl]
     TRUSTED_PROXY_CIDRS: List[str]
@@ -111,37 +100,9 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
                 return False
         return v
 
-    @field_validator("HF_MODEL_REPOSITORIES", mode="before")
+    @field_validator("PRACTICE_SOUNDFONT_PATH")
     @classmethod
-    def parse_hf_model_repositories(cls, v: str | List[str]) -> List[str]:
-        """Parse the explicit Hugging Face model snapshot list for runtime pods."""
-
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            value = v.strip()
-            if not value:
-                raise ValueError("HF_MODEL_REPOSITORIES must not be empty")
-            if value.startswith("["):
-                parsed = json.loads(value)
-                if not isinstance(parsed, list):
-                    raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
-                return parsed
-            return [item.strip() for item in value.split(",") if item.strip()]
-        raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
-
-    @field_validator(
-        "PRACTICE_SOUNDFONT_PATH",
-        "PLAYBACK_SOUNDFONT_PATH",
-        "MODEL_ROOT",
-        "HF_HOME",
-        "PADDLEOCR_MODEL_ROOT",
-        "PADDLEOCR_DETECTION_MODEL_DIR",
-        "PADDLEOCR_RECOGNITION_MODEL_DIR",
-        "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
-    )
-    @classmethod
-    def normalize_path(cls, v: Optional[str]) -> Optional[str]:
+    def normalize_practice_soundfont_path(cls, v: Optional[str]) -> Optional[str]:
         if not v:
             return None
         return str(Path(v).expanduser())
@@ -167,7 +128,6 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
         "PLAYBACK_OUTBOX_RETRY_BASE_SECONDS",
         "PLAYBACK_OUTBOX_MAX_ATTEMPTS",
         "PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE",
-        "PLAYBACK_SAMPLE_RATE",
         "REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS",
         "REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS",
         "REALTIME_EVENT_BATCH_SIZE",
@@ -186,7 +146,6 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
         "SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS",
         "SCORE_DELETION_CLEANUP_MAX_ATTEMPTS",
         "MAX_PROCESSING_TIME",
-        "PADDLEOCR_TIMEOUT_SECONDS",
         "CELERY_TASK_SOFT_TIME_LIMIT",
         "CELERY_TASK_TIME_LIMIT",
         "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
@@ -205,13 +164,6 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
     def validate_positive_reliability_setting(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("task timing settings must be positive integers")
-        return v
-
-    @field_validator("PLAYBACK_MAX_DURATION_SECONDS")
-    @classmethod
-    def validate_playback_max_duration(cls, v: float) -> float:
-        if v <= 0:
-            raise ValueError("PLAYBACK_MAX_DURATION_SECONDS must be positive")
         return v
 
     @field_validator("DERIVED_ASSET_RETAIN_RECENT_REVISIONS")
@@ -291,7 +243,6 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
     STORAGE_ROOT: str = "data/storage"
     WORK_ROOT: str = "data/work"
     MAX_PROCESSING_TIME: int = 900
-    PADDLEOCR_TIMEOUT_SECONDS: int = 300
     CELERY_TASK_SOFT_TIME_LIMIT: int = 960
     CELERY_TASK_TIME_LIMIT: int = 1020
     ALLOWED_EXTENSIONS: set = {
@@ -304,32 +255,6 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
         "tiff",
         "tif",
     }
-
-    # External tools
-    OMR_ENGINE: str = "legato"
-    LEGATO_REPO_PATH: Optional[str] = None
-    LEGATO_REPO_COMMIT: Optional[str] = "179c228d3d5f67113cf739b44891b3abe046f1dc"
-    LEGATO_PYTHON: str = "python3"
-    LEGATO_MODEL_PATH: str = "guangyangmusic/legato"
-    LEGATO_PROCESSOR_PATH: Optional[str] = None
-    LEGATO_DEVICE: str = "cuda"
-    LEGATO_FP16: bool = True
-    LEGATO_BEAM_SIZE: int = 10
-    LEGATO_BATCH_SIZE: int = 1
-    LEGATO_TIMEOUT_SECONDS: int = 600
-    SCORE_RENDER_ENGINE: str = "verovio"
-    VEROVIO_PAGE_WIDTH: int = 2100
-    VEROVIO_PAGE_HEIGHT: int = 2970
-    VEROVIO_SCALE: int = 40
-    VEROVIO_BREAKS: str = "encoded"
-    VEROVIO_ADJUST_PAGE_HEIGHT: bool = False
-    VEROVIO_JUSTIFY_VERTICALLY: bool = True
-    VEROVIO_PAGE_MARGIN_TOP: int = 390
-    VEROVIO_PAGE_MARGIN_BOTTOM: int = 80
-    VEROVIO_HEADER: str = "none"
-    VEROVIO_FOOTER: str = "always"
-    VEROVIO_USE_PG_FOOTER_FOR_ALL: bool = True
-    VEROVIO_PREVIEW_HEADER_POSTPROCESSING: bool = True
 
     # Email
     MAIL_DEFAULT_SENDER: Optional[str] = None
@@ -430,16 +355,6 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
             )
         return v
 
-    @field_validator("OMR_ENGINE")
-    @classmethod
-    def validate_omr_engine(cls, v: str) -> str:
-        """Validate the configured optical music recognition engine."""
-
-        value = v.strip().lower()
-        if value != "legato":
-            raise ValueError("OMR_ENGINE must be: legato")
-        return value
-
     @field_validator("SCHEDULER_LOCK_DATABASE_URL")
     @classmethod
     def validate_scheduler_lock_database_url(cls, v: str) -> str:
@@ -452,42 +367,10 @@ class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings)
             )
         return value
 
-    @field_validator("SCORE_RENDER_ENGINE")
-    @classmethod
-    def validate_score_render_engine(cls, v: str) -> str:
-        """Validate the configured score rendering engine."""
-
-        value = v.strip().lower()
-        if value != "verovio":
-            raise ValueError("SCORE_RENDER_ENGINE must be: verovio")
-        return value
-
-    @field_validator("VEROVIO_HEADER")
-    @classmethod
-    def validate_verovio_header(cls, v: str) -> str:
-        """Validate Verovio header rendering mode."""
-
-        value = v.strip().lower()
-        if value not in {"none", "auto", "encoded"}:
-            raise ValueError("VEROVIO_HEADER must be one of: none, auto, encoded")
-        return value
-
-    @field_validator("VEROVIO_FOOTER")
-    @classmethod
-    def validate_verovio_footer(cls, v: str) -> str:
-        """Validate Verovio footer rendering mode."""
-
-        value = v.strip().lower()
-        if value not in {"none", "auto", "encoded", "always"}:
-            raise ValueError("VEROVIO_FOOTER must be one of: none, auto, encoded, always")
-        return value
-
     @model_validator(mode="after")
-    def validate_engine_settings(self) -> "Settings":
-        """Validate engine-specific settings."""
+    def validate_storage_settings(self) -> "Settings":
+        """Validate storage-specific settings."""
 
-        if self.OMR_ENGINE == "legato" and not self.LEGATO_REPO_PATH:
-            raise ValueError("LEGATO_REPO_PATH is required when OMR_ENGINE=legato")
         if self.FILE_STORAGE_BACKEND == "s3":
             missing = [
                 name

@@ -532,6 +532,33 @@ deferred until the required offline models are available.
   code because their values must be reviewed and regression-tested with the
   algorithms that consume them.
 
+### 2026-08-10: Worker model and engine settings extraction
+
+- Moved the complete Worker model/engine group from `core/config.py` to
+  `app.core.settings.worker_model_engine`: offline model locations and
+  repositories, PaddleOCR deadline, LEGATO runtime selection, Verovio output
+  configuration, and playback synthesis settings.
+- Moved each related parser, path normalizer, field validator, and LEGATO
+  cross-field validation with the group. `Settings` composes the group with no
+  aliases or fallback reads; existing consumers retain one authoritative
+  settings instance.
+- Added isolated validation tests. Worker model smoke validation remains
+  pending until the offline model snapshot download completes.
+
+### 2026-08-10: Local Docker configuration audit
+
+- Audited `backend/.env.docker` by key name only; no secret values were read or
+  recorded. Five keys are outside the `Settings` schema: the active
+  entrypoint-only `CELERY_WORKER_CONCURRENCY`, plus four obsolete email-code
+  keys with no code consumer. Pydantic currently ignores the obsolete keys,
+  which is silent configuration drift.
+- The common Compose environment file currently injects Worker-only model and
+  process settings into API, Practice, and Beat. Thirty-five schema settings
+  also rely on local code defaults rather than being explicit in the Docker
+  baseline. The next environment-boundary task must split role projections and
+  remove the obsolete email-code contract, including its stale product
+  documentation, without adding compatibility variables.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
