@@ -33,6 +33,7 @@ runtime contracts.
 - [Architecture Index](architecture/README.md)
 - [External Dependencies](architecture/integrations/external-dependencies.md)
 - [Kubernetes Application Runtime Contract](architecture/runtime/k8s-application-runtime-contract.md)
+- [Backend Settings Ownership](architecture/runtime/settings-ownership.md)
 
 ## Engineering
 

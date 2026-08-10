@@ -8,6 +8,7 @@ write an ADR under `../adr/`.
 
 - [Kubernetes Application Runtime Contract](runtime/k8s-application-runtime-contract.md)
 - [Runtime Dependency Ownership](runtime/runtime-dependency-ownership.md)
+- [Backend Settings Ownership](runtime/settings-ownership.md)
 
 ## Control Plane
 

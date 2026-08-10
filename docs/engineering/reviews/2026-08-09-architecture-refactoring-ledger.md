@@ -487,6 +487,28 @@ deferred until the required offline models are available.
   The next ARC-012 step is configuration decomposition, which requires a
   measured map of consumers before moving settings out of `core/config.py`.
 
+### 2026-08-10: Backend settings ownership map
+
+- Measured `core/config.py` as a roughly one-hundred-field schema with about
+  sixty direct backend consumers. Recorded runtime owners, cross-runtime
+  dependencies, validation constraints, and a no-alias extraction contract in
+  the architecture documentation.
+- Chose Observability settings as the first safe extraction candidate. Database,
+  queue, storage, and secret settings remain deliberately deferred because they
+  cross release-critical runtime boundaries and require credential-rotation
+  coordination.
+
+### 2026-08-10: Observability settings extraction
+
+- Moved `LOG_FORMAT` and `OTEL_*` declarations plus their normalization and
+  fail-fast tracing validation into `app.core.settings.observability`.
+- `Settings` composes the group directly, so environment variable names and
+  consumer access remain unchanged without aliases, fallback reads, or dual
+  configuration sources.
+- Added direct group tests for normalization and tracing requirements. The next
+  low-risk candidate is Practice diagnostics, after its consumer list and
+  interval validation are verified in the same manner.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -9,11 +9,13 @@ from typing import List, Optional
 from pydantic import AnyHttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.settings.observability import ObservabilitySettings
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(BaseSettings):
+class Settings(ObservabilitySettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -33,12 +35,7 @@ class Settings(BaseSettings):
     CONTROL_PLANE_SESSION_EXPIRE_MINUTES: Optional[int] = None
     CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
     DEBUG: bool = False
-    LOG_FORMAT: str
     FRONTEND_BASE_URL: str
-    OTEL_TRACING_ENABLED: bool = False
-    OTEL_SERVICE_NAME: Optional[str] = None
-    OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None
-    OTEL_EXPORTER_OTLP_INSECURE: bool = True
     PRACTICE_AUDIO_DIAGNOSTICS: bool = False
     PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL: int = 15
     PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL: int = 15
@@ -115,16 +112,6 @@ class Settings(BaseSettings):
             if value in {"0", "false", "no", "off", "release", "production", "prod"}:
                 return False
         return v
-
-    @field_validator("LOG_FORMAT")
-    @classmethod
-    def validate_log_format(cls, v: str) -> str:
-        """Validate the stdout log encoding used by container log collectors."""
-
-        value = v.strip().lower()
-        if value not in {"json", "console"}:
-            raise ValueError("LOG_FORMAT must be one of: json, console")
-        return value
 
     @field_validator("HF_MODEL_REPOSITORIES", mode="before")
     @classmethod
@@ -413,15 +400,6 @@ class Settings(BaseSettings):
             value = f"https://{value}"
         return value
 
-    @field_validator("OTEL_EXPORTER_OTLP_ENDPOINT")
-    @classmethod
-    def normalize_optional_otel_endpoint(cls, v: Optional[str]) -> Optional[str]:
-        """Normalize the optional OTLP endpoint."""
-
-        if not v:
-            return None
-        return v.strip().rstrip("/")
-
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
@@ -528,25 +506,6 @@ class Settings(BaseSettings):
             if missing:
                 raise ValueError(
                     "Missing required S3 storage settings: " + ", ".join(missing)
-                )
-        return self
-
-    @model_validator(mode="after")
-    def validate_tracing_settings(self) -> "Settings":
-        """Require explicit trace exporter settings when tracing is enabled."""
-
-        if self.OTEL_TRACING_ENABLED:
-            missing = [
-                name
-                for name, value in (
-                    ("OTEL_SERVICE_NAME", self.OTEL_SERVICE_NAME),
-                    ("OTEL_EXPORTER_OTLP_ENDPOINT", self.OTEL_EXPORTER_OTLP_ENDPOINT),
-                )
-                if not value
-            ]
-            if missing:
-                raise ValueError(
-                    "Missing required OpenTelemetry settings: " + ", ".join(missing)
                 )
         return self
 
