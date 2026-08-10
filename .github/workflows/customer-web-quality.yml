@@ -7,6 +7,7 @@ on:
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"
       - "backend/docs/contracts/openapi/practice-api.json"
+      - "backend/docs/contracts/realtime/practice-websocket-v1.json"
       - "backend/app/shared/error_codes.py"
       - ".github/workflows/customer-web-quality.yml"
   pull_request:
@@ -14,6 +15,7 @@ on:
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"
       - "backend/docs/contracts/openapi/practice-api.json"
+      - "backend/docs/contracts/realtime/practice-websocket-v1.json"
       - "backend/app/shared/error_codes.py"
       - ".github/workflows/customer-web-quality.yml"
 

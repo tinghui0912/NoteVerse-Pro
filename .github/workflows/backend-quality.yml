@@ -164,6 +164,7 @@ jobs:
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py customer-api --check"
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py control-plane-api --check"
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py practice-api --check"
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc "python scripts/export_realtime_protocol.py --check"
 
       - name: Run database migrations
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m alembic upgrade head"

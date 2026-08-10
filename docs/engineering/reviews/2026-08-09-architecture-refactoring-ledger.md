@@ -34,7 +34,7 @@ historical finding is not an indication that the item is still open.
 | ARC-012 | Partially complete | Continue extracting only duplicated bootstrap or settings ownership with a verified runtime boundary. |
 | ARC-013 | Partially complete | Code-side ownership and Dependabot policy are complete; verify GitHub-side alerts, secret scanning, branch protection, and required reviews outside this repository. |
 | ARC-014 | Open | Complete deployment-source documentation and stale-link remediation. |
-| ARC-015 | Partially complete (P1) | Maintain the strict Practice WebSocket v1 contract and complete an exported, generated contract artifact before introducing SSE or a second realtime client. |
+| ARC-015 | Complete | Maintain the strict Practice WebSocket v1 schema, generated artifact, runtime validators, and compatibility policy for each protocol change. |
 | ARC-016 | Partially complete (P1) | Maintain the protected-service policy-dependency test and expand it only when a new score-facing authorization entry point is introduced. |
 
 ## Original confirmed findings (historical baseline)
@@ -1065,10 +1065,21 @@ impossible.
   additive changes within a version; a new version for breaking changes; update
   both runtimes in the same change.
 
-ARC-015 remains partially complete because its versioned schema is source-owned
-but is not yet exported as a committed generated contract artifact. SSE has no
-current product protocol to version and must be added to the same governance
-model if it becomes a customer-facing transport.
+### 2026-08-10: Practice WebSocket contract artifact and CI freshness gate
+
+- Added a deterministic JSON Schema exporter for the source-owned Pydantic
+  protocol and committed `realtime/practice-websocket-v1.json` as the
+  reviewable cross-runtime artifact.
+- Added `--check` verification to Backend Quality and made Customer Web Quality
+  run whenever the realtime contract artifact changes. The latter continues to
+  exercise the strict Zod mirror through its normal test suite.
+- The artifact declares the protocol's additive-only within-version policy and
+  prohibition on legacy fallback; binary PCM remains explicitly outside the
+  JSON Schema because its format is negotiated by the Practice REST session.
+
+ARC-015 is complete. SSE has no current customer-facing protocol; if introduced,
+it must use the same source-owned, generated-artifact, runtime-validation, and
+compatibility-governance model.
 
 ### 2026-08-10: Real Practice WebSocket handshake integration
 

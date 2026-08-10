@@ -1,0 +1,708 @@
+{
+  "$id": "https://noteverse.local/contracts/realtime/practice-websocket-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "client_messages": {
+    "$defs": {
+      "ClientFinishMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ClientTimestampPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "client.finish",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "payload"
+        ],
+        "title": "ClientFinishMessage",
+        "type": "object"
+      },
+      "ClientHeartbeatMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ClientTimestampPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "client.heartbeat",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "payload"
+        ],
+        "title": "ClientHeartbeatMessage",
+        "type": "object"
+      },
+      "ClientInitMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ClientInitPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "client.init",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "payload"
+        ],
+        "title": "ClientInitMessage",
+        "type": "object"
+      },
+      "ClientInitPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "channels": {
+            "minimum": 1,
+            "title": "Channels",
+            "type": "integer"
+          },
+          "frame_samples": {
+            "minimum": 1,
+            "title": "Frame Samples",
+            "type": "integer"
+          },
+          "sample_rate": {
+            "minimum": 1,
+            "title": "Sample Rate",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sample_rate",
+          "channels",
+          "frame_samples"
+        ],
+        "title": "ClientInitPayload",
+        "type": "object"
+      },
+      "ClientPauseMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ClientTimestampPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "client.pause",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "payload"
+        ],
+        "title": "ClientPauseMessage",
+        "type": "object"
+      },
+      "ClientResumeMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ClientTimestampPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "client.resume",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "payload"
+        ],
+        "title": "ClientResumeMessage",
+        "type": "object"
+      },
+      "ClientTimestampPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "t": {
+            "minimum": 0,
+            "title": "T",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "t"
+        ],
+        "title": "ClientTimestampPayload",
+        "type": "object"
+      }
+    },
+    "discriminator": {
+      "mapping": {
+        "client.finish": "#/$defs/ClientFinishMessage",
+        "client.heartbeat": "#/$defs/ClientHeartbeatMessage",
+        "client.init": "#/$defs/ClientInitMessage",
+        "client.pause": "#/$defs/ClientPauseMessage",
+        "client.resume": "#/$defs/ClientResumeMessage"
+      },
+      "propertyName": "type"
+    },
+    "oneOf": [
+      {
+        "$ref": "#/$defs/ClientInitMessage"
+      },
+      {
+        "$ref": "#/$defs/ClientPauseMessage"
+      },
+      {
+        "$ref": "#/$defs/ClientResumeMessage"
+      },
+      {
+        "$ref": "#/$defs/ClientFinishMessage"
+      },
+      {
+        "$ref": "#/$defs/ClientHeartbeatMessage"
+      }
+    ]
+  },
+  "compatibility": {
+    "breaking_change": "new_protocol_version",
+    "legacy_fallback": "forbidden",
+    "within_version": "additive_only"
+  },
+  "description": "Versioned JSON control and server-event frames for Practice WebSocket sessions. Binary PCM frames use the REST-negotiated session audio format.",
+  "protocol_version": 1,
+  "server_messages": {
+    "$defs": {
+      "AlignmentUpdateMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/AlignmentUpdatePayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "alignment.update",
+            "default": "alignment.update",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "AlignmentUpdateMessage",
+        "type": "object"
+      },
+      "AlignmentUpdatePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment_confidence": {
+            "title": "Alignment Confidence",
+            "type": "number"
+          },
+          "alignment_state": {
+            "minLength": 1,
+            "title": "Alignment State",
+            "type": "string"
+          },
+          "audio_active": {
+            "title": "Audio Active",
+            "type": "boolean"
+          },
+          "audio_confidence": {
+            "title": "Audio Confidence",
+            "type": "number"
+          },
+          "beat_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beat Delta"
+          },
+          "beat_position": {
+            "title": "Beat Position",
+            "type": "number"
+          },
+          "beat_velocity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beat Velocity"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "continuity_confidence": {
+            "title": "Continuity Confidence",
+            "type": "number"
+          },
+          "continuity_state": {
+            "minLength": 1,
+            "title": "Continuity State",
+            "type": "string"
+          },
+          "feature_confidence": {
+            "title": "Feature Confidence",
+            "type": "number"
+          },
+          "frame_class": {
+            "enum": [
+              "silence",
+              "transient",
+              "tonal",
+              "uncertain",
+              "unknown"
+            ],
+            "title": "Frame Class",
+            "type": "string"
+          },
+          "gate_reason": {
+            "minLength": 1,
+            "title": "Gate Reason",
+            "type": "string"
+          },
+          "input_peak": {
+            "title": "Input Peak",
+            "type": "number"
+          },
+          "input_policy_confidence": {
+            "title": "Input Policy Confidence",
+            "type": "number"
+          },
+          "input_rms": {
+            "title": "Input Rms",
+            "type": "number"
+          },
+          "input_weight": {
+            "title": "Input Weight",
+            "type": "number"
+          },
+          "match_state": {
+            "enum": [
+              "matched",
+              "holding_decay",
+              "lost",
+              "no_input"
+            ],
+            "title": "Match State",
+            "type": "string"
+          },
+          "onset_signal": {
+            "title": "Onset Signal",
+            "type": "boolean"
+          },
+          "peak_prominence": {
+            "title": "Peak Prominence",
+            "type": "number"
+          },
+          "queue_decision": {
+            "minLength": 1,
+            "title": "Queue Decision",
+            "type": "string"
+          },
+          "score_completed": {
+            "title": "Score Completed",
+            "type": "boolean"
+          },
+          "spectral_flatness": {
+            "title": "Spectral Flatness",
+            "type": "number"
+          },
+          "spectral_flux": {
+            "title": "Spectral Flux",
+            "type": "number"
+          },
+          "stream_state": {
+            "minLength": 1,
+            "title": "Stream State",
+            "type": "string"
+          },
+          "timestamp_ms": {
+            "minimum": 0,
+            "title": "Timestamp Ms",
+            "type": "integer"
+          },
+          "tonal_signal": {
+            "title": "Tonal Signal",
+            "type": "boolean"
+          },
+          "validation_confidence": {
+            "title": "Validation Confidence",
+            "type": "number"
+          },
+          "visual_confidence": {
+            "title": "Visual Confidence",
+            "type": "number"
+          }
+        },
+        "required": [
+          "beat_position",
+          "confidence",
+          "alignment_confidence",
+          "audio_confidence",
+          "continuity_confidence",
+          "visual_confidence",
+          "timestamp_ms",
+          "score_completed",
+          "audio_active",
+          "input_rms",
+          "input_peak",
+          "match_state",
+          "feature_confidence",
+          "beat_delta",
+          "stream_state",
+          "frame_class",
+          "gate_reason",
+          "queue_decision",
+          "tonal_signal",
+          "onset_signal",
+          "spectral_flatness",
+          "peak_prominence",
+          "spectral_flux",
+          "alignment_state",
+          "continuity_state",
+          "beat_velocity",
+          "validation_confidence",
+          "input_weight",
+          "input_policy_confidence"
+        ],
+        "title": "AlignmentUpdatePayload",
+        "type": "object"
+      },
+      "SessionArmedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/SessionArmedPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "session.armed",
+            "default": "session.armed",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "SessionArmedMessage",
+        "type": "object"
+      },
+      "SessionArmedPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "environment_quality": {
+            "enum": [
+              "good",
+              "noisy",
+              "poor"
+            ],
+            "title": "Environment Quality",
+            "type": "string"
+          },
+          "session_id": {
+            "minLength": 1,
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "environment_quality"
+        ],
+        "title": "SessionArmedPayload",
+        "type": "object"
+      },
+      "SessionConnectingMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/SessionConnectingPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "session.connecting",
+            "default": "session.connecting",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "SessionConnectingMessage",
+        "type": "object"
+      },
+      "SessionConnectingPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "minLength": 1,
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "SessionConnectingPayload",
+        "type": "object"
+      },
+      "SessionErrorMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/SessionErrorPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "session.error",
+            "default": "session.error",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "SessionErrorMessage",
+        "type": "object"
+      },
+      "SessionErrorPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "public_code": {
+            "minLength": 1,
+            "title": "Public Code",
+            "type": "string"
+          },
+          "public_message": {
+            "minLength": 1,
+            "title": "Public Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "public_code",
+          "public_message"
+        ],
+        "title": "SessionErrorPayload",
+        "type": "object"
+      },
+      "SessionFinishedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/SessionStatePayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "session.finished",
+            "default": "session.finished",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "SessionFinishedMessage",
+        "type": "object"
+      },
+      "SessionReadyMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/SessionReadyPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "session.ready",
+            "default": "session.ready",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "SessionReadyMessage",
+        "type": "object"
+      },
+      "SessionReadyPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "minLength": 1,
+            "title": "Session Id",
+            "type": "string"
+          },
+          "state": {
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "state"
+        ],
+        "title": "SessionReadyPayload",
+        "type": "object"
+      },
+      "SessionStateChangedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/SessionStatePayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "session.state_changed",
+            "default": "session.state_changed",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "SessionStateChangedMessage",
+        "type": "object"
+      },
+      "SessionStatePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "SessionStatePayload",
+        "type": "object"
+      }
+    },
+    "discriminator": {
+      "mapping": {
+        "alignment.update": "#/$defs/AlignmentUpdateMessage",
+        "session.armed": "#/$defs/SessionArmedMessage",
+        "session.connecting": "#/$defs/SessionConnectingMessage",
+        "session.error": "#/$defs/SessionErrorMessage",
+        "session.finished": "#/$defs/SessionFinishedMessage",
+        "session.ready": "#/$defs/SessionReadyMessage",
+        "session.state_changed": "#/$defs/SessionStateChangedMessage"
+      },
+      "propertyName": "type"
+    },
+    "oneOf": [
+      {
+        "$ref": "#/$defs/SessionConnectingMessage"
+      },
+      {
+        "$ref": "#/$defs/SessionReadyMessage"
+      },
+      {
+        "$ref": "#/$defs/SessionArmedMessage"
+      },
+      {
+        "$ref": "#/$defs/SessionStateChangedMessage"
+      },
+      {
+        "$ref": "#/$defs/SessionFinishedMessage"
+      },
+      {
+        "$ref": "#/$defs/SessionErrorMessage"
+      },
+      {
+        "$ref": "#/$defs/AlignmentUpdateMessage"
+      }
+    ]
+  },
+  "title": "NoteVerse Practice WebSocket Protocol v1"
+}

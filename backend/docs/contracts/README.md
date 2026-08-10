@@ -37,6 +37,15 @@ They require updates to the server contract, the Customer Web validator, and
 both protocol test suites in the same change. Do not add legacy-version parsing
 or silent field fallbacks during development.
 
+`realtime/practice-websocket-v1.json` is the committed JSON Schema artifact
+generated from that Pydantic source. Generate or verify it in the Practice
+runtime:
+
+```powershell
+docker compose -f docker-compose.backend-dev.yml run --rm --no-deps --entrypoint python practice scripts/export_realtime_protocol.py
+docker compose -f docker-compose.backend-dev.yml run --rm --no-deps --entrypoint python practice scripts/export_realtime_protocol.py --check
+```
+
 ## Frontend migration rule
 
 OpenAPI is the source of truth for HTTP DTOs. Generated types and client code
