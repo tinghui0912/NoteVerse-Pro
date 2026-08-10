@@ -184,6 +184,25 @@ outbox. Extract one domain per change, move its positive/non-negative
 validation with the fields, add a direct settings-group test, then migrate all
 of its measured consumers and delete its declarations from `Settings`.
 
+## Remaining account and API policy boundary
+
+| Proposed settings group | Fields | Direct production consumers | Boundary |
+| --- | --- | --- | --- |
+| Customer session security | `ACCESS_TOKEN_EXPIRE_MINUTES`, `REFRESH_TOKEN_EXPIRE_DAYS`, `AUTH_COOKIE_*`, `REFRESH_COOKIE_NAME`, `CSRF_COOKIE_*`, `CSRF_HEADER_NAME` | auth sessions/cookies/routes, API dependencies, Practice WebSocket dependencies, API/Practice app factories | One customer-session contract; deliberately separate from control-plane identity. |
+| Account email-link policy | `EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS`, `EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS` | password reset, email verification, email change | Lifetimes only; `FRONTEND_BASE_URL` also builds score-invite links and therefore remains platform URL configuration. |
+| Transactional mail provider | `MAIL_DEFAULT_SENDER`, `RESEND_API_KEY`, `RESEND_API_URL` | mail transport utility | Provider integration and credential boundary, separate from Outbox delivery policy. |
+| Upload admission policy | `ALLOWED_EXTENSIONS` | file upload service | API file-admission allowlist, separate from storage backend. |
+
+The local Docker example intentionally exposes the verification-link lifetime
+but uses the code default for password-reset lifetime. This is valid only while
+the reset policy remains a versioned default; the template and production
+runtime contract must be updated together if operations needs an environment
+override. Do not add a duplicate template variable merely for symmetry.
+
+The next safe extraction is `CustomerSessionSecuritySettings`. Its consumers
+share one customer identity contract and its fields do not overlap with the
+already isolated `CONTROL_PLANE_*` settings.
+
 ## Database, queue, and storage migration boundary
 
 This group has four deliberately separate runtime projections:

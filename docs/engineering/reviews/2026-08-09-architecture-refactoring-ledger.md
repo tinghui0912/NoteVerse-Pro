@@ -723,6 +723,18 @@ deferred until the required offline models are available.
   engine's algorithm implementation remains unchanged. No environment name,
   manifest, alias, or fallback behavior changed.
 
+### 2026-08-10: Remaining account and API policy boundary measured
+
+- Mapped four non-overlapping groups: customer session security, account
+  email-link lifetimes, transactional mail-provider integration, and upload
+  admission. The next implementation unit is customer session security;
+  control-plane identity remains intentionally separate.
+- Confirmed `FRONTEND_BASE_URL` is a shared platform URL because account links
+  and score invitations both use it, so it must not move into email-link
+  policy. Recorded that the Docker example exposes verification lifetime while
+  password-reset lifetime currently uses its code default; no redundant
+  environment variable was introduced.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
