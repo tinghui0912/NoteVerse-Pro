@@ -147,8 +147,12 @@ configuration through a separately coordinated credential-rotation task.
   `TransactionalMailProviderSettings` owns Resend connection credentials and
   endpoint, accepts an explicit disabled state, and rejects partial provider
   configuration before a delivery task runs.
-- **Next:** Extract upload admission policy, keeping file-extension allowlists
-  separate from storage backend and object lifecycle configuration.
+- **Complete:** Upload admission policy. `UploadAdmissionSettings` owns the
+  immutable generic file-extension allowlist and rejects invalid allowlists;
+  the narrower account-avatar policy remains an independent domain rule.
+- **Next:** Measure the remaining platform HTTP and security configuration
+  (`PROJECT_NAME`, API prefix, public URL, CORS/proxy trust, secret, debug) as
+  cohesive policy candidates before any further extraction.
 
 ## Worker runtime-loader migration boundary
 

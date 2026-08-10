@@ -762,6 +762,15 @@ deferred until the required offline models are available.
   Outbox delivery policy remains separate; no environment name, manifest,
   alias, or fallback behavior changed.
 
+### 2026-08-10: Upload admission policy ownership extracted
+
+- Moved the generic score-processing upload extension allowlist into
+  `UploadAdmissionSettings` and made it immutable. The group rejects empty,
+  dotted, and non-lowercase extension lists before request handling.
+- Revalidated file-service and API upload behavior. The account-avatar service
+  keeps its intentionally narrower independent allowlist; no storage backend,
+  environment name, manifest, alias, or fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

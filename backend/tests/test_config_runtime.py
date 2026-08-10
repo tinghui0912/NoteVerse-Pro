@@ -201,6 +201,12 @@ def test_settings_compose_transactional_mail_provider_policy() -> None:
     assert settings.RESEND_API_URL.startswith(("http://", "https://"))
 
 
+def test_settings_compose_upload_admission_policy() -> None:
+    settings = Settings()
+
+    assert "png" in settings.ALLOWED_EXTENSIONS
+
+
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(
