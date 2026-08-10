@@ -872,6 +872,15 @@ deferred until the required offline models are available.
 - Added direct group coverage for every timing field. `Settings` now composes
   typed settings groups without retaining scheduler-domain validation.
 
+### 2026-08-10: Customer API prefix made source-owned
+
+- Replaced environment-loaded `API_V1_STR` with the single
+  `CUSTOMER_API_PREFIX` source constant. Customer API, Practice, upload URL,
+  score-asset URL, OpenAPI, and CSRF consumers now use that versioned contract.
+- Removed `API_V1_STR` from both the committed Docker template and the local
+  Docker environment file. Deployment path topology must use gateway/root-path
+  configuration rather than changing a public API version prefix at runtime.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -6,7 +6,7 @@ import zipfile
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.core.settings.service_identity import CUSTOMER_API_PREFIX
 from app.core.exceptions import FileException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
@@ -66,17 +66,12 @@ class ScoreAssetService:
         )
         revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
-        sources = (
-            await self.repository.list_sources(db, revision_id)
-            if include_sources
-            else []
-        )
+        sources = await self.repository.list_sources(db, revision_id) if include_sources else []
         render_assets = await self.repository.list_render_assets(db, revision_id)
         return ScoreRevisionAssetsRead(
             revision_sources=[self._source_read(source, revision) for source in sources],
             render_assets=[
-                self._render_asset_read(render_asset, revision)
-                for render_asset in render_assets
+                self._render_asset_read(render_asset, revision) for render_asset in render_assets
             ],
         )
 
@@ -197,7 +192,9 @@ class ScoreAssetService:
     ) -> tuple[ScoreRevisionSource, ScoreRevision]:
         source = await self.repository.get_source(db, source_uuid)
         if not source:
-            raise ResourceNotFoundException("revision_source", source_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "revision_source", source_uuid, ErrorCode.FILE_NOT_FOUND
+            )
         revision = await self.repository.revision_for_asset(db, source)
         if not revision:
             raise ResourceNotFoundException("revision", source_uuid, ErrorCode.REVISION_NOT_FOUND)
@@ -223,10 +220,14 @@ class ScoreAssetService:
     ) -> tuple[ScoreRenderAsset, ScoreRevision]:
         render_asset = await self.repository.get_render_asset(db, render_asset_uuid)
         if not render_asset:
-            raise ResourceNotFoundException("render_asset", render_asset_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "render_asset", render_asset_uuid, ErrorCode.FILE_NOT_FOUND
+            )
         revision = await self.repository.revision_for_asset(db, render_asset)
         if not revision:
-            raise ResourceNotFoundException("revision", render_asset_uuid, ErrorCode.REVISION_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "revision", render_asset_uuid, ErrorCode.REVISION_NOT_FOUND
+            )
         await self._authorize_asset_revision(
             db,
             revision,
@@ -249,7 +250,9 @@ class ScoreAssetService:
     ) -> None:
         score = await db.get(Score, revision.score_id)
         if not score:
-            raise ResourceNotFoundException("score", revision.revision_uuid, ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "score", revision.revision_uuid, ErrorCode.SCORE_NOT_FOUND
+            )
         await self.access_policy.authorize(
             db,
             score.score_uuid,
@@ -274,7 +277,7 @@ class ScoreAssetService:
         self._require_object(asset)
         return AssetAccessRead(
             asset_id=asset_uuid,
-            url=f"{settings.API_V1_STR}/{route_prefix}/{asset_uuid}/download",
+            url=f"{CUSTOMER_API_PREFIX}/{route_prefix}/{asset_uuid}/download",
             filename=asset.filename,
             mime_type=asset.mime_type,
             expires_in=None,

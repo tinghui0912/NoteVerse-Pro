@@ -1,14 +1,13 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.service_identity import ServiceIdentitySettings
+from app.core.settings.service_identity import CUSTOMER_API_PREFIX, ServiceIdentitySettings
 
 
-def test_service_identity_settings_have_customer_api_defaults() -> None:
+def test_service_identity_settings_have_product_identity_defaults() -> None:
     settings = ServiceIdentitySettings()
 
     assert settings.PROJECT_NAME == "NoteVerse Pro"
-    assert settings.API_V1_STR == "/api/v1"
     assert settings.DEBUG is False
 
 
@@ -22,10 +21,8 @@ def test_service_identity_settings_parse_debug_environment_labels(
     assert ServiceIdentitySettings(DEBUG=value).DEBUG is expected
 
 
-@pytest.mark.parametrize("api_prefix", ("api/v1", "/", "/api/v1/"))
-def test_service_identity_settings_reject_ambiguous_api_prefixes(api_prefix: str) -> None:
-    with pytest.raises(ValidationError, match="API_V1_STR"):
-        ServiceIdentitySettings(API_V1_STR=api_prefix)
+def test_customer_api_prefix_is_a_fixed_versioned_contract() -> None:
+    assert CUSTOMER_API_PREFIX == "/api/v1"
 
 
 def test_service_identity_settings_reject_blank_project_name() -> None:

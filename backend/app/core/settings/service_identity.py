@@ -3,11 +3,15 @@
 from pydantic import BaseModel, field_validator
 
 
+# Customer API routing is a versioned source contract. Deployment topology must
+# use ingress/root-path configuration rather than changing this public prefix.
+CUSTOMER_API_PREFIX = "/api/v1"
+
+
 class ServiceIdentitySettings(BaseModel):
     """Names the product and its customer-facing API mount point."""
 
     PROJECT_NAME: str = "NoteVerse Pro"
-    API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
 
     @field_validator("PROJECT_NAME")
@@ -15,13 +19,6 @@ class ServiceIdentitySettings(BaseModel):
     def validate_project_name(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("PROJECT_NAME must not be blank")
-        return value
-
-    @field_validator("API_V1_STR")
-    @classmethod
-    def validate_api_prefix(cls, value: str) -> str:
-        if not value.startswith("/") or value == "/" or value.endswith("/"):
-            raise ValueError("API_V1_STR must be a non-root path without a trailing slash")
         return value
 
     @field_validator("DEBUG", mode="before")
