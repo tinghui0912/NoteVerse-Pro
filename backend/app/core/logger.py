@@ -151,7 +151,7 @@ class StructuredLogFieldPolicy:
             "original_length",
             "outbox_id", "page_count", "page_height", "page_index", "page_width",
             "payload_shape", "payload_type", "peak", "peak_gate", "peak_prominence",
-            "peer_address", "performance_active", "pipeline", "progress", "project_name",
+            "peer_address", "performance_active", "pipeline", "profile_schema_version", "progress", "project_name",
             "public_code", "queue_decision", "raw_beat", "reason", "recipient_user_id",
             "region_count", "rejected", "request_id", "resource_id", "resource_type",
             "retain_recent_revisions", "revision_id", "rms", "rms_gate", "row_count",

@@ -107,14 +107,17 @@ def test_control_plane_errors_do_not_expose_internal_details_before_authorizatio
 
     get_control_plane_runtime_settings.cache_clear()
 
-    with TestClient(create_app()) as control_client:
-        control_client.cookies.set("noteverse_control_auth", "invalid-token")
-        control_client.cookies.set("noteverse_control_csrf", "csrf-token")
-        response = control_client.post(
-            "/api/v1/ops/async-operations/retry",
-            json={"operation_kind": "render", "operation_id": "op-1"},
-            headers={"X-Request-ID": "ops-csrf-contract"},
-        )
+    try:
+        with TestClient(create_app()) as control_client:
+            control_client.cookies.set("noteverse_control_auth", "invalid-token")
+            control_client.cookies.set("noteverse_control_csrf", "csrf-token")
+            response = control_client.post(
+                "/api/v1/ops/async-operations/retry",
+                json={"operation_kind": "render", "operation_id": "op-1"},
+                headers={"X-Request-ID": "ops-csrf-contract"},
+            )
+    finally:
+        get_control_plane_runtime_settings.cache_clear()
 
     assert response.status_code == 403
     payload = response.json()
