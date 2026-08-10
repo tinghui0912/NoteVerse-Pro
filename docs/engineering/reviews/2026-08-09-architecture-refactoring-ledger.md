@@ -567,6 +567,17 @@ deferred until the required offline models are available.
   verification and password-reset link lifetimes instead of the retired code
   flow. No compatibility variables were retained.
 
+### 2026-08-10: Worker process environment projection
+
+- Moved the entrypoint-only `CELERY_WORKER_CONCURRENCY` from the shared local
+  Docker manifest into a Worker-only manifest. Compose now injects it only into
+  the Worker service; API, Practice, Beat, and quality containers no longer
+  receive it.
+- Added an ignored local worker manifest, its committed example, and schema
+  contract coverage for both templates. This is the first role projection;
+  model and application settings remain shared until their runtime loaders are
+  separated rather than being hidden through an unsafe Compose-only change.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

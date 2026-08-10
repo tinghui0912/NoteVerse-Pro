@@ -50,6 +50,8 @@ and update process.
 - `docker/backend/entrypoint.sh`: service command switch.
 - `docker-compose.backend-dev.yml`: API, practice, worker, beat, and quality services.
 - `backend/.env.docker.example`: Docker-specific backend environment template.
+- `backend/.env.docker.worker.example`: Worker-process-only local environment
+  template.
 - `.dockerignore`: prevents caches, data, models, and local external checkouts
   from being copied into images.
 
@@ -58,10 +60,11 @@ and update process.
 `backend/.env.docker` is required. Docker Compose fails before starting services
 when this file is missing.
 
-Copy the Docker env template:
+Copy both Docker environment templates:
 
 ```powershell
 Copy-Item backend/.env.docker.example backend/.env.docker
+Copy-Item backend/.env.docker.worker.example backend/.env.docker.worker
 ```
 
 Update database and Redis URLs if your Windows host does not expose them through
@@ -98,13 +101,12 @@ development tuning such as Task reliability intervals, retry limits, and batch
 sizes. Keep the shared developer baseline in
 `backend/.env.docker.example`; do not commit the local copy.
 
-Keep the local file synchronized with the committed example when changing the
-local contract. The example is checked against the application settings schema
-in CI, so it cannot silently accumulate obsolete variables. The sole current
-exception is `CELERY_WORKER_CONCURRENCY`: it is consumed by the Worker
-entrypoint rather than Pydantic settings. It is a known transitional exception
-until role-specific Compose environment projections replace the current shared
-runtime manifest.
+Keep each local file synchronized with its committed example when changing the
+local contract. Both examples are checked against the application settings
+schema in CI, so they cannot silently accumulate obsolete variables.
+`CELERY_WORKER_CONCURRENCY` belongs only in `.env.docker.worker`: it is
+consumed by the Worker entrypoint rather than Pydantic settings and must not be
+injected into API, Practice, Beat, or quality containers.
 
 Task reliability values belong in this local file because Docker Compose must
 pass the same values to API, Worker, and Beat while developing. They are not a

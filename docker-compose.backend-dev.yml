@@ -97,6 +97,11 @@ services:
 
   worker:
     <<: *backend-common
+    env_file:
+      - path: backend/.env.docker
+        required: true
+      - path: backend/.env.docker.worker
+        required: true
     image: noteverse-backend-worker:dev
     build:
       context: .
