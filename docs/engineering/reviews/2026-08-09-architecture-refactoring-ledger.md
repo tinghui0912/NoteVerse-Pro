@@ -818,6 +818,16 @@ deferred until the required offline models are available.
 - Revalidated account email-link and score-invitation consumers. No API prefix,
   CORS, environment name, manifest, alias, or fallback behavior changed.
 
+### 2026-08-10: Service identity and routing ownership extracted
+
+- Moved `PROJECT_NAME`, `API_V1_STR`, and environment-style `DEBUG` parsing
+  into `ServiceIdentitySettings`. The group rejects blank product names and
+  ambiguous customer API prefixes before app factories consume them.
+- Control-plane-specific cookies and CORS remain in the isolated control-plane
+  boundary. Full app-factory regression remains blocked on the separately
+  tracked native SQLModel/Pydantic crash; no environment name, manifest, alias,
+  or fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

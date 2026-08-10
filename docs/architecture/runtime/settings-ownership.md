@@ -10,7 +10,7 @@ or supply compatibility aliases.
 
 | Configuration group | Primary owner | Runtime consumers | Representative fields |
 | --- | --- | --- | --- |
-| Platform and customer HTTP | API | API, Practice, Worker shared auth helpers | `PROJECT_NAME`, `API_V1_STR`, `DEBUG`, customer cookie/CSRF settings, `BACKEND_CORS_ORIGINS`, `TRUSTED_PROXY_CIDRS` |
+| Service identity and customer HTTP | API | API, Practice, Control Plane, observability, shared delivery/auth helpers | `PROJECT_NAME`, `API_V1_STR`, `DEBUG`, customer cookie/CSRF settings, `BACKEND_CORS_ORIGINS`, `TRUSTED_PROXY_CIDRS` |
 | Control-plane identity | Control Plane | Control Plane only | `CONTROL_PLANE_*`; resolved through `app.core.control_plane_settings` |
 | Observability | Platform | API, Practice, Control Plane, observability exporter | `LOG_FORMAT`, `OTEL_*` |
 | Database and cache | Platform | API, Practice, Worker, Beat | `DATABASE_URL`, `SYNC_DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, Redis and Celery URLs |
@@ -163,9 +163,11 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Public frontend URL. `PublicFrontendUrlSettings` owns the
   absolute account-link and score-invitation base URL and rejects query or
   fragment components that would make generated links ambiguous.
-- **Next:** Extract service identity and routing settings (`PROJECT_NAME`, API
-  prefix, debug mode) only after adding app-factory coverage across API,
-  Practice, Control Plane, and observability surfaces.
+- **Complete:** Service identity and routing.
+  `ServiceIdentitySettings` owns `PROJECT_NAME`, `API_V1_STR`, and `DEBUG`.
+  It rejects blank product names and ambiguous customer API prefixes before
+  application factories use them. Full app-factory regression coverage remains
+  blocked on the separately tracked native SQLModel/Pydantic crash.
 
 ## Worker runtime-loader migration boundary
 
@@ -246,6 +248,10 @@ but they answer different trust questions and must not become a combined
 allowlist. `CONTROL_PLANE_*` remains in `require_control_plane_settings()`:
 its optional shared-schema fields are intentionally validated only when the
 isolated control runtime starts.
+
+`ServiceIdentitySettings` owns the product name, customer API mount prefix, and
+debug-mode parsing. Control-plane cookies and CORS remain a separate runtime
+boundary; neither is part of customer API identity/routing.
 
 The next safe extraction is `TrustedProxySettings`: it has a single direct
 runtime consumer and a self-contained CIDR parsing/anti-`/0` validator. Keep

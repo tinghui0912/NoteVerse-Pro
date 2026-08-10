@@ -26,6 +26,7 @@ from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
 from app.core.settings.realtime_retention import RealtimeRetentionSettings
 from app.core.settings.realtime_stream import RealtimeStreamSettings
 from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSettings
+from app.core.settings.service_identity import ServiceIdentitySettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
 from app.core.settings.token_signing import TokenSigningSettings
@@ -39,9 +40,35 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, BrowserCorsSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, PublicFrontendUrlSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TokenSigningSettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
-    PROJECT_NAME: str = "NoteVerse Pro"
-    API_V1_STR: str = "/api/v1"
+class Settings(
+    AccountEmailLinkSettings,
+    AsyncDatabaseSettings,
+    BeatSchedulerSettings,
+    BrowserCorsSettings,
+    CustomerSessionSecuritySettings,
+    FingeringExecutionSettings,
+    ImportDispatchSettings,
+    MailDeliverySettings,
+    NotificationLifecycleSettings,
+    ObservabilitySettings,
+    PlaybackDeliverySettings,
+    PlaybackSettings,
+    PublicFrontendUrlSettings,
+    QueueSettings,
+    RealtimeRetentionSettings,
+    RealtimeStreamSettings,
+    RenderAssetDeliverySettings,
+    ScoreDeletionLifecycleSettings,
+    ServiceIdentitySettings,
+    StorageSettings,
+    TaskReliabilitySettings,
+    TokenSigningSettings,
+    TransactionalMailProviderSettings,
+    TrustedProxySettings,
+    UploadAdmissionSettings,
+    WorkerDatabaseSettings,
+    BaseSettings,
+):
     CONTROL_PLANE_AUTH_COOKIE_NAME: Optional[str] = None
     CONTROL_PLANE_CSRF_COOKIE_NAME: Optional[str] = None
     CONTROL_PLANE_CSRF_HEADER_NAME: Optional[str] = None
@@ -49,8 +76,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
     CONTROL_PLANE_COOKIE_SAMESITE: Optional[str] = None
     CONTROL_PLANE_SESSION_EXPIRE_MINUTES: Optional[int] = None
     CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
-    DEBUG: bool = False
-    # CORS
 
     @field_validator("CONTROL_PLANE_CORS_ORIGINS", mode="before")
     @classmethod
@@ -60,21 +85,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
         if isinstance(value, list):
             return value
         raise ValueError("CONTROL_PLANE_CORS_ORIGINS must be a JSON array")
-
-    @field_validator("DEBUG", mode="before")
-    @classmethod
-    def parse_debug_flag(cls, v):
-        """Allow environment-style debug labels in addition to booleans."""
-
-        if isinstance(v, bool):
-            return v
-        if isinstance(v, str):
-            value = v.strip().lower()
-            if value in {"1", "true", "yes", "on", "debug", "development", "dev"}:
-                return True
-            if value in {"0", "false", "no", "off", "release", "production", "prod"}:
-                return False
-        return v
 
     @field_validator(
         "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
@@ -93,7 +103,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
         return v
 
     # Database
-
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
