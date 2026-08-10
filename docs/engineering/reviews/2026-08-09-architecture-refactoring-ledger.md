@@ -1034,10 +1034,10 @@ deferred until the required offline models are available.
 
 ### 2026-08-10: Score-access boundary made mechanically visible
 
-- Removed the unused synchronous render entry point. It duplicated owner/editor
-  authorization with direct `ScoreMembership` queries instead of using the
-  central asynchronous `ScoreAccessPolicy`; no repository caller referenced the
-  entry point, so no compatibility path was retained.
+- Removed the synchronous, user-authorized render entry point. It duplicated
+  owner/editor authorization with direct `ScoreMembership` queries instead of
+  using the central asynchronous `ScoreAccessPolicy`; no HTTP or service caller
+  may use it.
 - Added an explicit architecture test listing every current score-facing service
   that accepts caller identity and operates on an existing score or revision.
   Each must import `ScoreAccessPolicy`; adding a new protected entry point now
@@ -1052,6 +1052,19 @@ ARC-016 is partially complete. The policy dependency boundary is now checked
 in CI; future work should add a narrowly justified static prohibition only when
 a concrete bypass pattern appears, rather than making normal domain queries
 impossible.
+
+### 2026-08-11: Worker render boundary corrected after static verification
+
+- The original removal incorrectly classified the Celery render-outbox task as
+  having no caller. It did still invoke the deleted method, which mypy exposed
+  before release.
+- Replaced that stale call with `RevisionRenderService.render_for_worker`, an
+  explicitly named sync-worker operation. It is not a user-facing compatibility
+  method: outbox delivery is the trusted system boundary, while the operation
+  verifies the active score/revision, canonical MusicXML source, and immutable
+  source fingerprint before publishing replacement render assets.
+- Customer/API rendering remains asynchronous and authorizes through
+  `ScoreAccessPolicy`; the worker path does not recreate owner/editor checks.
 
 ### 2026-08-10: Practice WebSocket protocol v1 baseline
 
