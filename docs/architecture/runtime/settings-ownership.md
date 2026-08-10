@@ -166,8 +166,9 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Service identity and routing.
   `ServiceIdentitySettings` owns `PROJECT_NAME`, `API_V1_STR`, and `DEBUG`.
   It rejects blank product names and ambiguous customer API prefixes before
-  application factories use them. Full app-factory regression coverage remains
-  blocked on the separately tracked native SQLModel/Pydantic crash.
+  application factories use them. The Python 3.12 quality-image rebuild
+  restored Docs/OpenAPI and API regression coverage; no runtime baseline change
+  is required.
 
 ## Worker runtime-loader migration boundary
 

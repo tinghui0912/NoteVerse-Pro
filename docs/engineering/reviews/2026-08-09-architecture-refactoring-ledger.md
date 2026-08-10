@@ -796,10 +796,9 @@ deferred until the required offline models are available.
   contract into `BrowserCorsSettings`, preserving the valid explicit empty-list
   state and keeping control-plane CORS separate.
 - Direct settings and shared HTTP runtime tests passed, as did direct API and
-  Practice CORS-wiring imports. The broader TestClient suite repeatedly hit an
-  existing FastAPI/Pydantic native segmentation fault while generating OpenAPI
-  schema after 37 tests; this is a test-runtime stability issue, not an
-  assertion failure or an accepted substitute for full API regression coverage.
+  Practice CORS-wiring imports. The broad TestClient crash observed at the time
+  was later resolved by rebuilding the local Python 3.12 quality image; it was
+  not accepted as a substitute for API regression coverage.
 
 ### 2026-08-10: Token signing secret ownership extracted
 
@@ -824,9 +823,24 @@ deferred until the required offline models are available.
   into `ServiceIdentitySettings`. The group rejects blank product names and
   ambiguous customer API prefixes before app factories consume them.
 - Control-plane-specific cookies and CORS remain in the isolated control-plane
-  boundary. Full app-factory regression remains blocked on the separately
-  tracked native SQLModel/Pydantic crash; no environment name, manifest, alias,
-  or fallback behavior changed.
+  boundary. The rebuilt Python 3.12 quality image restored API regression
+  coverage; no environment name, manifest, alias, or fallback behavior changed.
+
+### 2026-08-10: Python 3.12 quality-image stability revalidated
+
+- LEGATO requires Python 3.12, so Python 3.11 is not an acceptable backend
+  runtime alternative. A temporary Python 3.11 diagnostic image was discarded
+  and the local quality image was rebuilt using its default Python 3.12 base.
+- On the rebuilt Python 3.12 quality image, `app.db.models` imported
+  successfully in 20 independent processes; the complete `score_access.py`
+  model module and the previously failing Docs/OpenAPI smoke test also passed.
+  The API smoke, public-error-contract, and HTTP-runtime regression group
+  passed 32 tests.
+- The earlier native fault is therefore not attributable to
+  `ScoreShareGrant`, the Python 3.12 baseline, or a proven Pydantic/SQLModel
+  incompatibility. Treat a stale or inconsistent local quality image as the
+  current cause. When this symptom recurs, rebuild the quality image before
+  changing source models or pinned dependencies.
 
 ## Completion checklist for every refactor
 
