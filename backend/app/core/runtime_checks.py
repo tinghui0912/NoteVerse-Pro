@@ -141,17 +141,25 @@ def _read_git_commit(repo_path: Path) -> str:
 
 
 def check_settings(_: bool = False) -> CheckResult:
-    worker_settings = _worker_settings()
     return _result(
         "settings",
         True,
         (
-            f"OMR={worker_settings.OMR_ENGINE}, render={worker_settings.SCORE_RENDER_ENGINE}; "
-            f"pipeline={settings.MAX_PROCESSING_TIME}s, "
-            f"paddle={worker_settings.PADDLEOCR_TIMEOUT_SECONDS}s, "
+            f"storage={settings.FILE_STORAGE_BACKEND}; "
+            f"pipeline={settings.MAX_PROCESSING_TIME}s; "
             f"celery_soft={settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
             f"celery_hard={settings.CELERY_TASK_TIME_LIMIT}s"
         ),
+    )
+
+
+def check_worker_settings(_: bool = False) -> CheckResult:
+    worker_settings = _worker_settings()
+    return _result(
+        "worker_settings",
+        True,
+        f"OMR={worker_settings.OMR_ENGINE}, render={worker_settings.SCORE_RENDER_ENGINE}; "
+        f"paddle={worker_settings.PADDLEOCR_TIMEOUT_SECONDS}s",
     )
 
 
@@ -495,6 +503,7 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.OBSERVABILITY_EXPORTER: ("settings", "database"),
     RuntimeRole.WORKER: (
         "settings",
+        "worker_settings",
         "worker_database",
         "storage_quota_policy",
         "redis",
@@ -535,6 +544,7 @@ ROLE_CHECK_NAMES[RuntimeRole.ALL] = tuple(
 
 CHECKS: dict[str, CheckSpec] = {
     "settings": CheckSpec("settings", check_settings),
+    "worker_settings": CheckSpec("worker_settings", check_worker_settings),
     "control_plane_settings": CheckSpec("control_plane_settings", check_control_plane_settings),
     "database": CheckSpec("database", check_api_database),
     "worker_database": CheckSpec("worker_database", check_worker_database),
