@@ -474,6 +474,19 @@ deferred until the required offline models are available.
 - Documented the boundary in the Docker backend runtime runbook. The production
   startup path remains unchanged because it does not enable Uvicorn reload.
 
+### 2026-08-10: HTTP application runtime composition baseline
+
+- Extracted shared HTTP runtime installation into `app.core.http_runtime`:
+  structured logging, optional CSRF and CORS middleware, exception handlers,
+  and tracing are now installed through one tested implementation.
+- Customer API, Practice API, control plane, and observability exporter retain
+  their own FastAPI metadata, route trees, lifespans, and explicit security
+  policy. In particular, control-plane cookie names, CSRF exemption, and CORS
+  origins still originate only from control-plane settings.
+- Focused API, Practice, WebSocket, public-error, and control-plane tests pass.
+  The next ARC-012 step is configuration decomposition, which requires a
+  measured map of consumers before moving settings out of `core/config.py`.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

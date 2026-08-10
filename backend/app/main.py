@@ -3,25 +3,23 @@
 import os
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.health import router as health_router
 from app.api.metrics import create_metrics_router
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.exception_handlers import register_exception_handlers
+from app.core.http_runtime import install_http_runtime, normalized_cors_origins
 from app.core.lifespan import app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
-from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware, LoggingMiddleware
-from app.core.tracing import configure_api_tracing
+from app.core.middleware import CookieCsrfSettings
 
 
 configure_uvicorn_logging()
 
 
 def _cors_origins() -> list[str]:
-    return [str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS]
+    return normalized_cors_origins(settings.BACKEND_CORS_ORIGINS)
 
 
 def _csrf_settings() -> CookieCsrfSettings:
@@ -56,18 +54,11 @@ def create_app() -> FastAPI:
         lifespan=app_lifespan,
     )
 
-    app.add_middleware(LoggingMiddleware)
-    app.add_middleware(CsrfProtectionMiddleware, csrf_settings=_csrf_settings())
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=_cors_origins(),
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+    install_http_runtime(
+        app,
+        csrf_settings=_csrf_settings(),
+        cors_origins=_cors_origins(),
     )
-
-    register_exception_handlers(app)
-    configure_api_tracing(app)
 
     # StaticFiles requires the target directory to exist at mount time.
     os.makedirs(settings.STORAGE_ROOT, exist_ok=True)
