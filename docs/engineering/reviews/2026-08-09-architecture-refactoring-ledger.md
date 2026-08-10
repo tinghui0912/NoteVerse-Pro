@@ -864,6 +864,14 @@ deferred until the required offline models are available.
   independently hosted and may evolve independently even while both currently
   expose `/api/v1`.
 
+### 2026-08-10: Beat scheduler validation ownership completed
+
+- Moved all scheduler lock, keepalive, timeout, retry, and heartbeat positive
+  value validation from the shared `Settings` composition root into
+  `BeatSchedulerSettings`.
+- Added direct group coverage for every timing field. `Settings` now composes
+  typed settings groups without retaining scheduler-domain validation.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

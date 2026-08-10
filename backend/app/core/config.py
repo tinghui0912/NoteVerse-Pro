@@ -67,24 +67,6 @@ class Settings(
     WorkerDatabaseSettings,
     BaseSettings,
 ):
-    @field_validator(
-        "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
-        "SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS",
-        "SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS",
-        "SCHEDULER_LOCK_KEEPALIVES_COUNT",
-        "SCHEDULER_LOCK_STATEMENT_TIMEOUT_MILLISECONDS",
-        "SCHEDULER_LOCK_TCP_USER_TIMEOUT_MILLISECONDS",
-        "SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS",
-        "SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS",
-    )
-    @classmethod
-    def validate_positive_reliability_setting(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError("task timing settings must be positive integers")
-        return v
-
-    # Database
-
     model_config = SettingsConfigDict(
         case_sensitive=True,
         extra="ignore",
