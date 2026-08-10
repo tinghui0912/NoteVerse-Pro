@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportArtifact, ImportJobStep, StorageUsageCategory
+from app.db.models import ExecutionManifest, ImportArtifact, ImportJobStep, StorageUsageCategory
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
 from app.modules.async_operations.diagnostics import (
     AsyncOperationKindValue,
@@ -21,10 +21,15 @@ from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.schemas import (
     ImportJobDetail,
 )
-from app.modules.notifications.sync_service import SyncNotificationService, sync_notification_service
+from app.modules.notifications.sync_service import (
+    SyncNotificationService,
+    sync_notification_service,
+)
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.modules.score_assets.render_outbox_service import create_review_thumbnail_render_outbox_sync
+from app.modules.score_assets.render_outbox_service import (
+    create_review_thumbnail_render_outbox_sync,
+)
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
@@ -170,7 +175,11 @@ class SyncImportJobService:
             raise ValueError(f"Job {job_uuid} not found")
         job_id = require_persisted_id(job.id, entity="import job")
         step = self.repository.get_step(db, job_id, name)
-        normalized = status if isinstance(status, ImportJobStepStatus) else ImportJobStepStatus(status.upper())
+        normalized = (
+            status
+            if isinstance(status, ImportJobStepStatus)
+            else ImportJobStepStatus(status.upper())
+        )
         if step:
             step.status = normalized
             step.start_time = start_time or step.start_time
@@ -254,6 +263,12 @@ class SyncImportJobService:
             }
         public_code, public_message = public_import_job_error(job)
         job_id = require_persisted_id(job.id, entity="import job")
+        manifest = (
+            db.get(ExecutionManifest, job.execution_manifest_id)
+            if job.execution_manifest_id is not None
+            else None
+        )
+        manifest_digest = manifest.sha256 if manifest is not None else None
         requested_options = job.requested_options or {}
         requested_title = requested_options.get("title")
         requested_taxonomy_tags = requested_options.get("taxonomy_tags")
@@ -293,15 +308,19 @@ class SyncImportJobService:
             "finished_at": job.finished_at.isoformat() if job.finished_at else None,
             "public_code": public_code,
             "public_message": public_message,
-            "original_images": [{
-                "artifact_id": f"upload:{require_persisted_id(upload.id, entity='upload')}",
-                "filename": upload.original_filename or blob.filename,
-                "page_number": job_upload.page_number,
-                "size": blob.size_bytes,
-                "mime_type": blob.mime_type,
-                "upload_id": upload.upload_uuid,
-                "original_filename": upload.original_filename,
-            } for job_upload, upload, blob in upload_rows],
+            "execution_manifest_sha256": manifest_digest,
+            "original_images": [
+                {
+                    "artifact_id": f"upload:{require_persisted_id(upload.id, entity='upload')}",
+                    "filename": upload.original_filename or blob.filename,
+                    "page_number": job_upload.page_number,
+                    "size": blob.size_bytes,
+                    "mime_type": blob.mime_type,
+                    "upload_id": upload.upload_uuid,
+                    "original_filename": upload.original_filename,
+                }
+                for job_upload, upload, blob in upload_rows
+            ],
         }
 
 

@@ -915,6 +915,12 @@ deferred until the required offline models are available.
   library, and nondeterministic-kernel controls separately if strict
   reproducibility becomes a product requirement.
 
+### 2026-08-10: Import manifest digest made auditable
+
+- Import-job detail responses expose only the immutable execution-manifest
+  SHA-256 digest. The complete internal manifest remains in the normalized
+  provenance record and is not returned through customer task-detail APIs.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

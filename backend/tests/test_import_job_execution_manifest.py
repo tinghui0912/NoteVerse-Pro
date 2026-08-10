@@ -2,6 +2,7 @@ from sqlmodel import SQLModel, Session, create_engine, select
 
 from app.db.models import ExecutionManifest, ImportJob, ImportJobState
 from app.modules.import_jobs import execution_manifest
+from app.modules.import_jobs.worker_service import SyncImportJobService
 
 
 def _job(job_uuid: str) -> ImportJob:
@@ -54,3 +55,21 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(mon
         session.refresh(first_job)
         assert first_job.execution_manifest_id == manifests[0].id
         assert len(list(session.exec(select(ExecutionManifest)))) == 1
+
+
+def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(monkeypatch) -> None:
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr(execution_manifest, "build_omr_manifest", _manifest)
+
+    with Session(engine) as session:
+        job = _job("job-detail")
+        session.add(job)
+        session.commit()
+        execution_manifest.bind_import_job_execution_manifest(session, job.job_uuid)
+
+        detail = SyncImportJobService().get_detail(session, job.job_uuid)
+        assert detail["execution_manifest_sha256"] == execution_manifest.manifest_sha256(
+            _manifest()
+        )
+        assert "execution_manifest" not in detail
