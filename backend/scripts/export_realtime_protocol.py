@@ -8,14 +8,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from app.processing.realtime.protocol import (
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.processing.realtime.protocol import (  # noqa: E402
     PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
     practice_client_message_adapter,
     practice_server_message_adapter,
 )
 
 
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
 DESTINATION = BACKEND_ROOT / "docs" / "contracts" / "realtime" / "practice-websocket-v1.json"
 
 

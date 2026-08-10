@@ -14,6 +14,9 @@ from fastapi import FastAPI
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
 CONTRACT_ROOT = BACKEND_ROOT / "docs" / "contracts" / "openapi"
 RUNTIME_MODULES = {
     "customer-api": "app.main",
