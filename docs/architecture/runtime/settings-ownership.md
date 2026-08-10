@@ -167,8 +167,9 @@ configuration through a separately coordinated credential-rotation task.
   `ServiceIdentitySettings` owns `PROJECT_NAME`, `API_V1_STR`, and `DEBUG`.
   It rejects blank product names and ambiguous customer API prefixes before
   application factories use them. The Python 3.12 quality-image rebuild
-  restored Docs/OpenAPI and API regression coverage; no runtime baseline change
-  is required.
+  restored Docs/OpenAPI and API regression coverage. API, Practice, Control
+  Plane, and observability factory contracts explicitly test their intended
+  routing boundaries; no runtime baseline change is required.
 
 ## Worker runtime-loader migration boundary
 

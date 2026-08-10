@@ -842,6 +842,13 @@ deferred until the required offline models are available.
   current cause. When this symptom recurs, rebuild the quality image before
   changing source models or pinned dependencies.
 
+### 2026-08-10: Application-factory service-identity contract added
+
+- Added a direct API, Practice, Control Plane, and observability composition
+  test for `PROJECT_NAME` and `API_V1_STR`. It proves that customer API routing
+  changes do not affect the control-plane path, and that the internal
+  observability surface remains without OpenAPI.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
