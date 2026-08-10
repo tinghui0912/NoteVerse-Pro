@@ -129,3 +129,21 @@ may import the Worker loader. Migrate this whole list in one change, remove
 model variables to the Worker-only Docker manifest. Do not make fields optional
 or provide a fallback loader: Worker startup must fail when its required model
 configuration is absent.
+
+## Database, queue, and storage migration boundary
+
+This group has four deliberately separate runtime projections:
+
+| Projection | Required settings | Consumers |
+| --- | --- | --- |
+| API/Practice data access | `DATABASE_URL`, `REDIS_URL`, storage backend and read/write roots | async session, HTTP readiness, API storage, Practice persistence |
+| Worker data access | `SYNC_DATABASE_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `WORK_ROOT`, storage backend | Celery tasks, import/render/playback processing, Worker runtime checks |
+| Beat leadership | `SCHEDULER_LOCK_DATABASE_URL`, Redis/Celery broker, `WORK_ROOT` | scheduler leader advisory lock and Beat state |
+| Shared storage contract | `FILE_STORAGE_BACKEND`, `S3_*`, `STORAGE_ROOT`, `WORK_ROOT` | API upload/download, Worker artifact generation, Practice score access |
+
+The first migration must extract typed groups without changing deployment
+projections: `StorageSettings`, `AsyncDatabaseSettings`, `WorkerDatabaseSettings`,
+and `BeatSchedulerSettings`. Keep the current cross-field S3 validation with
+`StorageSettings`; do not make credentials optional or allow local-storage
+fallback when `FILE_STORAGE_BACKEND=s3`. Only after direct consumers use these
+groups may Compose environment manifests be split by role.

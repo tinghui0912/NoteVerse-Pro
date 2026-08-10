@@ -619,6 +619,13 @@ deferred until the required offline models are available.
   Practice-only Docker manifest. API no longer receives Practice alignment
   configuration; API and Practice runtime checks both pass after the split.
 
+### 2026-08-10: Database, queue, and storage migration boundary measured
+
+- Mapped separate API/Practice async database, Worker sync database, Beat
+  advisory-lock, and shared-storage projections. Deferred Compose splitting
+  until typed setting groups and their fail-fast validation move with the
+  measured consumers.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
