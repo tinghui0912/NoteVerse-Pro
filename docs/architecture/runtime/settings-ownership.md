@@ -56,8 +56,8 @@ truth according to **what changes the value** and **how it must be released**.
 | Versioned domain/algorithm profile | `PracticeAudioProfile` gates and frame rate; OCR classification thresholds; MusicXML layout constants | Typed source module adjacent to its owning algorithm, with fixtures/tests | Normal code review and application release |
 | Product policy that operators or customers must change without a deployment | entitlement limits, tenant rules, feature rollout state | Audited database-backed configuration or feature-flag service | Explicit administration workflow, audit trail, validation, rollout and rollback |
 
-`app.processing.engines.practice_audio_profile` is correctly a versioned audio
-processing profile: every value is coupled to the 30 fps pipeline and its
+`app.processing.engines.practice_alignment.profile` is correctly a versioned
+practice-alignment profile: every value is coupled to the 30 fps pipeline and its
 fixture matrix. `app.processing.engines.render.verovio_render_profile` owns the
 SVG output semantics, while `app.processing.text.config` owns deterministic
 OCR, classification, and MusicXML layout rules. They must not be copied into

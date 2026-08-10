@@ -1,4 +1,4 @@
-"""Standalone PaddleOCR worker module executed in a subprocess."""
+"""Standalone PaddleOCR engine worker module executed in a subprocess."""
 
 from __future__ import annotations
 
@@ -111,9 +111,7 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
 
     use_gpu = False
     try:
-        use_gpu = bool(
-            hasattr(paddle, "device") and paddle.device.is_compiled_with_cuda()
-        )
+        use_gpu = bool(hasattr(paddle, "device") and paddle.device.is_compiled_with_cuda())
     except Exception:
         use_gpu = False
 
@@ -154,14 +152,18 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
         ("text_detection_model_dir", "det_model_dir"),
         detection_model_dir,
     ):
-        raise RuntimeError("PaddleOCR constructor does not support a text detection model directory")
+        raise RuntimeError(
+            "PaddleOCR constructor does not support a text detection model directory"
+        )
     if not _set_first_supported_path(
         kwargs,
         parameters,
         ("text_recognition_model_dir", "rec_model_dir"),
         recognition_model_dir,
     ):
-        raise RuntimeError("PaddleOCR constructor does not support a text recognition model directory")
+        raise RuntimeError(
+            "PaddleOCR constructor does not support a text recognition model directory"
+        )
     if not _set_first_supported_path(
         kwargs,
         parameters,
@@ -182,12 +184,28 @@ def _build_paddleocr_kwargs(paddle: Any, paddle_ocr_cls: Any) -> dict[str, Any]:
 def main(argv: list[str]) -> int:
     """Run PaddleOCR on the given image path and print JSON to stdout."""
     if len(argv) != 2:
-        print(json.dumps({"success": False, "error": "image_path argument is required", "code": "invalid_args"}))
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error": "image_path argument is required",
+                    "code": "invalid_args",
+                }
+            )
+        )
         return 1
 
     image_path = argv[1]
     if not os.path.exists(image_path):
-        print(json.dumps({"success": False, "error": f"Image file does not exist: {image_path}", "code": "file_not_found"}))
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error": f"Image file does not exist: {image_path}",
+                    "code": "file_not_found",
+                }
+            )
+        )
         return 1
 
     _set_stable_env()

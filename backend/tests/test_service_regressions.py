@@ -17,7 +17,7 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.core.config import get_practice_runtime_settings
-from app.processing.engines.matchmaker_live import (
+from app.processing.engines.practice_alignment.matchmaker_live import (
     AlignmentUpdate,
     BrowserAudioStreamAdapter,
     MatchmakerLiveEngine,
@@ -60,10 +60,7 @@ class FakeS3Client:
 
     def list_objects_v2(self, *, Bucket, Prefix, MaxKeys):
         keys = [key for key in self.objects if key.startswith(Prefix)]
-        contents = [
-            {"Key": key, "Size": len(self.objects[key])}
-            for key in sorted(keys)[:MaxKeys]
-        ]
+        contents = [{"Key": key, "Size": len(self.objects[key])} for key in sorted(keys)[:MaxKeys]]
         return {"Contents": contents}
 
     def download_file(self, bucket, key, target_path):
@@ -164,9 +161,7 @@ def test_matchmaker_reference_audio_normalization_handles_tuple_and_stereo() -> 
 def test_matchmaker_feature_matrix_extracts_processor_tuple_output() -> None:
     features = np.ones((3, 12), dtype=np.float32)
 
-    extracted = BrowserAudioStreamAdapter._feature_matrix(
-        (features, {"frame_time": 0.0})
-    )
+    extracted = BrowserAudioStreamAdapter._feature_matrix((features, {"frame_time": 0.0}))
 
     assert extracted is features
 
@@ -183,7 +178,10 @@ def test_local_file_storage_saves_and_materializes_blob() -> None:
         assert stored.filename == "abc123.png"
         assert stored.size_bytes == 5
         assert stored.storage_key == "blobs/ab/abc123.png"
-        assert storage.materialize_to_local(stored.storage_key, storage.local_path(stored.storage_key)) == stored.path
+        assert (
+            storage.materialize_to_local(stored.storage_key, storage.local_path(stored.storage_key))
+            == stored.path
+        )
 
 
 def test_local_file_storage_delete_blob_is_idempotent() -> None:
@@ -340,7 +338,9 @@ def test_s3_storage_saves_and_materializes_blob() -> None:
                 sha256="abc123",
                 extension=".png",
             )
-            path = storage.materialize_to_local(stored.storage_key, storage.local_path(stored.storage_key))
+            path = storage.materialize_to_local(
+                stored.storage_key, storage.local_path(stored.storage_key)
+            )
 
         assert stored.storage_key == "blobs/ab/abc123.png"
         assert stored.public_url == "https://cdn.example/blobs/ab/abc123.png"
@@ -383,12 +383,15 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
     db.get.return_value = blob
     db.execute.return_value.scalar_one.return_value = 1
 
-    with patch(
-        "app.modules.import_jobs.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
-        86400,
-    ), patch(
-        "app.modules.import_jobs.maintenance_service.storage_usage_service.record_release_sync"
-    ) as release_usage:
+    with (
+        patch(
+            "app.modules.import_jobs.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
+            86400,
+        ),
+        patch(
+            "app.modules.import_jobs.maintenance_service.storage_usage_service.record_release_sync"
+        ) as release_usage,
+    ):
         deleted = service.cleanup_orphan_uploads(db)
 
     assert deleted == 1
@@ -480,10 +483,14 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
     service = ImportJobSubmissionService(storage=Mock())
     sync_db = Mock()
     upload = SimpleNamespace(uploader_user_id=99, blob_id=3)
-    sync_db.get.return_value = SimpleNamespace(storage_backend=service.storage.backend_name, storage_key="blobs/ab/abc123.png")
+    sync_db.get.return_value = SimpleNamespace(
+        storage_backend=service.storage.backend_name, storage_key="blobs/ab/abc123.png"
+    )
 
     with patch("app.db.worker_session.get_db_session", return_value=sync_db):
-        with patch.object(sync_import_job_service.repository, "get_upload_by_uuid", return_value=upload):
+        with patch.object(
+            sync_import_job_service.repository, "get_upload_by_uuid", return_value=upload
+        ):
             with pytest.raises(ResourceNotFoundException) as context:
                 service._ensure_uploads_exist(5, ["abc"])
 
@@ -533,8 +540,12 @@ async def test_file_upload_rehomes_existing_blob_when_storage_backend_changes() 
 
     with patch("app.modules.files.service.storage_usage_service.reserve") as reserve_mock:
         reserve_mock.return_value = SimpleNamespace(reservation_id="reservation-1")
-        with patch("app.modules.files.service.storage_usage_service.commit_reservation") as commit_mock:
-            result = await FilesService(repository=repository, storage=storage).upload_file(db, user, upload)
+        with patch(
+            "app.modules.files.service.storage_usage_service.commit_reservation"
+        ) as commit_mock:
+            result = await FilesService(repository=repository, storage=storage).upload_file(
+                db, user, upload
+            )
 
     assert result.file_id == "upload-1"
     assert result.filename == "score.png"
@@ -581,7 +592,9 @@ async def test_delete_uploaded_file_rejects_non_owner() -> None:
 async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     repository = Mock()
     repository.get_upload_by_uuid = AsyncMock(
-        return_value=SimpleNamespace(id=7, upload_uuid="upload-owned", uploader_user_id=1, blob_id=5)
+        return_value=SimpleNamespace(
+            id=7, upload_uuid="upload-owned", uploader_user_id=1, blob_id=5
+        )
     )
     repository.upload_reference_count = AsyncMock(return_value=0)
     repository.delete_upload_by_id = AsyncMock()
@@ -605,7 +618,9 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
 
         storage = LocalFileStorage(storage_root=temp_dir)
         service = FilesService(repository=repository, storage=storage)
-        with patch("app.modules.files.service.storage_usage_service.record_release") as release_usage:
+        with patch(
+            "app.modules.files.service.storage_usage_service.record_release"
+        ) as release_usage:
             result = await service.delete_uploaded_file(db, current_user, "owned.png")
 
     assert result.filename == "owned.png"
@@ -640,12 +655,14 @@ async def test_practice_service_create_session_rejects_missing_score() -> None:
 @pytest.mark.asyncio
 async def test_practice_service_rejects_missing_canonical_revision_source() -> None:
     access_policy = Mock()
-    access_policy.authorize = AsyncMock(return_value=SimpleNamespace(
-        score=SimpleNamespace(id=101, score_uuid="score-1"),
-        revision=SimpleNamespace(id=201, revision_uuid="revision-1"),
-        origin=AccessOrigin.OWNER,
-        grant=None,
-    ))
+    access_policy.authorize = AsyncMock(
+        return_value=SimpleNamespace(
+            score=SimpleNamespace(id=101, score_uuid="score-1"),
+            revision=SimpleNamespace(id=201, revision_uuid="revision-1"),
+            origin=AccessOrigin.OWNER,
+            grant=None,
+        )
+    )
     asset_repository = Mock()
     asset_repository.canonical_source = AsyncMock(return_value=None)
     service = PracticeService(
@@ -678,15 +695,19 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
     )
     runtime_registry = Mock()
     access_policy = Mock()
-    access_policy.authorize = AsyncMock(return_value=SimpleNamespace(
-        score=SimpleNamespace(id=101, score_uuid="score-1"),
-        revision=SimpleNamespace(id=201, revision_uuid="revision-1"),
-        origin=AccessOrigin.SHARE,
-        grant=SimpleNamespace(id=301),
-    ))
+    access_policy.authorize = AsyncMock(
+        return_value=SimpleNamespace(
+            score=SimpleNamespace(id=101, score_uuid="score-1"),
+            revision=SimpleNamespace(id=201, revision_uuid="revision-1"),
+            origin=AccessOrigin.SHARE,
+            grant=SimpleNamespace(id=301),
+        )
+    )
     asset_repository = Mock()
     asset_repository.canonical_source = AsyncMock(
-        return_value=SimpleNamespace(storage_key="scores/score-1/revisions/revision-1/score.musicxml")
+        return_value=SimpleNamespace(
+            storage_key="scores/score-1/revisions/revision-1/score.musicxml"
+        )
     )
     storage = Mock()
     storage.local_path.return_value = "C:/tmp/final.xml"
@@ -744,11 +765,13 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
     library_service.mark_practiced = AsyncMock()
     service = PracticeService(repository=repository, library_service=library_service)
     db = AsyncMock()
-    db.get = AsyncMock(side_effect=lambda model, _identity: (
-        SimpleNamespace(score_uuid="score-1")
-        if model.__name__ == "Score"
-        else SimpleNamespace(revision_uuid="revision-1")
-    ))
+    db.get = AsyncMock(
+        side_effect=lambda model, _identity: (
+            SimpleNamespace(score_uuid="score-1")
+            if model.__name__ == "Score"
+            else SimpleNamespace(revision_uuid="revision-1")
+        )
+    )
 
     paused = await service.pause_session(db, "session-1", user_id=1)
     assert paused.state == PracticeSessionState.PAUSED
@@ -862,4 +885,3 @@ async def test_practice_service_get_report_parses_existing_payload() -> None:
     assert result.report_payload.summary == "done"
     assert result.report_payload.metrics == {"state": "FINISHED"}
     assert result.report_payload.recommendations == ["keep going"]
-

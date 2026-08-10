@@ -4,7 +4,7 @@ import json
 from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
-    from app.processing.engines.matchmaker_live import AlignmentUpdate
+    from app.processing.engines.practice_alignment.matchmaker_live import AlignmentUpdate
 
 
 class RuntimeMessage(TypedDict):

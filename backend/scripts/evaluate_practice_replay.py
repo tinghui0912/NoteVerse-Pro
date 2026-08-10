@@ -10,8 +10,8 @@ import wave
 
 import numpy as np
 
-from app.processing.engines.matchmaker_live import MatchmakerLiveEngine
-from app.processing.engines.practice_audio_profile import DEFAULT_PRACTICE_AUDIO_PROFILE
+from app.processing.engines.practice_alignment.matchmaker_live import MatchmakerLiveEngine
+from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
 
 
 def read_pcm_wav(path: Path, sample_rate: int) -> np.ndarray:
@@ -170,9 +170,10 @@ def evaluate_result(result: dict, expect: dict) -> list[str]:
             failures.append(f"start_seconds={start_seconds} above maximum")
         if result["lost_frames"] > expect.get("max_lost_frames", float("inf")):
             failures.append(f"lost_frames={result['lost_frames']} above maximum")
-        if "first_alignment_beat" in expect and result["first_alignment_beat"] != expect[
-            "first_alignment_beat"
-        ]:
+        if (
+            "first_alignment_beat" in expect
+            and result["first_alignment_beat"] != expect["first_alignment_beat"]
+        ):
             failures.append(
                 "first_alignment_beat="
                 f"{result['first_alignment_beat']} expected={expect['first_alignment_beat']}"
@@ -180,10 +181,7 @@ def evaluate_result(result: dict, expect: dict) -> list[str]:
         if result["alignment_advance"] is not None and result["alignment_advance"] < expect.get(
             "min_alignment_advance", 0
         ):
-            failures.append(
-                "alignment_advance="
-                f"{result['alignment_advance']} below minimum"
-            )
+            failures.append(f"alignment_advance={result['alignment_advance']} below minimum")
     if result["pause_checked"] and result["pause_emitted_updates"]:
         failures.append("emitted an update while paused")
     if result["pause_checked"] and not result["resume_emitted_updates"]:

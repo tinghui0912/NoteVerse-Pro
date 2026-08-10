@@ -135,7 +135,7 @@ docker compose -f docker-compose.backend-dev.yml exec -T practice python `
 ```
 
 The command exits nonzero when any scenario violates its manifest expectation.
-Use it after every change to `practice_audio_profile.py`, start validation, or
+Use it after every change to `practice_alignment/profile.py`, start validation, or
 the OLTW input policy. The lightweight `practice-quality` test suite continues
 to cover deterministic gate and manifest behavior without running Matchmaker's
 native Chroma implementation.

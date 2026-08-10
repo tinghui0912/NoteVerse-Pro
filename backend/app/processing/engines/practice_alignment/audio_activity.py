@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-AudioFrameClass = Literal["silence", "transient", "tonal", "uncertain"]
+AudioFrameClass = Literal["silence", "transient", "tonal", "uncertain"]  # Alignment input class.
 
 
 @dataclass
@@ -111,9 +111,7 @@ class AudioFeatureExtractor:
         )
         has_onset_energy = rms >= rms_gate * 0.2 or peak >= peak_gate * 0.1
         onset_signal = (
-            spectral_flux >= calibrated_flux_gate
-            and has_onset_energy
-            and musical_start_spectrum
+            spectral_flux >= calibrated_flux_gate and has_onset_energy and musical_start_spectrum
         )
 
         return self._with_frame_class(
@@ -255,9 +253,7 @@ class AdaptiveNoiseCalibrator:
         if self.noise_rms_values:
             rms_floor = float(self.np.percentile(self.noise_rms_values, 90))
             self.noise_rms_floor = max(self.noise_rms_floor, rms_floor)
-        self.noise_rms_floor = (
-            alpha * max(features.rms, 1e-6) + (1 - alpha) * self.noise_rms_floor
-        )
+        self.noise_rms_floor = alpha * max(features.rms, 1e-6) + (1 - alpha) * self.noise_rms_floor
 
         if self.noise_peak_values:
             peak_floor = float(self.np.percentile(self.noise_peak_values, 90))
@@ -268,8 +264,7 @@ class AdaptiveNoiseCalibrator:
 
         if not features.onset_signal:
             self.flux_floor = (
-                alpha * max(features.spectral_flux, 1e-6)
-                + (1 - alpha) * self.flux_floor
+                alpha * max(features.spectral_flux, 1e-6) + (1 - alpha) * self.flux_floor
             )
 
 
@@ -359,11 +354,7 @@ class PracticeAudioGate:
             return RuntimeActivityDecision(True, "trusted_onset", "onset")
         if current_musical_activity:
             return RuntimeActivityDecision(True, "tonal_runtime_energy", "music")
-        if (
-            in_keepalive_window
-            and features.tonal_signal
-            and (in_onset_hold or has_decay_energy)
-        ):
+        if in_keepalive_window and features.tonal_signal and (in_onset_hold or has_decay_energy):
             return RuntimeActivityDecision(True, "session_decay_window")
         if in_keepalive_window:
             return RuntimeActivityDecision(True, "session_keepalive_window")

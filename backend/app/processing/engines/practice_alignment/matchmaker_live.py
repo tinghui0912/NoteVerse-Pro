@@ -9,7 +9,7 @@ from typing import Callable, Literal, NotRequired, Protocol, TypedDict, runtime_
 from app.core.config import get_practice_runtime_settings
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 from app.core.logger import logger
-from app.processing.engines.practice_audio_activity import (
+from app.processing.engines.practice_alignment.audio_activity import (
     ActivityConfidenceEstimator,
     AdaptiveNoiseCalibrator,
     AudioFrameClass,
@@ -20,7 +20,7 @@ from app.processing.engines.practice_audio_activity import (
     PracticeAudioGate,
     PracticeActivityStateMachine,
 )
-from app.processing.engines.practice_audio_profile import DEFAULT_PRACTICE_AUDIO_PROFILE
+from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
 
 
 DEFAULT_TEMPO_BPM = 120
@@ -70,15 +70,12 @@ class AlignmentUpdate(TypedDict):
 class AlignmentEngine(Protocol):
     """Realtime alignment engine that consumes browser-provided audio chunks."""
 
-    def ingest_audio(self, chunk: bytes) -> AlignmentUpdate | None:
-        ...
+    def ingest_audio(self, chunk: bytes) -> AlignmentUpdate | None: ...
 
     @property
-    def is_ready_for_performance(self) -> bool:
-        ...
+    def is_ready_for_performance(self) -> bool: ...
 
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
 
 class BrowserAudioStreamAdapter:
@@ -429,7 +426,9 @@ class BrowserAudioStreamAdapter:
         self.last_onset_signal = features.onset_signal
         self.last_frame_class = features.frame_class
 
-    def _last_features(self, rms: float | None = None, peak: float | None = None) -> AudioFrameFeatures:
+    def _last_features(
+        self, rms: float | None = None, peak: float | None = None
+    ) -> AudioFrameFeatures:
         return AudioFrameFeatures(
             rms=self.last_rms if rms is None else rms,
             peak=self.last_peak if peak is None else peak,
@@ -507,9 +506,7 @@ class BrowserAudioStreamAdapter:
         runtime_active: bool | None = None,
     ) -> None:
         is_active = (
-            runtime_active
-            if runtime_active is not None
-            else self._has_runtime_activity(rms, peak)
+            runtime_active if runtime_active is not None else self._has_runtime_activity(rms, peak)
         )
         self.activity_state.update_runtime_activity(is_active)
 
@@ -914,12 +911,7 @@ class MatchmakerLiveEngine:
             raise RuntimeError(f"PRACTICE_SOUNDFONT_PATH does not exist: {soundfont}")
 
         note_array = score.note_array()
-        bpm_array = np.array(
-            [
-                [onset_beat, bpm]
-                for onset_beat in note_array["onset_beat"]
-            ]
-        )
+        bpm_array = np.array([[onset_beat, bpm] for onset_beat in note_array["onset_beat"]])
         score_audio = partitura.save_wav_fluidsynth(
             score,
             bpm=bpm_array,

@@ -986,6 +986,16 @@ deferred until the required offline models are available.
   `practice_alignment` as the domain boundary, with audio activity detection as
   one supporting capability.
 
+### 2026-08-10: Processing engines grouped by bounded domain
+
+- Moved Matchmaker, its audio-activity components, and the versioned profile to
+  `app.processing.engines.practice_alignment`. This names the full score-
+  following and realtime-alignment responsibility rather than only one input.
+- Moved PaddleOCR's subprocess launcher and worker module to
+  `app.processing.engines.ocr`; the launcher now starts the new module path.
+  Updated application consumers, scripts, tests, fixtures, and plans directly;
+  no old-path import compatibility layer remains.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

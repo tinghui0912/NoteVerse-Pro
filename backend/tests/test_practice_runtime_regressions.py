@@ -10,7 +10,7 @@ import pytest
 
 from app.core.config import get_practice_runtime_settings
 
-from app.processing.engines.matchmaker_live import (
+from app.processing.engines.practice_alignment.matchmaker_live import (
     BrowserAudioStreamAdapter,
     MatchmakerLiveEngine,
     build_alignment_engine,

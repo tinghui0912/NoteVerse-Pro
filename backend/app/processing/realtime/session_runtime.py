@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING, Optional
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
 
 if TYPE_CHECKING:
-    from app.processing.engines.matchmaker_live import AlignmentEngine, AlignmentUpdate
+    from app.processing.engines.practice_alignment.matchmaker_live import (
+        AlignmentEngine,
+        AlignmentUpdate,
+    )
 
 
 def build_alignment_engine(
@@ -17,7 +20,9 @@ def build_alignment_engine(
     frame_format: str,
 ) -> "AlignmentEngine":
     """Create the practice alignment engine without importing heavy runtime deps at module load."""
-    from app.processing.engines.matchmaker_live import build_alignment_engine as build_matchmaker_engine
+    from app.processing.engines.practice_alignment.matchmaker_live import (
+        build_alignment_engine as build_matchmaker_engine,
+    )
 
     return build_matchmaker_engine(
         score_file_path=score_file_path,

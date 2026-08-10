@@ -5,9 +5,9 @@ import os
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app.processing.engines.paddle_worker import _build_paddleocr_kwargs
+from app.processing.engines.ocr.paddle_worker import _build_paddleocr_kwargs
 from app.pipeline.steps.text import TextOcrStep
-from app.processing.engines.paddle import run_ocr_subprocess
+from app.processing.engines.ocr.paddle import run_ocr_subprocess
 from app.processing.text.recognition import TextRecognitionEngine
 
 
@@ -20,7 +20,7 @@ def _create_fake_paddle_model_dir(path) -> str:
 
 def test_run_ocr_subprocess_maps_timeout_to_failure() -> None:
     with patch(
-        "app.processing.engines.paddle.subprocess.run",
+        "app.processing.engines.ocr.paddle.subprocess.run",
         side_effect=subprocess.TimeoutExpired(cmd=["python"], timeout=12),
     ):
         result = run_ocr_subprocess(__file__, timeout_seconds=12)
@@ -37,7 +37,7 @@ def test_run_ocr_subprocess_prefers_structured_stdout_error() -> None:
         stderr="No ccache found warning",
     )
 
-    with patch("app.processing.engines.paddle.subprocess.run", return_value=completed):
+    with patch("app.processing.engines.ocr.paddle.subprocess.run", return_value=completed):
         result = run_ocr_subprocess(__file__, timeout_seconds=12)
 
     assert result["success"] is False
@@ -53,7 +53,7 @@ def test_run_ocr_subprocess_accepts_json_after_stdout_noise() -> None:
         stderr="",
     )
 
-    with patch("app.processing.engines.paddle.subprocess.run", return_value=completed):
+    with patch("app.processing.engines.ocr.paddle.subprocess.run", return_value=completed):
         result = run_ocr_subprocess(__file__, timeout_seconds=12)
 
     assert result["success"] is True
@@ -71,7 +71,7 @@ def test_run_ocr_subprocess_accepts_structured_error_after_stdout_noise() -> Non
         stderr="No ccache found warning",
     )
 
-    with patch("app.processing.engines.paddle.subprocess.run", return_value=completed):
+    with patch("app.processing.engines.ocr.paddle.subprocess.run", return_value=completed):
         result = run_ocr_subprocess(__file__, timeout_seconds=12)
 
     assert result["success"] is False
@@ -100,9 +100,7 @@ def test_build_paddleocr_kwargs_supports_v3_device_parameter(monkeypatch, tmp_pa
     monkeypatch.setenv("PADDLEOCR_DETECTION_MODEL_DIR", det_dir)
     monkeypatch.setenv("PADDLEOCR_RECOGNITION_MODEL_DIR", rec_dir)
     monkeypatch.setenv("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR", ori_dir)
-    fake_paddle = SimpleNamespace(
-        device=SimpleNamespace(is_compiled_with_cuda=lambda: True)
-    )
+    fake_paddle = SimpleNamespace(device=SimpleNamespace(is_compiled_with_cuda=lambda: True))
 
     kwargs = _build_paddleocr_kwargs(fake_paddle, FakePaddleOcr)
 
@@ -137,9 +135,7 @@ def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch, tmp_p
     monkeypatch.setenv("PADDLEOCR_DETECTION_MODEL_DIR", det_dir)
     monkeypatch.setenv("PADDLEOCR_RECOGNITION_MODEL_DIR", rec_dir)
     monkeypatch.setenv("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR", ori_dir)
-    fake_paddle = SimpleNamespace(
-        device=SimpleNamespace(is_compiled_with_cuda=lambda: False)
-    )
+    fake_paddle = SimpleNamespace(device=SimpleNamespace(is_compiled_with_cuda=lambda: False))
 
     kwargs = _build_paddleocr_kwargs(fake_paddle, FakePaddleOcr)
 
@@ -179,10 +175,9 @@ def test_text_ocr_step_caps_timeout_at_paddle_limit(monkeypatch) -> None:
         first_image=__file__,
         remaining=lambda: 600,
     )
-    monkeypatch.setattr(
-        "app.pipeline.steps.text.settings.PADDLEOCR_TIMEOUT_SECONDS",
-        120,
-    )
+    from app.core.config import get_worker_runtime_settings
+
+    monkeypatch.setattr(get_worker_runtime_settings(), "PADDLEOCR_TIMEOUT_SECONDS", 120)
 
     with patch.object(
         TextRecognitionEngine,
