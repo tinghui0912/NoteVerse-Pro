@@ -34,7 +34,7 @@ historical finding is not an indication that the item is still open.
 | ARC-012 | Partially complete | Continue extracting only duplicated bootstrap or settings ownership with a verified runtime boundary. |
 | ARC-013 | Partially complete | Code-side ownership and Dependabot policy are complete; verify GitHub-side alerts, secret scanning, branch protection, and required reviews outside this repository. |
 | ARC-014 | Open | Complete deployment-source documentation and stale-link remediation. |
-| ARC-015 | Open (P1) | Define a versioned, reviewable Practice WebSocket and SSE protocol contract, with server/client validation and an explicit compatibility policy. |
+| ARC-015 | Partially complete (P1) | Maintain the strict Practice WebSocket v1 contract and complete an exported, generated contract artifact before introducing SSE or a second realtime client. |
 | ARC-016 | Partially complete (P1) | Maintain the protected-service policy-dependency test and expand it only when a new score-facing authorization entry point is introduced. |
 
 ## Original confirmed findings (historical baseline)
@@ -1052,6 +1052,23 @@ ARC-016 is partially complete. The policy dependency boundary is now checked
 in CI; future work should add a narrowly justified static prohibition only when
 a concrete bypass pattern appears, rather than making normal domain queries
 impossible.
+
+### 2026-08-10: Practice WebSocket protocol v1 baseline
+
+- Added a strict, versioned Pydantic contract for browser JSON control frames
+  and server events. Every JSON frame now carries `protocol_version: 1`; the
+  server rejects unversioned or malformed control frames without accepting a
+  legacy fallback.
+- Added a matching strict Zod validator at the Customer Web socket boundary, so
+  malformed server data cannot enter practice page state through a type cast.
+- Added backend and frontend protocol tests and documented the change policy:
+  additive changes within a version; a new version for breaking changes; update
+  both runtimes in the same change.
+
+ARC-015 remains partially complete because its versioned schema is source-owned
+but is not yet exported as a committed generated contract artifact. SSE has no
+current product protocol to version and must be added to the same governance
+model if it becomes a customer-facing transport.
 
 ## Reusable completion checklist for every refactor
 

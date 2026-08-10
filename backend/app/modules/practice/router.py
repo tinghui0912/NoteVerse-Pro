@@ -168,8 +168,17 @@ async def stream_practice_session(
 
             text = message.get("text")
             if text is not None:
-                control = parse_control_message(text)
-                message_type = control["type"]
+                try:
+                    control = parse_control_message(text)
+                except ValueError:
+                    await websocket.send_json(
+                        session_error_message(
+                            public_code=ErrorCode.PRACTICE_STREAM_CLOSED,
+                        )
+                    )
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    break
+                message_type = control.type
 
                 if message_type == "client.init":
                     detail = await practice_service.start_session_stream(db, session_id, user_id)

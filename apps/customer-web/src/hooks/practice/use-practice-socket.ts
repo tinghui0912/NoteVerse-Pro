@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { API_BASE_URL } from '@/lib/app-protocol';
 import { reportUnexpectedClientError } from '@/lib/observability';
-import type { PracticeServerMessage } from '@/lib/practice/protocol';
+import {
+  parsePracticeServerMessage,
+  PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
+  type PracticeServerMessage,
+} from '@/lib/practice/protocol';
 
 function buildPracticeWebSocketUrl(path: string) {
   const pageUrl = new URL(window.location.href);
@@ -73,7 +77,7 @@ export function usePracticeSocket({ onMessage, onClose }: PracticeSocketOptions)
       socketRef.current = socket;
       socket.onmessage = (event) => {
         try {
-          onMessageRef.current(JSON.parse(event.data) as PracticeServerMessage);
+          onMessageRef.current(parsePracticeServerMessage(JSON.parse(event.data)));
         } catch (error) {
           reportUnexpectedClientError(error, {
             area: 'practice_realtime',
@@ -111,7 +115,11 @@ export function usePracticeSocket({ onMessage, onClose }: PracticeSocketOptions)
       return;
     }
     heartbeatRef.current = window.setInterval(() => {
-      sendJson({ type: 'client.heartbeat', payload: { t: Date.now() } });
+      sendJson({
+        protocol_version: PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
+        type: 'client.heartbeat',
+        payload: { t: Date.now() },
+      });
     }, 5000);
   }, [isOpen, sendJson, stopHeartbeat]);
 
