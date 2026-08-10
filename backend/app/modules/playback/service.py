@@ -126,7 +126,7 @@ class PlaybackService:
         )
         try:
             manifest = await get_or_create_execution_manifest_async(
-                db, build_playback_execution_manifest()
+                db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
             )
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             if previous is not None:
@@ -389,7 +389,9 @@ class PlaybackService:
             (previous.asset_uuid, previous.storage_key, previous.size_bytes) if previous else None
         )
         try:
-            manifest = get_or_create_execution_manifest(db, build_playback_execution_manifest())
+            manifest = get_or_create_execution_manifest(
+                db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
+            )
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             if previous is not None:
                 db.delete(previous)

@@ -967,8 +967,9 @@ deferred until the required offline models are available.
   semantics. Sample rate and maximum generated duration now change only through
   source review and release, not environment promotion.
 - Kept `PLAYBACK_SOUNDFONT_PATH` as deployment configuration because it selects
-  a mounted runtime resource; a future enhancement should add the resolved
-  SoundFont SHA-256 to the playback execution manifest.
+  a mounted runtime resource. The synthesizer now calculates the actual
+  SoundFont SHA-256 used for each WAV and includes it in the playback execution
+  manifest; a path alone is not treated as provenance.
 - `ScorePlaybackAsset` now references the normalized execution-manifest registry
   through migration `0040_score_playback_asset_execution_manifest`. Historical
   rows remain nullable/unknown rather than receiving invented provenance.

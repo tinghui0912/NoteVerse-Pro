@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 from app.core.config import settings
 from app.modules.playback.playback_profile import DEFAULT_PLAYBACK_PROFILE, PlaybackProfile
-from app.processing.engines.soundfont import ensure_partitura_default_soundfont
+from app.processing.engines.soundfont import ensure_partitura_default_soundfont, soundfont_sha256
 
 
 @dataclass(frozen=True)
@@ -18,6 +18,7 @@ class SynthesizedAudio:
     duration_ms: int
     generator: str
     generator_version: str
+    soundfont_sha256: str
 
 
 class FluidSynthAudioSynthesizer:
@@ -37,6 +38,7 @@ class FluidSynthAudioSynthesizer:
 
     def synthesize(self, midi: bytes) -> SynthesizedAudio:
         soundfont = self._soundfont()
+        resolved_soundfont_sha256 = soundfont_sha256(soundfont)
         ensure_partitura_default_soundfont(str(soundfont))
 
         Path(settings.WORK_ROOT).mkdir(parents=True, exist_ok=True)
@@ -55,6 +57,7 @@ class FluidSynthAudioSynthesizer:
             duration_ms=duration_ms,
             generator=self.generator,
             generator_version=self.generator_version,
+            soundfont_sha256=resolved_soundfont_sha256,
         )
 
     def _soundfont(self) -> Path:

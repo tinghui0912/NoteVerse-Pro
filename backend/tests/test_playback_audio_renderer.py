@@ -49,6 +49,7 @@ def test_renderer_compiles_musicxml_to_midi_before_synthesizing_audio() -> None:
                 duration_ms=1000,
                 generator="test-audio",
                 generator_version="1",
+                soundfont_sha256="a" * 64,
             )
 
     rendered = FluidSynthAudioRenderer(
@@ -61,6 +62,7 @@ def test_renderer_compiles_musicxml_to_midi_before_synthesizing_audio() -> None:
     assert rendered.extension == ".wav"
     assert rendered.duration_ms == 1000
     assert rendered.generator == "musicxml-verovio-fluidsynth-preview"
+    assert rendered.soundfont_sha256 == "a" * 64
 
 
 def test_fluidsynth_synthesizer_uses_configured_soundfont_and_sample_rate(
@@ -103,3 +105,7 @@ def test_fluidsynth_synthesizer_uses_configured_soundfont_and_sample_rate(
     assert calls["timeout"] == 32.0
     assert rendered.mime_type == "audio/wav"
     assert rendered.duration_ms == 500
+    assert (
+        rendered.soundfont_sha256
+        == "f417ae12e574b96b2009148ca55f7f9b50b10ce756174b20919d47edeb762bf7"
+    )

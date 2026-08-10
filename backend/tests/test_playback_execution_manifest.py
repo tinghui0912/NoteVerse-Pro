@@ -26,7 +26,7 @@ def test_playback_profile_rejects_invalid_output_limits() -> None:
 
 
 def test_playback_execution_manifest_is_stable_and_content_addressed() -> None:
-    manifest = build_playback_execution_manifest()
+    manifest = build_playback_execution_manifest(soundfont_sha256="a" * 64)
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
 
