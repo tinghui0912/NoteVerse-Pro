@@ -1847,6 +1847,10 @@ export type ImportJobRead = {
      */
     created_at?: string | null;
     /**
+     * Execution Manifest Sha256
+     */
+    execution_manifest_sha256?: string | null;
+    /**
      * Finished At
      */
     finished_at?: string | null;
