@@ -849,6 +849,21 @@ deferred until the required offline models are available.
   changes do not affect the control-plane path, and that the internal
   observability surface remains without OpenAPI.
 
+### 2026-08-10: Control Plane environment boundary extracted
+
+- Removed all `CONTROL_PLANE_*` fields from shared `Settings`. The isolated
+  `ControlPlaneRuntimeSettings` is now the sole required environment loader
+  for the operator HTTP surface, with direct validation for names, cookie
+  policy, session lifetime, and non-empty CORS origins.
+- Added `backend/.env.docker.control-plane.example` and made the Compose
+  Control Plane profile require its untracked local counterpart. Customer API,
+  Worker, Beat, Practice, and quality services do not receive this identity
+  configuration.
+- Kept `CONTROL_PLANE_API_PREFIX` as a source-owned versioned contract rather
+  than an environment variable or an alias for `API_V1_STR`: the two APIs are
+  independently hosted and may evolve independently even while both currently
+  expose `/api/v1`.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

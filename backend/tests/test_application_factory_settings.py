@@ -4,13 +4,17 @@ from app.core.config import settings
 def test_application_factories_apply_shared_service_identity_settings(monkeypatch) -> None:
     monkeypatch.setattr(settings, "PROJECT_NAME", "NoteVerse Test")
     monkeypatch.setattr(settings, "API_V1_STR", "/api/v9")
-    monkeypatch.setattr(settings, "CONTROL_PLANE_AUTH_COOKIE_NAME", "noteverse_control_session")
-    monkeypatch.setattr(settings, "CONTROL_PLANE_CSRF_COOKIE_NAME", "noteverse_control_csrf")
-    monkeypatch.setattr(settings, "CONTROL_PLANE_CSRF_HEADER_NAME", "X-Control-CSRF-Token")
-    monkeypatch.setattr(settings, "CONTROL_PLANE_COOKIE_SECURE", True)
-    monkeypatch.setattr(settings, "CONTROL_PLANE_COOKIE_SAMESITE", "strict")
-    monkeypatch.setattr(settings, "CONTROL_PLANE_SESSION_EXPIRE_MINUTES", 60)
-    monkeypatch.setattr(settings, "CONTROL_PLANE_CORS_ORIGINS", ["https://control.example.test"])
+    monkeypatch.setenv("CONTROL_PLANE_AUTH_COOKIE_NAME", "noteverse_control_session")
+    monkeypatch.setenv("CONTROL_PLANE_CSRF_COOKIE_NAME", "noteverse_control_csrf")
+    monkeypatch.setenv("CONTROL_PLANE_CSRF_HEADER_NAME", "X-Control-CSRF-Token")
+    monkeypatch.setenv("CONTROL_PLANE_COOKIE_SECURE", "true")
+    monkeypatch.setenv("CONTROL_PLANE_COOKIE_SAMESITE", "strict")
+    monkeypatch.setenv("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "60")
+    monkeypatch.setenv("CONTROL_PLANE_CORS_ORIGINS", '["https://control.example.test"]')
+
+    from app.core.control_plane_settings import get_control_plane_runtime_settings
+
+    get_control_plane_runtime_settings.cache_clear()
 
     from app.control_plane_main import create_app as create_control_plane_app
     from app.main import create_app as create_api_app

@@ -11,7 +11,7 @@ or supply compatibility aliases.
 | Configuration group | Primary owner | Runtime consumers | Representative fields |
 | --- | --- | --- | --- |
 | Service identity and customer HTTP | API | API, Practice, Control Plane, observability, shared delivery/auth helpers | `PROJECT_NAME`, `API_V1_STR`, `DEBUG`, customer cookie/CSRF settings, `BACKEND_CORS_ORIGINS`, `TRUSTED_PROXY_CIDRS` |
-| Control-plane identity | Control Plane | Control Plane only | `CONTROL_PLANE_*`; resolved through `app.core.control_plane_settings` |
+| Control-plane identity | Control Plane | Control Plane only | `CONTROL_PLANE_*`; loaded only by `app.core.control_plane_settings` from the Control Plane environment contract |
 | Observability | Platform | API, Practice, Control Plane, observability exporter | `LOG_FORMAT`, `OTEL_*` |
 | Database and cache | Platform | API, Practice, Worker, Beat | `DATABASE_URL`, `SYNC_DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, Redis and Celery URLs |
 | Worker scheduling and reliability | Worker | Worker, Beat, API dispatch/outbox writers | import, render, playback, mail, notification, realtime, retention, and scheduler timing settings |
@@ -254,6 +254,14 @@ isolated control runtime starts.
 `ServiceIdentitySettings` owns the product name, customer API mount prefix, and
 debug-mode parsing. Control-plane cookies and CORS remain a separate runtime
 boundary; neither is part of customer API identity/routing.
+
+Control Plane identity is not part of the shared `Settings` schema. Its
+required `CONTROL_PLANE_*` values are loaded only by
+`ControlPlaneRuntimeSettings`; local Compose development supplies them through
+`backend/.env.docker.control-plane`, created from the committed example. The
+operator API prefix remains the source-owned `CONTROL_PLANE_API_PREFIX` value:
+it is a versioned HTTP contract on a separate host, so it must neither be an
+environment toggle nor an alias of the customer `API_V1_STR` setting.
 
 The next safe extraction is `TrustedProxySettings`: it has a single direct
 runtime consumer and a self-contained CIDR parsing/anti-`/0` validator. Keep

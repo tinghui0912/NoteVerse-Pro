@@ -44,6 +44,11 @@ services:
 
   control:
     <<: *backend-common
+    env_file:
+      - path: backend/.env.docker
+        required: true
+      - path: backend/.env.docker.control-plane
+        required: true
     image: noteverse-backend-api:dev
     build:
       context: .

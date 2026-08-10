@@ -2,9 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
-
-from pydantic import AnyHttpUrl, field_validator, model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
@@ -69,23 +67,6 @@ class Settings(
     WorkerDatabaseSettings,
     BaseSettings,
 ):
-    CONTROL_PLANE_AUTH_COOKIE_NAME: Optional[str] = None
-    CONTROL_PLANE_CSRF_COOKIE_NAME: Optional[str] = None
-    CONTROL_PLANE_CSRF_HEADER_NAME: Optional[str] = None
-    CONTROL_PLANE_COOKIE_SECURE: Optional[bool] = None
-    CONTROL_PLANE_COOKIE_SAMESITE: Optional[str] = None
-    CONTROL_PLANE_SESSION_EXPIRE_MINUTES: Optional[int] = None
-    CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
-
-    @field_validator("CONTROL_PLANE_CORS_ORIGINS", mode="before")
-    @classmethod
-    def assemble_control_plane_cors_origins(cls, value: str | List[str] | None) -> List[str] | None:
-        if value is None or value == "":
-            return None
-        if isinstance(value, list):
-            return value
-        raise ValueError("CONTROL_PLANE_CORS_ORIGINS must be a JSON array")
-
     @field_validator(
         "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
         "SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS",

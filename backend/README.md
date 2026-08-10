@@ -63,10 +63,15 @@ docker compose -f docker-compose.backend-dev.yml run --rm api migrate
 docker compose -f docker-compose.backend-dev.yml up api worker beat
 ```
 
-The control-plane runtime is intentionally opt-in. Before starting it, add all
-`CONTROL_PLANE_*` values from `.env.docker.example` to `backend/.env.docker`;
-they must use names and origins distinct from customer authentication. Then
-start it explicitly:
+The control-plane runtime is intentionally opt-in. Before starting it, create
+its separate environment file; its values must use names and origins distinct
+from customer authentication:
+
+```powershell
+Copy-Item backend/.env.docker.control-plane.example backend/.env.docker.control-plane
+```
+
+Then start it explicitly:
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml --profile control-plane up control
