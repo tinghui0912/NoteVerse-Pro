@@ -109,3 +109,23 @@ configuration through a separately coordinated credential-rotation task.
 - **Next:** Practice soundfont/alignment runtime configuration, followed by the
   release-critical Storage and database/queue settings only after their runtime
   projections are explicitly separated.
+
+## Worker runtime-loader migration boundary
+
+The Worker model/engine fields still compose into the shared `Settings` object
+until their consumers migrate to a lazy `WorkerRuntimeSettings` loader. The
+complete direct-consumer boundary was measured on 2026-08-10:
+
+- `app.core.runtime_checks` (Worker-only checks; loader must be called inside
+  those check functions because the module is also imported by HTTP lifespans);
+- `app.core.startup_checks` (Worker-only status logging);
+- `app.pipeline.steps.text` (PaddleOCR deadline);
+- `app.processing.engines.omr.factory` and `.omr.legato`;
+- `app.processing.engines.render.factory` and `.render.verovio`.
+
+No API route, Practice runtime, Beat scheduler, or playback synthesis module
+may import the Worker loader. Migrate this whole list in one change, remove
+`WorkerModelEngineSettings` from shared `Settings`, then move the corresponding
+model variables to the Worker-only Docker manifest. Do not make fields optional
+or provide a fallback loader: Worker startup must fail when its required model
+configuration is absent.

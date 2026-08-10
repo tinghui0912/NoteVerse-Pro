@@ -586,6 +586,16 @@ deferred until the required offline models are available.
 - Narrowed `WorkerModelEngineSettings` to OCR/model, OMR, and rendering
   parameters before the forthcoming Worker-only runtime loader extraction.
 
+### 2026-08-10: Worker runtime-loader migration boundary measured
+
+- Recorded the exact eight direct consumers of Worker model/engine settings and
+  the required migration rule: `runtime_checks` must load Worker settings only
+  inside Worker-specific checks because HTTP lifespans import that module.
+- Explicitly prohibited optional Worker model fields and fallback loaders. The
+  next implementation change must migrate the entire measured set, remove the
+  group from shared settings, and then move its environment variables into the
+  Worker-only manifest as one atomic runtime change.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
