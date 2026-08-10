@@ -15,9 +15,7 @@ class _StrictModel(BaseModel):
 
 
 class _ProtocolEnvelope(_StrictModel):
-    protocol_version: Literal[PRACTICE_WEBSOCKET_PROTOCOL_VERSION] = (
-        PRACTICE_WEBSOCKET_PROTOCOL_VERSION
-    )
+    protocol_version: Literal[1] = 1
 
 
 class ClientInitPayload(_StrictModel):

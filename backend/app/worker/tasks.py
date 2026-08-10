@@ -369,16 +369,15 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
             if payload.target_type == RenderTargetType.SCORE_REVISION:
                 score_uuid = payload.score_uuid
                 revision_uuid = payload.revision_uuid
-                user_id = payload.user_id
-                if score_uuid is None or revision_uuid is None or user_id is None:
+                if score_uuid is None or revision_uuid is None or payload.user_id is None:
                     raise ValueError("Revision render payload is incomplete")
 
                 with get_worker_db() as db:
-                    RevisionRenderService().render_sync(
+                    RevisionRenderService().render_for_worker(
                         db,
                         score_uuid,
                         revision_uuid,
-                        user_id,
+                        source_fingerprint=payload.source_fingerprint,
                         profile=payload.render_profile,
                     )
             elif payload.target_type == RenderTargetType.REVIEW_THUMBNAIL:
