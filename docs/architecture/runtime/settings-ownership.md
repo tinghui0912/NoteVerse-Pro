@@ -118,7 +118,10 @@ configuration through a separately coordinated credential-rotation task.
   owns render Outbox cadence, leases, retry/batch limits, and derived-asset
   retention/cleanup. A zero historical-revision retention count remains valid;
   every delivery deadline and batch/retry limit remains strictly positive.
-- **Next:** Extract Playback delivery policy, using its measured Outbox, Ops,
+- **Complete:** Playback delivery policy. `PlaybackDeliverySettings` owns
+  playback Outbox cadence, leases, retry/backoff, and batch limits. It remains
+  separate from `PlaybackSettings`, which owns audio synthesis capability.
+- **Next:** Extract Mail delivery policy, using its measured Outbox, Ops,
   metrics, and Beat consumers as one atomic change.
 
 ## Worker runtime-loader migration boundary

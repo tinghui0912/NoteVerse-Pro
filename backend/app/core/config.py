@@ -14,6 +14,7 @@ from app.core.settings.async_database import AsyncDatabaseSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
 from app.core.settings.import_dispatch import ImportDispatchSettings
 from app.core.settings.playback import PlaybackSettings
+from app.core.settings.playback_delivery import PlaybackDeliverySettings
 from app.core.settings.queue import QueueSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
@@ -26,7 +27,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, ObservabilitySettings, PlaybackSettings, QueueSettings, RenderAssetDeliverySettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RenderAssetDeliverySettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -111,12 +112,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
     @field_validator(
         "NOTIFICATION_CLEANUP_INTERVAL_SECONDS",
         "NOTIFICATION_RETENTION_DAYS",
-        "PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS",
-        "PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
-        "PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
-        "PLAYBACK_OUTBOX_RETRY_BASE_SECONDS",
-        "PLAYBACK_OUTBOX_MAX_ATTEMPTS",
-        "PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE",
         "REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS",
         "REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS",
         "REALTIME_EVENT_BATCH_SIZE",
@@ -158,12 +153,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
     FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
     NOTIFICATION_CLEANUP_INTERVAL_SECONDS: int = 86400
     NOTIFICATION_RETENTION_DAYS: int = 90
-    PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS: int = 30
-    PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS: int = 300
-    PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS: int = 1200
-    PLAYBACK_OUTBOX_RETRY_BASE_SECONDS: int = 60
-    PLAYBACK_OUTBOX_MAX_ATTEMPTS: int = 5
-    PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE: int = 50
     MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS: int = 10
     MAIL_OUTBOX_DISPATCH_TIMEOUT_SECONDS: int = 120
     MAIL_OUTBOX_PROCESSING_TIMEOUT_SECONDS: int = 120

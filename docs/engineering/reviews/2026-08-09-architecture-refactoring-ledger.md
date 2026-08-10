@@ -674,6 +674,16 @@ deferred until the required offline models are available.
   and derived-asset cleanup. Shared `Settings` continues to compose the group;
   no environment names, manifests, aliases, or fallback behavior changed.
 
+### 2026-08-10: Playback delivery policy ownership extracted
+
+- Moved playback Outbox cadence, dispatch/processing leases, retry backoff,
+  retry limit, and batch limit into `PlaybackDeliverySettings`, with direct
+  positive-value validation and group tests.
+- Kept this operational policy separate from `PlaybackSettings`, which owns
+  SoundFont synthesis parameters. Added shared-settings and Beat scheduling
+  coverage; no deployment manifest, environment name, alias, or fallback
+  behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

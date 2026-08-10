@@ -35,6 +35,12 @@ def test_render_asset_delivery_maintenance_is_scheduled() -> None:
     assert render_outbox_schedule["schedule"] == float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS)
 
 
+def test_playback_delivery_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["playback-outbox-maintenance"]
+
+    assert schedule["schedule"] == float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS)
+
+
 def test_score_deletion_cleanup_is_scheduled() -> None:
     schedule = celery_app.conf.beat_schedule["score-deletion-cleanup"]
 
