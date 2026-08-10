@@ -49,7 +49,7 @@ from app.modules.async_operations.diagnostics import (
 from app.utils.timezone import utc_now_naive
 
 
-CONTROL_PLANE_AUTH_COOKIE_NAME = "noteverse_control_auth"
+CONTROL_PLANE_AUTH_COOKIE_NAME = "noteverse_control_session"
 CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_control_csrf"
 CONTROL_PLANE_CSRF_HEADER_NAME = "x-control-csrf-token"
 os.environ.setdefault("CONTROL_PLANE_AUTH_COOKIE_NAME", CONTROL_PLANE_AUTH_COOKIE_NAME)
@@ -60,13 +60,20 @@ os.environ.setdefault("CONTROL_PLANE_COOKIE_SAMESITE", "lax")
 os.environ.setdefault("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
 os.environ.setdefault("CONTROL_PLANE_CORS_ORIGINS", '["http://testserver"]')
 
+from app.core.control_plane_settings import (  # noqa: E402
+    get_control_plane_runtime_settings,
+    require_control_plane_settings,
+)
+
+get_control_plane_runtime_settings.cache_clear()
+
 from app.control_plane_main import create_app  # noqa: E402
-from app.core.control_plane_settings import require_control_plane_settings  # noqa: E402
 from app.modules.platform_operators.dependencies import OperatorPrincipal, get_current_operator  # noqa: E402
 from app.modules.platform_operators.service import OperatorAuthenticationService  # noqa: E402
 
 
 app = create_app()
+control_settings = require_control_plane_settings()
 
 
 @pytest.fixture
@@ -217,7 +224,7 @@ async def test_control_plane_login_uses_an_independent_operator_session_cookie(
         )
 
         assert response.status_code == 200
-        assert CONTROL_PLANE_AUTH_COOKIE_NAME in response.headers["set-cookie"]
+        assert control_settings.auth_cookie_name in response.headers["set-cookie"]
         assert settings.AUTH_COOKIE_NAME not in response.headers["set-cookie"]
 
         me_response = client.get("/api/v1/auth/me")
@@ -256,11 +263,11 @@ async def test_control_plane_logout_requires_its_own_csrf_header(
         assert missing_csrf.status_code == 403
         assert missing_csrf.json()["public_code"] == "csrf_token_invalid"
 
-        csrf_token = client.cookies.get(CONTROL_PLANE_CSRF_COOKIE_NAME)
+        csrf_token = client.cookies.get(control_settings.csrf_cookie_name)
         assert csrf_token
         logout = client.post(
             "/api/v1/auth/logout",
-            headers={CONTROL_PLANE_CSRF_HEADER_NAME: csrf_token},
+            headers={control_settings.csrf_header_name: csrf_token},
         )
         assert logout.status_code == 200
         assert client.get("/api/v1/auth/me").status_code == 401
