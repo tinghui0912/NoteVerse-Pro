@@ -90,6 +90,23 @@ The backend settings loader does not read `backend/.env`. Local development and
 tests must run through Docker with environment provided by `backend/.env.docker`
 or deployment-level environment variables.
 
+### Local configuration boundary
+
+`backend/.env.docker` is an untracked local runtime manifest. It may contain
+developer-specific infrastructure endpoints, local credentials, and non-secret
+development tuning such as Task reliability intervals, retry limits, and batch
+sizes. Keep the shared developer baseline in
+`backend/.env.docker.example`; do not commit the local copy.
+
+Task reliability values belong in this local file because Docker Compose must
+pass the same values to API, Worker, and Beat while developing. They are not a
+production source of truth. Production reliability policy must be reviewed and
+versioned with its deployment configuration (for example the non-secret
+`backend-config.env` consumed by a Kubernetes ConfigMap), tuned against
+throughput and SLO evidence, and released with the affected workloads. Keep
+database URLs, Redis URLs, object-storage keys, mail keys, and cookie secrets in
+the deployment secret store rather than a ConfigMap or repository file.
+
 ## Prepare Model Volume
 
 The compose file mounts a host model directory to:

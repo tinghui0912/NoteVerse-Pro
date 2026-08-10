@@ -509,6 +509,17 @@ deferred until the required offline models are available.
   low-risk candidate is Practice diagnostics, after its consumer list and
   interval validation are verified in the same manner.
 
+### 2026-08-10: Practice diagnostics settings extraction
+
+- Moved the Practice diagnostics switch and its two interval settings into
+  `app.core.settings.practice_diagnostics`, including the positive-interval
+  validation. Existing Practice consumers continue to read one composed
+  settings object, with no alias or fallback path.
+- Documented the local Docker environment-file boundary: Task reliability
+  tuning is appropriate in the untracked local `.env.docker` file, while
+  production reliability policy belongs in reviewed, versioned deployment
+  configuration and secrets remain in the deployment secret store.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

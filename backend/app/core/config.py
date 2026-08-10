@@ -10,12 +10,13 @@ from pydantic import AnyHttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
+from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(ObservabilitySettings, BaseSettings):
+class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -36,9 +37,6 @@ class Settings(ObservabilitySettings, BaseSettings):
     CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
     DEBUG: bool = False
     FRONTEND_BASE_URL: str
-    PRACTICE_AUDIO_DIAGNOSTICS: bool = False
-    PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL: int = 15
-    PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL: int = 15
     PRACTICE_SOUNDFONT_PATH: str
     PLAYBACK_SOUNDFONT_PATH: str
     PLAYBACK_SAMPLE_RATE: int = 44100
@@ -170,8 +168,6 @@ class Settings(ObservabilitySettings, BaseSettings):
         "PLAYBACK_OUTBOX_MAX_ATTEMPTS",
         "PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE",
         "PLAYBACK_SAMPLE_RATE",
-        "PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL",
-        "PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL",
         "REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS",
         "REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS",
         "REALTIME_EVENT_BATCH_SIZE",
