@@ -12,7 +12,32 @@
 - **Validate before acting** means the owner must first measure or reproduce the risk; do not refactor based on aesthetics alone.
 - Keep this document short enough to operate. Move completed decisions to an ADR or the archive and link them here.
 
-## Confirmed findings
+## Current status and active backlog
+
+The table below is the authoritative execution view. The following sections
+retain the original findings and chronological implementation evidence; a
+historical finding is not an indication that the item is still open.
+
+| ID | Current status | Next required outcome |
+| --- | --- | --- |
+| ARC-001 | Complete | Maintain the root entry point as repository topology or quality commands change. |
+| ARC-002 | Complete | Maintain OpenAPI generation and generated TypeScript freshness checks for HTTP contracts. |
+| ARC-003 | Open | Split only measured hotspots by stable responsibilities, with direct tests for each extraction. |
+| ARC-004 | Open | Continue replacing broad orchestration hubs with intent-named units when a concrete cohesion boundary is identified. |
+| ARC-005 | Partially complete | Add focused gates for import-job authorization and Practice-session ownership, then introduce architecture-boundary checks. |
+| ARC-006 | Partially complete | Extend the disposable real integration environment to the score/import flow and authenticated Practice WebSocket handshake. |
+| ARC-007 | Complete | Generated OpenAPI documents are the cross-stack trigger; backend contract freshness checks prevent an unsynchronised source change from passing. Reassess only if a new contract surface is not represented by a generated artifact. |
+| ARC-008 | Complete | Keep Action SHAs immutable and let Dependabot propose reviewed updates. |
+| ARC-009 | Complete | Keep the Markdown-link validator required for documentation changes. |
+| ARC-010 | Complete | Keep local script indexes aligned with supported commands. |
+| ARC-011 | Complete | No further work unless a new production prototype boundary appears. |
+| ARC-012 | Partially complete | Continue extracting only duplicated bootstrap or settings ownership with a verified runtime boundary. |
+| ARC-013 | Partially complete | Code-side ownership and Dependabot policy are complete; verify GitHub-side alerts, secret scanning, branch protection, and required reviews outside this repository. |
+| ARC-014 | Open | Complete deployment-source documentation and stale-link remediation. |
+| ARC-015 | Open (P1) | Define a versioned, reviewable Practice WebSocket and SSE protocol contract, with server/client validation and an explicit compatibility policy. |
+| ARC-016 | Partially complete (P1) | Maintain the protected-service policy-dependency test and expand it only when a new score-facing authorization entry point is introduced. |
+
+## Original confirmed findings (historical baseline)
 
 | ID | Priority | Finding | Evidence | Required outcome |
 | --- | --- | --- | --- | --- |
@@ -30,6 +55,8 @@
 | ARC-012 | P2 | Backend application bootstrap and configuration have duplication/concentration risk. | `main.py`, `practice_main.py`, and `control_plane_main.py` repeat middleware/tracing/exception setup; `core/config.py` is 499 lines. | Extract a parameterized runtime bootstrap and role-specific settings modules, while preserving the explicit security boundary of the control plane. |
 | ARC-013 | P1 | Repository ownership and dependency-update automation are absent at the repository level. | No root `CODEOWNERS`, Dependabot, or Renovate configuration was found; only backend has a pre-commit configuration. | Define code owners for apps/backend/deploy/docs and configure reviewed dependency updates across npm, Python, GitHub Actions, and container bases. |
 | ARC-014 | P2 | Deployment source hierarchy is intentional but difficult to infer, and several deployment README paths are stale. | `deploy/application` is a reusable template; `deploy/gitops/environments/staging/base` is a generated, digest-pinned snapshot. Their files intentionally differ. `deploy/application/README.md` and `deploy/observability/README.md` reference non-existent `docs/k8s-*.md` paths. | State the source/generation/immutability rules in every deployment index; replace plain paths with checked relative Markdown links. |
+| ARC-015 | P1 | Practice WebSocket protocol is a hand-maintained TypeScript union and is not covered by the HTTP OpenAPI contract. Several payload fields intentionally accept unrestricted strings. | `apps/customer-web/src/lib/practice/protocol.ts`; Practice REST types are generated separately under `src/generated/practice-api/`. | Establish a versioned realtime schema with server/client validation, protocol-change review, test fixtures, and a documented additive/breaking-change policy. |
+| ARC-016 | P1 | Score authorization is centrally implemented and behaviorally tested, but no mechanical rule currently proves that feature modules cannot bypass `ScoreAccessPolicy`. | `app.modules.score_access.policy`, focused coverage gate, and service imports; no architecture-boundary test or import rule found. | Add a focused architecture test or static import rule, plus representative route/service tests, that makes bypassing the policy fail CI. |
 
 ## Corrected findings from the first review
 
@@ -1005,7 +1032,28 @@ deferred until the required offline models are available.
 - Playback, practice alignment, and runtime checks now consume this one resource
   adapter through `app.processing.resources`, with no legacy engine-path export.
 
-## Completion checklist for every refactor
+### 2026-08-10: Score-access boundary made mechanically visible
+
+- Removed the unused synchronous render entry point. It duplicated owner/editor
+  authorization with direct `ScoreMembership` queries instead of using the
+  central asynchronous `ScoreAccessPolicy`; no repository caller referenced the
+  entry point, so no compatibility path was retained.
+- Added an explicit architecture test listing every current score-facing service
+  that accepts caller identity and operates on an existing score or revision.
+  Each must import `ScoreAccessPolicy`; adding a new protected entry point now
+  requires an intentional update to the boundary test rather than silently
+  recreating authorization logic.
+- This is deliberately not a blanket ban on score-related table reads. Storage
+  accounting, notification recipient selection, repositories, and membership
+  lifecycle code legitimately read those tables without making authorization
+  decisions.
+
+ARC-016 is partially complete. The policy dependency boundary is now checked
+in CI; future work should add a narrowly justified static prohibition only when
+a concrete bypass pattern appears, rather than making normal domain queries
+impossible.
+
+## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
 - [ ] No circular or forbidden dependency is introduced.
