@@ -13,6 +13,7 @@ from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.async_database import AsyncDatabaseSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
 from app.core.settings.playback import PlaybackSettings
+from app.core.settings.queue import QueueSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.worker_database import WorkerDatabaseSettings
@@ -22,7 +23,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettings, PlaybackSettings, StorageSettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettings, PlaybackSettings, QueueSettings, StorageSettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -172,11 +173,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettin
 
     # Database
 
-    # Redis
-    REDIS_URL: str
-
-    CELERY_BROKER_URL: str
-    CELERY_RESULT_BACKEND: str
     FINGERING_MAX_CONCURRENCY: int = 2
     FINGERING_QUEUE_WAIT_SECONDS: int = 5
     FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
