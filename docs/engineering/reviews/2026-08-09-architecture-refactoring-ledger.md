@@ -790,6 +790,17 @@ deferred until the required offline models are available.
   migration also removed the obsolete `json` import from the shared config
   module; no environment name, manifest, alias, or fallback behavior changed.
 
+### 2026-08-10: Browser CORS policy ownership extracted
+
+- Moved the customer API/Practice `BACKEND_CORS_ORIGINS` JSON-array/URL-list
+  contract into `BrowserCorsSettings`, preserving the valid explicit empty-list
+  state and keeping control-plane CORS separate.
+- Direct settings and shared HTTP runtime tests passed, as did direct API and
+  Practice CORS-wiring imports. The broader TestClient suite repeatedly hit an
+  existing FastAPI/Pydantic native segmentation fault while generating OpenAPI
+  schema after 37 tests; this is a test-runtime stability issue, not an
+  assertion failure or an accepted substitute for full API regression coverage.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

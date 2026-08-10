@@ -11,6 +11,7 @@ from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.async_database import AsyncDatabaseSettings
 from app.core.settings.account_email_link import AccountEmailLinkSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
+from app.core.settings.browser_cors import BrowserCorsSettings
 from app.core.settings.customer_session_security import CustomerSessionSecuritySettings
 from app.core.settings.fingering_execution import FingeringExecutionSettings
 from app.core.settings.import_dispatch import ImportDispatchSettings
@@ -36,7 +37,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, BrowserCorsSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -50,15 +51,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
     DEBUG: bool = False
     FRONTEND_BASE_URL: str
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl]
-
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
-        if v in (None, ""):
-            return []
-        if isinstance(v, list):
-            return v
-        raise ValueError("BACKEND_CORS_ORIGINS must be a JSON array")
 
     @field_validator("CONTROL_PLANE_CORS_ORIGINS", mode="before")
     @classmethod

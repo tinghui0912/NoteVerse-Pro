@@ -153,8 +153,12 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Trusted proxy policy. `TrustedProxySettings` owns CIDR parsing,
   normalization, and the prohibition on trusting every address for forwarded
   client-address resolution.
-- **Next:** Extract browser CORS policy. Keep it separate from trusted proxies,
-  public frontend URL, and the control-plane-specific CORS allowlist.
+- **Complete:** Browser CORS policy. `BrowserCorsSettings` owns the customer
+  API/Practice origin list and retains the valid explicit-empty-list state.
+  It is independent of trusted proxies, public frontend URL, and control-plane
+  CORS.
+- **Next:** Extract token signing secret settings, moving its length validation
+  with the field while keeping it separate from browser and routing policy.
 
 ## Worker runtime-loader migration boundary
 

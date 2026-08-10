@@ -34,6 +34,14 @@ def test_settings_compose_trusted_proxy_policy() -> None:
     assert settings.TRUSTED_PROXY_CIDRS == ["10.0.0.0/8"]
 
 
+def test_settings_compose_browser_cors_policy() -> None:
+    settings = Settings(BACKEND_CORS_ORIGINS=["https://app.example.com"])
+
+    assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == [
+        "https://app.example.com/"
+    ]
+
+
 def test_practice_diagnostic_intervals_must_be_positive() -> None:
     settings = PracticeRuntimeSettings(
         PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2",
