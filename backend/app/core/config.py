@@ -2,6 +2,7 @@
 
 import json
 import os
+from functools import lru_cache
 from ipaddress import ip_network
 from pathlib import Path
 from typing import List, Optional
@@ -18,7 +19,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(ObservabilitySettings, PlaybackSettings, PracticeDiagnosticsSettings, WorkerModelEngineSettings, BaseSettings):
+class Settings(ObservabilitySettings, PlaybackSettings, PracticeDiagnosticsSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -270,10 +271,6 @@ class Settings(ObservabilitySettings, PlaybackSettings, PracticeDiagnosticsSetti
     def validate_task_time_limits(self) -> "Settings":
         """Keep component timeouts inside the task shutdown envelope."""
 
-        if self.PADDLEOCR_TIMEOUT_SECONDS > self.MAX_PROCESSING_TIME:
-            raise ValueError(
-                "PADDLEOCR_TIMEOUT_SECONDS must not exceed MAX_PROCESSING_TIME"
-            )
         if self.MAX_PROCESSING_TIME >= self.CELERY_TASK_SOFT_TIME_LIMIT:
             raise ValueError(
                 "MAX_PROCESSING_TIME must be lower than CELERY_TASK_SOFT_TIME_LIMIT"
@@ -396,3 +393,30 @@ class Settings(ObservabilitySettings, PlaybackSettings, PracticeDiagnosticsSetti
 
 
 settings = Settings()
+
+
+class WorkerRuntimeSettings(WorkerModelEngineSettings, BaseSettings):
+    """Strict Worker-only model and engine environment contract."""
+
+    MAX_PROCESSING_TIME: int = 900
+    CELERY_TASK_SOFT_TIME_LIMIT: int = 960
+    CELERY_TASK_TIME_LIMIT: int = 1020
+
+    @model_validator(mode="after")
+    def validate_task_time_limits(self) -> "WorkerRuntimeSettings":
+        if self.PADDLEOCR_TIMEOUT_SECONDS > self.MAX_PROCESSING_TIME:
+            raise ValueError("PADDLEOCR_TIMEOUT_SECONDS must not exceed MAX_PROCESSING_TIME")
+        if self.MAX_PROCESSING_TIME >= self.CELERY_TASK_SOFT_TIME_LIMIT:
+            raise ValueError("MAX_PROCESSING_TIME must be lower than CELERY_TASK_SOFT_TIME_LIMIT")
+        if self.CELERY_TASK_SOFT_TIME_LIMIT >= self.CELERY_TASK_TIME_LIMIT:
+            raise ValueError("CELERY_TASK_SOFT_TIME_LIMIT must be lower than CELERY_TASK_TIME_LIMIT")
+        return self
+
+    model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
+
+
+@lru_cache
+def get_worker_runtime_settings() -> WorkerRuntimeSettings:
+    """Load model/engine configuration only in Worker-owned execution paths."""
+
+    return WorkerRuntimeSettings()

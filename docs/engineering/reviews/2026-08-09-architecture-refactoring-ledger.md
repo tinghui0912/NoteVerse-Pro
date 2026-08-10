@@ -596,6 +596,16 @@ deferred until the required offline models are available.
   group from shared settings, and then move its environment variables into the
   Worker-only manifest as one atomic runtime change.
 
+### 2026-08-10: Worker runtime settings loader extracted
+
+- Shared `Settings` no longer composes Worker model/engine fields.
+  `WorkerRuntimeSettings` loads them lazily and strictly only in Worker-owned
+  OCR, LEGATO, Verovio, pipeline, startup-status, and runtime-check paths.
+- Migrated the measured direct consumers and their tests without retaining
+  shared-setting aliases. The next change moves the corresponding Docker model
+  variables into the Worker manifest and validates each non-Worker service can
+  start without them.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

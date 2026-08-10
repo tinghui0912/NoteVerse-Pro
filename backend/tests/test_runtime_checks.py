@@ -2,6 +2,7 @@ import sys
 import json
 from types import SimpleNamespace
 
+from app.core.config import get_worker_runtime_settings
 from app.core.runtime_checks import (
     ROLE_CHECK_NAMES,
     RuntimeRole,
@@ -90,8 +91,8 @@ def test_omr_runtime_check_accepts_image_source_without_git_metadata(tmp_path, m
     repo_path = tmp_path / "legato"
     (repo_path / "legato" / "models").mkdir(parents=True)
 
-    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_REPO_PATH", str(repo_path))
-    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_REPO_COMMIT", "abc123")
+    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_REPO_PATH", str(repo_path))
+    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_REPO_COMMIT", "abc123")
 
     result = check_omr_engine()
 
@@ -100,7 +101,7 @@ def test_omr_runtime_check_accepts_image_source_without_git_metadata(tmp_path, m
 
 
 def test_omr_cuda_runtime_check_is_skipped_for_cpu_device(monkeypatch) -> None:
-    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_DEVICE", "cpu")
+    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_DEVICE", "cpu")
 
     result = check_omr_cuda_runtime()
 
@@ -116,7 +117,7 @@ def test_omr_cuda_runtime_check_fails_when_cuda_is_unavailable(monkeypatch) -> N
             get_device_name=lambda _: "unused",
         )
     )
-    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_DEVICE", "cuda")
+    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_DEVICE", "cuda")
     monkeypatch.setitem(sys.modules, "torch", torch_stub)
 
     result = check_omr_cuda_runtime()
@@ -133,7 +134,7 @@ def test_omr_cuda_runtime_check_reports_available_gpu(monkeypatch) -> None:
             get_device_name=lambda _: "NVIDIA Test GPU",
         )
     )
-    monkeypatch.setattr("app.core.runtime_checks.settings.LEGATO_DEVICE", "cuda")
+    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_DEVICE", "cuda")
     monkeypatch.setitem(sys.modules, "torch", torch_stub)
 
     result = check_omr_cuda_runtime()
@@ -158,8 +159,8 @@ def test_huggingface_model_check_rejects_incomplete_sharded_snapshot(tmp_path, m
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr("app.core.runtime_checks.settings.HF_HOME", str(tmp_path))
-    monkeypatch.setattr("app.core.runtime_checks.settings.HF_MODEL_REPOSITORIES", ["example/model"])
+    monkeypatch.setattr(get_worker_runtime_settings(), "HF_HOME", str(tmp_path))
+    monkeypatch.setattr(get_worker_runtime_settings(), "HF_MODEL_REPOSITORIES", ["example/model"])
 
     result = check_huggingface_models()
 

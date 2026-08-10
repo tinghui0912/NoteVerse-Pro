@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast
 
 from celery.exceptions import SoftTimeLimitExceeded
 
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings
 from app.core.exceptions import TimeoutException
 from app.core.logger import logger
 
@@ -54,17 +54,18 @@ class TextOcrStep(Step):
         if ctx.remaining() <= 0:
             raise TimeoutException(details={"error": "Task deadline exceeded before text recognition"})
 
+        worker_settings = get_worker_runtime_settings()
         logger.bind(
             event="import_pipeline.text_recognition_started",
             job_id=ctx.job_id,
-            timeout_seconds=min(ctx.remaining(), int(settings.PADDLEOCR_TIMEOUT_SECONDS)),
+            timeout_seconds=min(ctx.remaining(), int(worker_settings.PADDLEOCR_TIMEOUT_SECONDS)),
         ).info("Text recognition started")
 
         try:
             engine = TextRecognitionEngine()
             timeout_seconds = min(
                 ctx.remaining(),
-                int(settings.PADDLEOCR_TIMEOUT_SECONDS),
+                int(worker_settings.PADDLEOCR_TIMEOUT_SECONDS),
             )
             result = engine.process_image(
                 image_path,

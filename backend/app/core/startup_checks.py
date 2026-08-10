@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings, settings
 from app.core.logger import logger
 from app.core.runtime_checks import RuntimeRole
 
@@ -35,17 +35,18 @@ def log_external_tool_status(role: RuntimeRole) -> None:
 
 
 def _log_worker_tool_status() -> None:
+    worker_settings = get_worker_runtime_settings()
     logger.bind(
         event="runtime.omr_engine_configured",
-        engine=settings.OMR_ENGINE,
+        engine=worker_settings.OMR_ENGINE,
     ).info("OMR engine configured")
     logger.bind(
         event="runtime.score_render_engine_configured",
-        engine=settings.SCORE_RENDER_ENGINE,
+        engine=worker_settings.SCORE_RENDER_ENGINE,
     ).info("Score render engine configured")
 
-    if settings.LEGATO_REPO_PATH:
-        legato_path = Path(settings.LEGATO_REPO_PATH)
+    if worker_settings.LEGATO_REPO_PATH:
+        legato_path = Path(worker_settings.LEGATO_REPO_PATH)
         if legato_path.exists():
             logger.bind(
                 event="runtime.legato_repository_available",
@@ -58,11 +59,11 @@ def _log_worker_tool_status() -> None:
             ).warning("LEGATO repository not found")
         logger.bind(
             event="runtime.legato_python_configured",
-            path=settings.LEGATO_PYTHON,
+            path=worker_settings.LEGATO_PYTHON,
         ).info("LEGATO python configured")
         logger.bind(
             event="runtime.legato_model_configured",
-            path=settings.LEGATO_MODEL_PATH,
+            path=worker_settings.LEGATO_MODEL_PATH,
         ).info("LEGATO model configured")
     logger.bind(
         event="runtime.verovio_renderer_selected",

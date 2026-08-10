@@ -14,7 +14,7 @@ from typing import Awaitable, Callable
 
 import redis
 
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings, settings
 from app.core.control_plane_settings import require_control_plane_settings
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 
@@ -47,6 +47,10 @@ class CheckSpec:
 
 def _result(name: str, ok: bool, message: str) -> CheckResult:
     return CheckResult(name=name, ok=ok, message=message)
+
+
+def _worker_settings():
+    return get_worker_runtime_settings()
 
 
 def _format_size(num_bytes: int) -> str:
@@ -137,13 +141,14 @@ def _read_git_commit(repo_path: Path) -> str:
 
 
 def check_settings(_: bool = False) -> CheckResult:
+    worker_settings = _worker_settings()
     return _result(
         "settings",
         True,
         (
-            f"OMR={settings.OMR_ENGINE}, render={settings.SCORE_RENDER_ENGINE}; "
+            f"OMR={worker_settings.OMR_ENGINE}, render={worker_settings.SCORE_RENDER_ENGINE}; "
             f"pipeline={settings.MAX_PROCESSING_TIME}s, "
-            f"paddle={settings.PADDLEOCR_TIMEOUT_SECONDS}s, "
+            f"paddle={worker_settings.PADDLEOCR_TIMEOUT_SECONDS}s, "
             f"celery_soft={settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
             f"celery_hard={settings.CELERY_TASK_TIME_LIMIT}s"
         ),
@@ -287,32 +292,34 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
 
 
 def check_omr_engine(_: bool = False) -> CheckResult:
-    if not settings.LEGATO_REPO_PATH:
+    worker_settings = _worker_settings()
+    if not worker_settings.LEGATO_REPO_PATH:
         return _result("omr_engine", False, "LEGATO_REPO_PATH is not configured")
 
-    repo_path = Path(settings.LEGATO_REPO_PATH)
+    repo_path = Path(worker_settings.LEGATO_REPO_PATH)
     if not (repo_path / "legato" / "models").is_dir():
         return _result("omr_engine", False, f"LEGATO repository is incomplete: {repo_path}")
-    if settings.LEGATO_REPO_COMMIT:
+    if worker_settings.LEGATO_REPO_COMMIT:
         if _read_git_dir(repo_path) is None:
-            return _result("omr_engine", True, f"LEGATO commit={settings.LEGATO_REPO_COMMIT} (image metadata)")
+            return _result("omr_engine", True, f"LEGATO commit={worker_settings.LEGATO_REPO_COMMIT} (image metadata)")
         try:
             actual_commit = _read_git_commit(repo_path)
         except Exception as exc:
             return _result("omr_engine", False, f"could not read LEGATO commit: {exc}")
-        if actual_commit != settings.LEGATO_REPO_COMMIT:
+        if actual_commit != worker_settings.LEGATO_REPO_COMMIT:
             return _result(
                 "omr_engine",
                 False,
-                f"LEGATO commit mismatch: expected {settings.LEGATO_REPO_COMMIT}, actual {actual_commit}",
+                f"LEGATO commit mismatch: expected {worker_settings.LEGATO_REPO_COMMIT}, actual {actual_commit}",
             )
         return _result("omr_engine", True, f"LEGATO commit={actual_commit}")
     return _result("omr_engine", True, f"LEGATO repository found: {repo_path}")
 
 
 def check_omr_cuda_runtime(_: bool = False) -> CheckResult:
-    if settings.OMR_ENGINE != "legato" or settings.LEGATO_DEVICE.lower() != "cuda":
-        return _result("omr_cuda_runtime", True, f"not required for LEGATO_DEVICE={settings.LEGATO_DEVICE}")
+    worker_settings = _worker_settings()
+    if worker_settings.OMR_ENGINE != "legato" or worker_settings.LEGATO_DEVICE.lower() != "cuda":
+        return _result("omr_cuda_runtime", True, f"not required for LEGATO_DEVICE={worker_settings.LEGATO_DEVICE}")
 
     try:
         torch = importlib.import_module("torch")
@@ -349,10 +356,11 @@ def check_soundfont(_: bool = False) -> CheckResult:
 
 
 def check_paddleocr_models(include_sizes: bool = False) -> CheckResult:
+    worker_settings = _worker_settings()
     required = (
-        ("det", settings.PADDLEOCR_DETECTION_MODEL_DIR),
-        ("rec", settings.PADDLEOCR_RECOGNITION_MODEL_DIR),
-        ("textline_ori", settings.PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR),
+        ("det", worker_settings.PADDLEOCR_DETECTION_MODEL_DIR),
+        ("rec", worker_settings.PADDLEOCR_RECOGNITION_MODEL_DIR),
+        ("textline_ori", worker_settings.PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR),
     )
     missing: list[str] = []
     summaries: list[str] = []
@@ -406,11 +414,12 @@ def _hf_repo_cache_dir(repo_id: str) -> str:
 
 
 def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
-    hf_home = Path(settings.HF_HOME or os.environ.get("HF_HOME") or "~/.cache/huggingface").expanduser()
+    worker_settings = _worker_settings()
+    hf_home = Path(worker_settings.HF_HOME or os.environ.get("HF_HOME") or "~/.cache/huggingface").expanduser()
     hub = hf_home / "hub"
     missing: list[str] = []
     summaries: list[str] = []
-    for repo_id in settings.HF_MODEL_REPOSITORIES:
+    for repo_id in worker_settings.HF_MODEL_REPOSITORIES:
         repo_dir = _hf_repo_cache_dir(repo_id)
         path = hub / repo_dir
         snapshots = path / "snapshots"
@@ -430,7 +439,7 @@ def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
             continue
         summaries.append(f"{repo_id}={path}{_size_suffix(path, include_sizes)}")
 
-    offline = f"HF_HUB_OFFLINE={int(settings.HF_HUB_OFFLINE)}, TRANSFORMERS_OFFLINE={int(settings.TRANSFORMERS_OFFLINE)}"
+    offline = f"HF_HUB_OFFLINE={int(worker_settings.HF_HUB_OFFLINE)}, TRANSFORMERS_OFFLINE={int(worker_settings.TRANSFORMERS_OFFLINE)}"
     if missing:
         return _result("huggingface_models", False, "; ".join(missing) + "; " + offline)
     return _result("huggingface_models", True, "; ".join(summaries) + "; " + offline)

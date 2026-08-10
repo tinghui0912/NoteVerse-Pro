@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import Settings, WorkerRuntimeSettings
 
 
 def test_settings_do_not_implicitly_load_an_env_file() -> None:
@@ -84,7 +84,7 @@ def test_playback_soundfont_path_can_be_configured_independently() -> None:
 
 
 def test_offline_model_paths_expand_user_home() -> None:
-    settings = Settings(
+    settings = WorkerRuntimeSettings(
         MODEL_ROOT="~/noteverse/models",
         HF_HOME="~/noteverse/models/huggingface",
         PADDLEOCR_MODEL_ROOT="~/noteverse/models/paddleocr/official_models",
@@ -110,27 +110,27 @@ def test_offline_model_paths_expand_user_home() -> None:
 
 
 def test_omr_engine_is_normalized_and_validated() -> None:
-    settings = Settings(OMR_ENGINE="LEGATO", LEGATO_REPO_PATH="/opt/noteverse/legato")
+    settings = WorkerRuntimeSettings(OMR_ENGINE="LEGATO", LEGATO_REPO_PATH="/opt/noteverse/legato")
 
     assert settings.OMR_ENGINE == "legato"
 
     with pytest.raises(ValidationError, match="OMR_ENGINE"):
-        Settings(OMR_ENGINE="unknown")
+        WorkerRuntimeSettings(OMR_ENGINE="unknown")
 
 
 def test_score_render_engine_is_normalized_and_validated() -> None:
-    settings = Settings(SCORE_RENDER_ENGINE="VEROVIO")
+    settings = WorkerRuntimeSettings(SCORE_RENDER_ENGINE="VEROVIO")
 
     assert settings.SCORE_RENDER_ENGINE == "verovio"
 
 
 def test_verovio_footer_mode_is_normalized_and_validated() -> None:
-    settings = Settings(VEROVIO_FOOTER="ALWAYS")
+    settings = WorkerRuntimeSettings(VEROVIO_FOOTER="ALWAYS")
 
     assert settings.VEROVIO_FOOTER == "always"
 
     with pytest.raises(ValidationError, match="VEROVIO_FOOTER"):
-        Settings(VEROVIO_FOOTER="visible")
+        WorkerRuntimeSettings(VEROVIO_FOOTER="visible")
 
 
 def test_task_reliability_defaults_are_positive() -> None:
@@ -167,7 +167,7 @@ def test_s3_storage_settings_are_validated() -> None:
 
 
 def test_selected_engine_settings_are_valid() -> None:
-    settings = Settings(
+    settings = WorkerRuntimeSettings(
         OMR_ENGINE="legato",
         LEGATO_REPO_PATH="/opt/noteverse/legato",
         SCORE_RENDER_ENGINE="verovio",
@@ -178,12 +178,12 @@ def test_selected_engine_settings_are_valid() -> None:
     assert settings.SCORE_RENDER_ENGINE == "verovio"
 
     with pytest.raises(ValidationError, match="SCORE_RENDER_ENGINE"):
-        Settings(SCORE_RENDER_ENGINE="unknown")
+        WorkerRuntimeSettings(SCORE_RENDER_ENGINE="unknown")
 
 
 def test_legato_repository_path_is_required() -> None:
     with pytest.raises(ValidationError, match="LEGATO_REPO_PATH is required"):
-        Settings(OMR_ENGINE="legato", LEGATO_REPO_PATH=None)
+        WorkerRuntimeSettings(OMR_ENGINE="legato", LEGATO_REPO_PATH=None)
 
 
 def test_app_main_import_exposes_routes() -> None:

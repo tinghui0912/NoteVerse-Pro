@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings
 
 from .base import ScoreRenderEngine
 from .verovio import VerovioRenderEngine
@@ -16,7 +16,7 @@ def create_score_render_engine(
 ) -> ScoreRenderEngine:
     """Create the configured score rendering engine."""
 
-    selected = (engine_name or settings.SCORE_RENDER_ENGINE).strip().lower()
+    selected = (engine_name or get_worker_runtime_settings().SCORE_RENDER_ENGINE).strip().lower()
     if selected == "verovio":
         return VerovioRenderEngine(
             output_folder=output_folder,
