@@ -1,7 +1,7 @@
 """Attach rendered score assets to immutable execution provenance.
 
-Revision ID: 0039_score_render_asset_execution_manifest
-Revises: 0038_import_job_execution_manifest
+Revision ID: 0039_render_exec_manifest
+Revises: 0038_import_exec_manifest
 """
 
 from collections.abc import Sequence
@@ -10,8 +10,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0039_score_render_asset_execution_manifest"
-down_revision: str | None = "0038_import_job_execution_manifest"
+revision: str = "0039_render_exec_manifest"
+down_revision: str | None = "0038_import_exec_manifest"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

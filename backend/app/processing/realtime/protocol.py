@@ -71,6 +71,10 @@ class SessionReadyPayload(_StrictModel):
     state: str = Field(min_length=1)
 
 
+class SessionConnectingPayload(_StrictModel):
+    session_id: str = Field(min_length=1)
+
+
 class SessionArmedPayload(_StrictModel):
     session_id: str = Field(min_length=1)
     environment_quality: Literal["good", "noisy", "poor"]
@@ -122,6 +126,11 @@ class SessionReadyMessage(_ProtocolEnvelope):
     payload: SessionReadyPayload
 
 
+class SessionConnectingMessage(_ProtocolEnvelope):
+    type: Literal["session.connecting"] = "session.connecting"
+    payload: SessionConnectingPayload
+
+
 class SessionArmedMessage(_ProtocolEnvelope):
     type: Literal["session.armed"] = "session.armed"
     payload: SessionArmedPayload
@@ -148,7 +157,8 @@ class AlignmentUpdateMessage(_ProtocolEnvelope):
 
 
 PracticeServerMessage = Annotated[
-    SessionReadyMessage
+    SessionConnectingMessage
+    | SessionReadyMessage
     | SessionArmedMessage
     | SessionStateChangedMessage
     | SessionFinishedMessage

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -167,7 +168,8 @@ class PracticeService:
         )
 
         try:
-            return self.runtime_registry.register(
+            return await asyncio.to_thread(
+                self.runtime_registry.register,
                 session_id=session.session_uuid,
                 task_id=score.score_uuid,
                 state=session.state.value,

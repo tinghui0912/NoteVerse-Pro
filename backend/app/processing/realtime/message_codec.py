@@ -13,6 +13,8 @@ from app.processing.realtime.protocol import (
     SessionErrorMessage,
     SessionErrorPayload,
     SessionFinishedMessage,
+    SessionConnectingMessage,
+    SessionConnectingPayload,
     SessionReadyMessage,
     SessionReadyPayload,
     SessionStateChangedMessage,
@@ -41,6 +43,10 @@ def session_ready_message(session_id: str, state: str) -> dict[str, object]:
     return _message_payload(
         SessionReadyMessage(payload=SessionReadyPayload(session_id=session_id, state=state))
     )
+
+
+def session_connecting_message(session_id: str) -> dict[str, object]:
+    return _message_payload(SessionConnectingMessage(payload=SessionConnectingPayload(session_id=session_id)))
 
 
 def session_armed_message(session_id: str, environment_quality: str) -> dict[str, object]:

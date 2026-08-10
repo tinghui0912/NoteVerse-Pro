@@ -7,6 +7,7 @@ const practiceSessionState = z.enum(['CREATED', 'STREAMING', 'PAUSED', 'FINISHED
 const statePayload = z.object({ state: practiceSessionState }).strict();
 
 export const practiceServerMessageSchema = z.discriminatedUnion('type', [
+  envelope.extend({ type: z.literal('session.connecting'), payload: z.object({ session_id: z.string().min(1) }).strict() }),
   envelope.extend({ type: z.literal('session.ready'), payload: z.object({ session_id: z.string().min(1), state: practiceSessionState }).strict() }),
   envelope.extend({ type: z.literal('session.armed'), payload: z.object({ session_id: z.string().min(1), environment_quality: z.enum(['good', 'noisy', 'poor']) }).strict() }),
   envelope.extend({ type: z.literal('session.state_changed'), payload: statePayload }),

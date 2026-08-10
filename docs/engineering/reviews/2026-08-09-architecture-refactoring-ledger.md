@@ -25,7 +25,7 @@ historical finding is not an indication that the item is still open.
 | ARC-003 | Open | Split only measured hotspots by stable responsibilities, with direct tests for each extraction. |
 | ARC-004 | Open | Continue replacing broad orchestration hubs with intent-named units when a concrete cohesion boundary is identified. |
 | ARC-005 | Partially complete | Add focused gates for import-job authorization and Practice-session ownership, then introduce architecture-boundary checks. |
-| ARC-006 | Partially complete | Extend the disposable real integration environment to the score/import flow and authenticated Practice WebSocket handshake. |
+| ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission, and authenticated Practice WebSocket handshake. |
 | ARC-007 | Complete | Generated OpenAPI documents are the cross-stack trigger; backend contract freshness checks prevent an unsynchronised source change from passing. Reassess only if a new contract surface is not represented by a generated artifact. |
 | ARC-008 | Complete | Keep Action SHAs immutable and let Dependabot propose reviewed updates. |
 | ARC-009 | Complete | Keep the Markdown-link validator required for documentation changes. |
@@ -1069,6 +1069,27 @@ ARC-015 remains partially complete because its versioned schema is source-owned
 but is not yet exported as a committed generated contract artifact. SSE has no
 current product protocol to version and must be added to the same governance
 model if it becomes a customer-facing transport.
+
+### 2026-08-10: Real Practice WebSocket handshake integration
+
+- Extended the disposable integration Compose stack with the real Practice
+  runtime, a read-only SoundFont mount required by its startup contract, and a
+  deterministic MusicXML score fixture shared through isolated local storage.
+- Added a browser-facing Playwright scenario that authenticates through the
+  Customer Web proxy, creates a real Practice session, upgrades through the
+  same-origin WebSocket proxy, and receives the versioned `session.connecting`
+  handshake event.
+- Kept PCM processing and the full control-frame state machine out of this
+  browser integration baseline: they remain deterministic backend WebSocket
+  tests and must not make the proxy/authentication smoke test depend on a live
+  score-following result.
+- Fixed fresh PostgreSQL migration failure by shortening the development-stage
+  revision identifiers for migrations 0038-0040 to fit Alembic's default
+  32-character version table column. Their filenames and migration operations
+  remain unchanged.
+
+ARC-006 is complete. The isolated real-service suite now covers proxy auth,
+CSRF, import submission, and Practice WebSocket authentication/handshake.
 
 ## Reusable completion checklist for every refactor
 

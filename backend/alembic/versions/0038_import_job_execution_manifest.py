@@ -1,6 +1,6 @@
 """Add normalized import-job execution provenance.
 
-Revision ID: 0038_import_job_execution_manifest
+Revision ID: 0038_import_exec_manifest
 Revises: 0037_remove_customer_user_role
 """
 
@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0038_import_job_execution_manifest"
+revision: str = "0038_import_exec_manifest"
 down_revision: str | None = "0037_remove_customer_user_role"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

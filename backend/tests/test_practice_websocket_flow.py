@@ -120,6 +120,12 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                         "payload": {"sample_rate": 16000, "channels": 1, "frame_samples": 640},
                     }
                 )
+                connecting = websocket.receive_json()
+                assert connecting == {
+                    "protocol_version": 1,
+                    "type": "session.connecting",
+                    "payload": {"session_id": "session-1"},
+                }
                 ready = websocket.receive_json()
                 assert ready == {
                     "protocol_version": 1,
@@ -212,6 +218,8 @@ def test_practice_websocket_flow_returns_stable_alignment_error(
                         "payload": {"sample_rate": 16000, "channels": 1, "frame_samples": 640},
                     }
                 )
+                connecting = websocket.receive_json()
+                assert connecting["type"] == "session.connecting"
                 websocket.receive_json()
 
                 websocket.send_bytes(b"\x01\x02")
