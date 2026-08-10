@@ -684,6 +684,15 @@ deferred until the required offline models are available.
   coverage; no deployment manifest, environment name, alias, or fallback
   behavior changed.
 
+### 2026-08-10: Mail delivery policy ownership extracted
+
+- Moved mail Outbox cadence, dispatch/processing leases, retry backoff, retry
+  and batch limits, and completed-mail retention into `MailDeliverySettings`,
+  with direct positive-value validation and tests.
+- Kept this delivery policy separate from account mail-provider credentials and
+  sender identity. Added shared-settings and Beat scheduling coverage; no
+  deployment manifest, environment name, alias, or fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

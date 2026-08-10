@@ -154,6 +154,12 @@ def test_settings_compose_playback_delivery_policy() -> None:
     assert settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS > 0
 
 
+def test_settings_compose_mail_delivery_policy() -> None:
+    settings = Settings()
+
+    assert settings.MAIL_OUTBOX_RETENTION_DAYS > 0
+
+
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(

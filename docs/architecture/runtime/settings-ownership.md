@@ -121,8 +121,12 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Playback delivery policy. `PlaybackDeliverySettings` owns
   playback Outbox cadence, leases, retry/backoff, and batch limits. It remains
   separate from `PlaybackSettings`, which owns audio synthesis capability.
-- **Next:** Extract Mail delivery policy, using its measured Outbox, Ops,
-  metrics, and Beat consumers as one atomic change.
+- **Complete:** Mail delivery policy. `MailDeliverySettings` owns mail Outbox
+  cadence, leases, retry/backoff, batch limits, and completed-mail retention.
+  It remains separate from account email-provider credentials and sender
+  identity.
+- **Next:** Extract notification and realtime lifecycle policy, keeping HTTP
+  stream cadence separate from background retention scheduling.
 
 ## Worker runtime-loader migration boundary
 
