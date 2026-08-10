@@ -974,6 +974,18 @@ deferred until the required offline models are available.
   through migration `0040_score_playback_asset_execution_manifest`. Historical
   rows remain nullable/unknown rather than receiving invented provenance.
 
+### 2026-08-10: Playback processing separated from playback delivery
+
+- Moved the pure Verovio MIDI compiler, FluidSynth synthesizer, renderer, and
+  immutable playback profile into `app.processing.engines.playback`.
+- Kept `app.modules.playback` for playback asset persistence, outbox lifecycle,
+  authorization-aware delivery, HTTP routes, and execution-manifest binding.
+  No deprecated module imports or compatibility re-exports remain.
+- Do not name the future realtime-practice engine directory `practice_audio`:
+  Matchmaker also owns score-following and alignment state. Use
+  `practice_alignment` as the domain boundary, with audio activity detection as
+  one supporting capability.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

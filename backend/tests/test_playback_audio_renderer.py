@@ -4,10 +4,12 @@ import wave
 from io import BytesIO
 from types import SimpleNamespace
 
-from app.modules.playback.audio_renderer import FluidSynthAudioRenderer
-from app.modules.playback.audio_synthesizer import FluidSynthAudioSynthesizer
-from app.modules.playback.midi_compiler import CompiledMidi
-from app.modules.playback.playback_profile import PlaybackProfile
+from app.processing.engines.playback import (
+    CompiledMidi,
+    FluidSynthAudioRenderer,
+    FluidSynthAudioSynthesizer,
+    PlaybackProfile,
+)
 
 
 MUSICXML = b"""<?xml version='1.0'?><score-partwise version='4.0'>
@@ -84,13 +86,13 @@ def test_fluidsynth_synthesizer_uses_configured_soundfont_and_sample_rate(
         return SimpleNamespace(returncode=0, stderr="", stdout="")
 
     monkeypatch.setattr(
-        "app.modules.playback.audio_synthesizer.ensure_partitura_default_soundfont",
+        "app.processing.engines.playback.fluidsynth.ensure_partitura_default_soundfont",
         lambda _: None,
     )
     monkeypatch.setattr(
-        "app.modules.playback.audio_synthesizer.settings.WORK_ROOT", str(tmp_path / "work")
+        "app.processing.engines.playback.fluidsynth.settings.WORK_ROOT", str(tmp_path / "work")
     )
-    monkeypatch.setattr("app.modules.playback.audio_synthesizer.subprocess.run", fake_run)
+    monkeypatch.setattr("app.processing.engines.playback.fluidsynth.subprocess.run", fake_run)
 
     rendered = FluidSynthAudioSynthesizer(
         soundfont_path=str(soundfont),

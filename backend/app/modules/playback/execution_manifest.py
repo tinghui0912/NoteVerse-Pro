@@ -1,6 +1,6 @@
 """Resolved provenance identity for generated playback assets."""
 
-from app.modules.playback.playback_profile import DEFAULT_PLAYBACK_PROFILE
+from app.processing.engines.playback import DEFAULT_PLAYBACK_PROFILE
 
 
 def build_playback_execution_manifest(*, soundfont_sha256: str) -> dict[str, object]:

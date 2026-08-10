@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from app.modules.playback.audio_synthesizer import FluidSynthAudioSynthesizer
-from app.modules.playback.midi_compiler import VerovioMidiCompiler
+from .fluidsynth import FluidSynthAudioSynthesizer
+from .verovio_midi import VerovioMidiCompiler
 
 
 @dataclass(frozen=True)

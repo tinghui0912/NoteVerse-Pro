@@ -3,7 +3,7 @@ from sqlmodel import SQLModel, Session, create_engine, select
 from app.db.execution_manifests import get_or_create_execution_manifest, manifest_sha256
 from app.db.models import ExecutionManifest
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
-from app.modules.playback.playback_profile import DEFAULT_PLAYBACK_PROFILE, PlaybackProfile
+from app.processing.engines.playback import DEFAULT_PLAYBACK_PROFILE, PlaybackProfile
 
 
 def test_playback_profile_has_stable_audio_semantics() -> None:

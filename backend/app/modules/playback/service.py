@@ -26,8 +26,8 @@ from app.db.models import (
 )
 from app.db.models.score import RevisionSourceFormat
 from app.db.models.score_access import PublicationStatus
-from app.modules.playback.audio_renderer import FluidSynthAudioRenderer
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
+from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.publications.repository import PublicationRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_assets.repository import ScoreAssetRepository

@@ -1,4 +1,4 @@
-"""Versioned output profile for generated score playback audio."""
+"""Versioned output profile for the playback processing engine."""
 
 from dataclasses import asdict, dataclass
 from typing import Final
