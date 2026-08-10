@@ -520,6 +520,18 @@ deferred until the required offline models are available.
   production reliability policy belongs in reviewed, versioned deployment
   configuration and secrets remain in the deployment secret store.
 
+### 2026-08-10: Settings architecture boundary and configuration taxonomy
+
+- Added a static architecture contract that prevents extracted
+  `app.core.settings` groups from importing application runtime modules. This
+  keeps group validation independently testable and prevents circular imports
+  as the settings decomposition continues.
+- Documented the three configuration sources of truth: deployment/runtime
+  configuration, versioned domain/algorithm profiles, and audited dynamic
+  product policy. Practice audio and OCR/MusicXML profiles remain versioned
+  code because their values must be reviewed and regression-tested with the
+  algorithms that consume them.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

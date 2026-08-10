@@ -45,6 +45,42 @@ or supply compatibility aliases.
 5. Keep deployment configuration role-explicit. A Worker-only setting must not
    become an implicit API requirement after extraction.
 
+## Configuration taxonomy and source of truth
+
+The word "configuration" does not determine its storage. Choose the source of
+truth according to **what changes the value** and **how it must be released**.
+
+| Kind | Examples | Source of truth | Change control |
+| --- | --- | --- | --- |
+| Deployment/runtime configuration | URLs, credentials, replica capacity, queue timing, timeouts, model locations, tracing endpoint | Local: untracked `.env.docker`; production: reviewed deployment configuration plus secret store | Environment promotion and operational change review |
+| Versioned domain/algorithm profile | `PracticeAudioProfile` gates and frame rate; OCR classification thresholds; MusicXML layout constants | Typed source module adjacent to its owning algorithm, with fixtures/tests | Normal code review and application release |
+| Product policy that operators or customers must change without a deployment | entitlement limits, tenant rules, feature rollout state | Audited database-backed configuration or feature-flag service | Explicit administration workflow, audit trail, validation, rollout and rollback |
+
+`app.processing.engines.practice_audio_profile` is correctly a versioned audio
+processing profile: every value is coupled to the 30 fps pipeline and its
+fixture matrix. `app.processing.text.config` similarly owns deterministic OCR,
+classification, and MusicXML layout rules. They must not be copied into
+`.env.docker`, because an unreviewed per-environment threshold change would
+make the same source revision produce different recognition or notation output.
+
+For these domain profiles, maintain one typed, immutable owner module per
+algorithm; give values domain units in their names; document the empirical or
+product rationale next to non-obvious values; and update fixtures and regression
+tests in the same pull request. Do not introduce a generic YAML/JSON settings
+loader merely to move constants out of Python: it weakens typing, discovery,
+validation, and code-review locality without adding a real runtime requirement.
+
+When a profile genuinely needs runtime selection, introduce an explicit
+versioned profile identifier and an allowlisted registry, validate it at startup,
+record the selected version in job/result metadata, and promote it as deployment
+configuration. Do not permit arbitrary individual threshold overrides. Mature
+products use this separation to retain reproducibility while still allowing a
+controlled, auditable rollout of a fully tested profile.
+
+Settings group modules must remain pure: they may use the standard library and
+configuration-validation libraries, but must not import `app` runtime modules.
+`backend/tests/test_settings_architecture_contract.py` enforces this boundary.
+
 ## Recommended migration order
 
 1. **Observability settings:** small, cohesive, and cross-runtime without
