@@ -51,7 +51,7 @@ def load_application(runtime: str) -> FastAPI:
         # request. These non-secret placeholders keep documentation generation
         # independent from an operator deployment's private environment file.
         for name, value in CONTROL_PLANE_CONTRACT_DEFAULTS.items():
-            os.environ.setdefault(name, value)
+            os.environ[name] = value
     module = importlib.import_module(RUNTIME_MODULES[runtime])
     application = getattr(module, "app", None)
     if not isinstance(application, FastAPI):
