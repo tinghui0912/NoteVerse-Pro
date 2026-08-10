@@ -168,6 +168,12 @@ def test_settings_compose_notification_and_realtime_policies() -> None:
     assert settings.REALTIME_EVENT_RETENTION_DAYS > 0
 
 
+def test_settings_compose_score_deletion_lifecycle_policy() -> None:
+    settings = Settings()
+
+    assert settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS > 0
+
+
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(

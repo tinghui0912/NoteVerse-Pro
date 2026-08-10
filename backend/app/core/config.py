@@ -22,6 +22,7 @@ from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
 from app.core.settings.realtime_retention import RealtimeRetentionSettings
 from app.core.settings.realtime_stream import RealtimeStreamSettings
+from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
 from app.core.settings.worker_database import WorkerDatabaseSettings
@@ -31,7 +32,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -109,10 +110,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
         return v
 
     @field_validator(
-        "SCORE_DELETION_CLEANUP_INTERVAL_SECONDS",
-        "SCORE_DELETION_CLEANUP_BATCH_SIZE",
-        "SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS",
-        "SCORE_DELETION_CLEANUP_MAX_ATTEMPTS",
         "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
         "SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS",
         "SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS",
@@ -136,10 +133,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
     FINGERING_MAX_CONCURRENCY: int = 2
     FINGERING_QUEUE_WAIT_SECONDS: int = 5
     FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
-    SCORE_DELETION_CLEANUP_INTERVAL_SECONDS: int = 60
-    SCORE_DELETION_CLEANUP_BATCH_SIZE: int = 20
-    SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS: int = 60
-    SCORE_DELETION_CLEANUP_MAX_ATTEMPTS: int = 10
 
     ALLOWED_EXTENSIONS: set = {
         "png",

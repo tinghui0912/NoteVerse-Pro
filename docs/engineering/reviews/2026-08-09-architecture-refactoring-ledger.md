@@ -704,6 +704,15 @@ deferred until the required offline models are available.
   newly invented defaults. Added direct group tests plus shared-settings,
   Celery, and SSE regression coverage without aliases or fallback behavior.
 
+### 2026-08-10: Score deletion lifecycle ownership extracted
+
+- Moved score-deletion cleanup cadence, batch size, retry backoff, and maximum
+  attempts into `ScoreDeletionLifecycleSettings`, with direct positive-value
+  validation and tests.
+- Added shared-settings coverage and revalidated the lifecycle, Ops, storage
+  usage, and Beat consumers. No environment name, deployment manifest, alias,
+  fallback, or deletion workflow behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

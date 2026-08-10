@@ -129,8 +129,11 @@ configuration through a separately coordinated credential-rotation task.
   owns notification cleanup/retention; `RealtimeStreamSettings` owns HTTP SSE
   catch-up, heartbeat, and batch parameters; `RealtimeRetentionSettings` owns
   realtime cleanup/retention and preserves its required deployment inputs.
-- **Next:** Extract Score deletion lifecycle policy, including cleanup cadence,
-  batch size, retry backoff, and retry limit.
+- **Complete:** Score deletion lifecycle. `ScoreDeletionLifecycleSettings`
+  owns cleanup cadence, batch size, retry backoff, and maximum attempts across
+  lifecycle cleanup, Ops reconciliation, and Beat scheduling.
+- **Next:** Extract the remaining interactive fingering execution limits, then
+  reassess the smaller account/API settings for cohesive ownership boundaries.
 
 ## Worker runtime-loader migration boundary
 
