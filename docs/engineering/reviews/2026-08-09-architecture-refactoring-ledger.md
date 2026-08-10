@@ -936,6 +936,19 @@ deferred until the required offline models are available.
   commit from that manifest. Compose no longer accepts duplicate LEGATO build
   arguments; do not reintroduce build-time or runtime fallbacks.
 
+### 2026-08-10: Verovio SVG output profile made source-owned
+
+- Added `VerovioRenderProfile v1`, an immutable typed owner for every option
+  that changes generated SVG semantics and for the preview header postprocessor.
+  The renderer now consumes that profile directly.
+- Removed `SCORE_RENDER_ENGINE` and all `VEROVIO_*` environment variables from
+  Worker settings, local templates, and staging/production deployment manifests.
+  Removed stale LEGATO identity variables from those deployment manifests too.
+- The persisted `render_profile` string remains an artifact-variant selector
+  (for example, `default` or `review-thumbnail`); it is not a substitute for
+  the algorithm profile. Attaching the immutable profile identity to rendered
+  artifacts remains the next provenance step.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

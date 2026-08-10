@@ -16,7 +16,7 @@ or supply compatibility aliases.
 | Database and cache | Platform | API, Practice, Worker, Beat | `DATABASE_URL`, `SYNC_DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, Redis and Celery URLs |
 | Worker scheduling and reliability | Worker | Worker, Beat, API dispatch/outbox writers | import, render, playback, mail, notification, realtime, retention, and scheduler timing settings |
 | Object storage and file lifecycle | Storage | API, Worker, Practice | `FILE_STORAGE_BACKEND`, `S3_*`, storage/work roots, upload extensions |
-| OMR, OCR, rendering, playback | Worker | Worker and runtime checks | `LEGATO_*`, `PADDLEOCR_*`, Hugging Face cache settings, `VEROVIO_*`, playback soundfont settings |
+| OMR, OCR, rendering, playback | Worker | Worker and runtime checks | `LEGATO_*`, `PADDLEOCR_*`, Hugging Face cache settings, playback soundfont settings; source-owned LEGATO and Verovio profiles |
 | Practice alignment | Practice | Practice runtime and API-side session helpers | practice soundfont, alignment and diagnostics settings |
 | Account email | API | API auth/account and Worker mail delivery | `RESEND_*`, sender, password-reset and verification lifetimes |
 | Interactive fingering | API | API fingering service | `FINGERING_*` |
@@ -58,8 +58,9 @@ truth according to **what changes the value** and **how it must be released**.
 
 `app.processing.engines.practice_audio_profile` is correctly a versioned audio
 processing profile: every value is coupled to the 30 fps pipeline and its
-fixture matrix. `app.processing.text.config` similarly owns deterministic OCR,
-classification, and MusicXML layout rules. They must not be copied into
+fixture matrix. `app.processing.engines.render.verovio_render_profile` owns the
+SVG output semantics, while `app.processing.text.config` owns deterministic
+OCR, classification, and MusicXML layout rules. They must not be copied into
 `.env.docker`, because an unreviewed per-environment threshold change would
 make the same source revision produce different recognition or notation output.
 

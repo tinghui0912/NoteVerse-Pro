@@ -159,8 +159,7 @@ def check_worker_settings(_: bool = False) -> CheckResult:
     return _result(
         "worker_settings",
         True,
-        f"OMR=legato, render={worker_settings.SCORE_RENDER_ENGINE}; "
-        f"paddle={worker_settings.PADDLEOCR_TIMEOUT_SECONDS}s",
+        f"OMR=legato, render=verovio; paddle={worker_settings.PADDLEOCR_TIMEOUT_SECONDS}s",
     )
 
 

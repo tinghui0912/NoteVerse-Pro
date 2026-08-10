@@ -36,6 +36,9 @@ def log_external_tool_status(role: RuntimeRole) -> None:
 
 def _log_worker_tool_status() -> None:
     from app.processing.engines.omr.legato_manifest import LEGATO_MODEL_REPOSITORY, OMR_ENGINE_NAME
+    from app.processing.engines.render.verovio_render_profile import (
+        DEFAULT_VEROVIO_RENDER_PROFILE,
+    )
 
     worker_settings = get_worker_runtime_settings()
     logger.bind(
@@ -44,7 +47,8 @@ def _log_worker_tool_status() -> None:
     ).info("OMR engine configured")
     logger.bind(
         event="runtime.score_render_engine_configured",
-        engine=worker_settings.SCORE_RENDER_ENGINE,
+        engine=DEFAULT_VEROVIO_RENDER_PROFILE.engine,
+        profile_schema_version=DEFAULT_VEROVIO_RENDER_PROFILE.schema_version,
     ).info("Score render engine configured")
 
     if worker_settings.LEGATO_REPO_PATH:

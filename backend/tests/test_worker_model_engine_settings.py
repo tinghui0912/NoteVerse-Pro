@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
-from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES, OMR_ENGINE_NAME
+from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES
 
 
 def _settings(**overrides: object) -> WorkerModelEngineSettings:
@@ -29,17 +29,6 @@ def test_worker_model_engine_settings_normalize_runtime_paths() -> None:
     assert settings.MODEL_ROOT == str(Path("~/noteverse/models").expanduser())
     assert settings.HF_HOME == str(Path("~/noteverse/models/huggingface").expanduser())
     assert HF_MODEL_REPOSITORIES == ("guangyangmusic/legato", "meta-llama/Llama-3.2-11B-Vision")
-
-
-def test_worker_model_engine_settings_validate_render_engine() -> None:
-    settings = _settings(SCORE_RENDER_ENGINE="VEROVIO", VEROVIO_FOOTER="ALWAYS")
-
-    assert OMR_ENGINE_NAME == "legato"
-    assert settings.SCORE_RENDER_ENGINE == "verovio"
-    assert settings.VEROVIO_FOOTER == "always"
-
-    with pytest.raises(ValidationError, match="SCORE_RENDER_ENGINE"):
-        _settings(SCORE_RENDER_ENGINE="unknown")
 
 
 @pytest.mark.parametrize("field_name", ("PADDLEOCR_TIMEOUT_SECONDS",))

@@ -39,7 +39,6 @@ def test_task_reliability_settings_reject_invalid_deadline_envelopes(
 def test_worker_runtime_settings_reject_ocr_deadline_above_processing_deadline() -> None:
     with pytest.raises(ValidationError, match="PADDLEOCR_TIMEOUT_SECONDS must not exceed"):
         WorkerRuntimeSettings(
-            HF_MODEL_REPOSITORIES="guangyangmusic/legato",
             LEGATO_REPO_PATH="/opt/noteverse/legato",
             PADDLEOCR_TIMEOUT_SECONDS=901,
             MAX_PROCESSING_TIME=900,

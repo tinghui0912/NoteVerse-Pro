@@ -127,21 +127,6 @@ def test_legato_runtime_requires_repository_path() -> None:
     assert settings.LEGATO_REPO_PATH == "/opt/noteverse/legato"
 
 
-def test_score_render_engine_is_normalized_and_validated() -> None:
-    settings = WorkerRuntimeSettings(SCORE_RENDER_ENGINE="VEROVIO")
-
-    assert settings.SCORE_RENDER_ENGINE == "verovio"
-
-
-def test_verovio_footer_mode_is_normalized_and_validated() -> None:
-    settings = WorkerRuntimeSettings(VEROVIO_FOOTER="ALWAYS")
-
-    assert settings.VEROVIO_FOOTER == "always"
-
-    with pytest.raises(ValidationError, match="VEROVIO_FOOTER"):
-        WorkerRuntimeSettings(VEROVIO_FOOTER="visible")
-
-
 def test_settings_compose_import_dispatch_policy() -> None:
     settings = Settings()
 
@@ -239,18 +224,6 @@ def test_s3_storage_settings_are_validated() -> None:
 
     assert settings.FILE_STORAGE_BACKEND == "s3"
     assert settings.S3_ENDPOINT_URL == "https://oss-cn-shenzhen.aliyuncs.com"
-
-
-def test_selected_engine_settings_are_valid() -> None:
-    settings = WorkerRuntimeSettings(
-        LEGATO_REPO_PATH="/opt/noteverse/legato",
-        SCORE_RENDER_ENGINE="verovio",
-    )
-
-    assert settings.SCORE_RENDER_ENGINE == "verovio"
-
-    with pytest.raises(ValidationError, match="SCORE_RENDER_ENGINE"):
-        WorkerRuntimeSettings(SCORE_RENDER_ENGINE="unknown")
 
 
 def test_legato_repository_path_is_required() -> None:

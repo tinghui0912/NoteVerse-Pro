@@ -27,19 +27,6 @@ class WorkerModelEngineSettings(BaseModel):
     LEGATO_BEAM_SIZE: int = 10
     LEGATO_BATCH_SIZE: int = 1
     LEGATO_TIMEOUT_SECONDS: int = 600
-    SCORE_RENDER_ENGINE: str = "verovio"
-    VEROVIO_PAGE_WIDTH: int = 2100
-    VEROVIO_PAGE_HEIGHT: int = 2970
-    VEROVIO_SCALE: int = 40
-    VEROVIO_BREAKS: str = "encoded"
-    VEROVIO_ADJUST_PAGE_HEIGHT: bool = False
-    VEROVIO_JUSTIFY_VERTICALLY: bool = True
-    VEROVIO_PAGE_MARGIN_TOP: int = 390
-    VEROVIO_PAGE_MARGIN_BOTTOM: int = 80
-    VEROVIO_HEADER: str = "none"
-    VEROVIO_FOOTER: str = "always"
-    VEROVIO_USE_PG_FOOTER_FOR_ALL: bool = True
-    VEROVIO_PREVIEW_HEADER_POSTPROCESSING: bool = True
 
     @field_validator(
         "MODEL_ROOT",
@@ -61,30 +48,6 @@ class WorkerModelEngineSettings(BaseModel):
         if value <= 0:
             raise ValueError("task timing settings must be positive integers")
         return value
-
-    @field_validator("SCORE_RENDER_ENGINE")
-    @classmethod
-    def validate_score_render_engine(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        if normalized != "verovio":
-            raise ValueError("SCORE_RENDER_ENGINE must be: verovio")
-        return normalized
-
-    @field_validator("VEROVIO_HEADER")
-    @classmethod
-    def validate_verovio_header(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        if normalized not in {"none", "auto", "encoded"}:
-            raise ValueError("VEROVIO_HEADER must be one of: none, auto, encoded")
-        return normalized
-
-    @field_validator("VEROVIO_FOOTER")
-    @classmethod
-    def validate_verovio_footer(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        if normalized not in {"none", "auto", "encoded", "always"}:
-            raise ValueError("VEROVIO_FOOTER must be one of: none, auto, encoded, always")
-        return normalized
 
     @model_validator(mode="after")
     def validate_omr_engine_settings(self) -> Self:

@@ -68,7 +68,9 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
         ctx._tracker = None
 
         with patch("app.pipeline.context.replace_files") as replace_files_mock:
-            with patch("app.pipeline.context.job_service.finalize_success") as finalize_success_mock:
+            with patch(
+                "app.pipeline.context.job_service.finalize_success"
+            ) as finalize_success_mock:
                 ctx.complete()
 
         replace_files_mock.assert_called_once_with(
@@ -95,7 +97,7 @@ def test_xml_normalize_step_applies_a4_layout() -> None:
         with open(xml_path, "w", encoding="utf-8") as file_handle:
             file_handle.write(
                 "<score-partwise><part-list />"
-                "<part id=\"P1\"><measure number=\"0\" /></part>"
+                '<part id="P1"><measure number="0" /></part>'
                 "</score-partwise>"
             )
 
@@ -123,10 +125,7 @@ def test_factory_can_create_legato_engine() -> None:
 
 def test_score_render_factory_can_create_verovio_engine() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        verovio = create_score_render_engine(
-            output_folder=temp_dir,
-            engine_name="verovio",
-        )
+        verovio = create_score_render_engine(output_folder=temp_dir)
 
     assert isinstance(verovio, VerovioRenderEngine)
 
@@ -139,8 +138,6 @@ def test_engine_factories_reject_unregistered_engines() -> None:
                 timeout_seconds=120,
                 engine_name="unknown",
             )
-        with pytest.raises(ValueError, match="Unsupported score render engine"):
-            create_score_render_engine(output_folder=temp_dir, engine_name="unknown")
 
 
 def test_verovio_render_engine_writes_svg_pages() -> None:
@@ -240,10 +237,16 @@ def test_legato_omr_engine_writes_musicxml_result() -> None:
             return inference_result
 
         with patch.object(engine, "_check_prerequisites") as check_mock:
-            with patch.object(engine, "_run_inference", side_effect=fake_inference) as inference_mock:
+            with patch.object(
+                engine, "_run_inference", side_effect=fake_inference
+            ) as inference_mock:
                 with patch.object(engine, "_read_abcs", return_value=["X:1\nK:C\nC|"]) as read_mock:
-                    with patch.object(engine, "_cleanup_abc", return_value="X:1\nK:C\nC|") as cleanup_mock:
-                        with patch.object(engine, "_run_abc2xml", return_value=conversion_result) as convert_mock:
+                    with patch.object(
+                        engine, "_cleanup_abc", return_value="X:1\nK:C\nC|"
+                    ) as cleanup_mock:
+                        with patch.object(
+                            engine, "_run_abc2xml", return_value=conversion_result
+                        ) as convert_mock:
                             result = engine.process_images([image_path])
 
         assert result["success"] is True
