@@ -147,3 +147,8 @@ and `BeatSchedulerSettings`. Keep the current cross-field S3 validation with
 `StorageSettings`; do not make credentials optional or allow local-storage
 fallback when `FILE_STORAGE_BACKEND=s3`. Only after direct consumers use these
 groups may Compose environment manifests be split by role.
+
+Production database policy is PostgreSQL only. SQLite remains permitted inside
+isolated unit tests through explicit SQLAlchemy test engines; it is not an
+application runtime configuration. MySQL has no supported deployment or
+integration-test contract and is not accepted by runtime settings.

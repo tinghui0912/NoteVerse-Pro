@@ -11,14 +11,10 @@ class AsyncDatabaseSettings(BaseModel):
     @field_validator("DATABASE_URL")
     @classmethod
     def validate_database_url(cls, value: str) -> str:
-        supported_prefixes = (
-            "postgresql://", "postgresql+asyncpg://", "postgresql+psycopg://",
-            "mysql://", "mysql+asyncmy://", "mysql+aiomysql://", "mysql+pymysql://",
-            "sqlite://", "sqlite+aiosqlite://",
-        )
+        supported_prefixes = ("postgresql://", "postgresql+asyncpg://", "postgresql+psycopg://")
         if not value.startswith(supported_prefixes):
             raise ValueError(
                 f"Unsupported database URL format: {value}\n"
-                "Supported engines: PostgreSQL, MySQL, SQLite"
+                "Supported engine: PostgreSQL"
             )
         return value
