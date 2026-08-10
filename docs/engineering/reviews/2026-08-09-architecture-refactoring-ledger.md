@@ -771,6 +771,17 @@ deferred until the required offline models are available.
   keeps its intentionally narrower independent allowlist; no storage backend,
   environment name, manifest, alias, or fallback behavior changed.
 
+### 2026-08-10: Platform HTTP and security boundary measured
+
+- Split the remaining platform fields into five non-overlapping ownership
+  candidates: token signing secret, browser CORS, trusted proxy, public
+  frontend URL, and service identity/routing. Control-plane settings remain
+  intentionally validated only by its isolated runtime loader.
+- Confirmed that CORS origins and trusted proxy CIDRs are distinct security
+  trust decisions and must not share a generic allowlist. Selected
+  `TrustedProxySettings` as the next safe extraction because its CIDR parser
+  and anti-`/0` validation already form a self-contained contract.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -214,9 +214,29 @@ the reset policy remains a versioned default; the template and production
 runtime contract must be updated together if operations needs an environment
 override. Do not add a duplicate template variable merely for symmetry.
 
-The next safe extraction is `CustomerSessionSecuritySettings`. Its consumers
+`CustomerSessionSecuritySettings` was extracted first because its consumers
 share one customer identity contract and its fields do not overlap with the
 already isolated `CONTROL_PLANE_*` settings.
+
+## Platform HTTP and security policy boundary
+
+| Proposed settings group | Fields | Direct production consumers | Boundary |
+| --- | --- | --- | --- |
+| Token signing secret | `SECRET_KEY` | JWT creation/verification and signed authentication dependencies | Security-secret rotation boundary; it must not be bundled with browser policy. |
+| Browser CORS policy | `BACKEND_CORS_ORIGINS` | customer API and Practice HTTP app factories | Browser-origin allowlist, shared by the two customer HTTP surfaces. |
+| Trusted proxy policy | `TRUSTED_PROXY_CIDRS` | client-address resolution | Forwarded-address trust boundary, independent of CORS origins. |
+| Public frontend URL | `FRONTEND_BASE_URL` | account links and score invites | Public absolute link origin; independent of the backend's API mount prefix. |
+| Service identity and routing | `PROJECT_NAME`, `API_V1_STR`, `DEBUG` | API, Practice, Control Plane, observability, static delivery, templates | Shared application identity/routing contract; retain together only after its wide surface is explicitly tested. |
+
+`BACKEND_CORS_ORIGINS` and `TRUSTED_PROXY_CIDRS` are both security-sensitive,
+but they answer different trust questions and must not become a combined
+allowlist. `CONTROL_PLANE_*` remains in `require_control_plane_settings()`:
+its optional shared-schema fields are intentionally validated only when the
+isolated control runtime starts.
+
+The next safe extraction is `TrustedProxySettings`: it has a single direct
+runtime consumer and a self-contained CIDR parsing/anti-`/0` validator. Keep
+the browser CORS parser in a later, separate change.
 
 ## Database, queue, and storage migration boundary
 
