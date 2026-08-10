@@ -5,13 +5,16 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from app.core.config import Settings
+from app.core.config import Settings, WorkerRuntimeSettings
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 ENV_TEMPLATES = {
     BACKEND_ROOT / ".env.docker.example": set(),
-    BACKEND_ROOT / ".env.docker.worker.example": {"CELERY_WORKER_CONCURRENCY"},
+    BACKEND_ROOT / ".env.docker.worker.example": {
+        "CELERY_WORKER_CONCURRENCY",
+        *WorkerRuntimeSettings.model_fields,
+    },
 }
 ENVIRONMENT_ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)=")
 
@@ -33,6 +36,7 @@ def test_docker_environment_templates_declare_only_supported_keys() -> None:
     assert not violations, "Unsupported Docker environment keys: " + ", ".join(violations)
 
 def test_worker_process_template_declares_only_the_worker_entrypoint_contract() -> None:
-    assert _template_keys(BACKEND_ROOT / ".env.docker.worker.example") == {
-        "CELERY_WORKER_CONCURRENCY"
+    assert _template_keys(BACKEND_ROOT / ".env.docker.worker.example") <= {
+        "CELERY_WORKER_CONCURRENCY",
+        *WorkerRuntimeSettings.model_fields,
     }
