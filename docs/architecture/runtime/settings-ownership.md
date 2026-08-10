@@ -160,9 +160,12 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Token signing secret. `TokenSigningSettings` owns `SECRET_KEY`
   and its fail-fast strength validation, independently of browser and routing
   policy.
-- **Next:** Extract public frontend URL settings, moving its absolute-URL
-  validation with the field while retaining its shared account-link and invite
-  consumers.
+- **Complete:** Public frontend URL. `PublicFrontendUrlSettings` owns the
+  absolute account-link and score-invitation base URL and rejects query or
+  fragment components that would make generated links ambiguous.
+- **Next:** Extract service identity and routing settings (`PROJECT_NAME`, API
+  prefix, debug mode) only after adding app-factory coverage across API,
+  Practice, Control Plane, and observability surfaces.
 
 ## Worker runtime-loader migration boundary
 

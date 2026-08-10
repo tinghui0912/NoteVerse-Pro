@@ -46,6 +46,12 @@ def test_settings_compose_token_signing_policy() -> None:
     assert len(Settings().SECRET_KEY) >= 32
 
 
+def test_settings_compose_public_frontend_url_policy() -> None:
+    assert Settings(FRONTEND_BASE_URL="https://app.example.com").FRONTEND_BASE_URL == (
+        "https://app.example.com"
+    )
+
+
 def test_practice_diagnostic_intervals_must_be_positive() -> None:
     settings = PracticeRuntimeSettings(
         PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2",

@@ -19,6 +19,7 @@ from app.core.settings.mail_delivery import MailDeliverySettings
 from app.core.settings.notification_lifecycle import NotificationLifecycleSettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.playback_delivery import PlaybackDeliverySettings
+from app.core.settings.public_frontend_url import PublicFrontendUrlSettings
 from app.core.settings.queue import QueueSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
@@ -38,7 +39,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, BrowserCorsSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TokenSigningSettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, BrowserCorsSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, PublicFrontendUrlSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TokenSigningSettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     CONTROL_PLANE_AUTH_COOKIE_NAME: Optional[str] = None
@@ -49,7 +50,6 @@ class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSet
     CONTROL_PLANE_SESSION_EXPIRE_MINUTES: Optional[int] = None
     CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
     DEBUG: bool = False
-    FRONTEND_BASE_URL: str
     # CORS
 
     @field_validator("CONTROL_PLANE_CORS_ORIGINS", mode="before")

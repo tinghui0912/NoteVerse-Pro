@@ -810,6 +810,14 @@ deferred until the required offline models are available.
   environment name, manifest, alias, fallback, or control-plane behavior
   changed.
 
+### 2026-08-10: Public frontend URL ownership extracted
+
+- Moved `FRONTEND_BASE_URL` into `PublicFrontendUrlSettings`, with direct
+  validation that requires an absolute HTTP(S) URL and rejects query/fragment
+  components.
+- Revalidated account email-link and score-invitation consumers. No API prefix,
+  CORS, environment name, manifest, alias, or fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
