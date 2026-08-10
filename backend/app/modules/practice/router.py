@@ -12,7 +12,12 @@ from app.core.metrics import realtime_connection_closed, realtime_connection_ope
 from app.db.models import User
 from app.db.model_utils import require_persisted_id
 from app.modules.practice.dependencies import get_practice_service, get_websocket_current_user
-from app.modules.practice.schemas import CreatePracticeSessionRequest
+from app.modules.practice.schemas import (
+    CreatePracticeSessionRequest,
+    PracticeReportRead,
+    PracticeSessionDetailRead,
+    PracticeSessionSummaryRead,
+)
 from app.modules.practice.service import PracticeService
 from app.processing.realtime.message_codec import (
     alignment_update_message,
@@ -24,12 +29,12 @@ from app.processing.realtime.message_codec import (
     state_changed_message,
 )
 from app.shared.constants import ErrorCode, SuccessCode
-from app.shared.responses import success_response
+from app.shared.responses import APIResponse, success_response
 
 router = APIRouter()
 
 
-@router.post("/sessions")
+@router.post("/sessions", response_model=APIResponse[PracticeSessionSummaryRead])
 async def create_practice_session(
     request: CreatePracticeSessionRequest,
     current_user: User = Depends(get_current_user),
@@ -49,7 +54,7 @@ async def create_practice_session(
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_CREATED)
 
 
-@router.get("/sessions/{session_id}")
+@router.get("/sessions/{session_id}", response_model=APIResponse[PracticeSessionDetailRead])
 async def get_practice_session(
     session_id: str,
     current_user: User = Depends(get_current_user),
@@ -61,7 +66,7 @@ async def get_practice_session(
     return success_response(data=result)
 
 
-@router.post("/sessions/{session_id}/pause")
+@router.post("/sessions/{session_id}/pause", response_model=APIResponse[PracticeSessionDetailRead])
 async def pause_practice_session(
     session_id: str,
     current_user: User = Depends(get_current_user),
@@ -73,7 +78,7 @@ async def pause_practice_session(
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_PAUSED)
 
 
-@router.post("/sessions/{session_id}/resume")
+@router.post("/sessions/{session_id}/resume", response_model=APIResponse[PracticeSessionDetailRead])
 async def resume_practice_session(
     session_id: str,
     current_user: User = Depends(get_current_user),
@@ -85,7 +90,7 @@ async def resume_practice_session(
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_RESUMED)
 
 
-@router.post("/sessions/{session_id}/finish")
+@router.post("/sessions/{session_id}/finish", response_model=APIResponse[PracticeSessionDetailRead])
 async def finish_practice_session(
     session_id: str,
     current_user: User = Depends(get_current_user),
@@ -97,7 +102,7 @@ async def finish_practice_session(
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_FINISHED)
 
 
-@router.post("/sessions/{session_id}/report")
+@router.post("/sessions/{session_id}/report", response_model=APIResponse[PracticeReportRead])
 async def request_practice_report(
     session_id: str,
     current_user: User = Depends(get_current_user),
@@ -109,7 +114,7 @@ async def request_practice_report(
     return success_response(data=result, message=SuccessCode.PRACTICE_REPORT_READY)
 
 
-@router.get("/sessions/{session_id}/report")
+@router.get("/sessions/{session_id}/report", response_model=APIResponse[PracticeReportRead])
 async def get_practice_report(
     session_id: str,
     current_user: User = Depends(get_current_user),

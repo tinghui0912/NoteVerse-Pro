@@ -3,11 +3,11 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { getScoreShareStatus, getShareExpirationDays } from '@/lib/score-detail/share';
 import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
-import type { ScoreGrant } from '@/types/api';
+import type { GrantRead } from '@/generated/api';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
-function share(overrides: Partial<ScoreGrant> = {}): ScoreGrant {
+function share(overrides: Partial<GrantRead> = {}): GrantRead {
   return {
     grant_id: 'grant',
     token: 'grant',

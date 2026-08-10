@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings
 from app.core.logger import logger
 
 _CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -93,8 +93,9 @@ def run_ocr_subprocess(
         os.path.abspath(image_path),
     ]
     env = os.environ.copy()
+    worker_settings = get_worker_runtime_settings()
     for name in _PADDLEOCR_ENV_NAMES:
-        value = getattr(settings, name, None)
+        value = getattr(worker_settings, name, None)
         if value:
             env[name] = str(value)
 

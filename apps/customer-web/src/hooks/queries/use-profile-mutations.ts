@@ -3,7 +3,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import { profileApi } from '@/lib/api';
-import type { RequestEmailChangeRequest, UpdateProfileRequest } from '@/types/api';
+import type { RequestEmailChangeRequest, UpdateProfileRequest } from '@/generated/api';
 
 /**
  * 上传头像

@@ -69,8 +69,20 @@ class LibraryEntryBatchUpdateRequest(BaseModel):
     entry_ids: list[str] = Field(min_length=1)
 
 
+class LibraryBatchMoveRead(BaseModel):
+    moved: int
+
+
+class LibraryBatchUpdateRead(BaseModel):
+    updated: int
+
+
 class LibraryOwnedScoreBatchRequest(BaseModel):
     score_ids: list[str] = Field(min_length=1)
+
+
+class LibraryOwnedScoreBatchRead(BaseModel):
+    added: int
 
 
 class LibraryEntryBatchPracticeStateRequest(BaseModel):

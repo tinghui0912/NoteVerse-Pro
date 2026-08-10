@@ -15,7 +15,7 @@ class ScoreTaxonomyTagRead(BaseModel):
     category: str
     code: str
     source: str
-    confidence: float | None = None
+    confidence: float | None
 
 
 class ScoreTaxonomyTagInput(BaseModel):

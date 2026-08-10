@@ -1,17 +1,15 @@
 """FastAPI entrypoint for the realtime practice service."""
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
 from app.api.metrics import create_metrics_router
 from app.core.config import settings
-from app.core.exception_handlers import register_exception_handlers
+from app.core.http_runtime import install_http_runtime, normalized_cors_origins
 from app.core.lifespan import create_app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
-from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware, LoggingMiddleware
+from app.core.middleware import CookieCsrfSettings
 from app.core.runtime_checks import RuntimeRole
-from app.core.tracing import configure_api_tracing
 from app.modules.practice.router import router as practice_router
 
 
@@ -19,7 +17,7 @@ configure_uvicorn_logging()
 
 
 def _cors_origins() -> list[str]:
-    return [str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS]
+    return normalized_cors_origins(settings.BACKEND_CORS_ORIGINS)
 
 
 def _csrf_settings() -> CookieCsrfSettings:
@@ -45,18 +43,11 @@ def create_app() -> FastAPI:
         lifespan=create_app_lifespan(RuntimeRole.PRACTICE),
     )
 
-    app.add_middleware(LoggingMiddleware)
-    app.add_middleware(CsrfProtectionMiddleware, csrf_settings=_csrf_settings())
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=_cors_origins(),
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+    install_http_runtime(
+        app,
+        csrf_settings=_csrf_settings(),
+        cors_origins=_cors_origins(),
     )
-
-    register_exception_handlers(app)
-    configure_api_tracing(app)
 
     app.include_router(practice_router, prefix=f"{settings.API_V1_STR}/practice", tags=["Practice"])
     app.include_router(health_router)

@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import type { LibraryFolder, LibraryView } from '@/types/api';
+import type { LibraryFolderRead, LibraryView } from '@/generated/api';
 
 export interface LibraryVirtualNode {
   view: LibraryView;
@@ -27,8 +27,8 @@ interface LibrarySidebarProps {
   currentFolderId?: string;
   quickNodes: LibraryVirtualNode[];
   practiceNodes: LibraryVirtualNode[];
-  folders: LibraryFolder[];
-  folderDepth: (folder: LibraryFolder) => number;
+  folders: LibraryFolderRead[];
+  folderDepth: (folder: LibraryFolderRead) => number;
   foldersLoading: boolean;
   foldersError: unknown;
   createFolderPending: boolean;
@@ -36,8 +36,8 @@ interface LibrarySidebarProps {
   onRetryFolders: () => void;
   onNavigateView: (view: LibraryView) => void;
   onNavigateFolder: (folderId: string) => void;
-  onEditFolder: (folder: LibraryFolder) => void;
-  onDeleteFolder: (folder: LibraryFolder) => void;
+  onEditFolder: (folder: LibraryFolderRead) => void;
+  onDeleteFolder: (folder: LibraryFolderRead) => void;
   errorMessage: (error: unknown) => string;
   t: (key: string, values?: Record<string, string | number>) => string;
 }

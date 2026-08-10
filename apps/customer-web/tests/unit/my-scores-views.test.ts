@@ -12,9 +12,9 @@ import {
   scoreBackedView,
   visibleMyScoreJobs,
 } from '@/lib/my-scores/state';
-import type { ImportJob } from '@/types/api';
+import type { ImportJobRead } from '@/generated/api';
 
-function job(jobId: string, state: ImportJob['state']): ImportJob {
+function job(jobId: string, state: ImportJobRead['state']): ImportJobRead {
   return {
     job_id: jobId,
     state,

@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { authApi, profileApi } from '@/lib/api';
-import type { User as ApiUser } from '@/types/api';
+import type { ProfileUserRead } from '@/generated/api';
 import { ApiError } from '@/lib/api-client';
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
 
@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /**
    * 从 API 用户转换为本地用户格式
    */
-  const mapApiUser = (apiUser: ApiUser | undefined): User | null => {
+  const mapApiUser = (apiUser: ProfileUserRead | undefined): User | null => {
     if (!apiUser) return null;
     return {
       id: apiUser.id,
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await profileApi.getProfile({ suppressAuthRedirect: true });
       if (response.data?.user) {
-        const mappedUser = mapApiUser(response.data.user as unknown as ApiUser);
+        const mappedUser = mapApiUser(response.data.user);
         setUser(mappedUser);
         setIsAuthenticated(true);
       }

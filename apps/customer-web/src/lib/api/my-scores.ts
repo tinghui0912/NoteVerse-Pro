@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client';
-import type { MyScore, MyScoresSort, MyScoresView, PaginatedResponse } from '@/types/api';
+import type { PaginatedResponse } from '@/lib/api-client';
+import type { MyScoresSort, MyScoresView, ScoreRead } from '@/generated/api';
 
 export const myScoresApi = {
   list: (
@@ -11,5 +12,5 @@ export const myScoresApi = {
       page_size: number;
     },
     signal?: AbortSignal
-  ) => apiClient.get<PaginatedResponse<MyScore>>('/my-scores', params, { signal }),
+  ) => apiClient.get<PaginatedResponse<ScoreRead>>('/my-scores', params, { signal }),
 };

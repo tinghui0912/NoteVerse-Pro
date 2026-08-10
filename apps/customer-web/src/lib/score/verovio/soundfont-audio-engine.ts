@@ -1,7 +1,7 @@
 import * as Soundfont from 'soundfont-player';
 
 import type { VerovioPlaybackNote } from './playback-timeline';
-import type { VerovioAudioEngine } from './playback-prototype';
+import type { VerovioAudioEngine } from './playback-controller';
 
 const LOCAL_INSTRUMENTS = new Set(['acoustic_grand_piano']);
 type SoundfontInstrumentName = Parameters<typeof Soundfont.instrument>[1];

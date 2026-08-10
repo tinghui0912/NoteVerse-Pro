@@ -9,14 +9,14 @@ from app.db.models import User
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.dependencies import get_avatar_service, get_profile_service
 from app.modules.account.profile_service import ProfileService
-from app.modules.account.schemas import UpdateProfileRequest
+from app.modules.account.schemas import AvatarRead, ProfileRead, ProfileUpdateRead, UpdateProfileRequest
 from app.shared.constants import ErrorCode, SuccessCode
-from app.shared.responses import success_response
+from app.shared.responses import APIResponse, EmptyResponse, success_response
 
 router = APIRouter()
 
 
-@router.get("/profile")
+@router.get("/profile", response_model=APIResponse[ProfileRead])
 async def get_user_profile(
     current_user: User = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
@@ -24,7 +24,7 @@ async def get_user_profile(
     return success_response(data=profile_service.profile_payload(current_user))
 
 
-@router.put("/profile")
+@router.put("/profile", response_model=APIResponse[ProfileUpdateRead])
 async def update_user_profile(
     request: UpdateProfileRequest,
     current_user: User = Depends(get_current_user),
@@ -38,7 +38,7 @@ async def update_user_profile(
     )
 
 
-@router.post("/avatar")
+@router.post("/avatar", response_model=APIResponse[AvatarRead])
 async def upload_avatar(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -74,7 +74,7 @@ async def upload_avatar(
     )
 
 
-@router.delete("/avatar")
+@router.delete("/avatar", response_model=EmptyResponse)
 async def delete_avatar(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

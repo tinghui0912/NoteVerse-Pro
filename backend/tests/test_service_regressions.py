@@ -16,6 +16,7 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
+from app.core.config import get_practice_runtime_settings
 from app.processing.engines.matchmaker_live import (
     AlignmentUpdate,
     BrowserAudioStreamAdapter,
@@ -33,6 +34,7 @@ from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
+from app.modules.scores.schemas import ScoreTaxonomyTagInput
 from app.pipeline.files_recorder import _build_file_item
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -103,10 +105,8 @@ def test_allowed_file_accepts_supported_extensions() -> None:
 def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_path) -> None:
     soundfont_path = tmp_path / "practice.sf2"
     soundfont_path.write_bytes(b"soundfont")
-    monkeypatch.setattr(
-        "app.processing.engines.matchmaker_live.settings.PRACTICE_SOUNDFONT_PATH",
-        str(soundfont_path),
-    )
+    monkeypatch.setenv("PRACTICE_SOUNDFONT_PATH", str(soundfont_path))
+    get_practice_runtime_settings.cache_clear()
 
     class FakeScore:
         def note_array(self):
@@ -124,14 +124,17 @@ def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_
     partitura = SimpleNamespace(save_wav_fluidsynth=Mock(return_value=np.ones(100)))
     default_generate_score_audio = Mock()
 
-    audio = MatchmakerLiveEngine._generate_score_audio(
-        score=FakeScore(),
-        bpm=120,
-        sample_rate=10,
-        np=np,
-        partitura=partitura,
-        generate_score_audio=default_generate_score_audio,
-    )
+    try:
+        audio = MatchmakerLiveEngine._generate_score_audio(
+            score=FakeScore(),
+            bpm=120,
+            sample_rate=10,
+            np=np,
+            partitura=partitura,
+            generate_score_audio=default_generate_score_audio,
+        )
+    finally:
+        get_practice_runtime_settings.cache_clear()
 
     default_generate_score_audio.assert_not_called()
     partitura.save_wav_fluidsynth.assert_called_once()
@@ -286,7 +289,7 @@ def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
 
     payload = ProfileService().profile_payload(user)
 
-    assert payload["user"]["avatar_url"] == "/api/v1/uploads/avatars/missing.jpg"
+    assert payload.user.avatar_url == "/api/v1/uploads/avatars/missing.jpg"
     assert user.avatar_url == "/api/v1/uploads/avatars/missing.jpg"
 
 
@@ -443,6 +446,22 @@ async def test_import_job_submission_reuses_existing_idempotency_key() -> None:
     ensure_mock.assert_not_called()
 
 
+def test_import_job_submission_serializes_taxonomy_tags_for_json_storage() -> None:
+    service = ImportJobSubmissionService()
+
+    options = {
+        "title": "Once Again",
+        "taxonomy_tags": [
+            ScoreTaxonomyTagInput(category="genre", code="soundtrack"),
+        ],
+    }
+
+    assert service._storage_options(options) == {
+        "title": "Once Again",
+        "taxonomy_tags": [{"category": "genre", "code": "soundtrack"}],
+    }
+
+
 def test_import_job_execution_resolves_file_ids_inside_worker() -> None:
     storage = Mock()
     storage.local_path.return_value = "C:/worker/cache/blob.png"
@@ -517,7 +536,9 @@ async def test_file_upload_rehomes_existing_blob_when_storage_backend_changes() 
         with patch("app.modules.files.service.storage_usage_service.commit_reservation") as commit_mock:
             result = await FilesService(repository=repository, storage=storage).upload_file(db, user, upload)
 
-    assert result == {"file_id": "upload-1", "filename": "score.png", "size": 5}
+    assert result.file_id == "upload-1"
+    assert result.filename == "score.png"
+    assert result.size == 5
     storage.exists.assert_not_called()
     storage.save_blob.assert_called_once()
     repository.create_blob.assert_not_called()
@@ -587,7 +608,7 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
         with patch("app.modules.files.service.storage_usage_service.record_release") as release_usage:
             result = await service.delete_uploaded_file(db, current_user, "owned.png")
 
-    assert result == {"filename": "owned.png"}
+    assert result.filename == "owned.png"
     repository.delete_upload_by_id.assert_awaited_once_with(db, 7)
     repository.delete_blob_by_id.assert_awaited_once_with(db, 5)
     release_usage.assert_awaited_once()
@@ -688,11 +709,9 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
         frame_format="pcm_s16le",
     )
 
-    assert result == {
-        "session_id": "session-1",
-        "state": PracticeSessionState.CREATED.value,
-        "ws_url": "/api/v1/practice/sessions/session-1/stream",
-    }
+    assert result.session_id == "session-1"
+    assert result.state == PracticeSessionState.CREATED
+    assert result.ws_url == "/api/v1/practice/sessions/session-1/stream"
     runtime_registry.register.assert_not_called()
     created_session = repository.create_session.await_args.args[1]
     assert created_session.revision_id == 201
@@ -732,14 +751,14 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
     ))
 
     paused = await service.pause_session(db, "session-1", user_id=1)
-    assert paused["state"] == PracticeSessionState.PAUSED.value
+    assert paused.state == PracticeSessionState.PAUSED
 
     resumed = await service.resume_session(db, "session-1", user_id=1)
-    assert resumed["state"] == PracticeSessionState.STREAMING.value
+    assert resumed.state == PracticeSessionState.STREAMING
     assert session.started_at is not None
 
     finished = await service.finish_session(db, "session-1", user_id=1)
-    assert finished["state"] == PracticeSessionState.FINISHED.value
+    assert finished.state == PracticeSessionState.FINISHED
     assert session.finished_at is not None
 
 
@@ -815,9 +834,9 @@ async def test_practice_service_request_report_persists_structured_payload() -> 
 
     result = await service.request_report(AsyncMock(), "session-1", user_id=1)
 
-    assert result["report_status"] == PracticeReportStatus.READY.value
-    assert result["report_payload"] is not None
-    assert result["report_payload"]["metrics"]["confidence_label"] == "Strong"
+    assert result.report_status == PracticeReportStatus.READY
+    assert result.report_payload is not None
+    assert result.report_payload.metrics["confidence_label"] == "Strong"
     assert session.report_status == PracticeReportStatus.READY
     assert session.report_payload is not None
     assert repository.save_report.await_count == 2
@@ -837,13 +856,10 @@ async def test_practice_service_get_report_parses_existing_payload() -> None:
 
     result = await service.get_report(AsyncMock(), "session-1", user_id=1)
 
-    assert result == {
-        "session_id": "session-1",
-        "report_status": PracticeReportStatus.READY.value,
-        "report_payload": {
-            "summary": "done",
-            "metrics": {"state": "FINISHED"},
-            "recommendations": ["keep going"],
-        },
-    }
+    assert result.session_id == "session-1"
+    assert result.report_status == PracticeReportStatus.READY
+    assert result.report_payload is not None
+    assert result.report_payload.summary == "done"
+    assert result.report_payload.metrics == {"state": "FINISHED"}
+    assert result.report_payload.recommendations == ["keep going"]
 

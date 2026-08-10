@@ -17,10 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { FolderDeleteMode, LibraryFolder } from '@/types/api';
+import type { FolderDeleteMode, LibraryFolderRead } from '@/generated/api';
 
 interface LibraryDeleteFolderDialogProps {
-  folder: LibraryFolder | null;
+  folder: LibraryFolderRead | null;
   deleteMode: FolderDeleteMode;
   deletePending: boolean;
   onOpenChange: (open: boolean) => void;

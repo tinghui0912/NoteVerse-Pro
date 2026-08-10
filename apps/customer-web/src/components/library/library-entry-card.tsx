@@ -13,10 +13,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatApiDateTime } from '@/lib/date-time';
 import { cn } from '@/lib/utils';
-import type { LibraryEntry, LibraryPracticeState } from '@/types/api';
+import type { LibraryEntryRead, LibraryPracticeState } from '@/generated/api';
 
 interface LibraryEntryCardProps {
-  entry: LibraryEntry;
+  entry: LibraryEntryRead;
   batchMode: boolean;
   selected: boolean;
   updatePending: boolean;

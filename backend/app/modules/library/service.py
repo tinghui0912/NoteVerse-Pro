@@ -415,8 +415,12 @@ class LibraryService:
             )
             if head
             else ScoreDerivedAssetsRead(
-                preview=ScoreDerivedAssetRead(),
-                audio=ScoreDerivedAssetRead(),
+                preview=ScoreDerivedAssetRead(
+                    status="pending", asset_id=None, revision_id=None, is_fallback=False
+                ),
+                audio=ScoreDerivedAssetRead(
+                    status="pending", asset_id=None, revision_id=None, is_fallback=False
+                ),
             )
         )
         return LibraryEntryRead(

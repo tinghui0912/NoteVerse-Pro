@@ -10,7 +10,7 @@ import type {
 import { VerovioScoreAdapter } from '@/lib/score/verovio';
 import {
   SoundfontAudioEngine,
-  VerovioPlaybackPrototype,
+  VerovioPlaybackController,
   type VerovioAudioEngine,
   type VerovioPlaybackCursorSnapshot,
 } from '@/lib/score/verovio/playback';
@@ -53,7 +53,7 @@ function findScrollableAncestor(element: HTMLElement) {
 export class VerovioScorePreviewController implements ScorePreviewController {
   private readonly container: HTMLElement;
   private readonly adapter: VerovioScoreAdapter;
-  private readonly playback: VerovioPlaybackPrototype;
+  private readonly playback: VerovioPlaybackController;
   private activeCursor: HTMLElement | null = null;
   private activeSystem: Element | null = null;
   private activeEventIndex: number | null = null;
@@ -70,7 +70,7 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     this.adapter = options.adapter ?? new VerovioScoreAdapter(undefined, options.toolkitOptions);
     this.initialBpm = options.bpm && options.bpm > 0 ? options.bpm : null;
     this.fitToContainerOptions = options.fitToContainerOptions ?? ((pageWidth) => ({ pageWidth }));
-    this.playback = new VerovioPlaybackPrototype(
+    this.playback = new VerovioPlaybackController(
       this.adapter,
       options.audioEngine ?? new SoundfontAudioEngine()
     );

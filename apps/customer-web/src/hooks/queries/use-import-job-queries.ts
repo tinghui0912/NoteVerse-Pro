@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { importJobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { ImportJob } from '@/types/api';
+import type { ImportJobProcessingOptions, ImportJobRead } from '@/generated/api';
 
-const ACTIVE_JOB_STATES = new Set<ImportJob['state']>(['PENDING', 'RUNNING']);
+const ACTIVE_JOB_STATES = new Set<ImportJobRead['state']>(['PENDING', 'RUNNING']);
 
-function hasActiveJobs(jobs: ImportJob[] | undefined) {
+function hasActiveJobs(jobs: ImportJobRead[] | undefined) {
   return (jobs ?? []).some((job) => ACTIVE_JOB_STATES.has(job.state));
 }
 
@@ -37,7 +37,7 @@ export function useSubmitImportJob() {
   return useMutation({
     mutationFn: ({ fileIds, options, idempotencyKey }: {
       fileIds: string[];
-      options?: Record<string, unknown>;
+      options?: ImportJobProcessingOptions;
       idempotencyKey?: string;
     }) => importJobsApi.submitImportJob(fileIds, options, idempotencyKey),
   });

@@ -21,20 +21,54 @@ Available checks:
 | `backend-mypy` | Backend type checking inside the dedicated backend quality image |
 | `backend-mypy-model-layer` | Backend model-layer type boundary checks inside the dedicated backend quality image |
 | `backend-pytest` | Backend test suites through Docker quality images: core tests in `quality`, practice tests in `practice-quality` |
+| `backend-coverage` | Backend coverage baseline report through the same core and practice quality images |
+| `backend-critical-coverage` | Enforces the score-access policy's focused 80% coverage threshold |
+| `backend-critical-import-execution-coverage` | Enforces the import worker execution service's focused 80% coverage threshold |
+| `backend-critical-import-job-service-coverage` | Enforces the import-job API service's focused 70% coverage threshold |
+| `backend-critical-import-worker-service-coverage` | Enforces the import worker state coordinator's focused 80% coverage threshold |
+| `backend-critical-practice-service-coverage` | Enforces the Practice session service's focused 80% coverage threshold |
+| `backend-contracts` | Verifies that committed customer, practice, and control-plane OpenAPI documents match runtime routes and schemas |
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
 | `customer-web-i18n` | Customer Web error translation key guard |
+| `customer-web-api-types` | Customer Web generated API DTO freshness check |
 | `customer-web-test` | Customer Web unit tests |
+| `customer-web-coverage` | Customer Web V8 coverage baseline report |
 | `platform-admin-lint` | Platform Admin ESLint |
 | `platform-admin-typecheck` | Platform Admin TypeScript type checking |
 | `platform-admin-test` | Platform Admin unit tests |
 | `platform-admin-build` | Platform Admin production build |
+| `docs-links` | Validates checked-in local Markdown links |
 | `k8s` | Kubernetes application manifest guard and release overlay renderer smoke test |
 | `observability` | Observability values guard |
 | `all` | Fast broad gate: backend ruff/mypy, customer-web lint/typecheck/i18n, platform-admin lint/typecheck/tests, K8s and observability guards |
 
 `all` intentionally does not run every long test suite. Full test suites should
 still run before release or in dedicated CI jobs.
+
+## Customer Web and Backend Integration
+
+Run the isolated real-service integration check from the repository root:
+
+```powershell
+.\scripts\run_customer_web_backend_integration.ps1
+```
+
+The command starts a dedicated PostgreSQL database, Redis, migration job,
+deterministic integration user, backend API, and Customer Web container. Its
+Playwright test uses the browser-facing Customer Web origin, so calls traverse
+the Next rewrite before reaching the real API. It verifies login cookies, an
+authenticated profile read, rejected CSRF-less logout, accepted logout with the
+issued CSRF token, and the score-import entry flow: upload an input image,
+submit an import job, and read its pending status.
+
+The stack uses only the `noteverse-integration` Compose project and removes its
+containers and named volumes on completion. It never uses the development
+database, synchronous database, scheduler-lock database, or Redis URLs from
+`backend/.env.docker`; all are overridden to isolated Compose services. File
+uploads use container-local ephemeral storage rather than any configured object
+storage. The seeded email and password exist
+only in the disposable test database and are not application credentials.
 
 ## Kubernetes Manifest Guard
 
@@ -78,7 +112,7 @@ Current GitHub Actions workflows:
 
 | Workflow | Trigger scope | Purpose |
 | --- | --- | --- |
-| `.github/workflows/backend-quality.yml` | `backend/**` | Backend ruff, mypy, model-layer mypy, pytest |
+| `.github/workflows/backend-quality.yml` | `backend/**`, backend-quality wrappers, and quality Dockerfiles | Backend ruff, mypy, model-layer mypy, OpenAPI contract verification, pytest |
 | `.github/workflows/backend-api-image.yml` | backend API runtime files | Builds and scans the backend API image |
 | `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
 | `.github/workflows/backend-practice-image.yml` | backend practice runtime files | Builds and scans the backend practice image and its dependency base |
@@ -89,6 +123,7 @@ Current GitHub Actions workflows:
 | `.github/workflows/platform-admin-quality.yml` | `apps/platform-admin/**` | Platform Admin lint, typecheck, unit tests, production build |
 | `.github/workflows/k8s-application-manifests.yml` | `deploy/application/**` and K8s guard script | Kustomize rendering and deployment-placeholder guard |
 | `.github/workflows/observability-manifests.yml` | `deploy/observability/**` and observability guard script | Loki/Fluent Bit/Prometheus/Tempo values guard |
+| `.github/workflows/docs-quality.yml` | Checked-in Markdown and link checker | Validates repository-local Markdown links |
 | `.github/workflows/production-release-package.yml` | manual, `production` environment | Renders a downloadable production release package from image refs and environment variables |
 | `.github/workflows/staging-release-package.yml` | manual, `staging` environment | Renders a digest-pinned staging release package and can optionally open a GitOps promotion PR |
 
@@ -105,6 +140,13 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-mypy
 .\scripts\quality.ps1 -Check backend-mypy-model-layer
 .\scripts\quality.ps1 -Check backend-pytest
+.\scripts\quality.ps1 -Check backend-coverage
+.\scripts\quality.ps1 -Check backend-critical-coverage
+.\scripts\quality.ps1 -Check backend-critical-import-execution-coverage
+.\scripts\quality.ps1 -Check backend-critical-import-job-service-coverage
+.\scripts\quality.ps1 -Check backend-critical-import-worker-service-coverage
+.\scripts\quality.ps1 -Check backend-critical-practice-service-coverage
+.\scripts\quality.ps1 -Check backend-contracts
 ```
 
 Backend checks intentionally run inside Docker quality images:
@@ -134,10 +176,50 @@ You can also call the backend quality image directly:
 .\scripts\backend_quality_docker.ps1 -Check mypy
 .\scripts\backend_quality_docker.ps1 -Check mypy-model-layer
 .\scripts\backend_quality_docker.ps1 -Check pytest
+.\scripts\backend_quality_docker.ps1 -Check coverage
+.\scripts\backend_quality_docker.ps1 -Check critical-coverage
+.\scripts\backend_quality_docker.ps1 -Check critical-import-execution-coverage
+.\scripts\backend_quality_docker.ps1 -Check critical-import-job-service-coverage
+.\scripts\backend_quality_docker.ps1 -Check critical-import-worker-service-coverage
+.\scripts\backend_quality_docker.ps1 -Check critical-practice-service-coverage
+.\scripts\backend_quality_docker.ps1 -Check contracts
 ```
 
 The script passes `--build` to Docker Compose, so the first run builds the
 quality image and later runs reuse Docker's cache.
+
+Coverage commands report current baselines but do not enforce a global
+`fail-under` threshold. Set domain-specific thresholds only after the initial
+reports are reviewed; do not use a single repository-wide number to conceal
+untested critical flows behind generated or low-risk code.
+
+`critical-coverage` is the first such gate. It runs the existing score-access
+policy scenarios and requires at least 80% coverage for that focused domain.
+Raise this threshold only alongside tests for newly introduced authorization
+branches; add other critical-domain gates independently.
+
+`critical-import-execution-coverage` applies the same policy to the import
+worker execution service: it requires 80% coverage for error classification,
+durable input materialization, and failure finalization. It deliberately does
+not include the worker status coordinator; that component needs targeted tests
+before it gains its own threshold.
+
+`critical-import-job-service-coverage` requires 70% coverage for the
+API-facing import-job service. Its scenarios cover owner-only access, retry
+eligibility and request reconstruction, and the rule that running jobs cannot
+be deleted. Raise it alongside additional state-transition or cleanup tests.
+
+`critical-import-worker-service-coverage` requires 80% coverage for the
+worker-side state coordinator. Its scenarios assert progress updates, successful
+and failed terminal states, diagnostic fields, owner notifications, and named
+step creation or updates. Artifact replacement and public detail shaping remain
+covered by their owning service tests rather than being folded into this gate.
+
+`critical-practice-service-coverage` requires 80% coverage for the Practice
+session service. It runs in the isolated Practice quality image and covers
+session ownership, cached-runtime authorization, state transitions, reports,
+alignment persistence, session creation, and runtime registration. Remaining
+detail and report parsing paths need direct coverage before raising it again.
 
 `backend_quality_docker.ps1 -Check pytest` runs two suites:
 

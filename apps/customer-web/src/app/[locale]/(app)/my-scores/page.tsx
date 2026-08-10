@@ -38,6 +38,7 @@ import {
   buildMyScoresHref,
   isMyScoreView,
   MY_SCORE_PAGE_VIEWS,
+  type MyScoresPageView,
   myScoresBulkVisibility,
   myScoresTotal,
   normalizeMyScoresSort,
@@ -47,7 +48,7 @@ import {
   visibleMyScoreJobs,
 } from '@/lib/my-scores/state';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import type { MyScoresPageView, MyScoresSort } from '@/types/api';
+import type { MyScoresSort } from '@/generated/api';
 
 type DeleteTarget = {
   scoreIds: string[];

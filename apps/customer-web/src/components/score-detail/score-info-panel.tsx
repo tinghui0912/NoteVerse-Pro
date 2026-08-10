@@ -26,22 +26,22 @@ import {
   taxonomyTagKey,
   type ScoreTaxonomyTagValue,
 } from '@/lib/score/taxonomy';
-import type { ScoreMetadata, ScoreTaxonomyTag } from '@/types/api';
+import type { MetadataRead, ScoreTaxonomyTagRead } from '@/generated/api';
 
 interface ScoreInfoPanelProps {
   canEditTitle?: boolean;
   createdAt?: string | null;
   imageCount: number;
   imageCountStatus?: 'pending' | 'processing' | 'ready' | 'unavailable';
-  metadata?: ScoreMetadata | null;
+  metadata?: MetadataRead | null;
   scoreId?: string;
-  taxonomyTags: ScoreTaxonomyTag[];
+  taxonomyTags: ScoreTaxonomyTagRead[];
   title: string;
   updatedAt?: string | null;
   version?: number;
 }
 
-function normalizeGenreTags(tags: ScoreTaxonomyTag[] | ScoreTaxonomyTagValue[]) {
+function normalizeGenreTags(tags: ScoreTaxonomyTagRead[] | ScoreTaxonomyTagValue[]) {
   const keys = new Set<string>();
   const result: ScoreTaxonomyTagValue[] = [];
   for (const tag of tags) {

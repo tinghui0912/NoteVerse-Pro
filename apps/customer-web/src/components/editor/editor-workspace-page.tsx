@@ -12,7 +12,7 @@ import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denie
 import { EditorPageHeader } from '@/components/editor/editor-page-header';
 import { EditorPageModals } from '@/components/editor/editor-page-modals';
 import { EditorWorkbench } from '@/components/editor/editor-workbench';
-import type { ScoreCapabilities } from '@/types/api';
+import type { ScoreCapabilities } from '@/generated/api';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
 interface EditorWorkspacePageProps {

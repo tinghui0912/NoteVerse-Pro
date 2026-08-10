@@ -111,8 +111,12 @@ class ScoreAccessPolicy:
                     capabilities=ScoreCapabilities(
                         can_view=True,
                         can_edit=editor,
+                        can_delete=False,
+                        can_manage_sharing=False,
+                        can_manage_members=False,
                         can_download=True,
                         can_practice=True,
+                        can_publish=False,
                     ),
                 )
 
@@ -131,8 +135,13 @@ class ScoreAccessPolicy:
                         grant=redeemed,
                         capabilities=ScoreCapabilities(
                             can_view=True,
+                            can_edit=False,
+                            can_delete=False,
+                            can_manage_sharing=False,
+                            can_manage_members=False,
                             can_download=redeemed.allow_download,
                             can_practice=redeemed.allow_practice,
+                            can_publish=False,
                         ),
                     )
         if share_token:
@@ -147,8 +156,13 @@ class ScoreAccessPolicy:
                         grant=grant,
                         capabilities=ScoreCapabilities(
                             can_view=True,
+                            can_edit=False,
+                            can_delete=False,
+                            can_manage_sharing=False,
+                            can_manage_members=False,
                             can_download=grant.allow_download,
                             can_practice=grant.allow_practice,
+                            can_publish=False,
                         ),
                     )
 
@@ -178,8 +192,13 @@ class ScoreAccessPolicy:
                     publication=publication,
                     capabilities=ScoreCapabilities(
                         can_view=True,
+                        can_edit=False,
+                        can_delete=False,
+                        can_manage_sharing=False,
+                        can_manage_members=False,
                         can_download=publication.allow_download,
                         can_practice=publication.allow_practice,
+                        can_publish=False,
                     ),
                 )
 

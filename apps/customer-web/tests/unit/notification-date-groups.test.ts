@@ -4,9 +4,9 @@ import {
   getNotificationDateGroupKey,
   groupNotificationsByDate,
 } from '@/lib/notifications/date-groups';
-import type { NotificationEvent } from '@/types/api';
+import type { NotificationEventRead } from '@/generated/api';
 
-const baseNotification: NotificationEvent = {
+const baseNotification: NotificationEventRead = {
   notification_id: 'notification-1',
   type: 'score_invite.accepted',
   title: 'Invite accepted',

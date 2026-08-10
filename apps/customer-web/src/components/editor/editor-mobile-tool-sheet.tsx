@@ -5,12 +5,12 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useEditorState } from '@/contexts/editor-provider';
-import type { FingeringHandSize } from '@/types/api';
+import type { FingeringRequest } from '@/generated/api';
 import { EditorSidebar } from './editor-sidebar';
 
 interface EditorMobileToolSheetProps {
   fingeringPending?: boolean;
-  onGenerateFingering?: (handSize: FingeringHandSize) => void;
+  onGenerateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void;
   onNormalizeVoices: () => void;
 }
 

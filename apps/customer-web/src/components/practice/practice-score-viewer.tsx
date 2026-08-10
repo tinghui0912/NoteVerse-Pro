@@ -19,7 +19,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { PracticeFollowController } from '@/lib/practice/follow-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
-import type { PracticeAlignmentUpdateMessage } from '@/types/api';
+import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
 
 type PracticeScoreViewerProps = {
   className?: string;

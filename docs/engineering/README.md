@@ -21,6 +21,7 @@ been captured in product, architecture, operations, or security docs.
 ## Reviews
 
 - [Backend Structured Logging Audit](reviews/backend-structured-logging-audit.md)
+- [Architecture Refactoring Ledger](reviews/2026-08-09-architecture-refactoring-ledger.md)
 
 ## Testing
 

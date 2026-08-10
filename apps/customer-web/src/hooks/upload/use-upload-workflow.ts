@@ -8,7 +8,7 @@ import { useImportJobDetail, useSubmitImportJob } from '@/hooks/queries/use-impo
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, importJobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
+import { isGenreTag, type ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { getCompletedJobRoute, type UploadableFile } from '@/lib/upload/upload-workflow';
@@ -149,7 +149,7 @@ export function useUploadWorkflow() {
 
         if (data.title) setScoreName(data.title);
         if (data.taxonomy_tags) {
-          setTaxonomyTags(data.taxonomy_tags as ScoreTaxonomyTagValue[]);
+          setTaxonomyTags(data.taxonomy_tags.filter(isGenreTag));
         }
 
         const originalImages = data.original_images ?? [];
@@ -170,7 +170,7 @@ export function useUploadWorkflow() {
             }),
             preview,
             status: 'uploaded',
-            fileId: originalImage.upload_id,
+            fileId: originalImage.upload_id ?? undefined,
           });
         }
         if (controller.signal.aborted) return;
@@ -262,7 +262,10 @@ export function useUploadWorkflow() {
       const response = await submitJobMutation.mutateAsync({
         fileIds: uploadedFileIds,
         idempotencyKey: submissionKeyRef.current,
-        options: { title: scoreName || undefined, taxonomy_tags: taxonomyTags },
+        options: {
+          title: scoreName || undefined,
+          taxonomy_tags: taxonomyTags.map(({ category, code }) => ({ category, code })),
+        },
       });
       const jobId = response.data?.job_id;
       if (!jobId) throw new UserFacingUploadError(tCommon('operationFailed'));

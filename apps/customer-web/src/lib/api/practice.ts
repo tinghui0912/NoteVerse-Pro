@@ -1,59 +1,59 @@
 import { apiClient, ApiResponse } from '../api-client';
 import type {
     CreatePracticeSessionRequest,
-    PracticeReportResponse,
-    PracticeSessionDetail,
-    PracticeSessionSummary,
-} from '@/types/api';
+    PracticeReportRead,
+    PracticeSessionDetailRead,
+    PracticeSessionSummaryRead,
+} from '@/generated/practice-api';
 
 export async function createPracticeSession(
     data: CreatePracticeSessionRequest
-): Promise<ApiResponse<PracticeSessionSummary>> {
-    return apiClient.post<ApiResponse<PracticeSessionSummary>>('/practice/sessions', data);
+): Promise<ApiResponse<PracticeSessionSummaryRead>> {
+    return apiClient.post<ApiResponse<PracticeSessionSummaryRead>>('/practice/sessions', data);
 }
 
 export async function getPracticeSession(
     sessionId: string
-): Promise<ApiResponse<PracticeSessionDetail>> {
-    return apiClient.get<ApiResponse<PracticeSessionDetail>>(`/practice/sessions/${sessionId}`);
+): Promise<ApiResponse<PracticeSessionDetailRead>> {
+    return apiClient.get<ApiResponse<PracticeSessionDetailRead>>(`/practice/sessions/${sessionId}`);
 }
 
 export async function pausePracticeSession(
     sessionId: string
-): Promise<ApiResponse<PracticeSessionDetail>> {
-    return apiClient.post<ApiResponse<PracticeSessionDetail>>(
+): Promise<ApiResponse<PracticeSessionDetailRead>> {
+    return apiClient.post<ApiResponse<PracticeSessionDetailRead>>(
         `/practice/sessions/${sessionId}/pause`
     );
 }
 
 export async function resumePracticeSession(
     sessionId: string
-): Promise<ApiResponse<PracticeSessionDetail>> {
-    return apiClient.post<ApiResponse<PracticeSessionDetail>>(
+): Promise<ApiResponse<PracticeSessionDetailRead>> {
+    return apiClient.post<ApiResponse<PracticeSessionDetailRead>>(
         `/practice/sessions/${sessionId}/resume`
     );
 }
 
 export async function finishPracticeSession(
     sessionId: string
-): Promise<ApiResponse<PracticeSessionDetail>> {
-    return apiClient.post<ApiResponse<PracticeSessionDetail>>(
+): Promise<ApiResponse<PracticeSessionDetailRead>> {
+    return apiClient.post<ApiResponse<PracticeSessionDetailRead>>(
         `/practice/sessions/${sessionId}/finish`
     );
 }
 
 export async function requestPracticeReport(
     sessionId: string
-): Promise<ApiResponse<PracticeReportResponse>> {
-    return apiClient.post<ApiResponse<PracticeReportResponse>>(
+): Promise<ApiResponse<PracticeReportRead>> {
+    return apiClient.post<ApiResponse<PracticeReportRead>>(
         `/practice/sessions/${sessionId}/report`
     );
 }
 
 export async function getPracticeReport(
     sessionId: string
-): Promise<ApiResponse<PracticeReportResponse>> {
-    return apiClient.get<ApiResponse<PracticeReportResponse>>(
+): Promise<ApiResponse<PracticeReportRead>> {
+    return apiClient.get<ApiResponse<PracticeReportRead>>(
         `/practice/sessions/${sessionId}/report`
     );
 }

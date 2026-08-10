@@ -27,6 +27,10 @@ not inherit API, practice, fingering, or ML dependencies. The worker uses the
 worker dependency image because it runs OCR/OMR, rendering, playback generation,
 and model-cache checks.
 
+When `UVICORN_RELOAD=true`, HTTP services watch `/app/app` only. Runtime data
+under `/app/data` is intentionally excluded: Worker uploads and inference
+artifacts must never restart the API, Practice, or control-plane process.
+
 LEGATO is a pinned external source dependency cloned into the backend worker
 image at `/opt/noteverse/legato` during image build. See
 `docs/architecture/integrations/external-dependencies.md` for the pinned commit
@@ -46,6 +50,8 @@ and update process.
 - `docker/backend/entrypoint.sh`: service command switch.
 - `docker-compose.backend-dev.yml`: API, practice, worker, beat, and quality services.
 - `backend/.env.docker.example`: Docker-specific backend environment template.
+- `backend/.env.docker.worker.example`: Worker-process-only local environment
+  template.
 - `.dockerignore`: prevents caches, data, models, and local external checkouts
   from being copied into images.
 
@@ -54,10 +60,11 @@ and update process.
 `backend/.env.docker` is required. Docker Compose fails before starting services
 when this file is missing.
 
-Copy the Docker env template:
+Copy both Docker environment templates:
 
 ```powershell
 Copy-Item backend/.env.docker.example backend/.env.docker
+Copy-Item backend/.env.docker.worker.example backend/.env.docker.worker
 ```
 
 Update database and Redis URLs if your Windows host does not expose them through
@@ -85,6 +92,30 @@ Do not commit `backend/.env.docker`.
 The backend settings loader does not read `backend/.env`. Local development and
 tests must run through Docker with environment provided by `backend/.env.docker`
 or deployment-level environment variables.
+
+### Local configuration boundary
+
+`backend/.env.docker` is an untracked local runtime manifest. It may contain
+developer-specific infrastructure endpoints, local credentials, and non-secret
+development tuning such as Task reliability intervals, retry limits, and batch
+sizes. Keep the shared developer baseline in
+`backend/.env.docker.example`; do not commit the local copy.
+
+Keep each local file synchronized with its committed example when changing the
+local contract. Both examples are checked against the application settings
+schema in CI, so they cannot silently accumulate obsolete variables.
+`CELERY_WORKER_CONCURRENCY` belongs only in `.env.docker.worker`: it is
+consumed by the Worker entrypoint rather than Pydantic settings and must not be
+injected into API, Practice, Beat, or quality containers.
+
+Task reliability values belong in this local file because Docker Compose must
+pass the same values to API, Worker, and Beat while developing. They are not a
+production source of truth. Production reliability policy must be reviewed and
+versioned with its deployment configuration (for example the non-secret
+`backend-config.env` consumed by a Kubernetes ConfigMap), tuned against
+throughput and SLO evidence, and released with the affected workloads. Keep
+database URLs, Redis URLs, object-storage keys, mail keys, and cookie secrets in
+the deployment secret store rather than a ConfigMap or repository file.
 
 ## Prepare Model Volume
 

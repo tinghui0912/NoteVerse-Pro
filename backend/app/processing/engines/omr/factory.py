@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings
 
 from .base import OmrEngine
 from .legato import LegatoOmrEngine
@@ -16,7 +16,7 @@ def create_omr_engine(
 ) -> OmrEngine:
     """Create the configured OMR engine."""
 
-    selected = (engine_name or settings.OMR_ENGINE).lower()
+    selected = (engine_name or get_worker_runtime_settings().OMR_ENGINE).lower()
     if selected == "legato":
         return LegatoOmrEngine(
             output_folder=output_folder,

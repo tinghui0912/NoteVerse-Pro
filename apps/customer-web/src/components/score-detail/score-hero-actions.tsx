@@ -19,11 +19,11 @@ import {
 } from '@/hooks/queries/use-score-queries';
 import { useDownload } from '@/hooks/use-download';
 import { scoreDownloadAvailability } from '@/lib/score-detail/download-availability';
-import type { ScoreRevisionAssets } from '@/types/api';
+import type { ScoreRevisionAssetsRead } from '@/generated/api';
 
 interface ScoreHeroActionsProps {
   imagePreparing?: boolean;
-  revisionAssets: ScoreRevisionAssets;
+  revisionAssets: ScoreRevisionAssetsRead;
   revisionId?: string | null;
   scoreId: string;
 }

@@ -14,7 +14,27 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
-export type { ApiResponse, PaginatedResponse } from '@/types/api';
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  /**
+   * Backend business code. Do not render this directly as UI copy.
+   * Use feature-local text or a dedicated translation dictionary instead.
+   */
+  message?: string;
+  data?: T;
+  request_id?: string;
+}
+
+export interface PaginatedResponse<T> {
+  success: boolean;
+  data: T[];
+  pagination: {
+    page: number;
+    page_size: number;
+    total: number;
+    total_pages: number;
+  };
+}
 
 export class ApiError extends Error {
   constructor(

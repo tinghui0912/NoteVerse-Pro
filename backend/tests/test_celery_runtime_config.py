@@ -1,9 +1,9 @@
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings, settings
 from app.worker.celery_config import celery_app
 
 
 def test_task_time_limits_form_ordered_shutdown_envelope() -> None:
-    assert settings.PADDLEOCR_TIMEOUT_SECONDS <= settings.MAX_PROCESSING_TIME
+    assert get_worker_runtime_settings().PADDLEOCR_TIMEOUT_SECONDS <= settings.MAX_PROCESSING_TIME
     assert settings.MAX_PROCESSING_TIME < settings.CELERY_TASK_SOFT_TIME_LIMIT
     assert settings.CELERY_TASK_SOFT_TIME_LIMIT < settings.CELERY_TASK_TIME_LIMIT
 
@@ -25,6 +25,26 @@ def test_realtime_maintenance_is_scheduled() -> None:
 
     assert schedule["task"] == "app.worker.tasks.run_realtime_maintenance"
     assert schedule["schedule"] == float(settings.REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS)
+
+
+def test_render_asset_delivery_maintenance_is_scheduled() -> None:
+    derived_asset_schedule = celery_app.conf.beat_schedule["derived-asset-cleanup"]
+    render_outbox_schedule = celery_app.conf.beat_schedule["render-outbox-maintenance"]
+
+    assert derived_asset_schedule["schedule"] == float(settings.DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS)
+    assert render_outbox_schedule["schedule"] == float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS)
+
+
+def test_playback_delivery_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["playback-outbox-maintenance"]
+
+    assert schedule["schedule"] == float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS)
+
+
+def test_mail_delivery_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["mail-outbox-maintenance"]
+
+    assert schedule["schedule"] == float(settings.MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS)
 
 
 def test_score_deletion_cleanup_is_scheduled() -> None:

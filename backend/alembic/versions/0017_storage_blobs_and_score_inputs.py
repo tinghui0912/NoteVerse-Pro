@@ -23,7 +23,12 @@ def upgrade() -> None:
     dialect = bind.dialect.name
 
     if dialect == "postgresql":
-        op.execute("ALTER TYPE storageusagecategory ADD VALUE IF NOT EXISTS 'INPUT_ASSET'")
+        # PostgreSQL does not allow a newly-added enum value to be referenced
+        # until the transaction that adds it has committed. Migration 0018
+        # immediately rebuilds counters using INPUT_ASSET, so make this DDL its
+        # own transaction for clean-database upgrades as well as production.
+        with op.get_context().autocommit_block():
+            op.execute("ALTER TYPE storageusagecategory ADD VALUE IF NOT EXISTS 'INPUT_ASSET'")
         op.execute("DROP TYPE IF EXISTS scoreinputassetpurpose")
 
     op.create_table(

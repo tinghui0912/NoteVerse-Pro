@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Resolve image namespace
         run: echo "IMAGE_NAMESPACE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse" >> "$GITHUB_ENV"
@@ -72,7 +72,7 @@ jobs:
           echo "WORKER_DEPS_IMAGE=${IMAGE_NAMESPACE}/backend-worker-deps:${WORKER_DEPS_TAG}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - name: Free hosted runner disk space
         if: runner.environment == 'github-hosted'
@@ -85,7 +85,7 @@ jobs:
           df -h
 
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ secrets.GHCR_USERNAME || github.actor }}
@@ -100,7 +100,7 @@ jobs:
 
       - name: Build and push backend worker dependency image
         id: backend-worker-deps-build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           file: docker/backend/Dockerfile.worker-deps
@@ -119,7 +119,7 @@ jobs:
 
       - name: Build and push backend worker runtime image
         id: backend-worker-build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           file: docker/backend/Dockerfile.worker
@@ -133,21 +133,21 @@ jobs:
             WORKER_DEPS_IMAGE=${{ env.WORKER_DEPS_IMAGE }}
 
       - name: Generate backend worker dependency SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           image: ${{ env.WORKER_DEPS_IMAGE }}
           format: spdx-json
           artifact-name: backend-worker-deps-image-sbom.spdx.json
 
       - name: Generate backend worker SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           image: ${{ env.IMAGE_NAMESPACE }}/backend-worker:${{ github.sha }}
           format: spdx-json
           artifact-name: backend-worker-image-sbom.spdx.json
 
       - name: Scan backend worker dependency image
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: ${{ env.WORKER_DEPS_IMAGE }}
           vuln-type: os,library
@@ -157,7 +157,7 @@ jobs:
           exit-code: "1"
 
       - name: Scan backend worker image
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: ${{ env.IMAGE_NAMESPACE }}/backend-worker:${{ github.sha }}
           vuln-type: os,library

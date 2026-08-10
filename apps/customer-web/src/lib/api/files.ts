@@ -1,15 +1,15 @@
 import { apiClient, ApiResponse } from '../api-client';
-import type { UploadedFile } from '@/types/api';
+import type { UploadFileRead } from '@/generated/api';
 
-export async function uploadFile(file: File): Promise<ApiResponse<UploadedFile>> {
-    return apiClient.upload<ApiResponse<UploadedFile>>('/files/upload', file);
+export async function uploadFile(file: File): Promise<ApiResponse<UploadFileRead>> {
+    return apiClient.upload<ApiResponse<UploadFileRead>>('/files/upload', file);
 }
 
 export async function uploadFiles(
     files: File[],
     onProgress?: (current: number, total: number) => void
-): Promise<UploadedFile[]> {
-    const results: UploadedFile[] = [];
+): Promise<UploadFileRead[]> {
+    const results: UploadFileRead[] = [];
     for (let index = 0; index < files.length; index += 1) {
         const response = await uploadFile(files[index]);
         if (response.data) results.push(response.data);

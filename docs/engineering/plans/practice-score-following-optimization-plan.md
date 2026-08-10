@@ -37,12 +37,12 @@ flowchart TD
 
 主要代码位置：
 
-- 后端实时引擎：[backend/app/processing/engines/matchmaker_live.py](../backend/app/processing/engines/matchmaker_live.py)
-- 音频活动特征与状态：[backend/app/processing/engines/practice_audio_activity.py](../backend/app/processing/engines/practice_audio_activity.py)
-- WebSocket 消息编码：[backend/app/processing/realtime/message_codec.py](../backend/app/processing/realtime/message_codec.py)
-- 前端页面 guard：[apps/customer-web/src/app/[locale]/practice/[id]/page.tsx](../apps/customer-web/src/app/%5Blocale%5D/practice/%5Bid%5D/page.tsx)
-- 前端高亮控制器：[apps/customer-web/src/lib/practice/follow-controller.ts](../apps/customer-web/src/lib/practice/follow-controller.ts)
-- 当前回放测试雏形：[backend/tests/test_practice_audio_replay_evaluation.py](../backend/tests/test_practice_audio_replay_evaluation.py)
+- 后端实时引擎：[backend/app/processing/engines/matchmaker_live.py](../../../backend/app/processing/engines/matchmaker_live.py)
+- 音频活动特征与状态：[backend/app/processing/engines/practice_audio_activity.py](../../../backend/app/processing/engines/practice_audio_activity.py)
+- WebSocket 消息编码：[backend/app/processing/realtime/message_codec.py](../../../backend/app/processing/realtime/message_codec.py)
+- 前端页面 guard：[apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/page.tsx](../../../apps/customer-web/src/app/%5Blocale%5D/(workspace)/score/%5Bid%5D/practice/page.tsx)
+- 前端高亮控制器：[apps/customer-web/src/lib/practice/follow-controller.ts](../../../apps/customer-web/src/lib/practice/follow-controller.ts)
+- 当前回放测试雏形：[backend/tests/test_practice_audio_replay_evaluation.py](../../../backend/tests/test_practice_audio_replay_evaluation.py)
 
 ## 当前已经具备的防线
 
@@ -216,7 +216,7 @@ flowchart TD
 
 建议测试：
 
-- 扩展 [backend/tests/test_practice_audio_replay_evaluation.py](../backend/tests/test_practice_audio_replay_evaluation.py)
+- 扩展 [backend/tests/test_practice_audio_replay_evaluation.py](../../../backend/tests/test_practice_audio_replay_evaluation.py)
 - 加入 CI 可运行的小体积 fixture；大体积音频可后续拆分。
 
 ### P2：实现后端/前端 N-frame commit

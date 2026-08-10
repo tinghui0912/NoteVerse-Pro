@@ -1,22 +1,18 @@
 import { apiClient, apiUrl } from '@/lib/api-client';
-import type { ApiResponse, Publication, PublicScore } from '@/types/api';
+import type { ApiResponse } from '@/lib/api-client';
+import type { PublicationRead, PublicationUpsertRequest, PublicScoreRead } from '@/generated/api';
 
 export const publicationsApi = {
   forScore: (scoreId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<Publication>>(`/scores/${scoreId}/publication`, undefined, { signal }),
+    apiClient.get<ApiResponse<PublicationRead>>(`/scores/${scoreId}/publication`, undefined, { signal }),
   publish: (
     scoreId: string,
-    input: {
-      revision_id?: string;
-      public_slug?: string;
-      allow_download: boolean;
-      allow_practice: boolean;
-    }
-  ) => apiClient.put<ApiResponse<Publication>>(`/scores/${scoreId}/publication`, input),
+    input: PublicationUpsertRequest
+  ) => apiClient.put<ApiResponse<PublicationRead>>(`/scores/${scoreId}/publication`, input),
   unpublish: (scoreId: string) =>
-    apiClient.delete<ApiResponse<Publication>>(`/scores/${scoreId}/publication`),
+    apiClient.delete<ApiResponse<PublicationRead>>(`/scores/${scoreId}/publication`),
   detail: (slug: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PublicScore>>(`/publications/${slug}`, undefined, {
+    apiClient.get<ApiResponse<PublicScoreRead>>(`/publications/${slug}`, undefined, {
       signal,
       suppressAuthRedirect: true,
     }),

@@ -1,30 +1,47 @@
 """Application settings and configuration validation."""
 
-import json
-import os
-from ipaddress import ip_network
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
 from pydantic import AnyHttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.settings.observability import ObservabilitySettings
+from app.core.settings.async_database import AsyncDatabaseSettings
+from app.core.settings.account_email_link import AccountEmailLinkSettings
+from app.core.settings.beat_scheduler import BeatSchedulerSettings
+from app.core.settings.browser_cors import BrowserCorsSettings
+from app.core.settings.customer_session_security import CustomerSessionSecuritySettings
+from app.core.settings.fingering_execution import FingeringExecutionSettings
+from app.core.settings.import_dispatch import ImportDispatchSettings
+from app.core.settings.mail_delivery import MailDeliverySettings
+from app.core.settings.notification_lifecycle import NotificationLifecycleSettings
+from app.core.settings.playback import PlaybackSettings
+from app.core.settings.playback_delivery import PlaybackDeliverySettings
+from app.core.settings.public_frontend_url import PublicFrontendUrlSettings
+from app.core.settings.queue import QueueSettings
+from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
+from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
+from app.core.settings.realtime_retention import RealtimeRetentionSettings
+from app.core.settings.realtime_stream import RealtimeStreamSettings
+from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSettings
+from app.core.settings.storage import StorageSettings
+from app.core.settings.task_reliability import TaskReliabilitySettings
+from app.core.settings.token_signing import TokenSigningSettings
+from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
+from app.core.settings.trusted_proxy import TrustedProxySettings
+from app.core.settings.upload_admission import UploadAdmissionSettings
+from app.core.settings.worker_database import WorkerDatabaseSettings
+from app.core.settings.worker_model_engine import WorkerModelEngineSettings
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(BaseSettings):
+class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, BrowserCorsSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, PublicFrontendUrlSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TokenSigningSettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    AUTH_COOKIE_NAME: str
-    REFRESH_COOKIE_NAME: str
-    CSRF_COOKIE_NAME: str
-    CSRF_HEADER_NAME: str
-    AUTH_COOKIE_SECURE: bool
-    AUTH_COOKIE_SAMESITE: str
     CONTROL_PLANE_AUTH_COOKIE_NAME: Optional[str] = None
     CONTROL_PLANE_CSRF_COOKIE_NAME: Optional[str] = None
     CONTROL_PLANE_CSRF_HEADER_NAME: Optional[str] = None
@@ -33,44 +50,7 @@ class Settings(BaseSettings):
     CONTROL_PLANE_SESSION_EXPIRE_MINUTES: Optional[int] = None
     CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
     DEBUG: bool = False
-    LOG_FORMAT: str
-    FRONTEND_BASE_URL: str
-    OTEL_TRACING_ENABLED: bool = False
-    OTEL_SERVICE_NAME: Optional[str] = None
-    OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None
-    OTEL_EXPORTER_OTLP_INSECURE: bool = True
-    PRACTICE_AUDIO_DIAGNOSTICS: bool = False
-    PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL: int = 15
-    PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL: int = 15
-    PRACTICE_SOUNDFONT_PATH: str
-    PLAYBACK_SOUNDFONT_PATH: str
-    PLAYBACK_SAMPLE_RATE: int = 44100
-    PLAYBACK_MAX_DURATION_SECONDS: float = 180.0
-    REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS: int = 2
-    REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS: int = 15
-    REALTIME_EVENT_BATCH_SIZE: int = 100
-    REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS: int
-    REALTIME_EVENT_RETENTION_DAYS: int
-    MODEL_ROOT: Optional[str] = None
-    HF_HOME: Optional[str] = None
-    HF_MODEL_REPOSITORIES: List[str]
-    HF_HUB_OFFLINE: bool = False
-    TRANSFORMERS_OFFLINE: bool = False
-    PADDLEOCR_MODEL_ROOT: Optional[str] = None
-    PADDLEOCR_DETECTION_MODEL_DIR: Optional[str] = None
-    PADDLEOCR_RECOGNITION_MODEL_DIR: Optional[str] = None
-    PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR: Optional[str] = None
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl]
-    TRUSTED_PROXY_CIDRS: List[str]
-
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
-        if v in (None, ""):
-            return []
-        if isinstance(v, list):
-            return v
-        raise ValueError("BACKEND_CORS_ORIGINS must be a JSON array")
 
     @field_validator("CONTROL_PLANE_CORS_ORIGINS", mode="before")
     @classmethod
@@ -80,26 +60,6 @@ class Settings(BaseSettings):
         if isinstance(value, list):
             return value
         raise ValueError("CONTROL_PLANE_CORS_ORIGINS must be a JSON array")
-
-    @field_validator("TRUSTED_PROXY_CIDRS", mode="before")
-    @classmethod
-    def parse_trusted_proxy_cidrs(cls, value: str | List[str]) -> List[str]:
-        """Require an explicit, valid CIDR allowlist for forwarding headers."""
-
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError as exc:
-                raise ValueError("TRUSTED_PROXY_CIDRS must be a JSON array") from exc
-        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-            raise ValueError("TRUSTED_PROXY_CIDRS must be a JSON array")
-        try:
-            networks = [ip_network(item, strict=False) for item in value]
-        except ValueError as exc:
-            raise ValueError("TRUSTED_PROXY_CIDRS must contain valid IP networks") from exc
-        if any(network.prefixlen == 0 for network in networks):
-            raise ValueError("TRUSTED_PROXY_CIDRS must not trust every address")
-        return [str(network) for network in networks]
 
     @field_validator("DEBUG", mode="before")
     @classmethod
@@ -116,96 +76,7 @@ class Settings(BaseSettings):
                 return False
         return v
 
-    @field_validator("LOG_FORMAT")
-    @classmethod
-    def validate_log_format(cls, v: str) -> str:
-        """Validate the stdout log encoding used by container log collectors."""
-
-        value = v.strip().lower()
-        if value not in {"json", "console"}:
-            raise ValueError("LOG_FORMAT must be one of: json, console")
-        return value
-
-    @field_validator("HF_MODEL_REPOSITORIES", mode="before")
-    @classmethod
-    def parse_hf_model_repositories(cls, v: str | List[str]) -> List[str]:
-        """Parse the explicit Hugging Face model snapshot list for runtime pods."""
-
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            value = v.strip()
-            if not value:
-                raise ValueError("HF_MODEL_REPOSITORIES must not be empty")
-            if value.startswith("["):
-                parsed = json.loads(value)
-                if not isinstance(parsed, list):
-                    raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
-                return parsed
-            return [item.strip() for item in value.split(",") if item.strip()]
-        raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
-
     @field_validator(
-        "PRACTICE_SOUNDFONT_PATH",
-        "PLAYBACK_SOUNDFONT_PATH",
-        "MODEL_ROOT",
-        "HF_HOME",
-        "PADDLEOCR_MODEL_ROOT",
-        "PADDLEOCR_DETECTION_MODEL_DIR",
-        "PADDLEOCR_RECOGNITION_MODEL_DIR",
-        "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
-    )
-    @classmethod
-    def normalize_path(cls, v: Optional[str]) -> Optional[str]:
-        if not v:
-            return None
-        return str(Path(v).expanduser())
-
-    @field_validator(
-        "IMPORT_DISPATCH_INTERVAL_SECONDS",
-        "IMPORT_DISPATCH_TIMEOUT_SECONDS",
-        "IMPORT_PROCESSING_TIMEOUT_SECONDS",
-        "IMPORT_DISPATCH_MAX_ATTEMPTS",
-        "IMPORT_DISPATCH_BATCH_SIZE",
-        "NOTIFICATION_CLEANUP_INTERVAL_SECONDS",
-        "NOTIFICATION_RETENTION_DAYS",
-        "ORPHAN_UPLOAD_TTL_SECONDS",
-        "RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS",
-        "RENDER_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
-        "RENDER_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
-        "RENDER_OUTBOX_RETRY_BASE_SECONDS",
-        "RENDER_OUTBOX_MAX_ATTEMPTS",
-        "RENDER_OUTBOX_DISPATCH_BATCH_SIZE",
-        "PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS",
-        "PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
-        "PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
-        "PLAYBACK_OUTBOX_RETRY_BASE_SECONDS",
-        "PLAYBACK_OUTBOX_MAX_ATTEMPTS",
-        "PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE",
-        "PLAYBACK_SAMPLE_RATE",
-        "PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL",
-        "PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL",
-        "REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS",
-        "REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS",
-        "REALTIME_EVENT_BATCH_SIZE",
-        "REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS",
-        "REALTIME_EVENT_RETENTION_DAYS",
-        "MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS",
-        "MAIL_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
-        "MAIL_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
-        "MAIL_OUTBOX_RETRY_BASE_SECONDS",
-        "MAIL_OUTBOX_MAX_ATTEMPTS",
-        "MAIL_OUTBOX_DISPATCH_BATCH_SIZE",
-        "MAIL_OUTBOX_RETENTION_DAYS",
-        "DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS",
-        "SCORE_DELETION_CLEANUP_INTERVAL_SECONDS",
-        "SCORE_DELETION_CLEANUP_BATCH_SIZE",
-        "SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS",
-        "SCORE_DELETION_CLEANUP_MAX_ATTEMPTS",
-        "MAX_PROCESSING_TIME",
-        "PADDLEOCR_TIMEOUT_SECONDS",
-        "CELERY_TASK_SOFT_TIME_LIMIT",
-        "CELERY_TASK_TIME_LIMIT",
         "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
         "SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS",
         "SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS",
@@ -214,9 +85,6 @@ class Settings(BaseSettings):
         "SCHEDULER_LOCK_TCP_USER_TIMEOUT_MILLISECONDS",
         "SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS",
         "SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS",
-        "FINGERING_MAX_CONCURRENCY",
-        "FINGERING_QUEUE_WAIT_SECONDS",
-        "FINGERING_MAX_CONTENT_BYTES",
     )
     @classmethod
     def validate_positive_reliability_setting(cls, v: int) -> int:
@@ -224,331 +92,8 @@ class Settings(BaseSettings):
             raise ValueError("task timing settings must be positive integers")
         return v
 
-    @field_validator("PLAYBACK_MAX_DURATION_SECONDS")
-    @classmethod
-    def validate_playback_max_duration(cls, v: float) -> float:
-        if v <= 0:
-            raise ValueError("PLAYBACK_MAX_DURATION_SECONDS must be positive")
-        return v
-
-    @field_validator("DERIVED_ASSET_RETAIN_RECENT_REVISIONS")
-    @classmethod
-    def validate_derived_asset_retention_count(cls, v: int) -> int:
-        if v < 0:
-            raise ValueError("DERIVED_ASSET_RETAIN_RECENT_REVISIONS must be non-negative")
-        return v
-
     # Database
-    DATABASE_URL: str
-    SYNC_DATABASE_URL: str
-    # Dedicated direct/session-pooled PostgreSQL endpoint for the Beat leader
-    # advisory lock. Never point this at a transaction-pooling endpoint.
-    SCHEDULER_LOCK_DATABASE_URL: str
 
-    # Redis
-    REDIS_URL: str
-
-    CELERY_BROKER_URL: str
-    CELERY_RESULT_BACKEND: str
-    SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS: int = 5
-    SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS: int = 30
-    SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS: int = 10
-    SCHEDULER_LOCK_KEEPALIVES_COUNT: int = 3
-    SCHEDULER_LOCK_STATEMENT_TIMEOUT_MILLISECONDS: int = 5000
-    SCHEDULER_LOCK_TCP_USER_TIMEOUT_MILLISECONDS: int = 30000
-    SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS: int = 5
-    SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS: int = 15
-    FINGERING_MAX_CONCURRENCY: int = 2
-    FINGERING_QUEUE_WAIT_SECONDS: int = 5
-    FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
-    IMPORT_DISPATCH_INTERVAL_SECONDS: int = 30
-    IMPORT_DISPATCH_TIMEOUT_SECONDS: int = 300
-    IMPORT_PROCESSING_TIMEOUT_SECONDS: int = 1200
-    IMPORT_DISPATCH_MAX_ATTEMPTS: int = 3
-    IMPORT_DISPATCH_BATCH_SIZE: int = 20
-    NOTIFICATION_CLEANUP_INTERVAL_SECONDS: int = 86400
-    NOTIFICATION_RETENTION_DAYS: int = 90
-    ORPHAN_UPLOAD_TTL_SECONDS: int = 86400
-    RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS: int = 30
-    RENDER_OUTBOX_DISPATCH_TIMEOUT_SECONDS: int = 300
-    RENDER_OUTBOX_PROCESSING_TIMEOUT_SECONDS: int = 1200
-    RENDER_OUTBOX_RETRY_BASE_SECONDS: int = 60
-    RENDER_OUTBOX_MAX_ATTEMPTS: int = 5
-    RENDER_OUTBOX_DISPATCH_BATCH_SIZE: int = 50
-    PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS: int = 30
-    PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS: int = 300
-    PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS: int = 1200
-    PLAYBACK_OUTBOX_RETRY_BASE_SECONDS: int = 60
-    PLAYBACK_OUTBOX_MAX_ATTEMPTS: int = 5
-    PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE: int = 50
-    MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS: int = 10
-    MAIL_OUTBOX_DISPATCH_TIMEOUT_SECONDS: int = 120
-    MAIL_OUTBOX_PROCESSING_TIMEOUT_SECONDS: int = 120
-    MAIL_OUTBOX_RETRY_BASE_SECONDS: int = 30
-    MAIL_OUTBOX_MAX_ATTEMPTS: int = 5
-    MAIL_OUTBOX_DISPATCH_BATCH_SIZE: int = 50
-    MAIL_OUTBOX_RETENTION_DAYS: int = 7
-    DERIVED_ASSET_RETAIN_RECENT_REVISIONS: int = 10
-    DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS: int = 86400
-    SCORE_DELETION_CLEANUP_INTERVAL_SECONDS: int = 60
-    SCORE_DELETION_CLEANUP_BATCH_SIZE: int = 20
-    SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS: int = 60
-    SCORE_DELETION_CLEANUP_MAX_ATTEMPTS: int = 10
-
-    # File storage
-    FILE_STORAGE_BACKEND: str = "local"
-    S3_ENDPOINT_URL: Optional[str] = None
-    S3_REGION: str = "auto"
-    S3_BUCKET: Optional[str] = None
-    S3_ACCESS_KEY_ID: Optional[str] = None
-    S3_SECRET_ACCESS_KEY: Optional[str] = None
-    S3_PUBLIC_BASE_URL: Optional[str] = None
-    S3_FORCE_PATH_STYLE: bool = True
-    S3_PRESIGN_EXPIRE_SECONDS: int = 900
-    STORAGE_ROOT: str = "data/storage"
-    WORK_ROOT: str = "data/work"
-    MAX_PROCESSING_TIME: int = 900
-    PADDLEOCR_TIMEOUT_SECONDS: int = 300
-    CELERY_TASK_SOFT_TIME_LIMIT: int = 960
-    CELERY_TASK_TIME_LIMIT: int = 1020
-    ALLOWED_EXTENSIONS: set = {
-        "png",
-        "jpg",
-        "jpeg",
-        "bmp",
-        "gif",
-        "webp",
-        "tiff",
-        "tif",
-    }
-
-    # External tools
-    OMR_ENGINE: str = "legato"
-    LEGATO_REPO_PATH: Optional[str] = None
-    LEGATO_REPO_COMMIT: Optional[str] = "179c228d3d5f67113cf739b44891b3abe046f1dc"
-    LEGATO_PYTHON: str = "python3"
-    LEGATO_MODEL_PATH: str = "guangyangmusic/legato"
-    LEGATO_PROCESSOR_PATH: Optional[str] = None
-    LEGATO_DEVICE: str = "cuda"
-    LEGATO_FP16: bool = True
-    LEGATO_BEAM_SIZE: int = 10
-    LEGATO_BATCH_SIZE: int = 1
-    LEGATO_TIMEOUT_SECONDS: int = 600
-    SCORE_RENDER_ENGINE: str = "verovio"
-    VEROVIO_PAGE_WIDTH: int = 2100
-    VEROVIO_PAGE_HEIGHT: int = 2970
-    VEROVIO_SCALE: int = 40
-    VEROVIO_BREAKS: str = "encoded"
-    VEROVIO_ADJUST_PAGE_HEIGHT: bool = False
-    VEROVIO_JUSTIFY_VERTICALLY: bool = True
-    VEROVIO_PAGE_MARGIN_TOP: int = 390
-    VEROVIO_PAGE_MARGIN_BOTTOM: int = 80
-    VEROVIO_HEADER: str = "none"
-    VEROVIO_FOOTER: str = "always"
-    VEROVIO_USE_PG_FOOTER_FOR_ALL: bool = True
-    VEROVIO_PREVIEW_HEADER_POSTPROCESSING: bool = True
-
-    # Email
-    MAIL_DEFAULT_SENDER: Optional[str] = None
-    RESEND_API_KEY: Optional[str] = None
-    RESEND_API_URL: str = "https://api.resend.com/emails"
-
-    # Auth email links
-    EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS: int = 300
-    EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS: int = 900
-
-    @model_validator(mode="after")
-    def validate_task_time_limits(self) -> "Settings":
-        """Keep component timeouts inside the task shutdown envelope."""
-
-        if self.PADDLEOCR_TIMEOUT_SECONDS > self.MAX_PROCESSING_TIME:
-            raise ValueError(
-                "PADDLEOCR_TIMEOUT_SECONDS must not exceed MAX_PROCESSING_TIME"
-            )
-        if self.MAX_PROCESSING_TIME >= self.CELERY_TASK_SOFT_TIME_LIMIT:
-            raise ValueError(
-                "MAX_PROCESSING_TIME must be lower than CELERY_TASK_SOFT_TIME_LIMIT"
-            )
-        if self.CELERY_TASK_SOFT_TIME_LIMIT >= self.CELERY_TASK_TIME_LIMIT:
-            raise ValueError(
-                "CELERY_TASK_SOFT_TIME_LIMIT must be lower than CELERY_TASK_TIME_LIMIT"
-            )
-        return self
-
-    @field_validator("STORAGE_ROOT", "WORK_ROOT")
-    @classmethod
-    def resolve_runtime_folders(cls, v: str) -> str:
-        """Resolve runtime paths to absolute directory paths without creating them."""
-
-        if not os.path.isabs(v):
-            backend_dir = Path(__file__).parent.parent.parent
-            path = (backend_dir / v).resolve()
-        else:
-            path = Path(v)
-
-        if path.exists() and not path.is_dir():
-            raise ValueError(f"{v} exists but is not a directory")
-
-        return str(path)
-
-    @field_validator("FILE_STORAGE_BACKEND")
-    @classmethod
-    def validate_file_storage_backend(cls, v: str) -> str:
-        """Validate the configured file storage backend."""
-
-        value = v.strip().lower()
-        if value not in {"local", "s3"}:
-            raise ValueError("FILE_STORAGE_BACKEND must be one of: local, s3")
-        return value
-
-    @field_validator("S3_ENDPOINT_URL", "S3_PUBLIC_BASE_URL")
-    @classmethod
-    def normalize_optional_url(cls, v: Optional[str]) -> Optional[str]:
-        """Normalize optional storage URLs."""
-
-        if not v:
-            return None
-        value = v.strip().rstrip("/")
-        if value and not value.startswith(("http://", "https://")):
-            value = f"https://{value}"
-        return value
-
-    @field_validator("OTEL_EXPORTER_OTLP_ENDPOINT")
-    @classmethod
-    def normalize_optional_otel_endpoint(cls, v: Optional[str]) -> Optional[str]:
-        """Normalize the optional OTLP endpoint."""
-
-        if not v:
-            return None
-        return v.strip().rstrip("/")
-
-    @field_validator("SECRET_KEY")
-    @classmethod
-    def validate_secret_key(cls, v: str) -> str:
-        """Require a sufficiently strong secret key."""
-
-        if len(v) < 32:
-            raise ValueError(
-                "SECRET_KEY must be at least 32 characters long for security"
-            )
-        return v
-
-    @field_validator("DATABASE_URL", "SYNC_DATABASE_URL")
-    @classmethod
-    def validate_database_url(cls, v: str) -> str:
-        """Allow only supported database URL schemes."""
-
-        supported_prefixes = (
-            "postgresql://",
-            "postgresql+asyncpg://",
-            "postgresql+psycopg://",
-            "mysql://",
-            "mysql+asyncmy://",
-            "mysql+aiomysql://",
-            "mysql+pymysql://",
-            "sqlite://",
-            "sqlite+aiosqlite://",
-        )
-        if not v.startswith(supported_prefixes):
-            raise ValueError(
-                f"Unsupported database URL format: {v}\n"
-                "Supported engines: PostgreSQL, MySQL, SQLite"
-            )
-        return v
-
-    @field_validator("OMR_ENGINE")
-    @classmethod
-    def validate_omr_engine(cls, v: str) -> str:
-        """Validate the configured optical music recognition engine."""
-
-        value = v.strip().lower()
-        if value != "legato":
-            raise ValueError("OMR_ENGINE must be: legato")
-        return value
-
-    @field_validator("SCHEDULER_LOCK_DATABASE_URL")
-    @classmethod
-    def validate_scheduler_lock_database_url(cls, v: str) -> str:
-        """Require a PostgreSQL DSN suitable for a session advisory lock."""
-
-        value = v.strip()
-        if not value.startswith(("postgresql://", "postgresql+psycopg://")):
-            raise ValueError(
-                "SCHEDULER_LOCK_DATABASE_URL must use a PostgreSQL psycopg-compatible URL"
-            )
-        return value
-
-    @field_validator("SCORE_RENDER_ENGINE")
-    @classmethod
-    def validate_score_render_engine(cls, v: str) -> str:
-        """Validate the configured score rendering engine."""
-
-        value = v.strip().lower()
-        if value != "verovio":
-            raise ValueError("SCORE_RENDER_ENGINE must be: verovio")
-        return value
-
-    @field_validator("VEROVIO_HEADER")
-    @classmethod
-    def validate_verovio_header(cls, v: str) -> str:
-        """Validate Verovio header rendering mode."""
-
-        value = v.strip().lower()
-        if value not in {"none", "auto", "encoded"}:
-            raise ValueError("VEROVIO_HEADER must be one of: none, auto, encoded")
-        return value
-
-    @field_validator("VEROVIO_FOOTER")
-    @classmethod
-    def validate_verovio_footer(cls, v: str) -> str:
-        """Validate Verovio footer rendering mode."""
-
-        value = v.strip().lower()
-        if value not in {"none", "auto", "encoded", "always"}:
-            raise ValueError("VEROVIO_FOOTER must be one of: none, auto, encoded, always")
-        return value
-
-    @model_validator(mode="after")
-    def validate_engine_settings(self) -> "Settings":
-        """Validate engine-specific settings."""
-
-        if self.OMR_ENGINE == "legato" and not self.LEGATO_REPO_PATH:
-            raise ValueError("LEGATO_REPO_PATH is required when OMR_ENGINE=legato")
-        if self.FILE_STORAGE_BACKEND == "s3":
-            missing = [
-                name
-                for name, value in (
-                    ("S3_ENDPOINT_URL", self.S3_ENDPOINT_URL),
-                    ("S3_BUCKET", self.S3_BUCKET),
-                    ("S3_ACCESS_KEY_ID", self.S3_ACCESS_KEY_ID),
-                    ("S3_SECRET_ACCESS_KEY", self.S3_SECRET_ACCESS_KEY),
-                )
-                if not value
-            ]
-            if missing:
-                raise ValueError(
-                    "Missing required S3 storage settings: " + ", ".join(missing)
-                )
-        return self
-
-    @model_validator(mode="after")
-    def validate_tracing_settings(self) -> "Settings":
-        """Require explicit trace exporter settings when tracing is enabled."""
-
-        if self.OTEL_TRACING_ENABLED:
-            missing = [
-                name
-                for name, value in (
-                    ("OTEL_SERVICE_NAME", self.OTEL_SERVICE_NAME),
-                    ("OTEL_EXPORTER_OTLP_ENDPOINT", self.OTEL_EXPORTER_OTLP_ENDPOINT),
-                )
-                if not value
-            ]
-            if missing:
-                raise ValueError(
-                    "Missing required OpenTelemetry settings: " + ", ".join(missing)
-                )
-        return self
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
@@ -557,3 +102,42 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+class WorkerRuntimeSettings(WorkerModelEngineSettings, TaskReliabilitySettings, BaseSettings):
+    """Strict Worker-only model and engine environment contract."""
+
+    @model_validator(mode="after")
+    def validate_worker_task_time_limits(self) -> "WorkerRuntimeSettings":
+        if self.PADDLEOCR_TIMEOUT_SECONDS > self.MAX_PROCESSING_TIME:
+            raise ValueError("PADDLEOCR_TIMEOUT_SECONDS must not exceed MAX_PROCESSING_TIME")
+        return self
+
+    model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
+
+
+@lru_cache
+def get_worker_runtime_settings() -> WorkerRuntimeSettings:
+    """Load model/engine configuration only in Worker-owned execution paths."""
+
+    return WorkerRuntimeSettings()
+
+
+class PracticeRuntimeSettings(PracticeDiagnosticsSettings, BaseSettings):
+    """Strict Practice-only audio alignment environment contract."""
+
+    PRACTICE_SOUNDFONT_PATH: str
+
+    @field_validator("PRACTICE_SOUNDFONT_PATH")
+    @classmethod
+    def normalize_soundfont_path(cls, value: str) -> str:
+        return str(Path(value).expanduser())
+
+    model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
+
+
+@lru_cache
+def get_practice_runtime_settings() -> PracticeRuntimeSettings:
+    """Load Practice alignment configuration only in Practice-owned paths."""
+
+    return PracticeRuntimeSettings()

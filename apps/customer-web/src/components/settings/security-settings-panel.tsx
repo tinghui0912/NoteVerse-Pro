@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { profileApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
-import type { AccountSecurityOverview } from '@/types/api';
+import type { SecurityOverview } from '@/generated/api';
 
 function SecurityRow({
   icon,
@@ -59,7 +59,7 @@ function SecurityRow({
   );
 }
 
-function SecurityContent({ security }: { security: AccountSecurityOverview }) {
+function SecurityContent({ security }: { security: SecurityOverview }) {
   const t = useTranslations('settings');
   const tAuth = useTranslations('auth');
   const tErrors = useTranslations('errors');

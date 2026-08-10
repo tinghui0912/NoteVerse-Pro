@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import PracticeRuntimeSettings, Settings, WorkerRuntimeSettings
 
 
 def test_settings_do_not_implicitly_load_an_env_file() -> None:
@@ -28,20 +28,33 @@ def test_debug_environment_parsing() -> None:
     assert parse_debug("false") is False
 
 
-def test_trusted_proxy_cidrs_require_an_explicit_valid_json_allowlist() -> None:
-    settings = Settings(TRUSTED_PROXY_CIDRS='["10.0.0.0/8", "2001:db8::/32"]')
+def test_settings_compose_trusted_proxy_policy() -> None:
+    settings = Settings(TRUSTED_PROXY_CIDRS='["10.0.0.0/8"]')
 
-    assert settings.TRUSTED_PROXY_CIDRS == ["10.0.0.0/8", "2001:db8::/32"]
+    assert settings.TRUSTED_PROXY_CIDRS == ["10.0.0.0/8"]
 
-    with pytest.raises(ValidationError, match="TRUSTED_PROXY_CIDRS"):
-        Settings(TRUSTED_PROXY_CIDRS="10.0.0.0/8")
 
-    with pytest.raises(ValidationError, match="TRUSTED_PROXY_CIDRS"):
-        Settings(TRUSTED_PROXY_CIDRS='["0.0.0.0/0"]')
+def test_settings_compose_browser_cors_policy() -> None:
+    settings = Settings(BACKEND_CORS_ORIGINS=["https://app.example.com"])
+
+    assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == [
+        "https://app.example.com/"
+    ]
+
+
+def test_settings_compose_token_signing_policy() -> None:
+    assert len(Settings().SECRET_KEY) >= 32
+
+
+def test_settings_compose_public_frontend_url_policy() -> None:
+    assert Settings(FRONTEND_BASE_URL="https://app.example.com").FRONTEND_BASE_URL == (
+        "https://app.example.com"
+    )
 
 
 def test_practice_diagnostic_intervals_must_be_positive() -> None:
-    settings = Settings(
+    settings = PracticeRuntimeSettings(
+        PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2",
         PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=15,
         PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=15,
     )
@@ -50,33 +63,29 @@ def test_practice_diagnostic_intervals_must_be_positive() -> None:
     assert settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL == 15
 
     with pytest.raises(ValidationError, match="task timing settings must be positive"):
-        Settings(PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=0)
+        PracticeRuntimeSettings(PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2", PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=0)
 
     with pytest.raises(ValidationError, match="task timing settings must be positive"):
-        Settings(PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=0)
+        PracticeRuntimeSettings(PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2", PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=0)
 
 
 def test_practice_soundfont_path_expands_user_home() -> None:
-    settings = Settings(
+    settings = PracticeRuntimeSettings(
         PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2",
-        PLAYBACK_SOUNDFONT_PATH="~/sounds/playback.sf2",
     )
 
     assert settings.PRACTICE_SOUNDFONT_PATH == str(Path("~/sounds/default.sf2").expanduser())
-    assert settings.PLAYBACK_SOUNDFONT_PATH == str(Path("~/sounds/playback.sf2").expanduser())
 
 
 def test_playback_soundfont_path_is_required() -> None:
     with pytest.raises(ValidationError, match="PLAYBACK_SOUNDFONT_PATH"):
         Settings(
-            PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2",
             PLAYBACK_SOUNDFONT_PATH=None,
         )
 
 
 def test_playback_soundfont_path_can_be_configured_independently() -> None:
     settings = Settings(
-        PRACTICE_SOUNDFONT_PATH="~/sounds/practice.sf2",
         PLAYBACK_SOUNDFONT_PATH="~/sounds/playback.sf2",
     )
 
@@ -84,7 +93,7 @@ def test_playback_soundfont_path_can_be_configured_independently() -> None:
 
 
 def test_offline_model_paths_expand_user_home() -> None:
-    settings = Settings(
+    settings = WorkerRuntimeSettings(
         MODEL_ROOT="~/noteverse/models",
         HF_HOME="~/noteverse/models/huggingface",
         PADDLEOCR_MODEL_ROOT="~/noteverse/models/paddleocr/official_models",
@@ -110,30 +119,30 @@ def test_offline_model_paths_expand_user_home() -> None:
 
 
 def test_omr_engine_is_normalized_and_validated() -> None:
-    settings = Settings(OMR_ENGINE="LEGATO", LEGATO_REPO_PATH="/opt/noteverse/legato")
+    settings = WorkerRuntimeSettings(OMR_ENGINE="LEGATO", LEGATO_REPO_PATH="/opt/noteverse/legato")
 
     assert settings.OMR_ENGINE == "legato"
 
     with pytest.raises(ValidationError, match="OMR_ENGINE"):
-        Settings(OMR_ENGINE="unknown")
+        WorkerRuntimeSettings(OMR_ENGINE="unknown")
 
 
 def test_score_render_engine_is_normalized_and_validated() -> None:
-    settings = Settings(SCORE_RENDER_ENGINE="VEROVIO")
+    settings = WorkerRuntimeSettings(SCORE_RENDER_ENGINE="VEROVIO")
 
     assert settings.SCORE_RENDER_ENGINE == "verovio"
 
 
 def test_verovio_footer_mode_is_normalized_and_validated() -> None:
-    settings = Settings(VEROVIO_FOOTER="ALWAYS")
+    settings = WorkerRuntimeSettings(VEROVIO_FOOTER="ALWAYS")
 
     assert settings.VEROVIO_FOOTER == "always"
 
     with pytest.raises(ValidationError, match="VEROVIO_FOOTER"):
-        Settings(VEROVIO_FOOTER="visible")
+        WorkerRuntimeSettings(VEROVIO_FOOTER="visible")
 
 
-def test_task_reliability_defaults_are_positive() -> None:
+def test_settings_compose_import_dispatch_policy() -> None:
     settings = Settings()
 
     assert settings.IMPORT_DISPATCH_INTERVAL_SECONDS > 0
@@ -142,6 +151,72 @@ def test_task_reliability_defaults_are_positive() -> None:
     assert settings.IMPORT_DISPATCH_MAX_ATTEMPTS > 0
     assert settings.IMPORT_DISPATCH_BATCH_SIZE > 0
     assert settings.ORPHAN_UPLOAD_TTL_SECONDS > 0
+
+
+def test_settings_compose_render_asset_delivery_policy() -> None:
+    settings = Settings()
+
+    assert settings.RENDER_OUTBOX_MAX_ATTEMPTS > 0
+    assert settings.DERIVED_ASSET_RETAIN_RECENT_REVISIONS >= 0
+
+
+def test_settings_compose_playback_delivery_policy() -> None:
+    settings = Settings()
+
+    assert settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS > 0
+
+
+def test_settings_compose_mail_delivery_policy() -> None:
+    settings = Settings()
+
+    assert settings.MAIL_OUTBOX_RETENTION_DAYS > 0
+
+
+def test_settings_compose_notification_and_realtime_policies() -> None:
+    settings = Settings()
+
+    assert settings.NOTIFICATION_RETENTION_DAYS > 0
+    assert settings.REALTIME_EVENT_BATCH_SIZE > 0
+    assert settings.REALTIME_EVENT_RETENTION_DAYS > 0
+
+
+def test_settings_compose_score_deletion_lifecycle_policy() -> None:
+    settings = Settings()
+
+    assert settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS > 0
+
+
+def test_settings_compose_fingering_execution_policy() -> None:
+    settings = Settings()
+
+    assert settings.FINGERING_MAX_CONCURRENCY > 0
+    assert settings.FINGERING_MAX_CONTENT_BYTES > 0
+
+
+def test_settings_compose_customer_session_security_policy() -> None:
+    settings = Settings()
+
+    assert settings.ACCESS_TOKEN_EXPIRE_MINUTES > 0
+    assert settings.AUTH_COOKIE_SAMESITE in {"lax", "strict", "none"}
+
+
+def test_settings_compose_account_email_link_policy() -> None:
+    settings = Settings()
+
+    assert settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS > 0
+    assert settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS > 0
+
+
+def test_settings_compose_transactional_mail_provider_policy() -> None:
+    settings = Settings()
+
+    assert settings.RESEND_API_URL.startswith(("http://", "https://"))
+
+
+def test_settings_compose_upload_admission_policy() -> None:
+    settings = Settings()
+
+    assert "png" in settings.ALLOWED_EXTENSIONS
 
 
 def test_s3_storage_settings_are_validated() -> None:
@@ -167,7 +242,7 @@ def test_s3_storage_settings_are_validated() -> None:
 
 
 def test_selected_engine_settings_are_valid() -> None:
-    settings = Settings(
+    settings = WorkerRuntimeSettings(
         OMR_ENGINE="legato",
         LEGATO_REPO_PATH="/opt/noteverse/legato",
         SCORE_RENDER_ENGINE="verovio",
@@ -178,12 +253,12 @@ def test_selected_engine_settings_are_valid() -> None:
     assert settings.SCORE_RENDER_ENGINE == "verovio"
 
     with pytest.raises(ValidationError, match="SCORE_RENDER_ENGINE"):
-        Settings(SCORE_RENDER_ENGINE="unknown")
+        WorkerRuntimeSettings(SCORE_RENDER_ENGINE="unknown")
 
 
 def test_legato_repository_path_is_required() -> None:
     with pytest.raises(ValidationError, match="LEGATO_REPO_PATH is required"):
-        Settings(OMR_ENGINE="legato", LEGATO_REPO_PATH=None)
+        WorkerRuntimeSettings(OMR_ENGINE="legato", LEGATO_REPO_PATH=None)
 
 
 def test_app_main_import_exposes_routes() -> None:

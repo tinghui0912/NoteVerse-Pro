@@ -35,6 +35,10 @@ class ConfirmEmailChangeRequest(BaseModel):
     token: str = Field(..., min_length=1, description="Email change confirmation token")
 
 
+class EmailChangeConfirmedRead(BaseModel):
+    email: EmailStr
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr = Field(..., description="Email address")
     locale: Literal["en", "zh"] = "zh"
@@ -79,6 +83,14 @@ class SecurityOverview(BaseModel):
     mfa_available: bool = False
 
 
+class SessionsRead(BaseModel):
+    sessions: list[SessionSummary]
+
+
+class SecurityRead(BaseModel):
+    security: SecurityOverview
+
+
 class User(BaseModel):
     """Customer identity returned after email verification.
 
@@ -101,10 +113,13 @@ class User(BaseModel):
 __all__ = [
     "ChangePasswordRequest",
     "ConfirmEmailChangeRequest",
+    "EmailChangeConfirmedRead",
     "ForgotPasswordRequest",
     "RegisterRequest",
     "RequestEmailChangeRequest",
     "ResetPasswordRequest",
+    "SecurityRead",
+    "SessionsRead",
     "TokenPayload",
     "User",
     "VerifyEmailRequest",

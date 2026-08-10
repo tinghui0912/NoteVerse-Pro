@@ -8,6 +8,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import ImportJob, ImportJobUpload, StorageBlob, User
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions, ImportJobSubmitRequestLike, ImportJobSubmitResult
+from app.modules.scores.schemas import ScoreTaxonomyTagInput
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
@@ -42,6 +43,29 @@ class ImportJobSubmissionService:
     @staticmethod
     def _normalize_key(value: object) -> str | None:
         return value.strip() or None if isinstance(value, str) else None
+
+    @staticmethod
+    def _storage_options(
+        options: ImportJobProcessingOptions | None,
+    ) -> dict[str, object] | None:
+        """Convert validated request values to JSON-compatible job metadata."""
+        if options is None:
+            return None
+
+        serialized: dict[str, object] = {}
+        title = options.get("title")
+        if isinstance(title, str):
+            serialized["title"] = title
+
+        taxonomy_tags = options.get("taxonomy_tags")
+        if isinstance(taxonomy_tags, list):
+            serialized["taxonomy_tags"] = [
+                tag.model_dump(mode="json")
+                if isinstance(tag, ScoreTaxonomyTagInput)
+                else tag
+                for tag in taxonomy_tags
+            ]
+        return serialized
 
     @staticmethod
     def _existing_job_uuid(user_id: int, key: str) -> str | None:
@@ -106,7 +130,7 @@ class ImportJobSubmissionService:
                 originating_request_id=get_request_id(),
                 traceparent=traceparent,
                 tracestate=tracestate,
-                requested_options=request.options,
+                requested_options=self._storage_options(request.options),
                 requested_at=now,
                 created_at=now,
                 updated_at=now,

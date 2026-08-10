@@ -1,0 +1,11 @@
+# Default maintainer. Replace with teams as repository ownership grows.
+* @tinghui0912
+
+/apps/customer-web/ @tinghui0912
+/apps/platform-admin/ @tinghui0912
+/backend/ @tinghui0912
+/deploy/ @tinghui0912
+/docker/ @tinghui0912
+/docs/ @tinghui0912
+/scripts/ @tinghui0912
+/.github/ @tinghui0912

@@ -1,14 +1,17 @@
-from typing_extensions import TypedDict
+from pydantic import BaseModel
 
 
-class UploadFileResult(TypedDict):
+class UploadFileRead(BaseModel):
     file_id: str
     filename: str
     size: int
 
 
-class DeleteUploadedFileResult(TypedDict):
+class DeleteUploadedFileRead(BaseModel):
     filename: str
 
 
-__all__ = ["UploadFileResult", "DeleteUploadedFileResult"]
+__all__ = [
+    "DeleteUploadedFileRead",
+    "UploadFileRead",
+]

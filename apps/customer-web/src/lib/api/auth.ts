@@ -2,10 +2,7 @@
  * 认证相关 API
  */
 import { apiClient, ApiResponse } from '../api-client';
-import type {
-    RegisterRequest,
-    User,
-} from '@/types/api';
+import type { EmailChangeConfirmedRead, RegisterRequest, User } from '@/generated/api';
 
 // ============ API 函数 ============
 
@@ -45,8 +42,8 @@ export async function verifyEmail(token: string): Promise<ApiResponse<User>> {
     return apiClient.post<ApiResponse<User>>('/auth/email/verify', { token });
 }
 
-export async function confirmEmailChange(token: string): Promise<ApiResponse<{ email: string }>> {
-    return apiClient.post<ApiResponse<{ email: string }>>('/auth/email/change/confirm', { token });
+export async function confirmEmailChange(token: string): Promise<ApiResponse<EmailChangeConfirmedRead>> {
+    return apiClient.post<ApiResponse<EmailChangeConfirmedRead>>('/auth/email/change/confirm', { token });
 }
 
 export async function requestPasswordReset(

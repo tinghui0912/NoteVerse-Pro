@@ -1,4 +1,4 @@
-import type { ScoreCapabilities } from '@/types/api';
+import type { ScoreCapabilities } from '@/generated/api';
 
 export type ScoreCapabilitySet = ScoreCapabilities;
 

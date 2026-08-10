@@ -1,11 +1,17 @@
 import { apiClient } from '@/lib/api-client';
-import type { ApiResponse, ImportJobReview, ReviewConfirmResult, ReviewUpdateResult } from '@/types/api';
+import type { ApiResponse } from '@/lib/api-client';
+import type {
+  ImportJobReviewRead,
+  ReviewConfirmRead,
+  ReviewConfirmRequest,
+  ReviewUpdateRequest,
+} from '@/generated/api';
 
 export const reviewApi = {
   detail: (jobId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ImportJobReview>>(`/review/${jobId}`, undefined, { signal }),
-  update: (jobId: string, input: { content: string }) =>
-    apiClient.patch<ApiResponse<ReviewUpdateResult>>(`/review/${jobId}`, input),
-  confirm: (jobId: string, input: { content: string; title?: string }) =>
-    apiClient.post<ApiResponse<ReviewConfirmResult>>(`/review/${jobId}/confirm`, input),
+    apiClient.get<ApiResponse<ImportJobReviewRead>>(`/review/${jobId}`, undefined, { signal }),
+  update: (jobId: string, input: ReviewUpdateRequest) =>
+    apiClient.patch<ApiResponse<ImportJobReviewRead>>(`/review/${jobId}`, input),
+  confirm: (jobId: string, input: ReviewConfirmRequest) =>
+    apiClient.post<ApiResponse<ReviewConfirmRead>>(`/review/${jobId}/confirm`, input),
 };

@@ -542,7 +542,7 @@ npm run test
 
 - `customer-web_architecture_baseline.md`：当前 Customer Web 架构基线
 - `../../../docs/archive/customer-web/improvement-roadmap.md`：早期审查任务和历史完成状态
-- `../../docs/codebase-simplification-and-security-plan.md`：当前代码库清理、安全和去兼容包袱的权威执行计划
+- `../../../docs/security/codebase-simplification-and-security-plan.md`：当前代码库清理、安全和去兼容包袱的权威执行计划
 - 本文：后续开发长期准则
 
 更新规则：

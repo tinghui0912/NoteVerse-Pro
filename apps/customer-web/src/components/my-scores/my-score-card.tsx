@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatApiDateTime } from '@/lib/date-time';
 import { cn } from '@/lib/utils';
-import type { MyScoresView, ScoreDetail } from '@/types/api';
+import type { MyScoresView, ScoreRead } from '@/generated/api';
 
 function stateLabelKey(view: MyScoresView) {
   if (view === 'published') return 'publishedStatus';
@@ -21,7 +21,7 @@ function stateLabelKey(view: MyScoresView) {
 }
 
 interface MyScoreCardProps {
-  score: ScoreDetail;
+  score: ScoreRead;
   view: MyScoresView;
   batchMode: boolean;
   selected: boolean;

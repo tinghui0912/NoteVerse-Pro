@@ -11,7 +11,7 @@ from typing import Callable
 import copy
 import xml.etree.ElementTree as ET
 
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings
 from app.core.logger import logger
 from app.processing.musicxml import normalize_initial_musicxml_clefs
 from app.shared.constants import ErrorCode
@@ -41,6 +41,7 @@ class LegatoOmrEngine:
         beam_size: int | None = None,
         batch_size: int | None = None,
     ) -> None:
+        settings = get_worker_runtime_settings()
         self.output_folder = Path(output_folder)
         self.timeout_seconds = min(
             timeout_seconds,
@@ -256,6 +257,7 @@ class LegatoOmrEngine:
             if not current_pythonpath
             else f"{self.repo_path}{os.pathsep}{current_pythonpath}"
         )
+        settings = get_worker_runtime_settings()
         if settings.HF_HOME:
             env["HF_HOME"] = settings.HF_HOME
         if settings.HF_HUB_OFFLINE:

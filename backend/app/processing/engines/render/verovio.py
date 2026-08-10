@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from app.core.config import settings
+from app.core.config import get_worker_runtime_settings
 from app.shared.constants import ErrorCode
 
 from .base import ScoreRenderOutputFile, ScoreRenderResult
@@ -19,6 +19,7 @@ class VerovioRenderEngine:
     default_output_format = "svg"
 
     def __init__(self, *, output_folder: str, timeout_seconds: int | None = None) -> None:
+        settings = get_worker_runtime_settings()
         self.output_folder = output_folder
         self.timeout_seconds = timeout_seconds
         self.svg_postprocessor = SvgPreviewPostProcessor(
@@ -122,6 +123,8 @@ class VerovioRenderEngine:
 
     def _options(self) -> dict[str, Any]:
         """Build Verovio options from application settings."""
+
+        settings = get_worker_runtime_settings()
 
         return {
             "inputFrom": "xml",

@@ -1,48 +1,50 @@
 ﻿import { apiClient } from '@/lib/api-client';
+import type { ApiResponse, PaginatedResponse } from '@/lib/api-client';
 import type {
-  ApiResponse,
   FolderDeleteMode,
-  LibraryEntry,
-  LibraryFolder,
-  LibraryFolderTree,
-  UserSettableLibraryPracticeState,
-  LibrarySort,
-  LibraryView,
-  PaginatedResponse,
-} from '@/types/api';
+  ApiResponseLibraryBatchMoveRead,
+  ApiResponseLibraryBatchUpdateRead,
+  ApiResponseLibraryOwnedScoreBatchRead,
+  LibraryEntryBatchMoveRequest,
+  LibraryEntryBatchPracticeStateRequest,
+  LibraryEntryBatchUpdateRequest,
+  LibraryEntryRead,
+  LibraryFolderCreateRequest,
+  LibraryFolderRead,
+  LibraryFolderTreeRead,
+  LibraryFolderUpdateRequest,
+  ListLibraryEntriesApiV1LibraryEntriesGetData,
+  LibraryOwnedScoreBatchRequest,
+} from '@/generated/api';
 
 export const libraryApi = {
   folders: (signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<LibraryFolderTree>>('/library/folders', undefined, { signal }),
-  createFolder: (input: { name: string; parent_folder_id?: string | null }) =>
-    apiClient.post<ApiResponse<LibraryFolder>>('/library/folders', input),
+    apiClient.get<ApiResponse<LibraryFolderTreeRead>>('/library/folders', undefined, { signal }),
+  createFolder: (input: LibraryFolderCreateRequest) =>
+    apiClient.post<ApiResponse<LibraryFolderRead>>('/library/folders', input),
   updateFolder: (
     folderId: string,
-    input: { name?: string; parent_folder_id?: string | null; position?: number }
-  ) => apiClient.patch<ApiResponse<LibraryFolder>>(`/library/folders/${folderId}`, input),
+    input: LibraryFolderUpdateRequest
+  ) => apiClient.patch<ApiResponse<LibraryFolderRead>>(`/library/folders/${folderId}`, input),
   deleteFolder: (folderId: string, mode: FolderDeleteMode = 'MOVE_CONTENTS_TO_PARENT') =>
     apiClient.delete<ApiResponse<never>>(
       `/library/folders/${folderId}?mode=${encodeURIComponent(mode)}`
     ),
   entries: (
-    params: {
-      view?: LibraryView;
+    params: Omit<NonNullable<ListLibraryEntriesApiV1LibraryEntriesGetData['query']>, 'folder_id' | 'search'> & {
       folder_id?: string;
       search?: string;
-      sort?: LibrarySort;
-      page: number;
-      page_size: number;
     },
     signal?: AbortSignal
-  ) => apiClient.get<PaginatedResponse<LibraryEntry>>('/library/entries', params, { signal }),
-  batchMove: (input: { entry_ids: string[]; target_folder_id?: string | null }) =>
-    apiClient.post<ApiResponse<{ moved: number }>>('/library/entries/batch-move', input),
-  batchTrash: (input: { entry_ids: string[] }) =>
-    apiClient.post<ApiResponse<{ updated: number }>>('/library/entries/batch-trash', input),
-  batchAddOwned: (input: { score_ids: string[] }) =>
-    apiClient.post<ApiResponse<{ added: number }>>('/library/entries/batch-add-owned', input),
-  batchPracticeState: (input: { entry_ids: string[]; practice_state: UserSettableLibraryPracticeState }) =>
-    apiClient.post<ApiResponse<{ updated: number }>>(
+  ) => apiClient.get<PaginatedResponse<LibraryEntryRead>>('/library/entries', params, { signal }),
+  batchMove: (input: LibraryEntryBatchMoveRequest) =>
+    apiClient.post<ApiResponseLibraryBatchMoveRead>('/library/entries/batch-move', input),
+  batchTrash: (input: LibraryEntryBatchUpdateRequest) =>
+    apiClient.post<ApiResponseLibraryBatchUpdateRead>('/library/entries/batch-trash', input),
+  batchAddOwned: (input: LibraryOwnedScoreBatchRequest) =>
+    apiClient.post<ApiResponseLibraryOwnedScoreBatchRead>('/library/entries/batch-add-owned', input),
+  batchPracticeState: (input: LibraryEntryBatchPracticeStateRequest) =>
+    apiClient.post<ApiResponseLibraryBatchUpdateRead>(
       '/library/entries/batch-practice-state',
       input
     ),

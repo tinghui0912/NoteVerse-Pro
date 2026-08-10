@@ -236,6 +236,10 @@ def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
     hub_cache = hf_home / "hub"
     _ensure_directory(hub_cache)
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
+    # Worker processes stay offline after deployment, but this explicit asset
+    # preparation command must be able to hydrate incomplete snapshots.
+    os.environ["HF_HUB_OFFLINE"] = "0"
+    os.environ["TRANSFORMERS_OFFLINE"] = "0"
     for repo_id in repo_ids:
         print(f"[INFO] downloading Hugging Face snapshot: {repo_id}")
         snapshot_path = snapshot_download(

@@ -1,37 +1,36 @@
 import { apiClient, apiUrl } from '@/lib/api-client';
+import type { ApiResponse } from '@/lib/api-client';
 import type {
-  ApiResponse,
-  FingeringHandSize,
-  ScoreDetail,
-  FingeringResult,
-  ScoreRevisionAssets,
-  ScoreRevision,
-  ScoreRevisionList,
-  ScoreRevisionContent,
-} from '@/types/api';
+  FingeringRequest,
+  FingeringResultRead,
+  RevisionContentRead,
+  RevisionCreateRequest,
+  RevisionListRead,
+  RevisionNoteUpdateRequest,
+  RevisionRead,
+  RevisionRestoreRequest,
+  ScoreRead,
+  ScoreRevisionAssetsRead,
+  ScoreUpdateRequest,
+} from '@/generated/api';
 
 export const scoresApi = {
   detail: (scoreId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreDetail>>(`/scores/${scoreId}`, undefined, { signal }),
+    apiClient.get<ApiResponse<ScoreRead>>(`/scores/${scoreId}`, undefined, { signal }),
   update: (
     scoreId: string,
-    input: {
-      title?: string;
-      taxonomy_tags?: Array<{ category: string; code: string }>;
-      expected_version: number;
-    }
-  ) =>
-    apiClient.patch<ApiResponse<ScoreDetail>>(`/scores/${scoreId}`, input),
+    input: ScoreUpdateRequest
+  ) => apiClient.patch<ApiResponse<ScoreRead>>(`/scores/${scoreId}`, input),
   batchDelete: (scoreIds: string[]) =>
     apiClient.post<ApiResponse<{ removed: number }>>('/scores/batch-delete', { score_ids: scoreIds }),
   revisionContent: (scoreId: string, revisionId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreRevisionContent>>(
+    apiClient.get<ApiResponse<RevisionContentRead>>(
       `/scores/${scoreId}/revisions/${revisionId}/content`,
       undefined,
       { signal }
     ),
-  revisions: (scoreId: string, params?: { limit?: number; cursor?: number | null }, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreRevisionList>>(
+  revisions: (scoreId: string, params?: { limit?: number; cursor?: number | string | null }, signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<RevisionListRead>>(
       `/scores/${scoreId}/revisions`,
       {
         limit: params?.limit,
@@ -41,27 +40,27 @@ export const scoresApi = {
     ),
   createRevision: (
     scoreId: string,
-    input: { content: string; base_revision_id: string; idempotency_key?: string; origin?: string }
-  ) => apiClient.post<ApiResponse<ScoreRevision>>(`/scores/${scoreId}/revisions`, input),
-  restoreRevision: (scoreId: string, revisionId: string, input?: { note?: string | null }) =>
-    apiClient.post<ApiResponse<ScoreRevision>>(
+    input: RevisionCreateRequest
+  ) => apiClient.post<ApiResponse<RevisionRead>>(`/scores/${scoreId}/revisions`, input),
+  restoreRevision: (scoreId: string, revisionId: string, input?: RevisionRestoreRequest) =>
+    apiClient.post<ApiResponse<RevisionRead>>(
       `/scores/${scoreId}/revisions/${revisionId}/restore`,
       input ?? {}
     ),
-  updateRevisionNote: (scoreId: string, revisionId: string, input: { note?: string | null }) =>
-    apiClient.patch<ApiResponse<ScoreRevision>>(
+  updateRevisionNote: (scoreId: string, revisionId: string, input: RevisionNoteUpdateRequest) =>
+    apiClient.patch<ApiResponse<RevisionRead>>(
       `/scores/${scoreId}/revisions/${revisionId}/note`,
       input
     ),
   generateFingering: (
     scoreId: string,
-    input: { content: string; hand_size?: FingeringHandSize }
-  ) => apiClient.post<ApiResponse<FingeringResult>>(`/scores/${scoreId}/fingering`, input),
+    input: FingeringRequest
+  ) => apiClient.post<ApiResponse<FingeringResultRead>>(`/scores/${scoreId}/fingering`, input),
   revisionAssets: (
     scoreId: string,
     params?: { revision_id?: string },
     signal?: AbortSignal
-  ) => apiClient.get<ApiResponse<ScoreRevisionAssets>>(`/scores/${scoreId}/revision-assets`, params, { signal }),
+  ) => apiClient.get<ApiResponse<ScoreRevisionAssetsRead>>(`/scores/${scoreId}/revision-assets`, params, { signal }),
   downloadInputAsset: (scoreId: string, assetId: string) =>
     apiClient.download(`/scores/${scoreId}/input-assets/${assetId}/download`),
   downloadRevisionSource: (sourceId: string) =>

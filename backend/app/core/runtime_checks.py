@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import json
 import os
 import shutil
 from dataclasses import dataclass
@@ -13,7 +14,7 @@ from typing import Awaitable, Callable
 
 import redis
 
-from app.core.config import settings
+from app.core.config import get_practice_runtime_settings, get_worker_runtime_settings, settings
 from app.core.control_plane_settings import require_control_plane_settings
 from app.processing.engines.soundfont import ensure_partitura_default_soundfont
 
@@ -46,6 +47,10 @@ class CheckSpec:
 
 def _result(name: str, ok: bool, message: str) -> CheckResult:
     return CheckResult(name=name, ok=ok, message=message)
+
+
+def _worker_settings():
+    return get_worker_runtime_settings()
 
 
 def _format_size(num_bytes: int) -> str:
@@ -140,12 +145,21 @@ def check_settings(_: bool = False) -> CheckResult:
         "settings",
         True,
         (
-            f"OMR={settings.OMR_ENGINE}, render={settings.SCORE_RENDER_ENGINE}; "
-            f"pipeline={settings.MAX_PROCESSING_TIME}s, "
-            f"paddle={settings.PADDLEOCR_TIMEOUT_SECONDS}s, "
+            f"storage={settings.FILE_STORAGE_BACKEND}; "
+            f"pipeline={settings.MAX_PROCESSING_TIME}s; "
             f"celery_soft={settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
             f"celery_hard={settings.CELERY_TASK_TIME_LIMIT}s"
         ),
+    )
+
+
+def check_worker_settings(_: bool = False) -> CheckResult:
+    worker_settings = _worker_settings()
+    return _result(
+        "worker_settings",
+        True,
+        f"OMR={worker_settings.OMR_ENGINE}, render={worker_settings.SCORE_RENDER_ENGINE}; "
+        f"paddle={worker_settings.PADDLEOCR_TIMEOUT_SECONDS}s",
     )
 
 
@@ -286,32 +300,34 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
 
 
 def check_omr_engine(_: bool = False) -> CheckResult:
-    if not settings.LEGATO_REPO_PATH:
+    worker_settings = _worker_settings()
+    if not worker_settings.LEGATO_REPO_PATH:
         return _result("omr_engine", False, "LEGATO_REPO_PATH is not configured")
 
-    repo_path = Path(settings.LEGATO_REPO_PATH)
+    repo_path = Path(worker_settings.LEGATO_REPO_PATH)
     if not (repo_path / "legato" / "models").is_dir():
         return _result("omr_engine", False, f"LEGATO repository is incomplete: {repo_path}")
-    if settings.LEGATO_REPO_COMMIT:
+    if worker_settings.LEGATO_REPO_COMMIT:
         if _read_git_dir(repo_path) is None:
-            return _result("omr_engine", True, f"LEGATO commit={settings.LEGATO_REPO_COMMIT} (image metadata)")
+            return _result("omr_engine", True, f"LEGATO commit={worker_settings.LEGATO_REPO_COMMIT} (image metadata)")
         try:
             actual_commit = _read_git_commit(repo_path)
         except Exception as exc:
             return _result("omr_engine", False, f"could not read LEGATO commit: {exc}")
-        if actual_commit != settings.LEGATO_REPO_COMMIT:
+        if actual_commit != worker_settings.LEGATO_REPO_COMMIT:
             return _result(
                 "omr_engine",
                 False,
-                f"LEGATO commit mismatch: expected {settings.LEGATO_REPO_COMMIT}, actual {actual_commit}",
+                f"LEGATO commit mismatch: expected {worker_settings.LEGATO_REPO_COMMIT}, actual {actual_commit}",
             )
         return _result("omr_engine", True, f"LEGATO commit={actual_commit}")
     return _result("omr_engine", True, f"LEGATO repository found: {repo_path}")
 
 
 def check_omr_cuda_runtime(_: bool = False) -> CheckResult:
-    if settings.OMR_ENGINE != "legato" or settings.LEGATO_DEVICE.lower() != "cuda":
-        return _result("omr_cuda_runtime", True, f"not required for LEGATO_DEVICE={settings.LEGATO_DEVICE}")
+    worker_settings = _worker_settings()
+    if worker_settings.OMR_ENGINE != "legato" or worker_settings.LEGATO_DEVICE.lower() != "cuda":
+        return _result("omr_cuda_runtime", True, f"not required for LEGATO_DEVICE={worker_settings.LEGATO_DEVICE}")
 
     try:
         torch = importlib.import_module("torch")
@@ -339,19 +355,21 @@ def check_render_engine(_: bool = False) -> CheckResult:
 
 
 def check_soundfont(_: bool = False) -> CheckResult:
-    if not settings.PRACTICE_SOUNDFONT_PATH:
+    practice_settings = get_practice_runtime_settings()
+    if not practice_settings.PRACTICE_SOUNDFONT_PATH:
         return _result("soundfont", False, "PRACTICE_SOUNDFONT_PATH is not configured")
-    path = Path(settings.PRACTICE_SOUNDFONT_PATH)
+    path = Path(practice_settings.PRACTICE_SOUNDFONT_PATH)
     if not path.is_file():
         return _result("soundfont", False, f"soundfont does not exist: {path}")
     return _result("soundfont", True, f"soundfont found: {path} ({_format_size(path.stat().st_size)})")
 
 
 def check_paddleocr_models(include_sizes: bool = False) -> CheckResult:
+    worker_settings = _worker_settings()
     required = (
-        ("det", settings.PADDLEOCR_DETECTION_MODEL_DIR),
-        ("rec", settings.PADDLEOCR_RECOGNITION_MODEL_DIR),
-        ("textline_ori", settings.PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR),
+        ("det", worker_settings.PADDLEOCR_DETECTION_MODEL_DIR),
+        ("rec", worker_settings.PADDLEOCR_RECOGNITION_MODEL_DIR),
+        ("textline_ori", worker_settings.PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR),
     )
     missing: list[str] = []
     summaries: list[str] = []
@@ -371,11 +389,33 @@ def check_paddleocr_models(include_sizes: bool = False) -> CheckResult:
     return _result("paddleocr_models", True, "; ".join(summaries))
 
 
-def _snapshot_has_model_files(snapshot: Path) -> bool:
+def _snapshot_missing_model_files(snapshot: Path) -> list[str]:
     if not (snapshot / "config.json").is_file():
-        return False
-    patterns = ("*.safetensors", "*.bin", "*.safetensors.index.json", "*.bin.index.json")
-    return any(any(snapshot.glob(pattern)) for pattern in patterns)
+        return ["config.json"]
+
+    index_paths = [
+        *snapshot.glob("*.safetensors.index.json"),
+        *snapshot.glob("*.bin.index.json"),
+    ]
+    if index_paths:
+        required_files: set[str] = set()
+        for index_path in index_paths:
+            try:
+                payload = json.loads(index_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                return [f"valid {index_path.name}"]
+            weight_map = payload.get("weight_map")
+            if not isinstance(weight_map, dict):
+                return [f"weight_map in {index_path.name}"]
+            required_files.update(
+                filename for filename in weight_map.values() if isinstance(filename, str)
+            )
+        return sorted(filename for filename in required_files if not (snapshot / filename).is_file())
+
+    patterns = ("*.safetensors", "*.bin")
+    if any(any(snapshot.glob(pattern)) for pattern in patterns):
+        return []
+    return ["model checkpoint"]
 
 
 def _hf_repo_cache_dir(repo_id: str) -> str:
@@ -383,32 +423,39 @@ def _hf_repo_cache_dir(repo_id: str) -> str:
 
 
 def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
-    hf_home = Path(settings.HF_HOME or os.environ.get("HF_HOME") or "~/.cache/huggingface").expanduser()
+    worker_settings = _worker_settings()
+    hf_home = Path(worker_settings.HF_HOME or os.environ.get("HF_HOME") or "~/.cache/huggingface").expanduser()
     hub = hf_home / "hub"
     missing: list[str] = []
     summaries: list[str] = []
-    for repo_id in settings.HF_MODEL_REPOSITORIES:
+    for repo_id in worker_settings.HF_MODEL_REPOSITORIES:
         repo_dir = _hf_repo_cache_dir(repo_id)
         path = hub / repo_dir
         snapshots = path / "snapshots"
-        valid_snapshots = (
-            [item for item in snapshots.iterdir() if item.is_dir() and _snapshot_has_model_files(item)]
+        snapshot_statuses = (
+            [(item, _snapshot_missing_model_files(item)) for item in snapshots.iterdir() if item.is_dir()]
             if snapshots.is_dir()
             else []
         )
+        valid_snapshots = [item for item, absent in snapshot_statuses if not absent]
         if not valid_snapshots:
-            missing.append(f"{repo_id}: no complete model snapshot in {path}")
+            incomplete = [
+                f"{item.name}: missing {', '.join(absent[:5])}"
+                for item, absent in snapshot_statuses
+            ]
+            detail = "; ".join(incomplete) or "no model snapshot"
+            missing.append(f"{repo_id}: no complete model snapshot in {path} ({detail})")
             continue
         summaries.append(f"{repo_id}={path}{_size_suffix(path, include_sizes)}")
 
-    offline = f"HF_HUB_OFFLINE={int(settings.HF_HUB_OFFLINE)}, TRANSFORMERS_OFFLINE={int(settings.TRANSFORMERS_OFFLINE)}"
+    offline = f"HF_HUB_OFFLINE={int(worker_settings.HF_HUB_OFFLINE)}, TRANSFORMERS_OFFLINE={int(worker_settings.TRANSFORMERS_OFFLINE)}"
     if missing:
         return _result("huggingface_models", False, "; ".join(missing) + "; " + offline)
     return _result("huggingface_models", True, "; ".join(summaries) + "; " + offline)
 
 
 def check_practice_alignment(_: bool = False) -> CheckResult:
-    ensure_partitura_default_soundfont(settings.PRACTICE_SOUNDFONT_PATH)
+    ensure_partitura_default_soundfont(get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH)
     try:
         import numpy  # noqa: F401
         import partitura  # noqa: F401
@@ -457,6 +504,7 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.OBSERVABILITY_EXPORTER: ("settings", "database"),
     RuntimeRole.WORKER: (
         "settings",
+        "worker_settings",
         "worker_database",
         "storage_quota_policy",
         "redis",
@@ -497,6 +545,7 @@ ROLE_CHECK_NAMES[RuntimeRole.ALL] = tuple(
 
 CHECKS: dict[str, CheckSpec] = {
     "settings": CheckSpec("settings", check_settings),
+    "worker_settings": CheckSpec("worker_settings", check_worker_settings),
     "control_plane_settings": CheckSpec("control_plane_settings", check_control_plane_settings),
     "database": CheckSpec("database", check_api_database),
     "worker_database": CheckSpec("worker_database", check_worker_database),

@@ -1,18 +1,16 @@
 """Isolated FastAPI composition root for platform operator controls."""
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
 from app.api.metrics import create_metrics_router
 from app.core.config import settings
 from app.core.control_plane_settings import require_control_plane_settings
-from app.core.exception_handlers import register_exception_handlers
+from app.core.http_runtime import install_http_runtime
 from app.core.lifespan import create_app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
-from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware, LoggingMiddleware
+from app.core.middleware import CookieCsrfSettings
 from app.core.runtime_checks import RuntimeRole
-from app.core.tracing import configure_api_tracing
 from app.modules.ops.router import router as ops_router
 from app.modules.platform_operators.router import router as operator_auth_router
 
@@ -39,9 +37,8 @@ def create_app() -> FastAPI:
         openapi_url=f"{CONTROL_PLANE_API_PREFIX}/openapi.json",
         lifespan=create_app_lifespan(RuntimeRole.CONTROL_PLANE),
     )
-    app.add_middleware(LoggingMiddleware)
-    app.add_middleware(
-        CsrfProtectionMiddleware,
+    install_http_runtime(
+        app,
         csrf_settings=CookieCsrfSettings(
             api_prefix=CONTROL_PLANE_API_PREFIX,
             session_cookie_names=(control_settings.auth_cookie_name,),
@@ -51,16 +48,8 @@ def create_app() -> FastAPI:
             allowed_origins=control_settings.cors_origins,
             debug=settings.DEBUG,
         ),
+        cors_origins=list(control_settings.cors_origins),
     )
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=list(control_settings.cors_origins),
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    register_exception_handlers(app)
-    configure_api_tracing(app)
     app.include_router(operator_auth_router, prefix=f"{CONTROL_PLANE_API_PREFIX}/auth", tags=["Operator Authentication"])
     app.include_router(ops_router, prefix=f"{CONTROL_PLANE_API_PREFIX}/ops", tags=["Operations"])
     app.include_router(health_router)

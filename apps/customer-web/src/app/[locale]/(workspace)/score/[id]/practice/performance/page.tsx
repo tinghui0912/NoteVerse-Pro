@@ -14,7 +14,7 @@ import { SectionErrorState } from '@/components/states';
 import { practiceApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
-import type { PracticeReportPayload } from '@/types/api';
+import type { PracticeReportPayloadRead } from '@/generated/practice-api';
 
 const ReportCard = ({
   icon,
@@ -45,7 +45,7 @@ export default function PracticePerformancePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('sessionId');
-  const [report, setReport] = useState<PracticeReportPayload | null>(null);
+  const [report, setReport] = useState<PracticeReportPayloadRead | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

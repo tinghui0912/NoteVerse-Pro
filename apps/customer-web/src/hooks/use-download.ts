@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { filesApi, publicationsApi, scoresApi, scoreSharingApi } from '@/lib/api';
-import type { ScoreRevisionAssets } from '@/types/api';
+import type { ScoreRevisionAssetsRead } from '@/generated/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
@@ -11,7 +11,7 @@ import { reportUnexpectedClientError } from '@/lib/observability';
 interface UseDownloadOptions {
     mode: 'score' | 'grant' | 'publication';
     id: string;
-    assets?: ScoreRevisionAssets;
+    assets?: ScoreRevisionAssetsRead;
 }
 
 interface UseDownloadReturn {
@@ -28,7 +28,7 @@ function extensionFromBlob(blob: Blob): string {
     return mimeExtensions[blob.type] ?? 'bin';
 }
 
-const emptyAssets: ScoreRevisionAssets = { revision_sources: [], render_assets: [] };
+const emptyAssets: ScoreRevisionAssetsRead = { revision_sources: [], render_assets: [] };
 
 export function useDownload({ mode, id, assets = emptyAssets }: UseDownloadOptions): UseDownloadReturn {
     const { toast } = useToast();
