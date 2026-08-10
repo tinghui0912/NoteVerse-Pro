@@ -1,7 +1,7 @@
 -r core.txt
 
 # Database access.
-sqlmodel==0.0.38
+sqlmodel==0.0.39
 asyncpg==0.31.0
 psycopg[binary]==3.3.4
-greenlet==3.5.0
+greenlet==3.5.4

@@ -2,8 +2,8 @@
 
 # HTTP/API runtime and observability.
 -r tracing.txt
-fastapi==0.136.1
-uvicorn[standard]==0.46.0
-python-multipart==0.0.28
-prometheus-client==0.23.1
-opentelemetry-instrumentation-fastapi==0.60b0
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+python-multipart==0.0.32
+prometheus-client==0.26.0
+opentelemetry-instrumentation-fastapi==0.65b0

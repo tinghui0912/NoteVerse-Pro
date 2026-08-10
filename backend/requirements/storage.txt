@@ -1,4 +1,4 @@
 -r core.txt
 
 # Object storage.
-boto3==1.43.29
+boto3==1.43.66
