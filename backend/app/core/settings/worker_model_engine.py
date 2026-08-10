@@ -12,9 +12,6 @@ from pydantic import BaseModel, field_validator, model_validator
 class WorkerModelEngineSettings(BaseModel):
     """Deployment-specific dependencies required by Worker processing engines."""
 
-    PLAYBACK_SOUNDFONT_PATH: str
-    PLAYBACK_SAMPLE_RATE: int = 44100
-    PLAYBACK_MAX_DURATION_SECONDS: float = 180.0
     MODEL_ROOT: Optional[str] = None
     HF_HOME: Optional[str] = None
     HF_MODEL_REPOSITORIES: List[str]
@@ -70,7 +67,6 @@ class WorkerModelEngineSettings(BaseModel):
         raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
 
     @field_validator(
-        "PLAYBACK_SOUNDFONT_PATH",
         "MODEL_ROOT",
         "HF_HOME",
         "PADDLEOCR_MODEL_ROOT",
@@ -84,18 +80,11 @@ class WorkerModelEngineSettings(BaseModel):
             return None
         return str(Path(value).expanduser())
 
-    @field_validator("PLAYBACK_SAMPLE_RATE", "PADDLEOCR_TIMEOUT_SECONDS")
+    @field_validator("PADDLEOCR_TIMEOUT_SECONDS")
     @classmethod
     def validate_positive_runtime_limit(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("task timing settings must be positive integers")
-        return value
-
-    @field_validator("PLAYBACK_MAX_DURATION_SECONDS")
-    @classmethod
-    def validate_playback_max_duration(cls, value: float) -> float:
-        if value <= 0:
-            raise ValueError("PLAYBACK_MAX_DURATION_SECONDS must be positive")
         return value
 
     @field_validator("OMR_ENGINE")

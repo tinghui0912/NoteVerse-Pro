@@ -10,6 +10,7 @@ from pydantic import AnyHttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
+from app.core.settings.playback import PlaybackSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
@@ -17,7 +18,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(ObservabilitySettings, PracticeDiagnosticsSettings, WorkerModelEngineSettings, BaseSettings):
+class Settings(ObservabilitySettings, PlaybackSettings, PracticeDiagnosticsSettings, WorkerModelEngineSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str

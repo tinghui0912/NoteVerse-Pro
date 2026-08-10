@@ -578,6 +578,14 @@ deferred until the required offline models are available.
   model and application settings remain shared until their runtime loaders are
   separated rather than being hidden through an unsafe Compose-only change.
 
+### 2026-08-10: Playback settings ownership extraction
+
+- Moved playback SoundFont and synthesis limits into `PlaybackSettings`.
+  Playback is used by both API delivery paths and Worker-generated assets, so
+  it is a shared processing configuration rather than a Worker model setting.
+- Narrowed `WorkerModelEngineSettings` to OCR/model, OMR, and rendering
+  parameters before the forthcoming Worker-only runtime loader extraction.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

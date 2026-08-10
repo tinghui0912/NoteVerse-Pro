@@ -100,12 +100,12 @@ configuration through a separately coordinated credential-rotation task.
 
 ## Extraction status
 
-- **Complete:** Observability, Practice diagnostics, and Worker model/engine
-  configuration. `WorkerModelEngineSettings` owns Hugging Face/PaddleOCR model
-  locations and offline mode, LEGATO selection/runtime parameters, Verovio
-  render parameters, and playback synthesis parameters. Its runtime consumers
-  are the Worker, API-side import dispatch/runtime checks, and playback asset
-  generation; it intentionally does not own the Practice soundfont.
+- **Complete:** Observability, Practice diagnostics, Playback synthesis, and
+  Worker model/engine configuration. `PlaybackSettings` owns the SoundFont,
+  sample rate, and duration limit used by API delivery and Worker generation.
+  `WorkerModelEngineSettings` owns Hugging Face/PaddleOCR model locations and
+  offline mode, LEGATO selection/runtime parameters, and Verovio rendering.
+  It intentionally does not own either playback or Practice soundfonts.
 - **Next:** Practice soundfont/alignment runtime configuration, followed by the
   release-critical Storage and database/queue settings only after their runtime
   projections are explicitly separated.
