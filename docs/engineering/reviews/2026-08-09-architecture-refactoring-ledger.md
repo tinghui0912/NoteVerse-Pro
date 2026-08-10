@@ -559,6 +559,14 @@ deferred until the required offline models are available.
   remove the obsolete email-code contract, including its stale product
   documentation, without adding compatibility variables.
 
+### 2026-08-10: Obsolete local email-code configuration removed
+
+- Removed four email-code variables with no `Settings` declaration or runtime
+  consumer from the untracked local Docker manifest and committed Docker
+  example. Updated product documentation to describe the implemented signed
+  verification and password-reset link lifetimes instead of the retired code
+  flow. No compatibility variables were retained.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

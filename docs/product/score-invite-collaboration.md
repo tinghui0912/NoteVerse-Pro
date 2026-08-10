@@ -214,14 +214,11 @@ Email provider:
 - `MAIL_DEFAULT_SENDER` must be a product-owned sender identity, for example `NoteVerse Pro <no-reply@noteverse.example>`.
 - 4xx provider responses are treated as permanent delivery failures and are not retried by the worker.
 
-Authentication verification emails use the same `dispatch_email()` boundary:
-
-- Registration codes are valid for `EMAIL_REGISTER_CODE_TTL_SECONDS` seconds. The default is 600 seconds.
-- Password reset codes are valid for `EMAIL_PASSWORD_RESET_CODE_TTL_SECONDS` seconds. The default is 300 seconds.
-- After a code is verified, the follow-up registration/reset JWT is valid for `EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS` seconds. The default is 900 seconds.
-- Resending is throttled by `EMAIL_CODE_COOLDOWN_SECONDS`. The default is 60 seconds.
-- A challenge is invalidated after `EMAIL_CODE_MAX_ATTEMPTS` failed verification attempts. The default is 5 attempts.
-- Verification emails include localized plain-text and HTML bodies.
+Authentication verification and password-reset emails use the same
+`dispatch_email()` boundary. Their signed links are time-bounded by
+`EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS` and
+`EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS` respectively. Verification emails
+include localized plain-text and HTML bodies.
 
 Development can use a sandbox sender, but production should not use a personal mailbox.
 

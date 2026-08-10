@@ -98,6 +98,14 @@ development tuning such as Task reliability intervals, retry limits, and batch
 sizes. Keep the shared developer baseline in
 `backend/.env.docker.example`; do not commit the local copy.
 
+Keep the local file synchronized with the committed example when changing the
+local contract. The example is checked against the application settings schema
+in CI, so it cannot silently accumulate obsolete variables. The sole current
+exception is `CELERY_WORKER_CONCURRENCY`: it is consumed by the Worker
+entrypoint rather than Pydantic settings. It is a known transitional exception
+until role-specific Compose environment projections replace the current shared
+runtime manifest.
+
 Task reliability values belong in this local file because Docker Compose must
 pass the same values to API, Worker, and Beat while developing. They are not a
 production source of truth. Production reliability policy must be reviewed and
