@@ -12,6 +12,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.async_database import AsyncDatabaseSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
+from app.core.settings.fingering_execution import FingeringExecutionSettings
 from app.core.settings.import_dispatch import ImportDispatchSettings
 from app.core.settings.mail_delivery import MailDeliverySettings
 from app.core.settings.notification_lifecycle import NotificationLifecycleSettings
@@ -32,7 +33,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -118,9 +119,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
         "SCHEDULER_LOCK_TCP_USER_TIMEOUT_MILLISECONDS",
         "SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS",
         "SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS",
-        "FINGERING_MAX_CONCURRENCY",
-        "FINGERING_QUEUE_WAIT_SECONDS",
-        "FINGERING_MAX_CONTENT_BYTES",
     )
     @classmethod
     def validate_positive_reliability_setting(cls, v: int) -> int:
@@ -130,9 +128,6 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSetti
 
     # Database
 
-    FINGERING_MAX_CONCURRENCY: int = 2
-    FINGERING_QUEUE_WAIT_SECONDS: int = 5
-    FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
 
     ALLOWED_EXTENSIONS: set = {
         "png",

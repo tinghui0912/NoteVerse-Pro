@@ -713,6 +713,16 @@ deferred until the required offline models are available.
   usage, and Beat consumers. No environment name, deployment manifest, alias,
   fallback, or deletion workflow behavior changed.
 
+### 2026-08-10: Fingering execution policy ownership extracted
+
+- Moved interactive fingering concurrency, queue-wait, and input-size limits
+  into `FingeringExecutionSettings`, with direct positive-value validation and
+  tests.
+- Confirmed this is a deployment resource-protection policy, not an algorithm
+  profile: the API service and bounded executor consume it, while the fingering
+  engine's algorithm implementation remains unchanged. No environment name,
+  manifest, alias, or fallback behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

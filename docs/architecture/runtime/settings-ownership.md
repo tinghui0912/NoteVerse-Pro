@@ -132,8 +132,12 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Score deletion lifecycle. `ScoreDeletionLifecycleSettings`
   owns cleanup cadence, batch size, retry backoff, and maximum attempts across
   lifecycle cleanup, Ops reconciliation, and Beat scheduling.
-- **Next:** Extract the remaining interactive fingering execution limits, then
-  reassess the smaller account/API settings for cohesive ownership boundaries.
+- **Complete:** Interactive fingering execution limits.
+  `FingeringExecutionSettings` owns bounded API concurrency, queue wait, and
+  input-size limits for the blocking fingering engine.
+- **Next:** Measure the remaining account/API settings before extraction,
+  beginning with session/cookie lifetime and email-link policy. Do not combine
+  those policies with Resend provider credentials or file-extension policy.
 
 ## Worker runtime-loader migration boundary
 

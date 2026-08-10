@@ -174,6 +174,13 @@ def test_settings_compose_score_deletion_lifecycle_policy() -> None:
     assert settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS > 0
 
 
+def test_settings_compose_fingering_execution_policy() -> None:
+    settings = Settings()
+
+    assert settings.FINGERING_MAX_CONCURRENCY > 0
+    assert settings.FINGERING_MAX_CONTENT_BYTES > 0
+
+
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(
