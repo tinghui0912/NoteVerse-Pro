@@ -37,9 +37,7 @@ def test_settings_compose_trusted_proxy_policy() -> None:
 def test_settings_compose_browser_cors_policy() -> None:
     settings = Settings(BACKEND_CORS_ORIGINS=["https://app.example.com"])
 
-    assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == [
-        "https://app.example.com/"
-    ]
+    assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == ["https://app.example.com/"]
 
 
 def test_settings_compose_token_signing_policy() -> None:
@@ -63,10 +61,15 @@ def test_practice_diagnostic_intervals_must_be_positive() -> None:
     assert settings.PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL == 15
 
     with pytest.raises(ValidationError, match="task timing settings must be positive"):
-        PracticeRuntimeSettings(PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2", PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=0)
+        PracticeRuntimeSettings(
+            PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2", PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL=0
+        )
 
     with pytest.raises(ValidationError, match="task timing settings must be positive"):
-        PracticeRuntimeSettings(PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2", PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=0)
+        PracticeRuntimeSettings(
+            PRACTICE_SOUNDFONT_PATH="/tmp/practice.sf2",
+            PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL=0,
+        )
 
 
 def test_practice_soundfont_path_expands_user_home() -> None:
@@ -118,13 +121,10 @@ def test_offline_model_paths_expand_user_home() -> None:
     )
 
 
-def test_omr_engine_is_normalized_and_validated() -> None:
-    settings = WorkerRuntimeSettings(OMR_ENGINE="LEGATO", LEGATO_REPO_PATH="/opt/noteverse/legato")
+def test_legato_runtime_requires_repository_path() -> None:
+    settings = WorkerRuntimeSettings(LEGATO_REPO_PATH="/opt/noteverse/legato")
 
-    assert settings.OMR_ENGINE == "legato"
-
-    with pytest.raises(ValidationError, match="OMR_ENGINE"):
-        WorkerRuntimeSettings(OMR_ENGINE="unknown")
+    assert settings.LEGATO_REPO_PATH == "/opt/noteverse/legato"
 
 
 def test_score_render_engine_is_normalized_and_validated() -> None:
@@ -243,13 +243,10 @@ def test_s3_storage_settings_are_validated() -> None:
 
 def test_selected_engine_settings_are_valid() -> None:
     settings = WorkerRuntimeSettings(
-        OMR_ENGINE="legato",
         LEGATO_REPO_PATH="/opt/noteverse/legato",
         SCORE_RENDER_ENGINE="verovio",
     )
 
-    assert settings.OMR_ENGINE == "legato"
-    assert settings.LEGATO_REPO_COMMIT == "179c228d3d5f67113cf739b44891b3abe046f1dc"
     assert settings.SCORE_RENDER_ENGINE == "verovio"
 
     with pytest.raises(ValidationError, match="SCORE_RENDER_ENGINE"):
@@ -258,7 +255,7 @@ def test_selected_engine_settings_are_valid() -> None:
 
 def test_legato_repository_path_is_required() -> None:
     with pytest.raises(ValidationError, match="LEGATO_REPO_PATH is required"):
-        WorkerRuntimeSettings(OMR_ENGINE="legato", LEGATO_REPO_PATH=None)
+        WorkerRuntimeSettings(LEGATO_REPO_PATH=None)
 
 
 def test_app_main_import_exposes_routes() -> None:

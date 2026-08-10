@@ -921,6 +921,20 @@ deferred until the required offline models are available.
   SHA-256 digest. The complete internal manifest remains in the normalized
   provenance record and is not returned through customer task-detail APIs.
 
+### 2026-08-10: LEGATO execution identity made source-owned
+
+- Added `LegatoExecutionManifest v1` with the supported engine commit, LEGATO
+  model and processor snapshots, and required Llama Vision encoder snapshot.
+  ImportJob execution manifests, OMR factory defaults, LEGATO model/processor
+  defaults, model-cache checks, and asset preparation now consume this single
+  source-owned identity.
+- Removed runtime environment ownership of `OMR_ENGINE`, `LEGATO_REPO_COMMIT`,
+  model/processor identifiers, and the Hugging Face repository list. Paths,
+  offline mode, device, precision, batching, and timeouts remain deployment
+  configuration.
+- Docker's LEGATO build ARG is still a build-time duplicate pending conversion
+  to a manifest-derived build input; do not reintroduce a runtime fallback.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

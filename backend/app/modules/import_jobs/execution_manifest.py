@@ -6,21 +6,13 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import get_worker_runtime_settings
 from app.db.model_utils import require_persisted_id
 from app.db.models import ExecutionManifest, ImportJob
+from app.processing.engines.omr.legato_manifest import legato_execution_identity
 
 
 def build_omr_manifest() -> dict[str, object]:
-    settings = get_worker_runtime_settings()
-    return {
-        "schema_version": 1,
-        "kind": "omr",
-        "engine": settings.OMR_ENGINE,
-        "legato_commit": settings.LEGATO_REPO_COMMIT,
-        "model": settings.LEGATO_MODEL_PATH,
-        "processor": settings.LEGATO_PROCESSOR_PATH,
-    }
+    return legato_execution_identity()
 
 
 def manifest_sha256(manifest: dict[str, object]) -> str:

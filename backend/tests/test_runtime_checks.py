@@ -93,7 +93,7 @@ def test_omr_runtime_check_accepts_image_source_without_git_metadata(tmp_path, m
     (repo_path / "legato" / "models").mkdir(parents=True)
 
     monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_REPO_PATH", str(repo_path))
-    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_REPO_COMMIT", "abc123")
+    monkeypatch.setattr("app.core.runtime_checks.LEGATO_REPO_COMMIT", "abc123")
 
     result = check_omr_engine()
 
@@ -161,7 +161,7 @@ def test_huggingface_model_check_rejects_incomplete_sharded_snapshot(tmp_path, m
         encoding="utf-8",
     )
     monkeypatch.setattr(get_worker_runtime_settings(), "HF_HOME", str(tmp_path))
-    monkeypatch.setattr(get_worker_runtime_settings(), "HF_MODEL_REPOSITORIES", ["example/model"])
+    monkeypatch.setattr("app.core.runtime_checks.HF_MODEL_REPOSITORIES", ("example/model",))
 
     result = check_huggingface_models()
 

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import List, Optional, Self
+from typing import Optional, Self
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -14,7 +13,6 @@ class WorkerModelEngineSettings(BaseModel):
 
     MODEL_ROOT: Optional[str] = None
     HF_HOME: Optional[str] = None
-    HF_MODEL_REPOSITORIES: List[str]
     HF_HUB_OFFLINE: bool = False
     TRANSFORMERS_OFFLINE: bool = False
     PADDLEOCR_MODEL_ROOT: Optional[str] = None
@@ -22,12 +20,8 @@ class WorkerModelEngineSettings(BaseModel):
     PADDLEOCR_RECOGNITION_MODEL_DIR: Optional[str] = None
     PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR: Optional[str] = None
     PADDLEOCR_TIMEOUT_SECONDS: int = 300
-    OMR_ENGINE: str = "legato"
     LEGATO_REPO_PATH: Optional[str] = None
-    LEGATO_REPO_COMMIT: Optional[str] = "179c228d3d5f67113cf739b44891b3abe046f1dc"
     LEGATO_PYTHON: str = "python3"
-    LEGATO_MODEL_PATH: str = "guangyangmusic/legato"
-    LEGATO_PROCESSOR_PATH: Optional[str] = None
     LEGATO_DEVICE: str = "cuda"
     LEGATO_FP16: bool = True
     LEGATO_BEAM_SIZE: int = 10
@@ -46,25 +40,6 @@ class WorkerModelEngineSettings(BaseModel):
     VEROVIO_FOOTER: str = "always"
     VEROVIO_USE_PG_FOOTER_FOR_ALL: bool = True
     VEROVIO_PREVIEW_HEADER_POSTPROCESSING: bool = True
-
-    @field_validator("HF_MODEL_REPOSITORIES", mode="before")
-    @classmethod
-    def parse_hf_model_repositories(cls, value: str | List[str]) -> List[str]:
-        """Parse the explicit Hugging Face snapshot list required by Workers."""
-
-        if isinstance(value, list):
-            return value
-        if isinstance(value, str):
-            normalized = value.strip()
-            if not normalized:
-                raise ValueError("HF_MODEL_REPOSITORIES must not be empty")
-            if normalized.startswith("["):
-                parsed = json.loads(normalized)
-                if not isinstance(parsed, list):
-                    raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
-                return parsed
-            return [item.strip() for item in normalized.split(",") if item.strip()]
-        raise ValueError("HF_MODEL_REPOSITORIES must be a JSON array or comma-separated list")
 
     @field_validator(
         "MODEL_ROOT",
@@ -86,14 +61,6 @@ class WorkerModelEngineSettings(BaseModel):
         if value <= 0:
             raise ValueError("task timing settings must be positive integers")
         return value
-
-    @field_validator("OMR_ENGINE")
-    @classmethod
-    def validate_omr_engine(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        if normalized != "legato":
-            raise ValueError("OMR_ENGINE must be: legato")
-        return normalized
 
     @field_validator("SCORE_RENDER_ENGINE")
     @classmethod
@@ -121,6 +88,6 @@ class WorkerModelEngineSettings(BaseModel):
 
     @model_validator(mode="after")
     def validate_omr_engine_settings(self) -> Self:
-        if self.OMR_ENGINE == "legato" and not self.LEGATO_REPO_PATH:
-            raise ValueError("LEGATO_REPO_PATH is required when OMR_ENGINE=legato")
+        if not self.LEGATO_REPO_PATH:
+            raise ValueError("LEGATO_REPO_PATH is required for the supported LEGATO engine")
         return self
