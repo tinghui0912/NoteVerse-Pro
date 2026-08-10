@@ -651,6 +651,18 @@ deferred until the required offline models are available.
   consumer set is documented; no aliases, fallbacks, or deployment-manifest
   split are needed for the extraction.
 
+### 2026-08-10: Import dispatch policy ownership extracted
+
+- Moved import cadence, dispatch and processing lease timeouts, retry/batch
+  limits, and orphan-upload retention into `ImportDispatchSettings`, with its
+  positive-integer validation. Shared `Settings` composes the group without
+  changing environment variable names or deployment manifests.
+- Updated the configuration test name to match its actual subject and added
+  direct settings-group coverage. While running the affected regression suite,
+  corrected a Practice audio test that had loaded a strict Practice setting from
+  the generic quality container; it now supplies its explicit test environment
+  input and clears the cached loader, without adding runtime fallback behavior.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

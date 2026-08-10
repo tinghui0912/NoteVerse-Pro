@@ -105,11 +105,8 @@ def test_allowed_file_accepts_supported_extensions() -> None:
 def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_path) -> None:
     soundfont_path = tmp_path / "practice.sf2"
     soundfont_path.write_bytes(b"soundfont")
-    monkeypatch.setattr(
-        get_practice_runtime_settings(),
-        "PRACTICE_SOUNDFONT_PATH",
-        str(soundfont_path),
-    )
+    monkeypatch.setenv("PRACTICE_SOUNDFONT_PATH", str(soundfont_path))
+    get_practice_runtime_settings.cache_clear()
 
     class FakeScore:
         def note_array(self):
@@ -127,14 +124,17 @@ def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_
     partitura = SimpleNamespace(save_wav_fluidsynth=Mock(return_value=np.ones(100)))
     default_generate_score_audio = Mock()
 
-    audio = MatchmakerLiveEngine._generate_score_audio(
-        score=FakeScore(),
-        bpm=120,
-        sample_rate=10,
-        np=np,
-        partitura=partitura,
-        generate_score_audio=default_generate_score_audio,
-    )
+    try:
+        audio = MatchmakerLiveEngine._generate_score_audio(
+            score=FakeScore(),
+            bpm=120,
+            sample_rate=10,
+            np=np,
+            partitura=partitura,
+            generate_score_audio=default_generate_score_audio,
+        )
+    finally:
+        get_practice_runtime_settings.cache_clear()
 
     default_generate_score_audio.assert_not_called()
     partitura.save_wav_fluidsynth.assert_called_once()

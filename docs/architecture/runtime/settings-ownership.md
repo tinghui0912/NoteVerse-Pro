@@ -110,8 +110,12 @@ configuration through a separately coordinated credential-rotation task.
   owns the ordered processing, Celery soft-limit, and Celery hard-limit
   envelope. It remains shared because API pipeline contexts, Worker execution,
   and Beat/Celery configuration must enforce the same deadline contract.
-- **Next:** Split the remaining per-domain Worker scheduling and outbox policy
-  settings only after their consumers are mapped to stable owner modules.
+- **Complete:** Import dispatch policy. `ImportDispatchSettings` owns dispatch
+  cadence, leases, retry/batch limits, and orphan-upload retention. The group
+  remains shared because import services, Ops, metrics, and Beat all enforce
+  the same delivery policy.
+- **Next:** Extract Render asset delivery policy, using its measured outbox,
+  retention, Ops, metrics, and Beat consumers as one atomic change.
 
 ## Worker runtime-loader migration boundary
 

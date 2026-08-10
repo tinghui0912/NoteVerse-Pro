@@ -130,7 +130,7 @@ def test_verovio_footer_mode_is_normalized_and_validated() -> None:
         WorkerRuntimeSettings(VEROVIO_FOOTER="visible")
 
 
-def test_task_reliability_defaults_are_positive() -> None:
+def test_settings_compose_import_dispatch_policy() -> None:
     settings = Settings()
 
     assert settings.IMPORT_DISPATCH_INTERVAL_SECONDS > 0

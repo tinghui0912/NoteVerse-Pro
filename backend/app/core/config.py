@@ -12,6 +12,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.async_database import AsyncDatabaseSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
+from app.core.settings.import_dispatch import ImportDispatchSettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.queue import QueueSettings
 from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
@@ -24,7 +25,7 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettings, PlaybackSettings, QueueSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ImportDispatchSettings, ObservabilitySettings, PlaybackSettings, QueueSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
@@ -107,14 +108,8 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettin
         return v
 
     @field_validator(
-        "IMPORT_DISPATCH_INTERVAL_SECONDS",
-        "IMPORT_DISPATCH_TIMEOUT_SECONDS",
-        "IMPORT_PROCESSING_TIMEOUT_SECONDS",
-        "IMPORT_DISPATCH_MAX_ATTEMPTS",
-        "IMPORT_DISPATCH_BATCH_SIZE",
         "NOTIFICATION_CLEANUP_INTERVAL_SECONDS",
         "NOTIFICATION_RETENTION_DAYS",
-        "ORPHAN_UPLOAD_TTL_SECONDS",
         "RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS",
         "RENDER_OUTBOX_DISPATCH_TIMEOUT_SECONDS",
         "RENDER_OUTBOX_PROCESSING_TIMEOUT_SECONDS",
@@ -174,14 +169,8 @@ class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, ObservabilitySettin
     FINGERING_MAX_CONCURRENCY: int = 2
     FINGERING_QUEUE_WAIT_SECONDS: int = 5
     FINGERING_MAX_CONTENT_BYTES: int = 2 * 1024 * 1024
-    IMPORT_DISPATCH_INTERVAL_SECONDS: int = 30
-    IMPORT_DISPATCH_TIMEOUT_SECONDS: int = 300
-    IMPORT_PROCESSING_TIMEOUT_SECONDS: int = 1200
-    IMPORT_DISPATCH_MAX_ATTEMPTS: int = 3
-    IMPORT_DISPATCH_BATCH_SIZE: int = 20
     NOTIFICATION_CLEANUP_INTERVAL_SECONDS: int = 86400
     NOTIFICATION_RETENTION_DAYS: int = 90
-    ORPHAN_UPLOAD_TTL_SECONDS: int = 86400
     RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS: int = 30
     RENDER_OUTBOX_DISPATCH_TIMEOUT_SECONDS: int = 300
     RENDER_OUTBOX_PROCESSING_TIMEOUT_SECONDS: int = 1200
