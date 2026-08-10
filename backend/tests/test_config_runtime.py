@@ -181,6 +181,13 @@ def test_settings_compose_fingering_execution_policy() -> None:
     assert settings.FINGERING_MAX_CONTENT_BYTES > 0
 
 
+def test_settings_compose_customer_session_security_policy() -> None:
+    settings = Settings()
+
+    assert settings.ACCESS_TOKEN_EXPIRE_MINUTES > 0
+    assert settings.AUTH_COOKIE_SAMESITE in {"lax", "strict", "none"}
+
+
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(

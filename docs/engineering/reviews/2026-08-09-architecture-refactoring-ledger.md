@@ -735,6 +735,15 @@ deferred until the required offline models are available.
   password-reset lifetime currently uses its code default; no redundant
   environment variable was introduced.
 
+### 2026-08-10: Customer session security ownership extracted
+
+- Moved customer access/refresh lifetimes and Cookie/CSRF names, security, and
+  `SameSite` policy into `CustomerSessionSecuritySettings`, with direct tests.
+- Added fail-fast validation for non-positive lifetimes, blank cookie contract
+  values, and unsupported `SameSite` values. Revalidated API smoke and public
+  error-contract coverage; no environment name, manifest, alias, fallback, or
+  control-plane configuration behavior changed.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -135,9 +135,13 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Interactive fingering execution limits.
   `FingeringExecutionSettings` owns bounded API concurrency, queue wait, and
   input-size limits for the blocking fingering engine.
-- **Next:** Measure the remaining account/API settings before extraction,
-  beginning with session/cookie lifetime and email-link policy. Do not combine
-  those policies with Resend provider credentials or file-extension policy.
+- **Complete:** Customer session security.
+  `CustomerSessionSecuritySettings` owns access/refresh lifetimes and the
+  customer Cookie/CSRF contract; it fails fast for invalid lifetimes, blank
+  names, and unsupported `SameSite` policy, independently of control-plane
+  identity.
+- **Next:** Extract account email-link lifetime policy. Do not combine it with
+  `FRONTEND_BASE_URL`, Resend provider credentials, or file-extension policy.
 
 ## Worker runtime-loader migration boundary
 

@@ -12,6 +12,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.async_database import AsyncDatabaseSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
+from app.core.settings.customer_session_security import CustomerSessionSecuritySettings
 from app.core.settings.fingering_execution import FingeringExecutionSettings
 from app.core.settings.import_dispatch import ImportDispatchSettings
 from app.core.settings.mail_delivery import MailDeliverySettings
@@ -33,18 +34,10 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
+class Settings(AsyncDatabaseSettings, BeatSchedulerSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, WorkerDatabaseSettings, BaseSettings):
     PROJECT_NAME: str = "NoteVerse Pro"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    AUTH_COOKIE_NAME: str
-    REFRESH_COOKIE_NAME: str
-    CSRF_COOKIE_NAME: str
-    CSRF_HEADER_NAME: str
-    AUTH_COOKIE_SECURE: bool
-    AUTH_COOKIE_SAMESITE: str
     CONTROL_PLANE_AUTH_COOKIE_NAME: Optional[str] = None
     CONTROL_PLANE_CSRF_COOKIE_NAME: Optional[str] = None
     CONTROL_PLANE_CSRF_HEADER_NAME: Optional[str] = None
