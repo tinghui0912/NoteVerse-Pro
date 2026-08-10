@@ -133,6 +133,31 @@ model variables to the Worker-only Docker manifest. Do not make fields optional
 or provide a fallback loader: Worker startup must fail when its required model
 configuration is absent.
 
+## Outbox and lifecycle policy migration boundary
+
+The remaining scheduling fields are not a Worker runtime projection. They are
+shared product-operational policies: API-facing services enforce retry and
+expiry decisions, observability reports the same pending-work semantics, and
+Beat supplies only the periodic trigger. They must remain in the shared base
+environment manifest while their typed owners are extracted.
+
+| Proposed settings group | Fields | Direct production consumers |
+| --- | --- | --- |
+| Import dispatch | `IMPORT_DISPATCH_*`, `IMPORT_PROCESSING_TIMEOUT_SECONDS`, `ORPHAN_UPLOAD_TTL_SECONDS` | import dispatch/maintenance service, Ops reconciliation, async-operation metrics, Beat |
+| Render asset delivery | `RENDER_OUTBOX_*`, `DERIVED_ASSET_RETAIN_RECENT_REVISIONS`, `DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS` | render outbox service, derived-asset retention service, Ops, metrics, Beat |
+| Playback delivery | `PLAYBACK_OUTBOX_*` | playback outbox service, Ops, metrics, Beat |
+| Mail delivery | `MAIL_OUTBOX_*` | mail outbox service, Ops, metrics, Beat |
+| Notification and realtime retention | `NOTIFICATION_*`, `REALTIME_EVENT_*` | notification/realtime services, realtime HTTP router, Beat |
+| Score deletion lifecycle | `SCORE_DELETION_*` | score lifecycle service, Ops reconciliation, Beat |
+
+`app.modules.ops.service` and `app.observability.async_operation_metrics` are
+cross-domain readers, not owners. They may consume the extracted groups but
+must not define duplicate limits. The first safe extraction is Import dispatch:
+it has a coherent service owner and no cross-field dependency on another
+outbox. Extract one domain per change, move its positive/non-negative
+validation with the fields, add a direct settings-group test, then migrate all
+of its measured consumers and delete its declarations from `Settings`.
+
 ## Database, queue, and storage migration boundary
 
 This group has four deliberately separate runtime projections:

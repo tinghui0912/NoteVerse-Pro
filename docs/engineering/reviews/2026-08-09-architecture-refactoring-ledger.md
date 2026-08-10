@@ -638,6 +638,19 @@ deferred until the required offline models are available.
   reads OCR timing through the strict Worker loader, so API and Beat no longer
   implicitly require Worker model configuration.
 
+### 2026-08-10: Outbox and lifecycle policy boundary measured
+
+- Mapped all remaining scheduling and reliability fields to six cohesive
+  domain groups: import dispatch, render asset delivery, playback delivery,
+  mail delivery, notification/realtime retention, and score deletion lifecycle.
+- Confirmed that these policies are shared contracts, not Worker-only settings:
+  domain services enforce them, Ops and metrics read the same retry ceilings,
+  and Beat only triggers periodic work. They must remain in the shared base
+  deployment manifest while setting groups are extracted one domain at a time.
+- Selected Import dispatch as the next safe implementation unit. Its complete
+  consumer set is documented; no aliases, fallbacks, or deployment-manifest
+  split are needed for the extraction.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
