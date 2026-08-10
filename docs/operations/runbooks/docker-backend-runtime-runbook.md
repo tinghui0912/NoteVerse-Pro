@@ -245,8 +245,6 @@ docker build `
   --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124-slim `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
-  --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git `
-  --build-arg LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc `
   -t noteverse-backend-worker-deps:dev `
   .
 ```

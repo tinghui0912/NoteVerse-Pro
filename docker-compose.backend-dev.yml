@@ -131,8 +131,6 @@ services:
         INSTALL_PADDLE_GPU: ${INSTALL_PADDLE_GPU:-false}
         INSTALL_LEGATO_EXTRA_DEPS: ${INSTALL_LEGATO_EXTRA_DEPS:-false}
         PADDLE_CUDA_INDEX: ${PADDLE_CUDA_INDEX:-cu126}
-        LEGATO_REPO_URL: ${LEGATO_REPO_URL:-https://github.com/guang-yng/legato.git}
-        LEGATO_REPO_COMMIT: ${LEGATO_REPO_COMMIT:-179c228d3d5f67113cf739b44891b3abe046f1dc}
     entrypoint: []
     command: bash
     restart: "no"

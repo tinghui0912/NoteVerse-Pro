@@ -5,6 +5,7 @@ from typing import Final
 
 LEGATO_MANIFEST_SCHEMA_VERSION: Final[int] = 1
 OMR_ENGINE_NAME: Final[str] = "legato"
+LEGATO_REPOSITORY_URL: Final[str] = "https://github.com/guang-yng/legato.git"
 LEGATO_REPO_COMMIT: Final[str] = "179c228d3d5f67113cf739b44891b3abe046f1dc"
 LEGATO_MODEL_REPOSITORY: Final[str] = "guangyangmusic/legato"
 LEGATO_MODEL_SNAPSHOT: Final[str] = "2d07c5d0e73186f2c0b12e35ea187bbc30dec18c"

@@ -932,8 +932,9 @@ deferred until the required offline models are available.
   model/processor identifiers, and the Hugging Face repository list. Paths,
   offline mode, device, precision, batching, and timeouts remain deployment
   configuration.
-- Docker's LEGATO build ARG is still a build-time duplicate pending conversion
-  to a manifest-derived build input; do not reintroduce a runtime fallback.
+- Worker dependency-image builds now derive the LEGATO repository URL and pinned
+  commit from that manifest. Compose no longer accepts duplicate LEGATO build
+  arguments; do not reintroduce build-time or runtime fallbacks.
 
 ## Completion checklist for every refactor
 
