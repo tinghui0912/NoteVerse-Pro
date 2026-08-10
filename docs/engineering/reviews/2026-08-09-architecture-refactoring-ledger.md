@@ -996,6 +996,15 @@ deferred until the required offline models are available.
   Updated application consumers, scripts, tests, fixtures, and plans directly;
   no old-path import compatibility layer remains.
 
+### 2026-08-10: SoundFont adapter separated from processing engines
+
+- Moved SoundFont fingerprinting and Partitura runtime preparation to
+  `app.processing.resources.soundfont`. The code manages an external runtime
+  resource and package layout; it is not an OCR, rendering, playback, or
+  alignment algorithm.
+- Playback, practice alignment, and runtime checks now consume this one resource
+  adapter through `app.processing.resources`, with no legacy engine-path export.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

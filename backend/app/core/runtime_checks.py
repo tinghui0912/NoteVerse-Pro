@@ -17,7 +17,7 @@ import redis
 from app.core.config import get_practice_runtime_settings, get_worker_runtime_settings, settings
 from app.core.control_plane_settings import require_control_plane_settings
 from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES, LEGATO_REPO_COMMIT
-from app.processing.engines.soundfont import ensure_partitura_default_soundfont
+from app.processing.resources import ensure_partitura_default_soundfont
 
 
 class RuntimeRole(StrEnum):

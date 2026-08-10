@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable, Literal, NotRequired, Protocol, TypedDict, runtime_checkable
 
 from app.core.config import get_practice_runtime_settings
-from app.processing.engines.soundfont import ensure_partitura_default_soundfont
+from app.processing.resources import ensure_partitura_default_soundfont
 from app.core.logger import logger
 from app.processing.engines.practice_alignment.audio_activity import (
     ActivityConfidenceEstimator,

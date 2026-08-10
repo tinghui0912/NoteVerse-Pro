@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 from app.core.config import settings
 from .profile import DEFAULT_PLAYBACK_PROFILE, PlaybackProfile
-from app.processing.engines.soundfont import ensure_partitura_default_soundfont, soundfont_sha256
+from app.processing.resources import ensure_partitura_default_soundfont, soundfont_sha256
 
 
 @dataclass(frozen=True)
