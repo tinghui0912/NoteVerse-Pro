@@ -14,7 +14,7 @@ class CompiledMidi:
 
 
 class VerovioMidiCompiler:
-    """Compile MusicXML into MIDI using the same notation engine as score previews."""
+    """Compile MusicXML into MIDI through the Verovio processing engine."""
 
     generator = "musicxml-verovio-midi"
     generator_version = "1"

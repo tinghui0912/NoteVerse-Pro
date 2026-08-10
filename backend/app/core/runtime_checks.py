@@ -16,7 +16,8 @@ import redis
 
 from app.core.config import get_practice_runtime_settings, get_worker_runtime_settings, settings
 from app.core.control_plane_settings import require_control_plane_settings
-from app.processing.engines.soundfont import ensure_partitura_default_soundfont
+from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES, LEGATO_REPO_COMMIT
+from app.processing.resources import ensure_partitura_default_soundfont
 
 
 class RuntimeRole(StrEnum):
@@ -158,8 +159,7 @@ def check_worker_settings(_: bool = False) -> CheckResult:
     return _result(
         "worker_settings",
         True,
-        f"OMR={worker_settings.OMR_ENGINE}, render={worker_settings.SCORE_RENDER_ENGINE}; "
-        f"paddle={worker_settings.PADDLEOCR_TIMEOUT_SECONDS}s",
+        f"OMR=legato, render=verovio; paddle={worker_settings.PADDLEOCR_TIMEOUT_SECONDS}s",
     )
 
 
@@ -169,7 +169,9 @@ def check_control_plane_settings(_: bool = False) -> CheckResult:
     try:
         require_control_plane_settings()
     except RuntimeError as exc:
-        return _result("control_plane_settings", False, f"control-plane configuration invalid: {exc}")
+        return _result(
+            "control_plane_settings", False, f"control-plane configuration invalid: {exc}"
+        )
     return _result("control_plane_settings", True, "independent control-plane configuration loaded")
 
 
@@ -183,7 +185,9 @@ async def check_api_database(_: bool = False) -> CheckResult:
             await connection.execute(text("select 1"))
         return _result("database", True, "async database reachable")
     except Exception as exc:
-        return _result("database", False, f"async database unreachable: {type(exc).__name__}: {exc}")
+        return _result(
+            "database", False, f"async database unreachable: {type(exc).__name__}: {exc}"
+        )
 
 
 def check_worker_database(_: bool = False) -> CheckResult:
@@ -253,7 +257,9 @@ def check_redis(_: bool = False) -> CheckResult:
         client.ping()
         return _result("redis", True, "redis/celery broker reachable")
     except Exception as exc:
-        return _result("redis", False, f"redis/celery broker unreachable: {type(exc).__name__}: {exc}")
+        return _result(
+            "redis", False, f"redis/celery broker unreachable: {type(exc).__name__}: {exc}"
+        )
 
 
 def check_api_storage(_: bool = False) -> CheckResult:
@@ -293,7 +299,9 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
         }
         missing = sorted(required.difference(celery_app.tasks))
     except Exception as exc:
-        return _result("celery_tasks", False, f"task registration failed: {type(exc).__name__}: {exc}")
+        return _result(
+            "celery_tasks", False, f"task registration failed: {type(exc).__name__}: {exc}"
+        )
     if missing:
         return _result("celery_tasks", False, f"unregistered tasks: {', '.join(missing)}")
     return _result("celery_tasks", True, f"registered tasks: {len(required)} required tasks")
@@ -307,32 +315,36 @@ def check_omr_engine(_: bool = False) -> CheckResult:
     repo_path = Path(worker_settings.LEGATO_REPO_PATH)
     if not (repo_path / "legato" / "models").is_dir():
         return _result("omr_engine", False, f"LEGATO repository is incomplete: {repo_path}")
-    if worker_settings.LEGATO_REPO_COMMIT:
-        if _read_git_dir(repo_path) is None:
-            return _result("omr_engine", True, f"LEGATO commit={worker_settings.LEGATO_REPO_COMMIT} (image metadata)")
-        try:
-            actual_commit = _read_git_commit(repo_path)
-        except Exception as exc:
-            return _result("omr_engine", False, f"could not read LEGATO commit: {exc}")
-        if actual_commit != worker_settings.LEGATO_REPO_COMMIT:
-            return _result(
-                "omr_engine",
-                False,
-                f"LEGATO commit mismatch: expected {worker_settings.LEGATO_REPO_COMMIT}, actual {actual_commit}",
-            )
-        return _result("omr_engine", True, f"LEGATO commit={actual_commit}")
-    return _result("omr_engine", True, f"LEGATO repository found: {repo_path}")
+    if _read_git_dir(repo_path) is None:
+        return _result("omr_engine", True, f"LEGATO commit={LEGATO_REPO_COMMIT} (image metadata)")
+    try:
+        actual_commit = _read_git_commit(repo_path)
+    except Exception as exc:
+        return _result("omr_engine", False, f"could not read LEGATO commit: {exc}")
+    if actual_commit != LEGATO_REPO_COMMIT:
+        return _result(
+            "omr_engine",
+            False,
+            f"LEGATO commit mismatch: expected {LEGATO_REPO_COMMIT}, actual {actual_commit}",
+        )
+    return _result("omr_engine", True, f"LEGATO commit={actual_commit}")
 
 
 def check_omr_cuda_runtime(_: bool = False) -> CheckResult:
     worker_settings = _worker_settings()
-    if worker_settings.OMR_ENGINE != "legato" or worker_settings.LEGATO_DEVICE.lower() != "cuda":
-        return _result("omr_cuda_runtime", True, f"not required for LEGATO_DEVICE={worker_settings.LEGATO_DEVICE}")
+    if worker_settings.LEGATO_DEVICE.lower() != "cuda":
+        return _result(
+            "omr_cuda_runtime",
+            True,
+            f"not required for LEGATO_DEVICE={worker_settings.LEGATO_DEVICE}",
+        )
 
     try:
         torch = importlib.import_module("torch")
     except Exception as exc:
-        return _result("omr_cuda_runtime", False, f"torch import failed: {type(exc).__name__}: {exc}")
+        return _result(
+            "omr_cuda_runtime", False, f"torch import failed: {type(exc).__name__}: {exc}"
+        )
 
     try:
         if not torch.cuda.is_available():
@@ -340,18 +352,28 @@ def check_omr_cuda_runtime(_: bool = False) -> CheckResult:
         device_count = torch.cuda.device_count()
         device_name = torch.cuda.get_device_name(0) if device_count else "unknown"
     except Exception as exc:
-        return _result("omr_cuda_runtime", False, f"CUDA runtime check failed: {type(exc).__name__}: {exc}")
+        return _result(
+            "omr_cuda_runtime", False, f"CUDA runtime check failed: {type(exc).__name__}: {exc}"
+        )
 
-    return _result("omr_cuda_runtime", True, f"CUDA ready: devices={device_count}, primary={device_name}")
+    return _result(
+        "omr_cuda_runtime", True, f"CUDA ready: devices={device_count}, primary={device_name}"
+    )
 
 
 def check_render_engine(_: bool = False) -> CheckResult:
     try:
         import verovio
 
-        return _result("render_engine", True, f"verovio import ok: {getattr(verovio, '__version__', 'unknown')}")
+        return _result(
+            "render_engine",
+            True,
+            f"verovio import ok: {getattr(verovio, '__version__', 'unknown')}",
+        )
     except Exception as exc:
-        return _result("render_engine", False, f"verovio import failed: {type(exc).__name__}: {exc}")
+        return _result(
+            "render_engine", False, f"verovio import failed: {type(exc).__name__}: {exc}"
+        )
 
 
 def check_soundfont(_: bool = False) -> CheckResult:
@@ -361,7 +383,9 @@ def check_soundfont(_: bool = False) -> CheckResult:
     path = Path(practice_settings.PRACTICE_SOUNDFONT_PATH)
     if not path.is_file():
         return _result("soundfont", False, f"soundfont does not exist: {path}")
-    return _result("soundfont", True, f"soundfont found: {path} ({_format_size(path.stat().st_size)})")
+    return _result(
+        "soundfont", True, f"soundfont found: {path} ({_format_size(path.stat().st_size)})"
+    )
 
 
 def check_paddleocr_models(include_sizes: bool = False) -> CheckResult:
@@ -410,7 +434,9 @@ def _snapshot_missing_model_files(snapshot: Path) -> list[str]:
             required_files.update(
                 filename for filename in weight_map.values() if isinstance(filename, str)
             )
-        return sorted(filename for filename in required_files if not (snapshot / filename).is_file())
+        return sorted(
+            filename for filename in required_files if not (snapshot / filename).is_file()
+        )
 
     patterns = ("*.safetensors", "*.bin")
     if any(any(snapshot.glob(pattern)) for pattern in patterns):
@@ -424,16 +450,22 @@ def _hf_repo_cache_dir(repo_id: str) -> str:
 
 def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
     worker_settings = _worker_settings()
-    hf_home = Path(worker_settings.HF_HOME or os.environ.get("HF_HOME") or "~/.cache/huggingface").expanduser()
+    hf_home = Path(
+        worker_settings.HF_HOME or os.environ.get("HF_HOME") or "~/.cache/huggingface"
+    ).expanduser()
     hub = hf_home / "hub"
     missing: list[str] = []
     summaries: list[str] = []
-    for repo_id in worker_settings.HF_MODEL_REPOSITORIES:
+    for repo_id in HF_MODEL_REPOSITORIES:
         repo_dir = _hf_repo_cache_dir(repo_id)
         path = hub / repo_dir
         snapshots = path / "snapshots"
         snapshot_statuses = (
-            [(item, _snapshot_missing_model_files(item)) for item in snapshots.iterdir() if item.is_dir()]
+            [
+                (item, _snapshot_missing_model_files(item))
+                for item in snapshots.iterdir()
+                if item.is_dir()
+            ]
             if snapshots.is_dir()
             else []
         )
@@ -463,7 +495,9 @@ def check_practice_alignment(_: bool = False) -> CheckResult:
         from matchmaker.features.audio import ChromagramProcessor  # noqa: F401
         from partitura.io.exportmidi import get_ppq  # noqa: F401
     except Exception as exc:
-        return _result("practice_alignment", False, f"practice imports failed: {type(exc).__name__}: {exc}")
+        return _result(
+            "practice_alignment", False, f"practice imports failed: {type(exc).__name__}: {exc}"
+        )
     fluidsynth = shutil.which("fluidsynth")
     if not fluidsynth:
         return _result("practice_alignment", False, "fluidsynth executable not found on PATH")
@@ -566,7 +600,9 @@ CHECKS: dict[str, CheckSpec] = {
 }
 
 
-async def run_runtime_checks(role: RuntimeRole, *, include_sizes: bool = False) -> list[CheckResult]:
+async def run_runtime_checks(
+    role: RuntimeRole, *, include_sizes: bool = False
+) -> list[CheckResult]:
     results: list[CheckResult] = []
     for name in ROLE_CHECK_NAMES[role]:
         outcome = CHECKS[name].run(include_sizes)

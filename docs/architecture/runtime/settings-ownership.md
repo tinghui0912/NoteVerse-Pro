@@ -10,13 +10,13 @@ or supply compatibility aliases.
 
 | Configuration group | Primary owner | Runtime consumers | Representative fields |
 | --- | --- | --- | --- |
-| Platform and customer HTTP | API | API, Practice, Worker shared auth helpers | `PROJECT_NAME`, `API_V1_STR`, `DEBUG`, customer cookie/CSRF settings, `BACKEND_CORS_ORIGINS`, `TRUSTED_PROXY_CIDRS` |
-| Control-plane identity | Control Plane | Control Plane only | `CONTROL_PLANE_*`; resolved through `app.core.control_plane_settings` |
+| Service identity and customer HTTP | API | API, Practice, Control Plane, observability, shared delivery/auth helpers | `PROJECT_NAME`, `API_V1_STR`, `DEBUG`, customer cookie/CSRF settings, `BACKEND_CORS_ORIGINS`, `TRUSTED_PROXY_CIDRS` |
+| Control-plane identity | Control Plane | Control Plane only | `CONTROL_PLANE_*`; loaded only by `app.core.control_plane_settings` from the Control Plane environment contract |
 | Observability | Platform | API, Practice, Control Plane, observability exporter | `LOG_FORMAT`, `OTEL_*` |
 | Database and cache | Platform | API, Practice, Worker, Beat | `DATABASE_URL`, `SYNC_DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, Redis and Celery URLs |
 | Worker scheduling and reliability | Worker | Worker, Beat, API dispatch/outbox writers | import, render, playback, mail, notification, realtime, retention, and scheduler timing settings |
 | Object storage and file lifecycle | Storage | API, Worker, Practice | `FILE_STORAGE_BACKEND`, `S3_*`, storage/work roots, upload extensions |
-| OMR, OCR, rendering, playback | Worker | Worker and runtime checks | `LEGATO_*`, `PADDLEOCR_*`, Hugging Face cache settings, `VEROVIO_*`, playback soundfont settings |
+| OMR, OCR, rendering, playback | Worker | Worker and runtime checks | `LEGATO_*`, `PADDLEOCR_*`, Hugging Face cache settings, playback soundfont settings; source-owned LEGATO and Verovio profiles |
 | Practice alignment | Practice | Practice runtime and API-side session helpers | practice soundfont, alignment and diagnostics settings |
 | Account email | API | API auth/account and Worker mail delivery | `RESEND_*`, sender, password-reset and verification lifetimes |
 | Interactive fingering | API | API fingering service | `FINGERING_*` |
@@ -56,10 +56,11 @@ truth according to **what changes the value** and **how it must be released**.
 | Versioned domain/algorithm profile | `PracticeAudioProfile` gates and frame rate; OCR classification thresholds; MusicXML layout constants | Typed source module adjacent to its owning algorithm, with fixtures/tests | Normal code review and application release |
 | Product policy that operators or customers must change without a deployment | entitlement limits, tenant rules, feature rollout state | Audited database-backed configuration or feature-flag service | Explicit administration workflow, audit trail, validation, rollout and rollback |
 
-`app.processing.engines.practice_audio_profile` is correctly a versioned audio
-processing profile: every value is coupled to the 30 fps pipeline and its
-fixture matrix. `app.processing.text.config` similarly owns deterministic OCR,
-classification, and MusicXML layout rules. They must not be copied into
+`app.processing.engines.practice_alignment.profile` is correctly a versioned
+practice-alignment profile: every value is coupled to the 30 fps pipeline and its
+fixture matrix. `app.processing.engines.render.verovio_render_profile` owns the
+SVG output semantics, while `app.processing.text.config` owns deterministic
+OCR, classification, and MusicXML layout rules. They must not be copied into
 `.env.docker`, because an unreviewed per-environment threshold change would
 make the same source revision produce different recognition or notation output.
 
@@ -101,8 +102,9 @@ configuration through a separately coordinated credential-rotation task.
 ## Extraction status
 
 - **Complete:** Observability, Practice diagnostics, Playback synthesis, and
-  Worker model/engine configuration. `PlaybackSettings` owns the SoundFont,
-  sample rate, and duration limit used by API delivery and Worker generation.
+  Worker model/engine configuration. `PlaybackSettings` owns only the deployed
+  SoundFont location used by API delivery and Worker generation; sample rate
+  and output duration live in the versioned `PlaybackProfile`.
   `WorkerModelEngineSettings` owns Hugging Face/PaddleOCR model locations and
   offline mode, LEGATO selection/runtime parameters, and Verovio rendering.
   It intentionally does not own either playback or Practice soundfonts.
@@ -163,9 +165,13 @@ configuration through a separately coordinated credential-rotation task.
 - **Complete:** Public frontend URL. `PublicFrontendUrlSettings` owns the
   absolute account-link and score-invitation base URL and rejects query or
   fragment components that would make generated links ambiguous.
-- **Next:** Extract service identity and routing settings (`PROJECT_NAME`, API
-  prefix, debug mode) only after adding app-factory coverage across API,
-  Practice, Control Plane, and observability surfaces.
+- **Complete:** Service identity and routing.
+  `ServiceIdentitySettings` owns `PROJECT_NAME`, `API_V1_STR`, and `DEBUG`.
+  It rejects blank product names and ambiguous customer API prefixes before
+  application factories use them. The Python 3.12 quality-image rebuild
+  restored Docs/OpenAPI and API regression coverage. API, Practice, Control
+  Plane, and observability factory contracts explicitly test their intended
+  routing boundaries; no runtime baseline change is required.
 
 ## Worker runtime-loader migration boundary
 
@@ -246,6 +252,18 @@ but they answer different trust questions and must not become a combined
 allowlist. `CONTROL_PLANE_*` remains in `require_control_plane_settings()`:
 its optional shared-schema fields are intentionally validated only when the
 isolated control runtime starts.
+
+`ServiceIdentitySettings` owns the product name, customer API mount prefix, and
+debug-mode parsing. Control-plane cookies and CORS remain a separate runtime
+boundary; neither is part of customer API identity/routing.
+
+Control Plane identity is not part of the shared `Settings` schema. Its
+required `CONTROL_PLANE_*` values are loaded only by
+`ControlPlaneRuntimeSettings`; local Compose development supplies them through
+`backend/.env.docker.control-plane`, created from the committed example. The
+operator API prefix remains the source-owned `CONTROL_PLANE_API_PREFIX` value:
+it is a versioned HTTP contract on a separate host, so it must neither be an
+environment toggle nor an alias of the customer `API_V1_STR` setting.
 
 The next safe extraction is `TrustedProxySettings`: it has a single direct
 runtime consumer and a self-contained CIDR parsing/anti-`/0` validator. Keep

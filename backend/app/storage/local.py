@@ -12,6 +12,7 @@ import shutil
 from collections.abc import Iterator
 
 from app.core.config import settings
+from app.core.settings.service_identity import CUSTOMER_API_PREFIX
 from app.storage.base import StoredFile
 
 
@@ -100,7 +101,7 @@ class LocalFileStorage:
 
     def public_url(self, key: str) -> str:
         normalized_key = self._normalize_key(key)
-        return f"{settings.API_V1_STR}/uploads/{normalized_key}"
+        return f"{CUSTOMER_API_PREFIX}/uploads/{normalized_key}"
 
     def download_url(
         self,

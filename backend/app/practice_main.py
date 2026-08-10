@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from app.api.health import router as health_router
 from app.api.metrics import create_metrics_router
 from app.core.config import settings
+from app.core.settings.service_identity import CUSTOMER_API_PREFIX
 from app.core.http_runtime import install_http_runtime, normalized_cors_origins
 from app.core.lifespan import create_app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
@@ -22,7 +23,7 @@ def _cors_origins() -> list[str]:
 
 def _csrf_settings() -> CookieCsrfSettings:
     return CookieCsrfSettings(
-        api_prefix=settings.API_V1_STR,
+        api_prefix=CUSTOMER_API_PREFIX,
         session_cookie_names=(settings.AUTH_COOKIE_NAME, settings.REFRESH_COOKIE_NAME),
         csrf_cookie_name=settings.CSRF_COOKIE_NAME,
         csrf_header_name=settings.CSRF_HEADER_NAME,
@@ -39,7 +40,7 @@ def create_app() -> FastAPI:
         version="2.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
-        openapi_url=f"{settings.API_V1_STR}/practice/openapi.json",
+        openapi_url=f"{CUSTOMER_API_PREFIX}/practice/openapi.json",
         lifespan=create_app_lifespan(RuntimeRole.PRACTICE),
     )
 
@@ -49,7 +50,7 @@ def create_app() -> FastAPI:
         cors_origins=_cors_origins(),
     )
 
-    app.include_router(practice_router, prefix=f"{settings.API_V1_STR}/practice", tags=["Practice"])
+    app.include_router(practice_router, prefix=f"{CUSTOMER_API_PREFIX}/practice", tags=["Practice"])
     app.include_router(health_router)
     app.include_router(create_metrics_router(include_database_metrics=False))
 

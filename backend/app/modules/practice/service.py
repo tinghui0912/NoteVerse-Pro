@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -46,7 +47,7 @@ from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
 if TYPE_CHECKING:
-    from app.processing.engines.matchmaker_live import AlignmentUpdate
+    from app.processing.engines.practice_alignment.matchmaker_live import AlignmentUpdate
 
 
 class PracticeService:
@@ -167,7 +168,8 @@ class PracticeService:
         )
 
         try:
-            return self.runtime_registry.register(
+            return await asyncio.to_thread(
+                self.runtime_registry.register,
                 session_id=session.session_uuid,
                 task_id=score.score_uuid,
                 state=session.state.value,
@@ -287,9 +289,7 @@ class PracticeService:
             report_payload = self.report_builder.build(session)
         except Exception as exc:
             session.report_status = PracticeReportStatus.FAILED
-            session.report_payload = json.dumps(
-                {"summary": "Practice report generation failed."}
-            )
+            session.report_payload = json.dumps({"summary": "Practice report generation failed."})
             session.error = str(exc)
             session = await self.repository.save_report(db, session)
             raise ValidationException(
@@ -393,7 +393,9 @@ class PracticeService:
     def _to_report_result(session: PracticeSession) -> PracticeReportRead:
         parsed_payload: PracticeReportPayloadRead | None = None
         if session.report_payload:
-            parsed_payload = PracticeReportPayloadRead.model_validate(json.loads(session.report_payload))
+            parsed_payload = PracticeReportPayloadRead.model_validate(
+                json.loads(session.report_payload)
+            )
         return PracticeReportRead(
             session_id=session.session_uuid,
             report_status=session.report_status,

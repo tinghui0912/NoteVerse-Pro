@@ -15,7 +15,7 @@ from app.core.logger import logger
 _CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 _BACKEND_DIR = Path(__file__).resolve().parents[3]
-_WORKER_MODULE = "app.processing.engines.paddle_worker"
+_WORKER_MODULE = "app.processing.engines.ocr.paddle_worker"
 _PADDLEOCR_ENV_NAMES = (
     "PADDLEOCR_MODEL_ROOT",
     "PADDLEOCR_DETECTION_MODEL_DIR",
@@ -142,10 +142,14 @@ def run_ocr_subprocess(
         payload = _load_json_payload(result.stdout)
 
         if payload is not None:
-            error_detail = str(payload.get("error") or result.stderr.strip() or "Unknown PaddleOCR error")
+            error_detail = str(
+                payload.get("error") or result.stderr.strip() or "Unknown PaddleOCR error"
+            )
             error_code = str(payload.get("code") or "ocr_subprocess_failed")
         else:
-            error_detail = result.stderr.strip() or result.stdout.strip() or "Unknown PaddleOCR error"
+            error_detail = (
+                result.stderr.strip() or result.stdout.strip() or "Unknown PaddleOCR error"
+            )
             error_code = "ocr_subprocess_failed"
 
         logger.bind(

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import wave
 
-from app.processing.engines.matchmaker_live import BrowserAudioStreamAdapter
+from app.processing.engines.practice_alignment.matchmaker_live import BrowserAudioStreamAdapter
 
 
 class DummyProcessor:
@@ -231,9 +231,10 @@ def assert_manifest_expectations(result: ReplayResult, adapter, scenario: dict) 
     if "max_lost_frames" in expect:
         assert result.states.count("lost") <= expect["max_lost_frames"]
     if "max_no_input_streak" in expect:
-        assert max((frame.no_input_streak for frame in result.frames), default=0) <= expect[
-            "max_no_input_streak"
-        ]
+        assert (
+            max((frame.no_input_streak for frame in result.frames), default=0)
+            <= expect["max_no_input_streak"]
+        )
     for state in expect.get("forbidden_states", []):
         assert state not in result.states
     gate_reasons = [frame.gate_reason for frame in result.frames]

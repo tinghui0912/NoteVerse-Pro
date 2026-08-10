@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import os
-from typing import Any
 
-from app.core.config import get_worker_runtime_settings
 from app.shared.constants import ErrorCode
 
 from .base import ScoreRenderOutputFile, ScoreRenderResult
 from .svg_preview_postprocessor import SvgPreviewPostProcessor
+from .verovio_render_profile import DEFAULT_VEROVIO_RENDER_PROFILE
 
 
 class VerovioRenderEngine:
@@ -19,11 +18,10 @@ class VerovioRenderEngine:
     default_output_format = "svg"
 
     def __init__(self, *, output_folder: str, timeout_seconds: int | None = None) -> None:
-        settings = get_worker_runtime_settings()
         self.output_folder = output_folder
         self.timeout_seconds = timeout_seconds
         self.svg_postprocessor = SvgPreviewPostProcessor(
-            enabled=settings.VEROVIO_PREVIEW_HEADER_POSTPROCESSING
+            enabled=DEFAULT_VEROVIO_RENDER_PROFILE.preview_header_postprocessing
         )
 
     def render_score(
@@ -121,25 +119,10 @@ class VerovioRenderEngine:
                 "error": str(exc),
             }
 
-    def _options(self) -> dict[str, Any]:
-        """Build Verovio options from application settings."""
+    def _options(self) -> dict[str, object]:
+        """Build Verovio options from the versioned rendering profile."""
 
-        settings = get_worker_runtime_settings()
-
-        return {
-            "inputFrom": "xml",
-            "pageWidth": settings.VEROVIO_PAGE_WIDTH,
-            "pageHeight": settings.VEROVIO_PAGE_HEIGHT,
-            "scale": settings.VEROVIO_SCALE,
-            "adjustPageHeight": settings.VEROVIO_ADJUST_PAGE_HEIGHT,
-            "justifyVertically": settings.VEROVIO_JUSTIFY_VERTICALLY,
-            "pageMarginTop": settings.VEROVIO_PAGE_MARGIN_TOP,
-            "pageMarginBottom": settings.VEROVIO_PAGE_MARGIN_BOTTOM,
-            "breaks": settings.VEROVIO_BREAKS,
-            "header": settings.VEROVIO_HEADER,
-            "footer": settings.VEROVIO_FOOTER,
-            "usePgFooterForAll": settings.VEROVIO_USE_PG_FOOTER_FOR_ALL,
-        }
+        return DEFAULT_VEROVIO_RENDER_PROFILE.renderer_options()
 
     @staticmethod
     def _add_white_background(svg: str) -> str:
@@ -157,4 +140,4 @@ class VerovioRenderEngine:
             return svg
 
         background = '<rect data-nv-background="true" width="100%" height="100%" fill="white"/>'
-        return f"{svg[:svg_open_end + 1]}{background}{svg[svg_open_end + 1:]}"
+        return f"{svg[: svg_open_end + 1]}{background}{svg[svg_open_end + 1 :]}"

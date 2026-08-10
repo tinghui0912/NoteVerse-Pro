@@ -37,8 +37,8 @@ flowchart TD
 
 主要代码位置：
 
-- 后端实时引擎：[backend/app/processing/engines/matchmaker_live.py](../../../backend/app/processing/engines/matchmaker_live.py)
-- 音频活动特征与状态：[backend/app/processing/engines/practice_audio_activity.py](../../../backend/app/processing/engines/practice_audio_activity.py)
+- 后端实时引擎：[backend/app/processing/engines/practice_alignment/matchmaker_live.py](../../../backend/app/processing/engines/practice_alignment/matchmaker_live.py)
+- 音频活动特征与状态：[backend/app/processing/engines/practice_alignment/audio_activity.py](../../../backend/app/processing/engines/practice_alignment/audio_activity.py)
 - WebSocket 消息编码：[backend/app/processing/realtime/message_codec.py](../../../backend/app/processing/realtime/message_codec.py)
 - 前端页面 guard：[apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/page.tsx](../../../apps/customer-web/src/app/%5Blocale%5D/(workspace)/score/%5Bid%5D/practice/page.tsx)
 - 前端高亮控制器：[apps/customer-web/src/lib/practice/follow-controller.ts](../../../apps/customer-web/src/lib/practice/follow-controller.ts)

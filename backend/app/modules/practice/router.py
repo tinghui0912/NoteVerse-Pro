@@ -23,6 +23,7 @@ from app.processing.realtime.message_codec import (
     alignment_update_message,
     parse_control_message,
     session_armed_message,
+    session_connecting_message,
     session_error_message,
     session_finished_message,
     session_ready_message,
@@ -137,20 +138,23 @@ async def stream_practice_session(
     user_id: int | None = None
     terminal_event = "practice.websocket.closed"
     terminal_fields: dict[str, object] = {}
-
-    await websocket.accept()
-    realtime_connection_opened(channel="practice_websocket")
-    logger.bind(
-        event="practice.websocket.accepted",
-        operation_kind="practice",
-        session_id=session_id,
-    ).info("practice websocket accepted")
+    accepted = False
 
     try:
         current_user = await get_websocket_current_user(websocket, db)
         user_id = require_persisted_id(current_user.id, entity="user")
         await practice_service.require_session_access(db, session_id, user_id)
 
+        await websocket.accept()
+        accepted = True
+        realtime_connection_opened(channel="practice_websocket")
+        logger.bind(
+            event="practice.websocket.accepted",
+            operation_kind="practice",
+            session_id=session_id,
+            user_id=user_id,
+        ).info("practice websocket accepted")
+        await websocket.send_json(session_connecting_message(session_id))
         runtime = await practice_service.prepare_stream_runtime(db, session_id, user_id)
         runtime.websocket = websocket
         logger.bind(
@@ -168,8 +172,17 @@ async def stream_practice_session(
 
             text = message.get("text")
             if text is not None:
-                control = parse_control_message(text)
-                message_type = control["type"]
+                try:
+                    control = parse_control_message(text)
+                except ValueError:
+                    await websocket.send_json(
+                        session_error_message(
+                            public_code=ErrorCode.PRACTICE_STREAM_CLOSED,
+                        )
+                    )
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    break
+                message_type = control.type
 
                 if message_type == "client.init":
                     detail = await practice_service.start_session_stream(db, session_id, user_id)
@@ -251,6 +264,10 @@ async def stream_practice_session(
     except AppException as exc:
         terminal_event = "practice.websocket.failed"
         terminal_fields = {"public_code": exc.code, "exception_type": type(exc).__name__}
+        if not accepted:
+            await websocket.accept()
+            accepted = True
+            realtime_connection_opened(channel="practice_websocket")
         await websocket.send_json(
             session_error_message(
                 public_code=exc.code,
@@ -265,6 +282,10 @@ async def stream_practice_session(
             "public_code": ErrorCode.PRACTICE_STREAM_CLOSED,
             "exception_type": type(exc).__name__,
         }
+        if not accepted:
+            await websocket.accept()
+            accepted = True
+            realtime_connection_opened(channel="practice_websocket")
         await websocket.send_json(
             session_error_message(public_code=ErrorCode.PRACTICE_STREAM_CLOSED)
         )
@@ -273,7 +294,8 @@ async def stream_practice_session(
         cleanup_runtime = practice_service.runtime_registry.get(session_id)
         if cleanup_runtime is not None and cleanup_runtime.websocket is websocket:
             cleanup_runtime.websocket = None
-        realtime_connection_closed(channel="practice_websocket")
+        if accepted:
+            realtime_connection_closed(channel="practice_websocket")
         logger.bind(
             event=terminal_event,
             operation_kind="practice",

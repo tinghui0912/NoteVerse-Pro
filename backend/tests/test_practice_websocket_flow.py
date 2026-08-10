@@ -113,9 +113,22 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
     try:
         with patch("app.modules.practice.router.get_websocket_current_user", fake_current_user):
             with client.websocket_connect("/api/v1/practice/sessions/session-1/stream") as websocket:
-                websocket.send_json({"type": "client.init", "payload": {"sample_rate": 16000}})
+                websocket.send_json(
+                    {
+                        "protocol_version": 1,
+                        "type": "client.init",
+                        "payload": {"sample_rate": 16000, "channels": 1, "frame_samples": 640},
+                    }
+                )
+                connecting = websocket.receive_json()
+                assert connecting == {
+                    "protocol_version": 1,
+                    "type": "session.connecting",
+                    "payload": {"session_id": "session-1"},
+                }
                 ready = websocket.receive_json()
                 assert ready == {
+                    "protocol_version": 1,
                     "type": "session.ready",
                     "payload": {
                         "session_id": "session-1",
@@ -126,13 +139,16 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
 
                 websocket.send_bytes(b"\x01\x02\x03\x04")
 
-                websocket.send_json({"type": "client.pause"})
+                websocket.send_json(
+                    {"protocol_version": 1, "type": "client.pause", "payload": {"t": 1}}
+                )
                 update = websocket.receive_json()
                 assert update["type"] == "alignment.update"
                 assert update["payload"]["beat_position"] == 0.0
                 assert update["payload"]["confidence"] == 0.95
                 paused = websocket.receive_json()
                 assert paused == {
+                    "protocol_version": 1,
                     "type": "session.state_changed",
                     "payload": {"state": "PAUSED"},
                 }
@@ -141,9 +157,12 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
 
                 websocket.send_bytes(b"\x05\x06\x07\x08")
 
-                websocket.send_json({"type": "client.resume"})
+                websocket.send_json(
+                    {"protocol_version": 1, "type": "client.resume", "payload": {"t": 2}}
+                )
                 resumed = websocket.receive_json()
                 assert resumed == {
+                    "protocol_version": 1,
                     "type": "session.state_changed",
                     "payload": {"state": "STREAMING"},
                 }
@@ -155,9 +174,12 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                 assert resumed_update["type"] == "alignment.update"
                 assert len(runtime.audio_buffer) == 2
 
-                websocket.send_json({"type": "client.finish"})
+                websocket.send_json(
+                    {"protocol_version": 1, "type": "client.finish", "payload": {"t": 3}}
+                )
                 finished = websocket.receive_json()
                 assert finished == {
+                    "protocol_version": 1,
                     "type": "session.finished",
                     "payload": {"state": "FINISHED"},
                 }
@@ -189,12 +211,21 @@ def test_practice_websocket_flow_returns_stable_alignment_error(
     try:
         with patch("app.modules.practice.router.get_websocket_current_user", fake_current_user):
             with client.websocket_connect("/api/v1/practice/sessions/session-1/stream") as websocket:
-                websocket.send_json({"type": "client.init"})
+                websocket.send_json(
+                    {
+                        "protocol_version": 1,
+                        "type": "client.init",
+                        "payload": {"sample_rate": 16000, "channels": 1, "frame_samples": 640},
+                    }
+                )
+                connecting = websocket.receive_json()
+                assert connecting["type"] == "session.connecting"
                 websocket.receive_json()
 
                 websocket.send_bytes(b"\x01\x02")
                 error_message = websocket.receive_json()
                 assert error_message == {
+                    "protocol_version": 1,
                     "type": "session.error",
                     "payload": {
                         "public_code": "practice_alignment_failed",

@@ -31,13 +31,14 @@ Pinned commit:
 179c228d3d5f67113cf739b44891b3abe046f1dc
 ```
 
-Configured through:
+Defined by the version-controlled Worker execution manifest:
 
-```dotenv
-LEGATO_REPO_URL=https://github.com/guang-yng/legato.git
-LEGATO_REPO_PATH=/opt/noteverse/legato
-LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc
+```text
+backend/app/processing/engines/omr/legato_manifest.py
 ```
+
+`LEGATO_REPO_PATH` remains a deployment path setting; repository URL and commit
+are immutable build/runtime identity, not environment configuration.
 
 ### Why It Is Not Installed Like `pymatchmaker`
 
@@ -80,7 +81,7 @@ The backend worker image clones the pinned source into:
 ```
 
 Production Kubernetes should not mount a Legato source-code PVC. The application
-verifies the configured `LEGATO_REPO_COMMIT` at runtime. API and beat images do
+verifies the manifest's `LEGATO_REPO_COMMIT` at runtime. API and beat images do
 not contain LEGATO because they do not run OCR/OMR inference.
 
 ### Updating LEGATO
@@ -98,11 +99,8 @@ git rev-parse HEAD
 
 Then update:
 
-- `LEGATO_REPO_URL` if the upstream repository changes
-- `LEGATO_REPO_COMMIT` in `backend/.env.docker.example`
-- default `LEGATO_REPO_COMMIT` in `backend/app/core/config.py`
+- LEGATO repository URL and commit in `legato_manifest.py`
 - this document
-- worker image build arguments in deployment or CI when they override defaults
 
 Run:
 

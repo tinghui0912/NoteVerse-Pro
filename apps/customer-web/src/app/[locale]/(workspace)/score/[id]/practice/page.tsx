@@ -7,6 +7,7 @@ import {
   useScoreDetail,
 } from '@/hooks/queries/use-score-queries';
 import {
+  PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
   type PracticeAlignmentUpdateMessage,
   type PracticeServerMessage,
 } from '@/lib/practice/protocol';
@@ -197,12 +198,17 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   }, [connectionStatus, practiceStatus, socket]);
 
   const sendPracticeControl = (type: 'client.pause' | 'client.resume' | 'client.finish') => {
-    return socket.sendJson({ type, payload: { t: Date.now() } });
+    return socket.sendJson({
+      protocol_version: PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
+      type,
+      payload: { t: Date.now() },
+    });
   };
 
   const sendPracticeInit = (detail: PracticeSessionDetailRead) => {
     if (
       !socket.sendJson({
+        protocol_version: PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
         type: 'client.init',
         payload: {
           sample_rate: detail.sample_rate,

@@ -270,10 +270,11 @@ Store these as ConfigMaps:
 - task reliability settings:
   - import, render, playback, mail, realtime, notification, and cleanup interval,
     timeout, retry, batch, and retention settings;
-- engine settings:
-  - `OMR_ENGINE`;
-  - `SCORE_RENDER_ENGINE`;
-  - Legato, Verovio, playback, and practice tuning settings.
+- versioned algorithm profiles:
+  - LEGATO engine/model identity and Verovio SVG output options are sourced
+    from reviewed application modules, not Kubernetes environment variables;
+  - playback and practice tuning remain source-owned unless an explicitly
+    versioned, audited profile rollout is introduced.
 
 ### Mounted Volumes
 

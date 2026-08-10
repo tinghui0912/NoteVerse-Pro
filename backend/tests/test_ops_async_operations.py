@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta
 from typing import cast
 
@@ -48,13 +49,16 @@ from app.modules.async_operations.diagnostics import (
 from app.utils.timezone import utc_now_naive
 
 
-settings.CONTROL_PLANE_AUTH_COOKIE_NAME = "noteverse_control_auth"
-settings.CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_control_csrf"
-settings.CONTROL_PLANE_CSRF_HEADER_NAME = "x-control-csrf-token"
-settings.CONTROL_PLANE_COOKIE_SECURE = False
-settings.CONTROL_PLANE_COOKIE_SAMESITE = "lax"
-settings.CONTROL_PLANE_SESSION_EXPIRE_MINUTES = 30
-settings.CONTROL_PLANE_CORS_ORIGINS = ["http://testserver"]
+CONTROL_PLANE_AUTH_COOKIE_NAME = "noteverse_control_auth"
+CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_control_csrf"
+CONTROL_PLANE_CSRF_HEADER_NAME = "x-control-csrf-token"
+os.environ.setdefault("CONTROL_PLANE_AUTH_COOKIE_NAME", CONTROL_PLANE_AUTH_COOKIE_NAME)
+os.environ.setdefault("CONTROL_PLANE_CSRF_COOKIE_NAME", CONTROL_PLANE_CSRF_COOKIE_NAME)
+os.environ.setdefault("CONTROL_PLANE_CSRF_HEADER_NAME", CONTROL_PLANE_CSRF_HEADER_NAME)
+os.environ.setdefault("CONTROL_PLANE_COOKIE_SECURE", "false")
+os.environ.setdefault("CONTROL_PLANE_COOKIE_SAMESITE", "lax")
+os.environ.setdefault("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
+os.environ.setdefault("CONTROL_PLANE_CORS_ORIGINS", '["http://testserver"]')
 
 from app.control_plane_main import create_app  # noqa: E402
 from app.core.control_plane_settings import require_control_plane_settings  # noqa: E402
@@ -144,7 +148,9 @@ def _override_ops_dependencies(session: Session, *, authorized: bool) -> None:
 
 
 @pytest.mark.asyncio
-async def test_local_operator_identity_creates_and_resolves_opaque_session(ops_session: Session) -> None:
+async def test_local_operator_identity_creates_and_resolves_opaque_session(
+    ops_session: Session,
+) -> None:
     service = OperatorAuthenticationService()
     db = AsyncSessionAdapter(ops_session)
     operator = await service.create_local_operator(
@@ -161,7 +167,9 @@ async def test_local_operator_identity_creates_and_resolves_opaque_session(ops_s
         ip_address="198.51.100.10",
         security_settings=require_control_plane_settings(),
     )
-    resolved_operator, resolved_identity, resolved_session = await service.resolve_session(db, token=token)
+    resolved_operator, resolved_identity, resolved_session = await service.resolve_session(
+        db, token=token
+    )
 
     assert authenticated_operator.id == operator.id
     assert resolved_operator.id == operator.id
@@ -174,8 +182,14 @@ def test_operator_enums_bind_the_postgresql_values_declared_by_the_migration() -
     provider_type = OperatorIdentity.__table__.c.provider.type
     role_type = Operator.__table__.c.role.type
 
-    assert provider_type.bind_processor(postgresql.dialect())(OperatorIdentityProvider.LOCAL_PASSWORD) == "local_password"
-    assert role_type.bind_processor(postgresql.dialect())(OperatorRole.PLATFORM_OPERATOR) == "platform_operator"
+    assert (
+        provider_type.bind_processor(postgresql.dialect())(OperatorIdentityProvider.LOCAL_PASSWORD)
+        == "local_password"
+    )
+    assert (
+        role_type.bind_processor(postgresql.dialect())(OperatorRole.PLATFORM_OPERATOR)
+        == "platform_operator"
+    )
 
 
 @pytest.mark.asyncio
@@ -203,7 +217,7 @@ async def test_control_plane_login_uses_an_independent_operator_session_cookie(
         )
 
         assert response.status_code == 200
-        assert settings.CONTROL_PLANE_AUTH_COOKIE_NAME in response.headers["set-cookie"]
+        assert CONTROL_PLANE_AUTH_COOKIE_NAME in response.headers["set-cookie"]
         assert settings.AUTH_COOKIE_NAME not in response.headers["set-cookie"]
 
         me_response = client.get("/api/v1/auth/me")
@@ -242,11 +256,11 @@ async def test_control_plane_logout_requires_its_own_csrf_header(
         assert missing_csrf.status_code == 403
         assert missing_csrf.json()["public_code"] == "csrf_token_invalid"
 
-        csrf_token = client.cookies.get(settings.CONTROL_PLANE_CSRF_COOKIE_NAME)
+        csrf_token = client.cookies.get(CONTROL_PLANE_CSRF_COOKIE_NAME)
         assert csrf_token
         logout = client.post(
             "/api/v1/auth/logout",
-            headers={settings.CONTROL_PLANE_CSRF_HEADER_NAME: csrf_token},
+            headers={CONTROL_PLANE_CSRF_HEADER_NAME: csrf_token},
         )
         assert logout.status_code == 200
         assert client.get("/api/v1/auth/me").status_code == 401
@@ -369,26 +383,28 @@ def test_ops_filters_match_status_error_class_resource_and_time_window() -> None
 @pytest.mark.asyncio
 async def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None:
     now = utc_now_naive()
-    ops_session.add_all([
-        MailOutbox(
-            category="auth",
-            dedupe_key="mail:summary:failed",
-            recipient="user@example.com",
-            subject="Subject",
-            status=MailOutboxStatus.FAILED,
-            attempt_count=1,
-            next_attempt_at=now + timedelta(minutes=5),
-            last_error="smtp temporarily unavailable",
-            internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
-        ),
-        MailOutbox(
-            category="auth",
-            dedupe_key="mail:summary:sent",
-            recipient="user2@example.com",
-            subject="Subject",
-            status=MailOutboxStatus.SENT,
-        ),
-    ])
+    ops_session.add_all(
+        [
+            MailOutbox(
+                category="auth",
+                dedupe_key="mail:summary:failed",
+                recipient="user@example.com",
+                subject="Subject",
+                status=MailOutboxStatus.FAILED,
+                attempt_count=1,
+                next_attempt_at=now + timedelta(minutes=5),
+                last_error="smtp temporarily unavailable",
+                internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
+            ),
+            MailOutbox(
+                category="auth",
+                dedupe_key="mail:summary:sent",
+                recipient="user2@example.com",
+                subject="Subject",
+                status=MailOutboxStatus.SENT,
+            ),
+        ]
+    )
     ops_session.commit()
 
     service = OpsAsyncOperationService()
@@ -501,9 +517,9 @@ def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> Non
     assert paths["/api/v1/ops/audit-events"]["get"]["responses"]["200"]["content"][
         "application/json"
     ]["schema"] == {"$ref": "#/components/schemas/APIResponse_OffsetPage_OpsAuditEventRead__"}
-    assert paths["/api/v1/ops/async-operations/{kind}/{operation_id}/retry"]["post"][
-        "responses"
-    ]["200"]["content"]["application/json"]["schema"] == {
+    assert paths["/api/v1/ops/async-operations/{kind}/{operation_id}/retry"]["post"]["responses"][
+        "200"
+    ]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/APIResponse_AsyncOperationRead_"
     }
 
@@ -558,45 +574,47 @@ def test_ops_api_async_operations_supports_offset_pagination(
     ops_session: Session,
 ) -> None:
     now = utc_now_naive()
-    ops_session.add_all([
-        MailOutbox(
-            category="auth",
-            dedupe_key="mail:pagination:oldest",
-            recipient="oldest@example.com",
-            subject="Subject",
-            status=MailOutboxStatus.FAILED,
-            attempt_count=1,
-            next_attempt_at=now + timedelta(minutes=10),
-            last_error="oldest error",
-            updated_at=now - timedelta(minutes=3),
-        ),
-        MailOutbox(
-            category="auth",
-            dedupe_key="mail:pagination:middle",
-            recipient="middle@example.com",
-            subject="Subject",
-            status=MailOutboxStatus.FAILED,
-            attempt_count=1,
-            next_attempt_at=now + timedelta(minutes=10),
-            last_error="middle error",
-            internal_error_code="mail_unknown_failure",
-            internal_error_stage="delivery",
-            internal_error_class=AsyncOperationErrorClass.UNKNOWN.value,
-            internal_error_retryable=True,
-            updated_at=now - timedelta(minutes=2),
-        ),
-        MailOutbox(
-            category="auth",
-            dedupe_key="mail:pagination:newest",
-            recipient="newest@example.com",
-            subject="Subject",
-            status=MailOutboxStatus.FAILED,
-            attempt_count=1,
-            next_attempt_at=now + timedelta(minutes=10),
-            last_error="newest error",
-            updated_at=now - timedelta(minutes=1),
-        ),
-    ])
+    ops_session.add_all(
+        [
+            MailOutbox(
+                category="auth",
+                dedupe_key="mail:pagination:oldest",
+                recipient="oldest@example.com",
+                subject="Subject",
+                status=MailOutboxStatus.FAILED,
+                attempt_count=1,
+                next_attempt_at=now + timedelta(minutes=10),
+                last_error="oldest error",
+                updated_at=now - timedelta(minutes=3),
+            ),
+            MailOutbox(
+                category="auth",
+                dedupe_key="mail:pagination:middle",
+                recipient="middle@example.com",
+                subject="Subject",
+                status=MailOutboxStatus.FAILED,
+                attempt_count=1,
+                next_attempt_at=now + timedelta(minutes=10),
+                last_error="middle error",
+                internal_error_code="mail_unknown_failure",
+                internal_error_stage="delivery",
+                internal_error_class=AsyncOperationErrorClass.UNKNOWN.value,
+                internal_error_retryable=True,
+                updated_at=now - timedelta(minutes=2),
+            ),
+            MailOutbox(
+                category="auth",
+                dedupe_key="mail:pagination:newest",
+                recipient="newest@example.com",
+                subject="Subject",
+                status=MailOutboxStatus.FAILED,
+                attempt_count=1,
+                next_attempt_at=now + timedelta(minutes=10),
+                last_error="newest error",
+                updated_at=now - timedelta(minutes=1),
+            ),
+        ]
+    )
     ops_session.commit()
 
     _override_ops_dependencies(ops_session, authorized=True)
@@ -727,32 +745,34 @@ def test_ops_api_audit_events_supports_offset_pagination(
     ops_session: Session,
 ) -> None:
     now = utc_now_naive()
-    ops_session.add_all([
-        OpsAuditEvent(
-            actor_operator_id=1,
-            action="retry_async_operation",
-            operation_kind="mail",
-            operation_id="audit-oldest",
-            outcome="succeeded",
-            created_at=now - timedelta(minutes=3),
-        ),
-        OpsAuditEvent(
-            actor_operator_id=1,
-            action="retry_async_operation",
-            operation_kind="mail",
-            operation_id="audit-middle",
-            outcome="succeeded",
-            created_at=now - timedelta(minutes=2),
-        ),
-        OpsAuditEvent(
-            actor_operator_id=1,
-            action="retry_async_operation",
-            operation_kind="mail",
-            operation_id="audit-newest",
-            outcome="succeeded",
-            created_at=now - timedelta(minutes=1),
-        ),
-    ])
+    ops_session.add_all(
+        [
+            OpsAuditEvent(
+                actor_operator_id=1,
+                action="retry_async_operation",
+                operation_kind="mail",
+                operation_id="audit-oldest",
+                outcome="succeeded",
+                created_at=now - timedelta(minutes=3),
+            ),
+            OpsAuditEvent(
+                actor_operator_id=1,
+                action="retry_async_operation",
+                operation_kind="mail",
+                operation_id="audit-middle",
+                outcome="succeeded",
+                created_at=now - timedelta(minutes=2),
+            ),
+            OpsAuditEvent(
+                actor_operator_id=1,
+                action="retry_async_operation",
+                operation_kind="mail",
+                operation_id="audit-newest",
+                outcome="succeeded",
+                created_at=now - timedelta(minutes=1),
+            ),
+        ]
+    )
     ops_session.commit()
 
     _override_ops_dependencies(ops_session, authorized=True)

@@ -5,7 +5,7 @@ import re
 from typing import Iterable, List, Literal, Optional, TypedDict
 
 from app.core.logger import logger
-from app.processing.engines.paddle import run_ocr_subprocess
+from app.processing.engines.ocr import run_ocr_subprocess
 
 from .config import ClassificationConfig, OCR_CORRECTIONS, OcrConfig
 
@@ -388,7 +388,7 @@ class TextRecognitionEngine:
             if not value.startswith(normalized):
                 continue
 
-            suffix = value[len(normalized):]
+            suffix = value[len(normalized) :]
             if not suffix:
                 return True
             if suffix[0] in separators:

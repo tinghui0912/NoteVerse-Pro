@@ -91,20 +91,25 @@ def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
     assert "/internal/storage/path" not in str(payload)
 
 
-def test_control_plane_errors_do_not_expose_internal_details_before_authorization() -> None:
-    settings.CONTROL_PLANE_AUTH_COOKIE_NAME = "noteverse_control_auth"
-    settings.CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_control_csrf"
-    settings.CONTROL_PLANE_CSRF_HEADER_NAME = "x-control-csrf-token"
-    settings.CONTROL_PLANE_COOKIE_SECURE = False
-    settings.CONTROL_PLANE_COOKIE_SAMESITE = "lax"
-    settings.CONTROL_PLANE_SESSION_EXPIRE_MINUTES = 30
-    settings.CONTROL_PLANE_CORS_ORIGINS = ["http://testserver"]
+def test_control_plane_errors_do_not_expose_internal_details_before_authorization(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("CONTROL_PLANE_AUTH_COOKIE_NAME", "noteverse_control_auth")
+    monkeypatch.setenv("CONTROL_PLANE_CSRF_COOKIE_NAME", "noteverse_control_csrf")
+    monkeypatch.setenv("CONTROL_PLANE_CSRF_HEADER_NAME", "x-control-csrf-token")
+    monkeypatch.setenv("CONTROL_PLANE_COOKIE_SECURE", "false")
+    monkeypatch.setenv("CONTROL_PLANE_COOKIE_SAMESITE", "lax")
+    monkeypatch.setenv("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
+    monkeypatch.setenv("CONTROL_PLANE_CORS_ORIGINS", '["http://testserver"]')
 
     from app.control_plane_main import create_app
+    from app.core.control_plane_settings import get_control_plane_runtime_settings
+
+    get_control_plane_runtime_settings.cache_clear()
 
     with TestClient(create_app()) as control_client:
-        control_client.cookies.set(settings.CONTROL_PLANE_AUTH_COOKIE_NAME, "invalid-token")
-        control_client.cookies.set(settings.CONTROL_PLANE_CSRF_COOKIE_NAME, "csrf-token")
+        control_client.cookies.set("noteverse_control_auth", "invalid-token")
+        control_client.cookies.set("noteverse_control_csrf", "csrf-token")
         response = control_client.post(
             "/api/v1/ops/async-operations/retry",
             json={"operation_kind": "render", "operation_id": "op-1"},

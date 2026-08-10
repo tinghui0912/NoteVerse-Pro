@@ -331,8 +331,6 @@ Inputs:
 - `INSTALL_PADDLE_GPU`;
 - `INSTALL_LEGATO_EXTRA_DEPS`;
 - `PADDLE_CUDA_INDEX`;
-- `LEGATO_REPO_URL`;
-- `LEGATO_REPO_COMMIT`.
 
 Production build rules:
 
@@ -342,7 +340,8 @@ Production build rules:
   explicitly needed;
 - LEGATO source must be pinned by commit and fetched during the image build, or
   supplied as a tracked submodule/vendor directory. Do not rely on an untracked
-  local `external/legato` directory.
+  local `external/legato` directory. The Dockerfile reads its repository URL
+  and commit from the version-controlled LEGATO execution manifest.
 
 Recommended worker dependency image build:
 
@@ -352,8 +351,6 @@ docker build \
   --build-arg PYTHON_IMAGE=<registry>/noteverse/ml-base:py312-torch260-cu124-slim \
   --build-arg INSTALL_PADDLE_GPU=false \
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false \
-  --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git \
-  --build-arg LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc \
   -t <registry>/noteverse/backend-worker-deps:deps-<dependency-hash> \
   .
 ```

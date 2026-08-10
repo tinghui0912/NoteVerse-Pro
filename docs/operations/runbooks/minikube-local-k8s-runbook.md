@@ -225,8 +225,6 @@ docker build `
   --build-arg PYTHON_IMAGE=$mlBaseImage `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
-  --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git `
-  --build-arg LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc `
   -t noteverse-backend-worker-deps:$imageTag `
   .
 
@@ -697,20 +695,19 @@ worker smoke tests against a partial cache.
 
 The model-cache agent prepares assets from these sources:
 
-- Hugging Face snapshots are controlled by `HF_MODEL_REPOSITORIES` and are
-  downloaded with `huggingface_hub.snapshot_download` into
-  `/opt/noteverse/models/huggingface/hub`. The current staging and production
-  overlays include `guangyangmusic/legato` and
-  `meta-llama/Llama-3.2-11B-Vision`.
+- Hugging Face snapshots are controlled by the source-owned LEGATO execution
+  manifest and are downloaded with `huggingface_hub.snapshot_download` into
+  `/opt/noteverse/models/huggingface/hub`. It currently requires
+  `guangyangmusic/legato` and `meta-llama/Llama-3.2-11B-Vision`.
 - `FluidR3_GM.sf2` is copied from the backend runtime image system soundfont
   directory into `/opt/noteverse/models/soundfonts/FluidR3_GM.sf2`.
 - PaddleOCR inference models are downloaded explicitly from Paddle's official
   model package endpoint, extracted, and validated under
   `/opt/noteverse/models/paddleocr/official_models`.
 
-Removing a repository from `HF_MODEL_REPOSITORIES` stops future validation and
-downloads for that repository, but it does not delete previously cached files.
-Clean stale node-local model cache explicitly after changing the model set:
+Changing the LEGATO execution manifest updates the required repository set but
+does not delete previously cached files. Clean stale node-local model cache
+explicitly after changing the model set:
 
 ```powershell
 minikube ssh -- "sudo rm -rf /var/lib/noteverse/models/huggingface/hub/models--meta-llama--Llama-3.2-11B-Vision"

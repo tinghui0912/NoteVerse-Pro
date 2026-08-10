@@ -93,3 +93,51 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
   expect(jobBody.data.title).toBe('Integration score');
   expect(jobBody.data.taxonomy_tags).toEqual([{ category: 'genre', code: 'soundtrack' }]);
 });
+
+test('Next proxy completes the authenticated Practice WebSocket handshake', async ({ page }) => {
+  const csrfToken = await login(page);
+  const sessionResponse = await page.request.post('/api/v1/practice/sessions', {
+    headers: {
+      'x-csrf-token': csrfToken,
+      origin: new URL(page.url()).origin,
+    },
+    data: {
+      score_id: 'integration-practice-score',
+      revision_id: 'integration-practice-revision',
+      sample_rate: 16000,
+      channels: 1,
+      frame_format: 'pcm_s16le',
+    },
+  });
+  expect(sessionResponse.status()).toBe(200);
+  const session = await sessionResponse.json();
+  expect(session.data.state).toBe('CREATED');
+
+  const messages = await page.evaluate(async (wsPath) => {
+    const socketUrl = new URL(wsPath, window.location.origin);
+    socketUrl.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return new Promise<string[]>((resolve, reject) => {
+      const received: string[] = [];
+      const socket = new WebSocket(socketUrl);
+      const timeout = window.setTimeout(() => {
+        socket.close();
+        reject(new Error('practice_websocket_timeout'));
+      }, 30_000);
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data) as { protocol_version: number; type: string };
+        received.push(message.type);
+        if (message.type === 'session.connecting') {
+          window.clearTimeout(timeout);
+          socket.close();
+          resolve(received);
+        }
+      };
+      socket.onerror = () => {
+        window.clearTimeout(timeout);
+        reject(new Error('practice_websocket_error'));
+      };
+    });
+  }, session.data.ws_url);
+
+  expect(messages).toEqual(['session.connecting']);
+});

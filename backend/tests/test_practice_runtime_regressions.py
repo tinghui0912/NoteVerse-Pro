@@ -10,7 +10,7 @@ import pytest
 
 from app.core.config import get_practice_runtime_settings
 
-from app.processing.engines.matchmaker_live import (
+from app.processing.engines.practice_alignment.matchmaker_live import (
     BrowserAudioStreamAdapter,
     MatchmakerLiveEngine,
     build_alignment_engine,
@@ -1346,6 +1346,7 @@ def test_browser_audio_stream_adapter_reports_warmup_environment_quality() -> No
 
 def test_session_armed_message_carries_environment_quality() -> None:
     assert session_armed_message("session-1", "noisy") == {
+        "protocol_version": 1,
         "type": "session.armed",
         "payload": {
             "session_id": "session-1",

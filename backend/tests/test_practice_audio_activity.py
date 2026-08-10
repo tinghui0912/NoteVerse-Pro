@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.processing.engines.practice_audio_activity import (
+from app.processing.engines.practice_alignment.audio_activity import (
     AudioGateConfig,
     AudioFrameFeatures,
     FrameClassifier,

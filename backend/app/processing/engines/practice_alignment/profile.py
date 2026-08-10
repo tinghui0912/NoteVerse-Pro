@@ -1,4 +1,4 @@
-"""Versioned tuning profile for realtime practice audio processing.
+"""Versioned tuning profile for realtime practice alignment.
 
 These values are coupled to the 30 fps Chroma/OLTW pipeline. They deliberately
 live with the implementation rather than in deployment environment variables so

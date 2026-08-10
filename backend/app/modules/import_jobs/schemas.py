@@ -55,6 +55,7 @@ class ImportJobRead(BaseModel):
     finished_at: str | None = None
     public_code: str | None = None
     public_message: str | None = None
+    execution_manifest_sha256: str | None = None
     original_images: list[ImportArtifactRead] = []
 
 
@@ -116,6 +117,7 @@ class ImportJobDetail(TypedDict, total=False):
     finished_at: Optional[str]
     public_code: Optional[str]
     public_message: Optional[str]
+    execution_manifest_sha256: Optional[str]
     original_images: List[ImportJobOriginalImageItem]
 
 

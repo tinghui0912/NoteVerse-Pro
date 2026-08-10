@@ -59,14 +59,15 @@ RUN python -m pip install --upgrade pip setuptools wheel \
     fi \
     && rm -rf /root/.cache/pip /tmp/requirements
 
-ARG LEGATO_REPO_URL=https://github.com/guang-yng/legato.git
-ARG LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc
+COPY backend/app/processing/engines/omr/legato_manifest.py /tmp/legato_manifest.py
 RUN mkdir -p /opt/noteverse/models /opt/noteverse/legato \
+    && LEGATO_REPO_URL="$(python -c 'import runpy; print(runpy.run_path("/tmp/legato_manifest.py")["LEGATO_REPOSITORY_URL"])')" \
+    && LEGATO_REPO_COMMIT="$(python -c 'import runpy; print(runpy.run_path("/tmp/legato_manifest.py")["LEGATO_REPO_COMMIT"])')" \
     && git clone --filter=blob:none "${LEGATO_REPO_URL}" /opt/noteverse/legato \
     && cd /opt/noteverse/legato \
     && git fetch --depth 1 origin "${LEGATO_REPO_COMMIT}" \
     && git checkout --detach "${LEGATO_REPO_COMMIT}" \
     && find /opt/noteverse/legato -name '__pycache__' -type d -prune -exec rm -rf {} + \
-    && rm -rf /opt/noteverse/legato/.git /root/.cache
+    && rm -rf /opt/noteverse/legato/.git /root/.cache /tmp/legato_manifest.py
 
 CMD ["bash"]

@@ -1,11 +1,22 @@
-"""Soundfont helpers for score-audio synthesis runtimes."""
+"""SoundFont runtime-resource preparation and identity helpers."""
 
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import os
 import shutil
 from pathlib import Path
+
+
+def soundfont_sha256(path: Path) -> str:
+    """Return the content digest of a SoundFont selected by a runtime profile."""
+
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def ensure_partitura_default_soundfont(soundfont_path: str | None) -> Path | None:

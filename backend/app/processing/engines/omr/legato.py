@@ -17,6 +17,7 @@ from app.processing.musicxml import normalize_initial_musicxml_clefs
 from app.shared.constants import ErrorCode
 
 from .base import OmrFailureResult, OmrOutputFiles, OmrResult, OmrSuccessResult
+from .legato_manifest import LEGATO_MODEL_REPOSITORY, LEGATO_PROCESSOR_REPOSITORY
 
 
 class LegatoConversionError(RuntimeError):
@@ -49,12 +50,8 @@ class LegatoOmrEngine:
         )
         self.repo_path = Path(repo_path or settings.LEGATO_REPO_PATH or "")
         self.python_executable = python_executable or settings.LEGATO_PYTHON
-        self.model_path = model_path or settings.LEGATO_MODEL_PATH
-        self.processor_path = (
-            processor_path
-            or settings.LEGATO_PROCESSOR_PATH
-            or self.model_path
-        )
+        self.model_path = model_path or LEGATO_MODEL_REPOSITORY
+        self.processor_path = processor_path or LEGATO_PROCESSOR_REPOSITORY or self.model_path
         self.device = device or settings.LEGATO_DEVICE
         self.fp16 = settings.LEGATO_FP16 if fp16 is None else fp16
         self.beam_size = beam_size or settings.LEGATO_BEAM_SIZE
@@ -350,8 +347,7 @@ class LegatoOmrEngine:
             raise ValueError(f"No MusicXML parts found in {page_xml_paths[0]}")
 
         next_measure_number = {
-            part_id: len(base_parts[part_id].findall("measure")) + 1
-            for part_id in base_part_ids
+            part_id: len(base_parts[part_id].findall("measure")) + 1 for part_id in base_part_ids
         }
 
         for page_index, page_xml_path in enumerate(page_xml_paths[1:], 2):

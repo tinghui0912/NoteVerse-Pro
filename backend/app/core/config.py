@@ -2,9 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
-
-from pydantic import AnyHttpUrl, field_validator, model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
@@ -26,6 +24,7 @@ from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
 from app.core.settings.realtime_retention import RealtimeRetentionSettings
 from app.core.settings.realtime_stream import RealtimeStreamSettings
 from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSettings
+from app.core.settings.service_identity import ServiceIdentitySettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
 from app.core.settings.token_signing import TokenSigningSettings
@@ -39,62 +38,35 @@ from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-class Settings(AccountEmailLinkSettings, AsyncDatabaseSettings, BeatSchedulerSettings, BrowserCorsSettings, CustomerSessionSecuritySettings, FingeringExecutionSettings, ImportDispatchSettings, MailDeliverySettings, NotificationLifecycleSettings, ObservabilitySettings, PlaybackDeliverySettings, PlaybackSettings, PublicFrontendUrlSettings, QueueSettings, RealtimeRetentionSettings, RealtimeStreamSettings, RenderAssetDeliverySettings, ScoreDeletionLifecycleSettings, StorageSettings, TaskReliabilitySettings, TokenSigningSettings, TransactionalMailProviderSettings, TrustedProxySettings, UploadAdmissionSettings, WorkerDatabaseSettings, BaseSettings):
-    PROJECT_NAME: str = "NoteVerse Pro"
-    API_V1_STR: str = "/api/v1"
-    CONTROL_PLANE_AUTH_COOKIE_NAME: Optional[str] = None
-    CONTROL_PLANE_CSRF_COOKIE_NAME: Optional[str] = None
-    CONTROL_PLANE_CSRF_HEADER_NAME: Optional[str] = None
-    CONTROL_PLANE_COOKIE_SECURE: Optional[bool] = None
-    CONTROL_PLANE_COOKIE_SAMESITE: Optional[str] = None
-    CONTROL_PLANE_SESSION_EXPIRE_MINUTES: Optional[int] = None
-    CONTROL_PLANE_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = None
-    DEBUG: bool = False
-    # CORS
-
-    @field_validator("CONTROL_PLANE_CORS_ORIGINS", mode="before")
-    @classmethod
-    def assemble_control_plane_cors_origins(cls, value: str | List[str] | None) -> List[str] | None:
-        if value is None or value == "":
-            return None
-        if isinstance(value, list):
-            return value
-        raise ValueError("CONTROL_PLANE_CORS_ORIGINS must be a JSON array")
-
-    @field_validator("DEBUG", mode="before")
-    @classmethod
-    def parse_debug_flag(cls, v):
-        """Allow environment-style debug labels in addition to booleans."""
-
-        if isinstance(v, bool):
-            return v
-        if isinstance(v, str):
-            value = v.strip().lower()
-            if value in {"1", "true", "yes", "on", "debug", "development", "dev"}:
-                return True
-            if value in {"0", "false", "no", "off", "release", "production", "prod"}:
-                return False
-        return v
-
-    @field_validator(
-        "SCHEDULER_LOCK_CONNECT_TIMEOUT_SECONDS",
-        "SCHEDULER_LOCK_KEEPALIVES_IDLE_SECONDS",
-        "SCHEDULER_LOCK_KEEPALIVES_INTERVAL_SECONDS",
-        "SCHEDULER_LOCK_KEEPALIVES_COUNT",
-        "SCHEDULER_LOCK_STATEMENT_TIMEOUT_MILLISECONDS",
-        "SCHEDULER_LOCK_TCP_USER_TIMEOUT_MILLISECONDS",
-        "SCHEDULER_LEADER_RETRY_INTERVAL_SECONDS",
-        "SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS",
-    )
-    @classmethod
-    def validate_positive_reliability_setting(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError("task timing settings must be positive integers")
-        return v
-
-    # Database
-
-
+class Settings(
+    AccountEmailLinkSettings,
+    AsyncDatabaseSettings,
+    BeatSchedulerSettings,
+    BrowserCorsSettings,
+    CustomerSessionSecuritySettings,
+    FingeringExecutionSettings,
+    ImportDispatchSettings,
+    MailDeliverySettings,
+    NotificationLifecycleSettings,
+    ObservabilitySettings,
+    PlaybackDeliverySettings,
+    PlaybackSettings,
+    PublicFrontendUrlSettings,
+    QueueSettings,
+    RealtimeRetentionSettings,
+    RealtimeStreamSettings,
+    RenderAssetDeliverySettings,
+    ScoreDeletionLifecycleSettings,
+    ServiceIdentitySettings,
+    StorageSettings,
+    TaskReliabilitySettings,
+    TokenSigningSettings,
+    TransactionalMailProviderSettings,
+    TrustedProxySettings,
+    UploadAdmissionSettings,
+    WorkerDatabaseSettings,
+    BaseSettings,
+):
     model_config = SettingsConfigDict(
         case_sensitive=True,
         extra="ignore",

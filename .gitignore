@@ -34,6 +34,7 @@ logs/
 backend/.env.docker
 backend/.env.docker.worker
 backend/.env.docker.practice
+backend/.env.docker.control-plane
 
 # Temporary scratch files at repo root
 tmp/

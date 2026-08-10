@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from app.modules.playback.audio_synthesizer import FluidSynthAudioSynthesizer
-from app.modules.playback.midi_compiler import VerovioMidiCompiler
+from .fluidsynth import FluidSynthAudioSynthesizer
+from .verovio_midi import VerovioMidiCompiler
 
 
 @dataclass(frozen=True)
@@ -12,6 +12,7 @@ class RenderedAudio:
     duration_ms: int
     generator: str
     generator_version: str
+    soundfont_sha256: str
 
 
 class FluidSynthAudioRenderer:
@@ -39,4 +40,5 @@ class FluidSynthAudioRenderer:
             duration_ms=audio.duration_ms,
             generator=self.generator,
             generator_version=self.generator_version,
+            soundfont_sha256=audio.soundfont_sha256,
         )

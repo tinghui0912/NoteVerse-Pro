@@ -23,6 +23,8 @@ x-backend-integration: &backend-integration
     FILE_STORAGE_BACKEND: local
     STORAGE_ROOT: /tmp/noteverse-integration/storage
     WORK_ROOT: /tmp/noteverse-integration/work
+  volumes:
+    - integration_storage:/tmp/noteverse-integration
 
 services:
   postgres:
@@ -81,6 +83,48 @@ services:
       timeout: 3s
       retries: 20
 
+  practice:
+    image: noteverse-backend-practice:integration
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.practice
+    env_file:
+      - path: backend/.env.docker
+        required: true
+      - path: backend/.env.docker.practice
+        required: true
+    environment:
+      DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
+      SYNC_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
+      SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DEBUG: "false"
+      FRONTEND_BASE_URL: http://customer-web:3000
+      BACKEND_CORS_ORIGINS: '["http://localhost:3010"]'
+      AUTH_COOKIE_SECURE: "false"
+      AUTH_COOKIE_SAMESITE: lax
+      FILE_STORAGE_BACKEND: local
+      STORAGE_ROOT: /tmp/noteverse-integration/storage
+      WORK_ROOT: /tmp/noteverse-integration/work
+    volumes:
+      - integration_storage:/tmp/noteverse-integration
+      - ./models/soundfonts:/opt/noteverse/models/soundfonts:ro
+    command: practice
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   customer-web:
     image: noteverse-customer-web-integration:dev
     build:
@@ -103,7 +147,10 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      practice:
+        condition: service_healthy
 
 volumes:
   integration_postgres:
   integration_customer_web_node_modules:
+  integration_storage:

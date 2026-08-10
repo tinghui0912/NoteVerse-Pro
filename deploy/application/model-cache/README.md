@@ -68,12 +68,11 @@ policy. Do not let ordinary worker pods mutate the model cache.
 `noteverse-model-cache-agent` runs `backend/scripts/prepare_model_assets.py` in
 an init container. The script prepares the node cache as follows:
 
-- Hugging Face repositories come from `HF_MODEL_REPOSITORIES` and are downloaded
-  with `huggingface_hub.snapshot_download` into
-  `/opt/noteverse/models/huggingface/hub`. The active application overlays
-  include `guangyangmusic/legato` and
-  `meta-llama/Llama-3.2-11B-Vision`; Legato loads the Llama vision encoder at
-  runtime.
+- Hugging Face repositories come from the source-owned LEGATO execution manifest
+  and are downloaded with `huggingface_hub.snapshot_download` into
+  `/opt/noteverse/models/huggingface/hub`. It currently requires
+  `guangyangmusic/legato` and `meta-llama/Llama-3.2-11B-Vision`; Legato loads
+  the Llama vision encoder at runtime.
 - `FluidR3_GM.sf2` is copied from the backend runtime image system soundfont
   directory into `/opt/noteverse/models/soundfonts/FluidR3_GM.sf2`.
 - PaddleOCR inference model packages are downloaded explicitly from Paddle's
@@ -96,6 +95,6 @@ paths are:
 Workers mount the prepared model cache read-only and do not download PaddleOCR
 models at runtime.
 
-The agent validates the configured model set; it does not garbage collect old
-repositories removed from `HF_MODEL_REPOSITORIES`. Clean stale node-local cache
+The agent validates the manifest-defined model set; it does not garbage collect
+old repositories removed by a manifest update. Clean stale node-local cache
 manually after changing the model set.

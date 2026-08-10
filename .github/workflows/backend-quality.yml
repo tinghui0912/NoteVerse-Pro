@@ -164,6 +164,7 @@ jobs:
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py customer-api --check"
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py control-plane-api --check"
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py practice-api --check"
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc "python scripts/export_realtime_protocol.py --check"
 
       - name: Run database migrations
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m alembic upgrade head"
@@ -186,3 +187,17 @@ jobs:
           tests/test_practice_runtime_regressions.py
           tests/test_practice_websocket_flow.py
           -q"
+
+      - name: Enforce Practice session-service coverage
+        run: >-
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc
+          "python -m pytest
+          tests/test_practice_service_access.py
+          tests/test_practice_api_smoke.py
+          tests/test_practice_audio_replay_evaluation.py
+          tests/test_practice_runtime_regressions.py
+          tests/test_practice_websocket_flow.py
+          -q
+          --cov=app.modules.practice.service
+          --cov-report=term-missing
+          --cov-fail-under=80"

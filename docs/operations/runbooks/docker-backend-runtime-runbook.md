@@ -179,11 +179,11 @@ models--meta-llama--Llama-3.2-11B-Vision
   -> models\huggingface\hub\models--meta-llama--Llama-3.2-11B-Vision
 ```
 
-The required Hugging Face cache directories are determined by
-`HF_MODEL_REPOSITORIES`. The current production/staging configuration requires
-both `guangyangmusic/legato` and `meta-llama/Llama-3.2-11B-Vision` because
-Legato loads the Llama vision encoder at runtime. The Llama repository is gated;
-the Hugging Face account behind `HF_TOKEN` must accept its license.
+The required Hugging Face cache directories are determined by the source-owned
+LEGATO execution manifest. It currently requires both `guangyangmusic/legato`
+and `meta-llama/Llama-3.2-11B-Vision` because Legato loads the Llama vision
+encoder at runtime. The Llama repository is gated; the Hugging Face account
+behind `HF_TOKEN` must accept its license.
 
 For Hugging Face cache directories, preserve symlinks when copying. If a Windows
 copy tool breaks snapshots, copy the cache as a tar archive and extract it into
@@ -245,8 +245,6 @@ docker build `
   --build-arg PYTHON_IMAGE=noteverse-ml-base:py312-torch260-cu124-slim `
   --build-arg INSTALL_PADDLE_GPU=false `
   --build-arg INSTALL_LEGATO_EXTRA_DEPS=false `
-  --build-arg LEGATO_REPO_URL=https://github.com/guang-yng/legato.git `
-  --build-arg LEGATO_REPO_COMMIT=179c228d3d5f67113cf739b44891b3abe046f1dc `
   -t noteverse-backend-worker-deps:dev `
   .
 ```

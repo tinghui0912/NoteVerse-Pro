@@ -319,10 +319,11 @@ Runtime path:
 
 Rules:
 
-- contents must match `LEGATO_REPO_COMMIT`;
+- contents must match the source-owned `LegatoExecutionManifest` commit;
 - worker runtime checks should fail when repository metadata does not match;
-- update Legato by updating the pinned checkout and rebuilding the worker
-  runtime image, not by mutating a live volume.
+- update Legato by changing `backend/app/processing/engines/omr/legato_manifest.py`
+  and rebuilding the worker dependency/runtime images, not by mutating a live
+  volume.
 
 ### Beat Work State
 

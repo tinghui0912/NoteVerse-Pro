@@ -10,6 +10,10 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
+from app.db.execution_manifests import (
+    get_or_create_execution_manifest,
+    get_or_create_execution_manifest_async,
+)
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     PlaybackAssetKind,
@@ -22,7 +26,8 @@ from app.db.models import (
 )
 from app.db.models.score import RevisionSourceFormat
 from app.db.models.score_access import PublicationStatus
-from app.modules.playback.audio_renderer import FluidSynthAudioRenderer
+from app.modules.playback.execution_manifest import build_playback_execution_manifest
+from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.publications.repository import PublicationRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_assets.repository import ScoreAssetRepository
@@ -100,8 +105,7 @@ class PlaybackService:
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
         key = (
-            f"scores/{score_uuid}/revisions/{revision_uuid}/playback/"
-            f"{asset_uuid}{audio.extension}"
+            f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{audio.extension}"
         )
         stored = self.storage.put_bytes(
             key=key,
@@ -118,11 +122,13 @@ class PlaybackService:
         ).scalar_one_or_none()
         old_key = previous.storage_key if previous else None
         previous_usage = (
-            (previous.asset_uuid, previous.storage_key, previous.size_bytes)
-            if previous
-            else None
+            (previous.asset_uuid, previous.storage_key, previous.size_bytes) if previous else None
         )
         try:
+            manifest = await get_or_create_execution_manifest_async(
+                db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
+            )
+            execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             if previous is not None:
                 await db.delete(previous)
                 await db.flush()
@@ -136,6 +142,7 @@ class PlaybackService:
                 mime_type=audio.mime_type,
                 size_bytes=stored.size_bytes,
                 sha256=hashlib.sha256(audio.content).hexdigest(),
+                execution_manifest_id=execution_manifest_id,
                 duration_ms=audio.duration_ms,
                 source_fingerprint=source_fingerprint,
                 generator=audio.generator,
@@ -205,9 +212,7 @@ class PlaybackService:
         token: str,
         user_id: int | None,
     ) -> PlaybackDelivery:
-        grant = await self.sharing_repository.grant_by_token_hash(
-            db, hash_share_token(token)
-        )
+        grant = await self.sharing_repository.grant_by_token_hash(db, hash_share_token(token))
         if grant is None:
             raise ResourceNotFoundException("share_grant", code=ErrorCode.SHARE_NOT_FOUND)
         score = await db.get(Score, grant.score_id)
@@ -358,8 +363,7 @@ class PlaybackService:
         audio = self.renderer.render(source)
         asset_uuid = str(uuid.uuid4())
         key = (
-            f"scores/{score_uuid}/revisions/{revision_uuid}/playback/"
-            f"{asset_uuid}{audio.extension}"
+            f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{audio.extension}"
         )
         stored = self.storage.put_bytes(
             key=key,
@@ -382,11 +386,13 @@ class PlaybackService:
             )
         ).scalar_one()
         previous_usage = (
-            (previous.asset_uuid, previous.storage_key, previous.size_bytes)
-            if previous
-            else None
+            (previous.asset_uuid, previous.storage_key, previous.size_bytes) if previous else None
         )
         try:
+            manifest = get_or_create_execution_manifest(
+                db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
+            )
+            execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             if previous is not None:
                 db.delete(previous)
                 db.flush()
@@ -400,6 +406,7 @@ class PlaybackService:
                 mime_type=audio.mime_type,
                 size_bytes=stored.size_bytes,
                 sha256=hashlib.sha256(audio.content).hexdigest(),
+                execution_manifest_id=execution_manifest_id,
                 duration_ms=audio.duration_ms,
                 source_fingerprint=source_fingerprint,
                 generator=audio.generator,

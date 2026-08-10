@@ -12,7 +12,32 @@
 - **Validate before acting** means the owner must first measure or reproduce the risk; do not refactor based on aesthetics alone.
 - Keep this document short enough to operate. Move completed decisions to an ADR or the archive and link them here.
 
-## Confirmed findings
+## Current status and active backlog
+
+The table below is the authoritative execution view. The following sections
+retain the original findings and chronological implementation evidence; a
+historical finding is not an indication that the item is still open.
+
+| ID | Current status | Next required outcome |
+| --- | --- | --- |
+| ARC-001 | Complete | Maintain the root entry point as repository topology or quality commands change. |
+| ARC-002 | Complete | Maintain OpenAPI generation and generated TypeScript freshness checks for HTTP contracts. |
+| ARC-003 | Open | Split only measured hotspots by stable responsibilities, with direct tests for each extraction. |
+| ARC-004 | Open | Continue replacing broad orchestration hubs with intent-named units when a concrete cohesion boundary is identified. |
+| ARC-005 | Complete | Critical score access, import execution/job lifecycle, import worker, and Practice session service have focused coverage gates; score-access architecture boundaries are also checked. |
+| ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission, and authenticated Practice WebSocket handshake. |
+| ARC-007 | Complete | Generated OpenAPI documents are the cross-stack trigger; backend contract freshness checks prevent an unsynchronised source change from passing. Reassess only if a new contract surface is not represented by a generated artifact. |
+| ARC-008 | Complete | Keep Action SHAs immutable and let Dependabot propose reviewed updates. |
+| ARC-009 | Complete | Keep the Markdown-link validator required for documentation changes. |
+| ARC-010 | Complete | Keep local script indexes aligned with supported commands. |
+| ARC-011 | Complete | No further work unless a new production prototype boundary appears. |
+| ARC-012 | Partially complete | Continue extracting only duplicated bootstrap or settings ownership with a verified runtime boundary. |
+| ARC-013 | Partially complete | Code-side ownership and Dependabot policy are complete; verify GitHub-side alerts, secret scanning, branch protection, and required reviews outside this repository. |
+| ARC-014 | Open | Complete deployment-source documentation and stale-link remediation. |
+| ARC-015 | Complete | Maintain the strict Practice WebSocket v1 schema, generated artifact, runtime validators, and compatibility policy for each protocol change. |
+| ARC-016 | Partially complete (P1) | Maintain the protected-service policy-dependency test and expand it only when a new score-facing authorization entry point is introduced. |
+
+## Original confirmed findings (historical baseline)
 
 | ID | Priority | Finding | Evidence | Required outcome |
 | --- | --- | --- | --- | --- |
@@ -30,6 +55,8 @@
 | ARC-012 | P2 | Backend application bootstrap and configuration have duplication/concentration risk. | `main.py`, `practice_main.py`, and `control_plane_main.py` repeat middleware/tracing/exception setup; `core/config.py` is 499 lines. | Extract a parameterized runtime bootstrap and role-specific settings modules, while preserving the explicit security boundary of the control plane. |
 | ARC-013 | P1 | Repository ownership and dependency-update automation are absent at the repository level. | No root `CODEOWNERS`, Dependabot, or Renovate configuration was found; only backend has a pre-commit configuration. | Define code owners for apps/backend/deploy/docs and configure reviewed dependency updates across npm, Python, GitHub Actions, and container bases. |
 | ARC-014 | P2 | Deployment source hierarchy is intentional but difficult to infer, and several deployment README paths are stale. | `deploy/application` is a reusable template; `deploy/gitops/environments/staging/base` is a generated, digest-pinned snapshot. Their files intentionally differ. `deploy/application/README.md` and `deploy/observability/README.md` reference non-existent `docs/k8s-*.md` paths. | State the source/generation/immutability rules in every deployment index; replace plain paths with checked relative Markdown links. |
+| ARC-015 | P1 | Practice WebSocket protocol is a hand-maintained TypeScript union and is not covered by the HTTP OpenAPI contract. Several payload fields intentionally accept unrestricted strings. | `apps/customer-web/src/lib/practice/protocol.ts`; Practice REST types are generated separately under `src/generated/practice-api/`. | Establish a versioned realtime schema with server/client validation, protocol-change review, test fixtures, and a documented additive/breaking-change policy. |
+| ARC-016 | P1 | Score authorization is centrally implemented and behaviorally tested, but no mechanical rule currently proves that feature modules cannot bypass `ScoreAccessPolicy`. | `app.modules.score_access.policy`, focused coverage gate, and service imports; no architecture-boundary test or import rule found. | Add a focused architecture test or static import rule, plus representative route/service tests, that makes bypassing the policy fail CI. |
 
 ## Corrected findings from the first review
 
@@ -796,10 +823,9 @@ deferred until the required offline models are available.
   contract into `BrowserCorsSettings`, preserving the valid explicit empty-list
   state and keeping control-plane CORS separate.
 - Direct settings and shared HTTP runtime tests passed, as did direct API and
-  Practice CORS-wiring imports. The broader TestClient suite repeatedly hit an
-  existing FastAPI/Pydantic native segmentation fault while generating OpenAPI
-  schema after 37 tests; this is a test-runtime stability issue, not an
-  assertion failure or an accepted substitute for full API regression coverage.
+  Practice CORS-wiring imports. The broad TestClient crash observed at the time
+  was later resolved by rebuilding the local Python 3.12 quality image; it was
+  not accepted as a substitute for API regression coverage.
 
 ### 2026-08-10: Token signing secret ownership extracted
 
@@ -818,7 +844,282 @@ deferred until the required offline models are available.
 - Revalidated account email-link and score-invitation consumers. No API prefix,
   CORS, environment name, manifest, alias, or fallback behavior changed.
 
-## Completion checklist for every refactor
+### 2026-08-10: Service identity and routing ownership extracted
+
+- Moved `PROJECT_NAME`, `API_V1_STR`, and environment-style `DEBUG` parsing
+  into `ServiceIdentitySettings`. The group rejects blank product names and
+  ambiguous customer API prefixes before app factories consume them.
+- Control-plane-specific cookies and CORS remain in the isolated control-plane
+  boundary. The rebuilt Python 3.12 quality image restored API regression
+  coverage; no environment name, manifest, alias, or fallback behavior changed.
+
+### 2026-08-10: Python 3.12 quality-image stability revalidated
+
+- LEGATO requires Python 3.12, so Python 3.11 is not an acceptable backend
+  runtime alternative. A temporary Python 3.11 diagnostic image was discarded
+  and the local quality image was rebuilt using its default Python 3.12 base.
+- On the rebuilt Python 3.12 quality image, `app.db.models` imported
+  successfully in 20 independent processes; the complete `score_access.py`
+  model module and the previously failing Docs/OpenAPI smoke test also passed.
+  The API smoke, public-error-contract, and HTTP-runtime regression group
+  passed 32 tests.
+- The earlier native fault is therefore not attributable to
+  `ScoreShareGrant`, the Python 3.12 baseline, or a proven Pydantic/SQLModel
+  incompatibility. Treat a stale or inconsistent local quality image as the
+  current cause. When this symptom recurs, rebuild the quality image before
+  changing source models or pinned dependencies.
+
+### 2026-08-10: Application-factory service-identity contract added
+
+- Added a direct API, Practice, Control Plane, and observability composition
+  test for `PROJECT_NAME` and `API_V1_STR`. It proves that customer API routing
+  changes do not affect the control-plane path, and that the internal
+  observability surface remains without OpenAPI.
+
+### 2026-08-10: Control Plane environment boundary extracted
+
+- Removed all `CONTROL_PLANE_*` fields from shared `Settings`. The isolated
+  `ControlPlaneRuntimeSettings` is now the sole required environment loader
+  for the operator HTTP surface, with direct validation for names, cookie
+  policy, session lifetime, and non-empty CORS origins.
+- Added `backend/.env.docker.control-plane.example` and made the Compose
+  Control Plane profile require its untracked local counterpart. Customer API,
+  Worker, Beat, Practice, and quality services do not receive this identity
+  configuration.
+- Kept `CONTROL_PLANE_API_PREFIX` as a source-owned versioned contract rather
+  than an environment variable or an alias for `API_V1_STR`: the two APIs are
+  independently hosted and may evolve independently even while both currently
+  expose `/api/v1`.
+
+### 2026-08-10: Beat scheduler validation ownership completed
+
+- Moved all scheduler lock, keepalive, timeout, retry, and heartbeat positive
+  value validation from the shared `Settings` composition root into
+  `BeatSchedulerSettings`.
+- Added direct group coverage for every timing field. `Settings` now composes
+  typed settings groups without retaining scheduler-domain validation.
+
+### 2026-08-10: Customer API prefix made source-owned
+
+- Replaced environment-loaded `API_V1_STR` with the single
+  `CUSTOMER_API_PREFIX` source constant. Customer API, Practice, upload URL,
+  score-asset URL, OpenAPI, and CSRF consumers now use that versioned contract.
+- Removed `API_V1_STR` from both the committed Docker template and the local
+  Docker environment file. Deployment path topology must use gateway/root-path
+  configuration rather than changing a public API version prefix at runtime.
+
+### 2026-08-10: Configuration-governance model and provenance backlog
+
+- Adopt the following ownership categories instead of a binary
+  source-versus-environment rule: versioned public contracts; build/model
+  identity manifests; immutable algorithm/output profiles; deployment topology;
+  runtime capacity; bounded security/resource policy; and secrets.
+- Do not mechanically move every TTL, limit, default engine, or `MAX_*` value
+  out of the environment. A value remains deploy-time configurable when it
+  changes capacity, topology, or an explicitly bounded security/resource
+  policy. Values that change output semantics require a versioned profile or
+  manifest and provenance.
+- **Priority 1 — Execution manifest plus provenance:** create immutable,
+  content-addressed engine/model manifests. Persist a manifest digest for an
+  ImportJob when execution starts; later attach the applicable manifest/profile
+  digest to render and playback artifacts. A Worker readiness check only proves
+  the current process is configured correctly; it is not historical job
+  provenance.
+- **Data-model decision:** do not duplicate an identical full manifest JSON on
+  every job. Use a normalized immutable manifest record keyed by SHA-256 and
+  let jobs/artifacts reference it. A JSON snapshot is acceptable only as a
+  deliberate denormalized audit copy with a documented retention purpose.
+- **Priority 2 — Result-semantic profiles:** introduce immutable OMR, render,
+  and playback profiles only for values whose change can alter generated
+  artifacts. Keep device, concurrency, batch size, paths, and timeouts in
+  deployment/runtime configuration.
+- **Priority 3 — Policy boundaries:** define security/resource defaults,
+  allowed override ranges, validation, and change-audit requirements for token
+  lifetimes and input/resource limits. Distinguish hard implementation limits
+  from lower deployment protection limits.
+- Do not promise bit-for-bit reproduction merely from manifest provenance:
+  record traceable execution identity first, then assess CUDA, driver, GPU,
+  library, and nondeterministic-kernel controls separately if strict
+  reproducibility becomes a product requirement.
+
+### 2026-08-10: Import manifest digest made auditable
+
+- Import-job detail responses expose only the immutable execution-manifest
+  SHA-256 digest. The complete internal manifest remains in the normalized
+  provenance record and is not returned through customer task-detail APIs.
+
+### 2026-08-10: LEGATO execution identity made source-owned
+
+- Added `LegatoExecutionManifest v1` with the supported engine commit, LEGATO
+  model and processor snapshots, and required Llama Vision encoder snapshot.
+  ImportJob execution manifests, OMR factory defaults, LEGATO model/processor
+  defaults, model-cache checks, and asset preparation now consume this single
+  source-owned identity.
+- Removed runtime environment ownership of `OMR_ENGINE`, `LEGATO_REPO_COMMIT`,
+  model/processor identifiers, and the Hugging Face repository list. Paths,
+  offline mode, device, precision, batching, and timeouts remain deployment
+  configuration.
+- Worker dependency-image builds now derive the LEGATO repository URL and pinned
+  commit from that manifest. Compose no longer accepts duplicate LEGATO build
+  arguments; do not reintroduce build-time or runtime fallbacks.
+
+### 2026-08-10: Verovio SVG output profile made source-owned
+
+- Added `VerovioRenderProfile v1`, an immutable typed owner for every option
+  that changes generated SVG semantics and for the preview header postprocessor.
+  The renderer now consumes that profile directly.
+- Removed `SCORE_RENDER_ENGINE` and all `VEROVIO_*` environment variables from
+  Worker settings, local templates, and staging/production deployment manifests.
+  Removed stale LEGATO identity variables from those deployment manifests too.
+- The persisted `render_profile` string remains an artifact-variant selector
+  (for example, `default` or `review-thumbnail`); it is not a substitute for
+  the algorithm profile.
+
+### 2026-08-10: Rendered-asset provenance linked to execution manifests
+
+- `ScoreRenderAsset` now references the same normalized, immutable
+  `execution_manifests` registry used by ImportJob. The render manifest contains
+  the Verovio engine and complete `VerovioRenderProfile v1`; rendered SVG pages
+  store only its foreign key, never a duplicated JSON snapshot.
+- Moved canonical JSON SHA-256 and sync/async get-or-create behavior into one
+  shared database helper. Import and rendering therefore use identical hashing,
+  de-duplication, and transaction-ownership rules.
+- Added migration `0039_score_render_asset_execution_manifest`. Existing assets
+  intentionally remain nullable/unknown because their historical rendering
+  profile cannot be inferred safely after the fact.
+
+### 2026-08-10: Playback output profile and provenance linked
+
+- Added immutable `PlaybackProfile v1` for the Verovio-to-FluidSynth output
+  semantics. Sample rate and maximum generated duration now change only through
+  source review and release, not environment promotion.
+- Kept `PLAYBACK_SOUNDFONT_PATH` as deployment configuration because it selects
+  a mounted runtime resource. The synthesizer now calculates the actual
+  SoundFont SHA-256 used for each WAV and includes it in the playback execution
+  manifest; a path alone is not treated as provenance.
+- `ScorePlaybackAsset` now references the normalized execution-manifest registry
+  through migration `0040_score_playback_asset_execution_manifest`. Historical
+  rows remain nullable/unknown rather than receiving invented provenance.
+
+### 2026-08-10: Playback processing separated from playback delivery
+
+- Moved the pure Verovio MIDI compiler, FluidSynth synthesizer, renderer, and
+  immutable playback profile into `app.processing.engines.playback`.
+- Kept `app.modules.playback` for playback asset persistence, outbox lifecycle,
+  authorization-aware delivery, HTTP routes, and execution-manifest binding.
+  No deprecated module imports or compatibility re-exports remain.
+- Do not name the future realtime-practice engine directory `practice_audio`:
+  Matchmaker also owns score-following and alignment state. Use
+  `practice_alignment` as the domain boundary, with audio activity detection as
+  one supporting capability.
+
+### 2026-08-10: Processing engines grouped by bounded domain
+
+- Moved Matchmaker, its audio-activity components, and the versioned profile to
+  `app.processing.engines.practice_alignment`. This names the full score-
+  following and realtime-alignment responsibility rather than only one input.
+- Moved PaddleOCR's subprocess launcher and worker module to
+  `app.processing.engines.ocr`; the launcher now starts the new module path.
+  Updated application consumers, scripts, tests, fixtures, and plans directly;
+  no old-path import compatibility layer remains.
+
+### 2026-08-10: SoundFont adapter separated from processing engines
+
+- Moved SoundFont fingerprinting and Partitura runtime preparation to
+  `app.processing.resources.soundfont`. The code manages an external runtime
+  resource and package layout; it is not an OCR, rendering, playback, or
+  alignment algorithm.
+- Playback, practice alignment, and runtime checks now consume this one resource
+  adapter through `app.processing.resources`, with no legacy engine-path export.
+
+### 2026-08-10: Score-access boundary made mechanically visible
+
+- Removed the unused synchronous render entry point. It duplicated owner/editor
+  authorization with direct `ScoreMembership` queries instead of using the
+  central asynchronous `ScoreAccessPolicy`; no repository caller referenced the
+  entry point, so no compatibility path was retained.
+- Added an explicit architecture test listing every current score-facing service
+  that accepts caller identity and operates on an existing score or revision.
+  Each must import `ScoreAccessPolicy`; adding a new protected entry point now
+  requires an intentional update to the boundary test rather than silently
+  recreating authorization logic.
+- This is deliberately not a blanket ban on score-related table reads. Storage
+  accounting, notification recipient selection, repositories, and membership
+  lifecycle code legitimately read those tables without making authorization
+  decisions.
+
+ARC-016 is partially complete. The policy dependency boundary is now checked
+in CI; future work should add a narrowly justified static prohibition only when
+a concrete bypass pattern appears, rather than making normal domain queries
+impossible.
+
+### 2026-08-10: Practice WebSocket protocol v1 baseline
+
+- Added a strict, versioned Pydantic contract for browser JSON control frames
+  and server events. Every JSON frame now carries `protocol_version: 1`; the
+  server rejects unversioned or malformed control frames without accepting a
+  legacy fallback.
+- Added a matching strict Zod validator at the Customer Web socket boundary, so
+  malformed server data cannot enter practice page state through a type cast.
+- Added backend and frontend protocol tests and documented the change policy:
+  additive changes within a version; a new version for breaking changes; update
+  both runtimes in the same change.
+
+### 2026-08-10: Practice WebSocket contract artifact and CI freshness gate
+
+- Added a deterministic JSON Schema exporter for the source-owned Pydantic
+  protocol and committed `realtime/practice-websocket-v1.json` as the
+  reviewable cross-runtime artifact.
+- Added `--check` verification to Backend Quality and made Customer Web Quality
+  run whenever the realtime contract artifact changes. The latter continues to
+  exercise the strict Zod mirror through its normal test suite.
+- The artifact declares the protocol's additive-only within-version policy and
+  prohibition on legacy fallback; binary PCM remains explicitly outside the
+  JSON Schema because its format is negotiated by the Practice REST session.
+
+ARC-015 is complete. SSE has no current customer-facing protocol; if introduced,
+it must use the same source-owned, generated-artifact, runtime-validation, and
+compatibility-governance model.
+
+### 2026-08-10: Real Practice WebSocket handshake integration
+
+- Extended the disposable integration Compose stack with the real Practice
+  runtime, a read-only SoundFont mount required by its startup contract, and a
+  deterministic MusicXML score fixture shared through isolated local storage.
+- Added a browser-facing Playwright scenario that authenticates through the
+  Customer Web proxy, creates a real Practice session, upgrades through the
+  same-origin WebSocket proxy, and receives the versioned `session.connecting`
+  handshake event.
+- Kept PCM processing and the full control-frame state machine out of this
+  browser integration baseline: they remain deterministic backend WebSocket
+  tests and must not make the proxy/authentication smoke test depend on a live
+  score-following result.
+- Fixed fresh PostgreSQL migration failure by shortening the development-stage
+  revision identifiers for migrations 0038-0040 to fit Alembic's default
+  32-character version table column. Their filenames and migration operations
+  remain unchanged.
+
+ARC-006 is complete. The isolated real-service suite now covers proxy auth,
+CSRF, import submission, and Practice WebSocket authentication/handshake.
+
+### 2026-08-11: Practice session-service coverage gate enforced in CI
+
+- Revalidated the focused Practice service suite in the Practice dependency
+  image: 77 tests pass and `app.modules.practice.service` has 85.37% coverage,
+  above the 80% required threshold. The suite includes missing-session and
+  foreign-user denial cases, and verifies that a cached runtime is never read
+  before session ownership is authorized.
+- Added the same thresholded command to Backend Quality CI. A local-only
+  wrapper is therefore no longer the sole enforcement point.
+- Corrected the remaining outdated `session.armed` regression assertion to
+  require `protocol_version: 1`, matching the source-owned realtime protocol
+  contract. This is a test correction, not a legacy compatibility exception.
+
+ARC-005 is complete. Future quality work should add a focused threshold only
+when a new critical boundary has a representative, intentionally scoped suite;
+do not use an arbitrary repository-wide fail-under value.
+
+## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
 - [ ] No circular or forbidden dependency is introduced.

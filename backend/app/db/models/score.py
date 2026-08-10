@@ -72,7 +72,9 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
             use_alter=True,
         ),
         Index("idx_scores_owner_updated", "owner_user_id", "updated_at"),
-        Index("idx_scores_owner_deletion_updated", "owner_user_id", "deletion_status", "updated_at"),
+        Index(
+            "idx_scores_owner_deletion_updated", "owner_user_id", "deletion_status", "updated_at"
+        ),
         Index(
             "idx_scores_deletion_cleanup_due",
             "deletion_status",
@@ -87,9 +89,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
     )
     score_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
-    owner_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    )
+    owner_user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
     title: str = Field(sa_column=Column(String(255), nullable=False))
     head_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     originating_job_id: Optional[int] = Field(
@@ -199,9 +199,7 @@ class TaxonomyTag(SQLModel, table=True):  # type: ignore[call-arg]
 
 class ScoreTaxonomyTag(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_taxonomy_tags"
-    __table_args__ = (
-        Index("idx_score_taxonomy_tags_tag_score", "tag_id", "score_id"),
-    )
+    __table_args__ = (Index("idx_score_taxonomy_tags_tag_score", "tag_id", "score_id"),)
 
     score_id: int = Field(
         sa_column=Column(
@@ -257,7 +255,9 @@ class ScoreInputAsset(SQLModel, table=True):  # type: ignore[call-arg]
     )
     purpose: ScoreInputAssetPurpose = Field(
         default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
-        sa_column=Column(String(32), default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD, nullable=False),
+        sa_column=Column(
+            String(32), default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD, nullable=False
+        ),
     )
     page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
     sort_order: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
@@ -408,6 +408,15 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
     mime_type: str = Field(sa_column=Column(String(128), nullable=False))
     size_bytes: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     sha256: str = Field(sa_column=Column(String(64), nullable=False))
+    execution_manifest_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("execution_manifests.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+    )
     page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
     render_profile: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     generator: str = Field(sa_column=Column(String(64), nullable=False))
