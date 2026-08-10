@@ -36,6 +36,7 @@ from .import_job import (
     ImportJobStepStatus,
     ImportJobUpload,
 )
+from .execution_manifest import ExecutionManifest
 from .score import (
     MetadataStatus,
     RenderAssetKind,
@@ -118,6 +119,7 @@ __all__ = [
     "ImportJobStep",
     "ImportJobStepStatus",
     "ImportJobUpload",
+    "ExecutionManifest",
     "MetadataStatus",
     "RenderAssetKind",
     "RevisionOrigin",

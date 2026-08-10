@@ -98,6 +98,10 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(metadata_json_type),
     )
+    execution_manifest_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(BigInteger, ForeignKey("execution_manifests.id"), index=True),
+    )
     dispatch_status: ImportDispatchStatus = Field(
         default=ImportDispatchStatus.PENDING,
         sa_column=Column(
@@ -208,9 +212,7 @@ class ImportJobUpload(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    upload_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("uploads.id"), nullable=False)
-    )
+    upload_id: int = Field(sa_column=Column(BigInteger, ForeignKey("uploads.id"), nullable=False))
     page_number: int = Field(sa_column=Column(Integer, nullable=False))
     sort_order: int = Field(sa_column=Column(Integer, nullable=False))
 

@@ -10,6 +10,7 @@ from app.modules.import_jobs.schemas import (
     PipelineExecutionSuccessResult,
 )
 from app.modules.import_jobs.worker_service import sync_import_job_service
+from app.modules.import_jobs.execution_manifest import bind_import_job_execution_manifest
 from app.pipeline import JobContext, PipelineBuilder
 from app.pipeline.context import CeleryTaskLike
 from app.shared.constants import ErrorCode
@@ -48,6 +49,7 @@ class ImportJobExecutionService:
         try:
             image_paths = self._resolve_input_paths(storage_keys)
             with get_worker_db() as db:
+                bind_import_job_execution_manifest(db, job_id)
                 context = JobContext(
                     job_id=job_id,
                     db=db,
