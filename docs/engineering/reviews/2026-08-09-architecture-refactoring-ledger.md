@@ -881,6 +881,40 @@ deferred until the required offline models are available.
   Docker environment file. Deployment path topology must use gateway/root-path
   configuration rather than changing a public API version prefix at runtime.
 
+### 2026-08-10: Configuration-governance model and provenance backlog
+
+- Adopt the following ownership categories instead of a binary
+  source-versus-environment rule: versioned public contracts; build/model
+  identity manifests; immutable algorithm/output profiles; deployment topology;
+  runtime capacity; bounded security/resource policy; and secrets.
+- Do not mechanically move every TTL, limit, default engine, or `MAX_*` value
+  out of the environment. A value remains deploy-time configurable when it
+  changes capacity, topology, or an explicitly bounded security/resource
+  policy. Values that change output semantics require a versioned profile or
+  manifest and provenance.
+- **Priority 1 — Execution manifest plus provenance:** create immutable,
+  content-addressed engine/model manifests. Persist a manifest digest for an
+  ImportJob when execution starts; later attach the applicable manifest/profile
+  digest to render and playback artifacts. A Worker readiness check only proves
+  the current process is configured correctly; it is not historical job
+  provenance.
+- **Data-model decision:** do not duplicate an identical full manifest JSON on
+  every job. Use a normalized immutable manifest record keyed by SHA-256 and
+  let jobs/artifacts reference it. A JSON snapshot is acceptable only as a
+  deliberate denormalized audit copy with a documented retention purpose.
+- **Priority 2 — Result-semantic profiles:** introduce immutable OMR, render,
+  and playback profiles only for values whose change can alter generated
+  artifacts. Keep device, concurrency, batch size, paths, and timeouts in
+  deployment/runtime configuration.
+- **Priority 3 — Policy boundaries:** define security/resource defaults,
+  allowed override ranges, validation, and change-audit requirements for token
+  lifetimes and input/resource limits. Distinguish hard implementation limits
+  from lower deployment protection limits.
+- Do not promise bit-for-bit reproduction merely from manifest provenance:
+  record traceable execution identity first, then assess CUDA, driver, GPU,
+  library, and nondeterministic-kernel controls separately if strict
+  reproducibility becomes a product requirement.
+
 ## Completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
