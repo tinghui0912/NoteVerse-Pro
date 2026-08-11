@@ -1141,9 +1141,24 @@ do not use an arbitrary repository-wide fail-under value.
   that contract directly rather than importing the heavy engine merely for type
   annotations. No compatibility re-export remains at the old implementation
   path.
-- This is the first measured ARC-003 extraction. The next candidate is the
-  independent browser PCM activity adapter; it must be moved with its existing
-  replay tests before changing follower behavior.
+- This was the first measured ARC-003 extraction. The independent browser PCM
+  activity adapter was the next candidate and has now been moved without
+  changing follower behavior.
+
+### 2026-08-11: Browser PCM adapter separated from Matchmaker
+
+- Moved `BrowserAudioStreamAdapter` into
+  `practice_alignment.browser_audio_stream`. It now owns browser PCM framing,
+  feature-queue admission, audio gates, adaptive noise calibration, activity
+  state, and audio diagnostics.
+- `MatchmakerLiveEngine` imports the adapter directly and retains Matchmaker
+  initialization, follower-thread orchestration, score-reference mapping, and
+  alignment update construction. Practice replay tests import the adapter from
+  its owning module; no old-path re-export or compatibility alias remains.
+- The next measured ARC-003 candidate is the pure alignment confidence and
+  continuity calculation currently embedded in `MatchmakerLiveEngine`. Extract
+  only stateless calculations first; retain engine-owned session state and
+  logging in the engine.
 
 ## Reusable completion checklist for every refactor
 
