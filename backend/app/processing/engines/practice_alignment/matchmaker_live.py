@@ -8,6 +8,12 @@ from app.core.config import get_practice_runtime_settings
 from app.core.logger import logger
 from app.processing.resources import ensure_partitura_default_soundfont
 from app.processing.engines.practice_alignment.audio_features import feature_matrix
+from app.processing.engines.practice_alignment.alignment_metrics import (
+    alignment_state,
+    beat_velocity,
+    continuity_state,
+    validation_confidence_ceiling,
+)
 from app.processing.engines.practice_alignment.browser_audio_stream import BrowserAudioStreamAdapter, EnvironmentQuality
 from app.processing.engines.practice_alignment.contracts import AlignmentEngine, AlignmentUpdate
 from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
@@ -297,12 +303,12 @@ class MatchmakerLiveEngine:
             if previous_beat_position is None
             else round(beat_position - previous_beat_position, 3)
         )
-        beat_velocity = self._beat_velocity(
+        beat_velocity_value = beat_velocity(
             beat_delta=beat_delta,
             timestamp_ms=timestamp_ms,
             previous_timestamp_ms=previous_timestamp_ms,
         )
-        continuity_state = self._continuity_state(beat_delta)
+        continuity_status = continuity_state(beat_delta)
         return {
             "beat_position": round(beat_position, 3),
             "confidence": confidence,
@@ -318,8 +324,8 @@ class MatchmakerLiveEngine:
             "match_state": "matched",
             "feature_confidence": 1.0,
             "beat_delta": beat_delta,
-            "continuity_state": continuity_state,
-            "beat_velocity": beat_velocity,
+            "continuity_state": continuity_status,
+            "beat_velocity": beat_velocity_value,
         }
 
     def _start_alignment(self) -> AlignmentUpdate:
@@ -331,16 +337,16 @@ class MatchmakerLiveEngine:
         feature_confidence = self._feature_confidence_for_beat(alignment["beat_position"])
         alignment_confidence = min(alignment["alignment_confidence"], feature_confidence)
         continuity_confidence = alignment["continuity_confidence"]
-        alignment_state = self._alignment_state(
+        alignment_status = alignment_state(
             raw_alignment_confidence=alignment["alignment_confidence"],
             feature_confidence=feature_confidence,
         )
-        continuity_state = alignment.get("continuity_state") or self._continuity_state(
+        continuity_status = alignment.get("continuity_state") or continuity_state(
             alignment.get("beat_delta"),
         )
-        validation_confidence = self._validation_confidence_ceiling(
-            alignment_state=alignment_state,
-            continuity_state=continuity_state,
+        validation_confidence = validation_confidence_ceiling(
+            alignment_state=alignment_status,
+            continuity_state=continuity_status,
         )
         input_policy_confidence = getattr(self._stream, "last_input_policy_confidence", 1.0)
         confidence = min(
@@ -385,8 +391,8 @@ class MatchmakerLiveEngine:
                 2,
             ),
             "spectral_flux": round(getattr(self._stream, "last_spectral_flux", 0.0), 5),
-            "alignment_state": alignment_state,
-            "continuity_state": continuity_state,
+            "alignment_state": alignment_status,
+            "continuity_state": continuity_status,
             "beat_velocity": alignment.get("beat_velocity"),
             "validation_confidence": round(validation_confidence, 3),
             "input_weight": round(getattr(self._stream, "last_input_weight", 0.0), 3),
@@ -494,64 +500,6 @@ class MatchmakerLiveEngine:
         if delta < -0.1:
             return 0.65
         return 0.95
-
-    @staticmethod
-    def _alignment_state(
-        *,
-        raw_alignment_confidence: float,
-        feature_confidence: float,
-    ) -> str:
-        if feature_confidence < 0.35:
-            return "feature_mismatch"
-        if feature_confidence < 0.7:
-            return "weak_feature_match"
-        if raw_alignment_confidence < 0.65:
-            return "weak_path"
-        return "matched"
-
-    @staticmethod
-    def _continuity_state(beat_delta: float | None) -> str:
-        if beat_delta is None:
-            return "initial"
-        if beat_delta < -0.5:
-            return "rollback"
-        if beat_delta < -0.1:
-            return "minor_rollback"
-        if beat_delta > 8.0:
-            return "large_jump"
-        if beat_delta > 4.0:
-            return "jump"
-        return "stable"
-
-    @staticmethod
-    def _validation_confidence_ceiling(
-        *,
-        alignment_state: str,
-        continuity_state: str,
-    ) -> float:
-        if alignment_state == "feature_mismatch":
-            return 0.0
-        if alignment_state in {"weak_feature_match", "weak_path"}:
-            return 0.5
-        if continuity_state in {"rollback", "large_jump"}:
-            return 0.3
-        if continuity_state in {"minor_rollback", "jump"}:
-            return 0.5
-        return 1.0
-
-    @staticmethod
-    def _beat_velocity(
-        *,
-        beat_delta: float | None,
-        timestamp_ms: int,
-        previous_timestamp_ms: int | None,
-    ) -> float | None:
-        if beat_delta is None or previous_timestamp_ms is None:
-            return None
-        elapsed_seconds = (timestamp_ms - previous_timestamp_ms) / 1000
-        if elapsed_seconds <= 0:
-            return None
-        return round(beat_delta / elapsed_seconds, 3)
 
     def _continuity_confidence_for_beat(self, beat_position: float) -> float:
         if self._last_beat_position is None:

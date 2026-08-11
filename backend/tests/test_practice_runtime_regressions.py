@@ -9,6 +9,11 @@ from unittest.mock import patch
 import pytest
 
 from app.core.config import get_practice_runtime_settings
+from app.processing.engines.practice_alignment.alignment_metrics import (
+    beat_velocity,
+    continuity_state,
+    validation_confidence_ceiling,
+)
 
 from app.processing.engines.practice_alignment.matchmaker_live import (
     BrowserAudioStreamAdapter,
@@ -172,8 +177,6 @@ def test_matchmaker_live_engine_start_alignment_anchors_to_first_played_note() -
     engine._timestamp_ms = lambda: 1000
     engine._confidence_for_beat = lambda _beat: 0.95
     engine._continuity_confidence_for_beat = lambda _beat: 0.95
-    engine._beat_velocity = lambda **_kwargs: None
-    engine._continuity_state = lambda _delta: "initial"
     engine._score_completed = lambda _beat: False
 
     alignment = engine._start_alignment()
@@ -844,12 +847,12 @@ def test_matchmaker_live_engine_keeps_confidence_when_features_match_score() -> 
 
 
 def test_matchmaker_live_engine_explains_continuity_state() -> None:
-    assert MatchmakerLiveEngine._continuity_state(None) == "initial"
-    assert MatchmakerLiveEngine._continuity_state(-0.8) == "rollback"
-    assert MatchmakerLiveEngine._continuity_state(-0.2) == "minor_rollback"
-    assert MatchmakerLiveEngine._continuity_state(5.0) == "jump"
-    assert MatchmakerLiveEngine._continuity_state(9.0) == "large_jump"
-    assert MatchmakerLiveEngine._continuity_state(1.0) == "stable"
+    assert continuity_state(None) == "initial"
+    assert continuity_state(-0.8) == "rollback"
+    assert continuity_state(-0.2) == "minor_rollback"
+    assert continuity_state(5.0) == "jump"
+    assert continuity_state(9.0) == "large_jump"
+    assert continuity_state(1.0) == "stable"
 
 
 def test_matchmaker_live_engine_caps_weak_feature_match_below_visual_threshold() -> None:
@@ -892,28 +895,28 @@ def test_matchmaker_live_engine_caps_weak_feature_match_below_visual_threshold()
 
 def test_matchmaker_live_engine_validation_ceiling_penalizes_unstable_continuity() -> None:
     assert (
-        MatchmakerLiveEngine._validation_confidence_ceiling(
+        validation_confidence_ceiling(
             alignment_state="matched",
             continuity_state="stable",
         )
         == 1.0
     )
     assert (
-        MatchmakerLiveEngine._validation_confidence_ceiling(
+        validation_confidence_ceiling(
             alignment_state="matched",
             continuity_state="jump",
         )
         == 0.5
     )
     assert (
-        MatchmakerLiveEngine._validation_confidence_ceiling(
+        validation_confidence_ceiling(
             alignment_state="matched",
             continuity_state="large_jump",
         )
         == 0.3
     )
     assert (
-        MatchmakerLiveEngine._validation_confidence_ceiling(
+        validation_confidence_ceiling(
             alignment_state="feature_mismatch",
             continuity_state="stable",
         )
@@ -963,7 +966,7 @@ def test_matchmaker_live_engine_caps_confidence_with_input_policy_ceiling() -> N
 
 def test_matchmaker_live_engine_calculates_beat_velocity() -> None:
     assert (
-        MatchmakerLiveEngine._beat_velocity(
+        beat_velocity(
             beat_delta=1.5,
             timestamp_ms=2000,
             previous_timestamp_ms=1000,
@@ -971,7 +974,7 @@ def test_matchmaker_live_engine_calculates_beat_velocity() -> None:
         == 1.5
     )
     assert (
-        MatchmakerLiveEngine._beat_velocity(
+        beat_velocity(
             beat_delta=1.5,
             timestamp_ms=1000,
             previous_timestamp_ms=1000,
