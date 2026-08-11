@@ -10,6 +10,7 @@ from app.core.config import get_practice_runtime_settings
 from app.core.logger import logger
 from app.processing.resources import ensure_partitura_default_soundfont
 from app.processing.engines.practice_alignment.audio_diagnostics import log_audio_gate_diagnostic
+from app.processing.engines.practice_alignment.audio_features import feature_matrix, latest_feature_vector
 from app.processing.engines.practice_alignment.audio_activity import (
     ActivityConfidenceEstimator,
     AdaptiveNoiseCalibrator,
@@ -210,14 +211,14 @@ class BrowserAudioStreamAdapter:
             target_audio = self.np.concatenate((self.last_chunk, audio_frame))
 
         feature_time = time.perf_counter()
-        features = self._feature_matrix(self.processor((target_audio, feature_time)))
+        features = feature_matrix(self.processor((target_audio, feature_time)))
         if features is None:
             self.last_chunk = target_audio[-self.hop_length :]
             self.last_gate_reason = "feature_buffering"
             self.last_queue_decision = "feature_buffering"
             self._log_diagnostics("feature_buffering", rms, peak)
             return False
-        self.last_feature_vector = self._latest_feature_vector(features)
+        self.last_feature_vector = latest_feature_vector(features, self.np)
         if not self.started and self.start_streak >= self.min_active_frames:
             self.last_start_feature_confidence = self._score_start_feature(
                 self.last_feature_vector,
@@ -514,24 +515,6 @@ class BrowserAudioStreamAdapter:
     def _measure_signal(self, audio_frame) -> tuple[float, float]:
         return self.feature_extractor.measure_signal(audio_frame)
 
-    def _latest_feature_vector(self, features):
-        feature_array = self.np.asarray(features, dtype=float)
-        if feature_array.size == 0:
-            return None
-        if feature_array.ndim == 1:
-            return feature_array
-        return feature_array[-1]
-
-    @staticmethod
-    def _feature_matrix(processor_output):
-        if processor_output is None:
-            return None
-        if isinstance(processor_output, tuple):
-            if not processor_output:
-                return None
-            return processor_output[0]
-        return processor_output
-
     def _log_diagnostics(self, decision: str, rms: float, peak: float) -> None:
         log_audio_gate_diagnostic(self, decision, rms, peak)
 
@@ -647,9 +630,7 @@ class MatchmakerLiveEngine:
             generate_score_audio=score_audio_generator,
         )
         score_audio = normalize_audio_waveform(raw_score_audio, np).astype(np.float32)
-        reference_features = BrowserAudioStreamAdapter._feature_matrix(
-            self._processor((score_audio, 0.0))
-        )
+        reference_features = feature_matrix(self._processor((score_audio, 0.0)))
         if reference_features is None:
             raise RuntimeError("Score feature extraction returned no features.")
         if hasattr(self._processor, "reset"):
