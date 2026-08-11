@@ -15,7 +15,6 @@ ENV_TEMPLATES = {
     BACKEND_ROOT / ".env.docker.example": set(),
     BACKEND_ROOT / ".env.docker.worker.example": {
         "CELERY_WORKER_CONCURRENCY",
-        "PRACTICE_SOUNDFONT_PATH",
         *WorkerRuntimeSettings.model_fields,
     },
     BACKEND_ROOT / ".env.docker.practice.example": set(PracticeRuntimeSettings.model_fields),
@@ -44,7 +43,6 @@ def test_docker_environment_templates_declare_only_supported_keys() -> None:
 def test_worker_process_template_declares_only_the_worker_entrypoint_contract() -> None:
     assert _template_keys(BACKEND_ROOT / ".env.docker.worker.example") <= {
         "CELERY_WORKER_CONCURRENCY",
-        "PRACTICE_SOUNDFONT_PATH",
         *WorkerRuntimeSettings.model_fields,
     }
 

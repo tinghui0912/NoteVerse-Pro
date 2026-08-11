@@ -60,8 +60,6 @@ PRACTICE_OWNED_KEYS = frozenset(
     }
 )
 
-SHARED_MODEL_ASSET_KEYS = frozenset({"PRACTICE_SOUNDFONT_PATH"})
-
 KUSTOMIZATION_CONFIG_REFERENCES = {
     Path("deploy/application/overlays/staging/kustomization.yaml"): (
         "backend-worker-config.env",
@@ -114,7 +112,7 @@ def validate_required_files(paths: tuple[Path, ...]) -> list[Finding]:
 
 def validate_shared_backend_config() -> list[Finding]:
     findings: list[Finding] = []
-    forbidden_keys = WORKER_OWNED_KEYS | PRACTICE_OWNED_KEYS | SHARED_MODEL_ASSET_KEYS
+    forbidden_keys = WORKER_OWNED_KEYS | PRACTICE_OWNED_KEYS | {"PRACTICE_SOUNDFONT_PATH"}
     for path in BACKEND_CONFIG_FILES:
         if not repo_path(path).is_file():
             continue
@@ -173,8 +171,8 @@ def main() -> int:
     findings: list[Finding] = []
     findings.extend(validate_required_files(BACKEND_CONFIG_FILES + WORKER_CONFIG_FILES + PRACTICE_CONFIG_FILES))
     findings.extend(validate_shared_backend_config())
-    findings.extend(validate_role_config_files(WORKER_CONFIG_FILES, WORKER_OWNED_KEYS | SHARED_MODEL_ASSET_KEYS, "worker"))
-    findings.extend(validate_role_config_files(PRACTICE_CONFIG_FILES, PRACTICE_OWNED_KEYS | SHARED_MODEL_ASSET_KEYS, "practice"))
+    findings.extend(validate_role_config_files(WORKER_CONFIG_FILES, WORKER_OWNED_KEYS, "worker"))
+    findings.extend(validate_role_config_files(PRACTICE_CONFIG_FILES, PRACTICE_OWNED_KEYS | {"PRACTICE_SOUNDFONT_PATH"}, "practice"))
     findings.extend(validate_kustomization_references())
 
     if findings:

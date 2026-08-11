@@ -252,12 +252,13 @@ def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
 
 
 def prepare_paddleocr_models() -> None:
-    from app.core.config import settings
+    from app.core.config import get_worker_runtime_settings
 
-    model_root = _require_path(settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
+    worker_settings = get_worker_runtime_settings()
+    model_root = _require_path(worker_settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
     _ensure_directory(model_root)
     for asset in PADDLEOCR_MODEL_ASSETS:
-        target = _require_path(getattr(settings, asset.target_env_name), asset.target_env_name)
+        target = _require_path(getattr(worker_settings, asset.target_env_name), asset.target_env_name)
         _prepare_paddleocr_model_asset(asset, target)
     print("[OK] PaddleOCR models prepared")
 
@@ -274,10 +275,10 @@ async def run_final_checks(include_sizes: bool) -> int:
 
 
 def run_asset_checks(include_sizes: bool) -> int:
-    from app.core.runtime_checks import check_huggingface_models, check_paddleocr_models, check_soundfont
+    from app.core.runtime_checks import check_huggingface_models, check_paddleocr_models, check_playback_renderer
 
     checks = (
-        check_soundfont,
+        check_playback_renderer,
         check_paddleocr_models,
         check_huggingface_models,
     )

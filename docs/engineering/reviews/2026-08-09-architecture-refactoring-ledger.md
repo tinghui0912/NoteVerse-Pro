@@ -1243,6 +1243,10 @@ merely to eliminate small dispatch branches.
   and is read only by Worker playback/model-asset paths. This prevents API,
   Beat, and Control Plane processes from requiring Worker model-asset config
   after the Kubernetes ConfigMap split.
+- Tightened the soundfont ownership boundary: Worker/model-asset config owns
+  `PLAYBACK_SOUNDFONT_PATH`; Practice config owns `PRACTICE_SOUNDFONT_PATH`.
+  The model-asset preparation check now validates the Worker playback renderer
+  rather than requiring Practice runtime settings in Worker configuration.
 
 ## Reusable completion checklist for every refactor
 

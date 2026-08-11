@@ -266,8 +266,6 @@ role-specific ConfigMaps for runtime-owned settings:
 - Worker/model-asset ConfigMap:
   - `MODEL_ROOT`;
   - `PLAYBACK_SOUNDFONT_PATH`;
-  - `PRACTICE_SOUNDFONT_PATH` when Worker-owned asset preparation validates the
-    same mounted soundfont used by Practice;
   - `HF_HOME`;
   - `HF_HUB_OFFLINE`;
   - `TRANSFORMERS_OFFLINE`;
