@@ -942,6 +942,27 @@ deferred until the required offline models are available.
   library, and nondeterministic-kernel controls separately if strict
   reproducibility becomes a product requirement.
 
+### 2026-08-11: Deployment configuration templates aligned with source-owned profiles
+
+- Removed stale `API_V1_STR` values from staging/production application
+  ConfigMaps and the promoted staging GitOps snapshot. Customer API path
+  versioning is source-owned by `CUSTOMER_API_PREFIX`; deployment topology must
+  use gateway/root-path configuration instead of mutating the API prefix.
+- Removed Practice audio tuning fields from staging/production application
+  ConfigMaps and the promoted staging GitOps snapshot. The realtime alignment
+  tuning profile is source-owned by `PracticeAudioProfile`; only diagnostics
+  toggles and intervals remain deployment configuration.
+- Removed obsolete `HF_MODEL_REPOSITORIES` injection from Backend Quality and
+  removed manual LEGATO URL/commit inputs from the worker-image workflow. The
+  worker dependency image now derives LEGATO identity from
+  `legato_manifest.py`, and that manifest participates in the dependency image
+  fingerprint.
+
+Kubernetes application rendering, GitOps rendering, and Markdown-link checks
+passed after the cleanup. Future profile or manifest migrations must update
+local Docker templates, deployment ConfigMaps, release package inputs, and
+GitOps snapshots in the same change.
+
 ### 2026-08-10: Import manifest digest made auditable
 
 - Import-job detail responses expose only the immutable execution-manifest

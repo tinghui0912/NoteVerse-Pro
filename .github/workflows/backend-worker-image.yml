@@ -11,14 +11,6 @@ on:
         description: "Optional worker dependency image tag. Leave empty to use a content fingerprint tag."
         required: false
         default: ""
-      legato_repo_url:
-        description: "LEGATO source repository URL"
-        required: true
-        default: "https://github.com/guang-yng/legato.git"
-      legato_repo_commit:
-        description: "Pinned LEGATO commit"
-        required: true
-        default: "179c228d3d5f67113cf739b44891b3abe046f1dc"
 
 concurrency:
   group: backend-worker-image-${{ github.ref }}
@@ -33,8 +25,6 @@ jobs:
     env:
       ML_BASE_TAG: ${{ inputs.ml_base_tag || 'py312-torch260-cu124-slim' }}
       WORKER_DEPS_TAG_INPUT: ${{ inputs.worker_deps_tag }}
-      LEGATO_REPO_URL: ${{ inputs.legato_repo_url || 'https://github.com/guang-yng/legato.git' }}
-      LEGATO_REPO_COMMIT: ${{ inputs.legato_repo_commit || '179c228d3d5f67113cf739b44891b3abe046f1dc' }}
 
     steps:
       - name: Checkout repository
@@ -54,10 +44,9 @@ jobs:
                 docker/backend/Dockerfile.worker-deps \
                 backend/requirements/worker-app.txt \
                 backend/requirements/tracing.txt \
-                backend/requirements/ocr.txt
+                backend/requirements/ocr.txt \
+                backend/app/processing/engines/omr/legato_manifest.py
               printf '%s\n' "${ML_BASE_IMAGE}"
-              printf '%s\n' "${LEGATO_REPO_URL}"
-              printf '%s\n' "${LEGATO_REPO_COMMIT}"
               printf '%s\n' "INSTALL_PADDLE_GPU=false"
               printf '%s\n' "INSTALL_LEGATO_EXTRA_DEPS=false"
             } | sha256sum | cut -c1-16
@@ -114,8 +103,6 @@ jobs:
             PYTHON_IMAGE=${{ env.ML_BASE_IMAGE }}
             INSTALL_PADDLE_GPU=false
             INSTALL_LEGATO_EXTRA_DEPS=false
-            LEGATO_REPO_URL=${{ env.LEGATO_REPO_URL }}
-            LEGATO_REPO_COMMIT=${{ env.LEGATO_REPO_COMMIT }}
 
       - name: Build and push backend worker runtime image
         id: backend-worker-build
@@ -177,7 +164,7 @@ jobs:
             echo "- ML base: \`${ML_BASE_IMAGE}\`"
             echo "- Worker deps image: \`${WORKER_DEPS_IMAGE}\`"
             echo "- Worker deps digest: \`${{ steps.backend-worker-deps-build.outputs.digest }}\`"
-            echo "- LEGATO source: \`${LEGATO_REPO_URL}@${LEGATO_REPO_COMMIT}\`"
+            echo "- LEGATO source: derived from \`backend/app/processing/engines/omr/legato_manifest.py\`"
             echo "- SBOM artifacts: backend-worker-deps-image-sbom.spdx.json, backend-worker-image-sbom.spdx.json"
             echo "- Vulnerability gate: CRITICAL, ignore unfixed"
           } >> "$GITHUB_STEP_SUMMARY"
