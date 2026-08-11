@@ -2103,6 +2103,26 @@ REC-006 remains partially complete. Good next batches are editor contexts
 Chinese language option label in navigation as product UI copy, not a cleanup
 target.
 
+### 2026-08-12: Editor context comments cleaned for REC-006
+
+- Continued REC-006 with the core Customer Web editor context files:
+  `apps/customer-web/src/contexts/editor-history-context.tsx`,
+  `apps/customer-web/src/contexts/score-data-context.tsx`, and
+  `apps/customer-web/src/contexts/editor-state-context.tsx`.
+- Replaced Chinese/mojibake comments with concise English descriptions for XML
+  history, parsed score data, expected voice preservation, editor tool state,
+  selected entity state, and tool-change callbacks.
+- Kept implementation logic and exported APIs unchanged; this was a
+  readability-only cleanup.
+- Confirmed the cleaned context files no longer contain Chinese characters or
+  mojibake glyphs, and verified lint, typecheck, route-shell, and Verovio
+  surface migration tests still pass.
+
+REC-006 remains partially complete. Good next batches are the remaining editor
+hooks with dense domain comments, especially `use-connection-operations.ts` and
+`use-metadata-editor.ts`; API wrapper comments can wait because they are thinner
+and less domain-heavy.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

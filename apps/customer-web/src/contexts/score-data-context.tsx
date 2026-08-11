@@ -5,23 +5,23 @@ import type { ScoreData } from '@/types/score-types';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
 
 /**
- * ScoreData Context - 管理乐谱数据的只读访问和更新
+ * Score data context for parsed score state and XML updates.
  */
 interface ScoreDataContextType {
-    // 只读数据
+    // Read-only data.
     scoreData: ScoreData | null;
     currentXml: string | null;
     rawXml: string | null;
 
-    // Ref 用于获取最新值（避免闭包问题）
+    // Ref for reading the latest XML in callbacks without stale closures.
     currentXmlRef: React.MutableRefObject<string | null>;
 
-    // 数据更新函数
+    // Data update functions.
     setScoreData: React.Dispatch<React.SetStateAction<ScoreData | null>>;
     setCurrentXml: (xml: string) => void;
     setRawXml: React.Dispatch<React.SetStateAction<string | null>>;
 
-    // 辅助函数
+    // Helper functions.
     getExpectedVoices: (data: ScoreData | null) => Map<number, Map<number, number[]>> | undefined;
     reparseXml: (xml: string) => ScoreData | null;
 }
@@ -29,7 +29,7 @@ interface ScoreDataContextType {
 const ScoreDataContext = createContext<ScoreDataContextType | undefined>(undefined);
 
 /**
- * ScoreData Hook - 获取乐谱数据
+ * Returns parsed score data and XML state.
  */
 export function useScoreData() {
     const context = useContext(ScoreDataContext);
@@ -44,25 +44,26 @@ interface ScoreDataProviderProps {
 }
 
 /**
- * ScoreData Provider - 提供乐谱数据上下文
+ * Provides parsed score data and current XML state.
  */
 export function ScoreDataProvider({ children }: ScoreDataProviderProps) {
     const [scoreData, setScoreData] = useState<ScoreData | null>(null);
     const [currentXml, setCurrentXmlState] = useState<string | null>(null);
     const [rawXml, setRawXml] = useState<string | null>(null);
 
-    // Ref 用于在回调函数中获取最新值
+    // Ref for reading the latest XML inside callbacks.
     const currentXmlRef = useRef<string | null>(null);
 
-    // 更新 XML 时同时更新 ref
+    // Update the XML state and latest-value ref together.
     const setCurrentXml = useCallback((xml: string) => {
         currentXmlRef.current = xml;
         setCurrentXmlState(xml);
     }, []);
 
     /**
-     * 从 scoreData 中提取期望保留的声部结构
-     * 用于在重新解析 XML 时保留空声部
+     * Extracts the voice structure that should be preserved on reparse.
+     *
+     * This keeps empty voices visible after XML is regenerated and parsed again.
      */
     const getExpectedVoices = useCallback((data: ScoreData | null): Map<number, Map<number, number[]>> | undefined => {
         if (!data) return undefined;
@@ -87,7 +88,7 @@ export function ScoreDataProvider({ children }: ScoreDataProviderProps) {
     }, []);
 
     /**
-     * 重新解析 XML 并更新 scoreData
+     * Reparses XML and updates scoreData.
      */
     const reparseXml = useCallback((xml: string) => {
         try {

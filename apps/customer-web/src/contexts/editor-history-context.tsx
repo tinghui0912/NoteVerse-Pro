@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 /**
- * 历史记录条目
+ * Undo/redo history entry.
  */
 interface HistoryEntry {
     xml: string;
@@ -12,22 +12,22 @@ interface HistoryEntry {
 }
 
 /**
- * History Context - 管理撤销/重做历史
+ * History context for XML undo/redo state.
  */
 interface HistoryContextType {
-    // 历史状态
+    // History state.
     canUndo: boolean;
     canRedo: boolean;
 
-    // 历史操作
+    // History operations.
     push: (xml: string, action: string) => void;
     undo: () => string | null;
     redo: () => string | null;
 
-    // 获取当前 XML
+    // Current XML accessor.
     getCurrentXml: () => string | null;
 
-    // 初始化（设置初始状态）
+    // Initialization state.
     initialize: (xml: string) => void;
     isInitialized: boolean;
 }
@@ -35,7 +35,7 @@ interface HistoryContextType {
 const HistoryContext = createContext<HistoryContextType | undefined>(undefined);
 
 /**
- * History Hook - 获取历史控制
+ * Returns the full editor history controller.
  */
 export function useHistory() {
     const context = useContext(HistoryContext);
@@ -46,7 +46,7 @@ export function useHistory() {
 }
 
 /**
- * HistoryControl Hook - 获取撤销/重做控制（常用简易版）
+ * Returns the commonly used undo/redo controls.
  */
 export function useHistoryControl() {
     const { canUndo, canRedo, undo, redo } = useHistory();
@@ -60,7 +60,7 @@ interface HistoryProviderProps {
 }
 
 /**
- * History Provider - 提供历史记录上下文
+ * Provides XML edit history state.
  */
 export function HistoryProvider({
     children,
@@ -71,7 +71,7 @@ export function HistoryProvider({
     const [currentIndex, setCurrentIndex] = useState(-1);
     const [isInitialized, setIsInitialized] = useState(false);
 
-    // 使用 Ref 来避免 onXmlChange 闭包问题
+    // Use a ref to avoid stale onXmlChange closures in undo/redo callbacks.
     const onXmlChangeRef = useRef(onXmlChange);
     useEffect(() => {
         onXmlChangeRef.current = onXmlChange;
@@ -81,7 +81,7 @@ export function HistoryProvider({
     const canRedo = currentIndex < history.length - 1;
 
     /**
-     * 初始化历史记录
+     * Initializes the history stack with the first XML snapshot.
      */
     const initialize = useCallback((xml: string) => {
         if (isInitialized) return;
@@ -96,27 +96,27 @@ export function HistoryProvider({
     }, [isInitialized]);
 
     /**
-     * 推送新的历史记录
+     * Pushes a new XML snapshot onto the history stack.
      */
     const push = useCallback((xml: string, action: string) => {
-        // 先检查是否与当前 XML 相同（去重）
+        // Skip duplicate snapshots.
         const currentXml = history[currentIndex]?.xml;
         if (currentXml === xml) {
-            return; // 不推送相同的 XML
+            return;
         }
 
         setHistory(prev => {
-            // 切掉当前索引之后的历史（如果有的话）
+            // Drop redo entries after the current index.
             const newHistory = prev.slice(0, currentIndex + 1);
 
-            // 添加新条目
+            // Add the new entry.
             newHistory.push({
                 xml,
                 action,
                 timestamp: Date.now()
             });
 
-            // 限制历史大小
+            // Enforce the configured history limit.
             if (newHistory.length > maxHistorySize) {
                 newHistory.shift();
             }
@@ -128,7 +128,7 @@ export function HistoryProvider({
     }, [currentIndex, maxHistorySize, history]);
 
     /**
-     * 撤销
+     * Moves one history entry backward.
      */
     const undo = useCallback((): string | null => {
         if (!canUndo) return null;
@@ -145,7 +145,7 @@ export function HistoryProvider({
     }, [canUndo, currentIndex, history]);
 
     /**
-     * 重做
+     * Moves one history entry forward.
      */
     const redo = useCallback((): string | null => {
         if (!canRedo) return null;
@@ -162,7 +162,7 @@ export function HistoryProvider({
     }, [canRedo, currentIndex, history]);
 
     /**
-     * 获取当前 XML
+     * Returns the current XML snapshot.
      */
     const getCurrentXml = useCallback((): string | null => {
         return history[currentIndex]?.xml || null;
