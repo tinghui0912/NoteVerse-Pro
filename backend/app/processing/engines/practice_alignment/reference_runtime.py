@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 
+def build_audio_processor(*, sample_rate: int, hop_length: int, chroma_processor):
+    """Create Matchmaker's chroma extractor with the negotiated audio format."""
+    return chroma_processor(sample_rate=sample_rate, hop_length=hop_length)
+
+
 def normalize_audio_waveform(audio, np):
     if isinstance(audio, tuple):
         if not audio:

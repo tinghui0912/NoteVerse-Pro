@@ -23,6 +23,7 @@ from app.processing.engines.practice_alignment.audio_activity import (
 from app.processing.engines.practice_alignment.contracts import AlignmentEngine, AlignmentUpdate
 from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
 from app.processing.engines.practice_alignment.reference_runtime import (
+    build_audio_processor,
     build_score_follower,
     normalize_audio_waveform,
 )
@@ -654,7 +655,7 @@ class MatchmakerLiveEngine:
         self.frame_rate = profile.frame_rate
         self.hop_length = max(int(sample_rate / self.frame_rate), 1)
         self._queue: queue.Queue[object] = queue.Queue()
-        self._processor = self._build_audio_processor(
+        self._processor = build_audio_processor(
             sample_rate=sample_rate,
             hop_length=self.hop_length,
             chroma_processor=ChromagramProcessor,
@@ -817,14 +818,6 @@ class MatchmakerLiveEngine:
     def _pcm_s16le_to_float32(self, chunk: bytes):
         samples = self._np.frombuffer(chunk, dtype=self._np.int16)
         return (samples.astype(self._np.float32) / 32768.0).copy()
-
-    @staticmethod
-    def _build_audio_processor(
-        sample_rate: int,
-        hop_length: int,
-        chroma_processor,
-    ):
-        return chroma_processor(sample_rate=sample_rate, hop_length=hop_length)
 
     @staticmethod
     def _generate_score_audio(

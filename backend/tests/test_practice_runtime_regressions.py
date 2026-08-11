@@ -15,7 +15,10 @@ from app.processing.engines.practice_alignment.matchmaker_live import (
     MatchmakerLiveEngine,
     build_alignment_engine,
 )
-from app.processing.engines.practice_alignment.reference_runtime import build_score_follower
+from app.processing.engines.practice_alignment.reference_runtime import (
+    build_audio_processor,
+    build_score_follower,
+)
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
 from app.processing.realtime.message_codec import session_armed_message
 from app.processing.realtime.session_runtime import PracticeSessionRuntimeRegistry
@@ -108,7 +111,7 @@ def import_without_matchmaker(name, *args, **kwargs):
 
 
 def test_matchmaker_live_engine_builds_chroma_processor() -> None:
-    processor = MatchmakerLiveEngine._build_audio_processor(
+    processor = build_audio_processor(
         sample_rate=16000,
         hop_length=533,
         chroma_processor=DummyProcessorFactory("chroma"),
