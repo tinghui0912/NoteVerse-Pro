@@ -246,21 +246,21 @@ export class MusicXMLParser {
 
       const voiceEntities: Record<string, ScoreEntity[]> = {};
 
-      // 时间游标追踪（voiceKey -> currentTick）
+      // Track timeline cursors by voice key.
       const voiceCursors: Map<string, number> = new Map();
       const getVoiceCursor = (key: string): number => voiceCursors.get(key) ?? 0;
       const setVoiceCursor = (key: string, tick: number) => voiceCursors.set(key, Math.max(0, tick));
 
-      // 按文档顺序遍历所有子元素 (note, forward, backup)
+      // Walk note, forward, and backup elements in document order.
       const children = Array.from(measureNode.childNodes);
       for (const node of children) {
-        if (node.nodeType !== 1) continue; // 跳过非元素节点
+        if (node.nodeType !== 1) continue;
         const element = node as Element;
 
         if (element.tagName === 'backup') {
-          // backup 回退时间游标（影响后续音符的声部）
+          // Backup rewinds timeline cursors for subsequent voice events.
           const backupDuration = parseInt(element.querySelector('duration')?.textContent || '0', 10);
-          // backup 通常影响所有活跃的声部，这里简化处理：回退所有已存在的游标
+          // A backup usually applies across active voices; rewind every known cursor.
           voiceCursors.forEach((currentTick, key) => {
             setVoiceCursor(key, currentTick - backupDuration);
           });
@@ -277,23 +277,23 @@ export class MusicXMLParser {
             voiceEntities[voiceKey] = [];
           }
 
-          // 获取当前时间位置
+          // Resolve the current timeline position.
           const currentTick = getVoiceCursor(voiceKey);
 
-          // 获取音符时值
+          // Resolve rhythmic duration.
           const isGrace = noteNode.querySelector('grace') !== null;
           const noteDuration = isGrace ? 0 : parseInt(noteNode.querySelector('duration')?.textContent || '0', 10);
 
-          // 解析 dotted
+          // Parse dotted state.
           const hasDot = noteNode.querySelector('dot') !== null;
 
           if (noteNode.querySelector('chord')) {
             const noteId = this.getStableElementId(noteNode);
             // It's part of a chord, find the last entity and add to it if it is a chord
-            // 和弦成员不推进时间游标，使用前一个音符的 startTick
+            // Chord members do not advance the cursor; they share the root note start tick.
             const lastEntity = voiceEntities[voiceKey][voiceEntities[voiceKey].length - 1];
 
-            // 解析当前音符的指法
+            // Parse fingering for this chord member.
             const fingeringEl = noteNode.querySelector('notations > technical > fingering');
             const currentFingering = normalizeFingeringText(fingeringEl?.textContent);
 
@@ -301,9 +301,9 @@ export class MusicXMLParser {
               const pitch = extractPitch(noteNode);
               if (pitch) {
                 lastEntity.pitches.push(pitch);
-                // 添加指法到 fingerings 数组，确保数组存在
+                // Append fingering while preserving an index-aligned array.
                 if (!lastEntity.fingerings) {
-                  // 如果 fingerings 不存在，初始化为与现有 pitches 长度匹配的数组
+                  // Backfill existing chord pitches when the array is absent.
                   lastEntity.fingerings = lastEntity.pitches.slice(0, -1).map(() => 'none');
                 }
                 lastEntity.fingerings.push(currentFingering || 'none');
@@ -327,7 +327,7 @@ export class MusicXMLParser {
                 articulation: lastEntity.articulation,
                 meta: lastEntity.meta
                   ? { ...lastEntity.meta, sourceIds: [firstNoteId, noteId].filter(Boolean) as string[] }
-                  : undefined, // 保留原音符的 meta（包含 startTick）
+                  : undefined, // Preserve original note metadata, including startTick.
               };
               voiceEntities[voiceKey][voiceEntities[voiceKey].length - 1] = newChord;
             }
@@ -348,14 +348,14 @@ export class MusicXMLParser {
               },
             };
             voiceEntities[voiceKey].push(rest);
-            // 推进时间游标
+            // Advance the timeline cursor.
             setVoiceCursor(voiceKey, currentTick + noteDuration);
           } else {
             const pitch = extractPitch(noteNode);
             if (pitch) {
               const entityIndex = voiceEntities[voiceKey].length;
 
-              // 解析符干方向
+              // Parse stem direction.
               const stemEl = noteNode.querySelector('stem');
               const stemText = stemEl?.textContent?.trim().toLowerCase();
               let stemDirection: 'up' | 'down' | 'none' | undefined;
@@ -363,7 +363,7 @@ export class MusicXMLParser {
                 stemDirection = stemText;
               }
 
-              // 解析指法
+              // Parse fingering.
               const fingeringEl = noteNode.querySelector('notations > technical > fingering');
               const fingering = normalizeFingeringText(fingeringEl?.textContent);
 
@@ -387,12 +387,12 @@ export class MusicXMLParser {
                 },
               };
               voiceEntities[voiceKey].push(note);
-              // 推进时间游标
+              // Advance the timeline cursor.
               setVoiceCursor(voiceKey, currentTick + noteDuration);
             }
           }
         } else if (element.tagName === 'forward') {
-          // 处理 forward (空白)
+          // Convert MusicXML forward elements to blank UI entities.
           const forwardNode = element;
           const staffEl = forwardNode.querySelector('staff');
           const staffIndex = staffEl ? parseInt(staffEl.textContent || '1', 10) : 1;
@@ -404,10 +404,10 @@ export class MusicXMLParser {
           }
           const entityIndex = voiceEntities[voiceKey].length;
 
-          // 获取当前时间位置
+          // Resolve the current timeline position.
           const currentTick = getVoiceCursor(voiceKey);
 
-          // 基于 duration ratio 推断 dotted
+          // Infer dotted state from the duration ratio.
           const forwardDuration = parseInt(forwardNode.querySelector('duration')?.textContent || '4', 10);
           const isDotted = isDottedDuration(forwardDuration, this.divisions);
 
@@ -426,12 +426,12 @@ export class MusicXMLParser {
             },
           };
           voiceEntities[voiceKey].push(blank);
-          // forward 推进时间游标
+          // Forward advances the timeline cursor.
           setVoiceCursor(voiceKey, currentTick + forwardDuration);
         }
       }
 
-      // Assemble staves and voices - 按声部编号排序
+      // Assemble staves and voices in staff/voice order.
       const sortedVoiceKeys = Object.keys(voiceEntities).sort((a, b) => {
         const [staffA, voiceA] = a.split('-').map(Number);
         const [staffB, voiceB] = b.split('-').map(Number);
@@ -456,7 +456,7 @@ export class MusicXMLParser {
 
       measures.push({
         number: measureNumber,
-        // 保留所有预定义的 stave，即使没有 voice（空声部也需要显示）
+        // Keep predefined staves even when they have no voices.
         staves: Object.values(staves)
       });
     });

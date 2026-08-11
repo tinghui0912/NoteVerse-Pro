@@ -2051,6 +2051,22 @@ REC-006 remains partially complete. Continue `parser.ts` in small batches. The
 next batch should cover the `parseMeasures()` timing cursor and note/chord/rest
 projection comments before moving to tie/slur/beam connection pairing.
 
+### 2026-08-11: MusicXML parser measure comments cleaned for REC-006
+
+- Continued the dedicated `apps/customer-web/src/lib/musicxml/parser.ts`
+  REC-006 pass with `parseMeasures()`.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  voice timeline cursors, backup rewinds, note/chord/rest projection, fingering
+  alignment, forward-as-blank handling, and stave/voice assembly.
+- Kept parser behavior and exported APIs unchanged; this was a
+  readability-only cleanup.
+- Confirmed the `parseMeasures()` range no longer contains Chinese characters
+  or mojibake glyphs, and verified parser/core tests still pass.
+
+REC-006 remains partially complete. Continue `parser.ts` with the
+`parseConnections()` section next, especially entity lookup-map construction and
+tie/slur/beam pairing comments.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
