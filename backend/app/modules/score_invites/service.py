@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import secrets
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +17,14 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.score_invites import build_invite_email
 from app.modules.score_invites.repository import ScoreInviteRepository
+from app.modules.score_invites.rules import (
+    ROLE_RANK,
+    can_user_accept_invite,
+    display_invite_status,
+    generate_invite_token,
+    hash_invite_token,
+    invite_role_label,
+)
 from app.modules.score_invites.schemas import (
     InviteAcceptRead,
     InviteAccessRead,
@@ -35,22 +41,8 @@ from app.shared.constants import ErrorCode
 from app.utils.timezone import to_utc_naive, utc_now_naive
 
 
-ROLE_RANK: dict[MembershipRole, int] = {
-    MembershipRole.VIEWER: 1,
-    MembershipRole.EDITOR: 2,
-}
-
-INVITE_TOKEN_BYTES = 32
 SCORE_INVITE_LIST_DEFAULT_LIMIT = 100
 SCORE_MEMBER_LIST_DEFAULT_LIMIT = 100
-
-
-def hash_invite_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-def generate_invite_token() -> str:
-    return secrets.token_urlsafe(INVITE_TOKEN_BYTES)
 
 
 class ScoreInviteService:
@@ -138,7 +130,7 @@ class ScoreInviteService:
         if not score:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         user = await db.get(User, user_id) if user_id is not None else None
-        can_accept = self._can_user_accept(invite, user)
+        can_accept = can_user_accept_invite(invite, user)
         return InviteAccessRead(
             invite_id=invite.invite_uuid,
             score_id=score.score_uuid,
@@ -146,7 +138,7 @@ class ScoreInviteService:
             inviter=await self._actor(db, invite.created_by_user_id),
             email=invite.email,
             role=invite.role,
-            status=self._display_status(invite),
+            status=display_invite_status(invite),
             expires_at=invite.expires_at,
             requires_login=user is None,
             can_accept=can_accept,
@@ -165,7 +157,7 @@ class ScoreInviteService:
         invites = await self.repository.pending_invites_for_email(db, user.email.lower())
         active_invites: list[PendingInviteRead] = []
         for invite in invites:
-            if self._display_status(invite) == InviteStatus.PENDING:
+            if display_invite_status(invite) == InviteStatus.PENDING:
                 active_invites.append(await self._pending_invite_read(db, invite))
         return active_invites
 
@@ -204,7 +196,7 @@ class ScoreInviteService:
         user = await db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        if not self._can_user_accept(invite, user):
+        if not can_user_accept_invite(invite, user):
             raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
         score = await db.get(Score, invite.score_id)
         if not score:
@@ -338,7 +330,7 @@ class ScoreInviteService:
             raise ResourceNotFoundException("invite", code=ErrorCode.INVITE_NOT_FOUND)
         if allow_inactive:
             return invite
-        status = self._display_status(invite)
+        status = display_invite_status(invite)
         if status == InviteStatus.EXPIRED:
             invite.status = InviteStatus.EXPIRED
             await db.commit()
@@ -355,7 +347,7 @@ class ScoreInviteService:
         invite = await self.repository.invite_by_uuid(db, invite_uuid)
         if not invite:
             raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
-        status = self._display_status(invite)
+        status = display_invite_status(invite)
         if status == InviteStatus.EXPIRED:
             invite.status = InviteStatus.EXPIRED
             await db.commit()
@@ -374,7 +366,7 @@ class ScoreInviteService:
         user = await db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        if not self._can_user_accept(invite, user):
+        if not can_user_accept_invite(invite, user):
             raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
         return user
 
@@ -389,22 +381,6 @@ class ScoreInviteService:
                 ErrorCode.MEMBERSHIP_NOT_FOUND,
             )
         return membership
-
-    def _display_status(self, invite: ScoreInvite) -> InviteStatus:
-        if (
-            invite.status == InviteStatus.PENDING
-            and invite.expires_at
-            and invite.expires_at <= utc_now_naive()
-        ):
-            return InviteStatus.EXPIRED
-        return invite.status
-
-    def _can_user_accept(self, invite: ScoreInvite, user: User | None) -> bool:
-        if user is None:
-            return False
-        if self._display_status(invite) != InviteStatus.PENDING:
-            return False
-        return invite.email == user.email.lower()
 
     async def _notify_invite_response(
         self,
@@ -439,7 +415,7 @@ class ScoreInviteService:
             invite_id=invite.invite_uuid,
             email=invite.email,
             role=invite.role,
-            status=self._display_status(invite),
+            status=display_invite_status(invite),
             expires_at=invite.expires_at,
             accepted_at=invite.accepted_at,
             revoked_at=invite.revoked_at,
@@ -462,7 +438,7 @@ class ScoreInviteService:
             inviter=await self._actor(db, invite.created_by_user_id),
             email=invite.email,
             role=invite.role,
-            status=self._display_status(invite),
+            status=display_invite_status(invite),
             expires_at=invite.expires_at,
             created_at=invite.created_at,
         )
@@ -515,7 +491,7 @@ class ScoreInviteService:
             else settings.PROJECT_NAME
         )
         invite_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/invite/{token}"
-        role_label = self._role_label(invite.role, locale)
+        role_label = invite_role_label(invite.role, locale)
         email = build_invite_email(
             locale=locale,
             project_name=settings.PROJECT_NAME,
@@ -535,9 +511,3 @@ class ScoreInviteService:
             html_body=email.html_body,
             expires_at=invite.expires_at,
         )
-
-    @staticmethod
-    def _role_label(role: MembershipRole, locale: str) -> str:
-        if locale == "en":
-            return "Can edit" if role == MembershipRole.EDITOR else "View only"
-        return "可编辑" if role == MembershipRole.EDITOR else "仅查看"

@@ -86,7 +86,8 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash
 from app.modules.score_sharing.schemas import GrantCreateRequest
 from app.modules.score_sharing.service import ScoreSharingService
 from app.modules.score_invites.schemas import InviteCreateRequest
-from app.modules.score_invites.service import ScoreInviteService, hash_invite_token
+from app.modules.score_invites.rules import hash_invite_token
+from app.modules.score_invites.service import ScoreInviteService
 from app.modules.notifications.maintenance_service import NotificationMaintenanceService
 from app.modules.notifications.service import NotificationService, NotificationTypes
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService

@@ -1543,6 +1543,26 @@ changes add additional folder invariants or library read-model variants; the
 remaining service methods are still readable transaction/application
 orchestration rather than an obvious separate subsystem.
 
+### 2026-08-11: Score invite domain rules extracted
+
+- Selected `backend/app/modules/score_invites/service.py` as the next measured
+  ARC-004 hotspot because it mixed invite/member transaction orchestration with
+  pure invite rules.
+- Extracted invite token hashing/generation, role ranking, display status,
+  acceptability checks, and locale-specific role labels to
+  `backend/app/modules/score_invites/rules.py`.
+- Updated existing tests to import `hash_invite_token` from the new rule owner;
+  no compatibility re-export remains in `service.py`.
+- Added focused rule tests in `backend/tests/test_score_invite_rules.py`.
+- Kept `ScoreInviteService` responsible for authorization, invite and member
+  writes, notification creation, mail outbox queueing, commits, refreshes, and
+  domain exceptions.
+
+ARC-004 remains partially complete. Do not split `ScoreInviteService` further
+until membership lifecycle, invite delivery, or notification behavior grows
+enough to justify a separately testable owner; the current service complexity
+is mostly application orchestration.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
