@@ -1821,6 +1821,28 @@ around similarly stable boundaries such as score metadata controls or
 note-property field groups; do not extract stateful editor mutation callbacks
 until a tested hook boundary is obvious.
 
+### 2026-08-11: Score Inspector metadata panel extracted
+
+- Continued the Customer Web ARC-003 pass by extracting the score-level metadata
+  inspector from `apps/customer-web/src/components/editor/event-inspector.tsx`.
+- Moved `ScoreInspectorPanel`, key-signature, time-signature, tempo picker, and
+  staff-preview UI to
+  `apps/customer-web/src/components/editor/event-score-inspector.tsx`.
+- Kept `EventInspector` responsible for choosing between score-level and
+  event-level inspector modes, and kept `EventInspectorPanel` responsible for
+  selected-event editing state and XML mutation callbacks.
+- Replaced copied mojibake metadata labels in the extracted picker constants
+  with explicit readable key labels and musical symbols, so the extracted file
+  remains parseable and maintainable.
+- Added focused helper coverage in
+  `apps/customer-web/tests/unit/event-score-inspector.test.ts` and updated the
+  surface-migration test to assert the metadata editor remains in the right
+  inspector via the new module.
+
+ARC-003 remains partially complete. The next Event Inspector cut, if any, should
+target event note-property field groups or pitch-edit helpers; avoid moving
+editor mutation callbacks until a smaller hook boundary is proven by tests.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
