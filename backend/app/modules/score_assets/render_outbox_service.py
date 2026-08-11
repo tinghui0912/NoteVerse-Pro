@@ -207,6 +207,8 @@ class RenderOutboxService:
         if payload is not None:
             return payload
 
+        if outbox.status == RenderOutboxStatus.COMPLETED:
+            return None
         self._exhaust_unavailable_resources(outbox)
         return None
 

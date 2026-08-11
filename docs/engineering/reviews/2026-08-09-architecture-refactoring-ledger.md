@@ -1507,6 +1507,21 @@ hotspot.
 ARC-004 remains partially complete. Continue only with small, behavior-covered
 extractions or concrete regression fixes uncovered by those checks.
 
+### 2026-08-11: Review-thumbnail stale outbox completion preserved
+
+- Fixed a regression uncovered while validating the review-confirmation
+  extraction: stale review-thumbnail render outboxes were marked completed by
+  the review-thumbnail payload builder, then overwritten as failed by the
+  generic unavailable-resource exhaustion handler.
+- `RenderOutboxService._build_payload()` now preserves a target-specific
+  `COMPLETED` decision and only exhausts unavailable resources when no payload
+  was built and the outbox was not completed by the target-specific builder.
+- This is a behavior fix, not a broader render-outbox refactor.
+
+ARC-004 remains partially complete. Treat target-specific terminal decisions in
+outbox builders as intentional domain policy before applying generic fallback
+handling.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
