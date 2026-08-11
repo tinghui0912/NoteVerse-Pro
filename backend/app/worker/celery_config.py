@@ -5,6 +5,7 @@ from pathlib import Path
 from celery import Celery, signals
 from app.core.config import settings
 from app.core.logging_setup import configure_celery_logging
+from app.worker.beat_schedule import build_beat_schedule
 
 beat_state_dir = Path(settings.WORK_ROOT) / "celerybeat"
 beat_state_dir.mkdir(parents=True, exist_ok=True)
@@ -49,48 +50,7 @@ celery_app.conf.update(
     worker_hijack_root_logger=False,
     result_expires=3600,
     beat_schedule_filename=str(beat_schedule_filename),
-    beat_schedule={
-        "job-maintenance-every-five-minutes": {
-            "task": "app.worker.tasks.run_job_maintenance",
-            "schedule": 300.0,
-        },
-        "import-dispatch-maintenance": {
-            "task": "app.worker.tasks.run_import_dispatch_maintenance",
-            "schedule": float(settings.IMPORT_DISPATCH_INTERVAL_SECONDS),
-        },
-        "notification-maintenance": {
-            "task": "app.worker.tasks.run_notification_maintenance",
-            "schedule": float(settings.NOTIFICATION_CLEANUP_INTERVAL_SECONDS),
-        },
-        "realtime-maintenance": {
-            "task": "app.worker.tasks.run_realtime_maintenance",
-            "schedule": float(settings.REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS),
-        },
-        "derived-asset-cleanup": {
-            "task": "app.worker.tasks.run_derived_asset_cleanup",
-            "schedule": float(settings.DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS),
-        },
-        "score-deletion-cleanup": {
-            "task": "app.worker.tasks.run_score_deletion_cleanup",
-            "schedule": float(settings.SCORE_DELETION_CLEANUP_INTERVAL_SECONDS),
-        },
-        "render-outbox-maintenance": {
-            "task": "app.worker.tasks.run_render_outbox_maintenance",
-            "schedule": float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS),
-        },
-        "playback-outbox-maintenance": {
-            "task": "app.worker.tasks.run_playback_outbox_maintenance",
-            "schedule": float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS),
-        },
-        "mail-outbox-maintenance": {
-            "task": "app.worker.tasks.run_mail_outbox_maintenance",
-            "schedule": float(settings.MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS),
-        },
-        "mail-outbox-cleanup-daily": {
-            "task": "app.worker.tasks.run_mail_outbox_cleanup",
-            "schedule": 86400.0,
-        },
-    },
+    beat_schedule=build_beat_schedule(settings),
 )
 
 # Task routes - use default celery queue

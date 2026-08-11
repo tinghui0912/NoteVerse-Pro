@@ -1,4 +1,5 @@
 from app.core.config import get_worker_runtime_settings, settings
+from app.worker.beat_schedule import build_beat_schedule
 from app.worker.celery_config import celery_app
 
 
@@ -11,6 +12,10 @@ def test_task_time_limits_form_ordered_shutdown_envelope() -> None:
 def test_celery_uses_explicit_task_time_limits() -> None:
     assert celery_app.conf.task_soft_time_limit == settings.CELERY_TASK_SOFT_TIME_LIMIT
     assert celery_app.conf.task_time_limit == settings.CELERY_TASK_TIME_LIMIT
+
+
+def test_celery_uses_the_declared_beat_schedule_contract() -> None:
+    assert celery_app.conf.beat_schedule == build_beat_schedule(settings)
 
 
 def test_notification_maintenance_is_scheduled() -> None:

@@ -1256,6 +1256,11 @@ merely to eliminate small dispatch branches.
   and the model-cache agent now consumes both role-specific ConfigMaps to
   prepare and validate both soundfont targets without leaking Practice settings
   into Worker pods.
+- Extracted the Celery Beat schedule map from the broader Celery app
+  configuration. The schedule intervals remain in shared runtime settings
+  because their retry/timeout/max-attempt companions are read by API/Ops
+  projections and Worker dispatch services; Beat owns only the recurring task
+  trigger mapping.
 
 ## Reusable completion checklist for every refactor
 
