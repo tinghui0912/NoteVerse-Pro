@@ -1985,6 +1985,20 @@ REC-006 remains partially complete. Continue with `elements.ts` next, then
 `core.ts` or `flatten.ts`; keep `parser.ts` for a dedicated pass because its
 comments describe parsing policy and timing behavior.
 
+### 2026-08-11: MusicXML element comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/elements.ts`.
+- Replaced Chinese/mojibake comments with concise English descriptions for note
+  element update, creation, and lookup helpers.
+- Kept the implementation logic and exported API unchanged; this was a
+  readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML domain/core tests still pass.
+
+REC-006 remains partially complete. Continue with `core.ts` or `flatten.ts`
+next. Keep `parser.ts` for a dedicated later pass because its comments describe
+voice reconstruction, timing cursors, and connection pairing policy.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
