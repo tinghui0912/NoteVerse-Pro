@@ -1412,6 +1412,39 @@ ARC-012 remains partially complete, but the remaining `config.py` groups now
 need another measured consumer map before more migration; do not move settings
 just because their names sound feature-specific.
 
+### 2026-08-11: Remaining shared settings consumer map reviewed
+
+- Re-ran a field-level consumer map for every settings group still composed by
+  the global `Settings` object. The review covered production code and backend
+  operational scripts, excluding tests as ownership evidence.
+- No additional settings group was selected for migration in this pass.
+- Keep the following groups in shared settings for now because they are used by
+  more than one runtime or by shared infrastructure:
+  `AsyncDatabaseSettings`, `BrowserCorsSettings`,
+  `CustomerSessionSecuritySettings`, `ImportDispatchSettings`,
+  `MailDeliverySettings`, `NotificationLifecycleSettings`,
+  `ObservabilitySettings`, `PlaybackDeliverySettings`,
+  `PublicFrontendUrlSettings`, `QueueSettings`, `RealtimeRetentionSettings`,
+  `RealtimeStreamSettings`, `RenderAssetDeliverySettings`,
+  `ScoreDeletionLifecycleSettings`, `ServiceIdentitySettings`,
+  `StorageSettings`, `SyncDatabaseSettings`, `TokenSigningSettings`,
+  `TransactionalMailProviderSettings`, and `TrustedProxySettings`.
+- `BeatSchedulerSettings` remains shared because Beat owns the lock, while
+  observability reads the leader-heartbeat interval to project durable scheduler
+  health. Splitting it would require a dedicated scheduler-runtime projection
+  and an observability contract, not a mechanical move.
+- `FingeringExecutionSettings` is not moved yet. It looks feature-specific, but
+  its fields span API admission (`FINGERING_MAX_CONTENT_BYTES`) and execution
+  controls (`FINGERING_MAX_CONCURRENCY`, `FINGERING_QUEUE_WAIT_SECONDS`). Move
+  it only after the fingering API/execution boundary is reviewed as one unit.
+- `UploadAdmissionSettings` and `AccountEmailLinkSettings` remain in shared
+  settings because they are customer API domain policy, not process runtime
+  configuration.
+
+ARC-012 should pause after this point unless a concrete single-runtime settings
+owner emerges. The next architecture work should return to measured service or
+engine hotspots rather than continuing configuration movement for its own sake.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
