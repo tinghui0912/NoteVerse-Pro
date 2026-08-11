@@ -2067,6 +2067,24 @@ REC-006 remains partially complete. Continue `parser.ts` with the
 `parseConnections()` section next, especially entity lookup-map construction and
 tie/slur/beam pairing comments.
 
+### 2026-08-11: MusicXML parser connection comments cleaned for REC-006
+
+- Completed the dedicated `apps/customer-web/src/lib/musicxml/parser.ts`
+  REC-006 pass with `parseConnections()`.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  entity lookup-map construction, entity display metadata, global start-tick
+  ordering, `noteConnections` initialization, and tie/slur/beam two-pass
+  pairing.
+- Kept parser behavior and exported APIs unchanged; this was a
+  readability-only cleanup.
+- Confirmed the full `parser.ts` file no longer contains Chinese characters,
+  mojibake glyphs, or raw circled fingering glyphs, and verified parser/core
+  tests still pass.
+
+REC-006 remains partially complete outside MusicXML. Before expanding further,
+run a fresh Customer Web source scan and choose the next module batch by
+frequency of use and comment density.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -465,21 +465,21 @@ export class MusicXMLParser {
   }
 
   /**
-   * 解析连线信息 (tie, slur, beam)
-   * 基于已解析的 measures 构建 entityId 映射，然后解析 XML 中的连线元素
+   * Parses tie, slur, and beam connection metadata.
+   * Builds entity lookup maps from parsed measures, then scans XML connection elements.
    */
   private parseConnections(measures: Measure[]): ConnectionData {
     const noteConnections = new Map<string, NoteConnections>();
     const entityInfoMap = new Map<string, EntityInfo>();
 
-    // 构建 entityId 查找表: 通过 measureIndex/staveIndex/voiceIndex/entityIndex 查找 entityId
+    // Build an entity lookup table by measure/staff/voice/entity indexes.
     const entityIdMap = new Map<string, string>();
     const entityPitchMap = new Map<string, string[]>(); // entityId -> pitches (for chords)
 
     measures.forEach((measure, measureIndex) => {
       measure.staves.forEach((stave, _staveIndex) => {
         stave.voices.forEach((voice, voiceIndex) => {
-          // 从 voice.name 中提取实际的声部编号 (格式: "voiceLabel X")
+          // Extract the actual voice number from names like "voiceLabel X".
           const voiceNumberMatch = voice.name.match(/voiceLabel\s*(\d+)/);
           const actualVoiceNumber = voiceNumberMatch ? parseInt(voiceNumberMatch[1], 10) : voiceIndex + 1;
 
@@ -489,10 +489,10 @@ export class MusicXMLParser {
               const key = `${measureIndex}-${entity.meta.staveIndex}-${entity.meta.xmlVoice - 1}-${entityIndex}`;
               entityIdMap.set(key, entity.meta.id);
 
-              // 记录音高用于连线匹配
+              // Store pitch data for connection matching.
               if (entity.type === 'note') {
                 entityPitchMap.set(entity.meta.id, [entity.pitch]);
-                // 构建 entityInfo
+                // Build display metadata for a note entity.
                 entityInfoMap.set(entity.meta.id, {
                   pitch: entity.pitch,
                   measureNumber: measure.number,
@@ -502,7 +502,7 @@ export class MusicXMLParser {
                 });
               } else if (entity.type === 'chord') {
                 entityPitchMap.set(entity.meta.id, entity.pitches);
-                // 构建 entityInfo (和弦显示所有音高)
+                // Build display metadata for a chord entity, showing all pitches.
                 entityInfoMap.set(entity.meta.id, {
                   pitch: entity.pitches.join('+'),
                   measureNumber: measure.number,
@@ -533,14 +533,14 @@ export class MusicXMLParser {
       });
     });
 
-    // 构建 entityId -> startTick 映射（用于按时间顺序配对）
+    // Map entity ids to global start ticks for chronological pairing.
     const entityStartTickMap = new Map<string, number>();
     measures.forEach((measure, measureIndex) => {
       measure.staves.forEach((stave) => {
         stave.voices.forEach((voice) => {
           voice.notes.forEach((entity) => {
             if (entity.meta?.id) {
-              // 计算全局时间位置：measureIndex * 大数 + startTick
+              // Use a large per-measure offset so measure order dominates startTick.
               const globalTick = measureIndex * 1000000 + (entity.meta.startTick ?? 0);
               entityStartTickMap.set(entity.meta.id, globalTick);
             }
@@ -549,7 +549,7 @@ export class MusicXMLParser {
       });
     });
 
-    // 辅助函数：确保 noteConnections 中有该 entityId 的条目
+    // Ensure a noteConnections entry exists for the given entity id.
     const ensureConnection = (entityId: string): NoteConnections => {
       if (!noteConnections.has(entityId)) {
         noteConnections.set(entityId, { ties: [], slurs: [], beams: [] });
@@ -557,8 +557,8 @@ export class MusicXMLParser {
       return noteConnections.get(entityId)!;
     };
 
-    // 解析 Tie (连音线) - 使用双遍历策略按时间顺序配对（符合 MusicXML 规范）
-    // 第一遍：收集所有 tie start/stop 事件
+    // Parse ties in two passes so start/stop events pair in MusicXML timeline order.
+    // First pass: collect every tie start/stop event.
     type TieEvent = {
       type: 'start' | 'stop';
       entityId: string;
@@ -614,7 +614,7 @@ export class MusicXMLParser {
             currentEntityId = lastEntityId[voiceKey];
           }
 
-          // 收集 tie 事件
+          // Collect tie events for non-rest note entities.
           if (currentEntityId && !isRest) {
             const pitch = extractPitch(noteNode) || '';
             const sourceId = this.getStableElementId(noteNode);
@@ -631,7 +631,7 @@ export class MusicXMLParser {
       }
     });
 
-    // 第二遍：按 globalTick 排序后配对
+    // Second pass: sort by global tick and pair matching events.
     tieEvents.sort((a, b) => a.globalTick - b.globalTick);
 
     const tieStarts: Map<string, { entityId: string; sourceId: string; pitch: string }> = new Map();
@@ -679,8 +679,8 @@ export class MusicXMLParser {
       }
     }
 
-    // 解析 Slur (连奏线) - 使用双遍历策略按时间顺序配对（符合 MusicXML 规范）
-    // 第一遍：收集所有 slur start/stop 事件
+    // Parse slurs in two passes so start/stop events pair in MusicXML timeline order.
+    // First pass: collect every slur start/stop event.
     type SlurEvent = {
       type: 'start' | 'stop';
       entityId: string;
@@ -736,7 +736,7 @@ export class MusicXMLParser {
             currentEntityId = lastEntityId[voiceKey];
           }
 
-          // 收集 slur 事件
+          // Collect slur events for non-rest note entities.
           if (currentEntityId && !isRest) {
             const sourceId = this.getStableElementId(noteNode);
             noteNode.querySelectorAll('notations > slur').forEach((slurNode) => {
@@ -752,7 +752,7 @@ export class MusicXMLParser {
       }
     });
 
-    // 第二遍：按 globalTick 排序后配对
+    // Second pass: sort by global tick and pair matching events.
     slurEvents.sort((a, b) => a.globalTick - b.globalTick);
 
     const slurStarts: Map<string, { entityId: string; sourceId: string; number: number }> = new Map();
@@ -807,8 +807,8 @@ export class MusicXMLParser {
       }
     }
 
-    // 解析 Beam (连音符) - 使用双遍历策略按时间顺序配对（符合 MusicXML 规范）
-    // 第一遍：收集所有 beam 事件
+    // Parse beams in two passes so begin/continue/end events group in timeline order.
+    // First pass: collect every beam event.
     type BeamEvent = {
       type: 'begin' | 'continue' | 'end';
       entityId: string;
@@ -870,7 +870,7 @@ export class MusicXMLParser {
       }
     });
 
-    // 第二遍：按 globalTick 排序后配对
+    // Second pass: sort by global tick and group matching beam events.
     beamEvents.sort((a, b) => a.globalTick - b.globalTick);
 
     const beamGroups: Map<string, string[]> = new Map();
