@@ -2182,6 +2182,24 @@ REC-006 remains partially complete. Continue with `use-voice-editor.ts` next
 because it still contains dense voice deletion/empty-voice preservation comments
 that explain important MusicXML editor behavior.
 
+### 2026-08-12: Voice editor comments cleaned for REC-006
+
+- Continued REC-006 with
+  `apps/customer-web/src/hooks/editor/use-voice-editor.ts`.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  voice add/clear/delete ownership, MusicXML note/forward removal, XML
+  reparsing after voice mutation, and the empty-voice restoration rule needed
+  because the parser only emits voices that contain elements.
+- Kept implementation logic, hook exports, and editor behavior unchanged.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified lint, typecheck, Verovio surface migration, and MusicXML core
+  tests still pass.
+
+REC-006 remains partially complete. Continue with the focused entity-editor
+submodule comments next:
+`apps/customer-web/src/hooks/editor/entity-editor/index.ts`,
+`insert-entity.ts`, and `update-existing-entity.ts`.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

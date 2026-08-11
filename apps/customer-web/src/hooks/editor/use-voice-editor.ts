@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 声部编辑 Hook - 管理声部的增删清空
+ * Voice editing hook for adding, clearing, and deleting voices.
  */
 
 import { useCallback } from 'react';
@@ -29,7 +29,7 @@ export function useVoiceEditor() {
     const history = useHistory();
 
     /**
-     * 从 XML 中删除指定声部的元素
+     * Remove all MusicXML elements for a specific voice.
      */
     const removeVoiceElementsFromXml = useCallback((
         measureIndex: number,
@@ -47,7 +47,7 @@ export function useVoiceEditor() {
 
             if (!measureEl) return serializeXml(xmlDoc);
 
-            // 删除该 voice 的所有 note 元素
+            // Remove all note elements for this voice.
             const notes = Array.from(measureEl.querySelectorAll('note'));
             notes.forEach(note => {
                 const staffEl = note.querySelector('staff');
@@ -59,7 +59,7 @@ export function useVoiceEditor() {
                 }
             });
 
-            // 删除该 voice 的所有 forward 元素
+            // Remove all forward elements for this voice.
             const forwards = Array.from(measureEl.querySelectorAll('forward'));
             forwards.forEach(forward => {
                 const voiceEl = forward.querySelector('voice');
@@ -79,7 +79,7 @@ export function useVoiceEditor() {
     }, [currentXml]);
 
     /**
-     * 添加声部
+     * Add a voice to a staff.
      */
     const handleAddVoice = useCallback((measureIndex: number, staveIndex: number) => {
         setScoreData(prevData => {
@@ -129,7 +129,7 @@ export function useVoiceEditor() {
     }, [setScoreData]);
 
     /**
-     * 清空声部
+     * Clear all events from a voice while keeping the voice visible.
      */
     const handleClearVoice = useCallback((measureIndex: number, staveIndex: number, xmlVoice: number) => {
         if (!currentXml || !scoreData) return;
@@ -141,23 +141,23 @@ export function useVoiceEditor() {
         currentXmlRef.current = newXml;
         setCurrentXml(newXml);
 
-        // 重新解析 XML 以正确更新 noteCount 等统计数据
+        // Reparse XML so note counts and derived score statistics stay current.
         const parser = new MusicXMLParser(newXml);
         const newData = parser.parse();
 
-        // 保留被清空的声部（空声部）
-        // 解析器不会为没有元素的声部创建数据，需要手动保留
+        // Preserve the cleared voice as an empty editor voice.
+        // The parser only creates voices with elements, so empty voices must be restored manually.
         const oldStave = scoreData.measures[measureIndex]?.staves[staveIndex];
         const newStave = newData.measures[measureIndex]?.staves[staveIndex];
         if (oldStave && newStave) {
             const oldVoice = oldStave.voices.find((v: { name: string }) => v.name.includes(`${xmlVoice}`));
             if (oldVoice) {
-                // 检查新数据中是否还有这个声部
+                // Check whether the reparsed score still contains this voice.
                 const voiceStillExists = newStave.voices.some((v: { name: string }) => v.name.includes(`${xmlVoice}`));
                 if (!voiceStillExists) {
-                    // 声部不存在了，需要添加一个空声部
+                    // Restore the voice as empty when parsing removed it.
                     newStave.voices.push({ name: oldVoice.name, notes: [] });
-                    // 按声部编号排序
+                    // Keep voices sorted by voice number.
                     newStave.voices.sort((a: { name: string }, b: { name: string }) => {
                         const numA = parseInt(a.name.match(/\d+/)?.[0] || '0', 10);
                         const numB = parseInt(b.name.match(/\d+/)?.[0] || '0', 10);
@@ -171,7 +171,7 @@ export function useVoiceEditor() {
     }, [currentXml, currentXmlRef, scoreData, setCurrentXml, setScoreData, history, removeVoiceElementsFromXml, t]);
 
     /**
-     * 删除声部
+     * Delete a voice from the score data and MusicXML.
      */
     const handleDeleteVoice = useCallback((measureIndex: number, staveIndex: number, xmlVoice: number, _voiceArrayIndex: number) => {
         if (!currentXml || !scoreData) return;
@@ -183,7 +183,7 @@ export function useVoiceEditor() {
         currentXmlRef.current = newXml;
         setCurrentXml(newXml);
 
-        // 重新解析 XML 以正确更新 noteCount 等统计数据
+        // Reparse XML so note counts and derived score statistics stay current.
         const parser = new MusicXMLParser(newXml);
         const newData = parser.parse();
         setScoreData(newData);
