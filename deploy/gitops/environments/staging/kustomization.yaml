@@ -42,6 +42,12 @@ configMapGenerator:
   - name: noteverse-backend-config
     envs:
       - backend-config.env
+  - name: noteverse-backend-worker-config
+    envs:
+      - backend-worker-config.env
+  - name: noteverse-backend-practice-config
+    envs:
+      - backend-practice-config.env
   - name: noteverse-frontend-config
     envs:
       - frontend-config.env

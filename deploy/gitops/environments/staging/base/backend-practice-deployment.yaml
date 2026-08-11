@@ -36,6 +36,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: noteverse-backend-config
+            - configMapRef:
+                name: noteverse-backend-practice-config
             - secretRef:
                 name: noteverse-backend-secret
           readinessProbe:

@@ -30,6 +30,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: noteverse-backend-config
+            - configMapRef:
+                name: noteverse-backend-worker-config
             - secretRef:
                 name: noteverse-backend-secret
           env:

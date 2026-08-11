@@ -1215,6 +1215,26 @@ per-source branches continue to grow or duplicate behavior across additional
 operation kinds. Do not split each current operation kind into separate files
 merely to eliminate small dispatch branches.
 
+### 2026-08-11: Kubernetes runtime ConfigMaps split by ownership
+
+- Split Kubernetes deployment configuration into a shared backend ConfigMap
+  plus role-specific Worker and Practice ConfigMaps. API, Beat, migration, and
+  observability exporter continue to consume only the shared backend baseline;
+  Worker consumes shared + Worker config; Practice consumes shared + Practice
+  config; Control Plane consumes shared + Control Plane config.
+- Moved model cache paths, PaddleOCR/LEGATO runtime locations, Hugging Face
+  offline runtime flags, PaddleOCR timeout, and Worker concurrency out of the
+  broad `backend-config.env` files into `backend-worker-config.env`.
+- Moved Practice soundfont path and Practice diagnostics toggles out of the
+  broad `backend-config.env` files into `backend-practice-config.env`.
+- Kept the model-cache agent's online Hugging Face overrides inline because
+  cache warming/download has different runtime semantics from normal offline
+  Worker execution.
+- Updated the release-package promotion allowlist so the new role-specific
+  env files can be promoted into GitOps desired state. This prevents GitOps
+  from silently retaining the old broad ConfigMap shape after application
+  overlays are cleaned up.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
