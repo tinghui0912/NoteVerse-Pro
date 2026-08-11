@@ -1332,6 +1332,11 @@ merely to eliminate small dispatch branches.
   small private helpers for render-asset usage snapshots and best-effort storage
   cleanup. This reduces local duplication without creating a broad async/sync
   abstraction layer.
+- Kept `PlaybackService`'s async API render path and sync Worker render path
+  separate for the same reason, while extracting small private helpers for
+  playback storage-key construction, previous asset usage snapshots, and
+  best-effort storage cleanup. The asset-writing transaction flow remains
+  explicit in each path.
 
 ## Reusable completion checklist for every refactor
 

@@ -104,11 +104,13 @@ class PlaybackService:
         source_content = self.storage.read_bytes(source.storage_key)
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
-        key = (
-            f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{audio.extension}"
-        )
         stored = self.storage.put_bytes(
-            key=key,
+            key=self._playback_storage_key(
+                score_uuid=score_uuid,
+                revision_uuid=revision_uuid,
+                asset_uuid=asset_uuid,
+                extension=audio.extension,
+            ),
             content=audio.content,
             content_type=audio.mime_type,
         )
@@ -121,9 +123,7 @@ class PlaybackService:
             )
         ).scalar_one_or_none()
         old_key = previous.storage_key if previous else None
-        previous_usage = (
-            (previous.asset_uuid, previous.storage_key, previous.size_bytes) if previous else None
-        )
+        previous_usage = self._playback_asset_usage(previous)
         try:
             manifest = await get_or_create_execution_manifest_async(
                 db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
@@ -153,10 +153,7 @@ class PlaybackService:
             await db.refresh(asset)
         except Exception:
             await db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            self._delete_storage_key_best_effort(stored.storage_key)
             raise
 
         await storage_usage_service.record_allocation(
@@ -182,10 +179,7 @@ class PlaybackService:
                 storage_key=old_storage_key,
             )
         if old_key and old_key != stored.storage_key:
-            try:
-                self.storage.delete(old_key)
-            except Exception:
-                pass
+            self._delete_storage_key_best_effort(old_key)
         return asset
 
     async def score_revision_delivery(
@@ -362,11 +356,13 @@ class PlaybackService:
     ) -> ScorePlaybackAsset:
         audio = self.renderer.render(source)
         asset_uuid = str(uuid.uuid4())
-        key = (
-            f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{audio.extension}"
-        )
         stored = self.storage.put_bytes(
-            key=key,
+            key=self._playback_storage_key(
+                score_uuid=score_uuid,
+                revision_uuid=revision_uuid,
+                asset_uuid=asset_uuid,
+                extension=audio.extension,
+            ),
             content=audio.content,
             content_type=audio.mime_type,
         )
@@ -385,9 +381,7 @@ class PlaybackService:
                 Score.deletion_status == ScoreDeletionStatus.ACTIVE,
             )
         ).scalar_one()
-        previous_usage = (
-            (previous.asset_uuid, previous.storage_key, previous.size_bytes) if previous else None
-        )
+        previous_usage = self._playback_asset_usage(previous)
         try:
             manifest = get_or_create_execution_manifest(
                 db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
@@ -417,10 +411,7 @@ class PlaybackService:
             db.refresh(asset)
         except Exception:
             db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            self._delete_storage_key_best_effort(stored.storage_key)
             raise
 
         storage_usage_service.record_allocation_sync(
@@ -446,11 +437,32 @@ class PlaybackService:
                 storage_key=old_storage_key,
             )
         if old_key and old_key != stored.storage_key:
-            try:
-                self.storage.delete(old_key)
-            except Exception:
-                pass
+            self._delete_storage_key_best_effort(old_key)
         return asset
+
+    @staticmethod
+    def _playback_storage_key(
+        *,
+        score_uuid: str,
+        revision_uuid: str,
+        asset_uuid: str,
+        extension: str,
+    ) -> str:
+        return f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{extension}"
+
+    @staticmethod
+    def _playback_asset_usage(
+        asset: ScorePlaybackAsset | None,
+    ) -> tuple[str, str, int] | None:
+        if asset is None:
+            return None
+        return (asset.asset_uuid, asset.storage_key, asset.size_bytes)
+
+    def _delete_storage_key_best_effort(self, storage_key: str) -> None:
+        try:
+            self.storage.delete(storage_key)
+        except Exception:
+            pass
 
 
 playback_service = PlaybackService()
