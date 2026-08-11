@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.main import app
 from app.core.middleware import normalize_origin
 from app.modules.playback.router import get_playback_service
-from app.modules.playback.service import PlaybackDelivery
+from app.modules.playback.delivery import PlaybackDelivery
 
 
 def _request(

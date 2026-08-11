@@ -1620,6 +1620,27 @@ ARC-004 remains partially complete. Do not split `confirm()` further unless a
 new, independently testable transaction participant emerges; after this pass,
 the remaining review service complexity is mostly write orchestration.
 
+### 2026-08-11: Playback delivery read model extracted
+
+- Selected `backend/app/modules/playback/service.py` as the next ARC-004
+  hotspot because delivery lookup and fallback projection were mixed with
+  audio rendering and storage-accounting workflows.
+- Extracted delivery DTO and read model to
+  `backend/app/modules/playback/delivery.py`: authenticated score-revision
+  delivery, revision asset lookup, previous-revision fallback lookup, storage
+  existence checks, and `PlaybackDelivery` projection.
+- Updated tests to import `PlaybackDelivery` from the delivery owner instead of
+  the service module. No compatibility re-export was added.
+- Kept `PlaybackService` responsible for render/render_sync orchestration,
+  MusicXML source lookup, renderer invocation, playback asset writes,
+  execution manifest creation, storage usage allocation/release, share/public
+  access entrypoints, and storage cleanup.
+
+ARC-004 remains partially complete. Do not merge or extract `render()` and
+`render_sync()` mechanically; the async/sync split crosses transaction,
+execution-manifest, and storage-usage APIs and needs a dedicated design pass
+before any shared writer is introduced.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
