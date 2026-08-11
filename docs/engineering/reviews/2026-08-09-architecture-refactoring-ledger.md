@@ -1322,6 +1322,11 @@ merely to eliminate small dispatch branches.
   private helper in `app.worker.dispatch.tracing`. This removes duplicate row
   handling without replacing readable operation-specific function names with a
   generic call-site API.
+- Added `app.modules.async_operations.delivery_policy` for small pure timing
+  helpers shared by render, playback, and mail durable deliveries. The refactor
+  centralizes exponential retry-delay and lease-expiry calculations without
+  introducing a generic ORM outbox base class, preserving each service's
+  domain-specific state transitions and diagnostics.
 
 ## Reusable completion checklist for every refactor
 

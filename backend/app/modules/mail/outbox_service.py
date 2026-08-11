@@ -18,6 +18,10 @@ from app.modules.async_operations.diagnostics import (
     apply_async_diagnostic,
     clear_async_diagnostic,
 )
+from app.modules.async_operations.delivery_policy import (
+    delivery_lease_expired,
+    exponential_retry_delay_seconds,
+)
 from app.utils.timezone import utc_now_naive
 
 
@@ -159,8 +163,9 @@ class MailOutboxService:
         if outbox.attempt_count >= settings.MAIL_OUTBOX_MAX_ATTEMPTS:
             self._finish(outbox, MailOutboxStatus.PERMANENT_FAILURE, now=now)
         else:
-            delay = settings.MAIL_OUTBOX_RETRY_BASE_SECONDS * (
-                2 ** max(0, outbox.attempt_count - 1)
+            delay = exponential_retry_delay_seconds(
+                base_seconds=settings.MAIL_OUTBOX_RETRY_BASE_SECONDS,
+                attempt_count=outbox.attempt_count,
             )
             outbox.status = MailOutboxStatus.FAILED
             outbox.next_attempt_at = now + timedelta(seconds=delay)
@@ -227,8 +232,6 @@ class MailOutboxService:
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         now = utc_now_naive()
-        dispatch_cutoff = now - timedelta(seconds=settings.MAIL_OUTBOX_DISPATCH_TIMEOUT_SECONDS)
-        processing_cutoff = now - timedelta(seconds=settings.MAIL_OUTBOX_PROCESSING_TIMEOUT_SECONDS)
         active = (
             db.execute(
                 select(MailOutbox).where(
@@ -242,17 +245,16 @@ class MailOutboxService:
             .all()
         )
         for outbox in active:
-            stale_dispatch = (
-                outbox.status == MailOutboxStatus.DISPATCHED
-                and outbox.dispatched_at is not None
-                and outbox.dispatched_at <= dispatch_cutoff
-            )
-            stale_processing = (
-                outbox.status == MailOutboxStatus.PROCESSING
-                and outbox.started_at is not None
-                and outbox.started_at <= processing_cutoff
-            )
-            if stale_dispatch or stale_processing:
+            if delivery_lease_expired(
+                status=outbox.status,
+                dispatched_status=MailOutboxStatus.DISPATCHED,
+                processing_status=MailOutboxStatus.PROCESSING,
+                dispatched_at=outbox.dispatched_at,
+                started_at=outbox.started_at,
+                now=now,
+                dispatch_timeout_seconds=settings.MAIL_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
+                processing_timeout_seconds=settings.MAIL_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
+            ):
                 outbox.status = MailOutboxStatus.FAILED
                 outbox.next_attempt_at = now
                 outbox.last_error = "Mail delivery lease expired"

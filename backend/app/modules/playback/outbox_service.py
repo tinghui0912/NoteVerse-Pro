@@ -25,6 +25,10 @@ from app.modules.async_operations.diagnostics import (
     apply_async_diagnostic,
     clear_async_diagnostic,
 )
+from app.modules.async_operations.delivery_policy import (
+    delivery_lease_expired,
+    exponential_retry_delay_seconds,
+)
 from app.utils.timezone import utc_now_naive
 
 
@@ -172,8 +176,9 @@ class PlaybackOutboxService:
         if outbox is None:
             return
         now = utc_now_naive()
-        delay = settings.PLAYBACK_OUTBOX_RETRY_BASE_SECONDS * (
-            2 ** max(0, outbox.attempt_count - 1)
+        delay = exponential_retry_delay_seconds(
+            base_seconds=settings.PLAYBACK_OUTBOX_RETRY_BASE_SECONDS,
+            attempt_count=outbox.attempt_count,
         )
         outbox.status = PlaybackOutboxStatus.FAILED
         outbox.next_attempt_at = now + timedelta(seconds=delay)
@@ -224,12 +229,6 @@ class PlaybackOutboxService:
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         now = utc_now_naive()
-        dispatched_cutoff = now - timedelta(
-            seconds=settings.PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS
-        )
-        processing_cutoff = now - timedelta(
-            seconds=settings.PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS
-        )
         stale = db.execute(
             select(PlaybackOutbox).where(
                 or_(
@@ -239,17 +238,16 @@ class PlaybackOutboxService:
             )
         ).scalars().all()
         for outbox in stale:
-            is_stale_dispatch = (
-                outbox.status == PlaybackOutboxStatus.DISPATCHED
-                and outbox.dispatched_at is not None
-                and outbox.dispatched_at <= dispatched_cutoff
-            )
-            is_stale_processing = (
-                outbox.status == PlaybackOutboxStatus.PROCESSING
-                and outbox.started_at is not None
-                and outbox.started_at <= processing_cutoff
-            )
-            if is_stale_dispatch or is_stale_processing:
+            if delivery_lease_expired(
+                status=outbox.status,
+                dispatched_status=PlaybackOutboxStatus.DISPATCHED,
+                processing_status=PlaybackOutboxStatus.PROCESSING,
+                dispatched_at=outbox.dispatched_at,
+                started_at=outbox.started_at,
+                now=now,
+                dispatch_timeout_seconds=settings.PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
+                processing_timeout_seconds=settings.PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
+            ):
                 outbox.status = PlaybackOutboxStatus.FAILED
                 outbox.next_attempt_at = now
                 outbox.last_error = "Playback delivery lease expired"
