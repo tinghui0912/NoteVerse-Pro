@@ -6,7 +6,7 @@ import type { ProfileUserRead } from '@/generated/api';
 import { ApiError } from '@/lib/api-client';
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
 
-// ============ 类型定义 ============
+// Type definitions.
 
 export interface User {
   id: number;
@@ -17,31 +17,31 @@ export interface User {
 }
 
 interface AuthContextType {
-  // 状态
+  // State.
   isAuthenticated: boolean;
   isLoading: boolean;
   user: User | null;
 
-  // 登录/登出
+  // Login/logout.
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 
-  // 注册
+  // Registration.
   register: (email: string, password: string, displayName: string, locale?: 'en' | 'zh') => Promise<void>;
 
-  // 验证邮箱
+  // Email verification.
   verifyEmail: (token: string) => Promise<void>;
 
-  // 请求重置密码
+  // Password reset request.
   requestPasswordReset: (email: string, locale?: 'en' | 'zh') => Promise<void>;
 
-  // 重置密码
+  // Password reset.
   resetPassword: (newPassword: string, token: string, locale?: 'en' | 'zh') => Promise<void>;
 
-  // 刷新用户信息
+  // User refresh.
   refreshUser: () => Promise<void>;
 
-  // 更新用户（本地）
+  // Local user update.
   setUser: (user: User) => void;
 }
 
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
   /**
-   * 从 API 用户转换为本地用户格式
+   * Convert an API user payload into the local user shape.
    */
   const mapApiUser = (apiUser: ProfileUserRead | undefined): User | null => {
     if (!apiUser) return null;
@@ -65,14 +65,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       id: apiUser.id,
       email: apiUser.email,
       name: apiUser.display_name || apiUser.email.split('@')[0],
-      // 只有当后端返回了有效的 avatar_url 时才使用，否则使用 AvatarFallback
+      // Use avatar_url only when the backend returns a non-empty value; otherwise AvatarFallback renders initials.
       avatar: apiUser.avatar_url || '',
       isActive: apiUser.is_active,
     };
   };
 
   /**
-   * 刷新用户信息
+   * Refresh the current user profile.
    */
   const refreshUser = useCallback(async () => {
     try {
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthenticated(true);
       }
     } catch (error) {
-      // Token 无效，清除
+      // Clear local auth state when the token is invalid.
       if (error instanceof ApiError && error.status === 401) {
         setIsAuthenticated(false);
         setUser(null);
@@ -94,24 +94,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   /**
-   * 初始化时检查 token
+   * Check the existing session on initialization.
    */
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
 
   /**
-   * 登录
+   * Log in with email and password.
    */
   const login = async (email: string, password: string) => {
-    // 不在这里设置 isLoading，避免登录失败时触发全局重渲染
+    // Do not set isLoading here; failed login should not trigger global loading UI.
     await authApi.login(email, password);
-    // 登录成功后刷新用户信息
+    // Refresh user state after a successful login.
     await refreshUser();
   };
 
   /**
-   * 登出
+   * Log out and return to the login page.
    */
   const logout = async () => {
     await authApi.logout();
@@ -123,7 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   /**
-   * 注册
+   * Register a new user.
    */
   const register = async (
     email: string,
@@ -145,14 +145,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   /**
-   * 验证邮箱
+   * Verify an email address.
    */
   const verifyEmail = async (token: string) => {
     await authApi.verifyEmail(token);
   };
 
   /**
-   * 请求重置密码
+   * Request a password reset email.
    */
   const requestPasswordReset = async (
     email: string,
@@ -162,7 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   /**
-   * 重置密码
+   * Reset the password with a reset token.
    */
   const resetPassword = async (
     newPassword: string,

@@ -1,12 +1,12 @@
 /**
- * 个人资料相关 TanStack Query mutation hooks
+ * TanStack Query mutation hooks for profile actions.
  */
 import { useMutation } from '@tanstack/react-query';
 import { profileApi } from '@/lib/api';
 import type { RequestEmailChangeRequest, UpdateProfileRequest } from '@/generated/api';
 
 /**
- * 上传头像
+ * Upload an avatar image.
  */
 export function useUploadAvatar() {
     // AuthContext owns the current user; the page updates it after success.
@@ -16,7 +16,7 @@ export function useUploadAvatar() {
 }
 
 /**
- * 更新个人资料
+ * Update the current user profile.
  */
 export function useUpdateProfile() {
     // AuthContext refresh is page-owned because it also drives page form state.
@@ -26,7 +26,7 @@ export function useUpdateProfile() {
 }
 
 /**
- * 修改密码
+ * Change the current user password.
  */
 export function useChangePassword() {
     // Password changes do not alter any cached query domain.

@@ -2248,6 +2248,38 @@ Customer Web comments, starting with authentication/profile API wrappers and
 auth context comments. Keep intentional localized UI labels such as the language
 selector text untouched.
 
+### 2026-08-12: Auth/profile comments cleaned for REC-006
+
+- Continued REC-006 with non-domain-heavy Customer Web auth/profile files:
+  `apps/customer-web/src/contexts/auth-context.tsx`,
+  `apps/customer-web/src/lib/api/auth.ts`,
+  `apps/customer-web/src/lib/api/profile.ts`, and
+  `apps/customer-web/src/hooks/queries/use-profile-mutations.ts`.
+- Replaced Chinese/mojibake comments with concise English descriptions for auth
+  context state/actions, API user mapping, session refresh behavior, auth API
+  wrappers, profile API wrappers, avatar URL construction, and profile mutation
+  hooks.
+- Kept implementation logic, API endpoints, generated DTO types, hook names, and
+  runtime behavior unchanged.
+- Confirmed the cleaned files no longer contain Chinese characters or mojibake
+  glyphs, and verified lint, typecheck, route-shell, Verovio surface migration,
+  and event-inspector model tests still pass.
+
+Entity model clarification from the same pass:
+
+- `ScoreEntityType` currently has four parsed/editor entities: `note`, `chord`,
+  `rest`, and `blank`.
+- `blank` is the Customer Web representation of a MusicXML `<forward>` element:
+  an occupied timeline gap/space in a voice, not a visible rest.
+- The Inspector edit model intentionally has three editable pitch states:
+  zero pitches saves as rest, one pitch saves as note, multiple pitches save as
+  chord. Existing blank entities are selectable and can have duration/dotted
+  edited while remaining blank; adding a pitch converts them into notes.
+
+REC-006 remains partially complete. Continue scanning remaining Customer Web
+source comments, but treat localized UI copy and valid musical glyphs as product
+content rather than cleanup targets.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
