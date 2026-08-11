@@ -1563,6 +1563,26 @@ until membership lifecycle, invite delivery, or notification behavior grows
 enough to justify a separately testable owner; the current service complexity
 is mostly application orchestration.
 
+### 2026-08-11: Score deletion cleanup records named
+
+- Reviewed `backend/app/modules/scores/lifecycle_service.py` as the next
+  ARC-004 hotspot.
+- Did not split the core score-deletion transaction. The service still needs to
+  coordinate score rows, revisions, sources, derived assets, input uploads,
+  optional originating import jobs, practice sessions, storage-usage releases,
+  and best-effort object deletion in a single carefully ordered cleanup flow.
+- Replaced raw storage-release tuples with
+  `backend/app/modules/scores/cleanup_records.py::StorageUsageReleaseRecord`
+  so category, bytes, object identity, storage key, and delete-storage intent
+  are named explicitly.
+- Removed the unused `user_id` parameter from the originating import-job cleanup
+  helper instead of preserving dead signature surface.
+
+ARC-004 remains partially complete. Stop this lifecycle split here unless a
+future change introduces a separately testable cleanup owner, such as a full
+import-job deletion policy or a dedicated object-storage retry queue; do not
+extract the main transaction merely to reduce file length.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

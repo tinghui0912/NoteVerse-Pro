@@ -34,6 +34,7 @@ from app.modules.async_operations.diagnostics import (
 )
 from app.modules.practice.cleanup_service import PracticeCleanupService, practice_cleanup_service
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.scores.cleanup_records import StorageUsageReleaseRecord
 from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import FileStorage, file_storage
@@ -131,7 +132,7 @@ class ScoreLifecycleService:
             score_id=score_id,
             originating_job_id=score.originating_job_id,
         )
-        usage_releases: list[tuple[StorageUsageCategory, int, str, str, str]] = []
+        usage_releases: list[StorageUsageReleaseRecord] = []
         source_rows = list(
             db.execute(
                 select(
@@ -147,12 +148,12 @@ class ScoreLifecycleService:
             ).all()
         )
         usage_releases.extend(
-            (
-                StorageUsageCategory.SOURCE,
-                size_bytes or 0,
-                "score_revision_source",
-                source_uuid,
-                storage_key,
+            StorageUsageReleaseRecord(
+                category=StorageUsageCategory.SOURCE,
+                bytes_count=size_bytes or 0,
+                object_type="score_revision_source",
+                object_id=source_uuid,
+                storage_key=storage_key,
             )
             for source_uuid, storage_key, size_bytes in source_rows
         )
@@ -169,12 +170,12 @@ class ScoreLifecycleService:
             ).all()
         )
         usage_releases.extend(
-            (
-                StorageUsageCategory.DERIVED_RENDER,
-                size_bytes or 0,
-                "score_render_asset",
-                asset_uuid,
-                storage_key,
+            StorageUsageReleaseRecord(
+                category=StorageUsageCategory.DERIVED_RENDER,
+                bytes_count=size_bytes or 0,
+                object_type="score_render_asset",
+                object_id=asset_uuid,
+                storage_key=storage_key,
             )
             for asset_uuid, storage_key, size_bytes in render_rows
         )
@@ -191,12 +192,12 @@ class ScoreLifecycleService:
             ).all()
         )
         usage_releases.extend(
-            (
-                StorageUsageCategory.DERIVED_AUDIO,
-                size_bytes or 0,
-                "score_playback_asset",
-                asset_uuid,
-                storage_key,
+            StorageUsageReleaseRecord(
+                category=StorageUsageCategory.DERIVED_AUDIO,
+                bytes_count=size_bytes or 0,
+                object_type="score_playback_asset",
+                object_id=asset_uuid,
+                storage_key=storage_key,
             )
             for asset_uuid, storage_key, size_bytes in audio_rows
         )
@@ -217,12 +218,12 @@ class ScoreLifecycleService:
             ).all()
         )
         usage_releases.extend(
-            (
-                StorageUsageCategory.INPUT_ASSET,
-                size_bytes or 0,
-                "score_input_asset",
-                asset_uuid,
-                storage_key,
+            StorageUsageReleaseRecord(
+                category=StorageUsageCategory.INPUT_ASSET,
+                bytes_count=size_bytes or 0,
+                object_type="score_input_asset",
+                object_id=asset_uuid,
+                storage_key=storage_key,
             )
             for asset_uuid, _upload_id, _blob_id, _blob_uuid, storage_key, size_bytes in input_rows
         )
@@ -265,36 +266,35 @@ class ScoreLifecycleService:
         import_cleanup = self._delete_originating_import_job_sync(
             db,
             originating_job,
-            owner_user_id,
         )
         db.commit()
-        for category, size_bytes, object_type, object_id, storage_key in usage_releases:
+        for release in usage_releases:
             storage_usage_service.record_release_sync(
                 db,
                 user_id=owner_user_id,
-                category=category,
-                bytes_count=size_bytes,
+                category=release.category,
+                bytes_count=release.bytes_count,
                 reason="delete_score",
-                object_type=object_type,
-                object_id=object_id,
-                storage_key=storage_key,
+                object_type=release.object_type,
+                object_id=release.object_id,
+                storage_key=release.storage_key,
             )
         deleted_storage_count = 0
         for key in storage_keys:
             if self._delete_storage_best_effort(key):
                 deleted_storage_count += 1
-        for category, bytes_count, object_type, object_id, storage_key, delete_storage in import_cleanup:
+        for release in import_cleanup:
             storage_usage_service.record_release_sync(
                 db,
                 user_id=owner_user_id,
-                category=category,
-                bytes_count=bytes_count,
+                category=release.category,
+                bytes_count=release.bytes_count,
                 reason="import_job_deleted",
-                object_type=object_type,
-                object_id=object_id,
-                storage_key=storage_key,
+                object_type=release.object_type,
+                object_id=release.object_id,
+                storage_key=release.storage_key,
             )
-            if delete_storage and self._delete_storage_best_effort(storage_key):
+            if release.delete_storage and self._delete_storage_best_effort(release.storage_key):
                 deleted_storage_count += 1
         for _blob_uuid, blob_storage_key in blobs_to_delete.values():
             if self._delete_storage_best_effort(blob_storage_key):
@@ -355,8 +355,7 @@ class ScoreLifecycleService:
         self,
         db: Session,
         job: ImportJob | None,
-        user_id: int,
-    ) -> list[tuple[StorageUsageCategory, int, str, str, str, bool]]:
+    ) -> list[StorageUsageReleaseRecord]:
         if job is None:
             return []
         job_id = require_persisted_id(job.id, entity="import job")
@@ -384,14 +383,14 @@ class ScoreLifecycleService:
                 .where(ImportJobUpload.job_id == job_id)
             ).all()
         )
-        cleanup: list[tuple[StorageUsageCategory, int, str, str, str, bool]] = [
-            (
-                StorageUsageCategory.TEMP_IMPORT,
-                size_bytes or 0,
-                "import_artifact",
-                artifact_uuid,
-                storage_key,
-                True,
+        cleanup: list[StorageUsageReleaseRecord] = [
+            StorageUsageReleaseRecord(
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=size_bytes or 0,
+                object_type="import_artifact",
+                object_id=artifact_uuid,
+                storage_key=storage_key,
+                delete_storage=True,
             )
             for artifact_uuid, storage_key, size_bytes in artifact_rows
         ]
@@ -414,13 +413,12 @@ class ScoreLifecycleService:
                 )
         for _upload_id, upload_uuid, _blob_id, _blob_uuid, storage_key, size_bytes in orphan_uploads:
             cleanup.append(
-                (
-                    StorageUsageCategory.UPLOAD,
-                    size_bytes,
-                    "upload",
-                    upload_uuid,
-                    storage_key,
-                    False,
+                StorageUsageReleaseRecord(
+                    category=StorageUsageCategory.UPLOAD,
+                    bytes_count=size_bytes,
+                    object_type="upload",
+                    object_id=upload_uuid,
+                    storage_key=storage_key,
                 )
             )
         db.delete(job)
@@ -441,13 +439,13 @@ class ScoreLifecycleService:
                 if blob is not None:
                     db.delete(blob)
                     cleanup.append(
-                        (
-                            StorageUsageCategory.UPLOAD,
-                            0,
-                            "storage_blob",
-                            blob_uuid,
-                            storage_key,
-                            True,
+                        StorageUsageReleaseRecord(
+                            category=StorageUsageCategory.UPLOAD,
+                            bytes_count=0,
+                            object_type="storage_blob",
+                            object_id=blob_uuid,
+                            storage_key=storage_key,
+                            delete_storage=True,
                         )
                     )
         return cleanup
