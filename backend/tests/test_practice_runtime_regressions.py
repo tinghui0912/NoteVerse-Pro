@@ -24,6 +24,7 @@ from app.processing.engines.practice_alignment.reference_runtime import (
     build_audio_processor,
     build_score_follower,
 )
+from app.processing.engines.practice_alignment.reference_features import trim_to_playable_start
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
 from app.processing.realtime.message_codec import session_armed_message
 from app.processing.realtime.session_runtime import PracticeSessionRuntimeRegistry
@@ -160,9 +161,11 @@ def test_matchmaker_live_engine_trims_reference_before_first_playable_note() -> 
     engine._np = np
     engine._score_start_beat = 3.0
 
-    features, beats = engine._trim_reference_to_playable_start(
+    features, beats = trim_to_playable_start(
         np.array([[0.0], [1.0], [2.0], [3.0], [4.0]], dtype=np.float32),
         np.array([0.0, 1.0, 2.0, 3.0, 4.0], dtype=np.float32),
+        score_start_beat=engine._score_start_beat,
+        np=np,
     )
 
     assert features.tolist() == [[3.0], [4.0]]

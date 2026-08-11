@@ -23,6 +23,7 @@ from app.processing.engines.practice_alignment.reference_runtime import (
     generate_score_audio,
     normalize_audio_waveform,
 )
+from app.processing.engines.practice_alignment.reference_features import trim_to_playable_start
 from app.processing.engines.practice_alignment.stream_state import (
     STREAM_STATE_HOLDING_DECAY,
     STREAM_STATE_LOST,
@@ -148,9 +149,11 @@ class MatchmakerLiveEngine:
         if hasattr(self._processor, "reset"):
             self._processor.reset()
         ref_frame_to_beat = self._build_ref_frame_to_beat(reference_features)
-        self._reference_features, self._ref_frame_to_beat = self._trim_reference_to_playable_start(
+        self._reference_features, self._ref_frame_to_beat = trim_to_playable_start(
             reference_features,
             ref_frame_to_beat,
+            score_start_beat=self._score_start_beat,
+            np=self._np,
         )
         self._reference_end_beat = float(self._ref_frame_to_beat[-1])
         self._stream.start_feature_validator = self._is_valid_start_feature
@@ -272,17 +275,6 @@ class MatchmakerLiveEngine:
             [self._frame_to_beat(frame_index) for frame_index in range(frame_count)],
             dtype=self._np.float32,
         )
-
-    def _trim_reference_to_playable_start(self, reference_features, ref_frame_to_beat):
-        """Drop score-only leading rests that the browser never sends to OLTW."""
-        beats = self._np.asarray(ref_frame_to_beat, dtype=self._np.float32)
-        features = self._np.asarray(reference_features)
-        indices = self._np.flatnonzero(beats >= self._score_start_beat)
-        if indices.size == 0:
-            return features, beats
-
-        start_index = int(indices[0])
-        return features[start_index:], beats[start_index:]
 
     def _frame_to_beat(self, current_frame: int) -> float:
         tick = self._get_ppq(self.score_part)
