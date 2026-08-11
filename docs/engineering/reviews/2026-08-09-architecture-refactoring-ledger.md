@@ -22,8 +22,8 @@ historical finding is not an indication that the item is still open.
 | --- | --- | --- |
 | ARC-001 | Complete | Maintain the root entry point as repository topology or quality commands change. |
 | ARC-002 | Complete | Maintain OpenAPI generation and generated TypeScript freshness checks for HTTP contracts. |
-| ARC-003 | Partially complete | Realtime alignment contracts are separated from the Matchmaker implementation; continue splitting only measured hotspots by stable responsibilities, with direct tests for each extraction. |
-| ARC-004 | Partially complete | Ops async-operation read models, command retries, audit events, filters, and projections are separated; continue applying this pattern only to measured service hotspots. |
+| ARC-003 | Partially complete | Backend realtime alignment is no longer the largest hotspot; next measured candidates are Customer Web `event-inspector.tsx`, `editor-preview-panel.tsx`, and `musicxml/parser.ts`. |
+| ARC-004 | Partially complete | Backend service hotspots have named collaborators and stop points; continue only for measured backend services with a clear business boundary and direct tests. |
 | ARC-005 | Complete | Critical score access, import execution/job lifecycle, import worker, and Practice session service have focused coverage gates; score-access architecture boundaries are also checked. |
 | ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission, and authenticated Practice WebSocket handshake. |
 | ARC-007 | Complete | Generated OpenAPI documents are the cross-stack trigger; backend contract freshness checks prevent an unsynchronised source change from passing. Reassess only if a new contract surface is not represented by a generated artifact. |
@@ -1777,6 +1777,30 @@ ARC-004 remains partially complete. Do not extract the renderer invocation or
 async/sync transaction flow unless a future change introduces a tested render
 execution port; the current orchestration is clearer when the IO and rollback
 sequence stays visible.
+
+### 2026-08-11: Hotspot rescan after backend service extractions
+
+- Re-scanned production source line counts after the ARC-004 backend service
+  extractions. Generated clients such as
+  `apps/customer-web/src/generated/api/types.gen.ts` are excluded from refactor
+  targeting because they are contract outputs, not hand-maintained source.
+- Current largest hand-maintained Customer Web hotspots:
+  `apps/customer-web/src/components/editor/event-inspector.tsx` (~1227 lines),
+  `apps/customer-web/src/components/editor/editor-preview-panel.tsx` (~1100
+  lines), and `apps/customer-web/src/lib/musicxml/parser.ts` (~900 lines).
+- Current largest backend hotspots are no longer generic catch-all services:
+  `backend/app/core/runtime_checks.py` (~645 lines),
+  `backend/app/observability/async_operation_metrics.py` (~633 lines),
+  `backend/app/processing/engines/practice_alignment/matchmaker_live.py` (~554
+  lines), and several feature services in the 300-500 line range with recent
+  named collaborators and explicit stop points.
+- Decision: do not keep cutting backend services solely by line count. The next
+  ARC-003 candidate should be a Customer Web editor/musicxml hotspot with a
+  stable semantic boundary and focused tests.
+
+Next recommended candidate: `apps/customer-web/src/components/editor/event-inspector.tsx`.
+Before modifying it, identify pure display helpers, event-detail projection, or
+subsections that can move without changing the editor interaction model.
 
 ## Reusable completion checklist for every refactor
 
