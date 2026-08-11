@@ -1697,6 +1697,25 @@ ARC-004 remains partially complete. Stop the practice split here unless a future
 change makes session lifecycle transitions or runtime registration independently
 complex enough to deserve a named collaborator.
 
+### 2026-08-11: Import-job deletion cleanup service extracted
+
+- Selected `backend/app/modules/import_jobs/service.py` as the next ARC-004
+  hotspot because import-job deletion and binary-artifact cleanup duplicated
+  orphan upload/blob discovery, row deletion, object-storage deletion, and
+  storage-usage release behavior.
+- Extracted that side-effect policy to
+  `backend/app/modules/import_jobs/deletion_service.py`.
+- Kept `ImportJobService` responsible for submit/retry/list/detail/batch-status
+  public entrypoints, user ownership checks, running-job deletion guards, and
+  artifact download authorization.
+- Added focused deletion-service orchestration coverage in
+  `backend/tests/test_import_job_deletion_service.py` and service delegation
+  coverage in `backend/tests/test_import_job_service_access.py`.
+
+ARC-004 remains partially complete. Stop this import-job split here unless retry
+request reconstruction, sync detail projection, or artifact download delivery
+accumulates new rules that justify separate named collaborators.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

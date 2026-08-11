@@ -3,21 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from sqlalchemy import delete as sa_delete
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
-from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, ScoreInputAsset, StorageBlob, StorageUsageCategory, Upload, User
+from app.db.models import ImportJob, ImportJobUpload, StorageBlob, Upload, User
 from app.db.models.import_job import ImportJobState
 from app.db.model_utils import require_persisted_id
+from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.public_errors import public_import_job_error
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobDetail, ImportJobProcessingOptions, ImportJobStatusEntry, ImportJobSubmitRequestLike, ImportJobSubmitResult
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.worker_service import sync_import_job_service
-from app.modules.storage_usage.service import storage_usage_service
 from app.storage import FileStorage, file_storage
 from app.shared.constants import ErrorCode
 
@@ -36,27 +35,18 @@ class RetryJobRequest:
     idempotency_key: str | None = None
 
 
-@dataclass(frozen=True)
-class StoredObjectCleanup:
-    category: StorageUsageCategory
-    object_type: str
-    object_id: str
-    storage_key: str
-    bytes_count: int
-    reason: str
-    delete_storage: bool = True
-
-
 class ImportJobService:
     def __init__(
         self,
         repository: ImportJobRepository | None = None,
         submission_service: ImportJobSubmissionService | None = None,
         storage: FileStorage | None = None,
+        deletion_service: ImportJobDeletionService | None = None,
     ) -> None:
         self.repository = repository or ImportJobRepository()
         self.submission_service = submission_service or ImportJobSubmissionService()
         self.storage = storage or file_storage
+        self.deletion_service = deletion_service or ImportJobDeletionService(self.storage)
 
     async def submit(self, current_user: User, request: ImportJobSubmitRequestLike) -> ImportJobSubmitResult:
         return await self.submission_service.submit(current_user, request)
@@ -161,29 +151,7 @@ class ImportJobService:
         job = await self.get_owned_job(db, job_uuid, user_id)
         if job.state == ImportJobState.RUNNING:
             raise ValidationException(code=ErrorCode.JOB_RUNNING, field="state")
-        job_id = require_persisted_id(job.id, entity="import job")
-        orphan_uploads = await self._orphan_uploads_after_job_delete(db, job_id)
-        cleanup_objects = await self._collect_delete_cleanup_objects(db, job_id, orphan_uploads)
-        blob_ids_to_delete = {
-            require_persisted_id(blob.id, entity="storage blob")
-            for _upload, blob in orphan_uploads
-            if any(
-                item.object_type == "storage_blob" and item.object_id == blob.blob_uuid
-                for item in cleanup_objects
-            )
-        }
-        await db.delete(job)
-        await db.flush()
-        for upload, _blob in orphan_uploads:
-            await db.delete(upload)
-        await db.flush()
-        for blob_id in blob_ids_to_delete:
-            blob = await db.get(StorageBlob, blob_id)
-            if blob is not None:
-                await db.delete(blob)
-        await db.commit()
-        for cleanup_object in cleanup_objects:
-            await self._delete_storage_and_release_usage(db, user_id, cleanup_object)
+        await self.deletion_service.delete_job(db, job, user_id)
 
     async def cleanup_binary_artifacts(
         self,
@@ -194,149 +162,7 @@ class ImportJobService:
         job = await self.get_owned_job(db, job_uuid, user_id)
         if job.state == ImportJobState.RUNNING:
             raise ValidationException(code=ErrorCode.JOB_RUNNING, field="state")
-        job_id = require_persisted_id(job.id, entity="import job")
-        orphan_uploads = await self._orphan_uploads_after_job_delete(db, job_id)
-        cleanup_objects = await self._collect_delete_cleanup_objects(db, job_id, orphan_uploads)
-        blob_ids_to_delete = {
-            require_persisted_id(blob.id, entity="storage blob")
-            for _upload, blob in orphan_uploads
-            if any(
-                item.object_type == "storage_blob" and item.object_id == blob.blob_uuid
-                for item in cleanup_objects
-            )
-        }
-        await db.execute(sa_delete(ImportArtifact).where(ImportArtifact.job_id == job_id))
-        await db.execute(sa_delete(ImportJobUpload).where(ImportJobUpload.job_id == job_id))
-        await db.flush()
-        for upload, _blob in orphan_uploads:
-            await db.delete(upload)
-        await db.flush()
-        for blob_id in blob_ids_to_delete:
-            blob = await db.get(StorageBlob, blob_id)
-            if blob is not None:
-                await db.delete(blob)
-        await db.commit()
-        for cleanup_object in cleanup_objects:
-            await self._delete_storage_and_release_usage(db, user_id, cleanup_object)
-
-    async def _collect_delete_cleanup_objects(
-        self,
-        db: AsyncSession,
-        job_id: int,
-        orphan_uploads: list[tuple[Upload, StorageBlob]],
-    ) -> list[StoredObjectCleanup]:
-        artifacts = list(
-            (
-                await db.execute(
-                    select(ImportArtifact).where(ImportArtifact.job_id == job_id)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        cleanup_objects = [
-            StoredObjectCleanup(
-                category=StorageUsageCategory.TEMP_IMPORT,
-                object_type="import_artifact",
-                object_id=artifact.artifact_uuid,
-                storage_key=artifact.storage_key,
-                bytes_count=artifact.size_bytes or 0,
-                reason="import_job_deleted",
-            )
-            for artifact in artifacts
-        ]
-        cleanup_objects.extend(
-            StoredObjectCleanup(
-                category=StorageUsageCategory.UPLOAD,
-                object_type="upload",
-                object_id=upload.upload_uuid,
-                storage_key=blob.storage_key,
-                bytes_count=blob.size_bytes,
-                reason="import_job_deleted",
-                delete_storage=False,
-            )
-            for upload, blob in orphan_uploads
-        )
-        seen_blob_ids: set[int] = set()
-        for _upload, blob in orphan_uploads:
-            blob_id = require_persisted_id(blob.id, entity="storage blob")
-            if blob_id in seen_blob_ids:
-                continue
-            seen_blob_ids.add(blob_id)
-            blob_ref_count = (
-                await db.execute(select(func.count(Upload.id)).where(Upload.blob_id == blob_id))
-            ).scalar_one()
-            orphan_count = sum(1 for _candidate_upload, candidate_blob in orphan_uploads if candidate_blob.id == blob_id)
-            if blob_ref_count <= orphan_count:
-                cleanup_objects.append(
-                    StoredObjectCleanup(
-                        category=StorageUsageCategory.UPLOAD,
-                        object_type="storage_blob",
-                        object_id=blob.blob_uuid,
-                        storage_key=blob.storage_key,
-                        bytes_count=0,
-                        reason="orphan_blob_deleted",
-                        delete_storage=True,
-                    )
-                )
-        return cleanup_objects
-
-    async def _orphan_uploads_after_job_delete(
-        self,
-        db: AsyncSession,
-        job_id: int,
-    ) -> list[tuple[Upload, StorageBlob]]:
-        uploads = list(
-            (
-                await db.execute(
-                    select(Upload, StorageBlob)
-                    .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
-                    .join(StorageBlob, Upload.blob_id == StorageBlob.id)
-                    .where(ImportJobUpload.job_id == job_id)
-                )
-            )
-            .all()
-        )
-        orphan_uploads: list[tuple[Upload, StorageBlob]] = []
-        for upload, blob in uploads:
-            upload_id = require_persisted_id(upload.id, entity="upload")
-            ref_count = (
-                await db.execute(
-                    select(func.count(ImportJobUpload.id)).where(
-                        ImportJobUpload.upload_id == upload_id,
-                        ImportJobUpload.job_id != job_id,
-                    )
-                )
-            ).scalar_one()
-            input_ref_count = (
-                await db.execute(
-                    select(func.count(ScoreInputAsset.id)).where(
-                        ScoreInputAsset.upload_id == upload_id,
-                    )
-                )
-            ).scalar_one()
-            if ref_count == 0 and input_ref_count == 0:
-                orphan_uploads.append((upload, blob))
-        return orphan_uploads
-
-    async def _delete_storage_and_release_usage(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        cleanup_object: StoredObjectCleanup,
-    ) -> None:
-        if cleanup_object.delete_storage:
-            self.storage.delete(cleanup_object.storage_key)
-        await storage_usage_service.record_release(
-            db,
-            user_id=user_id,
-            category=cleanup_object.category,
-            bytes_count=cleanup_object.bytes_count,
-            reason=cleanup_object.reason,
-            object_type=cleanup_object.object_type,
-            object_id=cleanup_object.object_id,
-            storage_key=cleanup_object.storage_key,
-        )
+        await self.deletion_service.cleanup_binary_artifacts(db, job, user_id)
 
     async def artifact_delivery(
         self,

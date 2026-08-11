@@ -125,3 +125,43 @@ async def test_delete_rejects_running_jobs_before_mutating_storage() -> None:
     assert error.value.code == ErrorCode.JOB_RUNNING
     assert error.value.details == {"field": "state"}
     database.delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_delegates_owned_non_running_jobs_to_deletion_service() -> None:
+    job = SimpleNamespace(
+        id=17,
+        job_uuid="job-1",
+        state=ImportJobState.FAILURE,
+        user_id=7,
+    )
+    repository = Mock()
+    repository.get_by_uuid = AsyncMock(return_value=job)
+    deletion_service = Mock()
+    deletion_service.delete_job = AsyncMock()
+    service = ImportJobService(repository=repository, deletion_service=deletion_service)
+    database = Mock()
+
+    await service.delete(database, "job-1", 7)
+
+    deletion_service.delete_job.assert_awaited_once_with(database, job, 7)
+
+
+@pytest.mark.asyncio
+async def test_cleanup_binary_artifacts_delegates_owned_non_running_jobs() -> None:
+    job = SimpleNamespace(
+        id=17,
+        job_uuid="job-1",
+        state=ImportJobState.FAILURE,
+        user_id=7,
+    )
+    repository = Mock()
+    repository.get_by_uuid = AsyncMock(return_value=job)
+    deletion_service = Mock()
+    deletion_service.cleanup_binary_artifacts = AsyncMock()
+    service = ImportJobService(repository=repository, deletion_service=deletion_service)
+    database = Mock()
+
+    await service.cleanup_binary_artifacts(database, "job-1", 7)
+
+    deletion_service.cleanup_binary_artifacts.assert_awaited_once_with(database, job, 7)
