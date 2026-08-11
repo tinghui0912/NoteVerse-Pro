@@ -1601,6 +1601,25 @@ ARC-004 remains partially complete. Do not split `create()` or `restore()` until
 the duplicated source-write/quota workflow can be extracted without weakening
 the current rollback and storage-reservation semantics.
 
+### 2026-08-11: Review detail read model extracted
+
+- Revisited `backend/app/modules/review/service.py` after the previous review
+  confirmation asset extraction.
+- Extracted the review detail query/projection path to
+  `backend/app/modules/review/read_model.py::ReviewReadModel`: job ownership
+  checks, pending-review validation, confirmed-job projection, review MusicXML
+  artifact loading, and original upload projection.
+- Kept `ReviewService` responsible for review confirmation and review update
+  transactions, MusicXML validation before writes, storage usage reservation
+  and accounting, thumbnail outbox creation, score/revision/source creation,
+  library/taxonomy updates, and notification attachment.
+- Existing review detail and confirmation regression tests cover the extracted
+  behavior through the public service API.
+
+ARC-004 remains partially complete. Do not split `confirm()` further unless a
+new, independently testable transaction participant emerges; after this pass,
+the remaining review service complexity is mostly write orchestration.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
