@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 撤销重做控制 Hook
+ * Undo/redo control hook for editor history.
  */
 
 import { useCallback } from 'react';

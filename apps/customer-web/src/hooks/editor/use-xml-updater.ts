@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * XML 更新器 Hook - 提供 updateMusicXML 函数
+ * XML updater hook that exposes updateMusicXML.
  */
 
 import { useCallback } from 'react';
@@ -38,7 +38,7 @@ export function useXmlUpdater() {
             const newXmlString = serializeXml(xmlDoc);
 
             if (oldXml !== newXmlString) {
-                // 默认使用 actionName，如果有的话。如果没有则用 t('xmlUpdate')
+                // Use the explicit action name when provided, otherwise fall back to the generic XML update label.
                 history.push(newXmlString, actionName || t('xmlUpdate'));
             }
 

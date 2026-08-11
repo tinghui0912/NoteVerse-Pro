@@ -2161,6 +2161,27 @@ scan and prioritize remaining editor hooks/components by domain density. Avoid
 touching user-facing localized copy unless it is malformed mojibake rather than
 intentional UI text.
 
+### 2026-08-12: Editor provider and basic hook comments cleaned for REC-006
+
+- Continued REC-006 with the remaining high-frequency editor provider/basic
+  hook entry points:
+  `apps/customer-web/src/contexts/editor-provider.tsx`,
+  `apps/customer-web/src/hooks/editor/use-history-editor.ts`,
+  `apps/customer-web/src/hooks/editor/use-xml-updater.ts`, and
+  `apps/customer-web/src/hooks/editor/use-entity-editor.ts`.
+- Replaced Chinese/mojibake comments with concise English descriptions for
+  combined editor context access, History/ScoreData initialization, undo/redo
+  control, XML update action labeling, and entity add/update/delete ownership.
+- Kept implementation logic, provider composition, hook exports, and editor
+  behavior unchanged.
+- Confirmed the cleaned files no longer contain Chinese characters or mojibake
+  glyphs, and verified lint, typecheck, Verovio surface migration, and MusicXML
+  core tests still pass.
+
+REC-006 remains partially complete. Continue with `use-voice-editor.ts` next
+because it still contains dense voice deletion/empty-voice preservation comments
+that explain important MusicXML editor behavior.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
