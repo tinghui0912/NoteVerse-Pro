@@ -1758,6 +1758,26 @@ further until there is a concrete named transaction boundary; candidate future
 cuts are usage-release collection or originating-import-job cleanup, but only
 with direct integration tests around deletion ordering.
 
+### 2026-08-11: Render asset record construction extracted
+
+- Selected `backend/app/modules/score_assets/render_service.py` after the
+  playback asset-record split because render output storage keys, replacement
+  usage snapshots, and `ScoreRenderAsset` construction were pure record
+  semantics embedded in the render orchestration.
+- Extracted those pure helpers to
+  `backend/app/modules/score_assets/render_asset_records.py`.
+- Kept `RevisionRenderService` responsible for authorization, source lookup,
+  renderer invocation, temporary work directories, storage uploads, async/sync
+  transaction boundaries, usage allocation/release calls, and best-effort
+  cleanup of replaced or rolled-back objects.
+- Added focused record-construction coverage in
+  `backend/tests/test_render_asset_records.py`.
+
+ARC-004 remains partially complete. Do not extract the renderer invocation or
+async/sync transaction flow unless a future change introduces a tested render
+execution port; the current orchestration is clearer when the IO and rollback
+sequence stays visible.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
