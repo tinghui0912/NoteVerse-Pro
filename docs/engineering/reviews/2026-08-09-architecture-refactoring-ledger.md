@@ -1661,6 +1661,23 @@ ARC-004 remains partially complete. Stop this split at the payload boundary
 unless a future change adds more target types or a separately testable render
 delivery state policy; do not split the status machine itself.
 
+### 2026-08-11: Ops async-operation summary query extracted
+
+- Selected `backend/app/modules/ops/query_service.py` as the next ARC-004
+  hotspot because async-operation summary SQL aggregation and response
+  projection were mixed with operation list pagination.
+- Extracted summary row queries and status aggregation to
+  `backend/app/modules/ops/operation_summary.py`.
+- Kept `OpsAsyncOperationQueryService` responsible for public list/summary
+  entrypoints, filter construction, operation-kind selection, offset pagination,
+  and per-kind operation listing.
+- Kept retry/admin write workflows in `backend/app/modules/ops/command_service.py`
+  untouched.
+
+ARC-004 remains partially complete. Do not split ops command/retry behavior as
+part of query refactoring; only revisit query-side extraction if new operation
+kinds add enough duplicated list-row queries or summary predicates.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
