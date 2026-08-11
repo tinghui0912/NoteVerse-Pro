@@ -1288,6 +1288,14 @@ merely to eliminate small dispatch branches.
   the existing Celery task name, while dispatch claim, pipeline execution,
   import attempt tracing, completion acknowledgement, and import status logging
   are owned by the import execution module.
+- Extracted periodic maintenance scan execution from `app.worker.tasks` into
+  `app.worker.execution.maintenance`. Celery task names remain unchanged, while
+  job cleanup, dispatch recovery, notification/realtime cleanup, derived-asset
+  retention, score deletion cleanup, and outbox maintenance callbacks now live
+  in the maintenance execution module.
+- Updated scheduler-lock tests to target `app.worker.task_runtime`
+  directly. This removes the stale assumption that scheduler scan internals are
+  owned by the Celery task registration module.
 
 ## Reusable completion checklist for every refactor
 
