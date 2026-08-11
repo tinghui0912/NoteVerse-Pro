@@ -17,11 +17,8 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.core.config import get_practice_runtime_settings
-from app.processing.engines.practice_alignment.matchmaker_live import (
-    AlignmentUpdate,
-    BrowserAudioStreamAdapter,
-    MatchmakerLiveEngine,
-)
+from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
+from app.processing.engines.practice_alignment.matchmaker_live import BrowserAudioStreamAdapter, MatchmakerLiveEngine
 from app.db.models.user import User
 from app.db.models.practice import PracticeReportStatus, PracticeSessionState
 from app.db.models.score_access import AccessOrigin

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
 
 if TYPE_CHECKING:
-    from app.processing.engines.practice_alignment.matchmaker_live import (
+    from app.processing.engines.practice_alignment.contracts import (
         AlignmentEngine,
         AlignmentUpdate,
     )

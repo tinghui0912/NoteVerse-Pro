@@ -47,7 +47,7 @@ from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
 if TYPE_CHECKING:
-    from app.processing.engines.practice_alignment.matchmaker_live import AlignmentUpdate
+    from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
 
 
 class PracticeService:

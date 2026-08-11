@@ -22,7 +22,7 @@ historical finding is not an indication that the item is still open.
 | --- | --- | --- |
 | ARC-001 | Complete | Maintain the root entry point as repository topology or quality commands change. |
 | ARC-002 | Complete | Maintain OpenAPI generation and generated TypeScript freshness checks for HTTP contracts. |
-| ARC-003 | Open | Split only measured hotspots by stable responsibilities, with direct tests for each extraction. |
+| ARC-003 | Partially complete | Realtime alignment contracts are separated from the Matchmaker implementation; continue splitting only measured hotspots by stable responsibilities, with direct tests for each extraction. |
 | ARC-004 | Open | Continue replacing broad orchestration hubs with intent-named units when a concrete cohesion boundary is identified. |
 | ARC-005 | Complete | Critical score access, import execution/job lifecycle, import worker, and Practice session service have focused coverage gates; score-access architecture boundaries are also checked. |
 | ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission, and authenticated Practice WebSocket handshake. |
@@ -1131,6 +1131,19 @@ CSRF, import submission, and Practice WebSocket authentication/handshake.
 ARC-005 is complete. Future quality work should add a focused threshold only
 when a new critical boundary has a representative, intentionally scoped suite;
 do not use an arbitrary repository-wide fail-under value.
+
+### 2026-08-11: Practice alignment contracts separated from Matchmaker
+
+- Moved the shared `AlignmentUpdate` and `AlignmentEngine` contracts from the
+  1170-line Matchmaker implementation into the lightweight
+  `practice_alignment.contracts` module.
+- Practice service, runtime state, and WebSocket message encoding now depend on
+  that contract directly rather than importing the heavy engine merely for type
+  annotations. No compatibility re-export remains at the old implementation
+  path.
+- This is the first measured ARC-003 extraction. The next candidate is the
+  independent browser PCM activity adapter; it must be moved with its existing
+  replay tests before changing follower behavior.
 
 ## Reusable completion checklist for every refactor
 
