@@ -2030,6 +2030,27 @@ REC-006 remains partially complete. The remaining MusicXML cleanup is now mostly
 `parser.ts`; handle it as a dedicated pass because it encodes parser policy,
 timing cursor behavior, and tie/slur/beam pairing strategy.
 
+### 2026-08-11: MusicXML parser top-level comments cleaned for REC-006
+
+- Started the dedicated `apps/customer-web/src/lib/musicxml/parser.ts` REC-006
+  pass with the top-level parser options, parser state, metadata extraction, and
+  expected-voice preservation comments.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  preserved empty voices, connection metadata parsing, creator/credit metadata
+  lookup, and stable editor voice ordering.
+- Replaced raw circled fingering glyph keys in `FINGERING_TEXT_MAP` with ASCII
+  Unicode escape sequences, and updated the parser unit fixture to use an XML
+  character entity. Runtime behavior is unchanged, but terminals, diffs, and CI
+  logs no longer render those symbols as mojibake.
+- Kept parser behavior and exported APIs unchanged.
+- Confirmed the first 230 lines of `parser.ts` and the parser unit test file no
+  longer contain Chinese characters or mojibake glyphs, and verified parser/core
+  tests still pass.
+
+REC-006 remains partially complete. Continue `parser.ts` in small batches. The
+next batch should cover the `parseMeasures()` timing cursor and note/chord/rest
+projection comments before moving to tie/slur/beam connection pairing.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

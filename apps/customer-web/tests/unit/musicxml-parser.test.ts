@@ -117,7 +117,7 @@ describe('MusicXML package surface', () => {
               <voice>1</voice>
               <type>quarter</type>
               <staff>1</staff>
-              <notations><technical><fingering>⑤</fingering></technical></notations>
+              <notations><technical><fingering>&#9316;</fingering></technical></notations>
             </note>
           </measure>
         </part>

@@ -14,11 +14,11 @@ type NoteElementInfo = {
 };
 
 const FINGERING_TEXT_MAP: Record<string, string> = {
-  '①': '1',
-  '②': '2',
-  '③': '3',
-  '④': '4',
-  '⑤': '5',
+  '\u2460': '1',
+  '\u2461': '2',
+  '\u2462': '3',
+  '\u2463': '4',
+  '\u2464': '5',
 };
 
 function normalizeFingeringText(value: string | null | undefined): string | undefined {
@@ -36,13 +36,14 @@ function parseAccidental(note: Element): AccidentalValue | undefined {
 }
 
 /**
- * 解析器选项
+ * Parser options.
  */
 export type ParserOptions = {
   /**
-   * 期望保留的声部结构
-   * 格式: { measureIndex: { staveIndex: [voiceNumbers] } }
-   * 解析完成后会确保这些声部存在（即使是空的）
+   * Voice structure that must be preserved in the parsed score.
+   *
+   * Shape: `{ measureIndex: { staveIndex: [voiceNumbers] } }`.
+   * Parsing ensures these voices exist even when they contain no entities.
    */
   expectedVoices?: Map<number, Map<number, number[]>>;
 };
@@ -51,11 +52,11 @@ export class MusicXMLParser {
   private xmlDoc: XMLDocument;
   private divisions: number = 4;
   private entityIdCounter: number = 0;
-  // 存储 noteElement 索引到 entityId 的映射
+  // Note-element metadata used for connection reconstruction.
   private noteElementInfos: NoteElementInfo[] = [];
-  // 连线数据
+  // Parsed tie, slur, and beam connection data.
   private noteConnections: Map<string, NoteConnections> = new Map();
-  // 解析器选项
+  // Parser options supplied by the caller.
   private options?: ParserOptions;
 
   constructor(xmlString: string, options?: ParserOptions) {
@@ -85,12 +86,12 @@ export class MusicXMLParser {
     this.divisions = this.getDivisions();
     const measures = this.parseMeasures();
 
-    // 如果提供了 expectedVoices，确保这些声部存在（即使是空的）
+    // Preserve caller-provided empty voices after parsing.
     if (this.options?.expectedVoices) {
       this.ensureVoicesExist(measures, this.options.expectedVoices);
     }
 
-    // 解析连线信息
+    // Parse tie, slur, and beam connection metadata.
     const connections = this.parseConnections(measures);
 
     const mainTitle =
@@ -156,8 +157,9 @@ export class MusicXMLParser {
   }
 
   /**
-   * 确保期望的声部存在于解析结果中（即使是空的）
-   * 这解决了空声部在重新解析后丢失的问题
+   * Ensures expected voices exist in the parsed result, even when empty.
+   *
+   * This prevents empty voices from disappearing after reparsing edited XML.
    */
   private ensureVoicesExist(
     measures: Measure[],
@@ -175,19 +177,19 @@ export class MusicXMLParser {
           const voiceName = `voiceLabel ${voiceNum}`;
           const exists = stave.voices.some(v => v.name === voiceName);
           if (!exists) {
-            // 空声部丢失了，恢复它
+            // Restore an expected empty voice that was absent from parsed XML.
             stave.voices.push({ name: voiceName, notes: [] });
           }
         });
 
-        // 保持排序一致
+        // Keep voice order stable for editor rendering.
         stave.voices.sort((a, b) => a.name.localeCompare(b.name));
       });
     });
   }
 
   /**
-   * 从 <identification> 中获取指定类型的 <creator> 元素文本
+   * Returns the text for a typed `<creator>` under `<identification>`.
    */
   private getCreatorByType(type: string): string {
     const creators = this.xmlDoc.querySelectorAll('identification > creator');
@@ -204,7 +206,7 @@ export class MusicXMLParser {
   }
 
   /**
-   * 从 <credit> 中获取指定 credit-type 的 <credit-words> 文本
+   * Returns `<credit-words>` text for a matching `credit-type`.
    */
   private getCreditTextByType(type: string): string {
     const credits = this.xmlDoc.querySelectorAll('credit');
