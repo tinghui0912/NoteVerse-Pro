@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 插入新实体到 MusicXML 的纯函数
+ * Pure helper for inserting a new score entity into MusicXML.
  */
 
 import type { ScoreEntity, AddLocation } from '@/types/score-types';
@@ -238,9 +238,9 @@ export interface InsertEntityResult {
 }
 
 /**
- * 插入新实体到 MusicXML 文档
- * 
- * @returns 处理结果，包含新的 XML 和解析后的乐谱数据
+ * Insert a new score entity into a MusicXML document.
+ *
+ * @returns A result containing the updated XML and parsed score data.
  */
 export function insertEntity(params: InsertEntityParams): InsertEntityResult {
     const { updatedEntity, currentXml, scoreData, getExpectedVoices } = params;

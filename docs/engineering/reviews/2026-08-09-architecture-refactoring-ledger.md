@@ -2229,6 +2229,25 @@ submodule comments next:
 `apps/customer-web/src/hooks/editor/entity-editor/index.ts`,
 `insert-entity.ts`, and `update-existing-entity.ts`.
 
+### 2026-08-12: Entity editor submodule comments cleaned for REC-006
+
+- Continued REC-006 with the focused entity-editor submodule:
+  `apps/customer-web/src/hooks/editor/entity-editor/index.ts`,
+  `apps/customer-web/src/hooks/editor/entity-editor/insert-entity.ts`, and
+  `apps/customer-web/src/hooks/editor/entity-editor/update-existing-entity.ts`.
+- Replaced Chinese/mojibake JSDoc with concise English descriptions for barrel
+  exports, pure MusicXML insertion/update helpers, and result semantics.
+- Kept implementation logic, exported function/type names, and MusicXML editing
+  behavior unchanged.
+- Confirmed the cleaned files no longer contain Chinese characters or mojibake
+  glyphs, and verified lint, typecheck, entity-editor unit tests, Verovio
+  surface migration, and MusicXML core tests still pass.
+
+REC-006 remains partially complete. Continue with remaining non-domain-heavy
+Customer Web comments, starting with authentication/profile API wrappers and
+auth context comments. Keep intentional localized UI labels such as the language
+selector text untouched.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

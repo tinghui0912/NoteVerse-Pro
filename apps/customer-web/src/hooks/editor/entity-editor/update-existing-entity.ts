@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 更新已有实体的纯函数
+ * Pure helper for updating an existing score entity in MusicXML.
  */
 
 import type { ScoreEntity, EntityLocation } from '@/types/score-types';
@@ -51,9 +51,9 @@ function getRhythmSignature(elements: Element[]): string {
 }
 
 /**
- * 更新已存在的实体
- * 
- * @returns 处理结果，包含新的 XML 和解析后的乐谱数据
+ * Update an existing score entity in a MusicXML document.
+ *
+ * @returns A result containing the updated XML and parsed score data.
  */
 export function updateExistingEntity(params: UpdateExistingEntityParams): UpdateExistingEntityResult {
     const { updatedEntity, editingEntityLocation, currentXml, scoreData, getExpectedVoices } = params;
