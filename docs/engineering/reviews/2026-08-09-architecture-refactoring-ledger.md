@@ -1956,6 +1956,20 @@ module, starting with `apps/customer-web/src/lib/musicxml/` comments, because
 that area contains many domain-heavy Chinese comments and should be translated
 carefully rather than deleted mechanically.
 
+### 2026-08-11: MusicXML backup comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/backup.ts`, the
+  smallest MusicXML file with focused existing transformation coverage.
+- Replaced mojibake comments with concise English explanations for backup
+  normalization, consecutive-backup merging, and duration recalculation.
+- Kept the implementation logic unchanged; this was a readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML transformation tests still pass.
+
+REC-006 remains partially complete. Continue with small MusicXML batches. Good
+next candidates are `connections.ts` or `elements.ts`; defer `parser.ts` until
+after smaller files are clean because its comments encode more parsing policy.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
