@@ -40,6 +40,8 @@ spec:
                 name: noteverse-backend-config
             - configMapRef:
                 name: noteverse-backend-worker-config
+            - configMapRef:
+                name: noteverse-backend-practice-config
             - secretRef:
                 name: noteverse-backend-secret
           env:

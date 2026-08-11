@@ -1251,6 +1251,11 @@ merely to eliminate small dispatch branches.
   database settings/session modules. `SYNC_DATABASE_URL` remains in the shared
   backend config because both API import-job paths and Worker tasks use the
   synchronous SQLAlchemy session.
+- Clarified model-cache ownership for soundfonts: Worker runtime uses
+  `PLAYBACK_SOUNDFONT_PATH`, Practice runtime uses `PRACTICE_SOUNDFONT_PATH`,
+  and the model-cache agent now consumes both role-specific ConfigMaps to
+  prepare and validate both soundfont targets without leaking Practice settings
+  into Worker pods.
 
 ## Reusable completion checklist for every refactor
 

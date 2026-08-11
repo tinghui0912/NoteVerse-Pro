@@ -230,6 +230,28 @@ def prepare_soundfont(target_path: Path) -> None:
     raise RuntimeError(f"FluidR3 soundfont was not found in runtime image. Checked: {candidates}")
 
 
+def prepare_soundfonts() -> None:
+    from app.core.config import get_practice_runtime_settings, get_worker_runtime_settings
+
+    targets = {
+        "PLAYBACK_SOUNDFONT_PATH": _require_path(
+            get_worker_runtime_settings().PLAYBACK_SOUNDFONT_PATH,
+            "PLAYBACK_SOUNDFONT_PATH",
+        ),
+        "PRACTICE_SOUNDFONT_PATH": _require_path(
+            get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH,
+            "PRACTICE_SOUNDFONT_PATH",
+        ),
+    }
+    prepared_paths: set[Path] = set()
+    for env_name, target in targets.items():
+        if target in prepared_paths:
+            print(f"[OK] soundfont target already prepared for {env_name}: {target}")
+            continue
+        prepare_soundfont(target)
+        prepared_paths.add(target)
+
+
 def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
     from huggingface_hub import snapshot_download
 
@@ -275,10 +297,16 @@ async def run_final_checks(include_sizes: bool) -> int:
 
 
 def run_asset_checks(include_sizes: bool) -> int:
-    from app.core.runtime_checks import check_huggingface_models, check_paddleocr_models, check_playback_renderer
+    from app.core.runtime_checks import (
+        check_huggingface_models,
+        check_paddleocr_models,
+        check_playback_renderer,
+        check_soundfont,
+    )
 
     checks = (
         check_playback_renderer,
+        check_soundfont,
         check_paddleocr_models,
         check_huggingface_models,
     )
@@ -301,7 +329,7 @@ async def main() -> int:
     _ensure_directory(model_root)
 
     if not args.skip_soundfont:
-        prepare_soundfont(_require_path(worker_settings.PLAYBACK_SOUNDFONT_PATH, "PLAYBACK_SOUNDFONT_PATH"))
+        prepare_soundfonts()
     if not args.skip_huggingface:
         prepare_huggingface_snapshots(
             _require_path(worker_settings.HF_HOME, "HF_HOME"),

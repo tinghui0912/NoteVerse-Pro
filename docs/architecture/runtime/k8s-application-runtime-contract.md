@@ -286,6 +286,12 @@ role-specific ConfigMaps for runtime-owned settings:
   - `PRACTICE_AUDIO_DIAGNOSTICS`;
   - `PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL`;
   - `PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL`;
+- model-cache agent:
+  - consumes the shared backend, Worker/model-asset, and Practice ConfigMaps;
+  - prepares and verifies both playback and Practice soundfont targets before
+    application pods rely on the node-local model cache;
+  - overrides Hugging Face offline flags to online mode only for controlled
+    cache hydration.
 - Control Plane ConfigMap:
   - `CONTROL_PLANE_AUTH_COOKIE_NAME`;
   - `CONTROL_PLANE_CSRF_COOKIE_NAME`;

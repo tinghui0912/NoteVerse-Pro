@@ -74,6 +74,14 @@ KUSTOMIZATION_CONFIG_REFERENCES = {
         "backend-practice-config.env",
     ),
 }
+MODEL_CACHE_AGENT_MANIFESTS = (
+    Path("deploy/application/base/model-cache-agent-daemonset.yaml"),
+    Path("deploy/gitops/environments/staging/base/model-cache-agent-daemonset.yaml"),
+)
+MODEL_CACHE_AGENT_REQUIRED_CONFIGMAPS = (
+    "noteverse-backend-worker-config",
+    "noteverse-backend-practice-config",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,6 +170,27 @@ def validate_kustomization_references() -> list[Finding]:
     return findings
 
 
+def validate_model_cache_agent_configmaps() -> list[Finding]:
+    findings: list[Finding] = []
+    for path in MODEL_CACHE_AGENT_MANIFESTS:
+        manifest_path = repo_path(path)
+        if not manifest_path.is_file():
+            findings.append(Finding(path.as_posix(), 1, "required-file", "missing model-cache-agent manifest"))
+            continue
+        text = manifest_path.read_text(encoding="utf-8")
+        for configmap_name in MODEL_CACHE_AGENT_REQUIRED_CONFIGMAPS:
+            if configmap_name not in text:
+                findings.append(
+                    Finding(
+                        path.as_posix(),
+                        1,
+                        "model-cache-agent-configmap",
+                        f"missing envFrom ConfigMap: {configmap_name}",
+                    )
+                )
+    return findings
+
+
 def print_findings(findings: list[Finding]) -> None:
     for finding in findings:
         print(f"{finding.path}:{finding.line}: {finding.rule}: {finding.text}")
@@ -174,6 +203,7 @@ def main() -> int:
     findings.extend(validate_role_config_files(WORKER_CONFIG_FILES, WORKER_OWNED_KEYS, "worker"))
     findings.extend(validate_role_config_files(PRACTICE_CONFIG_FILES, PRACTICE_OWNED_KEYS | {"PRACTICE_SOUNDFONT_PATH"}, "practice"))
     findings.extend(validate_kustomization_references())
+    findings.extend(validate_model_cache_agent_configmaps())
 
     if findings:
         print_findings(findings)
