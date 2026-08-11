@@ -1939,6 +1939,23 @@ should pause before extracting pointer insertion handlers; first add focused
 coverage for insert placement geometry or extract only another self-contained
 DOM helper with minimal props.
 
+### 2026-08-11: Score type comments cleaned for REC-006
+
+- Started the REC-006 source-comment cleanup with
+  `apps/customer-web/src/types/score-types.ts`, because this shared type file is
+  frequently read by editor, MusicXML, and preview code.
+- Replaced Chinese/mojibake comments with concise English JSDoc where the
+  comment carried useful domain meaning, and removed redundant comments where
+  the type/member name was already self-explanatory.
+- Kept all exported type names and field shapes unchanged; this was a
+  documentation/readability-only change.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs.
+
+REC-006 remains partially complete. Follow-up cleanup should be batched by
+module, starting with `apps/customer-web/src/lib/musicxml/` comments, because
+that area contains many domain-heavy Chinese comments and should be translated
+carefully rather than deleted mechanically.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

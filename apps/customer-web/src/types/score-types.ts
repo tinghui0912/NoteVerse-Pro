@@ -4,26 +4,25 @@ export type AccidentalValue = 'flat-flat' | 'flat' | 'natural' | 'sharp';
 
 export type ScoreEntityType = 'note' | 'chord' | 'rest' | 'blank';
 
-// 时值类型（精确定义）
 export type Duration =
-  | 'durationWhole'    // 全音符
-  | 'durationHalf'     // 二分音符
-  | 'durationQuarter'  // 四分音符
-  | 'durationEighth'   // 八分音符
-  | 'duration16th'     // 十六分音符
-  | 'duration32nd';    // 三十二分音符
+  | 'durationWhole'
+  | 'durationHalf'
+  | 'durationQuarter'
+  | 'durationEighth'
+  | 'duration16th'
+  | 'duration32nd';
 
-// 实体位置元数据
 export type EntityMeta = {
   id: string;
   /** All source XML ids represented by this UI entity, useful for chord-member SVG hit testing. */
   sourceIds?: string[];
   measureIndex: number;
   staveIndex: number;
-  /** XML voice 值 (1-based)，直接来自 MusicXML 的 voice 元素 */
+  /** 1-based MusicXML voice value from the source `voice` element. */
   xmlVoice: number;
   entityIndex: number;
-  startTick: number;  // 在小节内的时间位置（基于 divisions）
+  /** Tick position within the measure, based on MusicXML divisions. */
+  startTick: number;
 };
 
 export type Note = {
@@ -44,7 +43,8 @@ export type Chord = {
   duration: Duration;
   dotted?: boolean;
   stemDirection?: 'up' | 'down' | 'none';
-  fingerings?: string[];  // 每个音符的指法，与 pitches 数组对应
+  /** Fingering values aligned by index with `pitches`. */
+  fingerings?: string[];
   accidentals?: Array<AccidentalValue | null | undefined>;
   articulation?: Articulation[];
   meta?: EntityMeta;
@@ -83,25 +83,33 @@ export type Measure = {
   staves: Stave[];
 };
 
-// 连线信息类型
 export type TieConnection = {
-  partnerId: string;        // 连接的另一个音符 ID
-  type: 'start' | 'stop';   // 连音线起点或终点
-  sourceId?: string;        // 当前实体内的具体 XML note id（用于和弦成员级连接）
-  partnerSourceId?: string; // 对端实体内的具体 XML note id
+  /** Connected entity id at the other end of the tie. */
+  partnerId: string;
+  /** Whether this entity is the rendered tie start or stop. */
+  type: 'start' | 'stop';
+  /** Concrete XML note id inside this entity, used for chord-member connections. */
+  sourceId?: string;
+  /** Concrete XML note id inside the partner entity. */
+  partnerSourceId?: string;
 };
 
 export type SlurConnection = {
-  slurId: string;           // 连奏线 ID
-  type: 'start' | 'stop';   // 连奏线起点或终点
-  partnerIds: string[];     // 连奏线上所有音符 ID
-  sourceId?: string;        // 当前实体内的具体 XML note id（用于和弦成员级连接）
-  partnerSourceIds?: string[]; // 连奏线上所有具体 XML note id
+  slurId: string;
+  /** Whether this entity is the rendered slur start or stop. */
+  type: 'start' | 'stop';
+  /** All entity ids represented by this slur. */
+  partnerIds: string[];
+  /** Concrete XML note id inside this entity, used for chord-member connections. */
+  sourceId?: string;
+  /** Concrete XML note ids represented by this slur. */
+  partnerSourceIds?: string[];
 };
 
 export type BeamConnection = {
-  beamId: string;           // 连音符 ID
-  noteIds: string[];        // 连音符上所有音符 ID
+  beamId: string;
+  /** All entity ids represented by this beam. */
+  noteIds: string[];
 };
 
 export type NoteConnections = {
@@ -110,18 +118,23 @@ export type NoteConnections = {
   beams: BeamConnection[];
 };
 
-// 实体信息，用于显示连线详情
 export type EntityInfo = {
-  pitch: string;           // 音高 (如 "A5") 或 "休止符"
-  measureNumber: number;   // 小节号 (1-based)
-  staveLabel: string;      // 谱表名称 (如 "高音谱表")
-  voiceNumber: number;     // 声部号 (1-based)
-  position: number;        // 位置 (1-based)
+  /** Pitch text such as `A5`, or a localized rest label. */
+  pitch: string;
+  /** 1-based measure number. */
+  measureNumber: number;
+  /** Staff display label. */
+  staveLabel: string;
+  /** 1-based voice number. */
+  voiceNumber: number;
+  /** 1-based entity position within the voice. */
+  position: number;
 };
 
 export type ConnectionData = {
   noteConnections: Map<string, NoteConnections>;
-  entityInfoMap: Map<string, EntityInfo>;  // entityId -> 实体信息
+  /** Entity id to connection detail display metadata. */
+  entityInfoMap: Map<string, EntityInfo>;
 };
 
 export type ScoreData = {
@@ -142,9 +155,9 @@ export type ScoreData = {
 export type TimelineInsertLocation = {
   measureIndex: number;
   staveIndex: number;
-  /** XML voice 值 (1-based)，直接来自 MusicXML 的 voice 元素 */
+  /** 1-based MusicXML voice value from the source `voice` element. */
   xmlVoice: number;
-  /** 小节内 tick 位置；新 timeline 插入的主定位字段 */
+  /** Tick position within the measure; primary placement field for timeline insertions. */
   tick: number;
 };
 
@@ -153,7 +166,7 @@ export type AddLocation = TimelineInsertLocation;
 export type EntityLocation = {
   measureIndex: number;
   staveIndex: number;
-  /** XML voice 值 (1-based)，直接来自 MusicXML 的 voice 元素 */
+  /** 1-based MusicXML voice value from the source `voice` element. */
   xmlVoice: number;
   entityIndex: number;
 };
