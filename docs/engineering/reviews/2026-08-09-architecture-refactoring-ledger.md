@@ -1270,6 +1270,10 @@ merely to eliminate small dispatch branches.
   module. Task context binding, operation logger binding, attempt tracing, and
   scheduler lock/observability wrapping now live in `app.worker.task_runtime`;
   `app.worker.tasks` remains the Celery task registration surface.
+- Extracted the transactional-mail outbox execution body from
+  `app.worker.tasks` into `app.worker.execution.mail_outbox`. The Celery task
+  name and registration path remain unchanged, while claim/send/failure/sent
+  handling now has an owning execution module.
 
 ## Reusable completion checklist for every refactor
 
