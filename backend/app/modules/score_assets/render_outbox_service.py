@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import timedelta
 
 from sqlalchemy import or_, select
@@ -13,14 +13,9 @@ from app.core.async_trace_context import get_async_trace_context
 from app.core.config import settings
 from app.core.logger import get_request_id
 from app.db.models import (
-    ImportArtifact,
-    ImportJob,
     RenderOutbox,
     RenderOutboxStatus,
     RenderTargetType,
-    Score,
-    ScoreDeletionStatus,
-    ScoreRevision,
 )
 from app.modules.async_operations.diagnostics import (
     AsyncOperationKindValue,
@@ -32,26 +27,8 @@ from app.modules.async_operations.delivery_policy import (
     delivery_lease_expired,
     exponential_retry_delay_seconds,
 )
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.db.models.import_job import ImportJobState
+from app.modules.score_assets import render_payloads
 from app.utils.timezone import utc_now_naive
-
-
-@dataclass(frozen=True)
-class RenderOutboxPayload:
-    outbox_uuid: str
-    target_type: RenderTargetType
-    render_profile: str
-    source_fingerprint: str
-    attempt: int
-    max_attempts: int
-    originating_request_id: str | None = None
-    traceparent: str | None = None
-    tracestate: str | None = None
-    score_uuid: str | None = None
-    revision_uuid: str | None = None
-    user_id: int | None = None
-    job_uuid: str | None = None
 
 
 async def create_revision_render_outbox(
@@ -165,7 +142,13 @@ def _new_review_thumbnail_outbox(
 
 
 class RenderOutboxService:
-    def claim(self, db: Session, outbox_uuid: str) -> RenderOutboxPayload | None:
+    def __init__(
+        self,
+        payload_builder: render_payloads.RenderPayloadBuilder | None = None,
+    ) -> None:
+        self.payload_builder = payload_builder or render_payloads.RenderPayloadBuilder()
+
+    def claim(self, db: Session, outbox_uuid: str) -> render_payloads.RenderOutboxPayload | None:
         outbox = db.execute(
             select(RenderOutbox)
             .where(RenderOutbox.outbox_uuid == outbox_uuid)
@@ -197,84 +180,21 @@ class RenderOutboxService:
         outbox.updated_at = now
         return payload
 
-    def _build_payload(self, db: Session, outbox: RenderOutbox) -> RenderOutboxPayload | None:
-        if outbox.target_type == RenderTargetType.SCORE_REVISION:
-            payload = self._build_revision_payload(db, outbox)
-        elif outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL:
-            payload = self._build_review_thumbnail_payload(db, outbox)
-        else:
-            payload = None
-        if payload is not None:
-            return payload
+    def _build_payload(
+        self, db: Session, outbox: RenderOutbox
+    ) -> render_payloads.RenderOutboxPayload | None:
+        result = self.payload_builder.build(db, outbox)
+        if result.payload is not None:
+            return result.payload
+
+        if result.terminal_completed:
+            self.complete(db, outbox.outbox_uuid)
+            return None
 
         if outbox.status == RenderOutboxStatus.COMPLETED:
             return None
         self._exhaust_unavailable_resources(outbox)
         return None
-
-    @staticmethod
-    def _build_revision_payload(
-        db: Session,
-        outbox: RenderOutbox,
-    ) -> RenderOutboxPayload | None:
-        score = db.get(Score, outbox.score_id)
-        revision = db.get(ScoreRevision, outbox.revision_id)
-        if (
-            score is None
-            or score.deletion_status != ScoreDeletionStatus.ACTIVE
-            or revision is None
-            or outbox.requested_by_user_id is None
-        ):
-            return None
-
-        return RenderOutboxPayload(
-            outbox_uuid=outbox.outbox_uuid,
-            target_type=outbox.target_type,
-            score_uuid=score.score_uuid,
-            revision_uuid=revision.revision_uuid,
-            user_id=outbox.requested_by_user_id,
-            render_profile=outbox.render_profile,
-            source_fingerprint=outbox.source_fingerprint,
-            attempt=0,
-            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-            originating_request_id=outbox.originating_request_id,
-            traceparent=outbox.traceparent,
-            tracestate=outbox.tracestate,
-        )
-
-    def _build_review_thumbnail_payload(
-        self,
-        db: Session,
-        outbox: RenderOutbox,
-    ) -> RenderOutboxPayload | None:
-        job = db.get(ImportJob, outbox.import_job_id)
-        review_source = db.execute(
-            select(ImportArtifact).where(
-                ImportArtifact.job_id == outbox.import_job_id,
-                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
-            )
-        ).scalar_one_or_none()
-        if job is None or review_source is None:
-            return None
-        if job.state != ImportJobState.PENDING_REVIEW:
-            self.complete(db, outbox.outbox_uuid)
-            return None
-        if review_source.sha256 != outbox.source_fingerprint:
-            self.complete(db, outbox.outbox_uuid)
-            return None
-
-        return RenderOutboxPayload(
-            outbox_uuid=outbox.outbox_uuid,
-            target_type=outbox.target_type,
-            job_uuid=job.job_uuid,
-            render_profile=outbox.render_profile,
-            source_fingerprint=outbox.source_fingerprint,
-            attempt=0,
-            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-            originating_request_id=outbox.originating_request_id,
-            traceparent=outbox.traceparent,
-            tracestate=outbox.tracestate,
-        )
 
     @staticmethod
     def _exhaust_unavailable_resources(outbox: RenderOutbox) -> None:

@@ -1641,6 +1641,26 @@ ARC-004 remains partially complete. Do not merge or extract `render()` and
 execution-manifest, and storage-usage APIs and needs a dedicated design pass
 before any shared writer is introduced.
 
+### 2026-08-11: Render outbox payload builder extracted
+
+- Selected `backend/app/modules/score_assets/render_outbox_service.py` as the
+  next ARC-004 hotspot because payload construction for score-revision renders
+  and review-thumbnail renders was mixed with the outbox status machine.
+- Extracted payload DTOs and target-specific payload construction to
+  `backend/app/modules/score_assets/render_payloads.py`.
+- Replaced direct status mutation inside review-thumbnail payload construction
+  with an explicit `terminal_completed` build result. `RenderOutboxService`
+  remains the owner of terminal status transitions through `complete()`.
+- Updated Worker render execution to import `RenderOutboxPayload` from the new
+  payload owner. No compatibility re-export remains in the outbox service.
+- Kept `RenderOutboxService` responsible for claiming, attempt accounting,
+  processing/failed/completed/dispatched transitions, stale delivery recovery,
+  retry timing, and diagnostic projection.
+
+ARC-004 remains partially complete. Stop this split at the payload boundary
+unless a future change adds more target types or a separately testable render
+delivery state policy; do not split the status machine itself.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

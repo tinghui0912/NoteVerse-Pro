@@ -13,10 +13,8 @@ from app.modules.realtime.publisher import (
     publish_score_event_sync_best_effort,
 )
 from app.modules.review.thumbnail_service import review_thumbnail_service
-from app.modules.score_assets.render_outbox_service import (
-    RenderOutboxPayload,
-    render_outbox_service,
-)
+from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.score_assets.render_payloads import RenderOutboxPayload
 from app.modules.score_assets.render_service import RevisionRenderService
 from app.pipeline.context import CeleryTaskLike
 from app.worker.task_runtime import (
