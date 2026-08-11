@@ -22,18 +22,17 @@ from app.processing.engines.practice_alignment.audio_activity import (
 )
 from app.processing.engines.practice_alignment.contracts import AlignmentEngine, AlignmentUpdate
 from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
+from app.processing.engines.practice_alignment.stream_state import (
+    STREAM_STATE_ARMED,
+    STREAM_STATE_CALIBRATING,
+    STREAM_STATE_HOLDING_DECAY,
+    STREAM_STATE_LOST,
+)
 
 
 DEFAULT_TEMPO_BPM = 120
 
 EnvironmentQuality = Literal["good", "noisy", "poor"]
-
-STREAM_STATE_CALIBRATING = "calibrating"
-STREAM_STATE_ARMED = "armed"
-STREAM_STATE_FOLLOWING = "following"
-STREAM_STATE_HOLDING_DECAY = "holding_decay"
-STREAM_STATE_LOST = "lost"
-
 
 class BrowserAudioStreamAdapter:
     """Small adapter that feeds browser PCM frames into Matchmaker's queue."""
