@@ -1716,6 +1716,26 @@ ARC-004 remains partially complete. Stop this import-job split here unless retry
 request reconstruction, sync detail projection, or artifact download delivery
 accumulates new rules that justify separate named collaborators.
 
+### 2026-08-11: Playback asset record construction extracted
+
+- Revisited `backend/app/modules/playback/service.py` after the delivery
+  read-model split. The remaining large duplication is between async `render()`
+  and sync `render_sync()` asset creation, but those paths intentionally use
+  different session APIs and transaction semantics.
+- Extracted only pure record semantics to
+  `backend/app/modules/playback/asset_records.py`: revision-scoped playback
+  storage keys, previous-asset usage snapshots, and `ScorePlaybackAsset`
+  construction from renderer/storage metadata.
+- Kept `PlaybackService` responsible for authorization-facing delivery methods,
+  source validation, renderer invocation, storage writes, manifest persistence,
+  async/sync transaction boundaries, usage allocation/release calls, and
+  best-effort old-object deletion.
+- Added focused coverage in `backend/tests/test_playback_asset_records.py`.
+
+ARC-004 remains partially complete. Do not merge async and sync playback render
+transactions mechanically; revisit only if both paths can share a transaction
+port without hiding rollback and storage-cleanup behavior.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

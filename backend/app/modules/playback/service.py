@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import uuid
 
 from sqlalchemy import select
@@ -24,6 +23,11 @@ from app.db.models import (
 )
 from app.db.models.score import RevisionSourceFormat
 from app.db.models.score_access import PublicationStatus
+from app.modules.playback.asset_records import (
+    build_playback_asset_record,
+    playback_asset_usage,
+    playback_storage_key,
+)
 from app.modules.playback.delivery import PlaybackDelivery, PlaybackDeliveryReadModel
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
 from app.processing.engines.playback import FluidSynthAudioRenderer
@@ -102,7 +106,7 @@ class PlaybackService:
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
         stored = self.storage.put_bytes(
-            key=self._playback_storage_key(
+            key=playback_storage_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 asset_uuid=asset_uuid,
@@ -120,7 +124,7 @@ class PlaybackService:
             )
         ).scalar_one_or_none()
         old_key = previous.storage_key if previous else None
-        previous_usage = self._playback_asset_usage(previous)
+        previous_usage = playback_asset_usage(previous)
         try:
             manifest = await get_or_create_execution_manifest_async(
                 db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
@@ -129,21 +133,15 @@ class PlaybackService:
             if previous is not None:
                 await db.delete(previous)
                 await db.flush()
-            asset = ScorePlaybackAsset(
+            asset = build_playback_asset_record(
                 asset_uuid=asset_uuid,
                 revision_id=revision_id,
-                kind=asset_kind,
+                asset_kind=asset_kind,
                 storage_backend=self.storage.backend_name,
-                storage_key=stored.storage_key,
-                filename=stored.filename,
-                mime_type=audio.mime_type,
-                size_bytes=stored.size_bytes,
-                sha256=hashlib.sha256(audio.content).hexdigest(),
+                stored=stored,
+                audio=audio,
                 execution_manifest_id=execution_manifest_id,
-                duration_ms=audio.duration_ms,
                 source_fingerprint=source_fingerprint,
-                generator=audio.generator,
-                generator_version=audio.generator_version,
             )
             db.add(asset)
             await db.commit()
@@ -164,16 +162,15 @@ class PlaybackService:
             storage_key=asset.storage_key,
         )
         if previous_usage is not None:
-            old_asset_uuid, old_storage_key, old_size_bytes = previous_usage
             await storage_usage_service.record_release(
                 db,
                 user_id=score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_AUDIO,
-                bytes_count=old_size_bytes,
+                bytes_count=previous_usage.size_bytes,
                 reason="playback_asset_replaced",
                 object_type="score_playback_asset",
-                object_id=old_asset_uuid,
-                storage_key=old_storage_key,
+                object_id=previous_usage.asset_uuid,
+                storage_key=previous_usage.storage_key,
             )
         if old_key and old_key != stored.storage_key:
             self._delete_storage_key_best_effort(old_key)
@@ -308,7 +305,7 @@ class PlaybackService:
         audio = self.renderer.render(source)
         asset_uuid = str(uuid.uuid4())
         stored = self.storage.put_bytes(
-            key=self._playback_storage_key(
+            key=playback_storage_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 asset_uuid=asset_uuid,
@@ -332,7 +329,7 @@ class PlaybackService:
                 Score.deletion_status == ScoreDeletionStatus.ACTIVE,
             )
         ).scalar_one()
-        previous_usage = self._playback_asset_usage(previous)
+        previous_usage = playback_asset_usage(previous)
         try:
             manifest = get_or_create_execution_manifest(
                 db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
@@ -341,21 +338,15 @@ class PlaybackService:
             if previous is not None:
                 db.delete(previous)
                 db.flush()
-            asset = ScorePlaybackAsset(
+            asset = build_playback_asset_record(
                 asset_uuid=asset_uuid,
                 revision_id=revision_id,
-                kind=asset_kind,
+                asset_kind=asset_kind,
                 storage_backend=self.storage.backend_name,
-                storage_key=stored.storage_key,
-                filename=stored.filename,
-                mime_type=audio.mime_type,
-                size_bytes=stored.size_bytes,
-                sha256=hashlib.sha256(audio.content).hexdigest(),
+                stored=stored,
+                audio=audio,
                 execution_manifest_id=execution_manifest_id,
-                duration_ms=audio.duration_ms,
                 source_fingerprint=source_fingerprint,
-                generator=audio.generator,
-                generator_version=audio.generator_version,
             )
             db.add(asset)
             db.commit()
@@ -376,38 +367,19 @@ class PlaybackService:
             storage_key=asset.storage_key,
         )
         if previous_usage is not None:
-            old_asset_uuid, old_storage_key, old_size_bytes = previous_usage
             storage_usage_service.record_release_sync(
                 db,
                 user_id=score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_AUDIO,
-                bytes_count=old_size_bytes,
+                bytes_count=previous_usage.size_bytes,
                 reason="playback_asset_replaced",
                 object_type="score_playback_asset",
-                object_id=old_asset_uuid,
-                storage_key=old_storage_key,
+                object_id=previous_usage.asset_uuid,
+                storage_key=previous_usage.storage_key,
             )
         if old_key and old_key != stored.storage_key:
             self._delete_storage_key_best_effort(old_key)
         return asset
-
-    @staticmethod
-    def _playback_storage_key(
-        *,
-        score_uuid: str,
-        revision_uuid: str,
-        asset_uuid: str,
-        extension: str,
-    ) -> str:
-        return f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{extension}"
-
-    @staticmethod
-    def _playback_asset_usage(
-        asset: ScorePlaybackAsset | None,
-    ) -> tuple[str, str, int] | None:
-        if asset is None:
-            return None
-        return (asset.asset_uuid, asset.storage_key, asset.size_bytes)
 
     def _delete_storage_key_best_effort(self, storage_key: str) -> None:
         try:
