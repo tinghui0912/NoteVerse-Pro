@@ -16,7 +16,6 @@ from app.db.models import (
     ImportJobState,
     MailOutbox,
     MailOutboxStatus,
-    OpsAuditEvent,
     PlaybackOutbox,
     PlaybackOutboxStatus,
     RenderOutbox,
@@ -34,8 +33,6 @@ from app.modules.ops.schemas import (
     AsyncOperationsSummaryRead,
     AsyncOperationStatus,
     AsyncOperationStatusCount,
-    OpsAuditEventRead,
-    OpsAuditOutcome,
 )
 from app.shared.pagination import OffsetPage
 from app.shared.constants import ErrorCode
@@ -71,106 +68,6 @@ class RetryOperationResult:
 
 
 class OpsAsyncOperationService:
-    async def list_audit_events(
-        self,
-        db: AsyncSession,
-        *,
-        limit: int,
-        offset: int = 0,
-        actor_operator_id: int | None = None,
-        action: str | None = None,
-        operation_kind: AsyncOperationKind | None = None,
-        operation_id: str | None = None,
-        outcome: OpsAuditOutcome | None = None,
-        created_after: datetime | None = None,
-        created_before: datetime | None = None,
-    ) -> OffsetPage[OpsAuditEventRead]:
-        statement = select(OpsAuditEvent)
-        if actor_operator_id is not None:
-            statement = statement.where(OpsAuditEvent.actor_operator_id == actor_operator_id)
-        if action is not None:
-            statement = statement.where(OpsAuditEvent.action == action)
-        if operation_kind is not None:
-            statement = statement.where(OpsAuditEvent.operation_kind == operation_kind.value)
-        if operation_id is not None:
-            statement = statement.where(OpsAuditEvent.operation_id == operation_id)
-        if outcome is not None:
-            statement = statement.where(OpsAuditEvent.outcome == outcome.value)
-        if created_after is not None:
-            statement = statement.where(OpsAuditEvent.created_at >= created_after)
-        if created_before is not None:
-            statement = statement.where(OpsAuditEvent.created_at <= created_before)
-        result = await db.execute(
-            statement.order_by(col(OpsAuditEvent.created_at).desc()).offset(offset).limit(limit + 1)
-        )
-        events = [self._audit_event_read(event) for event in result.scalars().all()]
-        return OffsetPage(
-            items=events[:limit],
-            limit=limit,
-            offset=offset,
-            has_more=len(events) > limit,
-        )
-
-    async def record_audit_event(
-        self,
-        db: AsyncSession,
-        *,
-        actor_operator_id: int | None,
-        actor_identity_provider: str | None = None,
-        actor_identity_issuer: str | None = None,
-        actor_identity_subject: str | None = None,
-        action: str,
-        operation_kind: AsyncOperationKind,
-        operation_id: str,
-        outcome: str,
-        error_code: str | None = None,
-        reason: str | None = None,
-        request_id: str | None = None,
-        peer_address: str | None = None,
-        client_address: str | None = None,
-        previous_state: str | None = None,
-        new_state: str | None = None,
-    ) -> None:
-        db.add(
-            OpsAuditEvent(
-                actor_operator_id=actor_operator_id,
-                actor_identity_provider=actor_identity_provider,
-                actor_identity_issuer=actor_identity_issuer,
-                actor_identity_subject=actor_identity_subject,
-                action=action,
-                operation_kind=operation_kind.value,
-                operation_id=operation_id,
-                outcome=outcome,
-                error_code=error_code,
-                reason=reason,
-                request_id=request_id,
-                peer_address=peer_address,
-                client_address=client_address,
-                previous_state=previous_state,
-                new_state=new_state,
-            )
-        )
-        await db.commit()
-
-    @staticmethod
-    def _audit_event_read(event: OpsAuditEvent) -> OpsAuditEventRead:
-        return OpsAuditEventRead(
-            event_id=event.event_uuid,
-            actor_operator_id=event.actor_operator_id,
-            action=event.action,
-            operation_kind=AsyncOperationKind(event.operation_kind),
-            operation_id=event.operation_id,
-            outcome=OpsAuditOutcome(event.outcome),
-            error_code=event.error_code,
-            reason=event.reason,
-            request_id=event.request_id,
-            peer_address=event.peer_address,
-            client_address=event.client_address,
-            previous_state=event.previous_state,
-            new_state=event.new_state,
-            created_at=event.created_at,
-        )
-
     async def list_operations(
         self,
         db: AsyncSession,
