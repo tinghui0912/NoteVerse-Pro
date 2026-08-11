@@ -1303,6 +1303,12 @@ merely to eliminate small dispatch branches.
   Celery registration surface, blocks direct domain/database service imports in
   the task-entrypoint module, and prevents `app.worker.execution` modules from
   importing task entrypoints.
+- Split the broad maintenance execution module into
+  `app.worker.execution.maintenance_dispatch` and
+  `app.worker.execution.maintenance_cleanup`. Dispatch maintenance now owns
+  recovery-and-publish scans for import/render/playback/mail durable work, while
+  cleanup maintenance owns deletion, expiry, retention, and lifecycle cleanup
+  scans.
 
 ## Reusable completion checklist for every refactor
 
