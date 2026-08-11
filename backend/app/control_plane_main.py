@@ -2,8 +2,7 @@
 
 from fastapi import FastAPI
 
-from app.api.health import router as health_router
-from app.api.metrics import create_metrics_router
+from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
 from app.core.control_plane_settings import CONTROL_PLANE_API_PREFIX, require_control_plane_settings
 from app.core.http_runtime import install_http_runtime
@@ -50,8 +49,7 @@ def create_app() -> FastAPI:
         tags=["Operator Authentication"],
     )
     app.include_router(ops_router, prefix=f"{CONTROL_PLANE_API_PREFIX}/ops", tags=["Operations"])
-    app.include_router(health_router)
-    app.include_router(create_metrics_router(include_database_metrics=False))
+    install_process_endpoints(app)
     return app
 
 

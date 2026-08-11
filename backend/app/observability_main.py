@@ -2,8 +2,7 @@
 
 from fastapi import FastAPI
 
-from app.api.health import create_health_router
-from app.api.metrics import create_metrics_router
+from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
 from app.core.http_runtime import install_http_runtime
 from app.core.lifespan import create_app_lifespan
@@ -27,8 +26,12 @@ def create_app() -> FastAPI:
         lifespan=create_app_lifespan(RuntimeRole.OBSERVABILITY_EXPORTER),
     )
     install_http_runtime(app)
-    app.include_router(create_health_router(include_redis=False, include_storage_quota_policy=False))
-    app.include_router(create_metrics_router(include_database_metrics=True))
+    install_process_endpoints(
+        app,
+        include_database_metrics=True,
+        include_redis_readiness=False,
+        include_storage_quota_policy_readiness=False,
+    )
     return app
 
 

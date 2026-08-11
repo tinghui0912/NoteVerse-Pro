@@ -5,8 +5,7 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.api.health import router as health_router
-from app.api.metrics import create_metrics_router
+from app.api.runtime_endpoints import install_process_endpoints
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.settings.service_identity import CUSTOMER_API_PREFIX
@@ -71,8 +70,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api_router, prefix=CUSTOMER_API_PREFIX)
-    app.include_router(health_router)
-    app.include_router(create_metrics_router(include_database_metrics=False))
+    install_process_endpoints(app)
 
     @app.get("/")
     def root():

@@ -1357,6 +1357,22 @@ merely to eliminate small dispatch branches.
 ARC-014 is complete. Future deployment topology changes must update the
 deployment index and the nearest owning README in the same change.
 
+### 2026-08-11: Process endpoint bootstrap extracted
+
+- Extracted the repeated health and metrics route installation from the API,
+  Practice, Control Plane, and Observability composition roots into
+  `backend/app/api/runtime_endpoints.py`.
+- Kept service-specific FastAPI metadata, business routers, CSRF policy, CORS
+  origins, static mounts, and lifespan roles explicit in each composition root.
+  This avoids over-abstracting the runtime boundary while giving the shared
+  process endpoints one owner.
+- Observability remains the only runtime that enables database-backed metrics
+  and disables Redis/storage-quota readiness checks; customer-facing runtimes
+  continue exposing process-only metrics.
+
+ARC-012 remains partially complete. Continue extracting only duplicated
+bootstrap responsibilities with a stable owner and an observable behavior test.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
