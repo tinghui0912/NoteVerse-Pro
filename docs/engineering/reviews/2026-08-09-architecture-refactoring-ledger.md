@@ -1309,6 +1309,14 @@ merely to eliminate small dispatch branches.
   recovery-and-publish scans for import/render/playback/mail durable work, while
   cleanup maintenance owns deletion, expiry, retention, and lifecycle cleanup
   scans.
+- Extracted shared durable-dispatch producer behavior into
+  `app.worker.dispatch.runtime`. Import/render/playback/mail dispatch modules
+  now keep flow-specific mark/trace/release details and delegate Celery
+  `send_task`, producer span creation, success/failure logging, and
+  release-on-failure handling to the dispatch runtime helper.
+- Extended the Worker architecture contract test so concrete dispatch modules
+  cannot bypass `app.worker.dispatch.runtime` with direct Celery `send_task` or
+  producer-tracing imports.
 
 ## Reusable completion checklist for every refactor
 

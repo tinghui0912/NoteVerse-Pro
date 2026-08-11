@@ -13,6 +13,7 @@ from app.core import background_tracing
 from app.core.logger import get_otel_trace_context, set_otel_trace_context
 from app.worker import celery_config
 from app.worker.dispatch import import_jobs
+from app.worker.dispatch import runtime as dispatch_runtime
 from app.worker.dispatch.tracing import DurableTraceContext
 
 
@@ -144,8 +145,8 @@ def test_relay_dispatch_log_is_emitted_inside_its_producer_span(
         "import_trace_context",
         lambda _db, _job_uuid: DurableTraceContext(traceparent=TRACEPARENT, tracestate=None),
     )
-    monkeypatch.setattr(import_jobs.celery_app, "send_task", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(import_jobs, "logger", CapturingLogger())
+    monkeypatch.setattr(dispatch_runtime.celery_app, "send_task", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(dispatch_runtime, "logger", CapturingLogger())
 
     assert import_jobs.dispatch_import_job("job-1")
 

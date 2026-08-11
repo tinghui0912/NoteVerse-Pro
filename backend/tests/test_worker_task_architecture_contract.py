@@ -64,6 +64,32 @@ def test_worker_execution_modules_do_not_import_task_entrypoints() -> None:
     )
 
 
+def test_worker_dispatch_modules_delegate_shared_producer_runtime() -> None:
+    violations: list[str] = []
+
+    for path in (WORKER_ROOT / "dispatch").glob("*.py"):
+        if path.name in {"__init__.py", "runtime.py"}:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module in {
+                "app.worker.celery_config",
+                "app.core.background_tracing",
+            }:
+                violations.append(f"{path.name}: from {node.module} import ...")
+            elif (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "send_task"
+            ):
+                violations.append(f"{path.name}: direct send_task call")
+
+    assert not violations, (
+        "worker.dispatch modules must delegate shared producer behavior to "
+        "worker.dispatch.runtime: " + "; ".join(violations)
+    )
+
+
 def _body_without_docstring(node: ast.FunctionDef) -> list[ast.stmt]:
     body = list(node.body)
     if (

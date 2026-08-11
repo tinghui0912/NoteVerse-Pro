@@ -22,6 +22,9 @@ evolve independently.
   `tasks.py`.
 - `dispatch/` sends Celery tasks by their stable task names. It must not import
   execution handlers directly.
+- Shared producer-span, Celery `send_task`, success/failure logging, and
+  release-on-failure behavior belongs in `dispatch/runtime.py`; dispatch modules
+  should keep only flow-specific claim/mark details.
 - `execution/maintenance_dispatch.py` may import dispatch functions inside scan
   callbacks to avoid creating import-time cycles with Celery app assembly.
 - Shared cross-task mechanics belong in `task_runtime.py`; if a helper needs a
