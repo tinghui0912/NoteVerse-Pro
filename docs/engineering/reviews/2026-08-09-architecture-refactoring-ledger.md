@@ -2085,6 +2085,24 @@ REC-006 remains partially complete outside MusicXML. Before expanding further,
 run a fresh Customer Web source scan and choose the next module batch by
 frequency of use and comment density.
 
+### 2026-08-11: Editor score lookup comments cleaned for REC-006
+
+- Ran a fresh Customer Web source scan after completing the MusicXML comment
+  cleanup batches.
+- Selected `apps/customer-web/src/lib/editor/score-lookup.ts` because it is a
+  high-frequency editor utility used by inspector, history, and connection
+  flows, and it still contained mojibake comments.
+- Replaced mojibake comments with concise English descriptions for entity and
+  metadata lookup helpers.
+- Kept implementation logic and exported APIs unchanged.
+- Added focused coverage in `apps/customer-web/tests/unit/score-lookup.test.ts`
+  for entity lookup, metadata lookup, and missing/null inputs.
+
+REC-006 remains partially complete. Good next batches are editor contexts
+(`src/contexts/*`) or API wrapper comments (`src/lib/api/*`). Treat the visible
+Chinese language option label in navigation as product UI copy, not a cleanup
+target.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
