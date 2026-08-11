@@ -33,7 +33,7 @@ historical finding is not an indication that the item is still open.
 | ARC-011 | Complete | No further work unless a new production prototype boundary appears. |
 | ARC-012 | Partially complete | Continue extracting only duplicated bootstrap or settings ownership with a verified runtime boundary. |
 | ARC-013 | Partially complete | Code-side ownership and Dependabot policy are complete; verify GitHub-side alerts, secret scanning, branch protection, and required reviews outside this repository. |
-| ARC-014 | Open | Complete deployment-source documentation and stale-link remediation. |
+| ARC-014 | Complete | Maintain deployment source/GitOps/observability documentation as deployment topology changes. |
 | ARC-015 | Complete | Maintain the strict Practice WebSocket v1 schema, generated artifact, runtime validators, and compatibility policy for each protocol change. |
 | ARC-016 | Partially complete (P1) | Maintain the protected-service policy-dependency test and expand it only when a new score-facing authorization entry point is introduced. |
 
@@ -1342,6 +1342,20 @@ merely to eliminate small dispatch branches.
   and processing-state transition, while revision preview, review thumbnail,
   audio payload construction, and resource-exhaustion diagnostics remain
   explicit without introducing a generic outbox base class.
+
+### 2026-08-11: Deployment source hierarchy documented
+
+- Added a deployment index at `deploy/README.md` that defines the ownership
+  boundary between reusable application templates, GitOps desired-state
+  snapshots, platform prerequisites, and observability values.
+- Clarified that `deploy/application` is source template material while
+  `deploy/gitops/environments/*` is promoted, digest-pinned desired state.
+- Replaced stale or plain-text deployment documentation paths with checked
+  relative Markdown links in application, production overlay, observability,
+  and GitOps indexes.
+
+ARC-014 is complete. Future deployment topology changes must update the
+deployment index and the nearest owning README in the same change.
 
 ## Reusable completion checklist for every refactor
 

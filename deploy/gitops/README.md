@@ -24,4 +24,4 @@ Current status:
 - release package workflows remain the active package generation path while
   GitOps is proven in minikube.
 
-See `docs/operations/release/gitops-evolution-plan.md`.
+See [GitOps Evolution Plan](../../docs/operations/release/gitops-evolution-plan.md).

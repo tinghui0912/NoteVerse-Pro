@@ -1,13 +1,13 @@
-# NoteVerse Application Deployment Skeleton
+# NoteVerse Application Deployment Sources
 
-This directory is reserved for Kubernetes manifests or Helm values for the
-NoteVerse application workloads.
+This directory contains the reusable Kubernetes/Kustomize source templates for
+NoteVerse application workloads. It is not the live GitOps desired-state tree.
+Rendered, digest-pinned environment snapshots live under
+[`../gitops/environments/`](../gitops/environments/README.md).
 
 The runtime contract is defined in:
 
-```text
-docs/architecture/runtime/k8s-application-runtime-contract.md
-```
+[`../../docs/architecture/runtime/k8s-application-runtime-contract.md`](../../docs/architecture/runtime/k8s-application-runtime-contract.md)
 
 Planned workload boundaries:
 
@@ -19,21 +19,14 @@ Planned workload boundaries:
 - `frontend`: Next.js web application;
 - migration job: one-shot Alembic upgrade before application rollout.
 
-Initial Kustomize base manifests live under:
-
-```text
-deploy/application/base/
-```
+Initial Kustomize base manifests live under [`base/`](base/).
 
 The application base intentionally excludes Prometheus Operator CRDs such as
 `ServiceMonitor`. Core application rollout must not require the observability
 stack to be installed first.
 
-Optional Prometheus Operator discovery resources live under:
-
-```text
-deploy/application/monitoring/prometheus-operator/
-```
+Optional Prometheus Operator discovery resources live under
+[`monitoring/prometheus-operator/`](monitoring/prometheus-operator/).
 
 Apply them only after the `monitoring.coreos.com/v1` CRDs are installed by the
 observability platform.
@@ -43,17 +36,24 @@ ConfigMaps/Secrets. Environment-specific overlays must provide real images,
 resource classes, Gateway routing, storage, backend secrets, public origins,
 and role-specific backend ConfigMaps explicitly.
 
-The first environment overlay template lives under:
+The first environment overlay template lives under
+[`overlays/staging/`](overlays/staging/).
 
-```text
-deploy/application/overlays/staging/
-```
+The production shape template lives under
+[`overlays/production/`](overlays/production/).
 
-The production shape template lives under:
+## Source, generation, and immutability
 
-```text
-deploy/application/overlays/production/
-```
+- `base/` and `overlays/*/` are source templates reviewed with application
+  deployment changes.
+- `overlays/staging/` and `overlays/production/` may contain placeholder image
+  tags and placeholder domains. They are renderable templates, not immutable
+  release records.
+- The GitOps environment tree is produced from these templates by release
+  package rendering, image digest substitution, and promotion review.
+- Do not hand-edit generated GitOps snapshots to fix template problems. Fix the
+  source template here, regenerate/promote, and review the resulting diff.
+- Do not commit raw Secrets in either template overlays or GitOps snapshots.
 
 Validate the base with:
 
@@ -92,22 +92,13 @@ python scripts/check_k8s_application_manifests.py deploy/application/overlays/pr
 ```
 
 Production preflight checklist:
-
-```text
-../../docs/operations/deployment/k8s-production-preflight-checklist.md
-```
+[`../../docs/operations/deployment/k8s-production-preflight-checklist.md`](../../docs/operations/deployment/k8s-production-preflight-checklist.md)
 
 Deployment runbook:
+[`../../docs/operations/deployment/k8s-deployment-runbook.md`](../../docs/operations/deployment/k8s-deployment-runbook.md)
 
-```text
-../../docs/operations/deployment/k8s-deployment-runbook.md
-```
-
-Do not put observability stack manifests here. Platform observability lives in:
-
-```text
-deploy/observability/
-```
+Do not put observability stack manifests here. Platform observability lives in
+[`../observability/`](../observability/).
 
 Application-owned scrape discovery resources are allowed only in
 `deploy/application/monitoring/` so they can be applied independently after the

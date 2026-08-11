@@ -44,9 +44,7 @@ Required objects supplied outside this overlay:
 
 Secret, PVC, object storage, TLS, and GPU label ownership is documented in:
 
-```text
-docs/operations/deployment/k8s-secrets-and-storage-template.md
-```
+[`../../../../docs/operations/deployment/k8s-secrets-and-storage-template.md`](../../../../docs/operations/deployment/k8s-secrets-and-storage-template.md)
 
 Production-specific choices:
 
