@@ -1466,6 +1466,25 @@ is to look for a stable transaction-script boundary across reserve/commit/releas
 before splitting async and sync orchestration; do not create separate files only
 because both execution modes exist.
 
+### 2026-08-11: Storage usage state transitions centralized
+
+- Continued the measured storage-usage extraction by moving account, counter,
+  and reservation state transitions into
+  `backend/app/modules/storage_usage/accounting.py`.
+- Added helpers for reservation holds, committing reserved usage, releasing
+  reserved usage, and releasing used usage. These helpers operate on already
+  loaded ORM objects only; they do not own database reads, row locks, commits,
+  or async/sync execution mode.
+- Kept `StorageUsageService` responsible for transaction scripts, repository
+  calls, lock selection, commits, and the public async/sync facade. This avoids
+  the premature split into separate async and sync services while removing the
+  duplicated mutation logic.
+
+ARC-004 remains partially complete. Stop the storage-usage split here unless a
+future change introduces new reservation states, additional quota plans, or a
+third execution path that makes the transaction scripts themselves a measured
+hotspot.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
