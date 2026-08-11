@@ -2200,6 +2200,35 @@ submodule comments next:
 `apps/customer-web/src/hooks/editor/entity-editor/index.ts`,
 `insert-entity.ts`, and `update-existing-entity.ts`.
 
+### 2026-08-12: Voice editor dead local-voice operations removed
+
+- Rechecked the current voice-layer call graph after the REC-006 voice editor
+  cleanup.
+- Confirmed `apps/customer-web/src/lib/editor/tracks.ts` and its tests define
+  the current product semantics as one global editor track per MusicXML voice
+  number across the score; `getEditorTrackId()` intentionally ignores
+  `staffIndex`.
+- Removed unused local-measure/staff voice operations from
+  `apps/customer-web/src/hooks/editor/use-voice-editor.ts`:
+  `handleAddVoice`, `handleClearVoice`, `handleDeleteVoice`, and their
+  private single-measure XML removal helper.
+- Renamed the remaining real operation to `handleDeleteVoiceTrack(xmlVoice)` and
+  updated `apps/customer-web/src/components/editor/voice-layer.tsx` to call it
+  without passing a misleading staff index.
+- Kept the existing runtime behavior for deleting non-empty tracks: it removes
+  matching MusicXML `note` and `forward` elements for the selected voice number
+  across all measures, recalculates backups per measure, reparses XML, and
+  records history.
+- Empty tracks are still handled by `useEditorTracks.removeEmptyTrack()`, which
+  removes the empty score-data-only voice from every measure/staff; parser-level
+  `expectedVoices` remains responsible for preserving intentional empty voices
+  during XML edit/reparse cycles.
+
+REC-006 remains partially complete. Continue with the focused entity-editor
+submodule comments next:
+`apps/customer-web/src/hooks/editor/entity-editor/index.ts`,
+`insert-entity.ts`, and `update-existing-entity.ts`.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
