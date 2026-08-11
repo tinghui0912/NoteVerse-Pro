@@ -1856,6 +1856,25 @@ editor mutation callbacks until a smaller hook boundary is proven by tests.
   production code. Product copy and localization files must be inventoried
   separately before removal.
 
+### 2026-08-11: Event Inspector event model helpers extracted
+
+- Continued the Customer Web ARC-003 pass by extracting event-level pure helpers
+  from `apps/customer-web/src/components/editor/event-inspector.tsx`.
+- Moved pitch parsing, pitch part updates, accidental suffix mapping,
+  entity-save conversion, summary labels/icons, and event editing constants to
+  `apps/customer-web/src/components/editor/event-inspector-event-model.ts`.
+- Replaced unreadable note/rest/chord glyphs in the event inspector summary and
+  accidental buttons with ASCII labels, consistent with REC-006.
+- Kept `EventInspectorPanel` responsible for React state, editor mutations, XML
+  updates, beam/connection operations, and field layout.
+- Added focused coverage in
+  `apps/customer-web/tests/unit/event-inspector-event-model.test.ts`.
+
+ARC-003 remains partially complete. Stop extracting pure helpers from
+`event-inspector.tsx` here; the next cut should either extract a cohesive
+note-properties component with manageable props or move to
+`editor-preview-panel.tsx`.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

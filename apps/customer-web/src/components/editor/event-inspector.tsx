@@ -20,13 +20,12 @@ import {
 import { useEditorState, useEntityEditor, useScoreData, useXmlUpdater } from '@/contexts/editor-provider';
 import { useConnectionOperations } from '@/hooks/editor/use-connection-operations';
 import { useToast } from '@/hooks/use-toast';
-import type { AccidentalValue, Blank, Duration, ScoreEntity } from '@/types/score-types';
+import type { AccidentalValue, Duration, ScoreEntity } from '@/types/score-types';
 import { findEntityById } from '@/lib/editor/score-lookup';
 import {
   addPitch,
   removePitch,
   toEditableEvent,
-  toScoreEntity,
   type EditableEvent,
 } from '@/lib/editor/editable-event';
 import {
@@ -41,71 +40,18 @@ import {
   getEntitySourcePitch,
   type ConnectionDetail,
 } from './event-inspector-connections';
+import {
+  ACCIDENTALS,
+  DURATIONS,
+  PITCH_NAMES,
+  accidentalPitchSuffix,
+  getEntitySummaryIcon,
+  getEntitySummaryPitch,
+  splitPitch,
+  toEntityForSave,
+  updatePitchPart,
+} from './event-inspector-event-model';
 import { ScoreInspectorPanel } from './event-score-inspector';
-
-const PITCH_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-const ACCIDENTALS: Array<{ value: AccidentalValue; symbol: string }> = [
-  { value: 'flat-flat', symbol: '𝄫' },
-  { value: 'flat', symbol: '♭' },
-  { value: 'natural', symbol: '♮' },
-  { value: 'sharp', symbol: '♯' },
-];
-const DURATIONS: Duration[] = [
-  'durationWhole',
-  'durationHalf',
-  'durationQuarter',
-  'durationEighth',
-  'duration16th',
-  'duration32nd',
-];
-
-function splitPitch(pitch: string) {
-  const match = pitch.match(/^([A-Ga-g])([#b]{0,2})(\d)$/);
-  return {
-    name: match?.[1] ?? 'C',
-    accidental: match?.[2] ?? '',
-    octave: match?.[3] ?? '4',
-  };
-}
-
-function updatePitchPart(pitch: string, part: 'name' | 'octave', value: string) {
-  const parsed = splitPitch(pitch);
-  return part === 'name'
-    ? `${value}${parsed.accidental}${parsed.octave}`
-    : `${parsed.name}${parsed.accidental}${value}`;
-}
-
-function accidentalPitchSuffix(accidental: AccidentalValue) {
-  if (accidental === 'flat-flat') return 'bb';
-  if (accidental === 'flat') return 'b';
-  if (accidental === 'sharp') return '#';
-  return '';
-}
-
-function toEntityForSave(original: ScoreEntity, event: EditableEvent): ScoreEntity {
-  if (original.type === 'blank' && event.pitches.length === 0) {
-    return {
-      ...(original as Blank),
-      duration: event.duration,
-      dotted: event.dotted,
-    };
-  }
-
-  return toScoreEntity(event, original.meta);
-}
-
-function getEntitySummaryPitch(entity: ScoreEntity, restLabel: string, blankLabel: string): string {
-  if (entity.type === 'note') return entity.pitch;
-  if (entity.type === 'chord') return entity.pitches.join(' · ');
-  if (entity.type === 'rest') return restLabel;
-  return blankLabel;
-}
-
-function getEntitySummaryIcon(entity: ScoreEntity): string {
-  if (entity.type === 'rest') return '𝄽';
-  if (entity.type === 'chord') return '♬';
-  return '♩';
-}
 
 interface EventInspectorProps {
   scoreInspectorOpen: boolean;
