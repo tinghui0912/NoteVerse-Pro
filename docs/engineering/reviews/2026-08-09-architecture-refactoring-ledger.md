@@ -1875,6 +1875,27 @@ ARC-003 remains partially complete. Stop extracting pure helpers from
 note-properties component with manageable props or move to
 `editor-preview-panel.tsx`.
 
+### 2026-08-11: Editor Preview track visibility projection extracted
+
+- Continued the Customer Web ARC-003 pass with
+  `apps/customer-web/src/components/editor/editor-preview-panel.tsx`.
+- Extracted the pure track-visibility projection from score data and visible
+  track ids to
+  `apps/customer-web/src/components/editor/editor-preview-track-visibility.ts`.
+- Moved hidden source id collection, hidden tie/slur endpoint pair projection,
+  and fully hidden staff-key detection out of the React component.
+- Kept `EditorPreviewPanel` responsible for DOM hit testing, Verovio SVG class
+  application, score click/mouse handlers, playback wiring, and editor state.
+- Added focused coverage in
+  `apps/customer-web/tests/unit/editor-preview-track-visibility.test.ts` and
+  updated the Verovio surface migration guard to follow the extracted module.
+
+ARC-003 remains partially complete. The next `editor-preview-panel.tsx` cut
+should target a similarly cohesive DOM helper boundary, such as metadata
+placeholder mounting or selected-entity SVG highlighting. Avoid extracting the
+add-mode click/mouse handlers until insertion placement has stronger focused
+coverage.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

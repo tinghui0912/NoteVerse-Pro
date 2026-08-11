@@ -166,6 +166,7 @@ describe('Verovio listen surfaces', () => {
   it('projects hidden voice tracks onto the Verovio SVG surface', () => {
     const viewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const panel = readSource('src/components/editor/editor-preview-panel.tsx');
+    const visibility = readSource('src/components/editor/editor-preview-track-visibility.ts');
 
     expect(viewport).toContain('score-editor-hidden');
     expect(panel).toContain('visibleTrackIdSet');
@@ -174,7 +175,6 @@ describe('Verovio listen surfaces', () => {
     expect(panel).toContain('data-related');
     expect(panel).toContain('getRelatedIds');
     expect(panel).toContain('getHiddenVerovioEventElement');
-    expect(panel).toContain('allEntityVoicesHidden');
     expect(panel).toContain('getSvgBoundsFromGraphics');
     expect(panel).toContain('isConnectionNearHiddenEvent');
     expect(panel).toContain('VEROVIO_EVENT_CONTAINER_SELECTOR');
@@ -182,6 +182,10 @@ describe('Verovio listen surfaces', () => {
     expect(panel).toContain('[data-class="tie"]');
     expect(panel).toContain('[data-class="beam"]');
     expect(panel).toContain("element.classList.add('score-editor-hidden')");
+    expect(visibility).toContain('getHiddenSourceIds');
+    expect(visibility).toContain('getHiddenConnectionPairs');
+    expect(visibility).toContain('getHiddenStaffKeys');
+    expect(visibility).toContain('allEntityVoicesHidden');
   });
 
   it('marks temporarily invalid measures without blocking score editing', () => {
