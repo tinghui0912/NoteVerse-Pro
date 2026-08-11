@@ -1337,6 +1337,11 @@ merely to eliminate small dispatch branches.
   playback storage-key construction, previous asset usage snapshots, and
   best-effort storage cleanup. The asset-writing transaction flow remains
   explicit in each path.
+- Split render/playback outbox payload construction into narrow private
+  operation-specific helpers. `claim()` now stays focused on claim eligibility
+  and processing-state transition, while revision preview, review thumbnail,
+  audio payload construction, and resource-exhaustion diagnostics remain
+  explicit without introducing a generic outbox base class.
 
 ## Reusable completion checklist for every refactor
 

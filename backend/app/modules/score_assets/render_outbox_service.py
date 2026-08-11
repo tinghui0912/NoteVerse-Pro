@@ -199,56 +199,83 @@ class RenderOutboxService:
 
     def _build_payload(self, db: Session, outbox: RenderOutbox) -> RenderOutboxPayload | None:
         if outbox.target_type == RenderTargetType.SCORE_REVISION:
-            score = db.get(Score, outbox.score_id)
-            revision = db.get(ScoreRevision, outbox.revision_id)
-            if (
-                score is not None
-                and score.deletion_status == ScoreDeletionStatus.ACTIVE
-                and revision is not None
-                and outbox.requested_by_user_id is not None
-            ):
-                return RenderOutboxPayload(
-                    outbox_uuid=outbox.outbox_uuid,
-                    target_type=outbox.target_type,
-                    score_uuid=score.score_uuid,
-                    revision_uuid=revision.revision_uuid,
-                    user_id=outbox.requested_by_user_id,
-                    render_profile=outbox.render_profile,
-                    source_fingerprint=outbox.source_fingerprint,
-                    attempt=0,
-                    max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-                    originating_request_id=outbox.originating_request_id,
-                    traceparent=outbox.traceparent,
-                    tracestate=outbox.tracestate,
-                )
+            payload = self._build_revision_payload(db, outbox)
         elif outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL:
-            job = db.get(ImportJob, outbox.import_job_id)
-            review_source = db.execute(
-                select(ImportArtifact).where(
-                    ImportArtifact.job_id == outbox.import_job_id,
-                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
-                )
-            ).scalar_one_or_none()
-            if job is not None and review_source is not None:
-                if job.state != ImportJobState.PENDING_REVIEW:
-                    self.complete(db, outbox.outbox_uuid)
-                    return None
-                if review_source.sha256 != outbox.source_fingerprint:
-                    self.complete(db, outbox.outbox_uuid)
-                    return None
-                return RenderOutboxPayload(
-                    outbox_uuid=outbox.outbox_uuid,
-                    target_type=outbox.target_type,
-                    job_uuid=job.job_uuid,
-                    render_profile=outbox.render_profile,
-                    source_fingerprint=outbox.source_fingerprint,
-                    attempt=0,
-                    max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-                    originating_request_id=outbox.originating_request_id,
-                    traceparent=outbox.traceparent,
-                    tracestate=outbox.tracestate,
-                )
+            payload = self._build_review_thumbnail_payload(db, outbox)
+        else:
+            payload = None
+        if payload is not None:
+            return payload
 
+        self._exhaust_unavailable_resources(outbox)
+        return None
+
+    @staticmethod
+    def _build_revision_payload(
+        db: Session,
+        outbox: RenderOutbox,
+    ) -> RenderOutboxPayload | None:
+        score = db.get(Score, outbox.score_id)
+        revision = db.get(ScoreRevision, outbox.revision_id)
+        if (
+            score is None
+            or score.deletion_status != ScoreDeletionStatus.ACTIVE
+            or revision is None
+            or outbox.requested_by_user_id is None
+        ):
+            return None
+
+        return RenderOutboxPayload(
+            outbox_uuid=outbox.outbox_uuid,
+            target_type=outbox.target_type,
+            score_uuid=score.score_uuid,
+            revision_uuid=revision.revision_uuid,
+            user_id=outbox.requested_by_user_id,
+            render_profile=outbox.render_profile,
+            source_fingerprint=outbox.source_fingerprint,
+            attempt=0,
+            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            originating_request_id=outbox.originating_request_id,
+            traceparent=outbox.traceparent,
+            tracestate=outbox.tracestate,
+        )
+
+    def _build_review_thumbnail_payload(
+        self,
+        db: Session,
+        outbox: RenderOutbox,
+    ) -> RenderOutboxPayload | None:
+        job = db.get(ImportJob, outbox.import_job_id)
+        review_source = db.execute(
+            select(ImportArtifact).where(
+                ImportArtifact.job_id == outbox.import_job_id,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+            )
+        ).scalar_one_or_none()
+        if job is None or review_source is None:
+            return None
+        if job.state != ImportJobState.PENDING_REVIEW:
+            self.complete(db, outbox.outbox_uuid)
+            return None
+        if review_source.sha256 != outbox.source_fingerprint:
+            self.complete(db, outbox.outbox_uuid)
+            return None
+
+        return RenderOutboxPayload(
+            outbox_uuid=outbox.outbox_uuid,
+            target_type=outbox.target_type,
+            job_uuid=job.job_uuid,
+            render_profile=outbox.render_profile,
+            source_fingerprint=outbox.source_fingerprint,
+            attempt=0,
+            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            originating_request_id=outbox.originating_request_id,
+            traceparent=outbox.traceparent,
+            tracestate=outbox.tracestate,
+        )
+
+    @staticmethod
+    def _exhaust_unavailable_resources(outbox: RenderOutbox) -> None:
         outbox.status = RenderOutboxStatus.FAILED
         outbox.attempt_count = settings.RENDER_OUTBOX_MAX_ATTEMPTS
         outbox.last_error = "Render outbox references unavailable resources"
@@ -262,7 +289,6 @@ class RenderOutboxService:
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         )
         outbox.updated_at = utc_now_naive()
-        return None
 
     def complete(self, db: Session, outbox_uuid: str) -> None:
         outbox = self._get(db, outbox_uuid)

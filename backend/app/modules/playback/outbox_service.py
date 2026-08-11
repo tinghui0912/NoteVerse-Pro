@@ -123,28 +123,44 @@ class PlaybackOutboxService:
     def _build_payload(
         self, db: Session, outbox: PlaybackOutbox
     ) -> PlaybackOutboxPayload | None:
+        payload = self._build_revision_audio_payload(db, outbox)
+        if payload is not None:
+            return payload
+
+        self._exhaust_unavailable_resources(outbox)
+        return None
+
+    @staticmethod
+    def _build_revision_audio_payload(
+        db: Session,
+        outbox: PlaybackOutbox,
+    ) -> PlaybackOutboxPayload | None:
         score = db.get(Score, outbox.score_id)
         revision = db.get(ScoreRevision, outbox.revision_id)
         if (
-            score is not None
-            and score.deletion_status == ScoreDeletionStatus.ACTIVE
-            and revision is not None
-            and revision.score_id == outbox.score_id
-            and revision.content_hash == outbox.source_fingerprint
+            score is None
+            or score.deletion_status != ScoreDeletionStatus.ACTIVE
+            or revision is None
+            or revision.score_id != outbox.score_id
+            or revision.content_hash != outbox.source_fingerprint
         ):
-            return PlaybackOutboxPayload(
-                outbox_uuid=outbox.outbox_uuid,
-                score_uuid=score.score_uuid,
-                revision_uuid=revision.revision_uuid,
-                source_fingerprint=outbox.source_fingerprint,
-                asset_kind=outbox.asset_kind,
-                attempt=0,
-                max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
-                originating_request_id=outbox.originating_request_id,
-                traceparent=outbox.traceparent,
-                tracestate=outbox.tracestate,
-            )
+            return None
 
+        return PlaybackOutboxPayload(
+            outbox_uuid=outbox.outbox_uuid,
+            score_uuid=score.score_uuid,
+            revision_uuid=revision.revision_uuid,
+            source_fingerprint=outbox.source_fingerprint,
+            asset_kind=outbox.asset_kind,
+            attempt=0,
+            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+            originating_request_id=outbox.originating_request_id,
+            traceparent=outbox.traceparent,
+            tracestate=outbox.tracestate,
+        )
+
+    @staticmethod
+    def _exhaust_unavailable_resources(outbox: PlaybackOutbox) -> None:
         outbox.status = PlaybackOutboxStatus.FAILED
         outbox.attempt_count = settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS
         outbox.last_error = "Playback outbox references unavailable or stale resources"
@@ -158,7 +174,6 @@ class PlaybackOutboxService:
             max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
         )
         outbox.updated_at = utc_now_naive()
-        return None
 
     def complete(self, db: Session, outbox_uuid: str) -> None:
         outbox = self._get(db, outbox_uuid)
