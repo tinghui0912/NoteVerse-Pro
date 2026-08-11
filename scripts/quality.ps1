@@ -37,6 +37,7 @@ $BackendQualityScript = Join-Path $PSScriptRoot "backend_quality_docker.ps1"
 $CustomerWebRoot = Join-Path $RepoRoot "apps/customer-web"
 $PlatformAdminRoot = Join-Path $RepoRoot "apps/platform-admin"
 $K8sManifestCheck = Join-Path $PSScriptRoot "check_k8s_application_manifests.py"
+$K8sConfigOwnershipCheck = Join-Path $PSScriptRoot "check_k8s_config_ownership.py"
 $K8sReleaseOverlayRenderer = Join-Path $PSScriptRoot "render_k8s_release_overlay.py"
 $MinikubeBootstrap = Join-Path $PSScriptRoot "minikube_bootstrap.ps1"
 $ObservabilityManifestCheck = Join-Path $PSScriptRoot "check_observability_manifests.py"
@@ -96,6 +97,12 @@ function Invoke-PlatformAdminNpm {
 function Invoke-K8sManifestCheck {
     Invoke-Step "k8s:application-manifests" {
         python $K8sManifestCheck
+    }
+}
+
+function Invoke-K8sConfigOwnershipCheck {
+    Invoke-Step "k8s:config-ownership" {
+        python $K8sConfigOwnershipCheck
     }
 }
 
@@ -223,6 +230,7 @@ switch ($Check) {
         Invoke-DocumentationLinkCheck
     }
     "k8s" {
+        Invoke-K8sConfigOwnershipCheck
         Invoke-K8sManifestCheck
         Invoke-K8sReleaseOverlaySmokeCheck
     }
@@ -245,6 +253,7 @@ switch ($Check) {
         Invoke-PlatformAdminNpm "typecheck"
         Invoke-PlatformAdminNpm "test"
         Invoke-DocumentationLinkCheck
+        Invoke-K8sConfigOwnershipCheck
         Invoke-K8sManifestCheck
         Invoke-K8sReleaseOverlaySmokeCheck
         Invoke-ObservabilityManifestCheck

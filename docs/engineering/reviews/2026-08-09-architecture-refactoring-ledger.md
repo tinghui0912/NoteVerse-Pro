@@ -1234,6 +1234,10 @@ merely to eliminate small dispatch branches.
   env files can be promoted into GitOps desired state. This prevents GitOps
   from silently retaining the old broad ConfigMap shape after application
   overlays are cleaned up.
+- Added a repository guard that fails CI if clear Worker/model-asset or
+  Practice realtime keys drift back into the broad `backend-config.env` files,
+  or if the role-specific env files stop being referenced by the deployment
+  overlays.
 
 ## Reusable completion checklist for every refactor
 

@@ -7,6 +7,7 @@ on:
       - "deploy/application/**"
       - "deploy/gitops/**"
       - "scripts/check_k8s_application_manifests.py"
+      - "scripts/check_k8s_config_ownership.py"
       - "scripts/check_gitops_manifests.py"
       - "scripts/promote_release_package_to_gitops.py"
       - "scripts/render_k8s_release_overlay.py"
@@ -16,6 +17,7 @@ on:
       - "deploy/application/**"
       - "deploy/gitops/**"
       - "scripts/check_k8s_application_manifests.py"
+      - "scripts/check_k8s_config_ownership.py"
       - "scripts/check_gitops_manifests.py"
       - "scripts/promote_release_package_to_gitops.py"
       - "scripts/render_k8s_release_overlay.py"
@@ -44,6 +46,9 @@ jobs:
           curl -L -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
           kubectl version --client
+
+      - name: Validate Kubernetes env-file ownership
+        run: python scripts/check_k8s_config_ownership.py
 
       - name: Validate public application templates
         run: python scripts/check_k8s_application_manifests.py
