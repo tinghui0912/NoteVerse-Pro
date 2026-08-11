@@ -17,21 +17,21 @@ import {
 } from '@/lib/musicxml/connections';
 import { findEntityMetaById } from '@/lib/editor/score-lookup';
 
-// 操作结果类型
+// Operation result type.
 type OperationResult = {
     success: boolean;
     message: string;
     count?: number;
 };
 
-// 选中音符类型
+// Selected note target.
 type SelectedNote = {
     entity: ScoreEntity;
     location: EntityLocation;
     sourceId?: string;
 };
 
-// Hook 参数类型
+// Hook parameter type.
 type UseConnectionOperationsParams = {
     scoreData: ScoreData | null;
     currentXml: string | null;
@@ -39,7 +39,7 @@ type UseConnectionOperationsParams = {
 };
 
 /**
- * 连接操作 Hook - 管理 tie/slur 的添加和删除
+ * Connection operation hook for adding, deleting, and updating tie/slur links.
  */
 export function useConnectionOperations({
     scoreData,
@@ -49,15 +49,15 @@ export function useConnectionOperations({
     const t = useTranslations('editor');
   const tCommon = useTranslations('common');
 
-    // 选中状态
+    // Selection state.
     const [selectedNotesForTie, setSelectedNotesForTie] = useState<SelectedNote[]>([]);
     const [selectedNotesForSlur, setSelectedNotesForSlur] = useState<SelectedNote[]>([]);
 
-    // 清除选中状态的函数（供 selectTool 调用）
+    // Selection clearers used when the active editor tool changes.
     const clearTieSelection = useCallback(() => setSelectedNotesForTie([]), []);
     const clearSlurSelection = useCallback(() => setSelectedNotesForSlur([]), []);
 
-    // 删除连音线（tie）
+    // Delete all tie connections for an entity.
     const handleDeleteTie = (entity: ScoreEntity): OperationResult => {
         if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
             return { success: false, message: t('noConnectionData') };
@@ -66,7 +66,7 @@ export function useConnectionOperations({
         const entityId = entity.meta.id;
         const entityConns = scoreData.connections.noteConnections.get(entityId);
 
-        // 检查实体是否有连音线
+        // Check whether the entity has tie connections.
         if (!entityConns || entityConns.ties.length === 0) {
             return { success: false, message: t('noteHasNoTie') };
         }
@@ -95,7 +95,7 @@ export function useConnectionOperations({
         return { success: true, message: t('tieDeleted', { count }), count };
     };
 
-    // 删除连奏线（slur）
+    // Delete all slur connections for an entity.
     const handleDeleteSlur = (entity: ScoreEntity): OperationResult => {
         if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
             return { success: false, message: t('noConnectionData') };
@@ -232,7 +232,7 @@ export function useConnectionOperations({
         return { success: true, message: t('connectionDirectionUpdated') };
     };
 
-    // 添加连音线
+    // Add a tie by selecting two note/chord targets.
     const handleAddTieSelection = (location: EntityLocation, entity: ScoreEntity, sourceId?: string): OperationResult => {
         if (!currentXml || !entity.meta) {
             return { success: false, message: t('noNoteData') };
@@ -253,7 +253,7 @@ export function useConnectionOperations({
 
         const firstNote = selectedNotesForTie[0];
 
-        // 连音线只需要在同一谱表，允许跨声部（钢琴谱或复杂乐谱场景）
+        // Ties must stay within the same staff, but may cross voices for piano or complex scores.
         if (firstNote.location.staveIndex !== location.staveIndex) {
             return { success: false, message: t('mustSameStave', { type: tCommon('tie') }) };
         }
@@ -279,8 +279,8 @@ export function useConnectionOperations({
             return { success: false, message: t('mustSamePitch') };
         }
 
-        // 检查是否为相邻音符（基于 startTick）
-        // 连音线通常连接时间上相邻的音符，如果中间有其他音符，发出警告
+        // Check adjacency by startTick.
+        // Ties normally connect adjacent notes; reject if another note sits between them.
         const firstMeta = firstNote.entity.meta!;
         const secondMeta = entity.meta!;
         const getGlobalTick = (meta: { measureIndex: number; startTick?: number }) =>
@@ -292,12 +292,12 @@ export function useConnectionOperations({
             ? [firstTick, secondTick]
             : [secondTick, firstTick];
 
-        // 检查两个音符之间是否有其他音符（同谱表内）
+        // Check for intermediate notes on the same staff.
         if (scoreData) {
             let hasIntermediateNotes = false;
             for (const measure of scoreData.measures) {
                 for (const stave of measure.staves) {
-                    // 只检查同一谱表
+                    // Only inspect the same staff.
                     if (stave.name !== scoreData.measures[firstMeta.measureIndex]?.staves[firstMeta.staveIndex]?.name) {
                         continue;
                     }
@@ -319,13 +319,13 @@ export function useConnectionOperations({
             }
 
             if (hasIntermediateNotes) {
-                // 阻止创建：连音线必须连接相邻音符
+                // Reject creation because ties must connect adjacent notes.
                 setSelectedNotesForTie([]);
                 return { success: false, message: t('mustAdjacentNotes') };
             }
         }
 
-        // addTieElementsToXML 会根据 startTick 自动确定顺序，无需手动检查
+        // addTieElementsToXML orders start/stop from startTick, so no manual swap is needed.
 
         updateMusicXML((xmlDoc) => {
             addTieElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!, {
@@ -338,7 +338,7 @@ export function useConnectionOperations({
         return { success: true, message: t('tieCreated') };
     };
 
-    // 添加连奏线
+    // Add a slur by selecting two note/chord targets.
     const handleAddSlurSelection = (location: EntityLocation, entity: ScoreEntity, sourceId?: string): OperationResult => {
         if (!currentXml || !entity.meta) {
             return { success: false, message: t('noNoteData') };
@@ -359,12 +359,12 @@ export function useConnectionOperations({
 
         const firstNote = selectedNotesForSlur[0];
 
-        // 连奏线允许跨谱表和跨声部（钢琴谱场景）
-        // addSlurElementsToXML 会根据 startTick 自动确定 start/stop 顺序
+        // Slurs may cross staves and voices in piano-score scenarios.
+        // addSlurElementsToXML orders start/stop from startTick.
 
         updateMusicXML((xmlDoc) => {
-            // addSlurElementsToXML 会自动根据 XML 文档中的实际位置确定 start/stop 顺序
-            // 无需在这里手动判断和交换
+            // addSlurElementsToXML derives start/stop order from XML document position.
+            // No manual comparison or swap is needed here.
             addSlurElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!, {
                 startSourceId: firstNote.sourceId,
                 endSourceId: sourceId,
@@ -376,20 +376,20 @@ export function useConnectionOperations({
     };
 
     return {
-        // 选中状态
+        // Selection state.
         selectedNotesForTie,
         selectedNotesForSlur,
-        // 清除函数
+        // Clear functions.
         clearTieSelection,
         clearSlurSelection,
-        // 删除操作
+        // Delete operations.
         handleDeleteTie,
         handleDeleteSlur,
         handleDeleteTieConnection,
         handleDeleteSlurConnection,
         handleUpdateTieConnectionDirection,
         handleUpdateSlurConnectionDirection,
-        // 添加操作
+        // Add operations.
         handleAddTieSelection,
         handleAddSlurSelection,
     };

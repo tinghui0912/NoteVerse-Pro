@@ -2123,6 +2123,25 @@ hooks with dense domain comments, especially `use-connection-operations.ts` and
 `use-metadata-editor.ts`; API wrapper comments can wait because they are thinner
 and less domain-heavy.
 
+### 2026-08-12: Editor connection operation comments cleaned for REC-006
+
+- Continued REC-006 with
+  `apps/customer-web/src/hooks/editor/use-connection-operations.ts`, a
+  high-frequency editor hook that owns tie/slur selection and mutation rules.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  operation result/selected-target types, tie/slur selection state, deletion
+  flows, adjacency checks, same-staff tie rules, cross-staff slur rules, and
+  start/stop ordering delegation to MusicXML helpers.
+- Kept implementation logic and exported hook shape unchanged; this was a
+  readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified lint, typecheck, Verovio surface migration, and MusicXML core
+  tests still pass.
+
+REC-006 remains partially complete. Continue with
+`apps/customer-web/src/hooks/editor/use-metadata-editor.ts` next because it
+contains dense MusicXML credit/layout policy comments.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
