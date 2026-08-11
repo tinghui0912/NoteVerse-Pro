@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from app.core.config import get_worker_runtime_settings, settings
+from app.core.config import settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from .profile import DEFAULT_PLAYBACK_PROFILE, PlaybackProfile
 from app.processing.resources import ensure_partitura_default_soundfont, soundfont_sha256
 

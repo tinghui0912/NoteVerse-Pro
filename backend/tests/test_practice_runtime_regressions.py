@@ -3,12 +3,13 @@ from __future__ import annotations
 import builtins
 import queue
 import threading
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
-from app.core.config import get_practice_runtime_settings
+from app.core.settings.practice_runtime import get_practice_runtime_settings
 from app.processing.engines.practice_alignment.alignment_metrics import (
     beat_velocity,
     continuity_state,
@@ -31,6 +32,14 @@ from app.processing.realtime.session_runtime import PracticeSessionRuntimeRegist
 from app.processing.realtime.session_runtime import PracticeSessionRuntime
 
 ORIGINAL_IMPORT = builtins.__import__
+
+
+@pytest.fixture(autouse=True)
+def practice_runtime_settings(monkeypatch) -> Iterator[None]:
+    monkeypatch.setenv("PRACTICE_SOUNDFONT_PATH", "/tmp/noteverse-test.sf2")
+    get_practice_runtime_settings.cache_clear()
+    yield
+    get_practice_runtime_settings.cache_clear()
 
 
 class DummyAlignmentEngine:

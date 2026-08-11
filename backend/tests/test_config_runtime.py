@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import PracticeRuntimeSettings, Settings, WorkerRuntimeSettings
+from app.core.config import Settings
+from app.core.settings.practice_runtime import PracticeRuntimeSettings
+from app.core.settings.worker_runtime import WorkerRuntimeSettings
 
 
 WORKER_RUNTIME_BASE = {

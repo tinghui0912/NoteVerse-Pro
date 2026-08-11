@@ -17,6 +17,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -231,7 +232,8 @@ def prepare_soundfont(target_path: Path) -> None:
 
 
 def prepare_soundfonts() -> None:
-    from app.core.config import get_practice_runtime_settings, get_worker_runtime_settings
+    from app.core.settings.practice_runtime import get_practice_runtime_settings
+    from app.core.settings.worker_runtime import get_worker_runtime_settings
 
     targets = {
         "PLAYBACK_SOUNDFONT_PATH": _require_path(
@@ -252,7 +254,7 @@ def prepare_soundfonts() -> None:
         prepared_paths.add(target)
 
 
-def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
+def prepare_huggingface_snapshots(hf_home: Path, repo_ids: Sequence[str]) -> None:
     from huggingface_hub import snapshot_download
 
     hub_cache = hf_home / "hub"
@@ -274,7 +276,7 @@ def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
 
 
 def prepare_paddleocr_models() -> None:
-    from app.core.config import get_worker_runtime_settings
+    from app.core.settings.worker_runtime import get_worker_runtime_settings
 
     worker_settings = get_worker_runtime_settings()
     model_root = _require_path(worker_settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
@@ -321,7 +323,7 @@ def run_asset_checks(include_sizes: bool) -> int:
 async def main() -> int:
     args = parse_args()
 
-    from app.core.config import get_worker_runtime_settings
+    from app.core.settings.worker_runtime import get_worker_runtime_settings
     from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES
 
     worker_settings = get_worker_runtime_settings()

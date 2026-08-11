@@ -14,7 +14,9 @@ from typing import Awaitable, Callable
 
 import redis
 
-from app.core.config import get_practice_runtime_settings, get_worker_runtime_settings, settings
+from app.core.config import settings
+from app.core.settings.practice_runtime import get_practice_runtime_settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.core.control_plane_settings import require_control_plane_settings
 from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES, LEGATO_REPO_COMMIT
 from app.processing.resources import ensure_partitura_default_soundfont

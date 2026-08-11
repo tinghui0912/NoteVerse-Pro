@@ -1,4 +1,5 @@
-from app.core.config import get_worker_runtime_settings, settings
+from app.core.config import settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.worker.beat_schedule import build_beat_schedule
 from app.worker.celery_config import celery_app
 from app.worker.celery_runtime_options import build_celery_runtime_options

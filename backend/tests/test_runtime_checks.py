@@ -2,7 +2,7 @@ import sys
 import json
 from types import SimpleNamespace
 
-from app.core.config import get_worker_runtime_settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.core.runtime_checks import (
     ROLE_CHECK_NAMES,
     RuntimeRole,

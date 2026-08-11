@@ -1373,6 +1373,25 @@ deployment index and the nearest owning README in the same change.
 ARC-012 remains partially complete. Continue extracting only duplicated
 bootstrap responsibilities with a stable owner and an observable behavior test.
 
+### 2026-08-11: Role runtime settings projections moved out of config
+
+- Moved the strict Worker runtime projection from `backend/app/core/config.py`
+  to `backend/app/core/settings/worker_runtime.py`.
+- Moved the strict Practice runtime projection from `backend/app/core/config.py`
+  to `backend/app/core/settings/practice_runtime.py`.
+- Updated production code, operational scripts, and tests to import the new
+  owner modules directly. No compatibility re-export remains in `config.py`.
+- Kept the global `Settings` composition in `config.py`; this change only
+  removes role-specific runtime projection logic from the shared settings
+  composition entry point.
+- Updated Practice regression tests to provide the required
+  `PRACTICE_SOUNDFONT_PATH` explicitly and clear the runtime settings cache,
+  preserving the strict no-fallback startup contract.
+
+ARC-012 remains partially complete. The next settings step should inspect
+whether `config.py` still imports setting groups that are no longer part of the
+shared API/process contract before extracting more behavior.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

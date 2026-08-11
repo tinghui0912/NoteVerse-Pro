@@ -4,7 +4,7 @@ import queue
 import threading
 from pathlib import Path
 
-from app.core.config import get_practice_runtime_settings
+from app.core.settings.practice_runtime import get_practice_runtime_settings
 from app.core.logger import logger
 from app.processing.resources import ensure_partitura_default_soundfont
 from app.processing.engines.practice_alignment.audio_features import feature_matrix

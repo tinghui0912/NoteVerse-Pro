@@ -11,7 +11,7 @@ from typing import Callable
 import copy
 import xml.etree.ElementTree as ET
 
-from app.core.config import get_worker_runtime_settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.core.logger import logger
 from app.processing.musicxml import normalize_initial_musicxml_clefs
 from app.shared.constants import ErrorCode

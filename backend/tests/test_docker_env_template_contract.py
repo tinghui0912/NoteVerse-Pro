@@ -5,7 +5,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from app.core.config import PracticeRuntimeSettings, Settings, WorkerRuntimeSettings
+from app.core.config import Settings
+from app.core.settings.practice_runtime import PracticeRuntimeSettings
+from app.core.settings.worker_runtime import WorkerRuntimeSettings
 from app.core.settings.playback import PlaybackSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 

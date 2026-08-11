@@ -16,7 +16,7 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
-from app.core.config import get_practice_runtime_settings
+from app.core.settings.practice_runtime import get_practice_runtime_settings
 from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
 from app.processing.engines.practice_alignment.reference_runtime import generate_score_audio, normalize_audio_waveform
 from app.processing.engines.practice_alignment.audio_features import feature_matrix

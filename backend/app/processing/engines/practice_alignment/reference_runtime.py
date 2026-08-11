@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.core.config import get_practice_runtime_settings
+from app.core.settings.practice_runtime import get_practice_runtime_settings
 
 
 def build_audio_processor(*, sample_rate: int, hop_length: int, chroma_processor):

@@ -2,7 +2,8 @@
 
 from pathlib import Path
 
-from app.core.config import get_worker_runtime_settings, settings
+from app.core.config import settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.core.logger import logger
 from app.core.runtime_checks import RuntimeRole
 

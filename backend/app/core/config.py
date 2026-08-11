@@ -1,8 +1,6 @@
 """Application settings and configuration validation."""
 
-from functools import lru_cache
 from pathlib import Path
-from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
@@ -15,11 +13,9 @@ from app.core.settings.fingering_execution import FingeringExecutionSettings
 from app.core.settings.import_dispatch import ImportDispatchSettings
 from app.core.settings.mail_delivery import MailDeliverySettings
 from app.core.settings.notification_lifecycle import NotificationLifecycleSettings
-from app.core.settings.playback import PlaybackSettings
 from app.core.settings.playback_delivery import PlaybackDeliverySettings
 from app.core.settings.public_frontend_url import PublicFrontendUrlSettings
 from app.core.settings.queue import QueueSettings
-from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
 from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
 from app.core.settings.realtime_retention import RealtimeRetentionSettings
 from app.core.settings.realtime_stream import RealtimeStreamSettings
@@ -32,7 +28,6 @@ from app.core.settings.transactional_mail_provider import TransactionalMailProvi
 from app.core.settings.trusted_proxy import TrustedProxySettings
 from app.core.settings.upload_admission import UploadAdmissionSettings
 from app.core.settings.sync_database import SyncDatabaseSettings
-from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -73,42 +68,3 @@ class Settings(
 
 
 settings = Settings()
-
-
-class WorkerRuntimeSettings(PlaybackSettings, WorkerModelEngineSettings, TaskReliabilitySettings, BaseSettings):
-    """Strict Worker-only model and engine environment contract."""
-
-    @model_validator(mode="after")
-    def validate_worker_task_time_limits(self) -> "WorkerRuntimeSettings":
-        if self.PADDLEOCR_TIMEOUT_SECONDS > self.MAX_PROCESSING_TIME:
-            raise ValueError("PADDLEOCR_TIMEOUT_SECONDS must not exceed MAX_PROCESSING_TIME")
-        return self
-
-    model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
-
-
-@lru_cache
-def get_worker_runtime_settings() -> WorkerRuntimeSettings:
-    """Load model/engine configuration only in Worker-owned execution paths."""
-
-    return WorkerRuntimeSettings()
-
-
-class PracticeRuntimeSettings(PracticeDiagnosticsSettings, BaseSettings):
-    """Strict Practice-only audio alignment environment contract."""
-
-    PRACTICE_SOUNDFONT_PATH: str
-
-    @field_validator("PRACTICE_SOUNDFONT_PATH")
-    @classmethod
-    def normalize_soundfont_path(cls, value: str) -> str:
-        return str(Path(value).expanduser())
-
-    model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
-
-
-@lru_cache
-def get_practice_runtime_settings() -> PracticeRuntimeSettings:
-    """Load Practice alignment configuration only in Practice-owned paths."""
-
-    return PracticeRuntimeSettings()

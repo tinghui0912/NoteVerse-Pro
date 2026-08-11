@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import WorkerRuntimeSettings
+from app.core.settings.worker_runtime import WorkerRuntimeSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
 
 
