@@ -1970,6 +1970,21 @@ REC-006 remains partially complete. Continue with small MusicXML batches. Good
 next candidates are `connections.ts` or `elements.ts`; defer `parser.ts` until
 after smaller files are clean because its comments encode more parsing policy.
 
+### 2026-08-11: MusicXML connection comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/connections.ts`.
+- Replaced Chinese/mojibake comments with concise English descriptions for tie
+  and slur XML mutation helpers.
+- Removed one stale orphan comment about note lookup that no longer described
+  the following function.
+- Kept the implementation logic unchanged; this was a readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML core tests still pass.
+
+REC-006 remains partially complete. Continue with `elements.ts` next, then
+`core.ts` or `flatten.ts`; keep `parser.ts` for a dedicated pass because its
+comments describe parsing policy and timing behavior.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
