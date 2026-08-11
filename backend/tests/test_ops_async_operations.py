@@ -41,7 +41,8 @@ from app.modules.ops.schemas import (
     AsyncOperationRead,
     AsyncOperationStatus,
 )
-from app.modules.ops.service import AsyncOperationFilters, OpsAsyncOperationService
+from app.modules.ops.operation_filters import AsyncOperationFilters
+from app.modules.ops.service import OpsAsyncOperationService
 from app.modules.async_operations.diagnostics import (
     AsyncOperationErrorClassValue,
     classify_async_error,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import case, func, literal, select
@@ -24,6 +23,7 @@ from app.db.models import (
     ScoreDeletionStatus,
 )
 from app.modules.async_operations.diagnostics import clear_async_diagnostic
+from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.schemas import (
     AsyncOperationDiagnostic,
     AsyncOperationErrorClass,
@@ -37,28 +37,6 @@ from app.modules.ops.schemas import (
 from app.shared.pagination import OffsetPage
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
-
-
-@dataclass(frozen=True)
-class AsyncOperationFilters:
-    status: AsyncOperationStatus | None = None
-    error_class: AsyncOperationErrorClass | None = None
-    resource_type: str | None = None
-    created_after: datetime | None = None
-    updated_before: datetime | None = None
-
-    @property
-    def has_filters(self) -> bool:
-        return any(
-            value is not None
-            for value in (
-                self.status,
-                self.error_class,
-                self.resource_type,
-                self.created_after,
-                self.updated_before,
-            )
-        )
 
 
 @dataclass(frozen=True)
