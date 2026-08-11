@@ -6,7 +6,7 @@ from opentelemetry.trace import SpanKind
 
 from app.core.background_tracing import background_attempt_span, record_current_attempt_failure
 from app.core.logger import logger
-from app.db.worker_session import get_worker_db
+from app.db.sync_session import get_worker_db
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.worker.celery_config import celery_app
 from app.worker.dispatch.tracing import mail_trace_context

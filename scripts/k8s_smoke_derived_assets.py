@@ -67,7 +67,7 @@ def ensure_user(namespace: str, deployment: str, email: str, password: str) -> N
     code = f"""
 from sqlalchemy import select
 from app.core.security import get_password_hash
-from app.db.worker_session import SessionLocal
+from app.db.sync_session import SessionLocal
 from app.db.models.user import User
 from app.utils.timezone import utc_now_naive
 
@@ -119,7 +119,7 @@ from app.db.models.score import (
     ScoreRevisionSource,
 )
 from app.db.models.storage_usage import StorageUsageCategory
-from app.db.worker_session import SessionLocal
+from app.db.sync_session import SessionLocal
 from app.modules.metadata.service import rebuild_metadata_sync
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.playback_dispatcher import dispatch_playback_outbox
@@ -450,7 +450,7 @@ def assert_owner_usage_zero(namespace: str, deployment: str, email: str) -> None
 from sqlalchemy import select
 from app.db.models.storage_usage import StorageUsageCounter
 from app.db.models.user import User
-from app.db.worker_session import SessionLocal
+from app.db.sync_session import SessionLocal
 
 email = {email!r}
 with SessionLocal() as db:

@@ -105,7 +105,7 @@ class ImportJobService:
         rows, total = await self.repository.list_for_user(
             db, user_id, page=page, page_size=page_size
         )
-        from app.db.worker_session import get_db_session
+        from app.db.sync_session import get_db_session
 
         sync_db = get_db_session()
         try:
@@ -130,7 +130,7 @@ class ImportJobService:
 
     async def detail(self, db: AsyncSession, job_uuid: str, user_id: int) -> ImportJobDetail:
         await self.get_owned_job(db, job_uuid, user_id)
-        from app.db.worker_session import get_db_session
+        from app.db.sync_session import get_db_session
 
         sync_db = get_db_session()
         try:

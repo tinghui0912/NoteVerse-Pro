@@ -12,7 +12,7 @@ from app.core.background_tracing import (
 )
 from app.core.logger import logger, set_task_id
 from app.db.models import RenderTargetType
-from app.db.worker_session import get_worker_db
+from app.db.sync_session import get_worker_db
 from app.modules.score_assets.render_service import RevisionRenderService
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.import_jobs.execution_service import job_execution_service

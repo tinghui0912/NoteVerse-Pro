@@ -4,7 +4,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.exceptions import PipelineException
 from app.core.logger import logger
-from app.db.worker_session import get_worker_db
+from app.db.sync_session import get_worker_db
 from app.modules.import_jobs.schemas import (
     ImportJobProcessingOptions,
     PipelineExecutionSuccessResult,

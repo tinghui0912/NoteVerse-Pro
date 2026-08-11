@@ -61,7 +61,7 @@ def replace_files(
         Files are uploaded to the configured storage adapter and recorded as
         object keys under `jobs/{job_id}/{kind}/`.
     """
-    from app.db.worker_session import get_worker_db
+    from app.db.sync_session import get_worker_db
     from app.modules.import_jobs.worker_service import sync_import_job_service
 
     normalized_kind = _kind_value(kind)

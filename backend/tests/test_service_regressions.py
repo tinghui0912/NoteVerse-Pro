@@ -485,7 +485,7 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
         storage_backend=service.storage.backend_name, storage_key="blobs/ab/abc123.png"
     )
 
-    with patch("app.db.worker_session.get_db_session", return_value=sync_db):
+    with patch("app.db.sync_session.get_db_session", return_value=sync_db):
         with patch.object(
             sync_import_job_service.repository, "get_upload_by_uuid", return_value=upload
         ):

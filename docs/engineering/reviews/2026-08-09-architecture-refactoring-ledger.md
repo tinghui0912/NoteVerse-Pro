@@ -1247,6 +1247,10 @@ merely to eliminate small dispatch branches.
   `PLAYBACK_SOUNDFONT_PATH`; Practice config owns `PRACTICE_SOUNDFONT_PATH`.
   The model-asset preparation check now validates the Worker playback renderer
   rather than requiring Practice runtime settings in Worker configuration.
+- Renamed the misleading Worker database settings/session modules to sync
+  database settings/session modules. `SYNC_DATABASE_URL` remains in the shared
+  backend config because both API import-job paths and Worker tasks use the
+  synchronous SQLAlchemy session.
 
 ## Reusable completion checklist for every refactor
 

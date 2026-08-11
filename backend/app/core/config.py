@@ -31,7 +31,7 @@ from app.core.settings.token_signing import TokenSigningSettings
 from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
 from app.core.settings.trusted_proxy import TrustedProxySettings
 from app.core.settings.upload_admission import UploadAdmissionSettings
-from app.core.settings.worker_database import WorkerDatabaseSettings
+from app.core.settings.sync_database import SyncDatabaseSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
 
@@ -63,7 +63,7 @@ class Settings(
     TransactionalMailProviderSettings,
     TrustedProxySettings,
     UploadAdmissionSettings,
-    WorkerDatabaseSettings,
+    SyncDatabaseSettings,
     BaseSettings,
 ):
     model_config = SettingsConfigDict(

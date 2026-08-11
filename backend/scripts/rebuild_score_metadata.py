@@ -7,7 +7,7 @@ import argparse
 from sqlalchemy import select
 
 from app.db.models import ScoreRevision
-from app.db.worker_session import get_worker_db
+from app.db.sync_session import get_worker_db
 from app.modules.metadata.service import rebuild_metadata_sync
 
 

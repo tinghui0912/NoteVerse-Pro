@@ -190,27 +190,27 @@ async def check_api_database(_: bool = False) -> CheckResult:
         )
 
 
-def check_worker_database(_: bool = False) -> CheckResult:
+def check_sync_database(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
-    from app.db.worker_session import sync_engine
+    from app.db.sync_session import sync_engine
 
     try:
         with sync_engine.connect() as connection:
             connection.execute(text("select 1"))
-        return _result("worker_database", True, "sync worker database reachable")
+        return _result("sync_database", True, "sync database reachable")
     except Exception as exc:
         return _result(
-            "worker_database",
+            "sync_database",
             False,
-            f"sync worker database unreachable: {type(exc).__name__}: {exc}",
+            f"sync database unreachable: {type(exc).__name__}: {exc}",
         )
 
 
 def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
-    from app.db.worker_session import sync_engine
+    from app.db.sync_session import sync_engine
     from app.modules.storage_usage.service import DEFAULT_PLAN_CODE
 
     try:
@@ -540,7 +540,7 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.WORKER: (
         "settings",
         "worker_settings",
-        "worker_database",
+        "sync_database",
         "storage_quota_policy",
         "redis",
         "work_root",
@@ -583,7 +583,7 @@ CHECKS: dict[str, CheckSpec] = {
     "worker_settings": CheckSpec("worker_settings", check_worker_settings),
     "control_plane_settings": CheckSpec("control_plane_settings", check_control_plane_settings),
     "database": CheckSpec("database", check_api_database),
-    "worker_database": CheckSpec("worker_database", check_worker_database),
+    "sync_database": CheckSpec("sync_database", check_sync_database),
     "storage_quota_policy": CheckSpec("storage_quota_policy", check_storage_quota_policy),
     "redis": CheckSpec("redis", check_redis),
     "storage": CheckSpec("storage", check_api_storage),
