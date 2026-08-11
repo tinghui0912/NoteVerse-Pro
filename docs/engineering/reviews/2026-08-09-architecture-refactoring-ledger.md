@@ -23,7 +23,7 @@ historical finding is not an indication that the item is still open.
 | ARC-001 | Complete | Maintain the root entry point as repository topology or quality commands change. |
 | ARC-002 | Complete | Maintain OpenAPI generation and generated TypeScript freshness checks for HTTP contracts. |
 | ARC-003 | Partially complete | Realtime alignment contracts are separated from the Matchmaker implementation; continue splitting only measured hotspots by stable responsibilities, with direct tests for each extraction. |
-| ARC-004 | Open | Continue replacing broad orchestration hubs with intent-named units when a concrete cohesion boundary is identified. |
+| ARC-004 | Partially complete | Ops async-operation read models, command retries, audit events, filters, and projections are separated; continue applying this pattern only to measured service hotspots. |
 | ARC-005 | Complete | Critical score access, import execution/job lifecycle, import worker, and Practice session service have focused coverage gates; score-access architecture boundaries are also checked. |
 | ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission, and authenticated Practice WebSocket handshake. |
 | ARC-007 | Complete | Generated OpenAPI documents are the cross-stack trigger; backend contract freshness checks prevent an unsynchronised source change from passing. Reassess only if a new contract surface is not represented by a generated artifact. |
@@ -1171,6 +1171,24 @@ do not use an arbitrary repository-wide fail-under value.
   hotspot. ARC-003 is complete for Practice alignment; revisit only when a new
   independently owned input format or reference-timeline implementation is
   introduced.
+
+### 2026-08-11: Ops async-operation service boundaries split
+
+- Separated operator audit-event persistence into `ops.audit_service`, async
+  operation filter construction into `ops.operation_filters`, and record-to-API
+  projection/status normalization into `ops.operation_projection`.
+- Split the former broad async-operation service into an explicit read-model
+  service (`ops.query_service`) and a retry command service (`ops.service` with
+  `OpsAsyncOperationCommandService`). The control-plane router now injects the
+  query service for list/summary endpoints and the command service for retry.
+- Removed the old generic service name and did not retain compatibility
+  aliases. Focused validation passed for Ops lint, typing, and the existing
+  async-operation test suite.
+
+ARC-004 is partially complete. The next measured candidate is a smaller
+source-specific strategy boundary inside Ops query/retry handling only if the
+per-source branches continue to grow or duplicate behavior across additional
+operation kinds.
 
 ## Reusable completion checklist for every refactor
 

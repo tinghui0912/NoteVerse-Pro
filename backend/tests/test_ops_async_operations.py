@@ -47,7 +47,7 @@ from app.modules.ops.operation_projection import (
     matches_operation_filters,
     outbox_operation_status,
 )
-from app.modules.ops.service import OpsAsyncOperationService
+from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.async_operations.diagnostics import (
     AsyncOperationErrorClassValue,
     classify_async_error,
@@ -418,7 +418,7 @@ async def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -
     )
     ops_session.commit()
 
-    service = OpsAsyncOperationService()
+    service = OpsAsyncOperationQueryService()
     summary = await service.summary(
         AsyncSessionAdapter(ops_session),
         kind=AsyncOperationKind.MAIL,
