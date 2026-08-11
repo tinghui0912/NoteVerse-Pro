@@ -1317,6 +1317,11 @@ merely to eliminate small dispatch branches.
 - Extended the Worker architecture contract test so concrete dispatch modules
   cannot bypass `app.worker.dispatch.runtime` with direct Celery `send_task` or
   producer-tracing imports.
+- Kept the public durable trace-context lookup functions explicit by operation
+  kind, but extracted their shared SQL lookup/fallback behavior into a small
+  private helper in `app.worker.dispatch.tracing`. This removes duplicate row
+  handling without replacing readable operation-specific function names with a
+  generic call-site API.
 
 ## Reusable completion checklist for every refactor
 
