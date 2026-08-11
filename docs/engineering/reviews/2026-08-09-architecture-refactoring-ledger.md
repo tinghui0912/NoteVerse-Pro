@@ -1736,6 +1736,28 @@ ARC-004 remains partially complete. Do not merge async and sync playback render
 transactions mechanically; revisit only if both paths can share a transaction
 port without hiding rollback and storage-cleanup behavior.
 
+### 2026-08-11: Score deletion failure policy extracted
+
+- Selected `backend/app/modules/scores/lifecycle_service.py` as the next
+  ARC-004 hotspot, but avoided splitting the main `cleanup_deleting_score()`
+  transaction because it intentionally coordinates score rows, revision assets,
+  input uploads/blobs, originating import jobs, practice sessions, usage
+  release, and best-effort object deletion.
+- Extracted failed-cleanup retry state and async-operation diagnostics to
+  `backend/app/modules/scores/deletion_failure_policy.py`.
+- Removed the unused `PracticeCleanupService` dependency from
+  `ScoreLifecycleService`; the sync cleanup path owns its current practice-row
+  deletion logic directly.
+- Removed the unused async `_single_score_originating_job_uuid()` helper instead
+  of keeping an uncalled compatibility path.
+- Added focused failure-policy coverage in
+  `backend/tests/test_score_deletion_failure_policy.py`.
+
+ARC-004 remains partially complete. Do not split `cleanup_deleting_score()`
+further until there is a concrete named transaction boundary; candidate future
+cuts are usage-release collection or originating-import-job cleanup, but only
+with direct integration tests around deletion ordering.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

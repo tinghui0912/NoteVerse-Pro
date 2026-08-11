@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
-
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -26,15 +24,10 @@ from app.db.models import (
     StorageUsageCategory,
     Upload,
 )
-from app.modules.async_operations.diagnostics import (
-    AsyncOperationKindValue,
-    AsyncOperationStatusValue,
-    apply_async_diagnostic,
-    clear_async_diagnostic,
-)
-from app.modules.practice.cleanup_service import PracticeCleanupService, practice_cleanup_service
+from app.modules.async_operations.diagnostics import clear_async_diagnostic
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.scores.cleanup_records import StorageUsageReleaseRecord
+from app.modules.scores.deletion_failure_policy import ScoreDeletionFailurePolicy
 from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import FileStorage, file_storage
@@ -55,12 +48,12 @@ class ScoreLifecycleService:
         repository: ScoreRepository | None = None,
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        practice_cleanup: PracticeCleanupService | None = None,
+        deletion_failure_policy: ScoreDeletionFailurePolicy | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.practice_cleanup = practice_cleanup or practice_cleanup_service
+        self.deletion_failure_policy = deletion_failure_policy or ScoreDeletionFailurePolicy()
 
     async def delete_score(self, db: AsyncSession, score_uuid: str, user_id: int) -> None:
         access = await self.access_policy.authorize(
@@ -112,7 +105,7 @@ class ScoreLifecycleService:
                 result = self.cleanup_deleting_score(db, score)
             except Exception as exc:
                 db.rollback()
-                self._mark_cleanup_failed(db, score_id, exc)
+                self.deletion_failure_policy.mark_failed(db, score_id, exc)
                 continue
             total = ScoreDeletionCleanupResult(
                 scores_deleted=total.scores_deleted + result.scores_deleted,
@@ -307,34 +300,6 @@ class ScoreLifecycleService:
             storage_objects_deleted=deleted_storage_count,
         )
 
-    def _mark_cleanup_failed(self, db: Session, score_id: int, exc: Exception) -> None:
-        score = db.get(Score, score_id)
-        if score is None or score.deletion_status != ScoreDeletionStatus.DELETING:
-            return
-        now = utc_now_naive()
-        score.cleanup_attempt_count += 1
-        retry_delay = self._cleanup_retry_delay_seconds(score.cleanup_attempt_count)
-        score.next_cleanup_at = now + timedelta(seconds=retry_delay)
-        score.deletion_error = str(exc)[:4000]
-        apply_async_diagnostic(
-            score,
-            kind=AsyncOperationKindValue.SCORE_DELETION,
-            status=(
-                AsyncOperationStatusValue.EXHAUSTED
-                if score.cleanup_attempt_count >= settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS
-                else AsyncOperationStatusValue.RETRYING
-            ),
-            raw_status=score.deletion_status.value,
-            last_error=score.deletion_error,
-            attempts=score.cleanup_attempt_count,
-            max_attempts=settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
-        )
-        db.commit()
-
-    def _cleanup_retry_delay_seconds(self, attempt_count: int) -> int:
-        exponent = min(max(attempt_count - 1, 0), 6)
-        return settings.SCORE_DELETION_CLEANUP_RETRY_BASE_SECONDS * (2**exponent)
-
     def _cleanup_practice_for_score_sync(self, db: Session, score_id: int) -> list[str]:
         from app.db.models import PracticeSession
         from sqlalchemy import delete as sa_delete
@@ -471,29 +436,6 @@ class ScoreLifecycleService:
         if sibling_count:
             return None
         return db.get(ImportJob, originating_job_id)
-
-    async def _single_score_originating_job_uuid(
-        self,
-        db: AsyncSession,
-        *,
-        score_id: int,
-        originating_job_id: int | None,
-    ) -> str | None:
-        if originating_job_id is None:
-            return None
-        sibling_count = (
-            await db.execute(
-                select(func.count(Score.id)).where(
-                    Score.originating_job_id == originating_job_id,
-                    Score.id != score_id,
-                    Score.deletion_status == ScoreDeletionStatus.ACTIVE,
-                )
-            )
-        ).scalar_one()
-        if sibling_count:
-            return None
-        job = await db.get(ImportJob, originating_job_id)
-        return job.job_uuid if job is not None else None
 
     def _delete_storage_best_effort(self, storage_key: str) -> bool:
         try:
