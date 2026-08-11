@@ -26,28 +26,28 @@ import { cn } from '@/lib/utils';
 const TIME_SIGNATURES = ['2/4', '3/4', '4/4', '5/4', '6/4', '3/8', '4/8', '5/8', '6/8', '7/8', '9/8', '12/8', '2/2', '3/2'];
 const BEAT_TYPES = ['1', '2', '4', '8', '16', '32'];
 const TEMPO_UNITS = [
-  { value: '16th', symbol: '??' },
-  { value: 'eighth', symbol: '?' },
-  { value: 'quarter', symbol: '?' },
-  { value: 'half', symbol: '??' },
-  { value: 'whole', symbol: '??' },
+  { value: '16th', symbol: '1/16' },
+  { value: 'eighth', symbol: '1/8' },
+  { value: 'quarter', symbol: '1/4' },
+  { value: 'half', symbol: '1/2' },
+  { value: 'whole', symbol: '1' },
 ];
 const KEY_SIGNATURES = [
   { fifths: '0', major: 'C', minor: 'A', accidentals: '' },
-  { fifths: '1', major: 'G', minor: 'E', accidentals: '?' },
-  { fifths: '2', major: 'D', minor: 'B', accidentals: '??' },
-  { fifths: '3', major: 'A', minor: 'F#', accidentals: '???' },
-  { fifths: '4', major: 'E', minor: 'C#', accidentals: '????' },
-  { fifths: '5', major: 'B', minor: 'G#', accidentals: '?????' },
-  { fifths: '6', major: 'F#', minor: 'D#', accidentals: '??????' },
-  { fifths: '7', major: 'C#', minor: 'A#', accidentals: '???????' },
-  { fifths: '-1', major: 'F', minor: 'D', accidentals: '?' },
-  { fifths: '-2', major: 'Bb', minor: 'G', accidentals: '??' },
-  { fifths: '-3', major: 'Eb', minor: 'C', accidentals: '???' },
-  { fifths: '-4', major: 'Ab', minor: 'F', accidentals: '????' },
-  { fifths: '-5', major: 'Db', minor: 'Bb', accidentals: '?????' },
-  { fifths: '-6', major: 'Gb', minor: 'Eb', accidentals: '??????' },
-  { fifths: '-7', major: 'Cb', minor: 'Ab', accidentals: '???????' },
+  { fifths: '1', major: 'G', minor: 'E', accidentals: '#' },
+  { fifths: '2', major: 'D', minor: 'B', accidentals: '##' },
+  { fifths: '3', major: 'A', minor: 'F#', accidentals: '###' },
+  { fifths: '4', major: 'E', minor: 'C#', accidentals: '####' },
+  { fifths: '5', major: 'B', minor: 'G#', accidentals: '#####' },
+  { fifths: '6', major: 'F#', minor: 'D#', accidentals: '######' },
+  { fifths: '7', major: 'C#', minor: 'A#', accidentals: '#######' },
+  { fifths: '-1', major: 'F', minor: 'D', accidentals: 'b' },
+  { fifths: '-2', major: 'Bb', minor: 'G', accidentals: 'bb' },
+  { fifths: '-3', major: 'Eb', minor: 'C', accidentals: 'bbb' },
+  { fifths: '-4', major: 'Ab', minor: 'F', accidentals: 'bbbb' },
+  { fifths: '-5', major: 'Db', minor: 'Bb', accidentals: 'bbbbb' },
+  { fifths: '-6', major: 'Gb', minor: 'Eb', accidentals: 'bbbbbb' },
+  { fifths: '-7', major: 'Cb', minor: 'Ab', accidentals: 'bbbbbbb' },
 ];
 const SMUFL = {
   gClef: '\uE050',
@@ -260,7 +260,7 @@ function TempoPicker({
     <Popover>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" className="w-full justify-between">
-          <span className="font-mono">鈾?= {safeTempo}</span>
+          <span className="font-mono">1/4 = {safeTempo}</span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>

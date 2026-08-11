@@ -75,6 +75,7 @@ historical finding is not an indication that the item is still open.
 | REC-003 | P2 | Trial the React Compiler on the editor/practice hotspot. | Capture build time, hydration, and interaction performance before/after. | Enable only if measured benefit outweighs build/debug cost. |
 | REC-004 | P2 | Introduce a shared JavaScript package only for stable cross-application contracts. | Identify at least two versioned, jointly-owned consumers with a stable API. | Package has explicit owner, semver/versioning policy, tests, and no app-specific coupling. |
 | REC-005 | P2 | Split `my_scores` into an explicit read-model/BFF query boundary if it continues to grow. | Document its write ownership and callers. | It either remains a small projection module or is renamed/restructured to make its query-only role explicit. |
+| REC-006 | P2 | Remove Chinese code comments, emoji-style symbols, and mojibake/unreadable glyphs from production code. | Separate user-facing localized strings from source comments/constants; inventory where Chinese text is actual product copy such as email templates or locale files. | Production source comments are English or removed; decorative symbols are either ASCII labels or explicit design assets; no `?` placeholders or mojibake glyphs remain in hand-maintained code. |
 
 ## Target enterprise repository model
 
@@ -1842,6 +1843,18 @@ until a tested hook boundary is obvious.
 ARC-003 remains partially complete. The next Event Inspector cut, if any, should
 target event note-property field groups or pitch-edit helpers; avoid moving
 editor mutation callbacks until a smaller hook boundary is proven by tests.
+
+### 2026-08-11: Event Score Inspector unreadable glyph cleanup
+
+- Confirmed that `apps/customer-web/src/components/editor/event-score-inspector.tsx`
+  contained literal `?` placeholder strings in tempo-unit and key-signature
+  display constants after the extraction, not merely a font-rendering issue.
+- Replaced those constants with ASCII labels (`1/4`, `#`, `bb`, etc.) so the
+  file remains readable in terminals, diffs, CI logs, and AI/code-review tools.
+- Added REC-006 to track a broader cleanup pass for Chinese code comments,
+  emoji-style symbols, and mojibake/unreadable glyphs in hand-maintained
+  production code. Product copy and localization files must be inventoried
+  separately before removal.
 
 ## Reusable completion checklist for every refactor
 
