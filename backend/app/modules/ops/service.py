@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import case, func, literal, select
