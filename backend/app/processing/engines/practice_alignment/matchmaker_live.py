@@ -7,8 +7,9 @@ from pathlib import Path
 from typing import Callable, Literal
 
 from app.core.config import get_practice_runtime_settings
-from app.processing.resources import ensure_partitura_default_soundfont
 from app.core.logger import logger
+from app.processing.resources import ensure_partitura_default_soundfont
+from app.processing.engines.practice_alignment.audio_diagnostics import log_audio_gate_diagnostic
 from app.processing.engines.practice_alignment.audio_activity import (
     ActivityConfidenceEstimator,
     AdaptiveNoiseCalibrator,
@@ -532,55 +533,7 @@ class BrowserAudioStreamAdapter:
         return processor_output
 
     def _log_diagnostics(self, decision: str, rms: float, peak: float) -> None:
-        if not self.diagnostics_enabled:
-            return
-
-        should_log = (
-            decision == "accepted"
-            or self.total_frames <= self.warmup_frames
-            or self.total_frames % self.diagnostic_frame_interval == 0
-        )
-        if not should_log:
-            return
-
-        effective_start_rms_gate, effective_start_peak_gate = self._effective_start_gates()
-        logger.bind(
-            event="practice_audio.gate_diagnostic",
-            decision=decision,
-            frame=self.total_frames,
-            rms=round(rms, 5),
-            peak=round(peak, 5),
-            rms_gate=round(self._calibrated_rms_gate, 5),
-            peak_gate=round(self._calibrated_peak_gate, 5),
-            start_rms_gate=round(self.start_rms_gate, 5),
-            start_peak_gate=round(self.start_peak_gate, 5),
-            effective_start_rms_gate=round(effective_start_rms_gate, 5),
-            effective_start_peak_gate=round(effective_start_peak_gate, 5),
-            armed=self.armed,
-            active_streak=self.active_streak,
-            start_streak=self.start_streak,
-            no_input_streak=self.no_input_streak,
-            performance_active=self.performance_active,
-            tonal=self.last_tonal_signal,
-            spectral_flatness=round(self.last_spectral_flatness, 5),
-            peak_prominence=round(self.last_peak_prominence, 2),
-            spectral_flux=round(self.last_spectral_flux, 5),
-            flux_gate=round(self._calibrated_flux_gate, 5),
-            onset=self.last_onset_signal,
-            accepted=self.accepted_frames,
-            rejected=self.rejected_frames,
-            noise_samples=len(self._noise_rms_values),
-            started=self.ready_to_start,
-            state=self.stream_state,
-            frame_class=self.last_frame_class,
-            gate_reason=self.last_gate_reason,
-            start_reason=self.last_start_signal_reason,
-            runtime_reason=self.last_runtime_activity_reason,
-            queue_decision=self.last_queue_decision,
-            input_weight=round(self.last_input_weight, 2),
-            input_policy_confidence=round(self.last_input_policy_confidence, 2),
-            start_feature_confidence=self.last_start_feature_confidence,
-        ).info("Practice audio gate diagnostic")
+        log_audio_gate_diagnostic(self, decision, rms, peak)
 
 
 class MatchmakerLiveEngine:
