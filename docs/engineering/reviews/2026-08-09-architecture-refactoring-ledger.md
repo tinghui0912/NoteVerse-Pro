@@ -1802,6 +1802,25 @@ Next recommended candidate: `apps/customer-web/src/components/editor/event-inspe
 Before modifying it, identify pure display helpers, event-detail projection, or
 subsections that can move without changing the editor interaction model.
 
+### 2026-08-11: Event Inspector connection projection extracted
+
+- Started the Customer Web ARC-003 pass with
+  `apps/customer-web/src/components/editor/event-inspector.tsx`, the largest
+  current hand-maintained source hotspot after excluding generated API clients.
+- Extracted pure tie/slur connection detail projection and endpoint pitch
+  resolution to
+  `apps/customer-web/src/components/editor/event-inspector-connections.ts`.
+- Kept `EventInspectorPanel` responsible for React state, editor mutations,
+  toast handling, XML updates, and opening connection endpoints for editing.
+- Added focused unit coverage in
+  `apps/customer-web/tests/unit/event-inspector-connections.test.ts` and kept
+  the existing Verovio surface migration test green.
+
+ARC-003 remains partially complete. Continue the Event Inspector split only
+around similarly stable boundaries such as score metadata controls or
+note-property field groups; do not extract stateful editor mutation callbacks
+until a tested hook boundary is obvious.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
