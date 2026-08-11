@@ -1445,6 +1445,27 @@ ARC-012 should pause after this point unless a concrete single-runtime settings
 owner emerges. The next architecture work should return to measured service or
 engine hotspots rather than continuing configuration movement for its own sake.
 
+### 2026-08-11: Storage usage accounting rules extracted
+
+- Selected `backend/app/modules/storage_usage/service.py` as a measured ARC-004
+  hotspot because it owns both async API reservations and sync Worker
+  accounting while duplicating quota classification, quota validation,
+  reservation construction, and usage-event construction.
+- Extracted pure storage accounting rules to
+  `backend/app/modules/storage_usage/accounting.py`: default plan code, quota
+  categories, quota inclusion, quota availability validation, reservation
+  construction, and usage-event construction.
+- Updated runtime checks to import the default storage plan from the accounting
+  owner instead of the service facade.
+- Kept `StorageUsageService` as the public orchestration facade used by API,
+  Worker, import, revision, playback, review, and score lifecycle modules. No
+  old-path compatibility export or fallback behavior was added.
+
+ARC-004 remains partially complete. The next safe storage-usage step, if any,
+is to look for a stable transaction-script boundary across reserve/commit/release
+before splitting async and sync orchestration; do not create separate files only
+because both execution modes exist.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

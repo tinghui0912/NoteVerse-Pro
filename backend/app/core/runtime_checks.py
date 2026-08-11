@@ -215,7 +215,7 @@ def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
     from app.db.sync_session import sync_engine
-    from app.modules.storage_usage.service import DEFAULT_PLAN_CODE
+    from app.modules.storage_usage.accounting import DEFAULT_PLAN_CODE
 
     try:
         with sync_engine.connect() as connection:
