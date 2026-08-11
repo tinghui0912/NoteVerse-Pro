@@ -1999,6 +1999,22 @@ REC-006 remains partially complete. Continue with `core.ts` or `flatten.ts`
 next. Keep `parser.ts` for a dedicated later pass because its comments describe
 voice reconstruction, timing cursors, and connection pairing policy.
 
+### 2026-08-11: MusicXML core comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/core.ts`.
+- Replaced Chinese/mojibake comments with concise English explanations for XML
+  serialization formatting and entity-group projection.
+- Preserved the useful policy comments around MusicXML declaration handling,
+  tag indentation, forward-as-blank grouping, and chord member grouping.
+- Kept the implementation logic and exported API unchanged; this was a
+  readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML core/domain tests still pass.
+
+REC-006 remains partially complete. Continue with `flatten.ts` next. Keep
+`parser.ts` for a dedicated later pass because it is larger and its comments
+describe timing cursor and connection pairing behavior.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
