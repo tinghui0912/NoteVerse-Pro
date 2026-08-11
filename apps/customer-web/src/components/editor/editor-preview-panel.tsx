@@ -30,6 +30,7 @@ import {
   getHiddenStaffKeys,
 } from './editor-preview-track-visibility';
 import { applySelectedVerovioElements } from './editor-preview-selection-highlight';
+import { mountScoreMetadataPlaceholders } from './editor-preview-metadata-placeholders';
 import type { AddLocation, ScoreData, ScoreEntity } from '@/types/score-types';
 
 interface EditorPreviewPanelProps {
@@ -661,28 +662,15 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     const container = playback.containerRef.current;
     if (!container || playback.isLoading) return;
 
-    container.querySelectorAll('[data-score-metadata-placeholder]').forEach((element) => element.remove());
-
-    const page = container.querySelector<HTMLElement>('[data-score-page="1"]')
-      ?? container.querySelector<HTMLElement>('[data-score-page]');
-    if (!page || !scoreData) return;
-
-    const placeholders = [
-      !scoreData.mainTitle ? { className: 'score-metadata-placeholder-title', label: t('mainTitleLabel') } : null,
-      !scoreData.subtitle ? { className: 'score-metadata-placeholder-subtitle', label: t('subtitleLabel') } : null,
-      !scoreData.lyricist ? { className: 'score-metadata-placeholder-lyricist', label: t('lyricistLabel') } : null,
-      !scoreData.composer ? { className: 'score-metadata-placeholder-composer', label: t('composerLabel') } : null,
-    ].filter((placeholder): placeholder is { className: string; label: string } => Boolean(placeholder));
-
-    if (placeholders.length === 0) return;
-
-    placeholders.forEach((placeholder) => {
-      const element = document.createElement('button');
-      element.type = 'button';
-      element.dataset.scoreMetadataPlaceholder = 'true';
-      element.className = `score-metadata-placeholder ${placeholder.className}`;
-      element.textContent = placeholder.label;
-      page.append(element);
+    mountScoreMetadataPlaceholders({
+      container,
+      scoreData,
+      labels: {
+        mainTitle: t('mainTitleLabel'),
+        subtitle: t('subtitleLabel'),
+        lyricist: t('lyricistLabel'),
+        composer: t('composerLabel'),
+      },
     });
   }, [
     playback.containerRef,

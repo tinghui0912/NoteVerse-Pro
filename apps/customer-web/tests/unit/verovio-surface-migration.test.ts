@@ -240,6 +240,8 @@ describe('Verovio listen surfaces', () => {
   it('keeps score-level metadata editing in the right inspector', () => {
     const inspector = readSource('src/components/editor/event-inspector.tsx');
     const scoreInspector = readSource('src/components/editor/event-score-inspector.tsx');
+    const previewPanel = readSource('src/components/editor/editor-preview-panel.tsx');
+    const previewPlaceholders = readSource('src/components/editor/editor-preview-metadata-placeholders.ts');
 
     expect(inspector).toContain('ScoreInspectorPanel');
     expect(scoreInspector).toContain('function ScoreInspectorPanel');
@@ -254,5 +256,8 @@ describe('Verovio listen surfaces', () => {
     expect(scoreInspector).toContain('updateTempo');
     expect(scoreInspector).toContain('mainTitleLabel');
     expect(scoreInspector).toContain('timeSignatureLabel');
+    expect(previewPanel).toContain('mountScoreMetadataPlaceholders');
+    expect(previewPlaceholders).toContain('score-metadata-placeholder-title');
+    expect(previewPlaceholders).toContain('score-metadata-placeholder-composer');
   });
 });

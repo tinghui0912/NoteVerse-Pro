@@ -1916,6 +1916,29 @@ ARC-003 remains partially complete. The next safe `editor-preview-panel.tsx`
 cut is metadata placeholder mounting. Continue avoiding extraction of add-mode
 pointer placement until its DOM geometry behavior has more focused tests.
 
+### 2026-08-11: Editor Preview metadata placeholders extracted
+
+- Continued the Customer Web ARC-003 pass by extracting score metadata
+  placeholder mounting from
+  `apps/customer-web/src/components/editor/editor-preview-panel.tsx`.
+- Moved stale placeholder cleanup, first score-page selection, missing metadata
+  projection, and placeholder button creation to
+  `apps/customer-web/src/components/editor/editor-preview-metadata-placeholders.ts`.
+- Kept `EditorPreviewPanel` responsible for effect timing, loading-state gating,
+  translated label resolution, and passing current `ScoreData` into the DOM
+  helper.
+- Added jsdom coverage in
+  `apps/customer-web/tests/unit/editor-preview-metadata-placeholders.test.ts`
+  for descriptor projection, stale cleanup, button mounting, all-present
+  metadata, and missing page/score-data behavior.
+- Updated the Verovio surface migration guard so the placeholder DOM boundary is
+  explicit.
+
+ARC-003 remains partially complete. The next `editor-preview-panel.tsx` work
+should pause before extracting pointer insertion handlers; first add focused
+coverage for insert placement geometry or extract only another self-contained
+DOM helper with minimal props.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
