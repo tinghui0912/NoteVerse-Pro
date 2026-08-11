@@ -1299,6 +1299,10 @@ merely to eliminate small dispatch branches.
 - Added `backend/app/worker/README.md` to document the Worker package ownership
   boundaries after the task/execution/dispatch/runtime split. Removed stale
   Celery task-route comments that referenced deleted historical task names.
+- Added a Worker architecture contract test that keeps `app.worker.tasks` as a
+  Celery registration surface, blocks direct domain/database service imports in
+  the task-entrypoint module, and prevents `app.worker.execution` modules from
+  importing task entrypoints.
 
 ## Reusable completion checklist for every refactor
 
