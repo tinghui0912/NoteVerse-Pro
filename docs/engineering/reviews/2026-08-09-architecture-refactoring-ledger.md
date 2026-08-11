@@ -1278,6 +1278,11 @@ merely to eliminate small dispatch branches.
   `app.worker.execution.playback_outbox`. The task entrypoint remains registered
   at the old Celery task name, while render/fail/complete and derived-asset
   realtime event publication are owned by the playback execution module.
+- Extracted render outbox execution from `app.worker.tasks` into
+  `app.worker.execution.render_outbox`. The task entrypoint remains registered
+  at the old Celery task name, while score-revision preview rendering,
+  review-thumbnail rendering, outbox fail/complete transitions, and preview
+  realtime event publication are owned by the render execution module.
 
 ## Reusable completion checklist for every refactor
 

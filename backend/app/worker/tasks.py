@@ -2,12 +2,7 @@
 
 import sys
 
-from app.core.background_tracing import (
-    record_current_attempt_failure,
-)
-from app.db.models import RenderTargetType
 from app.db.sync_session import get_worker_db
-from app.modules.score_assets.render_service import RevisionRenderService
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.import_jobs.execution_service import job_execution_service
 from app.modules.import_jobs.maintenance_service import job_maintenance_service
@@ -16,20 +11,16 @@ from app.modules.import_jobs.schemas import PipelineExecutionSuccessResult
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.notifications.maintenance_service import notification_maintenance_service
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.realtime.publisher import (
-    RealtimeEventTypes,
-    publish_score_event_sync_best_effort,
-)
 from app.modules.realtime.maintenance_service import realtime_maintenance_service
 from app.modules.revisions.derived_asset_retention_service import (
     derived_asset_retention_service,
 )
-from app.modules.review.thumbnail_service import review_thumbnail_service
 from app.modules.scores.lifecycle_service import score_lifecycle_service
 from app.pipeline.context import CeleryTaskLike
 from app.worker.celery_config import celery_app
 from app.worker.execution.mail_outbox import execute_mail_outbox_task
 from app.worker.execution.playback_outbox import execute_playback_outbox_task
+from app.worker.execution.render_outbox import execute_render_outbox_task
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,
@@ -133,131 +124,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
 @celery_app.task(name="app.worker.tasks.render_outbox_task", bind=True, ignore_result=True)
 def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str | None]:
     """Render one durable score-revision or review-thumbnail target."""
-
-    bind_task_context(self)
-    trace_scope = None
-    try:
-        with get_worker_db() as db:
-            payload = render_outbox_service.claim(db, outbox_uuid)
-        if payload is None:
-            operation_logger(
-                "render.ignored",
-                operation_kind="render",
-                outbox_id=outbox_uuid,
-                status="ignored",
-            ).info("render.ignored")
-            return {"status": "ignored", "outbox_uuid": outbox_uuid}
-
-        trace_scope = start_attempt_trace(
-            name="noteverse.render.generate",
-            operation_kind="render",
-            operation_id=outbox_uuid,
-            attempt=payload.attempt,
-            traceparent=payload.traceparent,
-            tracestate=payload.tracestate,
-        )
-        trace_scope.__enter__()
-
-        context = {
-            "operation_kind": "render",
-            "outbox_id": outbox_uuid,
-            "target_type": payload.target_type.value,
-            "score_id": payload.score_uuid,
-            "revision_id": payload.revision_uuid,
-            "job_id": payload.job_uuid,
-            "render_profile": payload.render_profile,
-            "attempt": payload.attempt,
-            "max_attempts": payload.max_attempts,
-            "originating_request_id": payload.originating_request_id,
-        }
-        operation_logger("render.started", **context).info("render.started")
-
-        try:
-            artifact_id: str | None = None
-            if payload.target_type == RenderTargetType.SCORE_REVISION:
-                score_uuid = payload.score_uuid
-                revision_uuid = payload.revision_uuid
-                if score_uuid is None or revision_uuid is None or payload.user_id is None:
-                    raise ValueError("Revision render payload is incomplete")
-
-                with get_worker_db() as db:
-                    RevisionRenderService().render_for_worker(
-                        db,
-                        score_uuid,
-                        revision_uuid,
-                        source_fingerprint=payload.source_fingerprint,
-                        profile=payload.render_profile,
-                    )
-            elif payload.target_type == RenderTargetType.REVIEW_THUMBNAIL:
-                if payload.job_uuid is None:
-                    raise ValueError("Review thumbnail render payload is incomplete")
-                with get_worker_db() as db:
-                    artifact_id = review_thumbnail_service.render(
-                        db,
-                        payload.job_uuid,
-                        expected_source_fingerprint=payload.source_fingerprint,
-                    )
-            else:
-                raise ValueError(f"Unsupported render target: {payload.target_type}")
-        except Exception as exc:
-            record_current_attempt_failure(exc)
-            with get_worker_db() as db:
-                render_outbox_service.fail(db, outbox_uuid, str(exc))
-                if (
-                    payload.target_type == RenderTargetType.SCORE_REVISION
-                    and payload.score_uuid
-                    and payload.revision_uuid
-                ):
-                    publish_score_event_sync_best_effort(
-                        db,
-                        score_id=payload.score_uuid,
-                        revision_id=payload.revision_uuid,
-                        type=RealtimeEventTypes.SCORE_DERIVED_ASSET_UPDATED,
-                        payload={
-                            "score_id": payload.score_uuid,
-                            "revision_id": payload.revision_uuid,
-                            "asset": "preview",
-                            "status": "failed",
-                        },
-                    )
-            operation_logger(
-                "render.failed",
-                **context,
-                status="failed",
-                exception_type=type(exc).__name__,
-            ).opt(exception=True).error("render.failed")
-            return {"status": "failed", "outbox_uuid": outbox_uuid}
-
-        with get_worker_db() as db:
-            render_outbox_service.complete(db, outbox_uuid)
-            if (
-                payload.target_type == RenderTargetType.SCORE_REVISION
-                and payload.score_uuid
-                and payload.revision_uuid
-            ):
-                publish_score_event_sync_best_effort(
-                    db,
-                    score_id=payload.score_uuid,
-                    revision_id=payload.revision_uuid,
-                    type=RealtimeEventTypes.SCORE_DERIVED_ASSET_UPDATED,
-                    payload={
-                        "score_id": payload.score_uuid,
-                        "revision_id": payload.revision_uuid,
-                        "asset": "preview",
-                        "status": "ready",
-                    },
-                )
-        operation_logger(
-            "render.completed",
-            **context,
-            status="completed",
-            artifact_id=artifact_id,
-        ).info("render.completed")
-        return {"status": "rendered", "outbox_uuid": outbox_uuid, "artifact_id": artifact_id}
-    finally:
-        if trace_scope is not None:
-            trace_scope.__exit__(*sys.exc_info())
-        clear_task_context()
+    return execute_render_outbox_task(self, outbox_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.playback_outbox_task", bind=True, ignore_result=True)
