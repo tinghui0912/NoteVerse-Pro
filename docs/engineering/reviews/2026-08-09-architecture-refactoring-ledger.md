@@ -1522,6 +1522,27 @@ ARC-004 remains partially complete. Treat target-specific terminal decisions in
 outbox builders as intentional domain policy before applying generic fallback
 handling.
 
+### 2026-08-11: Library folder-tree rules extracted
+
+- Selected `backend/app/modules/library/service.py` as the next ARC-004
+  hotspot because its folder operations mixed API orchestration with pure
+  folder-tree calculations: parent UUID projection, recursive entry counts,
+  descendant collection, folder depth, and subtree height.
+- Extracted those pure rules to
+  `backend/app/modules/library/folder_tree.py`.
+- Kept `LibraryService` responsible for database access, authorization-facing
+  behavior, folder mutation transactions, entry updates, commits, and domain
+  exceptions. The extraction does not introduce compatibility aliases or a
+  generic tree utility layer.
+- Added focused tests in `backend/tests/test_library_folder_tree.py` for
+  recursive folder counts, parent UUID projection, descendant lookup, depth,
+  and subtree height.
+
+ARC-004 remains partially complete. Stop the library split here unless future
+changes add additional folder invariants or library read-model variants; the
+remaining service methods are still readable transaction/application
+orchestration rather than an obvious separate subsystem.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
