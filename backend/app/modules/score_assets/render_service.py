@@ -107,7 +107,7 @@ class RevisionRenderService:
             for item in await self.repository.list_render_assets(db, revision_id)
             if isinstance(item, ScoreRenderAsset) and item.render_profile == profile
         ]
-        previous_usage = [(item.asset_uuid, item.storage_key, item.size_bytes) for item in previous]
+        previous_usage = self._render_asset_usage(previous)
         try:
             for item in previous:
                 await db.delete(item)
@@ -117,11 +117,7 @@ class RevisionRenderService:
             await db.commit()
         except Exception:
             await db.rollback()
-            for key in uploaded_keys:
-                try:
-                    self.storage.delete(key)
-                except Exception:
-                    pass
+            self._delete_storage_keys_best_effort(uploaded_keys)
             raise
         for item in new_records:
             await storage_usage_service.record_allocation(
@@ -145,11 +141,7 @@ class RevisionRenderService:
                 object_id=asset_uuid,
                 storage_key=storage_key,
             )
-        for item in previous:
-            try:
-                self.storage.delete(item.storage_key)
-            except Exception:
-                pass
+        self._delete_render_assets_best_effort(previous)
         return [self.asset_service.render_asset_read(item, revision) for item in new_records]
 
     def render_for_worker(
@@ -215,9 +207,7 @@ class RevisionRenderService:
                     )
                 ).scalars()
             )
-            previous_usage = [
-                (item.asset_uuid, item.storage_key, item.size_bytes) for item in previous
-            ]
+            previous_usage = self._render_asset_usage(previous)
             for item in previous:
                 db.delete(item)
             db.flush()
@@ -226,11 +216,7 @@ class RevisionRenderService:
             db.commit()
         except Exception:
             db.rollback()
-            for key in uploaded_keys:
-                try:
-                    self.storage.delete(key)
-                except Exception:
-                    pass
+            self._delete_storage_keys_best_effort(uploaded_keys)
             raise
 
         for item in new_records:
@@ -255,11 +241,7 @@ class RevisionRenderService:
                 object_id=asset_uuid,
                 storage_key=storage_key,
             )
-        for item in previous:
-            try:
-                self.storage.delete(item.storage_key)
-            except Exception:
-                pass
+        self._delete_render_assets_best_effort(previous)
         return new_records
 
     def _render_records(
@@ -323,3 +305,19 @@ class RevisionRenderService:
                     )
                 )
         return new_records
+
+    @staticmethod
+    def _render_asset_usage(
+        assets: list[ScoreRenderAsset],
+    ) -> list[tuple[str, str, int | None]]:
+        return [(item.asset_uuid, item.storage_key, item.size_bytes) for item in assets]
+
+    def _delete_render_assets_best_effort(self, assets: list[ScoreRenderAsset]) -> None:
+        self._delete_storage_keys_best_effort([item.storage_key for item in assets])
+
+    def _delete_storage_keys_best_effort(self, storage_keys: list[str]) -> None:
+        for key in storage_keys:
+            try:
+                self.storage.delete(key)
+            except Exception:
+                pass

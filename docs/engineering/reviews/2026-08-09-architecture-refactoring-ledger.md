@@ -1327,6 +1327,11 @@ merely to eliminate small dispatch branches.
   centralizes exponential retry-delay and lease-expiry calculations without
   introducing a generic ORM outbox base class, preserving each service's
   domain-specific state transitions and diagnostics.
+- Kept `RevisionRenderService`'s async API render path and sync Worker render
+  path separate because their database APIs and callers differ, but extracted
+  small private helpers for render-asset usage snapshots and best-effort storage
+  cleanup. This reduces local duplication without creating a broad async/sync
+  abstraction layer.
 
 ## Reusable completion checklist for every refactor
 
