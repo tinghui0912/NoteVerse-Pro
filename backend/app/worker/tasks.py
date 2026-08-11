@@ -1,16 +1,10 @@
-"""Celery task entrypoints for score import jobs."""
+"""Celery task entrypoints for NoteVerse background work."""
 
-from collections.abc import Callable
 import sys
-from time import monotonic
 
 from app.core.background_tracing import (
-    background_attempt_span,
-    background_root_span,
     record_current_attempt_failure,
-    set_scheduler_trace_outcome,
 )
-from app.core.logger import logger, set_task_id
 from app.db.models import RenderTargetType
 from app.db.sync_session import get_worker_db
 from app.modules.score_assets.render_service import RevisionRenderService
@@ -32,129 +26,17 @@ from app.modules.revisions.derived_asset_retention_service import (
     derived_asset_retention_service,
 )
 from app.modules.review.thumbnail_service import review_thumbnail_service
-from app.modules.scheduler_observability.service import (
-    SchedulerRunStats,
-    scheduler_observability_service,
-)
-from app.modules.scheduler_lock.service import scheduler_lock_service
 from app.modules.scores.lifecycle_service import score_lifecycle_service
 from app.pipeline.context import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
 from app.worker.celery_config import celery_app
-
-
-def _bind_task_context(self: CeleryTaskLike | None) -> None:
-    task_id = getattr(getattr(self, "request", None), "id", None)
-    set_task_id(task_id)
-
-
-def _clear_task_context() -> None:
-    set_task_id(None)
-
-
-def _operation_logger(event: str, **context: object):
-    return logger.bind(event=event, **context)
-
-
-def _start_attempt_trace(
-    *, name: str, operation_kind: str, operation_id: str, attempt: int,
-    traceparent: str | None, tracestate: str | None,
-):
-    return background_attempt_span(
-        name=name,
-        traceparent=traceparent,
-        tracestate=tracestate,
-        attributes={
-            "noteverse.operation.kind": operation_kind,
-            "noteverse.operation.id": operation_id,
-            "noteverse.operation.attempt": attempt,
-        },
-    )
-
-
-def _run_scheduler_scan(job_key: str, callback: Callable[[], dict[str, int]]) -> dict[str, int]:
-    started_at = monotonic()
-    with scheduler_lock_service.try_acquire(job_key) as acquired:
-        if not acquired:
-            with get_worker_db() as db:
-                scheduler_observability_service.record_lock_skipped(db, job_key)
-            _operation_logger(
-                "scheduler.scan_skipped",
-                operation_kind="scheduler",
-                scheduler_job=job_key,
-                reason="lock_not_acquired",
-            ).info("scheduler.scan_skipped")
-            return {"due": 0, "dispatched": 0, "lock_skipped": 1}
-
-        with get_worker_db() as db:
-            scheduler_observability_service.record_lock_acquired(db, job_key)
-        with background_root_span(
-            name="noteverse.scheduler.scan",
-            attributes={
-                "noteverse.operation.kind": "scheduler",
-                "noteverse.scheduler.job": job_key,
-            },
-        ):
-            return _run_locked_scheduler_scan(job_key, callback, started_at)
-
-
-def _run_locked_scheduler_scan(
-    job_key: str,
-    callback: Callable[[], dict[str, int]],
-    started_at: float,
-) -> dict[str, int]:
-    with get_worker_db() as db:
-        scheduler_observability_service.record_started(db, job_key)
-    try:
-        result = callback()
-    except Exception as exc:
-        duration_seconds = monotonic() - started_at
-        with get_worker_db() as db:
-            scheduler_observability_service.record_failure(
-                db,
-                job_key,
-                duration_seconds=duration_seconds,
-                error=f"{type(exc).__name__}: {exc}",
-            )
-        _operation_logger(
-            "scheduler.scan_failed",
-            operation_kind="scheduler",
-            scheduler_job=job_key,
-            duration_seconds=round(duration_seconds, 3),
-            exception_type=type(exc).__name__,
-        ).opt(exception=True).error("scheduler.scan_failed")
-        raise
-
-    duration_seconds = monotonic() - started_at
-    stats = _scheduler_run_stats(result)
-    set_scheduler_trace_outcome(
-        has_activity=any(value != 0 for value in result.values()),
-        due=stats.due,
-        dispatched=stats.dispatched,
-    )
-    with get_worker_db() as db:
-        scheduler_observability_service.record_success(
-            db,
-            job_key,
-            duration_seconds=duration_seconds,
-            stats=stats,
-        )
-    _operation_logger(
-        "scheduler.scan_completed",
-        operation_kind="scheduler",
-        scheduler_job=job_key,
-        duration_seconds=round(duration_seconds, 3),
-        due=stats.due,
-        dispatched=stats.dispatched,
-    ).info("scheduler.scan_completed")
-    return result
-
-
-def _scheduler_run_stats(result: dict[str, int]) -> SchedulerRunStats:
-    return SchedulerRunStats(
-        due=int(result.get("due", 0)),
-        dispatched=int(result.get("dispatched", 0)),
-    )
+from app.worker.task_runtime import (
+    bind_task_context,
+    clear_task_context,
+    operation_logger,
+    run_scheduler_scan,
+    start_attempt_trace,
+)
 
 
 @celery_app.task(
@@ -169,13 +51,13 @@ def process_images_job(
 ) -> PipelineExecutionSuccessResult:
     """Run the score import pipeline for one or more input images."""
 
-    _bind_task_context(self)
+    bind_task_context(self)
     trace_scope = None
     try:
         with get_worker_db() as db:
             payload = import_dispatch_service.claim(db, job_uuid)
         if payload is None:
-            _operation_logger(
+            operation_logger(
                 "import.ignored",
                 operation_kind="import",
                 job_id=job_uuid,
@@ -183,7 +65,7 @@ def process_images_job(
             ).info("import.ignored")
             return {"success": True, "job_id": job_uuid}
 
-        trace_scope = _start_attempt_trace(
+        trace_scope = start_attempt_trace(
             name="noteverse.import.process",
             operation_kind="import",
             operation_id=job_uuid,
@@ -193,7 +75,7 @@ def process_images_job(
         )
         trace_scope.__enter__()
 
-        task_log = _operation_logger(
+        task_log = operation_logger(
             "import.started",
             operation_kind="import",
             job_id=job_uuid,
@@ -211,7 +93,7 @@ def process_images_job(
                 payload.options,
             )
         except Exception as exc:
-            _operation_logger(
+            operation_logger(
                 "import.failed",
                 operation_kind="import",
                 job_id=job_uuid,
@@ -226,7 +108,7 @@ def process_images_job(
 
         with get_worker_db() as db:
             import_dispatch_service.complete(db, job_uuid)
-        _operation_logger(
+        operation_logger(
             "import.completed",
             operation_kind="import",
             job_id=job_uuid,
@@ -239,19 +121,19 @@ def process_images_job(
     finally:
         if trace_scope is not None:
             trace_scope.__exit__(*sys.exc_info())
-        _clear_task_context()
+        clear_task_context()
 
 
 @celery_app.task(name="app.worker.tasks.send_mail_outbox_task", bind=True, ignore_result=True)
 def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str]:
     """Deliver one persistent transactional-mail record."""
-    _bind_task_context(self)
+    bind_task_context(self)
     trace_scope = None
     try:
         with get_worker_db() as db:
             payload = mail_outbox_service.claim(db, outbox_uuid)
         if payload is None:
-            _operation_logger(
+            operation_logger(
                 "mail.ignored",
                 operation_kind="mail",
                 outbox_id=outbox_uuid,
@@ -259,7 +141,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
             ).info("mail.ignored")
             return {"status": "ignored", "outbox_uuid": outbox_uuid}
 
-        trace_scope = _start_attempt_trace(
+        trace_scope = start_attempt_trace(
             name="noteverse.mail.deliver",
             operation_kind="mail",
             operation_id=outbox_uuid,
@@ -277,7 +159,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
             "max_attempts": payload.max_attempts,
             "originating_request_id": payload.originating_request_id,
         }
-        _operation_logger("mail.started", **context).info("mail.started")
+        operation_logger("mail.started", **context).info("mail.started")
         try:
             provider_message_id = send_email(
                 to_email=payload.recipient,
@@ -289,7 +171,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
             record_current_attempt_failure(exc)
             with get_worker_db() as db:
                 mail_outbox_service.permanent_failure(db, outbox_uuid, str(exc))
-            _operation_logger(
+            operation_logger(
                 "mail.failed",
                 **context,
                 status="permanent_failure",
@@ -300,7 +182,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
             record_current_attempt_failure(exc)
             with get_worker_db() as db:
                 mail_outbox_service.transient_failure(db, outbox_uuid, str(exc))
-            _operation_logger(
+            operation_logger(
                 "mail.failed",
                 **context,
                 status="retrying",
@@ -310,7 +192,7 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
 
         with get_worker_db() as db:
             mail_outbox_service.sent(db, outbox_uuid, provider_message_id)
-        _operation_logger(
+        operation_logger(
             "mail.sent",
             **context,
             status="sent",
@@ -319,20 +201,20 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
     finally:
         if trace_scope is not None:
             trace_scope.__exit__(*sys.exc_info())
-        _clear_task_context()
+        clear_task_context()
 
 
 @celery_app.task(name="app.worker.tasks.render_outbox_task", bind=True, ignore_result=True)
 def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str | None]:
     """Render one durable score-revision or review-thumbnail target."""
 
-    _bind_task_context(self)
+    bind_task_context(self)
     trace_scope = None
     try:
         with get_worker_db() as db:
             payload = render_outbox_service.claim(db, outbox_uuid)
         if payload is None:
-            _operation_logger(
+            operation_logger(
                 "render.ignored",
                 operation_kind="render",
                 outbox_id=outbox_uuid,
@@ -340,7 +222,7 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
             ).info("render.ignored")
             return {"status": "ignored", "outbox_uuid": outbox_uuid}
 
-        trace_scope = _start_attempt_trace(
+        trace_scope = start_attempt_trace(
             name="noteverse.render.generate",
             operation_kind="render",
             operation_id=outbox_uuid,
@@ -362,7 +244,7 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
             "max_attempts": payload.max_attempts,
             "originating_request_id": payload.originating_request_id,
         }
-        _operation_logger("render.started", **context).info("render.started")
+        operation_logger("render.started", **context).info("render.started")
 
         try:
             artifact_id: str | None = None
@@ -412,7 +294,7 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
                             "status": "failed",
                         },
                     )
-            _operation_logger(
+            operation_logger(
                 "render.failed",
                 **context,
                 status="failed",
@@ -439,7 +321,7 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
                         "status": "ready",
                     },
                 )
-        _operation_logger(
+        operation_logger(
             "render.completed",
             **context,
             status="completed",
@@ -449,20 +331,20 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
     finally:
         if trace_scope is not None:
             trace_scope.__exit__(*sys.exc_info())
-        _clear_task_context()
+        clear_task_context()
 
 
 @celery_app.task(name="app.worker.tasks.playback_outbox_task", bind=True, ignore_result=True)
 def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str]:
     """Generate one durable score playback asset."""
 
-    _bind_task_context(self)
+    bind_task_context(self)
     trace_scope = None
     try:
         with get_worker_db() as db:
             payload = playback_outbox_service.claim(db, outbox_uuid)
         if payload is None:
-            _operation_logger(
+            operation_logger(
                 "playback.ignored",
                 operation_kind="playback",
                 outbox_id=outbox_uuid,
@@ -470,7 +352,7 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
             ).info("playback.ignored")
             return {"status": "ignored", "outbox_uuid": outbox_uuid}
 
-        trace_scope = _start_attempt_trace(
+        trace_scope = start_attempt_trace(
             name="noteverse.playback.generate",
             operation_kind="playback",
             operation_id=outbox_uuid,
@@ -490,7 +372,7 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
             "max_attempts": payload.max_attempts,
             "originating_request_id": payload.originating_request_id,
         }
-        _operation_logger("playback.started", **context).info("playback.started")
+        operation_logger("playback.started", **context).info("playback.started")
 
         try:
             with get_worker_db() as db:
@@ -517,7 +399,7 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
                         "status": "failed",
                     },
                 )
-            _operation_logger(
+            operation_logger(
                 "playback.failed",
                 **context,
                 status="failed",
@@ -539,7 +421,7 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
                     "status": "ready",
                 },
             )
-        _operation_logger(
+        operation_logger(
             "playback.completed",
             **context,
             status="completed",
@@ -548,7 +430,7 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
     finally:
         if trace_scope is not None:
             trace_scope.__exit__(*sys.exc_info())
-        _clear_task_context()
+        clear_task_context()
 
 
 @celery_app.task(name="app.worker.tasks.run_job_maintenance")
@@ -563,7 +445,7 @@ def run_job_maintenance() -> dict[str, int]:
             "orphan_uploads_deleted": result.orphan_uploads_deleted,
         }
 
-    return _run_scheduler_scan("job_maintenance", scan)
+    return run_scheduler_scan("job_maintenance", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_import_dispatch_maintenance")
@@ -579,7 +461,7 @@ def run_import_dispatch_maintenance() -> dict[str, int]:
         dispatched = sum(1 for job_uuid in due if dispatch_import_job(job_uuid))
         return {"due": len(due), "dispatched": dispatched}
 
-    return _run_scheduler_scan("import_dispatch", scan)
+    return run_scheduler_scan("import_dispatch", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_notification_maintenance")
@@ -594,7 +476,7 @@ def run_notification_maintenance() -> dict[str, int]:
             "expired_notifications_deleted": result.expired_notifications_deleted,
         }
 
-    return _run_scheduler_scan("notification_maintenance", scan)
+    return run_scheduler_scan("notification_maintenance", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_realtime_maintenance")
@@ -609,7 +491,7 @@ def run_realtime_maintenance() -> dict[str, int]:
             "expired_events_deleted": result.expired_events_deleted,
         }
 
-    return _run_scheduler_scan("realtime_maintenance", scan)
+    return run_scheduler_scan("realtime_maintenance", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_derived_asset_cleanup")
@@ -626,7 +508,7 @@ def run_derived_asset_cleanup() -> dict[str, int]:
             "storage_objects_deleted": result.storage_objects_deleted,
         }
 
-    return _run_scheduler_scan("derived_asset_cleanup", scan)
+    return run_scheduler_scan("derived_asset_cleanup", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_score_deletion_cleanup")
@@ -637,7 +519,7 @@ def run_score_deletion_cleanup() -> dict[str, int]:
         with get_worker_db() as db:
             result = score_lifecycle_service.cleanup_deleting_scores(db)
 
-        _operation_logger(
+        operation_logger(
             "score_deletion.cleanup_completed",
             operation_kind="score_deletion",
             scores_deleted=result.scores_deleted,
@@ -648,7 +530,7 @@ def run_score_deletion_cleanup() -> dict[str, int]:
             "storage_objects_deleted": result.storage_objects_deleted,
         }
 
-    return _run_scheduler_scan("score_deletion_cleanup", scan)
+    return run_scheduler_scan("score_deletion_cleanup", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_render_outbox_maintenance")
@@ -664,7 +546,7 @@ def run_render_outbox_maintenance() -> dict[str, int]:
         dispatched = sum(1 for outbox_uuid in due if dispatch_render_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}
 
-    return _run_scheduler_scan("render_outbox", scan)
+    return run_scheduler_scan("render_outbox", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_playback_outbox_maintenance")
@@ -680,7 +562,7 @@ def run_playback_outbox_maintenance() -> dict[str, int]:
         dispatched = sum(1 for outbox_uuid in due if dispatch_playback_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}
 
-    return _run_scheduler_scan("playback_outbox", scan)
+    return run_scheduler_scan("playback_outbox", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_mail_outbox_maintenance")
@@ -696,7 +578,7 @@ def run_mail_outbox_maintenance() -> dict[str, int]:
         dispatched = sum(1 for outbox_uuid in due if dispatch_mail_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}
 
-    return _run_scheduler_scan("mail_outbox", scan)
+    return run_scheduler_scan("mail_outbox", scan)
 
 
 @celery_app.task(name="app.worker.tasks.run_mail_outbox_cleanup")
@@ -708,4 +590,4 @@ def run_mail_outbox_cleanup() -> dict[str, int]:
             deleted = mail_outbox_service.cleanup(db)
         return {"deleted": deleted}
 
-    return _run_scheduler_scan("mail_outbox_cleanup", scan)
+    return run_scheduler_scan("mail_outbox_cleanup", scan)

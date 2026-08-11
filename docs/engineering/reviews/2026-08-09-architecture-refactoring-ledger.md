@@ -1266,6 +1266,10 @@ merely to eliminate small dispatch branches.
   registers framework signals; the runtime-options module owns serialization,
   broker/backend timeout policy, task acknowledgement behavior, worker
   lifecycle limits, task deadlines, and Beat schedule wiring.
+- Extracted shared Celery task runtime helpers from the broad task-entrypoint
+  module. Task context binding, operation logger binding, attempt tracing, and
+  scheduler lock/observability wrapping now live in `app.worker.task_runtime`;
+  `app.worker.tasks` remains the Celery task registration surface.
 
 ## Reusable completion checklist for every refactor
 
