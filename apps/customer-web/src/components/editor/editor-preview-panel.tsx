@@ -29,6 +29,7 @@ import {
   getHiddenSourceIds,
   getHiddenStaffKeys,
 } from './editor-preview-track-visibility';
+import { applySelectedVerovioElements } from './editor-preview-selection-highlight';
 import type { AddLocation, ScoreData, ScoreEntity } from '@/types/score-types';
 
 interface EditorPreviewPanelProps {
@@ -643,24 +644,10 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
       : undefined;
 
     const applySelection = () => {
-      container
-        .querySelectorAll('.score-editor-selected')
-        .forEach((element) => {
-          element.classList.remove('score-editor-selected');
-          if (element instanceof HTMLElement || element instanceof SVGElement) {
-            element.style.removeProperty('--score-editor-selection-color');
-          }
-        });
-
-      if (!sourceIds) return;
-      container.querySelectorAll('[data-id], [id]').forEach((element) => {
-        const id = element.getAttribute('data-id') || element.getAttribute('id');
-        if (id && sourceIds.has(id)) {
-          element.classList.add('score-editor-selected');
-          if (selectedColor && (element instanceof HTMLElement || element instanceof SVGElement)) {
-            element.style.setProperty('--score-editor-selection-color', selectedColor);
-          }
-        }
+      applySelectedVerovioElements({
+        container,
+        sourceIds,
+        selectedColor,
       });
     };
 

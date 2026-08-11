@@ -1896,6 +1896,26 @@ placeholder mounting or selected-entity SVG highlighting. Avoid extracting the
 add-mode click/mouse handlers until insertion placement has stronger focused
 coverage.
 
+### 2026-08-11: Editor Preview selected entity highlighting extracted
+
+- Continued the Customer Web ARC-003 pass with another small
+  `editor-preview-panel.tsx` DOM boundary.
+- Extracted selected Verovio element class/style application to
+  `apps/customer-web/src/components/editor/editor-preview-selection-highlight.ts`.
+- Kept `EditorPreviewPanel` responsible for deriving the selected source ids,
+  resolving the track color, observing Verovio SVG mutations, and invoking the
+  highlighter after render changes.
+- Added jsdom coverage in
+  `apps/customer-web/tests/unit/editor-preview-selection-highlight.test.ts` for
+  clearing stale selections, selecting elements by `data-id`/`id`, and applying
+  the CSS selection color variable.
+- Updated the Verovio surface migration guard to assert the new helper owns the
+  DOM class/style mechanics.
+
+ARC-003 remains partially complete. The next safe `editor-preview-panel.tsx`
+cut is metadata placeholder mounting. Continue avoiding extraction of add-mode
+pointer placement until its DOM geometry behavior has more focused tests.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

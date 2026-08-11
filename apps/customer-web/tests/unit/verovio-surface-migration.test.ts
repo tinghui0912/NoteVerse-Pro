@@ -156,11 +156,14 @@ describe('Verovio listen surfaces', () => {
   it('highlights the currently selected Verovio entity', () => {
     const viewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const panel = readSource('src/components/editor/editor-preview-panel.tsx');
+    const selection = readSource('src/components/editor/editor-preview-selection-highlight.ts');
 
     expect(viewport).toContain('score-editor-selected');
-    expect(panel).toContain("querySelectorAll('.score-editor-selected')");
-    expect(panel).toContain("element.classList.add('score-editor-selected')");
+    expect(panel).toContain('applySelectedVerovioElements');
     expect(panel).toContain('editingEntity.meta.sourceIds');
+    expect(selection).toContain("querySelectorAll(`.${SCORE_EDITOR_SELECTED_CLASS}`)");
+    expect(selection).toContain('element.classList.add(SCORE_EDITOR_SELECTED_CLASS)');
+    expect(selection).toContain('--score-editor-selection-color');
   });
 
   it('projects hidden voice tracks onto the Verovio SVG surface', () => {
