@@ -1296,6 +1296,9 @@ merely to eliminate small dispatch branches.
 - Updated scheduler-lock tests to target `app.worker.task_runtime`
   directly. This removes the stale assumption that scheduler scan internals are
   owned by the Celery task registration module.
+- Added `backend/app/worker/README.md` to document the Worker package ownership
+  boundaries after the task/execution/dispatch/runtime split. Removed stale
+  Celery task-route comments that referenced deleted historical task names.
 
 ## Reusable completion checklist for every refactor
 

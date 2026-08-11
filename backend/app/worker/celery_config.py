@@ -12,7 +12,6 @@ beat_state_dir.mkdir(parents=True, exist_ok=True)
 beat_schedule_filename = beat_state_dir / "celerybeat-schedule"
 task_modules = ["app.worker.tasks"] if os.getenv("NOTEVERSE_CELERY_IMPORT_TASKS") == "true" else []
 
-# Create Celery app
 celery_app = Celery(
     'melody_forge_worker',
     broker=settings.CELERY_BROKER_URL,
@@ -21,12 +20,6 @@ celery_app = Celery(
 )
 
 celery_app.conf.update(build_celery_runtime_options(settings, beat_schedule_filename=beat_schedule_filename))
-
-# Task routes - use default celery queue
-# celery_app.conf.task_routes = {
-#     'app.worker.tasks.process_single_image_task': {'queue': 'default'},
-#     'app.worker.tasks.process_images_task': {'queue': 'default'},
-# }
 
 if task_modules:
     celery_app.loader.import_default_modules()
