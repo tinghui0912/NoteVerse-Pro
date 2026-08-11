@@ -1678,6 +1678,25 @@ ARC-004 remains partially complete. Do not split ops command/retry behavior as
 part of query refactoring; only revisit query-side extraction if new operation
 kinds add enough duplicated list-row queries or summary predicates.
 
+### 2026-08-11: Practice session read model extracted
+
+- Selected `backend/app/modules/practice/service.py` as the next ARC-004
+  hotspot, but limited the cut to response/read-model construction because the
+  lifecycle and runtime-registration flows are still readable as one
+  orchestration boundary.
+- Extracted API-facing session summary/detail and report payload projection to
+  `backend/app/modules/practice/read_model.py`.
+- Kept `PracticeService` responsible for session creation, access checks,
+  stream lifecycle transitions, runtime registration/release, report generation
+  state changes, and alignment persistence.
+- Added focused read-model coverage in `backend/tests/test_practice_read_model.py`
+  and updated service tests to inject a fake read model instead of patching
+  removed private helpers.
+
+ARC-004 remains partially complete. Stop the practice split here unless a future
+change makes session lifecycle transitions or runtime registration independently
+complex enough to deserve a named collaborator.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
