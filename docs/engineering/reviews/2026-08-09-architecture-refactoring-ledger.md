@@ -1583,6 +1583,24 @@ future change introduces a separately testable cleanup owner, such as a full
 import-job deletion policy or a dedicated object-storage retry queue; do not
 extract the main transaction merely to reduce file length.
 
+### 2026-08-11: Revision read model extracted
+
+- Selected `backend/app/modules/revisions/service.py` as the next ARC-004
+  hotspot because it mixed revision transaction workflows with read-model
+  projection for revision actors, restore metadata, and revision notes.
+- Extracted read projection to
+  `backend/app/modules/revisions/read_model.py::RevisionReadModel`.
+- Kept `RevisionService` responsible for authorization, create/restore
+  transactions, MusicXML validation, source storage, storage quota reservation
+  lifecycle, derivative enqueueing, notifications, realtime publication,
+  retention cleanup, note writes, and content retrieval.
+- Added focused coverage for the read model in
+  `backend/tests/test_score_revision_services.py`.
+
+ARC-004 remains partially complete. Do not split `create()` or `restore()` until
+the duplicated source-write/quota workflow can be extracted without weakening
+the current rollback and storage-reservation semantics.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

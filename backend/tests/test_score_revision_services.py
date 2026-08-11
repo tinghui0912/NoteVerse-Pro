@@ -69,6 +69,7 @@ from app.modules.revisions.schemas import (
 from app.modules.revisions.derived_asset_retention_service import (
     DerivedAssetRetentionService,
 )
+from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.service import RevisionService
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.score_assets.derived_assets import derived_asset_status
@@ -245,6 +246,74 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
         session.commit()
         yield session, storage
     engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_revision_read_model_projects_actor_restore_and_note(
+    score_service_session: tuple[Session, LocalFileStorage],
+) -> None:
+    session, _storage = score_service_session
+    score = add_active_score_with_head_revision(
+        session,
+        score_id=3500,
+        revision_id=3501,
+        score_uuid="read-model-score",
+        revision_uuid="read-model-base",
+        title="Read Model Score",
+    )
+    restored = ScoreRevision(
+        id=3502,
+        revision_uuid="read-model-restored",
+        score_id=3500,
+        revision_number=2,
+        parent_revision_id=3501,
+        base_revision_id=3501,
+        content_hash="a" * 64,
+        origin=RevisionOrigin.EDIT,
+        created_by_user_id=2,
+    )
+    session.add(restored)
+    session.commit()
+    score.head_revision_id = 3502
+    session.add_all(
+        [
+            score,
+            ScoreRevisionEvent(
+                score_id=3500,
+                revision_id=3502,
+                target_revision_id=3501,
+                actor_user_id=2,
+                type="RESTORE",
+                note="Back to the good version",
+            ),
+            ScoreRevisionNote(
+                score_id=3500,
+                revision_id=3502,
+                author_user_id=2,
+                note="Keep this phrasing",
+            ),
+        ]
+    )
+    session.commit()
+
+    read = await RevisionReadModel().revision_read(
+        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+        restored,
+    )
+
+    assert read.revision_id == "read-model-restored"
+    assert read.created_by is not None
+    assert read.created_by.email == "other@example.com"
+    assert read.restore is not None
+    assert read.restore.restored_from_revision_id == "read-model-base"
+    assert read.restore.restored_from_revision_number == 1
+    assert read.restore.actor is not None
+    assert read.restore.actor.email == "other@example.com"
+    assert read.restore.note == "Back to the good version"
+    assert read.note is not None
+    assert read.note.note == "Keep this phrasing"
+    assert read.note.author is not None
+    assert read.note.author.email == "other@example.com"
 
 
 @pytest.mark.asyncio
