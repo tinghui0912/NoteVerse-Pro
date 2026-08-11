@@ -50,7 +50,6 @@ class Settings(
     NotificationLifecycleSettings,
     ObservabilitySettings,
     PlaybackDeliverySettings,
-    PlaybackSettings,
     PublicFrontendUrlSettings,
     QueueSettings,
     RealtimeRetentionSettings,
@@ -76,7 +75,7 @@ class Settings(
 settings = Settings()
 
 
-class WorkerRuntimeSettings(WorkerModelEngineSettings, TaskReliabilitySettings, BaseSettings):
+class WorkerRuntimeSettings(PlaybackSettings, WorkerModelEngineSettings, TaskReliabilitySettings, BaseSettings):
     """Strict Worker-only model and engine environment contract."""
 
     @model_validator(mode="after")

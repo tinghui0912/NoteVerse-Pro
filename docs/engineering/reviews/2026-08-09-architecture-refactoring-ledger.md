@@ -1238,6 +1238,11 @@ merely to eliminate small dispatch branches.
   Practice realtime keys drift back into the broad `backend-config.env` files,
   or if the role-specific env files stop being referenced by the deployment
   overlays.
+- Corrected the settings ownership follow-through: playback soundfont path is
+  no longer part of global `Settings`; it belongs to `WorkerRuntimeSettings`
+  and is read only by Worker playback/model-asset paths. This prevents API,
+  Beat, and Control Plane processes from requiring Worker model-asset config
+  after the Kubernetes ConfigMap split.
 
 ## Reusable completion checklist for every refactor
 

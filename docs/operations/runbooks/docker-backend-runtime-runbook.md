@@ -111,11 +111,13 @@ injected into API, Practice, Beat, or quality containers.
 Task reliability values belong in this local file because Docker Compose must
 pass the same values to API, Worker, and Beat while developing. They are not a
 production source of truth. Production reliability policy must be reviewed and
-versioned with its deployment configuration (for example the non-secret
-`backend-config.env` consumed by a Kubernetes ConfigMap), tuned against
-throughput and SLO evidence, and released with the affected workloads. Keep
-database URLs, Redis URLs, object-storage keys, mail keys, and cookie secrets in
-the deployment secret store rather than a ConfigMap or repository file.
+versioned with its deployment configuration, tuned against throughput and SLO
+evidence, and released with the affected workloads. Kubernetes uses a shared
+backend ConfigMap for cross-role baseline values and role-specific ConfigMaps
+for Worker/model assets, Practice realtime settings, and Control Plane browser
+security settings. Keep database URLs, Redis URLs, object-storage keys, mail
+keys, and cookie secrets in the deployment secret store rather than a ConfigMap
+or repository file.
 
 ## Prepare Model Volume
 

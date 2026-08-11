@@ -40,8 +40,8 @@ observability platform.
 
 They intentionally reference placeholder images and pre-existing
 ConfigMaps/Secrets. Environment-specific overlays must provide real images,
-resource classes, Gateway routing, storage, backend secrets, and public origins
-explicitly.
+resource classes, Gateway routing, storage, backend secrets, public origins,
+and role-specific backend ConfigMaps explicitly.
 
 The first environment overlay template lives under:
 

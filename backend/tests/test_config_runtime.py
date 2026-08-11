@@ -8,6 +8,12 @@ from pydantic import ValidationError
 from app.core.config import PracticeRuntimeSettings, Settings, WorkerRuntimeSettings
 
 
+WORKER_RUNTIME_BASE = {
+    "LEGATO_REPO_PATH": "/opt/noteverse/legato",
+    "PLAYBACK_SOUNDFONT_PATH": "/opt/noteverse/models/soundfonts/FluidR3_GM.sf2",
+}
+
+
 def test_settings_do_not_implicitly_load_an_env_file() -> None:
     loaded_settings = Settings()
 
@@ -82,13 +88,15 @@ def test_practice_soundfont_path_expands_user_home() -> None:
 
 def test_playback_soundfont_path_is_required() -> None:
     with pytest.raises(ValidationError, match="PLAYBACK_SOUNDFONT_PATH"):
-        Settings(
+        WorkerRuntimeSettings(
+            LEGATO_REPO_PATH="/opt/noteverse/legato",
             PLAYBACK_SOUNDFONT_PATH=None,
         )
 
 
-def test_playback_soundfont_path_can_be_configured_independently() -> None:
-    settings = Settings(
+def test_worker_playback_soundfont_path_can_be_configured_independently() -> None:
+    settings = WorkerRuntimeSettings(
+        LEGATO_REPO_PATH="/opt/noteverse/legato",
         PLAYBACK_SOUNDFONT_PATH="~/sounds/playback.sf2",
     )
 
@@ -97,6 +105,7 @@ def test_playback_soundfont_path_can_be_configured_independently() -> None:
 
 def test_offline_model_paths_expand_user_home() -> None:
     settings = WorkerRuntimeSettings(
+        **WORKER_RUNTIME_BASE,
         MODEL_ROOT="~/noteverse/models",
         HF_HOME="~/noteverse/models/huggingface",
         PADDLEOCR_MODEL_ROOT="~/noteverse/models/paddleocr/official_models",
@@ -122,7 +131,7 @@ def test_offline_model_paths_expand_user_home() -> None:
 
 
 def test_legato_runtime_requires_repository_path() -> None:
-    settings = WorkerRuntimeSettings(LEGATO_REPO_PATH="/opt/noteverse/legato")
+    settings = WorkerRuntimeSettings(**WORKER_RUNTIME_BASE)
 
     assert settings.LEGATO_REPO_PATH == "/opt/noteverse/legato"
 
@@ -228,7 +237,10 @@ def test_s3_storage_settings_are_validated() -> None:
 
 def test_legato_repository_path_is_required() -> None:
     with pytest.raises(ValidationError, match="LEGATO_REPO_PATH is required"):
-        WorkerRuntimeSettings(LEGATO_REPO_PATH=None)
+        WorkerRuntimeSettings(
+            PLAYBACK_SOUNDFONT_PATH="/opt/noteverse/models/soundfonts/FluidR3_GM.sf2",
+            LEGATO_REPO_PATH=None,
+        )
 
 
 def test_app_main_import_exposes_routes() -> None:

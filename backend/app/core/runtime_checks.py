@@ -505,9 +505,10 @@ def check_practice_alignment(_: bool = False) -> CheckResult:
 
 
 def check_playback_renderer(_: bool = False) -> CheckResult:
-    if not settings.PLAYBACK_SOUNDFONT_PATH:
+    worker_settings = _worker_settings()
+    if not worker_settings.PLAYBACK_SOUNDFONT_PATH:
         return _result("playback_renderer", False, "PLAYBACK_SOUNDFONT_PATH is not configured")
-    path = Path(settings.PLAYBACK_SOUNDFONT_PATH)
+    path = Path(worker_settings.PLAYBACK_SOUNDFONT_PATH)
     if not path.is_file():
         return _result("playback_renderer", False, f"playback soundfont does not exist: {path}")
     fluidsynth = shutil.which("fluidsynth")
