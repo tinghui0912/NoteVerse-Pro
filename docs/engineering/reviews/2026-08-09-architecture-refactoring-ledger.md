@@ -2280,6 +2280,43 @@ REC-006 remains partially complete. Continue scanning remaining Customer Web
 source comments, but treat localized UI copy and valid musical glyphs as product
 content rather than cleanup targets.
 
+### 2026-08-12: Verovio blank/space hit-test boundary tightened
+
+- Rechecked the editor entity model after a product-semantics question about
+  `blank`/MusicXML `<forward>` entities.
+- Confirmed `ScoreEntityType` still has four internal entities: `note`, `chord`,
+  `rest`, and `blank`; `blank` remains the parsed representation of MusicXML
+  `<forward>` and is still useful for timeline spacing and insertion anchoring.
+- Tightened `apps/customer-web/src/lib/editor/verovio-entity-map.ts` so Verovio
+  `[data-class="space"]` elements no longer resolve as normal editable event
+  hits. This prevents users from opening the Inspector by clicking an invisible
+  or weakly visible spacing area.
+- Kept add-mode measure clicks, parser blank handling, and visual insertion
+  anchoring intact.
+- Added coverage in
+  `apps/customer-web/src/lib/editor/verovio-entity-map.test.ts` to ensure
+  invisible Verovio spaces are not exposed as editable entity hits.
+
+### 2026-08-12: Remaining Customer Web comments cleaned for REC-006
+
+- Cleaned the remaining non-localized Customer Web source comments in:
+  `apps/customer-web/src/lib/api/index.ts`,
+  `apps/customer-web/src/components/media/original-image-viewer.tsx`,
+  `apps/customer-web/src/components/editor/draft-recovery-dialog.tsx`,
+  `apps/customer-web/src/components/editor/editor-sidebar.tsx`, and
+  `apps/customer-web/src/app/[locale]/(auth)/auth/login/page.tsx`.
+- Confirmed the Customer Web source scan now only reports the intentional
+  language selector label `中文` in
+  `apps/customer-web/src/components/navigation/nav-actions.tsx`.
+- Verified lint, typecheck, Verovio entity mapping tests, route-shell tests,
+  Verovio surface migration tests, event-inspector model tests, and MusicXML core
+  tests still pass.
+
+REC-006 is complete for `apps/customer-web/src` source comments under the
+current policy: remove Chinese/mojibake comments, preserve intentional localized
+UI text and valid musical glyphs. Continue with a broader repository scan only
+if the next pass expands REC-006 beyond Customer Web source files.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

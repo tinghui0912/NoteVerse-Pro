@@ -35,7 +35,7 @@ import type { FingeringRequest } from '@/generated/api';
 import { SlurSymbol, TieSymbol } from './music-symbols';
 import { VoiceLayer } from './voice-layer';
 
-// 工具按钮类型定义
+// Tool button type definition.
 type ToolItem = { icon: React.ElementType; label: string; mode?: EditorMode };
 
 const noteTools: ToolItem[] = [

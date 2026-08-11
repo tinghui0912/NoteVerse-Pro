@@ -17,8 +17,8 @@ const VEROVIO_EVENT_SELECTOR = [
   '[data-class="note"]',
   '[data-class="rest"]',
   '[data-class="mRest"]',
-  '[data-class="space"]',
 ].join(', ');
+const VEROVIO_SPACE_SELECTOR = '[data-class="space"]';
 const VEROVIO_MEASURE_SELECTOR = '[data-class="measure"], .measure';
 const VEROVIO_STAFF_SELECTOR = '[data-class="staff"], .staff';
 
@@ -30,7 +30,16 @@ export function getVerovioElementIdFromTarget(target: EventTarget | null): strin
 export function getVerovioElementFromTarget(target: EventTarget | null): Element | null {
   if (!(target instanceof Element)) return null;
 
-  return target.closest(VEROVIO_EVENT_SELECTOR) ?? target.closest('[data-id], [id]');
+  const renderedEvent = target.closest(VEROVIO_EVENT_SELECTOR);
+  if (renderedEvent) return renderedEvent;
+
+  const genericCandidate = target.closest('[data-id], [id]');
+  const spaceCandidate = target.closest(VEROVIO_SPACE_SELECTOR);
+  if (spaceCandidate && genericCandidate && spaceCandidate.contains(genericCandidate)) {
+    return null;
+  }
+
+  return genericCandidate;
 }
 
 export function getVerovioMeasureElementFromTarget(target: EventTarget | null): Element | null {

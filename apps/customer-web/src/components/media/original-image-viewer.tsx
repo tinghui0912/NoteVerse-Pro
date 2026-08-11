@@ -178,7 +178,7 @@ export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProp
   }, [panPosition.x, panPosition.y]);
 
 
-  // 空图片状态显示在弹窗内而非返回 null
+  // Render the empty-image state inside the floating window instead of returning null.
   const hasImages = images && images.length > 0;
 
   return (

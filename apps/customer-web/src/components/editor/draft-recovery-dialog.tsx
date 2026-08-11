@@ -24,7 +24,7 @@ interface DraftRecoveryDialogProps {
 }
 
 /**
- * 草稿恢复弹窗组件
+ * Draft recovery dialog component.
  */
 export function DraftRecoveryDialog({
     open,
