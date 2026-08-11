@@ -210,13 +210,14 @@ environment manifest while their typed owners are extracted.
 | Notification and realtime retention | `NOTIFICATION_*`, `REALTIME_EVENT_*` | notification/realtime services, realtime HTTP router, Beat |
 | Score deletion lifecycle | `SCORE_DELETION_*` | score lifecycle service, Ops reconciliation, Beat |
 
-`app.modules.ops.service` and `app.observability.async_operation_metrics` are
-cross-domain readers, not owners. They may consume the extracted groups but
-must not define duplicate limits. The first safe extraction is Import dispatch:
-it has a coherent service owner and no cross-field dependency on another
-outbox. Extract one domain per change, move its positive/non-negative
-validation with the fields, add a direct settings-group test, then migrate all
-of its measured consumers and delete its declarations from `Settings`.
+`app.modules.ops.query_service`, `app.modules.ops.command_service`, and
+`app.observability.async_operation_metrics` are cross-domain consumers, not
+owners. They may consume the extracted groups but must not define duplicate
+limits. The first safe extraction is Import dispatch: it has a coherent
+service owner and no cross-field dependency on another outbox. Extract one
+domain per change, move its positive/non-negative validation with the fields,
+add a direct settings-group test, then migrate all of its measured consumers
+and delete its declarations from `Settings`.
 
 ## Remaining account and API policy boundary
 

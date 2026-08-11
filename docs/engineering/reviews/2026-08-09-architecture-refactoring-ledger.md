@@ -1178,9 +1178,9 @@ do not use an arbitrary repository-wide fail-under value.
   operation filter construction into `ops.operation_filters`, and record-to-API
   projection/status normalization into `ops.operation_projection`.
 - Split the former broad async-operation service into an explicit read-model
-  service (`ops.query_service`) and a retry command service (`ops.service` with
-  `OpsAsyncOperationCommandService`). The control-plane router now injects the
-  query service for list/summary endpoints and the command service for retry.
+  service (`ops.query_service`) and a retry command service
+  (`ops.command_service`). The control-plane router now injects the query
+  service for list/summary endpoints and the command service for retry.
 - Removed the old generic service name and did not retain compatibility
   aliases. Focused validation passed for Ops lint, typing, and the existing
   async-operation test suite.

@@ -25,7 +25,7 @@ from app.modules.ops.query_service import (
     OpsAsyncOperationQueryService,
     ops_async_operation_query_service,
 )
-from app.modules.ops.service import (
+from app.modules.ops.command_service import (
     OpsAsyncOperationCommandService,
     ops_async_operation_command_service,
 )
