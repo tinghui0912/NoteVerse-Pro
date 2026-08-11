@@ -2015,6 +2015,21 @@ REC-006 remains partially complete. Continue with `flatten.ts` next. Keep
 `parser.ts` for a dedicated later pass because it is larger and its comments
 describe timing cursor and connection pairing behavior.
 
+### 2026-08-11: MusicXML flatten comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/flatten.ts`.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  staff voice normalization, per-voice timeline cursors, chord grouping,
+  forward/backup rebuilding, and cleanup behavior.
+- Kept the implementation logic and exported API unchanged; this was a
+  readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML transformation tests still pass.
+
+REC-006 remains partially complete. The remaining MusicXML cleanup is now mostly
+`parser.ts`; handle it as a dedicated pass because it encodes parser policy,
+timing cursor behavior, and tie/slur/beam pairing strategy.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

@@ -1,15 +1,16 @@
 /**
- * MusicXML 声部规整工具
- * 
- * 将每个谱表内的多声部规整为单一 MusicXML voice：
- * - 高音谱表所有声部 → voice=1
- * - 低音谱表所有声部 → voice=1
+ * MusicXML voice normalization utilities.
+ *
+ * Normalizes each staff to a single MusicXML voice while preserving staff
+ * identity:
+ * - treble staff voices -> voice=1
+ * - bass staff voices -> voice=1
  */
 
 import { parseXml, serializeXml } from './core';
 
 /**
- * 音符信息类型
+ * Note timeline metadata used while rebuilding one measure.
  */
 type NoteInfo = {
     absoluteTime: number;
@@ -21,7 +22,7 @@ type NoteInfo = {
 };
 
 /**
- * 和弦组类型
+ * Root note plus any MusicXML chord-member notes that follow it.
  */
 type ChordGroup = {
     mainNote: NoteInfo;
@@ -29,7 +30,7 @@ type ChordGroup = {
 };
 
 /**
- * 获取元素的 duration 值
+ * Returns an element's MusicXML duration value.
  */
 function getDuration(node: Element): number {
     const durationEl = node.querySelector('duration');
@@ -37,7 +38,7 @@ function getDuration(node: Element): number {
 }
 
 /**
- * 获取元素的 staff 值
+ * Returns an element's MusicXML staff number.
  */
 function getStaff(node: Element): number {
     const staffEl = node.querySelector('staff');
@@ -45,7 +46,7 @@ function getStaff(node: Element): number {
 }
 
 /**
- * 获取元素的 voice 值
+ * Returns an element's MusicXML voice number.
  */
 function getVoice(node: Element): number {
     const voiceEl = node.querySelector('voice');
@@ -53,28 +54,28 @@ function getVoice(node: Element): number {
 }
 
 /**
- * 判断是否是和弦成员
+ * Returns whether a note is a MusicXML chord member.
  */
 function isChordMember(node: Element): boolean {
     return !!node.querySelector('chord');
 }
 
 /**
- * 判断是否是装饰音
+ * Returns whether a note is a grace note.
  */
 function isGrace(node: Element): boolean {
     return !!node.querySelector('grace');
 }
 
 /**
- * 处理单个小节的声部规整
+ * Normalizes all voices in one measure.
  */
 function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): void {
 
-    // 按 staff 分组存储音符
+    // Group note elements by staff.
     const notesByStaff = new Map<number, NoteInfo[]>();
 
-    // 声部时间游标
+    // Per-voice timeline cursors.
     const voiceCursors = new Map<number, number>();
     const getVC = (v: number): number => voiceCursors.get(v) ?? 0;
     const setVC = (v: number, pos: number): void => { voiceCursors.set(v, pos); };
@@ -84,7 +85,7 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
         return notesByStaff.get(staff)!;
     };
 
-    // 遍历小节内所有子元素
+    // Walk every direct child in the measure.
     const children = Array.from(measureEl.childNodes);
     let currentProcessingVoice: number | null = null;
 
@@ -102,14 +103,14 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
             currentProcessingVoice = voice;
             const absoluteTime = getVC(voice);
 
-            // 克隆音符并修改 voice
+            // Clone the note and normalize its voice value.
             const copy = element.cloneNode(true) as Element;
             let voiceEl = copy.querySelector('voice');
             if (!voiceEl) {
                 voiceEl = xmlDoc.createElement('voice');
                 copy.appendChild(voiceEl);
             }
-            // 每个谱表内规整为 voice=1；staff 仍然保留上下谱表语义。
+            // Each staff is normalized to voice=1; staff still preserves treble/bass identity.
             voiceEl.textContent = '1';
 
             ensureList(staff).push({
@@ -139,7 +140,7 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
                     setVC(voice, newPos);
                 }
             } else {
-                // 推断目标 voice
+                // Infer the target voice for forward/backup elements that omit voice.
                 let targetVoice = currentProcessingVoice;
                 if (targetVoice === null) {
                     for (let j = i + 1; j < children.length; j++) {
@@ -164,20 +165,20 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
         }
     }
 
-    // 清空小节内所有音符/forward/backup
+    // Remove existing timeline-bearing elements before rebuilding the measure.
     Array.from(measureEl.querySelectorAll('note, backup, forward')).forEach(el => el.remove());
 
-    // 按 staff 重新写入音符
+    // Reinsert notes staff by staff.
     const staffs = Array.from(notesByStaff.keys()).sort((a, b) => a - b);
 
     for (let staffIdx = 0; staffIdx < staffs.length; staffIdx++) {
         const staff = staffs[staffIdx];
         const notes = notesByStaff.get(staff)!;
 
-        // 按原始索引排序
+        // Preserve original document order within each staff before grouping.
         notes.sort((a, b) => a.originalIndex - b.originalIndex);
 
-        // 分组和弦
+        // Group chord members with their root note.
         const chordGroups: ChordGroup[] = [];
         let currentGroup: ChordGroup | null = null;
 
@@ -186,7 +187,7 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
                 if (currentGroup) {
                     currentGroup.chordMembers.push(noteInfo);
                 } else {
-                    // 孤立的和弦成员，转换为主音符
+                    // Convert an orphan chord member to a root note.
                     noteInfo.isChord = false;
                     const chordEl = noteInfo.note.querySelector('chord');
                     if (chordEl) chordEl.remove();
@@ -199,7 +200,7 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
             }
         }
 
-        // 按 absoluteTime 排序
+        // Sort by timeline position.
         chordGroups.sort((a, b) => {
             if (a.mainNote.absoluteTime !== b.mainNote.absoluteTime) {
                 return a.mainNote.absoluteTime - b.mainNote.absoluteTime;
@@ -207,14 +208,14 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
             return a.mainNote.originalIndex - b.mainNote.originalIndex;
         });
 
-        // 写入音符
+        // Write rebuilt note groups.
         let writeCursor = 0;
         const targetVoice = 1;
 
         for (const group of chordGroups) {
             const startTime = group.mainNote.absoluteTime;
 
-            // 如果有间隙，添加 forward
+            // Insert a forward element when there is a gap before the next note.
             if (startTime > writeCursor) {
                 const gap = startTime - writeCursor;
                 const forward = xmlDoc.createElement('forward');
@@ -234,17 +235,17 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
                 writeCursor = startTime;
             }
 
-            // 写入主音符
+            // Write the root note.
             measureEl.appendChild(group.mainNote.note);
             writeCursor += group.mainNote.duration;
 
-            // 写入和弦成员
+            // Write chord members immediately after the root note.
             for (const member of group.chordMembers) {
                 measureEl.appendChild(member.note);
             }
         }
 
-        // 如果不是最后一个 staff，添加 backup
+        // Add a backup between staffs so the next staff starts at time zero.
         if (staffIdx < staffs.length - 1 && writeCursor > 0) {
             const backup = xmlDoc.createElement('backup');
             const duration = xmlDoc.createElement('duration');
@@ -256,16 +257,16 @@ function normalizeSingleMeasureVoices(xmlDoc: XMLDocument, measureEl: Element): 
 }
 
 /**
- * 清理 XML 结构
+ * Cleans up normalized MusicXML structure.
  */
 function cleanupXMLStructure(xmlDoc: XMLDocument): void {
-    // 清理空的 forward/backup
+    // Remove empty forward/backup elements.
     Array.from(xmlDoc.querySelectorAll('forward, backup')).forEach(el => {
         const duration = parseInt(el.querySelector('duration')?.textContent || '0', 10);
         if (duration <= 0) el.remove();
     });
 
-    // 确保所有音符都有 voice 元素
+    // Ensure every note has a voice element.
     Array.from(xmlDoc.querySelectorAll('note')).forEach(note => {
         if (!note.querySelector('voice')) {
             const voice = xmlDoc.createElement('voice');
@@ -274,7 +275,7 @@ function cleanupXMLStructure(xmlDoc: XMLDocument): void {
         }
     });
 
-    // 验证和弦结构
+    // Validate chord structure and convert orphan chord members to root notes.
     Array.from(xmlDoc.querySelectorAll('measure')).forEach(measure => {
         const notes = Array.from(measure.querySelectorAll('note'));
         for (let i = 0; i < notes.length; i++) {
@@ -298,10 +299,10 @@ function cleanupXMLStructure(xmlDoc: XMLDocument): void {
 }
 
 /**
- * 规整所有小节内的 voice 编号
- * 
- * @param xmlString 原始 XML 字符串
- * @returns 处理后的 XML 字符串
+ * Normalizes voice numbers in every measure.
+ *
+ * @param xmlString Source XML string.
+ * @returns Normalized XML string.
  */
 export function normalizeMeasureVoices(xmlString: string): string {
     const xmlDoc = parseXml(xmlString);
@@ -309,16 +310,16 @@ export function normalizeMeasureVoices(xmlString: string): string {
     const measures = Array.from(xmlDoc.querySelectorAll('measure'));
     measures.forEach(m => normalizeSingleMeasureVoices(xmlDoc, m));
 
-    // 清理结构
+    // Clean the rebuilt structure.
     cleanupXMLStructure(xmlDoc);
 
-    // 清理 forward/backup 的多余子元素
+    // Normalize forward/backup children so only duration remains.
     Array.from(xmlDoc.querySelectorAll('forward, backup')).forEach(el => {
-        // 移除所有属性
+        // Remove all attributes.
         if (el.attributes && el.attributes.length) {
             Array.from(el.attributes).forEach(a => el.removeAttribute(a.name));
         }
-        // 只保留 duration
+        // Keep only duration.
         Array.from(el.childNodes).forEach(ch => {
             if (ch.nodeType === 1 && (ch as Element).tagName !== 'duration') {
                 el.removeChild(ch);
