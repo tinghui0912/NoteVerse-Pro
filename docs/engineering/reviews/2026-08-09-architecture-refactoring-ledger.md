@@ -1160,6 +1160,18 @@ do not use an arbitrary repository-wide fail-under value.
   only stateless calculations first; retain engine-owned session state and
   logging in the engine.
 
+### 2026-08-11: ARC-003 Practice alignment split stopping point
+
+- Reassessed the remaining small helpers in `MatchmakerLiveEngine`. PCM decode
+  is a trivial runtime adapter and is deliberately kept adjacent to byte-stream
+  ingestion; reference-frame-to-beat mapping depends on the engine's score,
+  tempo, frame rate, and beat-map state.
+- Neither is a stable standalone ownership boundary. Further extraction would
+  increase indirection and test coupling without reducing a material change
+  hotspot. ARC-003 is complete for Practice alignment; revisit only when a new
+  independently owned input format or reference-timeline implementation is
+  introduced.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
