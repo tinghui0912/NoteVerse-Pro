@@ -2142,6 +2142,25 @@ REC-006 remains partially complete. Continue with
 `apps/customer-web/src/hooks/editor/use-metadata-editor.ts` next because it
 contains dense MusicXML credit/layout policy comments.
 
+### 2026-08-12: Metadata editor comments cleaned for REC-006
+
+- Continued REC-006 with
+  `apps/customer-web/src/hooks/editor/use-metadata-editor.ts`.
+- Replaced Chinese/mojibake comments with concise English explanations for the
+  score metadata editing hook, the A4 MusicXML credit layout profile, typed
+  `<credit>` lookup/upsert behavior, structural metadata synchronization, and
+  project ordering inside `<identification>`.
+- Kept implementation logic, exported hook shape, and MusicXML output behavior
+  unchanged; this was a readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified lint, typecheck, Verovio surface migration, and MusicXML core
+  tests still pass.
+
+REC-006 remains partially complete. Continue with a fresh Customer Web source
+scan and prioritize remaining editor hooks/components by domain density. Avoid
+touching user-facing localized copy unless it is malformed mojibake rather than
+intentional UI text.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.
