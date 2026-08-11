@@ -1485,6 +1485,28 @@ future change introduces new reservation states, additional quota plans, or a
 third execution path that makes the transaction scripts themselves a measured
 hotspot.
 
+### 2026-08-11: Review confirmation asset promotion extracted
+
+- Selected `backend/app/modules/review/service.py` as the next measured ARC-004
+  hotspot after stopping the storage-usage split.
+- Extracted review-confirmation asset promotion to
+  `backend/app/modules/review/confirmation_assets.py`: copying the review
+  thumbnail into the confirmed score revision, promoting original uploads to
+  score input assets, and returning the promoted usage records needed by the
+  existing storage accounting flow.
+- Kept `ReviewService.confirm()` as the transaction owner for job locking,
+  score/revision/source creation, taxonomy/library updates, notification
+  attachment, storage quota reservation, and cleanup. The extraction does not
+  split the review transaction or introduce compatibility exports.
+- While validating the related review tests, found an existing
+  `RenderOutboxService` status overwrite: stale review-thumbnail outboxes are
+  completed by the review-thumbnail payload builder and then overwritten as
+  failed by the generic unavailable-resource handler. Fix this as a separate
+  change, not as part of the review asset extraction.
+
+ARC-004 remains partially complete. Continue only with small, behavior-covered
+extractions or concrete regression fixes uncovered by those checks.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

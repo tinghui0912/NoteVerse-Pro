@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,8 +22,6 @@ from app.db.models import (
     ImportJobUpload,
     NotificationEvent,
     Score,
-    ScoreInputAsset,
-    ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
@@ -33,13 +30,7 @@ from app.db.models import (
     Upload,
 )
 from app.db.models.import_job import ImportJobState
-from app.db.models.score import (
-    MetadataStatus,
-    RenderAssetKind,
-    RevisionOrigin,
-    RevisionSourceFormat,
-    ScoreInputAssetPurpose,
-)
+from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
 from app.modules.library.service import LibraryService
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.score_assets.render_outbox_service import (
@@ -47,6 +38,10 @@ from app.modules.score_assets.render_outbox_service import (
 )
 from app.modules.notifications.service import NotificationTypes
 from app.modules.revisions.derivatives import revision_derivative_service
+from app.modules.review.confirmation_assets import (
+    copy_review_thumbnail_to_score_revision,
+    promote_uploads_to_score_inputs,
+)
 from app.modules.review.schemas import (
     ImportJobReviewRead,
     ReviewArtifactRead,
@@ -63,14 +58,6 @@ from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
-
-
-@dataclass(frozen=True)
-class PromotedScoreInputUsage:
-    asset_uuid: str
-    upload_uuid: str
-    storage_key: str
-    size_bytes: int
 
 
 class ReviewService:
@@ -266,14 +253,15 @@ class ReviewService:
                     created_at=now,
                 )
             )
-            await self._copy_review_thumbnail_to_score_revision(
+            await copy_review_thumbnail_to_score_revision(
                 db,
+                storage=self.storage,
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
             )
-            promoted_inputs = await self._promote_uploads_to_score_inputs(
+            promoted_inputs = await promote_uploads_to_score_inputs(
                 db,
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_id=score_id,
@@ -363,96 +351,6 @@ class ReviewService:
             user_id,
         )
         return ReviewConfirmRead(score_id=score_uuid)
-
-    async def _copy_review_thumbnail_to_score_revision(
-        self,
-        db: AsyncSession,
-        *,
-        job_id: int,
-        score_uuid: str,
-        revision_uuid: str,
-        revision_id: int,
-    ) -> None:
-        thumbnail = (
-            await db.execute(
-                select(ImportArtifact)
-                .where(
-                    ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                )
-                .order_by(col(ImportArtifact.created_at).desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-        if thumbnail is None:
-            return
-        content = self.storage.read_bytes(thumbnail.storage_key)
-        artifact_uuid = str(uuid.uuid4())
-        extension = "." + thumbnail.filename.rsplit(".", 1)[-1] if "." in thumbnail.filename else ".svg"
-        stored = self.storage.put_bytes(
-            key=(
-                f"scores/{score_uuid}/revisions/{revision_uuid}/renders/"
-                f"default/001-{artifact_uuid}{extension}"
-            ),
-            content=content,
-            content_type=thumbnail.mime_type or "image/svg+xml",
-        )
-        db.add(
-            ScoreRenderAsset(
-                asset_uuid=artifact_uuid,
-                revision_id=revision_id,
-                kind=RenderAssetKind.RENDERED_PAGE,
-                storage_backend=self.storage.backend_name,
-                storage_key=stored.storage_key,
-                filename=stored.filename,
-                mime_type=thumbnail.mime_type or "image/svg+xml",
-                size_bytes=stored.size_bytes,
-                sha256=hashlib.sha256(content).hexdigest(),
-                page_number=1,
-                render_profile="default",
-                generator="review-thumbnail",
-                generator_version="1",
-            )
-        )
-
-    async def _promote_uploads_to_score_inputs(
-        self,
-        db: AsyncSession,
-        *,
-        job_id: int,
-        score_id: int,
-    ) -> list[PromotedScoreInputUsage]:
-        rows = (
-            await db.execute(
-                select(ImportJobUpload, Upload, StorageBlob)
-                .join(Upload, ImportJobUpload.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
-                .where(ImportJobUpload.job_id == job_id)
-                .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
-            )
-        ).all()
-        promoted: list[PromotedScoreInputUsage] = []
-        for job_upload, upload, blob in rows:
-            asset_uuid = str(uuid.uuid4())
-            db.add(
-                ScoreInputAsset(
-                    asset_uuid=asset_uuid,
-                    score_id=score_id,
-                    upload_id=require_persisted_id(upload.id, entity="upload"),
-                    purpose=ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
-                    page_number=job_upload.page_number,
-                    sort_order=job_upload.sort_order,
-                )
-            )
-            promoted.append(
-                PromotedScoreInputUsage(
-                    asset_uuid=asset_uuid,
-                    upload_uuid=upload.upload_uuid,
-                    storage_key=blob.storage_key,
-                    size_bytes=blob.size_bytes,
-                )
-            )
-        return promoted
 
     async def update(
         self,
