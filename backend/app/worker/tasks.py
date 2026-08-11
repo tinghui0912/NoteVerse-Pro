@@ -1,10 +1,7 @@
 """Celery task entrypoints for NoteVerse background work."""
 
-import sys
-
 from app.db.sync_session import get_worker_db
 from app.modules.score_assets.render_outbox_service import render_outbox_service
-from app.modules.import_jobs.execution_service import job_execution_service
 from app.modules.import_jobs.maintenance_service import job_maintenance_service
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.modules.import_jobs.schemas import PipelineExecutionSuccessResult
@@ -18,15 +15,13 @@ from app.modules.revisions.derived_asset_retention_service import (
 from app.modules.scores.lifecycle_service import score_lifecycle_service
 from app.pipeline.context import CeleryTaskLike
 from app.worker.celery_config import celery_app
+from app.worker.execution.import_job import execute_import_job_task
 from app.worker.execution.mail_outbox import execute_mail_outbox_task
 from app.worker.execution.playback_outbox import execute_playback_outbox_task
 from app.worker.execution.render_outbox import execute_render_outbox_task
 from app.worker.task_runtime import (
-    bind_task_context,
-    clear_task_context,
     operation_logger,
     run_scheduler_scan,
-    start_attempt_trace,
 )
 
 
@@ -41,78 +36,7 @@ def process_images_job(
     job_uuid: str,
 ) -> PipelineExecutionSuccessResult:
     """Run the score import pipeline for one or more input images."""
-
-    bind_task_context(self)
-    trace_scope = None
-    try:
-        with get_worker_db() as db:
-            payload = import_dispatch_service.claim(db, job_uuid)
-        if payload is None:
-            operation_logger(
-                "import.ignored",
-                operation_kind="import",
-                job_id=job_uuid,
-                status="ignored",
-            ).info("import.ignored")
-            return {"success": True, "job_id": job_uuid}
-
-        trace_scope = start_attempt_trace(
-            name="noteverse.import.process",
-            operation_kind="import",
-            operation_id=job_uuid,
-            attempt=payload.attempt,
-            traceparent=payload.traceparent,
-            tracestate=payload.tracestate,
-        )
-        trace_scope.__enter__()
-
-        task_log = operation_logger(
-            "import.started",
-            operation_kind="import",
-            job_id=job_uuid,
-            attempt=payload.attempt,
-            max_attempts=payload.max_attempts,
-            originating_request_id=payload.originating_request_id,
-            upload_count=len(payload.storage_keys),
-        )
-        task_log.info("import.started")
-        try:
-            result = job_execution_service.run_pipeline(
-                self,
-                job_uuid,
-                payload.storage_keys,
-                payload.options,
-            )
-        except Exception as exc:
-            operation_logger(
-                "import.failed",
-                operation_kind="import",
-                job_id=job_uuid,
-                attempt=payload.attempt,
-                max_attempts=payload.max_attempts,
-                originating_request_id=payload.originating_request_id,
-                exception_type=type(exc).__name__,
-            ).opt(exception=True).error("import.failed")
-            with get_worker_db() as db:
-                import_dispatch_service.complete(db, job_uuid)
-            raise
-
-        with get_worker_db() as db:
-            import_dispatch_service.complete(db, job_uuid)
-        operation_logger(
-            "import.completed",
-            operation_kind="import",
-            job_id=job_uuid,
-            attempt=payload.attempt,
-            max_attempts=payload.max_attempts,
-            originating_request_id=payload.originating_request_id,
-            status="completed",
-        ).info("import.completed")
-        return result
-    finally:
-        if trace_scope is not None:
-            trace_scope.__exit__(*sys.exc_info())
-        clear_task_context()
+    return execute_import_job_task(self, job_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.send_mail_outbox_task", bind=True, ignore_result=True)

@@ -1283,6 +1283,11 @@ merely to eliminate small dispatch branches.
   at the old Celery task name, while score-revision preview rendering,
   review-thumbnail rendering, outbox fail/complete transitions, and preview
   realtime event publication are owned by the render execution module.
+- Extracted import-job execution from `app.worker.tasks` into
+  `app.worker.execution.import_job`. The task entrypoint remains registered at
+  the existing Celery task name, while dispatch claim, pipeline execution,
+  import attempt tracing, completion acknowledgement, and import status logging
+  are owned by the import execution module.
 
 ## Reusable completion checklist for every refactor
 
