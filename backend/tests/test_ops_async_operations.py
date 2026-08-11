@@ -47,7 +47,12 @@ from app.modules.ops.operation_projection import (
     matches_operation_filters,
     outbox_operation_status,
 )
-from app.modules.ops.query_service import OpsAsyncOperationQueryService
+from app.modules.ops.command_service import RETRYABLE_OPERATION_KINDS
+from app.modules.ops.query_service import (
+    QUERY_OPERATION_KIND_ORDER,
+    OpsAsyncOperationQueryService,
+    selected_query_operation_kinds,
+)
 from app.modules.async_operations.diagnostics import (
     AsyncOperationErrorClassValue,
     classify_async_error,
@@ -80,6 +85,16 @@ from app.modules.platform_operators.service import OperatorAuthenticationService
 
 app = create_app()
 control_settings = require_control_plane_settings()
+
+
+def test_ops_query_and_retry_kind_contracts_cover_every_async_operation_kind() -> None:
+    all_kinds = tuple(AsyncOperationKind)
+
+    assert QUERY_OPERATION_KIND_ORDER == all_kinds
+    assert RETRYABLE_OPERATION_KINDS == all_kinds
+    assert selected_query_operation_kinds(None) == all_kinds
+    for kind in all_kinds:
+        assert selected_query_operation_kinds(kind) == (kind,)
 
 
 @pytest.fixture

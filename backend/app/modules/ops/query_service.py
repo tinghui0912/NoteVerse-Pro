@@ -43,6 +43,23 @@ from app.modules.ops.schemas import (
 from app.shared.pagination import OffsetPage
 
 
+QUERY_OPERATION_KIND_ORDER = (
+    AsyncOperationKind.IMPORT,
+    AsyncOperationKind.RENDER,
+    AsyncOperationKind.PLAYBACK,
+    AsyncOperationKind.MAIL,
+    AsyncOperationKind.SCORE_DELETION,
+)
+
+
+def selected_query_operation_kinds(
+    kind: AsyncOperationKind | None,
+) -> tuple[AsyncOperationKind, ...]:
+    if kind is None:
+        return QUERY_OPERATION_KIND_ORDER
+    return (kind,)
+
+
 class OpsAsyncOperationQueryService:
     async def list_operations(
         self,
@@ -66,16 +83,8 @@ class OpsAsyncOperationQueryService:
         )
         source_limit = 5000 if filters.has_filters else offset + limit + 1
         operations: list[AsyncOperationRead] = []
-        if kind in {None, AsyncOperationKind.IMPORT}:
-            operations.extend(await self._import_operations(db, limit=source_limit))
-        if kind in {None, AsyncOperationKind.RENDER}:
-            operations.extend(await self._render_operations(db, limit=source_limit))
-        if kind in {None, AsyncOperationKind.PLAYBACK}:
-            operations.extend(await self._playback_operations(db, limit=source_limit))
-        if kind in {None, AsyncOperationKind.MAIL}:
-            operations.extend(await self._mail_operations(db, limit=source_limit))
-        if kind in {None, AsyncOperationKind.SCORE_DELETION}:
-            operations.extend(await self._score_deletion_operations(db, limit=source_limit))
+        for source_kind in selected_query_operation_kinds(kind):
+            operations.extend(await self._operations_for_kind(db, source_kind, limit=source_limit))
         operations = [operation for operation in operations if matches_operation_filters(operation, filters)]
         sorted_operations = sorted(
             operations,
@@ -137,17 +146,27 @@ class OpsAsyncOperationQueryService:
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         rows: list[tuple[AsyncOperationKind, AsyncOperationStatus, int]] = []
-        if kind in {None, AsyncOperationKind.IMPORT}:
-            rows.extend(await self._import_summary_rows(db, filters))
-        if kind in {None, AsyncOperationKind.RENDER}:
-            rows.extend(await self._render_summary_rows(db, filters))
-        if kind in {None, AsyncOperationKind.PLAYBACK}:
-            rows.extend(await self._playback_summary_rows(db, filters))
-        if kind in {None, AsyncOperationKind.MAIL}:
-            rows.extend(await self._mail_summary_rows(db, filters))
-        if kind in {None, AsyncOperationKind.SCORE_DELETION}:
-            rows.extend(await self._score_deletion_summary_rows(db, filters))
+        for source_kind in selected_query_operation_kinds(kind):
+            rows.extend(await self._summary_rows_for_kind(db, source_kind, filters))
         return rows
+
+    async def _summary_rows_for_kind(
+        self,
+        db: AsyncSession,
+        kind: AsyncOperationKind,
+        filters: AsyncOperationFilters,
+    ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
+        if kind == AsyncOperationKind.IMPORT:
+            return await self._import_summary_rows(db, filters)
+        if kind == AsyncOperationKind.RENDER:
+            return await self._render_summary_rows(db, filters)
+        if kind == AsyncOperationKind.PLAYBACK:
+            return await self._playback_summary_rows(db, filters)
+        if kind == AsyncOperationKind.MAIL:
+            return await self._mail_summary_rows(db, filters)
+        if kind == AsyncOperationKind.SCORE_DELETION:
+            return await self._score_deletion_summary_rows(db, filters)
+        raise AssertionError(f"unsupported async operation kind: {kind}")
 
     async def _import_summary_rows(
         self,
@@ -331,6 +350,25 @@ class OpsAsyncOperationQueryService:
             await db.execute(select(ImportJob).order_by(col(ImportJob.updated_at).desc()).limit(limit))
         ).scalars()
         return [read_import_operation(job) for job in rows]
+
+    async def _operations_for_kind(
+        self,
+        db: AsyncSession,
+        kind: AsyncOperationKind,
+        *,
+        limit: int,
+    ) -> list[AsyncOperationRead]:
+        if kind == AsyncOperationKind.IMPORT:
+            return await self._import_operations(db, limit=limit)
+        if kind == AsyncOperationKind.RENDER:
+            return await self._render_operations(db, limit=limit)
+        if kind == AsyncOperationKind.PLAYBACK:
+            return await self._playback_operations(db, limit=limit)
+        if kind == AsyncOperationKind.MAIL:
+            return await self._mail_operations(db, limit=limit)
+        if kind == AsyncOperationKind.SCORE_DELETION:
+            return await self._score_deletion_operations(db, limit=limit)
+        raise AssertionError(f"unsupported async operation kind: {kind}")
 
     async def _render_operations(
         self,

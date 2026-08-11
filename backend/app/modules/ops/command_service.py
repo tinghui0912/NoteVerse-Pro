@@ -34,6 +34,15 @@ from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
 
+RETRYABLE_OPERATION_KINDS = (
+    AsyncOperationKind.IMPORT,
+    AsyncOperationKind.RENDER,
+    AsyncOperationKind.PLAYBACK,
+    AsyncOperationKind.MAIL,
+    AsyncOperationKind.SCORE_DELETION,
+)
+
+
 @dataclass(frozen=True)
 class RetryOperationResult:
     operation: AsyncOperationRead

@@ -1184,11 +1184,15 @@ do not use an arbitrary repository-wide fail-under value.
 - Removed the old generic service name and did not retain compatibility
   aliases. Focused validation passed for Ops lint, typing, and the existing
   async-operation test suite.
+- Added an enum-coverage contract for Ops query and retry support. A new
+  `AsyncOperationKind` must now update the query kind order and retryable kind
+  list, or the focused Ops test suite fails.
 
 ARC-004 is partially complete. The next measured candidate is a smaller
 source-specific strategy boundary inside Ops query/retry handling only if the
 per-source branches continue to grow or duplicate behavior across additional
-operation kinds.
+operation kinds. Do not split each current operation kind into separate files
+merely to eliminate small dispatch branches.
 
 ## Reusable completion checklist for every refactor
 
