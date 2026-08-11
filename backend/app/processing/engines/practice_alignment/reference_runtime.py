@@ -2,10 +2,34 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from app.core.config import get_practice_runtime_settings
+
 
 def build_audio_processor(*, sample_rate: int, hop_length: int, chroma_processor):
     """Create Matchmaker's chroma extractor with the negotiated audio format."""
     return chroma_processor(sample_rate=sample_rate, hop_length=hop_length)
+
+
+def generate_score_audio(*, score, bpm, sample_rate, np, partitura, generate_score_audio):
+    soundfont_path = get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH
+    if not soundfont_path:
+        if generate_score_audio is None:
+            raise RuntimeError("matchmaker score audio generator is not available.")
+        return generate_score_audio(score, bpm, sample_rate)
+    soundfont = Path(soundfont_path)
+    if not soundfont.exists():
+        raise RuntimeError(f"PRACTICE_SOUNDFONT_PATH does not exist: {soundfont}")
+    note_array = score.note_array()
+    bpm_array = np.array([[onset_beat, bpm] for onset_beat in note_array["onset_beat"]])
+    score_audio = partitura.save_wav_fluidsynth(score, bpm=bpm_array, samplerate=sample_rate, soundfont=str(soundfont))
+    first = note_array["onset_beat"].min()
+    padding = int(score.inv_beat_map(first) / score.quarter_duration_map(score.inv_beat_map(first)) * (60 / bpm) * sample_rate)
+    score_audio = np.pad(score_audio, (padding, 0))
+    last = np.floor(note_array["onset_div"].max())
+    duration = last / score.quarter_duration_map(score.inv_beat_map(last)) * (60 / bpm) + 0.1
+    return score_audio[: int(duration * sample_rate)]
 
 
 def normalize_audio_waveform(audio, np):

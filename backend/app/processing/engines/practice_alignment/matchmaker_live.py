@@ -25,6 +25,7 @@ from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_A
 from app.processing.engines.practice_alignment.reference_runtime import (
     build_audio_processor,
     build_score_follower,
+    generate_score_audio,
     normalize_audio_waveform,
 )
 from app.processing.engines.practice_alignment.stream_state import (
@@ -684,7 +685,7 @@ class MatchmakerLiveEngine:
             diagnostic_frame_interval=settings.PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL,
         )
 
-        raw_score_audio = self._generate_score_audio(
+        raw_score_audio = generate_score_audio(
             score=self.score_part,
             bpm=self.tempo,
             sample_rate=sample_rate,
@@ -818,55 +819,6 @@ class MatchmakerLiveEngine:
     def _pcm_s16le_to_float32(self, chunk: bytes):
         samples = self._np.frombuffer(chunk, dtype=self._np.int16)
         return (samples.astype(self._np.float32) / 32768.0).copy()
-
-    @staticmethod
-    def _generate_score_audio(
-        *,
-        score,
-        bpm: float,
-        sample_rate: int,
-        np,
-        partitura,
-        generate_score_audio,
-    ):
-        soundfont_path = get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH
-        if not soundfont_path:
-            if generate_score_audio is None:
-                raise RuntimeError("matchmaker score audio generator is not available.")
-            return generate_score_audio(score, bpm, sample_rate)
-
-        soundfont = Path(soundfont_path)
-        if not soundfont.exists():
-            raise RuntimeError(f"PRACTICE_SOUNDFONT_PATH does not exist: {soundfont}")
-
-        note_array = score.note_array()
-        bpm_array = np.array([[onset_beat, bpm] for onset_beat in note_array["onset_beat"]])
-        score_audio = partitura.save_wav_fluidsynth(
-            score,
-            bpm=bpm_array,
-            samplerate=sample_rate,
-            soundfont=str(soundfont),
-        )
-
-        first_onset_in_beat = note_array["onset_beat"].min()
-        first_onset_in_time = (
-            score.inv_beat_map(first_onset_in_beat)
-            / score.quarter_duration_map(score.inv_beat_map(first_onset_in_beat))
-            * (60 / bpm)
-        )
-        padding_size = int(first_onset_in_time * sample_rate)
-        score_audio = np.pad(score_audio, (padding_size, 0))
-
-        last_onset_in_div = np.floor(note_array["onset_div"].max())
-        last_onset_in_time = (
-            last_onset_in_div
-            / score.quarter_duration_map(score.inv_beat_map(last_onset_in_div))
-            * (60 / bpm)
-        )
-
-        buffer_size = 0.1
-        last_onset_in_time += buffer_size
-        return score_audio[: int(last_onset_in_time * sample_rate)]
 
     def _build_ref_frame_to_beat(self, reference_features):
         frame_count = int(reference_features.shape[0])

@@ -18,8 +18,8 @@ from app.core.exceptions import (
 )
 from app.core.config import get_practice_runtime_settings
 from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
-from app.processing.engines.practice_alignment.matchmaker_live import BrowserAudioStreamAdapter, MatchmakerLiveEngine
-from app.processing.engines.practice_alignment.reference_runtime import normalize_audio_waveform
+from app.processing.engines.practice_alignment.matchmaker_live import BrowserAudioStreamAdapter
+from app.processing.engines.practice_alignment.reference_runtime import generate_score_audio, normalize_audio_waveform
 from app.db.models.user import User
 from app.db.models.practice import PracticeReportStatus, PracticeSessionState
 from app.db.models.score_access import AccessOrigin
@@ -120,7 +120,7 @@ def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_
     default_generate_score_audio = Mock()
 
     try:
-        audio = MatchmakerLiveEngine._generate_score_audio(
+        audio = generate_score_audio(
             score=FakeScore(),
             bpm=120,
             sample_rate=10,
