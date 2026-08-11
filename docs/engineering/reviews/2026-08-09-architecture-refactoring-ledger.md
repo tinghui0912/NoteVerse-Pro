@@ -1274,6 +1274,10 @@ merely to eliminate small dispatch branches.
   `app.worker.tasks` into `app.worker.execution.mail_outbox`. The Celery task
   name and registration path remain unchanged, while claim/send/failure/sent
   handling now has an owning execution module.
+- Extracted playback outbox execution from `app.worker.tasks` into
+  `app.worker.execution.playback_outbox`. The task entrypoint remains registered
+  at the old Celery task name, while render/fail/complete and derived-asset
+  realtime event publication are owned by the playback execution module.
 
 ## Reusable completion checklist for every refactor
 
