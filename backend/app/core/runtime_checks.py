@@ -15,9 +15,10 @@ from typing import Awaitable, Callable
 import redis
 
 from app.core.config import settings
-from app.core.settings.practice_runtime import get_practice_runtime_settings
-from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.core.control_plane_settings import require_control_plane_settings
+from app.core.settings.practice_runtime import get_practice_runtime_settings
+from app.core.settings.task_reliability import get_task_reliability_settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES, LEGATO_REPO_COMMIT
 from app.processing.resources import ensure_partitura_default_soundfont
 
@@ -144,14 +145,15 @@ def _read_git_commit(repo_path: Path) -> str:
 
 
 def check_settings(_: bool = False) -> CheckResult:
+    task_settings = get_task_reliability_settings()
     return _result(
         "settings",
         True,
         (
             f"storage={settings.FILE_STORAGE_BACKEND}; "
-            f"pipeline={settings.MAX_PROCESSING_TIME}s; "
-            f"celery_soft={settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
-            f"celery_hard={settings.CELERY_TASK_TIME_LIMIT}s"
+            f"pipeline={task_settings.MAX_PROCESSING_TIME}s; "
+            f"celery_soft={task_settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
+            f"celery_hard={task_settings.CELERY_TASK_TIME_LIMIT}s"
         ),
     )
 

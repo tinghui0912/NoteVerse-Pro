@@ -1392,6 +1392,26 @@ ARC-012 remains partially complete. The next settings step should inspect
 whether `config.py` still imports setting groups that are no longer part of the
 shared API/process contract before extracting more behavior.
 
+### 2026-08-11: Task reliability ownership moved out of shared settings
+
+- Removed `TaskReliabilitySettings` from the global `Settings` composition
+  because `MAX_PROCESSING_TIME`, `CELERY_TASK_SOFT_TIME_LIMIT`, and
+  `CELERY_TASK_TIME_LIMIT` describe the Worker/Celery task shutdown envelope,
+  not a shared API/process contract.
+- Added `get_task_reliability_settings()` in
+  `backend/app/core/settings/task_reliability.py` so Worker, Beat, pipeline
+  context, Celery runtime options, and runtime checks can load only the task
+  deadline projection without requiring Worker model/engine settings.
+- Kept `WorkerRuntimeSettings` as the stricter Worker-owned aggregate that
+  validates PaddleOCR timeout against the task processing deadline.
+- Moved the task reliability environment variables from the shared Docker env
+  template to the Worker-specific Docker env template, and made the same change
+  in the local Docker env files.
+
+ARC-012 remains partially complete, but the remaining `config.py` groups now
+need another measured consumer map before more migration; do not move settings
+just because their names sound feature-specific.
+
 ## Reusable completion checklist for every refactor
 
 - [ ] Ownership and public API are documented.

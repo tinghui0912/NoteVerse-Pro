@@ -1,8 +1,10 @@
 """Task execution deadline and shutdown-envelope configuration."""
 
+from functools import lru_cache
 from typing import Self
 
 from pydantic import BaseModel, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class TaskReliabilitySettings(BaseModel):
@@ -28,3 +30,16 @@ class TaskReliabilitySettings(BaseModel):
         if self.CELERY_TASK_SOFT_TIME_LIMIT >= self.CELERY_TASK_TIME_LIMIT:
             raise ValueError("CELERY_TASK_SOFT_TIME_LIMIT must be lower than CELERY_TASK_TIME_LIMIT")
         return self
+
+
+class TaskReliabilityRuntimeSettings(TaskReliabilitySettings, BaseSettings):
+    """Strict Celery task deadline environment contract."""
+
+    model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
+
+
+@lru_cache
+def get_task_reliability_settings() -> TaskReliabilityRuntimeSettings:
+    """Load Celery task deadline configuration for Worker and Beat runtimes."""
+
+    return TaskReliabilityRuntimeSettings()

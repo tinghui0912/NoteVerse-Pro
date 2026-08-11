@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.logger import logger
+from app.core.settings.task_reliability import get_task_reliability_settings
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.processing.engines.omr import OmrSuccessResult
 from app.modules.import_jobs.worker_service import sync_import_job_service as job_service
@@ -72,7 +73,7 @@ class JobContext:
 
     def __post_init__(self):
         """Initialize derived paths and timeout state."""
-        max_time = int(settings.MAX_PROCESSING_TIME) or 300
+        max_time = int(get_task_reliability_settings().MAX_PROCESSING_TIME)
         self._deadline = self._start_ts + max_time
 
         self.job_temp = os.path.join(settings.WORK_ROOT, self.job_id)

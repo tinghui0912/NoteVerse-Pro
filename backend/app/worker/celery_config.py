@@ -5,6 +5,7 @@ from pathlib import Path
 from celery import Celery, signals
 from app.core.config import settings
 from app.core.logging_setup import configure_celery_logging
+from app.core.settings.task_reliability import get_task_reliability_settings
 from app.worker.celery_runtime_options import build_celery_runtime_options
 
 beat_state_dir = Path(settings.WORK_ROOT) / "celerybeat"
@@ -19,7 +20,13 @@ celery_app = Celery(
     include=task_modules,
 )
 
-celery_app.conf.update(build_celery_runtime_options(settings, beat_schedule_filename=beat_schedule_filename))
+celery_app.conf.update(
+    build_celery_runtime_options(
+        settings,
+        get_task_reliability_settings(),
+        beat_schedule_filename=beat_schedule_filename,
+    )
+)
 
 if task_modules:
     celery_app.loader.import_default_modules()

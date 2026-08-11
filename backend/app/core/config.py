@@ -22,7 +22,6 @@ from app.core.settings.realtime_stream import RealtimeStreamSettings
 from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSettings
 from app.core.settings.service_identity import ServiceIdentitySettings
 from app.core.settings.storage import StorageSettings
-from app.core.settings.task_reliability import TaskReliabilitySettings
 from app.core.settings.token_signing import TokenSigningSettings
 from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
 from app.core.settings.trusted_proxy import TrustedProxySettings
@@ -53,7 +52,6 @@ class Settings(
     ScoreDeletionLifecycleSettings,
     ServiceIdentitySettings,
     StorageSettings,
-    TaskReliabilitySettings,
     TokenSigningSettings,
     TransactionalMailProviderSettings,
     TrustedProxySettings,
