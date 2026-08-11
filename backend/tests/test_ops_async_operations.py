@@ -42,6 +42,11 @@ from app.modules.ops.schemas import (
     AsyncOperationStatus,
 )
 from app.modules.ops.operation_filters import AsyncOperationFilters
+from app.modules.ops.operation_projection import (
+    mail_operation_status,
+    matches_operation_filters,
+    outbox_operation_status,
+)
 from app.modules.ops.service import OpsAsyncOperationService
 from app.modules.async_operations.diagnostics import (
     AsyncOperationErrorClassValue,
@@ -309,16 +314,15 @@ def _create_score_revision(
 
 
 def test_ops_outbox_status_normalization_distinguishes_due_failed_and_exhausted() -> None:
-    service = OpsAsyncOperationService()
     now = utc_now_naive()
 
-    retrying = service._outbox_status(
+    retrying = outbox_operation_status(
         RenderOutboxStatus.FAILED,
         attempts=1,
         max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         next_attempt_at=now,
     )
-    exhausted = service._outbox_status(
+    exhausted = outbox_operation_status(
         PlaybackOutboxStatus.FAILED,
         attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
         max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
@@ -330,7 +334,6 @@ def test_ops_outbox_status_normalization_distinguishes_due_failed_and_exhausted(
 
 
 def test_ops_mail_status_normalization_preserves_permanent_failure() -> None:
-    service = OpsAsyncOperationService()
     outbox = MailOutbox(
         category="auth",
         dedupe_key="mail:ops-test",
@@ -339,7 +342,7 @@ def test_ops_mail_status_normalization_preserves_permanent_failure() -> None:
         status=MailOutboxStatus.PERMANENT_FAILURE,
     )
 
-    assert service._mail_status(outbox) == AsyncOperationStatus.PERMANENT_FAILED
+    assert mail_operation_status(outbox) == AsyncOperationStatus.PERMANENT_FAILED
 
 
 def test_ops_error_classification_keeps_infrastructure_errors_separate() -> None:
@@ -372,7 +375,7 @@ def test_ops_filters_match_status_error_class_resource_and_time_window() -> None
         updated_at=now,
     )
 
-    assert OpsAsyncOperationService._matches_filters(
+    assert matches_operation_filters(
         operation,
         AsyncOperationFilters(
             status=AsyncOperationStatus.RETRYING,
@@ -382,7 +385,7 @@ def test_ops_filters_match_status_error_class_resource_and_time_window() -> None
             updated_before=now + timedelta(minutes=1),
         ),
     )
-    assert not OpsAsyncOperationService._matches_filters(
+    assert not matches_operation_filters(
         operation,
         AsyncOperationFilters(error_class=AsyncOperationErrorClass.PERMANENT),
     )
