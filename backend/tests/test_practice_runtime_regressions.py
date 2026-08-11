@@ -15,6 +15,7 @@ from app.processing.engines.practice_alignment.matchmaker_live import (
     MatchmakerLiveEngine,
     build_alignment_engine,
 )
+from app.processing.engines.practice_alignment.reference_runtime import build_score_follower
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
 from app.processing.realtime.message_codec import session_armed_message
 from app.processing.realtime.session_runtime import PracticeSessionRuntimeRegistry
@@ -118,7 +119,7 @@ def test_matchmaker_live_engine_builds_chroma_processor() -> None:
 
 def test_matchmaker_live_engine_builds_arzt_follower() -> None:
     feature_queue = DummyQueue()
-    follower = MatchmakerLiveEngine._build_score_follower(
+    follower = build_score_follower(
         reference_features=["features"],
         feature_queue=feature_queue,
         frame_rate=30,

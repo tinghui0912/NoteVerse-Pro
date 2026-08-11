@@ -19,6 +19,7 @@ from app.core.exceptions import (
 from app.core.config import get_practice_runtime_settings
 from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
 from app.processing.engines.practice_alignment.matchmaker_live import BrowserAudioStreamAdapter, MatchmakerLiveEngine
+from app.processing.engines.practice_alignment.reference_runtime import normalize_audio_waveform
 from app.db.models.user import User
 from app.db.models.practice import PracticeReportStatus, PracticeSessionState
 from app.db.models.score_access import AccessOrigin
@@ -146,7 +147,7 @@ def test_matchmaker_reference_audio_normalization_handles_tuple_and_stereo() -> 
         dtype=np.float32,
     )
 
-    normalized = MatchmakerLiveEngine._normalize_audio_waveform(
+    normalized = normalize_audio_waveform(
         (stereo_audio, 16000, "extra"),
         np,
     )

@@ -22,6 +22,10 @@ from app.processing.engines.practice_alignment.audio_activity import (
 )
 from app.processing.engines.practice_alignment.contracts import AlignmentEngine, AlignmentUpdate
 from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
+from app.processing.engines.practice_alignment.reference_runtime import (
+    build_score_follower,
+    normalize_audio_waveform,
+)
 from app.processing.engines.practice_alignment.stream_state import (
     STREAM_STATE_ARMED,
     STREAM_STATE_CALIBRATING,
@@ -687,7 +691,7 @@ class MatchmakerLiveEngine:
             partitura=partitura,
             generate_score_audio=score_audio_generator,
         )
-        score_audio = self._normalize_audio_waveform(raw_score_audio, np).astype(np.float32)
+        score_audio = normalize_audio_waveform(raw_score_audio, np).astype(np.float32)
         reference_features = BrowserAudioStreamAdapter._feature_matrix(
             self._processor((score_audio, 0.0))
         )
@@ -703,7 +707,7 @@ class MatchmakerLiveEngine:
         self._reference_end_beat = float(self._ref_frame_to_beat[-1])
         self._stream.start_feature_validator = self._is_valid_start_feature
         self._stream.start_feature_scorer = self._score_start_feature
-        self._score_follower = self._build_score_follower(
+        self._score_follower = build_score_follower(
             reference_features=self._reference_features,
             feature_queue=self._queue,
             frame_rate=self.frame_rate,
@@ -823,30 +827,6 @@ class MatchmakerLiveEngine:
         return chroma_processor(sample_rate=sample_rate, hop_length=hop_length)
 
     @staticmethod
-    def _normalize_audio_waveform(audio, np):
-        if isinstance(audio, tuple):
-            if not audio:
-                raise RuntimeError("Score audio synthesis returned an empty tuple.")
-            audio = audio[0]
-
-        waveform = np.asarray(audio)
-        if waveform.ndim == 0:
-            raise RuntimeError("Score audio synthesis returned an invalid scalar waveform.")
-        waveform = np.squeeze(waveform)
-        if waveform.ndim == 2:
-            if waveform.shape[0] <= 2 and waveform.shape[1] > waveform.shape[0]:
-                waveform = waveform.mean(axis=0)
-            elif waveform.shape[1] <= 2:
-                waveform = waveform.mean(axis=1)
-            else:
-                waveform = waveform.mean(axis=-1)
-        if waveform.ndim != 1:
-            raise RuntimeError(
-                f"Score audio synthesis returned unsupported waveform shape: {waveform.shape}"
-            )
-        return waveform
-
-    @staticmethod
     def _generate_score_audio(
         *,
         score,
@@ -894,27 +874,6 @@ class MatchmakerLiveEngine:
         buffer_size = 0.1
         last_onset_in_time += buffer_size
         return score_audio[: int(last_onset_in_time * sample_rate)]
-
-    @staticmethod
-    def _build_score_follower(
-        reference_features,
-        feature_queue,
-        frame_rate: int,
-        arzt_follower,
-        ref_frame_to_beat=None,
-        score_positions=None,
-    ):
-        follower = arzt_follower(
-            reference_features=reference_features,
-            score_positions=score_positions,
-            queue=feature_queue,
-            frame_rate=frame_rate,
-            ref_frame_to_beat=ref_frame_to_beat,
-        )
-        # A paused browser sends no PCM frames. Keep the follower blocked on the
-        # queue instead of allowing its finite timeout to reset the OLTW path.
-        follower.queue_timeout = None
-        return follower
 
     def _build_ref_frame_to_beat(self, reference_features):
         frame_count = int(reference_features.shape[0])
