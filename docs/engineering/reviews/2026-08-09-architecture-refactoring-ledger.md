@@ -1261,6 +1261,11 @@ merely to eliminate small dispatch branches.
   because their retry/timeout/max-attempt companions are read by API/Ops
   projections and Worker dispatch services; Beat owns only the recurring task
   trigger mapping.
+- Extracted Celery runtime options from the Celery app assembly module. The
+  app module now creates the Celery instance, computes the Beat state file, and
+  registers framework signals; the runtime-options module owns serialization,
+  broker/backend timeout policy, task acknowledgement behavior, worker
+  lifecycle limits, task deadlines, and Beat schedule wiring.
 
 ## Reusable completion checklist for every refactor
 
