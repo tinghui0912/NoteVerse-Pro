@@ -1,4 +1,4 @@
 -r core.txt
 
 # Redis-backed cache, broker checks, and realtime helpers.
-redis==7.4.0
+redis==8.1.0
