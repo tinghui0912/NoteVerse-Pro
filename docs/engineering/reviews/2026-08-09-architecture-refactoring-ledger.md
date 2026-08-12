@@ -2280,22 +2280,26 @@ REC-006 remains partially complete. Continue scanning remaining Customer Web
 source comments, but treat localized UI copy and valid musical glyphs as product
 content rather than cleanup targets.
 
-### 2026-08-12: Verovio blank/space hit-test boundary tightened
+### 2026-08-12: Verovio blank/space editing boundary corrected
 
 - Rechecked the editor entity model after a product-semantics question about
   `blank`/MusicXML `<forward>` entities.
 - Confirmed `ScoreEntityType` still has four internal entities: `note`, `chord`,
-  `rest`, and `blank`; `blank` remains the parsed representation of MusicXML
-  `<forward>` and is still useful for timeline spacing and insertion anchoring.
-- Tightened `apps/customer-web/src/lib/editor/verovio-entity-map.ts` so Verovio
-  `[data-class="space"]` elements no longer resolve as normal editable event
-  hits. This prevents users from opening the Inspector by clicking an invisible
-  or weakly visible spacing area.
-- Kept add-mode measure clicks, parser blank handling, and visual insertion
-  anchoring intact.
-- Added coverage in
-  `apps/customer-web/src/lib/editor/verovio-entity-map.test.ts` to ensure
-  invisible Verovio spaces are not exposed as editable entity hits.
+  `rest`, and `blank`; `blank` is the parsed representation of MusicXML
+  `<forward>` and is useful for timeline spacing, insertion anchoring, and
+  editing intentional gaps.
+- Corrected the previous hit-test tightening: Verovio `[data-class="space"]`
+  should resolve as a blank editable entity when Verovio provides a concrete
+  space element id. Otherwise users cannot change a forward duration, such as
+  converting a one-beat forward into a two-beat forward.
+- Fixed `apps/customer-web/src/hooks/editor/entity-editor/update-existing-entity.ts`
+  so forward-backed blank entities use a dedicated update path instead of being
+  treated as `<note>` elements. The editor can now update forward duration while
+  preserving `<forward>`, or replace a blank forward with note/rest/chord XML
+  when the user changes the event kind.
+- Added regression coverage in
+  `apps/customer-web/src/hooks/editor/entity-editor/update-existing-entity.test.ts`
+  and `apps/customer-web/src/lib/editor/verovio-entity-map.test.ts`.
 
 ### 2026-08-12: Remaining Customer Web comments cleaned for REC-006
 

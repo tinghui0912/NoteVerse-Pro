@@ -38,7 +38,7 @@ describe('verovio entity mapping', () => {
     expect(getVerovioElementIdFromTarget(path)).toBe('note-stable-1');
   });
 
-  it('does not expose invisible Verovio spaces as editable event hits', () => {
+  it('exposes Verovio spaces as editable blank event hits', () => {
     const space = document.createElement('g');
     space.setAttribute('data-id', 'blank-forward-1');
     space.setAttribute('data-class', 'space');
@@ -46,7 +46,7 @@ describe('verovio entity mapping', () => {
 
     space.appendChild(hitArea);
 
-    expect(getVerovioElementIdFromTarget(hitArea)).toBeNull();
+    expect(getVerovioElementIdFromTarget(hitArea)).toBe('blank-forward-1');
   });
 
   it('maps a Verovio measure hit back to its rendered measure index', () => {

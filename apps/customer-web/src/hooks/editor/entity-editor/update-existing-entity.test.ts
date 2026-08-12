@@ -96,6 +96,86 @@ describe('updateExistingEntity beam trigger', () => {
     expect(updated.querySelector('note > type')?.textContent).toBe('half');
   });
 
+  it('updates a blank forward duration without converting it to a rest', () => {
+    const forwardXml = xml.replace(
+      '<note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff><beam number="1">begin</beam></note>',
+      '<forward id="f1"><duration>4</duration><voice>1</voice><staff>1</staff></forward>',
+    );
+    const forwardScoreData: ScoreData = {
+      ...scoreData,
+      measures: [{
+        ...scoreData.measures[0],
+        staves: [{
+          ...scoreData.measures[0].staves[0],
+          voices: [{
+            name: 'voiceLabel 1',
+            notes: [{
+              type: 'blank',
+              duration: 'durationQuarter',
+              meta: { id: 'f1', measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0, startTick: 0 },
+            }],
+          }],
+        }],
+      }],
+    };
+
+    const result = updateExistingEntity({
+      currentXml: forwardXml,
+      scoreData: forwardScoreData,
+      editingEntityLocation: { measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0 },
+      updatedEntity: { type: 'blank', duration: 'durationHalf' },
+      getExpectedVoices: () => undefined,
+    });
+
+    expect(result.success).toBe(true);
+    const updated = new DOMParser().parseFromString(result.newXml!, 'application/xml');
+    expect(updated.querySelector('forward > duration')?.textContent).toBe('8');
+    expect(updated.querySelector('note')).toBeNull();
+    expect(result.newScoreData?.measures[0]?.staves[0]?.voices[0]?.notes[0]?.type).toBe('blank');
+  });
+
+  it('converts a blank forward into a pitched note when a pitch is added', () => {
+    const forwardXml = xml.replace(
+      '<note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff><beam number="1">begin</beam></note>',
+      '<forward id="f1"><duration>4</duration><voice>1</voice><staff>1</staff></forward>',
+    );
+    const forwardScoreData: ScoreData = {
+      ...scoreData,
+      measures: [{
+        ...scoreData.measures[0],
+        staves: [{
+          ...scoreData.measures[0].staves[0],
+          voices: [{
+            name: 'voiceLabel 1',
+            notes: [{
+              type: 'blank',
+              duration: 'durationQuarter',
+              meta: { id: 'f1', measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0, startTick: 0 },
+            }],
+          }],
+        }],
+      }],
+    };
+
+    const result = updateExistingEntity({
+      currentXml: forwardXml,
+      scoreData: forwardScoreData,
+      editingEntityLocation: { measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0 },
+      updatedEntity: { type: 'note', pitch: 'E4', duration: 'durationQuarter' },
+      getExpectedVoices: () => undefined,
+    });
+
+    expect(result.success).toBe(true);
+    const updated = new DOMParser().parseFromString(result.newXml!, 'application/xml');
+    expect(updated.querySelector('forward')).toBeNull();
+    expect(updated.querySelector('note')?.getAttribute('id')).toBe('f1');
+    expect(updated.querySelector('note > pitch > step')?.textContent).toBe('E');
+    expect(updated.querySelector('note > duration')?.textContent).toBe('4');
+    expect(updated.querySelector('note > voice')?.textContent).toBe('1');
+    expect(updated.querySelector('note > staff')?.textContent).toBe('1');
+    expect(result.newScoreData?.measures[0]?.staves[0]?.voices[0]?.notes[0]?.type).toBe('note');
+  });
+
   it('writes matching pitch alteration and notated accidental', () => {
     const result = updateExistingEntity({
       currentXml: xml,
