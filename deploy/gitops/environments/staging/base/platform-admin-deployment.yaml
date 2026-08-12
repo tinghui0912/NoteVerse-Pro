@@ -22,7 +22,7 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: platform-admin
-          image: ghcr.io/tinghui0912/noteverse/platform-admin@sha256:939e504a20819edadc740e3b0d16978a81be34a32d4bc1d9e0b1a0b835396f1e
+          image: ghcr.io/tinghui0912/noteverse/platform-admin@sha256:9623c108b0632fd36c10efcb95cd814872fd2e30cbb7fc1e0fccfc50bfeb0f36
           ports:
             - name: http
               containerPort: 3000
