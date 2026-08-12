@@ -1,15 +1,15 @@
 /**
- * 认证相关 API
+ * Authentication API wrapper.
  */
 import { apiClient, ApiResponse } from '../api-client';
 import type { EmailChangeConfirmedRead, RegisterRequest, User } from '@/generated/api';
 
-// ============ API 函数 ============
+// API functions.
 
 /**
- * 用户登录
- * @param email 邮箱
- * @param password 密码
+ * Log in a user.
+ * @param email User email address.
+ * @param password User password.
  * @returns Login success response. Session cookies are managed by the backend.
  */
 export async function login(email: string, password: string): Promise<ApiResponse> {
@@ -26,8 +26,8 @@ export async function logout(): Promise<ApiResponse> {
 }
 
 /**
- * 用户注册
- * @param data 注册信息
+ * Register a user.
+ * @param data Registration payload.
  */
 export async function register(data: RegisterRequest): Promise<ApiResponse> {
     return apiClient.post<ApiResponse>('/auth/register', {
@@ -57,10 +57,10 @@ export async function requestPasswordReset(
 }
 
 /**
- * 重置密码
- * @param email 邮箱
- * @param newPassword 新密码
- * @param resetToken 重置令牌
+ * Reset a password.
+ * @param newPassword New password.
+ * @param token Password reset token.
+ * @param locale Locale used for localized response messaging.
  */
 export async function resetPassword(
     newPassword: string,

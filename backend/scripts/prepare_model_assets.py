@@ -17,6 +17,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -230,7 +231,30 @@ def prepare_soundfont(target_path: Path) -> None:
     raise RuntimeError(f"FluidR3 soundfont was not found in runtime image. Checked: {candidates}")
 
 
-def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
+def prepare_soundfonts() -> None:
+    from app.core.settings.practice_runtime import get_practice_runtime_settings
+    from app.core.settings.worker_runtime import get_worker_runtime_settings
+
+    targets = {
+        "PLAYBACK_SOUNDFONT_PATH": _require_path(
+            get_worker_runtime_settings().PLAYBACK_SOUNDFONT_PATH,
+            "PLAYBACK_SOUNDFONT_PATH",
+        ),
+        "PRACTICE_SOUNDFONT_PATH": _require_path(
+            get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH,
+            "PRACTICE_SOUNDFONT_PATH",
+        ),
+    }
+    prepared_paths: set[Path] = set()
+    for env_name, target in targets.items():
+        if target in prepared_paths:
+            print(f"[OK] soundfont target already prepared for {env_name}: {target}")
+            continue
+        prepare_soundfont(target)
+        prepared_paths.add(target)
+
+
+def prepare_huggingface_snapshots(hf_home: Path, repo_ids: Sequence[str]) -> None:
     from huggingface_hub import snapshot_download
 
     hub_cache = hf_home / "hub"
@@ -252,12 +276,13 @@ def prepare_huggingface_snapshots(hf_home: Path, repo_ids: list[str]) -> None:
 
 
 def prepare_paddleocr_models() -> None:
-    from app.core.config import settings
+    from app.core.settings.worker_runtime import get_worker_runtime_settings
 
-    model_root = _require_path(settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
+    worker_settings = get_worker_runtime_settings()
+    model_root = _require_path(worker_settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
     _ensure_directory(model_root)
     for asset in PADDLEOCR_MODEL_ASSETS:
-        target = _require_path(getattr(settings, asset.target_env_name), asset.target_env_name)
+        target = _require_path(getattr(worker_settings, asset.target_env_name), asset.target_env_name)
         _prepare_paddleocr_model_asset(asset, target)
     print("[OK] PaddleOCR models prepared")
 
@@ -274,9 +299,15 @@ async def run_final_checks(include_sizes: bool) -> int:
 
 
 def run_asset_checks(include_sizes: bool) -> int:
-    from app.core.runtime_checks import check_huggingface_models, check_paddleocr_models, check_soundfont
+    from app.core.runtime_checks import (
+        check_huggingface_models,
+        check_paddleocr_models,
+        check_playback_renderer,
+        check_soundfont,
+    )
 
     checks = (
+        check_playback_renderer,
         check_soundfont,
         check_paddleocr_models,
         check_huggingface_models,
@@ -292,17 +323,18 @@ def run_asset_checks(include_sizes: bool) -> int:
 async def main() -> int:
     args = parse_args()
 
-    from app.core.config import settings
+    from app.core.settings.worker_runtime import get_worker_runtime_settings
     from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES
 
-    model_root = _require_path(settings.MODEL_ROOT, "MODEL_ROOT")
+    worker_settings = get_worker_runtime_settings()
+    model_root = _require_path(worker_settings.MODEL_ROOT, "MODEL_ROOT")
     _ensure_directory(model_root)
 
     if not args.skip_soundfont:
-        prepare_soundfont(_require_path(settings.PLAYBACK_SOUNDFONT_PATH, "PLAYBACK_SOUNDFONT_PATH"))
+        prepare_soundfonts()
     if not args.skip_huggingface:
         prepare_huggingface_snapshots(
-            _require_path(settings.HF_HOME, "HF_HOME"),
+            _require_path(worker_settings.HF_HOME, "HF_HOME"),
             HF_MODEL_REPOSITORIES,
         )
     if not args.skip_paddleocr:

@@ -19,7 +19,7 @@ export function VoiceLayer() {
     selectTrack,
     toggleTrackVisibility,
   } = useEditorTracks();
-  const { handleDeleteTrack } = useVoiceEditor();
+  const { handleDeleteVoiceTrack } = useVoiceEditor();
 
   if (tracks.length === 0) {
     return null;
@@ -112,7 +112,7 @@ export function VoiceLayer() {
                         if (track.entityCount === 0) {
                           removeEmptyTrack(track.id);
                         } else {
-                          handleDeleteTrack(track.staffIndex, track.xmlVoice);
+                          handleDeleteVoiceTrack(track.xmlVoice);
                         }
                       }}
                       aria-label={t('deleteVoice')}

@@ -9,7 +9,7 @@ from app.modules.scheduler_lock.beat_leader import BeatLeader, parse_args
 from app.modules.scheduler_lock.connection import open_scheduler_lock_connection
 from app.modules.scheduler_lock.keys import scheduler_lock_key
 from app.modules.scheduler_lock.service import SchedulerLockService
-from app.worker import tasks
+from app.worker import task_runtime
 
 
 def test_scheduler_lock_key_is_stable_and_job_scoped() -> None:
@@ -93,11 +93,15 @@ def test_scheduler_scan_skips_callback_when_lock_is_not_acquired(
     def callback() -> dict[str, int]:
         raise AssertionError("callback should not run when scheduler lock is not acquired")
 
-    monkeypatch.setattr(tasks.scheduler_lock_service, "try_acquire", fake_lock)
-    monkeypatch.setattr(tasks, "get_worker_db", fake_db)
-    monkeypatch.setattr(tasks, "scheduler_observability_service", FakeObservabilityService())
+    monkeypatch.setattr(task_runtime.scheduler_lock_service, "try_acquire", fake_lock)
+    monkeypatch.setattr(task_runtime, "get_worker_db", fake_db)
+    monkeypatch.setattr(
+        task_runtime,
+        "scheduler_observability_service",
+        FakeObservabilityService(),
+    )
 
-    result = tasks._run_scheduler_scan("render_outbox", callback)
+    result = task_runtime.run_scheduler_scan("render_outbox", callback)
 
     assert result == {"due": 0, "dispatched": 0, "lock_skipped": 1}
     assert events == [("skipped", "render_outbox")]
@@ -139,12 +143,19 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
         trace_roots.append(kwargs)
         yield
 
-    monkeypatch.setattr(tasks.scheduler_lock_service, "try_acquire", fake_lock)
-    monkeypatch.setattr(tasks, "get_worker_db", fake_db)
-    monkeypatch.setattr(tasks, "scheduler_observability_service", FakeObservabilityService())
-    monkeypatch.setattr(tasks, "background_root_span", fake_root_span)
+    monkeypatch.setattr(task_runtime.scheduler_lock_service, "try_acquire", fake_lock)
+    monkeypatch.setattr(task_runtime, "get_worker_db", fake_db)
+    monkeypatch.setattr(
+        task_runtime,
+        "scheduler_observability_service",
+        FakeObservabilityService(),
+    )
+    monkeypatch.setattr(task_runtime, "background_root_span", fake_root_span)
 
-    result = tasks._run_scheduler_scan("render_outbox", lambda: {"due": 2, "dispatched": 1})
+    result = task_runtime.run_scheduler_scan(
+        "render_outbox",
+        lambda: {"due": 2, "dispatched": 1},
+    )
 
     assert result == {"due": 2, "dispatched": 1}
     assert events == [

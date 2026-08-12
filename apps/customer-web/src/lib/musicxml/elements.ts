@@ -1,7 +1,7 @@
 /**
  * MusicXML Element Operations
  * 
- * 元素创建和更新函数
+ * Element creation, update, and lookup helpers.
  * 
  * @module lib/musicxml-elements
  */
@@ -20,7 +20,7 @@ import type { AccidentalValue } from '@/types/score-types';
 // ============================================================================
 
 /**
- * UpdateSingleNoteOptions - 更新单个音符的选项
+ * Options for updating one MusicXML note element.
  */
 export type UpdateSingleNoteOptions = {
     dotted?: boolean;
@@ -34,8 +34,10 @@ export type UpdateSingleNoteOptions = {
 // ============================================================================
 
 /**
- * 更新 XML 中单个 note 元素的内容
- * 这是一个底层函数，用于更新音符的所有属性
+ * Updates the contents of one MusicXML `note` element.
+ *
+ * This low-level helper keeps pitch, duration, dotted state, accidental, stem,
+ * fingering, and chord membership in sync for a single note element.
  */
 export function updateSingleNoteInXml(
     noteEl: Element,
@@ -217,7 +219,7 @@ export function updateSingleNoteInXml(
 // ============================================================================
 
 /**
- * 从 pitch 字符串创建一个新的 note 元素
+ * Creates a new MusicXML `note` element from a pitch string.
  */
 export function createNoteElementFromPitch(
     xmlDoc: XMLDocument,
@@ -280,13 +282,14 @@ export function createNoteElementFromPitch(
 // ============================================================================
 
 /**
- * 根据位置信息查找 XML 中的 note 元素
- * @param xmlDoc XML 文档
- * @param measureIndex 小节索引 (0-based)
- * @param staveIndex 谱表索引 (0-based, 转换为 staff 1-based)
- * @param xmlVoice XML 声部号 (来自 MusicXML)
- * @param entityIndex 实体索引
- * @returns 找到的所有 note 元素（和弦会返回多个）
+ * Finds note elements by UI entity location.
+ *
+ * @param xmlDoc XML document.
+ * @param measureIndex 0-based measure index.
+ * @param staveIndex 0-based staff index, converted to MusicXML's 1-based staff number.
+ * @param xmlVoice MusicXML voice number.
+ * @param entityIndex UI entity index within the resolved voice.
+ * @returns Matching note elements; chords return multiple elements.
  */
 export function findNoteElementsByMeta(
     xmlDoc: XMLDocument,
@@ -301,7 +304,7 @@ export function findNoteElementsByMeta(
     const measureEl = xmlDoc.querySelector(`measure[number="${measureNumber}"]`);
     if (!measureEl) return [];
 
-    // 使用 getEntityGroupsFromMeasure 获取实体组
+    // Resolve the same entity groups used by the parser and editor.
     const entityGroups = getEntityGroupsFromMeasure(measureEl, staffNumber, xmlVoice);
     const targetGroup = entityGroups[entityIndex];
 

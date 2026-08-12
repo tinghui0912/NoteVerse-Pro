@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,9 +11,17 @@ from app.db.models import (
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
-    StorageUsageEvent,
-    StorageUsageReservation,
     StorageUsageReservationStatus,
+)
+from app.modules.storage_usage.accounting import (
+    DEFAULT_PLAN_CODE,
+    apply_reservation_hold,
+    commit_reserved_usage,
+    counts_toward_quota,
+    new_reservation,
+    new_usage_event,
+    release_reserved_usage,
+    release_used_usage,
 )
 from app.modules.storage_usage.repository import StorageUsageRepository
 from app.modules.storage_usage.schemas import (
@@ -24,14 +31,6 @@ from app.modules.storage_usage.schemas import (
 )
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
-
-
-DEFAULT_PLAN_CODE = "FREE"
-QUOTA_CATEGORIES = {
-    StorageUsageCategory.SOURCE,
-    StorageUsageCategory.UPLOAD,
-    StorageUsageCategory.INPUT_ASSET,
-}
 
 
 @dataclass(frozen=True)
@@ -52,7 +51,7 @@ class StorageUsageService:
                 category=category,
                 used_bytes=counters[category].used_bytes if category in counters else 0,
                 reserved_bytes=counters[category].reserved_bytes if category in counters else 0,
-                counts_toward_quota=self._counts_toward_quota(category),
+                counts_toward_quota=counts_toward_quota(category),
             )
             for category in StorageUsageCategory
         ]
@@ -89,26 +88,22 @@ class StorageUsageService:
             )
         account = await self._ensure_account(db, user_id, lock=True)
         counter = await self._ensure_counter(db, user_id, category, lock=True)
-        counts_toward_quota = self._counts_toward_quota(category)
-        if counts_toward_quota:
-            self._assert_quota_available(account, bytes_count)
-            account.reserved_bytes += bytes_count
-            account.updated_at = utc_now_naive()
-        counter.reserved_bytes += bytes_count
-        counter.updated_at = utc_now_naive()
-        reservation = StorageUsageReservation(
-            reservation_uuid=str(uuid.uuid4()),
+        counts_toward_quota_value = counts_toward_quota(category)
+        apply_reservation_hold(
+            account=account,
+            counter=counter,
+            bytes_count=bytes_count,
+            counts_toward_quota=counts_toward_quota_value,
+        )
+        reservation = new_reservation(
             user_id=user_id,
             category=category,
-            bytes_reserved=bytes_count,
-            counts_toward_quota=counts_toward_quota,
-            status=StorageUsageReservationStatus.RESERVED,
+            bytes_count=bytes_count,
+            counts_toward_quota=counts_toward_quota_value,
             reason=reason,
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
-            created_at=utc_now_naive(),
-            updated_at=utc_now_naive(),
         )
         db.add(reservation)
         await db.commit()
@@ -133,20 +128,16 @@ class StorageUsageService:
             return
         account = await self._ensure_account(db, reservation.user_id, lock=True)
         counter = await self._ensure_counter(db, reservation.user_id, reservation.category, lock=True)
-        if reservation.counts_toward_quota:
-            account.reserved_bytes -= reservation.bytes_reserved
-            account.used_bytes += reservation.bytes_reserved
-            account.updated_at = utc_now_naive()
-        counter.reserved_bytes -= reservation.bytes_reserved
-        counter.used_bytes += reservation.bytes_reserved
-        counter.updated_at = utc_now_naive()
-        reservation.status = StorageUsageReservationStatus.COMMITTED
-        reservation.object_type = object_type or reservation.object_type
-        reservation.object_id = object_id or reservation.object_id
-        reservation.storage_key = storage_key or reservation.storage_key
-        reservation.updated_at = utc_now_naive()
+        commit_reserved_usage(
+            account=account,
+            counter=counter,
+            reservation=reservation,
+            object_type=object_type,
+            object_id=object_id,
+            storage_key=storage_key,
+        )
         db.add(
-            StorageUsageEvent(
+            new_usage_event(
                 user_id=reservation.user_id,
                 category=reservation.category,
                 delta_bytes=reservation.bytes_reserved,
@@ -155,7 +146,6 @@ class StorageUsageService:
                 object_type=reservation.object_type,
                 object_id=reservation.object_id,
                 storage_key=reservation.storage_key,
-                created_at=utc_now_naive(),
             )
         )
         await db.commit()
@@ -166,13 +156,7 @@ class StorageUsageService:
             return
         account = await self._ensure_account(db, reservation.user_id, lock=True)
         counter = await self._ensure_counter(db, reservation.user_id, reservation.category, lock=True)
-        if reservation.counts_toward_quota:
-            account.reserved_bytes -= reservation.bytes_reserved
-            account.updated_at = utc_now_naive()
-        counter.reserved_bytes -= reservation.bytes_reserved
-        counter.updated_at = utc_now_naive()
-        reservation.status = StorageUsageReservationStatus.RELEASED
-        reservation.updated_at = utc_now_naive()
+        release_reserved_usage(account=account, counter=counter, reservation=reservation)
         await db.commit()
 
     async def record_allocation(
@@ -223,24 +207,23 @@ class StorageUsageService:
             return
         account = await self._ensure_account(db, user_id, lock=True)
         counter = await self._ensure_counter(db, user_id, category, lock=True)
-        counts_toward_quota = self._counts_toward_quota(category)
-        released = min(bytes_count, counter.used_bytes)
-        if counts_toward_quota:
-            account.used_bytes = max(account.used_bytes - released, 0)
-            account.updated_at = utc_now_naive()
-        counter.used_bytes = max(counter.used_bytes - released, 0)
-        counter.updated_at = utc_now_naive()
+        counts_toward_quota_value = counts_toward_quota(category)
+        released = release_used_usage(
+            account=account,
+            counter=counter,
+            bytes_count=bytes_count,
+            counts_toward_quota=counts_toward_quota_value,
+        )
         db.add(
-            StorageUsageEvent(
+            new_usage_event(
                 user_id=user_id,
                 category=category,
                 delta_bytes=-released,
-                counts_toward_quota=counts_toward_quota,
+                counts_toward_quota=counts_toward_quota_value,
                 reason=reason,
                 object_type=object_type,
                 object_id=object_id,
                 storage_key=storage_key,
-                created_at=utc_now_naive(),
             )
         )
         await db.commit()
@@ -265,26 +248,22 @@ class StorageUsageService:
             )
         account = self._ensure_account_sync(db, user_id, lock=True)
         counter = self._ensure_counter_sync(db, user_id, category, lock=True)
-        counts_toward_quota = self._counts_toward_quota(category)
-        if counts_toward_quota:
-            self._assert_quota_available(account, bytes_count)
-            account.reserved_bytes += bytes_count
-            account.updated_at = utc_now_naive()
-        counter.reserved_bytes += bytes_count
-        counter.updated_at = utc_now_naive()
-        reservation = StorageUsageReservation(
-            reservation_uuid=str(uuid.uuid4()),
+        counts_toward_quota_value = counts_toward_quota(category)
+        apply_reservation_hold(
+            account=account,
+            counter=counter,
+            bytes_count=bytes_count,
+            counts_toward_quota=counts_toward_quota_value,
+        )
+        reservation = new_reservation(
             user_id=user_id,
             category=category,
-            bytes_reserved=bytes_count,
-            counts_toward_quota=counts_toward_quota,
-            status=StorageUsageReservationStatus.RESERVED,
+            bytes_count=bytes_count,
+            counts_toward_quota=counts_toward_quota_value,
             reason=reason,
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
-            created_at=utc_now_naive(),
-            updated_at=utc_now_naive(),
         )
         db.add(reservation)
         db.commit()
@@ -306,20 +285,16 @@ class StorageUsageService:
             return
         account = self._ensure_account_sync(db, reservation.user_id, lock=True)
         counter = self._ensure_counter_sync(db, reservation.user_id, reservation.category, lock=True)
-        if reservation.counts_toward_quota:
-            account.reserved_bytes -= reservation.bytes_reserved
-            account.used_bytes += reservation.bytes_reserved
-            account.updated_at = utc_now_naive()
-        counter.reserved_bytes -= reservation.bytes_reserved
-        counter.used_bytes += reservation.bytes_reserved
-        counter.updated_at = utc_now_naive()
-        reservation.status = StorageUsageReservationStatus.COMMITTED
-        reservation.object_type = object_type or reservation.object_type
-        reservation.object_id = object_id or reservation.object_id
-        reservation.storage_key = storage_key or reservation.storage_key
-        reservation.updated_at = utc_now_naive()
+        commit_reserved_usage(
+            account=account,
+            counter=counter,
+            reservation=reservation,
+            object_type=object_type,
+            object_id=object_id,
+            storage_key=storage_key,
+        )
         db.add(
-            StorageUsageEvent(
+            new_usage_event(
                 user_id=reservation.user_id,
                 category=reservation.category,
                 delta_bytes=reservation.bytes_reserved,
@@ -328,7 +303,6 @@ class StorageUsageService:
                 object_type=reservation.object_type,
                 object_id=reservation.object_id,
                 storage_key=reservation.storage_key,
-                created_at=utc_now_naive(),
             )
         )
         db.commit()
@@ -339,13 +313,7 @@ class StorageUsageService:
             return
         account = self._ensure_account_sync(db, reservation.user_id, lock=True)
         counter = self._ensure_counter_sync(db, reservation.user_id, reservation.category, lock=True)
-        if reservation.counts_toward_quota:
-            account.reserved_bytes -= reservation.bytes_reserved
-            account.updated_at = utc_now_naive()
-        counter.reserved_bytes -= reservation.bytes_reserved
-        counter.updated_at = utc_now_naive()
-        reservation.status = StorageUsageReservationStatus.RELEASED
-        reservation.updated_at = utc_now_naive()
+        release_reserved_usage(account=account, counter=counter, reservation=reservation)
         db.commit()
 
     def record_allocation_sync(
@@ -396,24 +364,23 @@ class StorageUsageService:
             return
         account = self._ensure_account_sync(db, user_id, lock=True)
         counter = self._ensure_counter_sync(db, user_id, category, lock=True)
-        counts_toward_quota = self._counts_toward_quota(category)
-        released = min(bytes_count, counter.used_bytes)
-        if counts_toward_quota:
-            account.used_bytes = max(account.used_bytes - released, 0)
-            account.updated_at = utc_now_naive()
-        counter.used_bytes = max(counter.used_bytes - released, 0)
-        counter.updated_at = utc_now_naive()
+        counts_toward_quota_value = counts_toward_quota(category)
+        released = release_used_usage(
+            account=account,
+            counter=counter,
+            bytes_count=bytes_count,
+            counts_toward_quota=counts_toward_quota_value,
+        )
         db.add(
-            StorageUsageEvent(
+            new_usage_event(
                 user_id=user_id,
                 category=category,
                 delta_bytes=-released,
-                counts_toward_quota=counts_toward_quota,
+                counts_toward_quota=counts_toward_quota_value,
                 reason=reason,
                 object_type=object_type,
                 object_id=object_id,
                 storage_key=storage_key,
-                created_at=utc_now_naive(),
             )
         )
         db.commit()
@@ -519,25 +486,5 @@ class StorageUsageService:
             DEFAULT_PLAN_CODE,
             ErrorCode.QUOTA_CHECK_UNAVAILABLE,
         )
-
-    @staticmethod
-    def _counts_toward_quota(category: StorageUsageCategory) -> bool:
-        return category in QUOTA_CATEGORIES
-
-    @staticmethod
-    def _assert_quota_available(account: StorageUsageAccount, bytes_count: int) -> None:
-        if account.used_bytes + account.reserved_bytes + bytes_count <= account.quota_limit_bytes:
-            return
-        raise ValidationException(
-            ErrorCode.STORAGE_QUOTA_EXCEEDED,
-            field="storage",
-            details={
-                "used_bytes": account.used_bytes,
-                "reserved_bytes": account.reserved_bytes,
-                "requested_bytes": bytes_count,
-                "limit_bytes": account.quota_limit_bytes,
-            },
-        )
-
 
 storage_usage_service = StorageUsageService()

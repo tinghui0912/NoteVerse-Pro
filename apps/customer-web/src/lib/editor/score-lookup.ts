@@ -1,12 +1,13 @@
 /**
- * Score 工具函数
- * 提供在 scoreData 中查找实体的通用方法
+ * Score lookup helpers.
+ *
+ * Provides shared entity lookup utilities for editor and connection flows.
  */
 
 import type { ScoreData, ScoreEntity, EntityMeta } from '@/types/score-types';
 
 /**
- * 查找结果类型
+ * Entity lookup result.
  */
 export type FindEntityResult = {
     entity: ScoreEntity;
@@ -14,11 +15,11 @@ export type FindEntityResult = {
 } | null;
 
 /**
- * 根据 entityId 在 scoreData 中查找对应的 ScoreEntity 和 EntityMeta
- * 
- * @param scoreData 乐谱数据
- * @param entityId 实体 ID
- * @returns 包含 entity 和 meta 的对象，未找到则返回 null
+ * Finds the score entity and metadata for an entity id.
+ *
+ * @param scoreData Parsed score data.
+ * @param entityId Entity id to find.
+ * @returns Entity plus metadata, or null when not found.
  */
 export function findEntityById(scoreData: ScoreData | null, entityId: string): FindEntityResult {
     if (!scoreData) return null;
@@ -41,11 +42,11 @@ export function findEntityById(scoreData: ScoreData | null, entityId: string): F
 }
 
 /**
- * 根据 entityId 在 scoreData 中查找对应的 EntityMeta
- * 
- * @param scoreData 乐谱数据
- * @param entityId 实体 ID
- * @returns EntityMeta 对象，未找到则返回 null
+ * Finds the metadata for an entity id.
+ *
+ * @param scoreData Parsed score data.
+ * @param entityId Entity id to find.
+ * @returns Entity metadata, or null when not found.
  */
 export function findEntityMetaById(scoreData: ScoreData | null, entityId: string): EntityMeta | null {
     const result = findEntityById(scoreData, entityId);

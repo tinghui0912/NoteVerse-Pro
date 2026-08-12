@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import os
 import tempfile
 import uuid
@@ -28,6 +27,11 @@ from app.db.models import (
     StorageUsageCategory,
 )
 from app.db.models.score import RenderAssetKind, RevisionSourceFormat
+from app.modules.score_assets.render_asset_records import (
+    build_render_asset_record,
+    render_asset_usage,
+    render_storage_key,
+)
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.render_execution_manifest import build_render_execution_manifest
 from app.modules.score_assets.schemas import RenderAssetRead
@@ -107,7 +111,7 @@ class RevisionRenderService:
             for item in await self.repository.list_render_assets(db, revision_id)
             if isinstance(item, ScoreRenderAsset) and item.render_profile == profile
         ]
-        previous_usage = [(item.asset_uuid, item.storage_key, item.size_bytes) for item in previous]
+        previous_usage = render_asset_usage(previous)
         try:
             for item in previous:
                 await db.delete(item)
@@ -117,11 +121,7 @@ class RevisionRenderService:
             await db.commit()
         except Exception:
             await db.rollback()
-            for key in uploaded_keys:
-                try:
-                    self.storage.delete(key)
-                except Exception:
-                    pass
+            self._delete_storage_keys_best_effort(uploaded_keys)
             raise
         for item in new_records:
             await storage_usage_service.record_allocation(
@@ -134,22 +134,18 @@ class RevisionRenderService:
                 object_id=item.asset_uuid,
                 storage_key=item.storage_key,
             )
-        for asset_uuid, storage_key, size_bytes in previous_usage:
+        for usage in previous_usage:
             await storage_usage_service.record_release(
                 db,
                 user_id=access.score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_RENDER,
-                bytes_count=size_bytes or 0,
+                bytes_count=usage.size_bytes or 0,
                 reason="render_asset_replaced",
                 object_type="score_render_asset",
-                object_id=asset_uuid,
-                storage_key=storage_key,
+                object_id=usage.asset_uuid,
+                storage_key=usage.storage_key,
             )
-        for item in previous:
-            try:
-                self.storage.delete(item.storage_key)
-            except Exception:
-                pass
+        self._delete_render_assets_best_effort(previous)
         return [self.asset_service.render_asset_read(item, revision) for item in new_records]
 
     def render_for_worker(
@@ -215,9 +211,7 @@ class RevisionRenderService:
                     )
                 ).scalars()
             )
-            previous_usage = [
-                (item.asset_uuid, item.storage_key, item.size_bytes) for item in previous
-            ]
+            previous_usage = render_asset_usage(previous)
             for item in previous:
                 db.delete(item)
             db.flush()
@@ -226,11 +220,7 @@ class RevisionRenderService:
             db.commit()
         except Exception:
             db.rollback()
-            for key in uploaded_keys:
-                try:
-                    self.storage.delete(key)
-                except Exception:
-                    pass
+            self._delete_storage_keys_best_effort(uploaded_keys)
             raise
 
         for item in new_records:
@@ -244,22 +234,18 @@ class RevisionRenderService:
                 object_id=item.asset_uuid,
                 storage_key=item.storage_key,
             )
-        for asset_uuid, storage_key, size_bytes in previous_usage:
+        for usage in previous_usage:
             storage_usage_service.record_release_sync(
                 db,
                 user_id=score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_RENDER,
-                bytes_count=size_bytes or 0,
+                bytes_count=usage.size_bytes or 0,
                 reason="render_asset_replaced",
                 object_type="score_render_asset",
-                object_id=asset_uuid,
-                storage_key=storage_key,
+                object_id=usage.asset_uuid,
+                storage_key=usage.storage_key,
             )
-        for item in previous:
-            try:
-                self.storage.delete(item.storage_key)
-            except Exception:
-                pass
+        self._delete_render_assets_best_effort(previous)
         return new_records
 
     def _render_records(
@@ -294,9 +280,13 @@ class RevisionRenderService:
                 artifact_uuid = str(uuid.uuid4())
                 page = int(output["page"])
                 extension = os.path.splitext(path)[1] or ".svg"
-                key = (
-                    f"scores/{score_uuid}/revisions/{revision_uuid}/renders/"
-                    f"{profile}/{page:03d}-{artifact_uuid}{extension}"
+                key = render_storage_key(
+                    score_uuid=score_uuid,
+                    revision_uuid=revision_uuid,
+                    profile=profile,
+                    page=page,
+                    asset_uuid=artifact_uuid,
+                    extension=extension,
                 )
                 stored = self.storage.put_bytes(
                     key=key,
@@ -305,21 +295,27 @@ class RevisionRenderService:
                 )
                 uploaded_keys.append(stored.storage_key)
                 new_records.append(
-                    ScoreRenderAsset(
+                    build_render_asset_record(
                         asset_uuid=artifact_uuid,
                         revision_id=revision_id,
-                        kind=RenderAssetKind.RENDERED_PAGE,
                         storage_backend=self.storage.backend_name,
-                        storage_key=stored.storage_key,
-                        filename=stored.filename,
+                        stored=stored,
                         mime_type=output["mime_type"],
-                        size_bytes=stored.size_bytes,
-                        sha256=hashlib.sha256(content).hexdigest(),
+                        content=content,
                         execution_manifest_id=execution_manifest_id,
                         page_number=page,
-                        render_profile=profile,
+                        profile=profile,
                         generator=generator,
-                        generator_version="1",
                     )
                 )
         return new_records
+
+    def _delete_render_assets_best_effort(self, assets: list[ScoreRenderAsset]) -> None:
+        self._delete_storage_keys_best_effort([item.storage_key for item in assets])
+
+    def _delete_storage_keys_best_effort(self, storage_keys: list[str]) -> None:
+        for key in storage_keys:
+            try:
+                self.storage.delete(key)
+            except Exception:
+                pass

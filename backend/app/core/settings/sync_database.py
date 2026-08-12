@@ -1,9 +1,9 @@
-"""Synchronous database access settings for Worker tasks."""
+"""Synchronous database access settings."""
 
 from pydantic import BaseModel, field_validator
 
 
-class WorkerDatabaseSettings(BaseModel):
+class SyncDatabaseSettings(BaseModel):
     SYNC_DATABASE_URL: str
 
     @field_validator("SYNC_DATABASE_URL")

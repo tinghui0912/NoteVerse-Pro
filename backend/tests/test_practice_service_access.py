@@ -47,12 +47,14 @@ def _service_with_session(session: object | None) -> tuple[PracticeService, Mock
     runtime_registry = Mock()
     library_service = Mock()
     library_service.mark_practiced = AsyncMock()
+    read_model = Mock()
+    read_model.to_session_detail = AsyncMock(side_effect=lambda _db, value: {"state": value.state})
     service = PracticeService(
         repository=repository,
         runtime_registry=runtime_registry,
         library_service=library_service,
+        read_model=read_model,
     )
-    service._to_session_detail = AsyncMock(side_effect=lambda _db, value: {"state": value.state})
     return service, repository, runtime_registry, library_service
 
 
@@ -149,12 +151,14 @@ async def test_request_report_persists_a_ready_payload_for_finished_sessions() -
     report_builder.build.return_value = {"summary": "Strong timing"}
     service.report_builder = report_builder
     repository.save_report = AsyncMock(side_effect=lambda _db, value: value)
-    service._to_report_result = Mock(
+    read_model = Mock()
+    read_model.to_report_result = Mock(
         side_effect=lambda value: {
             "status": value.report_status,
             "payload": json.loads(value.report_payload),
         }
     )
+    service.read_model = read_model
 
     report = await service.request_report(Mock(), "session-1", 7)
 

@@ -2,10 +2,10 @@
 'use client';
 
 /**
- * 元数据编辑 Hook - 管理乐谱元数据
- * 
- * 所有更新函数同时更新结构元数据和 <credit> 显示元素，
- * credit 属性遵循项目的 A4 MusicXML 布局约定。
+ * Metadata editing hook for score-level MusicXML metadata.
+ *
+ * All update functions keep structural metadata and visible <credit> elements
+ * in sync. Credit attributes follow the project's A4 MusicXML layout profile.
  */
 
 import { useCallback } from 'react';
@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl';
 import { useXmlUpdater } from './use-xml-updater';
 import { rebuildAutomaticBeams } from '@/lib/musicxml/automatic-beams';
 
-// 项目 A4 MusicXML 坐标配置（与后端 processing/text/config.py XmlLayoutConfig 一致）
+// Project A4 MusicXML coordinate profile, aligned with backend XmlLayoutConfig.
 const CREDIT_CONFIG = {
     TITLE_CENTER_X: '600.241935',
     TITLE: {
@@ -55,7 +55,7 @@ const CREDIT_CONFIG = {
 } as const;
 
 /**
- * 查找包含指定 credit-type 的 <credit> 元素
+ * Find the <credit> element for a given credit-type.
  */
 function findCreditByType(xmlDoc: XMLDocument, creditType: string): Element | null {
     const credits = xmlDoc.querySelectorAll('credit');
@@ -69,9 +69,9 @@ function findCreditByType(xmlDoc: XMLDocument, creditType: string): Element | nu
 }
 
 /**
- * 更新或创建 <credit> 元素（遵循项目的 A4 MusicXML 布局约定）
- * 
- * 结构：
+ * Update or create a <credit> element using the project A4 MusicXML layout.
+ *
+ * Structure:
  * <credit page="1">
  *   <credit-type>...</credit-type>
  *   <credit-words default-x="..." default-y="..." justify="..." valign="..." [font-size="..."]>text</credit-words>
@@ -93,23 +93,23 @@ function upsertCredit(
     let credit = findCreditByType(xmlDoc, creditType);
 
     if (!text || text.trim() === '') {
-        // 文本为空时移除整个 credit 元素
+        // Remove the whole credit element when the text is blank.
         if (credit) credit.parentNode?.removeChild(credit);
         return;
     }
 
     if (credit) {
-        // 已存在 → 仅更新 credit-words 文本，保留所有属性
+        // Existing credit: update only credit-words text and preserve attributes.
         const cw = credit.querySelector('credit-words');
         if (cw) {
             cw.textContent = text;
         }
     } else {
-        // 不存在 → 创建完整的 credit 元素
+        // Missing credit: create the full credit element.
         credit = xmlDoc.createElement('credit');
         credit.setAttribute('page', '1');
 
-        // credit-type 在 credit-words 之前（MusicXML 规范顺序）
+        // Keep credit-type before credit-words to match MusicXML element order.
         const ct = xmlDoc.createElement('credit-type');
         ct.textContent = creditType;
         credit.appendChild(ct);
@@ -125,7 +125,7 @@ function upsertCredit(
         cw.textContent = text;
         credit.appendChild(cw);
 
-        // 插入到 <part-list> 之前
+        // Insert credits before <part-list> when possible.
         const partList = xmlDoc.querySelector('part-list');
         if (partList) {
             root.insertBefore(credit, partList);
@@ -242,7 +242,7 @@ export function useMetadataEditor() {
         updateMusicXML(xmlDoc => {
             const root = xmlDoc.querySelector('score-partwise') || xmlDoc.documentElement;
 
-            // 1. 更新 <work-title>
+            // 1. Update <work-title>.
             let work = xmlDoc.querySelector('work');
             if (!work) {
                 work = xmlDoc.createElement('work');
@@ -255,7 +255,7 @@ export function useMetadataEditor() {
             }
             workTitle.textContent = title;
 
-            // 2. 同步更新 <credit>（title）
+            // 2. Sync the visible title <credit>.
             upsertCredit(xmlDoc, root, CREDIT_CONFIG.TITLE.creditType, title, {
                 defaultX: CREDIT_CONFIG.TITLE_CENTER_X,
                 defaultY: CREDIT_CONFIG.TITLE.defaultY,
@@ -285,7 +285,7 @@ export function useMetadataEditor() {
         updateMusicXML(xmlDoc => {
             const root = xmlDoc.querySelector('score-partwise') || xmlDoc.documentElement;
 
-            // 1. 更新 <identification><rights>
+            // 1. Update <identification><rights>.
             let identification = xmlDoc.querySelector('identification');
             if (!identification) {
                 identification = xmlDoc.createElement('identification');
@@ -298,7 +298,7 @@ export function useMetadataEditor() {
             }
             rights.textContent = copyright;
 
-            // 2. 同步更新 <credit>（rights）
+            // 2. Sync the visible rights <credit>.
             upsertCredit(xmlDoc, root, CREDIT_CONFIG.COPYRIGHT.creditType, copyright, {
                 defaultX: CREDIT_CONFIG.COPYRIGHT.defaultX,
                 defaultY: CREDIT_CONFIG.COPYRIGHT.defaultY,
@@ -310,13 +310,13 @@ export function useMetadataEditor() {
     }, [updateMusicXML, t]);
 
     /**
-     * 更新 <creator type="..."> 元素 + 对应的 <credit> 元素
+     * Update a <creator type="..."> element and its matching <credit> element.
      */
     const updateCreator = useCallback((type: 'composer' | 'lyricist', text: string) => {
         updateMusicXML(xmlDoc => {
             const root = xmlDoc.querySelector('score-partwise') || xmlDoc.documentElement;
 
-            // 1. 更新 <identification><creator>
+            // 1. Update <identification><creator>.
             let identification = xmlDoc.querySelector('identification');
             if (!identification) {
                 identification = xmlDoc.createElement('identification');
@@ -330,7 +330,7 @@ export function useMetadataEditor() {
                 }
             }
 
-            // 查找已有的 creator 元素
+            // Find an existing creator element with the same type.
             const creators = identification.querySelectorAll('creator');
             let existing: Element | null = null;
             creators.forEach(el => {
@@ -343,13 +343,13 @@ export function useMetadataEditor() {
                 if (!existing) {
                     existing = xmlDoc.createElement('creator');
                     existing.setAttribute('type', type);
-                    // 插入到 identification 的最前面（项目顺序：creator → rights → encoding）
+                    // Keep project order inside identification: creator, rights, encoding.
                     identification.insertBefore(existing, identification.firstChild);
                 }
                 existing.textContent = text;
             }
 
-            // 2. 同步更新 <credit>
+            // 2. Sync the visible <credit>.
             const cfg = type === 'composer' ? CREDIT_CONFIG.COMPOSER : CREDIT_CONFIG.LYRICIST;
             upsertCredit(xmlDoc, root, cfg.creditType, text, {
                 defaultX: cfg.defaultX,

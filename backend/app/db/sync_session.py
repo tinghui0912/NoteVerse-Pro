@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 
-# Central sync database entry point for worker tasks and pipeline helpers.
+# Central sync database entry point for sync API helpers, worker tasks, and pipeline helpers.
 sync_engine = create_engine(
     settings.SYNC_DATABASE_URL,
     pool_pre_ping=True,

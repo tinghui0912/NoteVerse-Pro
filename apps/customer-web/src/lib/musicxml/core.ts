@@ -1,7 +1,7 @@
 /**
  * MusicXML Core Utilities
  * 
- * 基础工具函数：解析、序列化、时值转换等
+ * Parsing, serialization, pitch, duration, and entity grouping helpers.
  * 
  * @module lib/musicxml-core
  */
@@ -43,18 +43,18 @@ export function serializeXml(xmlDoc: XMLDocument): string {
 }
 
 /**
- * 对 XML 字符串进行缩进格式化。
+ * Formats an XML string with stable indentation.
  * 
- * XMLSerializer 输出的 XML 对于新增/修改的节点不保留缩进，
- * 此函数统一处理，确保保存后的文件可读。
+ * XMLSerializer does not preserve indentation for inserted or modified nodes,
+ * so this normalizes serialized output for readable saved MusicXML files.
  */
 function formatXml(xml: string): string {
-    // 提取 XML 声明（如 <?xml version="1.0" ...?>）
+    // Preserve an existing XML declaration such as <?xml version="1.0" ...?>.
     const xmlDeclMatch = xml.match(/^(<\?xml[^?]*\?>)\s*/);
     const xmlDecl = xmlDeclMatch ? xmlDeclMatch[1] : '';
     const body = xmlDeclMatch ? xml.slice(xmlDeclMatch[0].length) : xml;
 
-    // 在相邻标签之间插入换行（仅匹配 >< 之间）
+    // Insert line breaks only between adjacent tags.
     const formatted = body
         .replace(/>\s*</g, '>\n<')
         .split('\n');
@@ -67,22 +67,22 @@ function formatXml(xml: string): string {
         const line = rawLine.trim();
         if (!line) continue;
 
-        // 纯文本行（不以 < 开头）→ 不添加缩进，保持原样
+        // Preserve pure text lines as-is.
         if (!line.startsWith('<')) {
             result.push(line);
             continue;
         }
 
-        // 自闭合标签 <.../> — 不改变层级
+        // Self-closing tag: keep the current nesting level.
         if (line.match(/^<[^/!][^>]*\/>\s*$/)) {
             result.push(indent.repeat(level) + line);
         }
-        // 闭合标签 </...> — 先减层级再缩进
+        // Closing tag: decrease the nesting level before writing.
         else if (line.startsWith('</')) {
             level = Math.max(0, level - 1);
             result.push(indent.repeat(level) + line);
         }
-        // 开始标签（含内联文本，如 <tag>text</tag>）
+        // Inline text element such as <tag>text</tag>.
         else if (line.match(/^<[^/!][^>]*>[^<]*<\/[^>]+>$/)) {
             result.push(indent.repeat(level) + line);
         }
@@ -90,12 +90,12 @@ function formatXml(xml: string): string {
         else if (line.startsWith('<!')) {
             result.push(indent.repeat(level) + line);
         }
-        // 开始标签 — 缩进后加层级
+        // Opening tag: write at the current level, then increase nesting.
         else if (line.match(/^<[^/!?][^>]*[^/]>$/)) {
             result.push(indent.repeat(level) + line);
             level++;
         }
-        // 其他
+        // Fallback for declarations or unusual XML fragments.
         else {
             result.push(indent.repeat(level) + line);
         }
@@ -179,28 +179,29 @@ export function getDurationTypeName(durationType: string): string {
 // ============================================================================
 
 /**
- * 实体组类型定义
- * 每个实体组对应 UI 中的一个实体（单音符、和弦、休止符或空白）
+ * Entity groups map MusicXML note/forward elements to one UI score entity.
+ * A group may represent a note, chord, rest, or blank forward entity.
  */
 export type EntityGroup = {
-    /** 实体类型 */
+    /** UI entity type represented by this group. */
     type: 'note' | 'chord' | 'rest' | 'forward';
-    /** 组内的 XML 元素（和弦可能有多个音符元素） */
+    /** XML elements in this group; chords may contain multiple note elements. */
     elements: Element[];
 };
 
 /**
- * 从小节中获取指定声部的所有实体组
+ * Returns all UI entity groups for a staff/voice within one measure.
  * 
- * 这个函数与 MusicXMLParser.parseMeasures 保持一致的逻辑：
- * - 遍历 note 和 forward 元素
- * - 按和弦关系分组
- * - 返回的索引与 UI 中的 entityIndex 一致
- * 
- * @param measureEl 小节元素
- * @param staffNumber 谱表编号 (1-based)
- * @param voiceNum 声部编号 (1-based, 或 staff 2 的 voice 需要加偏移)
- * @returns 实体组数组
+ * This mirrors `MusicXMLParser.parseMeasures` so returned array indexes match
+ * UI `entityIndex` values:
+ * - iterate `note` and `forward` elements in document order;
+ * - group chord members with their root note;
+ * - represent matching `forward` elements as blank UI entities.
+ *
+ * @param measureEl Measure element.
+ * @param staffNumber 1-based MusicXML staff number.
+ * @param voiceNum 1-based MusicXML voice number.
+ * @returns Entity groups for the requested staff/voice.
  */
 export function getEntityGroupsFromMeasure(
     measureEl: Element,
@@ -225,7 +226,7 @@ export function getEntityGroupsFromMeasure(
             const voice = voiceEl ? parseInt(voiceEl.textContent || '1', 10) : 1;
 
             if (staff === staffNumber && voice === voiceNum) {
-                // 先保存之前的音符组
+                // Flush the previous note group before adding a forward entity.
                 if (currentNoteGroup.length > 0) {
                     entityGroups.push({
                         type: currentNoteGroup.length > 1 ? 'chord' : currentGroupType,
@@ -233,7 +234,7 @@ export function getEntityGroupsFromMeasure(
                     });
                     currentNoteGroup = [];
                 }
-                // forward 单独作为一个实体组
+                // A matching forward element is exposed as its own blank entity.
                 entityGroups.push({
                     type: 'forward',
                     elements: [element]
@@ -250,10 +251,10 @@ export function getEntityGroupsFromMeasure(
                 const isRest = element.querySelector('rest') !== null;
 
                 if (isChordMember && currentNoteGroup.length > 0) {
-                    // chord 成员加入当前组
+                    // Chord members join the current root-note group.
                     currentNoteGroup.push(element);
                 } else {
-                    // 新的主音符：先保存之前的组
+                    // A new root note starts a new group after flushing the previous one.
                     if (currentNoteGroup.length > 0) {
                         entityGroups.push({
                             type: currentNoteGroup.length > 1 ? 'chord' : currentGroupType,
@@ -267,7 +268,7 @@ export function getEntityGroupsFromMeasure(
         }
     }
 
-    // 保存最后一个组
+    // Flush the final note group.
     if (currentNoteGroup.length > 0) {
         entityGroups.push({
             type: currentNoteGroup.length > 1 ? 'chord' : currentGroupType,

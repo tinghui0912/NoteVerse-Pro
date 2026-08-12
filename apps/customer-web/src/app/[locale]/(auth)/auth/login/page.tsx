@@ -43,10 +43,10 @@ export default function LoginPage() {
 
         try {
             await login(email, password);
-            // 从 URL 获取 returnUrl 参数，如果没有则跳转到 /upload
+            // Redirect to returnUrl from the URL, or fall back to /upload.
             router.push(getSafeReturnUrl(returnUrl));
         } catch (err) {
-            // 使用前端翻译显示错误信息，而不是直接使用后端返回的中文
+            // Show frontend-localized errors instead of backend response text.
             if (err instanceof ApiError) {
                 setError(translateErrorCode(tErrors, err.code, t('validation.loginError')));
             } else {

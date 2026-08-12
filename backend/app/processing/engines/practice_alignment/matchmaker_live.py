@@ -2,624 +2,35 @@ from __future__ import annotations
 
 import queue
 import threading
-import time
 from pathlib import Path
-from typing import Callable, Literal, NotRequired, Protocol, TypedDict, runtime_checkable
 
-from app.core.config import get_practice_runtime_settings
-from app.processing.resources import ensure_partitura_default_soundfont
+from app.core.settings.practice_runtime import get_practice_runtime_settings
 from app.core.logger import logger
-from app.processing.engines.practice_alignment.audio_activity import (
-    ActivityConfidenceEstimator,
-    AdaptiveNoiseCalibrator,
-    AudioFrameClass,
-    AudioGateConfig,
-    AudioFeatureExtractor,
-    AudioFrameFeatures,
-    OltwInputPolicy,
-    PracticeAudioGate,
-    PracticeActivityStateMachine,
+from app.processing.resources import ensure_partitura_default_soundfont
+from app.processing.engines.practice_alignment.audio_features import feature_matrix
+from app.processing.engines.practice_alignment.alignment_metrics import (
+    alignment_state,
+    beat_velocity,
+    continuity_state,
+    validation_confidence_ceiling,
 )
+from app.processing.engines.practice_alignment.browser_audio_stream import BrowserAudioStreamAdapter, EnvironmentQuality
+from app.processing.engines.practice_alignment.contracts import AlignmentEngine, AlignmentUpdate
 from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
+from app.processing.engines.practice_alignment.reference_runtime import (
+    build_audio_processor,
+    build_score_follower,
+    generate_score_audio,
+    normalize_audio_waveform,
+)
+from app.processing.engines.practice_alignment.reference_features import trim_to_playable_start
+from app.processing.engines.practice_alignment.stream_state import (
+    STREAM_STATE_HOLDING_DECAY,
+    STREAM_STATE_LOST,
+)
 
 
 DEFAULT_TEMPO_BPM = 120
-
-EnvironmentQuality = Literal["good", "noisy", "poor"]
-
-STREAM_STATE_CALIBRATING = "calibrating"
-STREAM_STATE_ARMED = "armed"
-STREAM_STATE_FOLLOWING = "following"
-STREAM_STATE_HOLDING_DECAY = "holding_decay"
-STREAM_STATE_LOST = "lost"
-
-
-class AlignmentUpdate(TypedDict):
-    beat_position: float
-    confidence: float
-    alignment_confidence: float
-    audio_confidence: float
-    continuity_confidence: float
-    visual_confidence: float
-    timestamp_ms: int
-    score_completed: bool
-    audio_active: bool
-    input_rms: float
-    input_peak: float
-    match_state: str
-    feature_confidence: NotRequired[float]
-    beat_delta: NotRequired[float | None]
-    stream_state: NotRequired[str]
-    frame_class: NotRequired[str]
-    gate_reason: NotRequired[str]
-    queue_decision: NotRequired[str]
-    tonal_signal: NotRequired[bool]
-    onset_signal: NotRequired[bool]
-    spectral_flatness: NotRequired[float]
-    peak_prominence: NotRequired[float]
-    spectral_flux: NotRequired[float]
-    alignment_state: NotRequired[str]
-    continuity_state: NotRequired[str]
-    beat_velocity: NotRequired[float | None]
-    validation_confidence: NotRequired[float]
-    input_weight: NotRequired[float]
-    input_policy_confidence: NotRequired[float]
-
-
-@runtime_checkable
-class AlignmentEngine(Protocol):
-    """Realtime alignment engine that consumes browser-provided audio chunks."""
-
-    def ingest_audio(self, chunk: bytes) -> AlignmentUpdate | None: ...
-
-    @property
-    def is_ready_for_performance(self) -> bool: ...
-
-    def close(self) -> None: ...
-
-
-class BrowserAudioStreamAdapter:
-    """Small adapter that feeds browser PCM frames into Matchmaker's queue."""
-
-    def __init__(
-        self,
-        processor,
-        feature_queue,
-        np,
-        hop_length: int,
-        rms_gate: float,
-        peak_gate: float,
-        start_rms_gate: float,
-        start_peak_gate: float,
-        min_active_frames: int,
-        warmup_frames: int,
-        rms_noise_multiplier: float,
-        peak_noise_multiplier: float,
-        diagnostics_enabled: bool,
-        no_input_frames: int = 24,
-        tonal_gate_enabled: bool = True,
-        max_spectral_flatness: float = 0.35,
-        min_peak_prominence: float = 8.0,
-        onset_flux_gate: float = 0.35,
-        onset_hold_frames: int = 45,
-        diagnostic_frame_interval: int = 15,
-    ) -> None:
-        self.processor = processor
-        self.queue = feature_queue
-        self.np = np
-        self.hop_length = hop_length
-        self.rms_gate = rms_gate
-        self.peak_gate = peak_gate
-        self.start_rms_gate = start_rms_gate
-        self.start_peak_gate = start_peak_gate
-        self.min_active_frames = min_active_frames
-        self.warmup_frames = warmup_frames
-        self.tonal_gate_enabled = tonal_gate_enabled
-        self.max_spectral_flatness = max_spectral_flatness
-        self.min_peak_prominence = min_peak_prominence
-        self.onset_flux_gate = onset_flux_gate
-        self.onset_hold_frames = max(onset_hold_frames, 1)
-        self.diagnostics_enabled = diagnostics_enabled
-        self.diagnostic_frame_interval = max(diagnostic_frame_interval, 1)
-        self.no_input_frames = max(no_input_frames, 1)
-        self.feature_extractor = AudioFeatureExtractor(
-            np=np,
-            tonal_gate_enabled=tonal_gate_enabled,
-            max_spectral_flatness=max_spectral_flatness,
-            min_peak_prominence=min_peak_prominence,
-        )
-        self.audio_gate = PracticeAudioGate(
-            AudioGateConfig(
-                rms_gate=rms_gate,
-                peak_gate=peak_gate,
-                start_rms_gate=start_rms_gate,
-                start_peak_gate=start_peak_gate,
-                min_peak_prominence=min_peak_prominence,
-                onset_hold_frames=self.onset_hold_frames,
-            )
-        )
-        self.oltw_input_policy = OltwInputPolicy()
-        self.calibrator = AdaptiveNoiseCalibrator(
-            np=np,
-            rms_gate=rms_gate,
-            peak_gate=peak_gate,
-            onset_flux_gate=onset_flux_gate,
-            rms_noise_multiplier=rms_noise_multiplier,
-            peak_noise_multiplier=peak_noise_multiplier,
-        )
-        self.activity_state = PracticeActivityStateMachine(
-            warmup_frames=warmup_frames,
-            no_input_frames=no_input_frames,
-        )
-        self.last_chunk = None
-        self.last_rms = 0.0
-        self.last_peak = 0.0
-        self.last_tonal_signal = False
-        self.last_spectral_flatness = 1.0
-        self.last_peak_prominence = 0.0
-        self.last_spectral_flux = 0.0
-        self.last_onset_signal = False
-        self.last_frame_class: AudioFrameClass = "silence"
-        self.last_feature_vector = None
-        self.start_feature_validator: Callable[[object], bool] | None = None
-        self.start_feature_scorer: Callable[[object], float] | None = None
-        self.last_gate_reason = "initialized"
-        self.last_queue_decision = "not_started"
-        self.last_input_weight = 0.0
-        self.last_input_policy_confidence = 0.0
-        self.last_start_signal_reason = "none"
-        self.last_runtime_activity_reason = "not_started"
-        self.last_start_feature_confidence: float | None = None
-        self._warmup_rms_values: list[float] = []
-        self._warmup_peak_values: list[float] = []
-
-    @property
-    def session_keepalive_frames(self) -> int:
-        return max(
-            self.onset_hold_frames * 2,
-            self.onset_hold_frames + self.no_input_frames,
-        )
-
-    def ingest(self, audio_frame) -> bool:
-        self.activity_state.begin_frame()
-        frame_features = self.feature_extractor.extract(
-            audio_frame,
-            rms_gate=self.rms_gate,
-            peak_gate=self.peak_gate,
-            calibrated_flux_gate=self._calibrated_flux_gate,
-        )
-        self._set_last_features(frame_features)
-        rms = frame_features.rms
-        peak = frame_features.peak
-        self.last_rms = rms
-        self.last_peak = peak
-        self.last_audio_active = False
-        self.last_queue_decision = "not_started"
-        self.last_input_weight = 0.0
-        self.last_input_policy_confidence = 0.0
-        self.last_gate_reason = "evaluating"
-        self.last_start_feature_confidence = None
-        self.last_frame_class = frame_features.frame_class
-        has_start_signal, self.last_start_signal_reason = self._start_signal_result(
-            rms,
-            peak,
-        )
-        if self.total_frames <= self.warmup_frames:
-            self._record_warmup_signal(rms, peak)
-            self._collect_noise_floor(rms, peak)
-            self.activity_state.reject(STREAM_STATE_CALIBRATING)
-            if self.total_frames == self.warmup_frames:
-                self.activity_state.mark_armed()
-            self.last_gate_reason = "warmup_calibration"
-            self.last_queue_decision = "warmup"
-            self._log_diagnostics("warmup", rms, peak)
-            return False
-
-        if not self.started:
-            self.stream_state = STREAM_STATE_ARMED
-            self._maybe_update_runtime_noise_floor(rms, peak)
-            if audio_frame.size == 0 or not has_start_signal:
-                self.activity_state.clear_start_signal()
-                self.activity_state.reject()
-                self.last_gate_reason = (
-                    "empty_frame" if audio_frame.size == 0 else self.last_start_signal_reason
-                )
-                self.last_queue_decision = "waiting_for_start"
-                self._log_diagnostics("rejected", rms, peak)
-                return False
-
-            if has_start_signal:
-                self.activity_state.mark_start_signal(self.last_onset_signal)
-            else:
-                self.activity_state.clear_start_signal()
-        elif audio_frame.size == 0:
-            self.activity_state.reject()
-            self.last_gate_reason = "empty_frame"
-            self.last_queue_decision = "empty_frame"
-            self._log_diagnostics("rejected", rms, peak)
-            return False
-
-        if self.last_chunk is None:
-            target_audio = self.np.concatenate(
-                (self.np.zeros(self.hop_length, dtype=self.np.float32), audio_frame)
-            )
-        else:
-            target_audio = self.np.concatenate((self.last_chunk, audio_frame))
-
-        feature_time = time.perf_counter()
-        features = self._feature_matrix(self.processor((target_audio, feature_time)))
-        if features is None:
-            self.last_chunk = target_audio[-self.hop_length :]
-            self.last_gate_reason = "feature_buffering"
-            self.last_queue_decision = "feature_buffering"
-            self._log_diagnostics("feature_buffering", rms, peak)
-            return False
-        self.last_feature_vector = self._latest_feature_vector(features)
-        if not self.started and self.start_streak >= self.min_active_frames:
-            self.last_start_feature_confidence = self._score_start_feature(
-                self.last_feature_vector,
-            )
-            if (
-                self.last_start_feature_confidence is not None
-                and self.last_start_feature_confidence < 0.7
-            ):
-                self.activity_state.clear_start_signal()
-                self._maybe_update_runtime_noise_floor(rms, peak)
-                self.last_chunk = target_audio[-self.hop_length :]
-                self.activity_state.reject(STREAM_STATE_ARMED)
-                self.last_gate_reason = "start_feature_mismatch"
-                self.last_queue_decision = "start_rejected"
-                self._log_diagnostics("start_rejected", rms, peak)
-                return False
-            self.activity_state.mark_started(self.last_onset_signal)
-            self.last_gate_reason = "start_confirmed"
-
-        runtime_active = False
-        if self.started:
-            runtime_active, self.last_runtime_activity_reason = self._runtime_activity_result(
-                rms,
-                peak,
-            )
-            self._update_runtime_activity(rms, peak, runtime_active)
-            self.last_audio_active = runtime_active
-            if not runtime_active:
-                self._maybe_update_runtime_noise_floor(rms, peak)
-
-        queue_decision = self.oltw_input_policy.decide(
-            started=self.started,
-            has_previous_chunk=self.last_chunk is not None,
-            runtime_active=runtime_active,
-            frame_class=self.last_frame_class,
-        )
-        if queue_decision.should_queue:
-            self.queue.put((features, feature_time))
-        self.last_queue_decision = queue_decision.reason
-        self.last_input_weight = queue_decision.input_weight
-        self.last_input_policy_confidence = queue_decision.confidence_ceiling
-
-        self.last_chunk = target_audio[-self.hop_length :]
-        self.activity_state.accept()
-        if self.started and self.last_gate_reason != "start_confirmed":
-            self.last_gate_reason = self.last_runtime_activity_reason
-        self._log_diagnostics("accepted", rms, peak)
-        return True
-
-    @property
-    def ready_to_start(self) -> bool:
-        return self.activity_state.ready_to_start
-
-    @property
-    def armed(self) -> bool:
-        return self.activity_state.armed
-
-    @armed.setter
-    def armed(self, value: bool) -> None:
-        self.activity_state.armed = value
-
-    @property
-    def started(self) -> bool:
-        return self.activity_state.started
-
-    @started.setter
-    def started(self, value: bool) -> None:
-        self.activity_state.started = value
-
-    @property
-    def performance_active(self) -> bool:
-        return self.activity_state.performance_active
-
-    @performance_active.setter
-    def performance_active(self, value: bool) -> None:
-        self.activity_state.performance_active = value
-
-    @property
-    def stream_state(self) -> str:
-        return self.activity_state.stream_state
-
-    @stream_state.setter
-    def stream_state(self, value: str) -> None:
-        self.activity_state.stream_state = value
-
-    @property
-    def total_frames(self) -> int:
-        return self.activity_state.total_frames
-
-    @property
-    def accepted_frames(self) -> int:
-        return self.activity_state.accepted_frames
-
-    @property
-    def rejected_frames(self) -> int:
-        return self.activity_state.rejected_frames
-
-    @property
-    def active_streak(self) -> int:
-        return self.activity_state.active_streak
-
-    @property
-    def start_streak(self) -> int:
-        return self.activity_state.start_streak
-
-    @start_streak.setter
-    def start_streak(self, value: int) -> None:
-        self.activity_state.start_streak = value
-
-    @property
-    def no_input_streak(self) -> int:
-        return self.activity_state.no_input_streak
-
-    @property
-    def last_onset_frame(self) -> int | None:
-        return self.activity_state.last_onset_frame
-
-    @last_onset_frame.setter
-    def last_onset_frame(self, value: int | None) -> None:
-        self.activity_state.last_onset_frame = value
-
-    @property
-    def last_audio_active(self) -> bool:
-        return self.activity_state.last_audio_active
-
-    @last_audio_active.setter
-    def last_audio_active(self, value: bool) -> None:
-        self.activity_state.last_audio_active = value
-
-    @property
-    def _calibrated_rms_gate(self) -> float:
-        return self.calibrator.calibrated_rms_gate
-
-    @_calibrated_rms_gate.setter
-    def _calibrated_rms_gate(self, value: float) -> None:
-        self.calibrator.calibrated_rms_gate = value
-
-    @property
-    def _calibrated_peak_gate(self) -> float:
-        return self.calibrator.calibrated_peak_gate
-
-    @_calibrated_peak_gate.setter
-    def _calibrated_peak_gate(self, value: float) -> None:
-        self.calibrator.calibrated_peak_gate = value
-
-    @property
-    def _calibrated_flux_gate(self) -> float:
-        return self.calibrator.calibrated_flux_gate
-
-    @_calibrated_flux_gate.setter
-    def _calibrated_flux_gate(self, value: float) -> None:
-        self.calibrator.calibrated_flux_gate = value
-
-    @property
-    def _noise_rms_values(self) -> list[float]:
-        return self.calibrator.noise_rms_values
-
-    @property
-    def _noise_peak_values(self) -> list[float]:
-        return self.calibrator.noise_peak_values
-
-    def _set_last_features(self, features: AudioFrameFeatures) -> None:
-        self.last_rms = features.rms
-        self.last_peak = features.peak
-        self.last_tonal_signal = features.tonal_signal
-        self.last_spectral_flatness = features.spectral_flatness
-        self.last_peak_prominence = features.peak_prominence
-        self.last_spectral_flux = features.spectral_flux
-        self.last_onset_signal = features.onset_signal
-        self.last_frame_class = features.frame_class
-
-    def _last_features(
-        self, rms: float | None = None, peak: float | None = None
-    ) -> AudioFrameFeatures:
-        return AudioFrameFeatures(
-            rms=self.last_rms if rms is None else rms,
-            peak=self.last_peak if peak is None else peak,
-            tonal_signal=self.last_tonal_signal,
-            spectral_flatness=self.last_spectral_flatness,
-            peak_prominence=self.last_peak_prominence,
-            spectral_flux=self.last_spectral_flux,
-            onset_signal=self.last_onset_signal,
-            frame_class=self.last_frame_class,
-        )
-
-    def _has_start_signal(self, rms: float, peak: float) -> bool:
-        return self._start_signal_result(rms, peak)[0]
-
-    def _start_signal_result(self, rms: float, peak: float) -> tuple[bool, str]:
-        effective_rms_gate, effective_peak_gate = self._effective_start_gates()
-        decision = self.audio_gate.start_signal(
-            self._last_features(rms, peak),
-            effective_rms_gate=effective_rms_gate,
-            effective_peak_gate=effective_peak_gate,
-        )
-        return decision.active, decision.reason
-
-    def _has_runtime_activity(self, rms: float, peak: float) -> bool:
-        return self._runtime_activity_result(rms, peak)[0]
-
-    def _runtime_activity_result(self, rms: float, peak: float) -> tuple[bool, str]:
-        in_keepalive_window = self.activity_state.has_recent_music_activity(
-            self.session_keepalive_frames,
-        )
-        decision = self.audio_gate.runtime_activity(
-            self._last_features(rms, peak),
-            calibrated_rms_gate=self._calibrated_rms_gate,
-            calibrated_peak_gate=self._calibrated_peak_gate,
-            total_frames=self.total_frames,
-            last_onset_frame=self.last_onset_frame,
-            in_keepalive_window=in_keepalive_window,
-        )
-        if decision.activity_marker == "onset":
-            self.activity_state.mark_onset()
-        elif decision.activity_marker == "music":
-            self.activity_state.mark_music_activity()
-        return decision.active, decision.reason
-
-    def _score_start_feature(self, feature_vector) -> float | None:
-        if self.start_feature_scorer is not None:
-            return self.start_feature_scorer(feature_vector)
-        if self.start_feature_validator is None:
-            return None
-        return 1.0 if self.start_feature_validator(feature_vector) else 0.0
-
-    def _has_tonal_signal(self, audio_frame) -> bool:
-        features = self.feature_extractor.extract(
-            audio_frame,
-            rms_gate=self.rms_gate,
-            peak_gate=self.peak_gate,
-            calibrated_flux_gate=self._calibrated_flux_gate,
-        )
-        self._set_last_features(features)
-        return features.tonal_signal
-
-    @property
-    def activity_confidence_ceiling(self) -> float:
-        return ActivityConfidenceEstimator.ceiling(
-            last_audio_active=self.last_audio_active,
-            started=self.started,
-            no_input_streak=self.no_input_streak,
-            no_input_frames=self.no_input_frames,
-        )
-
-    def _update_runtime_activity(
-        self,
-        rms: float,
-        peak: float,
-        runtime_active: bool | None = None,
-    ) -> None:
-        is_active = (
-            runtime_active if runtime_active is not None else self._has_runtime_activity(rms, peak)
-        )
-        self.activity_state.update_runtime_activity(is_active)
-
-    def _collect_noise_floor(self, rms: float, peak: float) -> None:
-        self.calibrator.collect_noise_floor(self._last_features(rms, peak))
-
-    def _maybe_update_runtime_noise_floor(self, rms: float, peak: float) -> None:
-        self.calibrator.maybe_update_runtime_noise_floor(self._last_features(rms, peak))
-
-    def _is_noise_floor_candidate(self, rms: float, peak: float) -> bool:
-        return self.calibrator.is_noise_floor_candidate(rms, peak)
-
-    def _effective_start_gates(self) -> tuple[float, float]:
-        return (
-            max(self.start_rms_gate, self._calibrated_rms_gate * 1.2),
-            max(self.start_peak_gate, self._calibrated_peak_gate * 1.1),
-        )
-
-    def _record_warmup_signal(self, rms: float, peak: float) -> None:
-        self._warmup_rms_values.append(rms)
-        self._warmup_peak_values.append(peak)
-
-    @property
-    def environment_quality(self) -> EnvironmentQuality:
-        if not self._warmup_rms_values or not self._warmup_peak_values:
-            return "good"
-
-        rms_p90 = float(self.np.percentile(self._warmup_rms_values, 90))
-        peak_p90 = float(self.np.percentile(self._warmup_peak_values, 90))
-        if rms_p90 >= self.start_rms_gate * 0.8 or peak_p90 >= self.start_peak_gate * 0.8:
-            return "poor"
-        if rms_p90 >= self.rms_gate * 0.75 or peak_p90 >= self.peak_gate * 0.75:
-            return "noisy"
-        return "good"
-
-    def _refresh_calibrated_gates(self) -> None:
-        self.calibrator.refresh_gates()
-
-    def _update_noise_floor(self, rms: float, peak: float, alpha: float) -> None:
-        self.calibrator.update_noise_floor(self._last_features(rms, peak), alpha=alpha)
-
-    def _measure_signal(self, audio_frame) -> tuple[float, float]:
-        return self.feature_extractor.measure_signal(audio_frame)
-
-    def _latest_feature_vector(self, features):
-        feature_array = self.np.asarray(features, dtype=float)
-        if feature_array.size == 0:
-            return None
-        if feature_array.ndim == 1:
-            return feature_array
-        return feature_array[-1]
-
-    @staticmethod
-    def _feature_matrix(processor_output):
-        if processor_output is None:
-            return None
-        if isinstance(processor_output, tuple):
-            if not processor_output:
-                return None
-            return processor_output[0]
-        return processor_output
-
-    def _log_diagnostics(self, decision: str, rms: float, peak: float) -> None:
-        if not self.diagnostics_enabled:
-            return
-
-        should_log = (
-            decision == "accepted"
-            or self.total_frames <= self.warmup_frames
-            or self.total_frames % self.diagnostic_frame_interval == 0
-        )
-        if not should_log:
-            return
-
-        effective_start_rms_gate, effective_start_peak_gate = self._effective_start_gates()
-        logger.bind(
-            event="practice_audio.gate_diagnostic",
-            decision=decision,
-            frame=self.total_frames,
-            rms=round(rms, 5),
-            peak=round(peak, 5),
-            rms_gate=round(self._calibrated_rms_gate, 5),
-            peak_gate=round(self._calibrated_peak_gate, 5),
-            start_rms_gate=round(self.start_rms_gate, 5),
-            start_peak_gate=round(self.start_peak_gate, 5),
-            effective_start_rms_gate=round(effective_start_rms_gate, 5),
-            effective_start_peak_gate=round(effective_start_peak_gate, 5),
-            armed=self.armed,
-            active_streak=self.active_streak,
-            start_streak=self.start_streak,
-            no_input_streak=self.no_input_streak,
-            performance_active=self.performance_active,
-            tonal=self.last_tonal_signal,
-            spectral_flatness=round(self.last_spectral_flatness, 5),
-            peak_prominence=round(self.last_peak_prominence, 2),
-            spectral_flux=round(self.last_spectral_flux, 5),
-            flux_gate=round(self._calibrated_flux_gate, 5),
-            onset=self.last_onset_signal,
-            accepted=self.accepted_frames,
-            rejected=self.rejected_frames,
-            noise_samples=len(self._noise_rms_values),
-            started=self.ready_to_start,
-            state=self.stream_state,
-            frame_class=self.last_frame_class,
-            gate_reason=self.last_gate_reason,
-            start_reason=self.last_start_signal_reason,
-            runtime_reason=self.last_runtime_activity_reason,
-            queue_decision=self.last_queue_decision,
-            input_weight=round(self.last_input_weight, 2),
-            input_policy_confidence=round(self.last_input_policy_confidence, 2),
-            start_feature_confidence=self.last_start_feature_confidence,
-        ).info("Practice audio gate diagnostic")
-
 
 class MatchmakerLiveEngine:
     """Matchmaker-backed live engine for browser WebSocket PCM streams."""
@@ -694,7 +105,7 @@ class MatchmakerLiveEngine:
         self.frame_rate = profile.frame_rate
         self.hop_length = max(int(sample_rate / self.frame_rate), 1)
         self._queue: queue.Queue[object] = queue.Queue()
-        self._processor = self._build_audio_processor(
+        self._processor = build_audio_processor(
             sample_rate=sample_rate,
             hop_length=self.hop_length,
             chroma_processor=ChromagramProcessor,
@@ -723,7 +134,7 @@ class MatchmakerLiveEngine:
             diagnostic_frame_interval=settings.PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL,
         )
 
-        raw_score_audio = self._generate_score_audio(
+        raw_score_audio = generate_score_audio(
             score=self.score_part,
             bpm=self.tempo,
             sample_rate=sample_rate,
@@ -731,23 +142,23 @@ class MatchmakerLiveEngine:
             partitura=partitura,
             generate_score_audio=score_audio_generator,
         )
-        score_audio = self._normalize_audio_waveform(raw_score_audio, np).astype(np.float32)
-        reference_features = BrowserAudioStreamAdapter._feature_matrix(
-            self._processor((score_audio, 0.0))
-        )
+        score_audio = normalize_audio_waveform(raw_score_audio, np).astype(np.float32)
+        reference_features = feature_matrix(self._processor((score_audio, 0.0)))
         if reference_features is None:
             raise RuntimeError("Score feature extraction returned no features.")
         if hasattr(self._processor, "reset"):
             self._processor.reset()
         ref_frame_to_beat = self._build_ref_frame_to_beat(reference_features)
-        self._reference_features, self._ref_frame_to_beat = self._trim_reference_to_playable_start(
+        self._reference_features, self._ref_frame_to_beat = trim_to_playable_start(
             reference_features,
             ref_frame_to_beat,
+            score_start_beat=self._score_start_beat,
+            np=self._np,
         )
         self._reference_end_beat = float(self._ref_frame_to_beat[-1])
         self._stream.start_feature_validator = self._is_valid_start_feature
         self._stream.start_feature_scorer = self._score_start_feature
-        self._score_follower = self._build_score_follower(
+        self._score_follower = build_score_follower(
             reference_features=self._reference_features,
             feature_queue=self._queue,
             frame_rate=self.frame_rate,
@@ -858,125 +269,12 @@ class MatchmakerLiveEngine:
         samples = self._np.frombuffer(chunk, dtype=self._np.int16)
         return (samples.astype(self._np.float32) / 32768.0).copy()
 
-    @staticmethod
-    def _build_audio_processor(
-        sample_rate: int,
-        hop_length: int,
-        chroma_processor,
-    ):
-        return chroma_processor(sample_rate=sample_rate, hop_length=hop_length)
-
-    @staticmethod
-    def _normalize_audio_waveform(audio, np):
-        if isinstance(audio, tuple):
-            if not audio:
-                raise RuntimeError("Score audio synthesis returned an empty tuple.")
-            audio = audio[0]
-
-        waveform = np.asarray(audio)
-        if waveform.ndim == 0:
-            raise RuntimeError("Score audio synthesis returned an invalid scalar waveform.")
-        waveform = np.squeeze(waveform)
-        if waveform.ndim == 2:
-            if waveform.shape[0] <= 2 and waveform.shape[1] > waveform.shape[0]:
-                waveform = waveform.mean(axis=0)
-            elif waveform.shape[1] <= 2:
-                waveform = waveform.mean(axis=1)
-            else:
-                waveform = waveform.mean(axis=-1)
-        if waveform.ndim != 1:
-            raise RuntimeError(
-                f"Score audio synthesis returned unsupported waveform shape: {waveform.shape}"
-            )
-        return waveform
-
-    @staticmethod
-    def _generate_score_audio(
-        *,
-        score,
-        bpm: float,
-        sample_rate: int,
-        np,
-        partitura,
-        generate_score_audio,
-    ):
-        soundfont_path = get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH
-        if not soundfont_path:
-            if generate_score_audio is None:
-                raise RuntimeError("matchmaker score audio generator is not available.")
-            return generate_score_audio(score, bpm, sample_rate)
-
-        soundfont = Path(soundfont_path)
-        if not soundfont.exists():
-            raise RuntimeError(f"PRACTICE_SOUNDFONT_PATH does not exist: {soundfont}")
-
-        note_array = score.note_array()
-        bpm_array = np.array([[onset_beat, bpm] for onset_beat in note_array["onset_beat"]])
-        score_audio = partitura.save_wav_fluidsynth(
-            score,
-            bpm=bpm_array,
-            samplerate=sample_rate,
-            soundfont=str(soundfont),
-        )
-
-        first_onset_in_beat = note_array["onset_beat"].min()
-        first_onset_in_time = (
-            score.inv_beat_map(first_onset_in_beat)
-            / score.quarter_duration_map(score.inv_beat_map(first_onset_in_beat))
-            * (60 / bpm)
-        )
-        padding_size = int(first_onset_in_time * sample_rate)
-        score_audio = np.pad(score_audio, (padding_size, 0))
-
-        last_onset_in_div = np.floor(note_array["onset_div"].max())
-        last_onset_in_time = (
-            last_onset_in_div
-            / score.quarter_duration_map(score.inv_beat_map(last_onset_in_div))
-            * (60 / bpm)
-        )
-
-        buffer_size = 0.1
-        last_onset_in_time += buffer_size
-        return score_audio[: int(last_onset_in_time * sample_rate)]
-
-    @staticmethod
-    def _build_score_follower(
-        reference_features,
-        feature_queue,
-        frame_rate: int,
-        arzt_follower,
-        ref_frame_to_beat=None,
-        score_positions=None,
-    ):
-        follower = arzt_follower(
-            reference_features=reference_features,
-            score_positions=score_positions,
-            queue=feature_queue,
-            frame_rate=frame_rate,
-            ref_frame_to_beat=ref_frame_to_beat,
-        )
-        # A paused browser sends no PCM frames. Keep the follower blocked on the
-        # queue instead of allowing its finite timeout to reset the OLTW path.
-        follower.queue_timeout = None
-        return follower
-
     def _build_ref_frame_to_beat(self, reference_features):
         frame_count = int(reference_features.shape[0])
         return self._np.array(
             [self._frame_to_beat(frame_index) for frame_index in range(frame_count)],
             dtype=self._np.float32,
         )
-
-    def _trim_reference_to_playable_start(self, reference_features, ref_frame_to_beat):
-        """Drop score-only leading rests that the browser never sends to OLTW."""
-        beats = self._np.asarray(ref_frame_to_beat, dtype=self._np.float32)
-        features = self._np.asarray(reference_features)
-        indices = self._np.flatnonzero(beats >= self._score_start_beat)
-        if indices.size == 0:
-            return features, beats
-
-        start_index = int(indices[0])
-        return features[start_index:], beats[start_index:]
 
     def _frame_to_beat(self, current_frame: int) -> float:
         tick = self._get_ppq(self.score_part)
@@ -997,12 +295,12 @@ class MatchmakerLiveEngine:
             if previous_beat_position is None
             else round(beat_position - previous_beat_position, 3)
         )
-        beat_velocity = self._beat_velocity(
+        beat_velocity_value = beat_velocity(
             beat_delta=beat_delta,
             timestamp_ms=timestamp_ms,
             previous_timestamp_ms=previous_timestamp_ms,
         )
-        continuity_state = self._continuity_state(beat_delta)
+        continuity_status = continuity_state(beat_delta)
         return {
             "beat_position": round(beat_position, 3),
             "confidence": confidence,
@@ -1018,8 +316,8 @@ class MatchmakerLiveEngine:
             "match_state": "matched",
             "feature_confidence": 1.0,
             "beat_delta": beat_delta,
-            "continuity_state": continuity_state,
-            "beat_velocity": beat_velocity,
+            "continuity_state": continuity_status,
+            "beat_velocity": beat_velocity_value,
         }
 
     def _start_alignment(self) -> AlignmentUpdate:
@@ -1031,16 +329,16 @@ class MatchmakerLiveEngine:
         feature_confidence = self._feature_confidence_for_beat(alignment["beat_position"])
         alignment_confidence = min(alignment["alignment_confidence"], feature_confidence)
         continuity_confidence = alignment["continuity_confidence"]
-        alignment_state = self._alignment_state(
+        alignment_status = alignment_state(
             raw_alignment_confidence=alignment["alignment_confidence"],
             feature_confidence=feature_confidence,
         )
-        continuity_state = alignment.get("continuity_state") or self._continuity_state(
+        continuity_status = alignment.get("continuity_state") or continuity_state(
             alignment.get("beat_delta"),
         )
-        validation_confidence = self._validation_confidence_ceiling(
-            alignment_state=alignment_state,
-            continuity_state=continuity_state,
+        validation_confidence = validation_confidence_ceiling(
+            alignment_state=alignment_status,
+            continuity_state=continuity_status,
         )
         input_policy_confidence = getattr(self._stream, "last_input_policy_confidence", 1.0)
         confidence = min(
@@ -1085,8 +383,8 @@ class MatchmakerLiveEngine:
                 2,
             ),
             "spectral_flux": round(getattr(self._stream, "last_spectral_flux", 0.0), 5),
-            "alignment_state": alignment_state,
-            "continuity_state": continuity_state,
+            "alignment_state": alignment_status,
+            "continuity_state": continuity_status,
             "beat_velocity": alignment.get("beat_velocity"),
             "validation_confidence": round(validation_confidence, 3),
             "input_weight": round(getattr(self._stream, "last_input_weight", 0.0), 3),
@@ -1194,64 +492,6 @@ class MatchmakerLiveEngine:
         if delta < -0.1:
             return 0.65
         return 0.95
-
-    @staticmethod
-    def _alignment_state(
-        *,
-        raw_alignment_confidence: float,
-        feature_confidence: float,
-    ) -> str:
-        if feature_confidence < 0.35:
-            return "feature_mismatch"
-        if feature_confidence < 0.7:
-            return "weak_feature_match"
-        if raw_alignment_confidence < 0.65:
-            return "weak_path"
-        return "matched"
-
-    @staticmethod
-    def _continuity_state(beat_delta: float | None) -> str:
-        if beat_delta is None:
-            return "initial"
-        if beat_delta < -0.5:
-            return "rollback"
-        if beat_delta < -0.1:
-            return "minor_rollback"
-        if beat_delta > 8.0:
-            return "large_jump"
-        if beat_delta > 4.0:
-            return "jump"
-        return "stable"
-
-    @staticmethod
-    def _validation_confidence_ceiling(
-        *,
-        alignment_state: str,
-        continuity_state: str,
-    ) -> float:
-        if alignment_state == "feature_mismatch":
-            return 0.0
-        if alignment_state in {"weak_feature_match", "weak_path"}:
-            return 0.5
-        if continuity_state in {"rollback", "large_jump"}:
-            return 0.3
-        if continuity_state in {"minor_rollback", "jump"}:
-            return 0.5
-        return 1.0
-
-    @staticmethod
-    def _beat_velocity(
-        *,
-        beat_delta: float | None,
-        timestamp_ms: int,
-        previous_timestamp_ms: int | None,
-    ) -> float | None:
-        if beat_delta is None or previous_timestamp_ms is None:
-            return None
-        elapsed_seconds = (timestamp_ms - previous_timestamp_ms) / 1000
-        if elapsed_seconds <= 0:
-            return None
-        return round(beat_delta / elapsed_seconds, 3)
 
     def _continuity_confidence_for_beat(self, beat_position: float) -> float:
         if self._last_beat_position is None:

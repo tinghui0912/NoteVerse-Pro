@@ -16,12 +16,10 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
-from app.core.config import get_practice_runtime_settings
-from app.processing.engines.practice_alignment.matchmaker_live import (
-    AlignmentUpdate,
-    BrowserAudioStreamAdapter,
-    MatchmakerLiveEngine,
-)
+from app.core.settings.practice_runtime import get_practice_runtime_settings
+from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
+from app.processing.engines.practice_alignment.reference_runtime import generate_score_audio, normalize_audio_waveform
+from app.processing.engines.practice_alignment.audio_features import feature_matrix
 from app.db.models.user import User
 from app.db.models.practice import PracticeReportStatus, PracticeSessionState
 from app.db.models.score_access import AccessOrigin
@@ -122,7 +120,7 @@ def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_
     default_generate_score_audio = Mock()
 
     try:
-        audio = MatchmakerLiveEngine._generate_score_audio(
+        audio = generate_score_audio(
             score=FakeScore(),
             bpm=120,
             sample_rate=10,
@@ -149,7 +147,7 @@ def test_matchmaker_reference_audio_normalization_handles_tuple_and_stereo() -> 
         dtype=np.float32,
     )
 
-    normalized = MatchmakerLiveEngine._normalize_audio_waveform(
+    normalized = normalize_audio_waveform(
         (stereo_audio, 16000, "extra"),
         np,
     )
@@ -161,7 +159,7 @@ def test_matchmaker_reference_audio_normalization_handles_tuple_and_stereo() -> 
 def test_matchmaker_feature_matrix_extracts_processor_tuple_output() -> None:
     features = np.ones((3, 12), dtype=np.float32)
 
-    extracted = BrowserAudioStreamAdapter._feature_matrix((features, {"frame_time": 0.0}))
+    extracted = feature_matrix((features, {"frame_time": 0.0}))
 
     assert extracted is features
 
@@ -487,7 +485,7 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
         storage_backend=service.storage.backend_name, storage_key="blobs/ab/abc123.png"
     )
 
-    with patch("app.db.worker_session.get_db_session", return_value=sync_db):
+    with patch("app.db.sync_session.get_db_session", return_value=sync_db):
         with patch.object(
             sync_import_job_service.repository, "get_upload_by_uuid", return_value=upload
         ):

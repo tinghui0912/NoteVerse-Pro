@@ -69,7 +69,7 @@ class ImportJobSubmissionService:
 
     @staticmethod
     def _existing_job_uuid(user_id: int, key: str) -> str | None:
-        from app.db.worker_session import get_db_session
+        from app.db.sync_session import get_db_session
 
         db = get_db_session()
         try:
@@ -79,7 +79,7 @@ class ImportJobSubmissionService:
             db.close()
 
     def _ensure_uploads_exist(self, user_id: int, file_ids: list[str]) -> None:
-        from app.db.worker_session import get_db_session
+        from app.db.sync_session import get_db_session
 
         db = get_db_session()
         try:
@@ -113,7 +113,7 @@ class ImportJobSubmissionService:
         request: ImportJobSubmitRequestLike,
         idempotency_key: str | None,
     ) -> None:
-        from app.db.worker_session import get_db_session
+        from app.db.sync_session import get_db_session
 
         db = get_db_session()
         try:

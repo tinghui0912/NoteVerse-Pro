@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import WorkerRuntimeSettings
+from app.core.settings.worker_runtime import WorkerRuntimeSettings
 from app.core.settings.task_reliability import TaskReliabilitySettings
 
 
@@ -40,6 +40,7 @@ def test_worker_runtime_settings_reject_ocr_deadline_above_processing_deadline()
     with pytest.raises(ValidationError, match="PADDLEOCR_TIMEOUT_SECONDS must not exceed"):
         WorkerRuntimeSettings(
             LEGATO_REPO_PATH="/opt/noteverse/legato",
+            PLAYBACK_SOUNDFONT_PATH="/opt/noteverse/models/soundfonts/FluidR3_GM.sf2",
             PADDLEOCR_TIMEOUT_SECONDS=901,
             MAX_PROCESSING_TIME=900,
         )

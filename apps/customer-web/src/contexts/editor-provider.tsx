@@ -18,7 +18,7 @@ export { useXmlUpdater } from '../hooks/editor/use-xml-updater';
 export { useMetadataEditor } from '../hooks/editor/use-metadata-editor';
 
 /**
- * 组合 Hook - 获取所有编辑器上下文（用于复杂组件）
+ * Combined hook for accessing all editor contexts from complex components.
  */
 export function useEditor() {
     const scoreData = useScoreData();
@@ -33,14 +33,14 @@ export function useEditor() {
 }
 
 /**
- * 内部组件：连接 History 和 ScoreData
+ * Internal connector that initializes History from ScoreData.
  */
 function HistoryScoreDataConnector({ children }: { children: React.ReactNode }) {
     const { currentXml } = useScoreData();
     const { initialize, isInitialized } = useHistory();
     const historyInitializedRef = useRef(false);
 
-    // 当 currentXml 首次设置时，初始化历史记录
+    // Initialize history once when currentXml is first available.
     useEffect(() => {
         if (currentXml && !historyInitializedRef.current && !isInitialized) {
             initialize(currentXml);
@@ -56,7 +56,7 @@ interface EditorProviderProps {
 }
 
 /**
- * 主 Editor Provider - 组合所有 Context
+ * Root editor provider that composes all editor contexts.
  */
 export function EditorProvider({ children }: EditorProviderProps) {
     return (

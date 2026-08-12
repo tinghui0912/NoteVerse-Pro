@@ -1,8 +1,8 @@
 /**
  * MusicXML Backup Operations
- * 
- * Backup 元素规范化函数
- * 
+ *
+ * Normalizes MusicXML `backup` elements after timeline edits.
+ *
  * @module lib/musicxml-backup
  */
 
@@ -20,7 +20,8 @@ function getTimelineDuration(element: Element): number {
 }
 
 /**
- * 处理连续的 backup 序列：保留最后一个，删除其他，更新 duration
+ * Collapses a consecutive `backup` sequence to the final element and updates
+ * its duration to the timeline position before the sequence started.
  */
 function processConsecutiveBackups(
     backups: { element: Element; timeAtStart: number }[]
@@ -45,10 +46,9 @@ function processConsecutiveBackups(
 }
 
 /**
- * 合并连续的 backup 元素
- * 
- * 规则：如果两个或多个 backup 元素连续出现（中间没有 note 或 forward），
- * 则保留最后一个 backup，将其 duration 设置为第一个 backup 开始时的累计时间。
+ * Merges adjacent `backup` elements when no `note` or `forward` appears
+ * between them. Only the final `backup` remains, with a duration equal to the
+ * cumulative timeline position where the sequence began.
  */
 function mergeConsecutiveBackups(measureEl: Element): void {
     const elements = Array.from(measureEl.children);
@@ -84,21 +84,21 @@ function mergeConsecutiveBackups(measureEl: Element): void {
 // ============================================================================
 
 /**
- * 重新计算小节中所有 backup 元素的 duration
- * 
- * 当插入或删除音符后，backup 的 duration 可能不再正确。此函数会：
- * 1. 遍历 measure 中的所有元素
- * 2. 跟踪累计时间
- * 3. 为每个 backup 计算正确的 duration（= 当前累计时间，使时间线回到 0）
- * 4. 如果计算出的 duration 为 0 或负数，删除该 backup
- * 
- * @param measureEl 需要重新计算的 measure 元素
+ * Recalculates every `backup` duration in a measure after inserting or deleting
+ * notes.
+ *
+ * The function walks the measure in document order, tracks cumulative timeline
+ * duration, writes each `backup` duration to the current timeline position so
+ * the cursor returns to zero, and removes backups whose calculated duration is
+ * zero or negative.
+ *
+ * @param measureEl Measure element to normalize.
  */
 export function recalculateBackups(measureEl: Element): void {
-    // 首先合并连续的 backup（避免处理冗余元素）
+    // Merge consecutive backups first so recalculation does not preserve redundant elements.
     mergeConsecutiveBackups(measureEl);
 
-    // 然后重新计算每个 backup 的 duration
+    // Recalculate each remaining backup duration.
     const elements = Array.from(measureEl.children);
     let cumulativeTime = 0;
     const backupsToRemove: Element[] = [];

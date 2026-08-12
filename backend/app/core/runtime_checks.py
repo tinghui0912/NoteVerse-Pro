@@ -14,8 +14,11 @@ from typing import Awaitable, Callable
 
 import redis
 
-from app.core.config import get_practice_runtime_settings, get_worker_runtime_settings, settings
+from app.core.config import settings
 from app.core.control_plane_settings import require_control_plane_settings
+from app.core.settings.practice_runtime import get_practice_runtime_settings
+from app.core.settings.task_reliability import get_task_reliability_settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES, LEGATO_REPO_COMMIT
 from app.processing.resources import ensure_partitura_default_soundfont
 
@@ -142,14 +145,15 @@ def _read_git_commit(repo_path: Path) -> str:
 
 
 def check_settings(_: bool = False) -> CheckResult:
+    task_settings = get_task_reliability_settings()
     return _result(
         "settings",
         True,
         (
             f"storage={settings.FILE_STORAGE_BACKEND}; "
-            f"pipeline={settings.MAX_PROCESSING_TIME}s; "
-            f"celery_soft={settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
-            f"celery_hard={settings.CELERY_TASK_TIME_LIMIT}s"
+            f"pipeline={task_settings.MAX_PROCESSING_TIME}s; "
+            f"celery_soft={task_settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
+            f"celery_hard={task_settings.CELERY_TASK_TIME_LIMIT}s"
         ),
     )
 
@@ -190,28 +194,28 @@ async def check_api_database(_: bool = False) -> CheckResult:
         )
 
 
-def check_worker_database(_: bool = False) -> CheckResult:
+def check_sync_database(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
-    from app.db.worker_session import sync_engine
+    from app.db.sync_session import sync_engine
 
     try:
         with sync_engine.connect() as connection:
             connection.execute(text("select 1"))
-        return _result("worker_database", True, "sync worker database reachable")
+        return _result("sync_database", True, "sync database reachable")
     except Exception as exc:
         return _result(
-            "worker_database",
+            "sync_database",
             False,
-            f"sync worker database unreachable: {type(exc).__name__}: {exc}",
+            f"sync database unreachable: {type(exc).__name__}: {exc}",
         )
 
 
 def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
-    from app.db.worker_session import sync_engine
-    from app.modules.storage_usage.service import DEFAULT_PLAN_CODE
+    from app.db.sync_session import sync_engine
+    from app.modules.storage_usage.accounting import DEFAULT_PLAN_CODE
 
     try:
         with sync_engine.connect() as connection:
@@ -505,9 +509,10 @@ def check_practice_alignment(_: bool = False) -> CheckResult:
 
 
 def check_playback_renderer(_: bool = False) -> CheckResult:
-    if not settings.PLAYBACK_SOUNDFONT_PATH:
+    worker_settings = _worker_settings()
+    if not worker_settings.PLAYBACK_SOUNDFONT_PATH:
         return _result("playback_renderer", False, "PLAYBACK_SOUNDFONT_PATH is not configured")
-    path = Path(settings.PLAYBACK_SOUNDFONT_PATH)
+    path = Path(worker_settings.PLAYBACK_SOUNDFONT_PATH)
     if not path.is_file():
         return _result("playback_renderer", False, f"playback soundfont does not exist: {path}")
     fluidsynth = shutil.which("fluidsynth")
@@ -539,7 +544,7 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.WORKER: (
         "settings",
         "worker_settings",
-        "worker_database",
+        "sync_database",
         "storage_quota_policy",
         "redis",
         "work_root",
@@ -582,7 +587,7 @@ CHECKS: dict[str, CheckSpec] = {
     "worker_settings": CheckSpec("worker_settings", check_worker_settings),
     "control_plane_settings": CheckSpec("control_plane_settings", check_control_plane_settings),
     "database": CheckSpec("database", check_api_database),
-    "worker_database": CheckSpec("worker_database", check_worker_database),
+    "sync_database": CheckSpec("sync_database", check_sync_database),
     "storage_quota_policy": CheckSpec("storage_quota_policy", check_storage_quota_policy),
     "redis": CheckSpec("redis", check_redis),
     "storage": CheckSpec("storage", check_api_storage),

@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import hashlib
 import uuid
-from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
-from sqlmodel import col
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.execution_manifests import (
@@ -26,6 +23,12 @@ from app.db.models import (
 )
 from app.db.models.score import RevisionSourceFormat
 from app.db.models.score_access import PublicationStatus
+from app.modules.playback.asset_records import (
+    build_playback_asset_record,
+    playback_asset_usage,
+    playback_storage_key,
+)
+from app.modules.playback.delivery import PlaybackDelivery, PlaybackDeliveryReadModel
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
 from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.publications.repository import PublicationRepository
@@ -37,13 +40,6 @@ from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 
 
-@dataclass(frozen=True)
-class PlaybackDelivery:
-    filename: str
-    media_type: str
-    storage_key: str
-
-
 class PlaybackService:
     def __init__(
         self,
@@ -53,6 +49,7 @@ class PlaybackService:
         asset_repository: ScoreAssetRepository | None = None,
         sharing_repository: ScoreSharingRepository | None = None,
         publication_repository: PublicationRepository | None = None,
+        delivery_read_model: PlaybackDeliveryReadModel | None = None,
     ) -> None:
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
@@ -60,6 +57,10 @@ class PlaybackService:
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.sharing_repository = sharing_repository or ScoreSharingRepository()
         self.publication_repository = publication_repository or PublicationRepository()
+        self.delivery_read_model = delivery_read_model or PlaybackDeliveryReadModel(
+            storage=self.storage,
+            access_policy=self.access_policy,
+        )
 
     async def render(
         self,
@@ -104,11 +105,13 @@ class PlaybackService:
         source_content = self.storage.read_bytes(source.storage_key)
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
-        key = (
-            f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{audio.extension}"
-        )
         stored = self.storage.put_bytes(
-            key=key,
+            key=playback_storage_key(
+                score_uuid=score_uuid,
+                revision_uuid=revision_uuid,
+                asset_uuid=asset_uuid,
+                extension=audio.extension,
+            ),
             content=audio.content,
             content_type=audio.mime_type,
         )
@@ -121,9 +124,7 @@ class PlaybackService:
             )
         ).scalar_one_or_none()
         old_key = previous.storage_key if previous else None
-        previous_usage = (
-            (previous.asset_uuid, previous.storage_key, previous.size_bytes) if previous else None
-        )
+        previous_usage = playback_asset_usage(previous)
         try:
             manifest = await get_or_create_execution_manifest_async(
                 db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
@@ -132,31 +133,22 @@ class PlaybackService:
             if previous is not None:
                 await db.delete(previous)
                 await db.flush()
-            asset = ScorePlaybackAsset(
+            asset = build_playback_asset_record(
                 asset_uuid=asset_uuid,
                 revision_id=revision_id,
-                kind=asset_kind,
+                asset_kind=asset_kind,
                 storage_backend=self.storage.backend_name,
-                storage_key=stored.storage_key,
-                filename=stored.filename,
-                mime_type=audio.mime_type,
-                size_bytes=stored.size_bytes,
-                sha256=hashlib.sha256(audio.content).hexdigest(),
+                stored=stored,
+                audio=audio,
                 execution_manifest_id=execution_manifest_id,
-                duration_ms=audio.duration_ms,
                 source_fingerprint=source_fingerprint,
-                generator=audio.generator,
-                generator_version=audio.generator_version,
             )
             db.add(asset)
             await db.commit()
             await db.refresh(asset)
         except Exception:
             await db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            self._delete_storage_key_best_effort(stored.storage_key)
             raise
 
         await storage_usage_service.record_allocation(
@@ -170,22 +162,18 @@ class PlaybackService:
             storage_key=asset.storage_key,
         )
         if previous_usage is not None:
-            old_asset_uuid, old_storage_key, old_size_bytes = previous_usage
             await storage_usage_service.record_release(
                 db,
                 user_id=score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_AUDIO,
-                bytes_count=old_size_bytes,
+                bytes_count=previous_usage.size_bytes,
                 reason="playback_asset_replaced",
                 object_type="score_playback_asset",
-                object_id=old_asset_uuid,
-                storage_key=old_storage_key,
+                object_id=previous_usage.asset_uuid,
+                storage_key=previous_usage.storage_key,
             )
         if old_key and old_key != stored.storage_key:
-            try:
-                self.storage.delete(old_key)
-            except Exception:
-                pass
+            self._delete_storage_key_best_effort(old_key)
         return asset
 
     async def score_revision_delivery(
@@ -195,15 +183,11 @@ class PlaybackService:
         revision_uuid: str,
         user_id: int,
     ) -> PlaybackDelivery:
-        access = await self.access_policy.authorize(
+        return await self.delivery_read_model.score_revision_delivery(
             db,
             score_uuid,
-            ScoreAction.PRACTICE,
-            user_id=user_id,
-            revision_uuid=revision_uuid,
-        )
-        return await self._delivery_for_revision(
-            db, require_persisted_id(access.revision.id, entity="score revision")
+            revision_uuid,
+            user_id,
         )
 
     async def grant_delivery(
@@ -225,7 +209,7 @@ class PlaybackService:
             user_id=user_id,
             share_token=token,
         )
-        return await self._delivery_for_revision(
+        return await self.delivery_read_model.delivery_for_revision(
             db,
             require_persisted_id(access.revision.id, entity="score revision"),
             score_id=require_persisted_id(score.id, entity="score"),
@@ -250,52 +234,10 @@ class PlaybackService:
             user_id=user_id,
             public_slug=slug,
         )
-        return await self._delivery_for_revision(
+        return await self.delivery_read_model.delivery_for_revision(
             db,
             require_persisted_id(access.revision.id, entity="score revision"),
             score_id=require_persisted_id(score.id, entity="score"),
-        )
-
-    async def _delivery_for_revision(
-        self,
-        db: AsyncSession,
-        revision_id: int,
-        *,
-        score_id: int | None = None,
-    ) -> PlaybackDelivery:
-        asset = (
-            await db.execute(
-                select(ScorePlaybackAsset).where(
-                    ScorePlaybackAsset.revision_id == revision_id,
-                    ScorePlaybackAsset.kind == PlaybackAssetKind.AUDIO,
-                )
-            )
-        ).scalar_one_or_none()
-        if (asset is None or not self.storage.exists(asset.storage_key)) and score_id is not None:
-            fallback = (
-                await db.execute(
-                    select(ScorePlaybackAsset)
-                    .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
-                    .where(
-                        ScoreRevision.score_id == score_id,
-                        ScoreRevision.id != revision_id,
-                        ScorePlaybackAsset.kind == PlaybackAssetKind.AUDIO,
-                    )
-                    .order_by(
-                        col(ScoreRevision.revision_number).desc(),
-                        col(ScorePlaybackAsset.created_at).asc(),
-                    )
-                    .limit(1)
-                )
-            ).scalar_one_or_none()
-            if fallback is not None and self.storage.exists(fallback.storage_key):
-                asset = fallback
-        if asset is None or not self.storage.exists(asset.storage_key):
-            raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
-        return PlaybackDelivery(
-            filename=asset.filename,
-            media_type=asset.mime_type,
-            storage_key=asset.storage_key,
         )
 
     def render_sync(
@@ -362,11 +304,13 @@ class PlaybackService:
     ) -> ScorePlaybackAsset:
         audio = self.renderer.render(source)
         asset_uuid = str(uuid.uuid4())
-        key = (
-            f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{audio.extension}"
-        )
         stored = self.storage.put_bytes(
-            key=key,
+            key=playback_storage_key(
+                score_uuid=score_uuid,
+                revision_uuid=revision_uuid,
+                asset_uuid=asset_uuid,
+                extension=audio.extension,
+            ),
             content=audio.content,
             content_type=audio.mime_type,
         )
@@ -385,9 +329,7 @@ class PlaybackService:
                 Score.deletion_status == ScoreDeletionStatus.ACTIVE,
             )
         ).scalar_one()
-        previous_usage = (
-            (previous.asset_uuid, previous.storage_key, previous.size_bytes) if previous else None
-        )
+        previous_usage = playback_asset_usage(previous)
         try:
             manifest = get_or_create_execution_manifest(
                 db, build_playback_execution_manifest(soundfont_sha256=audio.soundfont_sha256)
@@ -396,31 +338,22 @@ class PlaybackService:
             if previous is not None:
                 db.delete(previous)
                 db.flush()
-            asset = ScorePlaybackAsset(
+            asset = build_playback_asset_record(
                 asset_uuid=asset_uuid,
                 revision_id=revision_id,
-                kind=asset_kind,
+                asset_kind=asset_kind,
                 storage_backend=self.storage.backend_name,
-                storage_key=stored.storage_key,
-                filename=stored.filename,
-                mime_type=audio.mime_type,
-                size_bytes=stored.size_bytes,
-                sha256=hashlib.sha256(audio.content).hexdigest(),
+                stored=stored,
+                audio=audio,
                 execution_manifest_id=execution_manifest_id,
-                duration_ms=audio.duration_ms,
                 source_fingerprint=source_fingerprint,
-                generator=audio.generator,
-                generator_version=audio.generator_version,
             )
             db.add(asset)
             db.commit()
             db.refresh(asset)
         except Exception:
             db.rollback()
-            try:
-                self.storage.delete(stored.storage_key)
-            except Exception:
-                pass
+            self._delete_storage_key_best_effort(stored.storage_key)
             raise
 
         storage_usage_service.record_allocation_sync(
@@ -434,23 +367,25 @@ class PlaybackService:
             storage_key=asset.storage_key,
         )
         if previous_usage is not None:
-            old_asset_uuid, old_storage_key, old_size_bytes = previous_usage
             storage_usage_service.record_release_sync(
                 db,
                 user_id=score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_AUDIO,
-                bytes_count=old_size_bytes,
+                bytes_count=previous_usage.size_bytes,
                 reason="playback_asset_replaced",
                 object_type="score_playback_asset",
-                object_id=old_asset_uuid,
-                storage_key=old_storage_key,
+                object_id=previous_usage.asset_uuid,
+                storage_key=previous_usage.storage_key,
             )
         if old_key and old_key != stored.storage_key:
-            try:
-                self.storage.delete(old_key)
-            except Exception:
-                pass
+            self._delete_storage_key_best_effort(old_key)
         return asset
+
+    def _delete_storage_key_best_effort(self, storage_key: str) -> None:
+        try:
+            self.storage.delete(storage_key)
+        except Exception:
+            pass
 
 
 playback_service = PlaybackService()

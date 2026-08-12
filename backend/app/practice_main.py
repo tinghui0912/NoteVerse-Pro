@@ -2,8 +2,7 @@
 
 from fastapi import FastAPI
 
-from app.api.health import router as health_router
-from app.api.metrics import create_metrics_router
+from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
 from app.core.settings.service_identity import CUSTOMER_API_PREFIX
 from app.core.http_runtime import install_http_runtime, normalized_cors_origins
@@ -51,8 +50,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(practice_router, prefix=f"{CUSTOMER_API_PREFIX}/practice", tags=["Practice"])
-    app.include_router(health_router)
-    app.include_router(create_metrics_router(include_database_metrics=False))
+    install_process_endpoints(app)
 
     @app.get("/")
     def root() -> dict[str, str]:

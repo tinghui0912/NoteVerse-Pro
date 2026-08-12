@@ -1,16 +1,39 @@
-from app.core.config import get_worker_runtime_settings, settings
+from app.core.config import settings
+from app.core.settings.task_reliability import get_task_reliability_settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
+from app.worker.beat_schedule import build_beat_schedule
 from app.worker.celery_config import celery_app
+from app.worker.celery_runtime_options import build_celery_runtime_options
 
 
 def test_task_time_limits_form_ordered_shutdown_envelope() -> None:
-    assert get_worker_runtime_settings().PADDLEOCR_TIMEOUT_SECONDS <= settings.MAX_PROCESSING_TIME
-    assert settings.MAX_PROCESSING_TIME < settings.CELERY_TASK_SOFT_TIME_LIMIT
-    assert settings.CELERY_TASK_SOFT_TIME_LIMIT < settings.CELERY_TASK_TIME_LIMIT
+    task_settings = get_task_reliability_settings()
+
+    assert get_worker_runtime_settings().PADDLEOCR_TIMEOUT_SECONDS <= task_settings.MAX_PROCESSING_TIME
+    assert task_settings.MAX_PROCESSING_TIME < task_settings.CELERY_TASK_SOFT_TIME_LIMIT
+    assert task_settings.CELERY_TASK_SOFT_TIME_LIMIT < task_settings.CELERY_TASK_TIME_LIMIT
 
 
 def test_celery_uses_explicit_task_time_limits() -> None:
-    assert celery_app.conf.task_soft_time_limit == settings.CELERY_TASK_SOFT_TIME_LIMIT
-    assert celery_app.conf.task_time_limit == settings.CELERY_TASK_TIME_LIMIT
+    task_settings = get_task_reliability_settings()
+
+    assert celery_app.conf.task_soft_time_limit == task_settings.CELERY_TASK_SOFT_TIME_LIMIT
+    assert celery_app.conf.task_time_limit == task_settings.CELERY_TASK_TIME_LIMIT
+
+
+def test_celery_uses_the_declared_beat_schedule_contract() -> None:
+    assert celery_app.conf.beat_schedule == build_beat_schedule(settings)
+
+
+def test_celery_uses_the_declared_runtime_options_contract() -> None:
+    expected = build_celery_runtime_options(
+        settings,
+        get_task_reliability_settings(),
+        beat_schedule_filename=celery_app.conf.beat_schedule_filename,
+    )
+
+    for key, value in expected.items():
+        assert celery_app.conf[key] == value
 
 
 def test_notification_maintenance_is_scheduled() -> None:

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 更新已有实体的纯函数
+ * Pure helper for updating an existing score entity in MusicXML.
  */
 
 import type { ScoreEntity, EntityLocation } from '@/types/score-types';
@@ -40,6 +40,13 @@ function getRhythmSignature(elements: Element[]): string {
     const notes = elements.filter((element) => element.isConnected);
     const main = notes[0] ?? elements[0];
     if (!main) return 'missing';
+    if (main.tagName === 'forward') {
+        return JSON.stringify({
+            kind: 'forward',
+            duration: main.querySelector(':scope > duration')?.textContent?.trim() ?? '',
+            members: 1,
+        });
+    }
     return JSON.stringify({
         kind: main.querySelector(':scope > rest') ? 'rest' : notes.length > 1 ? 'chord' : 'note',
         duration: main.querySelector(':scope > duration')?.textContent?.trim() ?? '',
@@ -50,10 +57,129 @@ function getRhythmSignature(elements: Element[]): string {
     });
 }
 
+function createForwardElement(xmlDoc: XMLDocument, durationValue: number, voiceNum: number, staffNumber: number): Element {
+    const forwardEl = xmlDoc.createElement('forward');
+    const durationEl = xmlDoc.createElement('duration');
+    durationEl.textContent = String(durationValue);
+    forwardEl.appendChild(durationEl);
+
+    const voiceEl = xmlDoc.createElement('voice');
+    voiceEl.textContent = String(voiceNum);
+    forwardEl.appendChild(voiceEl);
+
+    const staffEl = xmlDoc.createElement('staff');
+    staffEl.textContent = String(staffNumber);
+    forwardEl.appendChild(staffEl);
+
+    return forwardEl;
+}
+
+function createRestElement(
+    xmlDoc: XMLDocument,
+    duration: string,
+    voiceNum: number,
+    staffNumber: number,
+    divisions: number,
+    dotted?: boolean
+): Element {
+    const noteEl = xmlDoc.createElement('note');
+    const restEl = xmlDoc.createElement('rest');
+    noteEl.appendChild(restEl);
+
+    const durationEl = xmlDoc.createElement('duration');
+    durationEl.textContent = String(getEffectiveDurationValue(duration, divisions, Boolean(dotted)));
+    noteEl.appendChild(durationEl);
+
+    const voiceEl = xmlDoc.createElement('voice');
+    voiceEl.textContent = String(voiceNum);
+    noteEl.appendChild(voiceEl);
+
+    const typeEl = xmlDoc.createElement('type');
+    typeEl.textContent = getDurationTypeName(duration);
+    noteEl.appendChild(typeEl);
+
+    if (dotted) {
+        noteEl.appendChild(xmlDoc.createElement('dot'));
+    }
+
+    const staffEl = xmlDoc.createElement('staff');
+    staffEl.textContent = String(staffNumber);
+    noteEl.appendChild(staffEl);
+
+    return noteEl;
+}
+
+function createReplacementElements(
+    xmlDoc: XMLDocument,
+    entity: ScoreEntity,
+    voiceNum: number,
+    staffNumber: number,
+    divisions: number
+): Element[] {
+    if (entity.type === 'blank') {
+        return [
+            createForwardElement(
+                xmlDoc,
+                getEffectiveDurationValue(entity.duration, divisions, Boolean(entity.dotted)),
+                voiceNum,
+                staffNumber
+            ),
+        ];
+    }
+
+    if (entity.type === 'rest') {
+        return [createRestElement(xmlDoc, entity.duration, voiceNum, staffNumber, divisions, entity.dotted)];
+    }
+
+    if (entity.type === 'note') {
+        const noteEl = createNoteElementFromPitch(xmlDoc, entity.pitch, entity.duration, voiceNum, staffNumber, divisions, false);
+        updateSingleNoteInXml(noteEl, entity.pitch, entity.duration, divisions, false, {
+            dotted: entity.dotted,
+            stemDirection: entity.stemDirection,
+            fingering: entity.fingering,
+            accidental: entity.accidental,
+        });
+        return [noteEl];
+    }
+
+    if (entity.pitches.length === 0) {
+        return [];
+    }
+
+    const fingerings = entity.fingerings || [];
+    const accidentals = entity.accidentals || [];
+    return entity.pitches.map((pitch, index) => {
+        const isChordMember = index > 0;
+        const noteEl = createNoteElementFromPitch(xmlDoc, pitch, entity.duration, voiceNum, staffNumber, divisions, isChordMember);
+        updateSingleNoteInXml(noteEl, pitch, entity.duration, divisions, isChordMember, {
+            dotted: entity.dotted,
+            stemDirection: entity.stemDirection,
+            fingering: fingerings[index],
+            accidental: accidentals[index],
+        });
+        return noteEl;
+    });
+}
+
+function replaceElementWithElements(target: Element, replacements: Element[]): void {
+    const parent = target.parentNode;
+    if (!parent) return;
+
+    const originalId = target.getAttribute('id');
+    if (originalId && replacements[0]) {
+        replacements[0].setAttribute('id', originalId);
+    }
+
+    replacements.forEach((replacement) => {
+        parent.insertBefore(replacement, target);
+    });
+    parent.removeChild(target);
+}
+
 /**
- * 更新已存在的实体
- * 
- * @returns 处理结果，包含新的 XML 和解析后的乐谱数据
+ * Update an existing score entity in a MusicXML document.
+ *
+ * @returns A result containing the updated XML and parsed score data.
  */
 export function updateExistingEntity(params: UpdateExistingEntityParams): UpdateExistingEntityResult {
     const { updatedEntity, editingEntityLocation, currentXml, scoreData, getExpectedVoices } = params;
@@ -77,6 +203,27 @@ export function updateExistingEntity(params: UpdateExistingEntityParams): Update
 
         const targetElements = targetGroup.elements;
         const originalRhythmSignature = getRhythmSignature(targetElements);
+
+        if (targetGroup.type === 'forward') {
+            const replacements = createReplacementElements(xmlDoc, updatedEntity, voiceNum, staffNumber, divisions);
+            if (replacements.length === 0) return { success: false };
+
+            replaceElementWithElements(targetElements[0], replacements);
+            recalculateBackups(measureEl);
+            if (updatedEntity.type !== 'blank') {
+                repairAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
+            }
+            ensureStableMusicXmlIds(xmlDoc);
+
+            const newXml = serializeXml(xmlDoc);
+            const newParser = new MusicXMLParser(newXml, { expectedVoices: getExpectedVoices(scoreData) });
+
+            return {
+                success: true,
+                newXml,
+                newScoreData: newParser.parse(),
+            };
+        }
 
         if (updatedEntity.type === 'chord' && 'pitches' in updatedEntity) {
             const pitches = updatedEntity.pitches;

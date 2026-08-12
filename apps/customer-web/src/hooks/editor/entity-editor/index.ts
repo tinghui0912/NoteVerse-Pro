@@ -1,5 +1,5 @@
 /**
- * 实体编辑器子模块 - 桶文件
+ * Entity editor submodule barrel exports.
  */
 export { insertEntity } from './insert-entity';
 export type { InsertEntityParams, InsertEntityResult } from './insert-entity';

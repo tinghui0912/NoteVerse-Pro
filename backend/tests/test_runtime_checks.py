@@ -2,7 +2,7 @@ import sys
 import json
 from types import SimpleNamespace
 
-from app.core.config import get_worker_runtime_settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.core.runtime_checks import (
     ROLE_CHECK_NAMES,
     RuntimeRole,
@@ -51,7 +51,7 @@ def test_observability_exporter_checks_only_its_database_dependency() -> None:
 def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     checks = ROLE_CHECK_NAMES[RuntimeRole.WORKER]
 
-    assert "worker_database" in checks
+    assert "sync_database" in checks
     assert "worker_settings" in checks
     assert "storage_quota_policy" in checks
     assert "celery_tasks" in checks

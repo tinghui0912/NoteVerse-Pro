@@ -210,13 +210,14 @@ environment manifest while their typed owners are extracted.
 | Notification and realtime retention | `NOTIFICATION_*`, `REALTIME_EVENT_*` | notification/realtime services, realtime HTTP router, Beat |
 | Score deletion lifecycle | `SCORE_DELETION_*` | score lifecycle service, Ops reconciliation, Beat |
 
-`app.modules.ops.service` and `app.observability.async_operation_metrics` are
-cross-domain readers, not owners. They may consume the extracted groups but
-must not define duplicate limits. The first safe extraction is Import dispatch:
-it has a coherent service owner and no cross-field dependency on another
-outbox. Extract one domain per change, move its positive/non-negative
-validation with the fields, add a direct settings-group test, then migrate all
-of its measured consumers and delete its declarations from `Settings`.
+`app.modules.ops.query_service`, `app.modules.ops.command_service`, and
+`app.observability.async_operation_metrics` are cross-domain consumers, not
+owners. They may consume the extracted groups but must not define duplicate
+limits. The first safe extraction is Import dispatch: it has a coherent
+service owner and no cross-field dependency on another outbox. Extract one
+domain per change, move its positive/non-negative validation with the fields,
+add a direct settings-group test, then migrate all of its measured consumers
+and delete its declarations from `Settings`.
 
 ## Remaining account and API policy boundary
 
@@ -276,12 +277,13 @@ This group has four deliberately separate runtime projections:
 | Projection | Required settings | Consumers |
 | --- | --- | --- |
 | API/Practice data access | `DATABASE_URL`, `REDIS_URL`, storage backend and read/write roots | async session, HTTP readiness, API storage, Practice persistence |
-| Worker data access | `SYNC_DATABASE_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `WORK_ROOT`, storage backend | Celery tasks, import/render/playback processing, Worker runtime checks |
+| Sync SQLAlchemy data access | `SYNC_DATABASE_URL` | API import-job sync helpers, Celery tasks, import/render/playback processing, sync runtime checks |
+| Worker queue and work directory | `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `WORK_ROOT`, storage backend | Celery tasks, import/render/playback processing, Worker runtime checks |
 | Beat leadership | `SCHEDULER_LOCK_DATABASE_URL`, Redis/Celery broker, `WORK_ROOT` | scheduler leader advisory lock and Beat state |
 | Shared storage contract | `FILE_STORAGE_BACKEND`, `S3_*`, `STORAGE_ROOT`, `WORK_ROOT` | API upload/download, Worker artifact generation, Practice score access |
 
 The first migration must extract typed groups without changing deployment
-projections: `StorageSettings`, `AsyncDatabaseSettings`, `WorkerDatabaseSettings`,
+projections: `StorageSettings`, `AsyncDatabaseSettings`, `SyncDatabaseSettings`,
 and `BeatSchedulerSettings`. Keep the current cross-field S3 validation with
 `StorageSettings`; do not make credentials optional or allow local-storage
 fallback when `FILE_STORAGE_BACKEND=s3`. Only after direct consumers use these

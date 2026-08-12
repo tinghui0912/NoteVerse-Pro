@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
-from app.core.config import get_worker_runtime_settings
+from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.core.logger import logger
 
 _CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))

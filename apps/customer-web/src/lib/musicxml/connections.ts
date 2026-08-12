@@ -1,7 +1,7 @@
 /**
  * MusicXML Connection Operations
  * 
- * Tie/Slur 连接线操作函数
+ * Tie and slur XML mutation helpers.
  * 
  * @module lib/musicxml-connections
  */
@@ -21,10 +21,7 @@ export type ConnectionMemberTarget = {
 // ============================================================================
 
 /**
- * 根据位置信息查找 XML 中的 note 元素
- */
-/**
- * 从 note 元素中删除所有 tie 子元素
+ * Removes all tie sound and visual elements from a note.
  */
 function removeTieFromNote(noteElement: Element): void {
     const ties = noteElement.querySelectorAll('tie');
@@ -34,7 +31,7 @@ function removeTieFromNote(noteElement: Element): void {
 }
 
 /**
- * 从 note 元素中删除 slur 子元素
+ * Removes all slur visual elements from a note.
  */
 function removeSlurFromNote(noteElement: Element): void {
     const slurs = noteElement.querySelectorAll('notations > slur');
@@ -42,7 +39,7 @@ function removeSlurFromNote(noteElement: Element): void {
 }
 
 /**
- * 为音符元素添加 tie 声音元素
+ * Adds a MusicXML `tie` sound element to a note.
  */
 function addTieElementToNote(xmlDoc: XMLDocument, noteElement: Element, tieType: 'start' | 'stop'): void {
     const existingTie = noteElement.querySelector(`tie[type="${tieType}"]`);
@@ -64,7 +61,7 @@ function addTieElementToNote(xmlDoc: XMLDocument, noteElement: Element, tieType:
 }
 
 /**
- * 为音符元素添加 tied 视觉元素
+ * Adds a MusicXML `tied` notation element to a note.
  */
 function addTiedElementToNote(xmlDoc: XMLDocument, noteElement: Element, tieType: 'start' | 'stop'): void {
     const existingTied = noteElement.querySelector(`notations > tied[type="${tieType}"]`);
@@ -83,7 +80,7 @@ function addTiedElementToNote(xmlDoc: XMLDocument, noteElement: Element, tieType
 }
 
 /**
- * 获取 XML 文档中下一个可用的 slur 编号
+ * Returns the next available MusicXML slur number.
  */
 function getNextSlurNumber(xmlDoc: XMLDocument): number {
     const existingSlurs = xmlDoc.querySelectorAll('slur[number]');
@@ -96,7 +93,7 @@ function getNextSlurNumber(xmlDoc: XMLDocument): number {
 }
 
 /**
- * 为音符元素添加 slur 元素
+ * Adds a MusicXML `slur` notation element to a note.
  */
 function addSlurElementToNote(
     xmlDoc: XMLDocument,
@@ -209,7 +206,7 @@ function findStartSlurNumber(startNote: Element | undefined) {
 // ============================================================================
 
 /**
- * 删除指定实体的所有 tie 连接
+ * Removes all tie elements from the selected entities.
  */
 export function removeTieElementsFromXML(
     xmlDoc: XMLDocument,
@@ -228,7 +225,7 @@ export function removeTieElementsFromXML(
 }
 
 /**
- * 删除指定实体的所有 slur 连接
+ * Removes all slur elements from the selected entities.
  */
 export function removeSlurElementsFromXML(
     xmlDoc: XMLDocument,
@@ -348,7 +345,7 @@ export function setSlurConnectionDirectionInXML(
 // ============================================================================
 
 /**
- * 为两个实体添加连音线
+ * Adds a tie between two score entities.
  */
 export function addTieElementsToXML(
     xmlDoc: XMLDocument,
@@ -374,7 +371,7 @@ export function addTieElementsToXML(
 }
 
 /**
- * 为两个实体添加连奏线
+ * Adds a slur between two score entities.
  */
 export function addSlurElementsToXML(
     xmlDoc: XMLDocument,

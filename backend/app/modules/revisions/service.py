@@ -5,7 +5,6 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
 
 from app.core.exceptions import (
     ConflictException,
@@ -22,28 +21,26 @@ from app.db.models import (
     User,
 )
 from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
+from app.modules.notifications.service import NotificationService
+from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
+from app.modules.revisions.derived_asset_retention_service import (
+    derived_asset_retention_service,
+)
+from app.modules.revisions.derivatives import revision_derivative_service
+from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.schemas import (
-    RevisionActorRead,
     RevisionContentRead,
     RevisionCreateRequest,
     RevisionListRead,
-    RevisionNoteRead,
     RevisionNoteUpdateRequest,
     RevisionRead,
-    RevisionRestoreRead,
     RevisionRestoreRequest,
-)
-from app.modules.notifications.service import NotificationService
-from app.processing.musicxml.validation import validate_musicxml_document
-from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
-from app.modules.revisions.derivatives import revision_derivative_service
-from app.modules.revisions.derived_asset_retention_service import (
-    derived_asset_retention_service,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service
+from app.processing.musicxml.validation import validate_musicxml_document
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
@@ -57,12 +54,14 @@ class RevisionService:
         storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         notification_service: NotificationService | None = None,
+        read_model: RevisionReadModel | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or file_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.notification_service = notification_service or NotificationService()
+        self.read_model = read_model or RevisionReadModel()
 
     async def create(
         self,
@@ -495,72 +494,4 @@ class RevisionService:
         return RevisionContentRead(**base.model_dump(), content=content, mime_type=source.mime_type)
 
     async def _read(self, db: AsyncSession, revision: ScoreRevision) -> RevisionRead:
-        actor = await db.get(User, revision.created_by_user_id) if revision.created_by_user_id else None
-        restore = await self._restore_read(db, revision)
-        note = await self._note_read(db, revision)
-        return RevisionRead(
-            revision_id=revision.revision_uuid,
-            revision_number=revision.revision_number,
-            origin=revision.origin,
-            created_at=revision.created_at,
-            created_by=RevisionActorRead(
-                display_name=actor.display_name,
-                email=actor.email,
-                avatar_url=actor.avatar_url,
-            ) if actor else None,
-            restore=restore,
-            note=note,
-        )
-
-    async def _restore_read(
-        self, db: AsyncSession, revision: ScoreRevision
-    ) -> RevisionRestoreRead | None:
-        revision_id = require_persisted_id(revision.id, entity="score revision")
-        event = (
-            await db.execute(
-                select(ScoreRevisionEvent)
-                .where(
-                    ScoreRevisionEvent.revision_id == revision_id,
-                    ScoreRevisionEvent.type == "RESTORE",
-                )
-                .order_by(col(ScoreRevisionEvent.created_at).desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-        if event is None:
-            return None
-        target = await db.get(ScoreRevision, event.target_revision_id) if event.target_revision_id else None
-        actor = await db.get(User, event.actor_user_id) if event.actor_user_id else None
-        return RevisionRestoreRead(
-            restored_from_revision_id=target.revision_uuid if target else None,
-            restored_from_revision_number=target.revision_number if target else None,
-            note=event.note,
-            actor=RevisionActorRead(
-                display_name=actor.display_name,
-                email=actor.email,
-                avatar_url=actor.avatar_url,
-            ) if actor else None,
-            created_at=event.created_at,
-        )
-
-    async def _note_read(
-        self, db: AsyncSession, revision: ScoreRevision
-    ) -> RevisionNoteRead | None:
-        revision_id = require_persisted_id(revision.id, entity="score revision")
-        note = (
-            await db.execute(
-                select(ScoreRevisionNote).where(ScoreRevisionNote.revision_id == revision_id)
-            )
-        ).scalar_one_or_none()
-        if note is None:
-            return None
-        author = await db.get(User, note.author_user_id) if note.author_user_id else None
-        return RevisionNoteRead(
-            note=note.note,
-            author=RevisionActorRead(
-                display_name=author.display_name,
-                email=author.email,
-                avatar_url=author.avatar_url,
-            ) if author else None,
-            updated_at=note.updated_at,
-        )
+        return await self.read_model.revision_read(db, revision)

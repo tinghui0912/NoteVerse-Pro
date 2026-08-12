@@ -2,44 +2,29 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
 
 from app.core.exceptions import (
     ConflictException,
-    FileException,
     ResourceNotFoundException,
     UnauthorizedException,
-    ValidationException,
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     LibraryEntrySourceType,
     ImportArtifact,
     ImportJob,
-    ImportJobUpload,
     NotificationEvent,
     Score,
-    ScoreInputAsset,
-    ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
-    StorageBlob,
     StorageUsageCategory,
-    Upload,
 )
 from app.db.models.import_job import ImportJobState
-from app.db.models.score import (
-    MetadataStatus,
-    RenderAssetKind,
-    RevisionOrigin,
-    RevisionSourceFormat,
-    ScoreInputAssetPurpose,
-)
+from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
 from app.modules.library.service import LibraryService
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.score_assets.render_outbox_service import (
@@ -47,12 +32,15 @@ from app.modules.score_assets.render_outbox_service import (
 )
 from app.modules.notifications.service import NotificationTypes
 from app.modules.revisions.derivatives import revision_derivative_service
+from app.modules.review.confirmation_assets import (
+    copy_review_thumbnail_to_score_revision,
+    promote_uploads_to_score_inputs,
+)
+from app.modules.review.read_model import ReviewReadModel
 from app.modules.review.schemas import (
     ImportJobReviewRead,
-    ReviewArtifactRead,
     ReviewConfirmRead,
     ReviewConfirmRequest,
-    ReviewMusicXmlRead,
     ReviewUpdateRequest,
 )
 from app.modules.scores.repository import ScoreRepository
@@ -65,24 +53,18 @@ from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
 
-@dataclass(frozen=True)
-class PromotedScoreInputUsage:
-    asset_uuid: str
-    upload_uuid: str
-    storage_key: str
-    size_bytes: int
-
-
 class ReviewService:
     def __init__(
         self,
         storage: FileStorage | None = None,
         score_repository: ScoreRepository | None = None,
         library_service: LibraryService | None = None,
+        read_model: ReviewReadModel | None = None,
     ) -> None:
         self.storage = storage or file_storage
         self.score_repository = score_repository or ScoreRepository()
         self.library_service = library_service or LibraryService()
+        self.read_model = read_model or ReviewReadModel(self.storage)
 
     async def detail(
         self,
@@ -90,76 +72,7 @@ class ReviewService:
         job_uuid: str,
         user_id: int,
     ) -> ImportJobReviewRead:
-        job = (
-            await db.execute(
-                select(ImportJob).where(ImportJob.job_uuid == job_uuid)
-            )
-        ).scalar_one_or_none()
-        if not job:
-            raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
-        if job.user_id != user_id:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
-        if job.state == ImportJobState.CONFIRMED and job.score_id is not None:
-            score = await db.get(Score, job.score_id)
-            if score:
-                return ImportJobReviewRead(
-                    job_id=job.job_uuid,
-                    state=job.state,
-                    score_id=score.score_uuid,
-                    title=score.title,
-                    taxonomy_tags=[],
-                    musicxml=None,
-                    original_images=[],
-                    created_at=job.created_at,
-                    updated_at=job.updated_at,
-                )
-        if job.state != ImportJobState.PENDING_REVIEW:
-            raise ValidationException(
-                code=ErrorCode.VALIDATION_ERROR,
-                field="state",
-                details={"state": job.state.value},
-            )
-
-        job_id = require_persisted_id(job.id, entity="import job")
-        artifacts = list(
-            (
-                await db.execute(
-                    select(ImportArtifact).where(ImportArtifact.job_id == job_id)
-                )
-            ).scalars().all()
-        )
-        musicxml_artifact = next(
-            (
-                artifact
-                for artifact in artifacts
-                if artifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value
-            ),
-            None,
-        )
-        if musicxml_artifact is None:
-            raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
-        if not self.storage.exists(musicxml_artifact.storage_key):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, musicxml_artifact.storage_key)
-
-        content = self.storage.read_bytes(musicxml_artifact.storage_key).decode("utf-8")
-        options = job.requested_options if isinstance(job.requested_options, dict) else {}
-        title = options.get("title")
-        taxonomy_tags = options.get("taxonomy_tags")
-        original_images = await self._upload_reads(db, job_id)
-        return ImportJobReviewRead(
-            job_id=job.job_uuid,
-            state=job.state,
-            title=title if isinstance(title, str) else None,
-            taxonomy_tags=taxonomy_tags if isinstance(taxonomy_tags, list) else [],
-            musicxml=ReviewMusicXmlRead(
-                artifact_id=musicxml_artifact.artifact_uuid,
-                content=content,
-                mime_type=musicxml_artifact.mime_type,
-            ),
-            original_images=original_images,
-            created_at=job.created_at,
-            updated_at=job.updated_at,
-        )
+        return await self.read_model.detail(db, job_uuid, user_id)
 
     async def confirm(
         self,
@@ -266,14 +179,15 @@ class ReviewService:
                     created_at=now,
                 )
             )
-            await self._copy_review_thumbnail_to_score_revision(
+            await copy_review_thumbnail_to_score_revision(
                 db,
+                storage=self.storage,
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
             )
-            promoted_inputs = await self._promote_uploads_to_score_inputs(
+            promoted_inputs = await promote_uploads_to_score_inputs(
                 db,
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_id=score_id,
@@ -363,96 +277,6 @@ class ReviewService:
             user_id,
         )
         return ReviewConfirmRead(score_id=score_uuid)
-
-    async def _copy_review_thumbnail_to_score_revision(
-        self,
-        db: AsyncSession,
-        *,
-        job_id: int,
-        score_uuid: str,
-        revision_uuid: str,
-        revision_id: int,
-    ) -> None:
-        thumbnail = (
-            await db.execute(
-                select(ImportArtifact)
-                .where(
-                    ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                )
-                .order_by(col(ImportArtifact.created_at).desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-        if thumbnail is None:
-            return
-        content = self.storage.read_bytes(thumbnail.storage_key)
-        artifact_uuid = str(uuid.uuid4())
-        extension = "." + thumbnail.filename.rsplit(".", 1)[-1] if "." in thumbnail.filename else ".svg"
-        stored = self.storage.put_bytes(
-            key=(
-                f"scores/{score_uuid}/revisions/{revision_uuid}/renders/"
-                f"default/001-{artifact_uuid}{extension}"
-            ),
-            content=content,
-            content_type=thumbnail.mime_type or "image/svg+xml",
-        )
-        db.add(
-            ScoreRenderAsset(
-                asset_uuid=artifact_uuid,
-                revision_id=revision_id,
-                kind=RenderAssetKind.RENDERED_PAGE,
-                storage_backend=self.storage.backend_name,
-                storage_key=stored.storage_key,
-                filename=stored.filename,
-                mime_type=thumbnail.mime_type or "image/svg+xml",
-                size_bytes=stored.size_bytes,
-                sha256=hashlib.sha256(content).hexdigest(),
-                page_number=1,
-                render_profile="default",
-                generator="review-thumbnail",
-                generator_version="1",
-            )
-        )
-
-    async def _promote_uploads_to_score_inputs(
-        self,
-        db: AsyncSession,
-        *,
-        job_id: int,
-        score_id: int,
-    ) -> list[PromotedScoreInputUsage]:
-        rows = (
-            await db.execute(
-                select(ImportJobUpload, Upload, StorageBlob)
-                .join(Upload, ImportJobUpload.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
-                .where(ImportJobUpload.job_id == job_id)
-                .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
-            )
-        ).all()
-        promoted: list[PromotedScoreInputUsage] = []
-        for job_upload, upload, blob in rows:
-            asset_uuid = str(uuid.uuid4())
-            db.add(
-                ScoreInputAsset(
-                    asset_uuid=asset_uuid,
-                    score_id=score_id,
-                    upload_id=require_persisted_id(upload.id, entity="upload"),
-                    purpose=ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
-                    page_number=job_upload.page_number,
-                    sort_order=job_upload.sort_order,
-                )
-            )
-            promoted.append(
-                PromotedScoreInputUsage(
-                    asset_uuid=asset_uuid,
-                    upload_uuid=upload.upload_uuid,
-                    storage_key=blob.storage_key,
-                    size_bytes=blob.size_bytes,
-                )
-            )
-        return promoted
 
     async def update(
         self,
@@ -586,27 +410,6 @@ class ReviewService:
         data["score_title"] = score_title
         event.score_id = score_uuid
         event.data = data
-
-    async def _upload_reads(self, db: AsyncSession, job_id: int) -> list[ReviewArtifactRead]:
-        rows = (
-            await db.execute(
-                select(Upload, StorageBlob)
-                .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
-                .where(ImportJobUpload.job_id == job_id)
-                .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
-            )
-        ).all()
-        return [
-            ReviewArtifactRead(
-                artifact_id=f"upload:{require_persisted_id(upload.id, entity='upload')}",
-                filename=upload.original_filename or blob.filename,
-                mime_type=blob.mime_type,
-                size=blob.size_bytes,
-                page_number=index + 1,
-            )
-            for index, (upload, blob) in enumerate(rows)
-        ]
 
     @staticmethod
     def _confirmed_title(

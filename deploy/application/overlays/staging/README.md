@@ -53,8 +53,9 @@ This overlay uses the production-flow certificate issuer
 the Cloudflare token or DNS zone permissions are new, then switch the overlay
 back to the production issuer for browser-trusted TLS rehearsal.
 
-The checked-in staging ConfigMap uses the repository test OSS bucket settings
-for production-shaped S3 storage. Keep credentials in
+The checked-in staging ConfigMaps use repository test OSS bucket settings for
+production-shaped S3 storage and split backend runtime values into shared,
+Worker, Practice, and Control Plane ownership files. Keep credentials in
 `Secret/noteverse-backend-secret`; do not commit access keys.
 
 The overlay intentionally does not generate Secrets. Credentials should come

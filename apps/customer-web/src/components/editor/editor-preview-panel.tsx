@@ -24,6 +24,13 @@ import { getEntityDurationTicks, snapMeasureXToGridTick } from '@/lib/editor/mea
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
 import { getEditorTrackId, getTrackColor, parseVoiceNumber } from '@/lib/editor/tracks';
 import { EditorBottomPlayer } from './editor-bottom-player';
+import {
+  getHiddenConnectionPairs,
+  getHiddenSourceIds,
+  getHiddenStaffKeys,
+} from './editor-preview-track-visibility';
+import { applySelectedVerovioElements } from './editor-preview-selection-highlight';
+import { mountScoreMetadataPlaceholders } from './editor-preview-metadata-placeholders';
 import type { AddLocation, ScoreData, ScoreEntity } from '@/types/score-types';
 
 interface EditorPreviewPanelProps {
@@ -59,11 +66,6 @@ type VisualAnchor = {
   endTick: number;
   left: number;
   right: number;
-};
-
-type ConnectionEndpointPair = {
-  startId: string;
-  endId: string;
 };
 
 const VEROVIO_CONNECTION_SELECTOR = [
@@ -597,76 +599,13 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     issues: validationIssues,
   });
   const hiddenSourceIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (!scoreData) return ids;
-
-    scoreData.measures.forEach((measure) => {
-      measure.staves.forEach((stave, staveIndex) => {
-        stave.voices.forEach((voice) => {
-          const xmlVoice = Number.parseInt(voice.name.match(/\d+/)?.[0] ?? '1', 10);
-          const trackId = getEditorTrackId(staveIndex, xmlVoice);
-          if (visibleTrackIdSet.has(trackId)) return;
-
-          voice.notes.forEach((entity) => {
-            const sourceIds = entity.meta?.sourceIds || (entity.meta?.id ? [entity.meta.id] : []);
-            sourceIds.forEach((id) => ids.add(id));
-          });
-        });
-      });
-    });
-
-    return ids;
+    return getHiddenSourceIds(scoreData, visibleTrackIdSet);
   }, [scoreData, visibleTrackIdSet]);
   const hiddenConnectionPairs = useMemo(() => {
-    const pairs: ConnectionEndpointPair[] = [];
-    const noteConnections = scoreData?.connections?.noteConnections;
-    if (!noteConnections || hiddenSourceIds.size === 0) return pairs;
-
-    noteConnections.forEach((connections, entityId) => {
-      connections.ties.forEach((tie) => {
-        const startId = tie.sourceId ?? entityId;
-        const endId = tie.partnerSourceId ?? tie.partnerId;
-        if (hiddenSourceIds.has(startId) || hiddenSourceIds.has(endId)) {
-          pairs.push({ startId, endId });
-        }
-      });
-
-      connections.slurs.forEach((slur) => {
-        const startId = slur.sourceId ?? entityId;
-        const partnerSourceIds = slur.partnerSourceIds?.length ? slur.partnerSourceIds : slur.partnerIds;
-        partnerSourceIds.forEach((partnerId) => {
-          if (partnerId === startId) return;
-          if (hiddenSourceIds.has(startId) || hiddenSourceIds.has(partnerId)) {
-            pairs.push({ startId, endId: partnerId });
-          }
-        });
-      });
-    });
-
-    return pairs;
-  }, [hiddenSourceIds, scoreData?.connections?.noteConnections]);
+    return getHiddenConnectionPairs(scoreData, hiddenSourceIds);
+  }, [hiddenSourceIds, scoreData]);
   const hiddenStaffKeys = useMemo(() => {
-    const keys = new Set<string>();
-    if (!scoreData) return keys;
-
-    scoreData.measures.forEach((measure, measureIndex) => {
-      measure.staves.forEach((stave, staveIndex) => {
-        const voicesWithEntities = stave.voices.filter((voice) => voice.notes.length > 0);
-        if (voicesWithEntities.length === 0) return;
-
-        const allEntityVoicesHidden = voicesWithEntities.every((voice) => {
-          const xmlVoice = Number.parseInt(voice.name.match(/\d+/)?.[0] ?? '1', 10);
-          const trackId = getEditorTrackId(staveIndex, xmlVoice);
-          return !visibleTrackIdSet.has(trackId);
-        });
-
-        if (allEntityVoicesHidden) {
-          keys.add(`${measureIndex}:${staveIndex}`);
-        }
-      });
-    });
-
-    return keys;
+    return getHiddenStaffKeys(scoreData, visibleTrackIdSet);
   }, [scoreData, visibleTrackIdSet]);
 
   useEffect(() => {
@@ -706,24 +645,10 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
       : undefined;
 
     const applySelection = () => {
-      container
-        .querySelectorAll('.score-editor-selected')
-        .forEach((element) => {
-          element.classList.remove('score-editor-selected');
-          if (element instanceof HTMLElement || element instanceof SVGElement) {
-            element.style.removeProperty('--score-editor-selection-color');
-          }
-        });
-
-      if (!sourceIds) return;
-      container.querySelectorAll('[data-id], [id]').forEach((element) => {
-        const id = element.getAttribute('data-id') || element.getAttribute('id');
-        if (id && sourceIds.has(id)) {
-          element.classList.add('score-editor-selected');
-          if (selectedColor && (element instanceof HTMLElement || element instanceof SVGElement)) {
-            element.style.setProperty('--score-editor-selection-color', selectedColor);
-          }
-        }
+      applySelectedVerovioElements({
+        container,
+        sourceIds,
+        selectedColor,
       });
     };
 
@@ -737,28 +662,15 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     const container = playback.containerRef.current;
     if (!container || playback.isLoading) return;
 
-    container.querySelectorAll('[data-score-metadata-placeholder]').forEach((element) => element.remove());
-
-    const page = container.querySelector<HTMLElement>('[data-score-page="1"]')
-      ?? container.querySelector<HTMLElement>('[data-score-page]');
-    if (!page || !scoreData) return;
-
-    const placeholders = [
-      !scoreData.mainTitle ? { className: 'score-metadata-placeholder-title', label: t('mainTitleLabel') } : null,
-      !scoreData.subtitle ? { className: 'score-metadata-placeholder-subtitle', label: t('subtitleLabel') } : null,
-      !scoreData.lyricist ? { className: 'score-metadata-placeholder-lyricist', label: t('lyricistLabel') } : null,
-      !scoreData.composer ? { className: 'score-metadata-placeholder-composer', label: t('composerLabel') } : null,
-    ].filter((placeholder): placeholder is { className: string; label: string } => Boolean(placeholder));
-
-    if (placeholders.length === 0) return;
-
-    placeholders.forEach((placeholder) => {
-      const element = document.createElement('button');
-      element.type = 'button';
-      element.dataset.scoreMetadataPlaceholder = 'true';
-      element.className = `score-metadata-placeholder ${placeholder.className}`;
-      element.textContent = placeholder.label;
-      page.append(element);
+    mountScoreMetadataPlaceholders({
+      container,
+      scoreData,
+      labels: {
+        mainTitle: t('mainTitleLabel'),
+        subtitle: t('subtitleLabel'),
+        lyricist: t('lyricistLabel'),
+        composer: t('composerLabel'),
+      },
     });
   }, [
     playback.containerRef,

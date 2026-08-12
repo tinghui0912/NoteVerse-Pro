@@ -156,16 +156,20 @@ describe('Verovio listen surfaces', () => {
   it('highlights the currently selected Verovio entity', () => {
     const viewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const panel = readSource('src/components/editor/editor-preview-panel.tsx');
+    const selection = readSource('src/components/editor/editor-preview-selection-highlight.ts');
 
     expect(viewport).toContain('score-editor-selected');
-    expect(panel).toContain("querySelectorAll('.score-editor-selected')");
-    expect(panel).toContain("element.classList.add('score-editor-selected')");
+    expect(panel).toContain('applySelectedVerovioElements');
     expect(panel).toContain('editingEntity.meta.sourceIds');
+    expect(selection).toContain("querySelectorAll(`.${SCORE_EDITOR_SELECTED_CLASS}`)");
+    expect(selection).toContain('element.classList.add(SCORE_EDITOR_SELECTED_CLASS)');
+    expect(selection).toContain('--score-editor-selection-color');
   });
 
   it('projects hidden voice tracks onto the Verovio SVG surface', () => {
     const viewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const panel = readSource('src/components/editor/editor-preview-panel.tsx');
+    const visibility = readSource('src/components/editor/editor-preview-track-visibility.ts');
 
     expect(viewport).toContain('score-editor-hidden');
     expect(panel).toContain('visibleTrackIdSet');
@@ -174,7 +178,6 @@ describe('Verovio listen surfaces', () => {
     expect(panel).toContain('data-related');
     expect(panel).toContain('getRelatedIds');
     expect(panel).toContain('getHiddenVerovioEventElement');
-    expect(panel).toContain('allEntityVoicesHidden');
     expect(panel).toContain('getSvgBoundsFromGraphics');
     expect(panel).toContain('isConnectionNearHiddenEvent');
     expect(panel).toContain('VEROVIO_EVENT_CONTAINER_SELECTOR');
@@ -182,6 +185,10 @@ describe('Verovio listen surfaces', () => {
     expect(panel).toContain('[data-class="tie"]');
     expect(panel).toContain('[data-class="beam"]');
     expect(panel).toContain("element.classList.add('score-editor-hidden')");
+    expect(visibility).toContain('getHiddenSourceIds');
+    expect(visibility).toContain('getHiddenConnectionPairs');
+    expect(visibility).toContain('getHiddenStaffKeys');
+    expect(visibility).toContain('allEntityVoicesHidden');
   });
 
   it('marks temporarily invalid measures without blocking score editing', () => {
@@ -232,18 +239,25 @@ describe('Verovio listen surfaces', () => {
 
   it('keeps score-level metadata editing in the right inspector', () => {
     const inspector = readSource('src/components/editor/event-inspector.tsx');
+    const scoreInspector = readSource('src/components/editor/event-score-inspector.tsx');
+    const previewPanel = readSource('src/components/editor/editor-preview-panel.tsx');
+    const previewPlaceholders = readSource('src/components/editor/editor-preview-metadata-placeholders.ts');
 
-    expect(inspector).toContain('function ScoreInspectorPanel');
-    expect(inspector).toContain('useMetadataEditor');
-    expect(inspector).toContain('updateScoreMainTitle');
-    expect(inspector).toContain('updateScoreSubtitle');
-    expect(inspector).toContain('updateScoreComposer');
-    expect(inspector).toContain('updateScoreLyricist');
-    expect(inspector).toContain('updateScoreCopyright');
-    expect(inspector).toContain('updateKeySignature');
-    expect(inspector).toContain('updateTimeSignature');
-    expect(inspector).toContain('updateTempo');
-    expect(inspector).toContain('mainTitleLabel');
-    expect(inspector).toContain('timeSignatureLabel');
+    expect(inspector).toContain('ScoreInspectorPanel');
+    expect(scoreInspector).toContain('function ScoreInspectorPanel');
+    expect(scoreInspector).toContain('useMetadataEditor');
+    expect(scoreInspector).toContain('updateScoreMainTitle');
+    expect(scoreInspector).toContain('updateScoreSubtitle');
+    expect(scoreInspector).toContain('updateScoreComposer');
+    expect(scoreInspector).toContain('updateScoreLyricist');
+    expect(scoreInspector).toContain('updateScoreCopyright');
+    expect(scoreInspector).toContain('updateKeySignature');
+    expect(scoreInspector).toContain('updateTimeSignature');
+    expect(scoreInspector).toContain('updateTempo');
+    expect(scoreInspector).toContain('mainTitleLabel');
+    expect(scoreInspector).toContain('timeSignatureLabel');
+    expect(previewPanel).toContain('mountScoreMetadataPlaceholders');
+    expect(previewPlaceholders).toContain('score-metadata-placeholder-title');
+    expect(previewPlaceholders).toContain('score-metadata-placeholder-composer');
   });
 });

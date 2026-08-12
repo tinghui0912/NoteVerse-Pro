@@ -1,5 +1,5 @@
 /**
- * 个人资料相关 API
+ * Profile API wrapper.
  */
 import { API_BASE_URL } from '@/lib/app-protocol';
 import { apiClient, ApiResponse } from '../api-client';
@@ -13,27 +13,27 @@ import type {
     UpdateProfileRequest,
 } from '@/generated/api';
 
-// ============ API 函数 ============
+// API functions.
 
 /**
- * 获取当前用户资料
+ * Get the current user profile.
  */
 export async function getProfile(options?: { suppressAuthRedirect?: boolean }): Promise<ApiResponse<ProfileRead>> {
     return apiClient.get<ApiResponse<ProfileRead>>('/me/profile', undefined, options);
 }
 
 /**
- * 更新用户资料
- * @param data 更新数据
+ * Update the current user profile.
+ * @param data Profile update payload.
  */
 export async function updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<ProfileUpdateRead>> {
     return apiClient.put<ApiResponse<ProfileUpdateRead>>('/me/profile', data);
 }
 
 /**
- * 修改密码
- * @param currentPassword 当前密码
- * @param newPassword 新密码
+ * Change the current user password.
+ * @param currentPassword Current password.
+ * @param newPassword New password.
  */
 export async function changePassword(
     currentPassword: string,
@@ -46,15 +46,15 @@ export async function changePassword(
 }
 
 /**
- * 上传头像
- * @param file 头像文件
+ * Upload an avatar image.
+ * @param file Avatar image file.
  */
 export async function uploadAvatar(file: File): Promise<ApiResponse<AvatarRead>> {
     return apiClient.upload<ApiResponse<AvatarRead>>('/me/avatar', file);
 }
 
 /**
- * 删除头像
+ * Delete the current avatar.
  */
 export async function deleteAvatar(): Promise<ApiResponse> {
     return apiClient.delete<ApiResponse>('/me/avatar');
@@ -81,20 +81,20 @@ export async function revokeOtherSessions(): Promise<ApiResponse> {
 }
 
 /**
- * 获取头像 URL
- * @param avatarUrl 头像路径
+ * Build the avatar image URL.
+ * @param avatarUrl Avatar path or absolute URL.
  */
 export function getAvatarUrl(avatarUrl?: string): string {
     if (!avatarUrl) {
-        return '/default-avatar.png'; // 默认头像
+        return '/default-avatar.png'; // Default avatar.
     }
 
-    // 如果已经是完整 URL，直接返回
+    // Return absolute URLs unchanged.
     if (avatarUrl.startsWith('http')) {
         return avatarUrl;
     }
 
-    // 否则拼接 API 基础 URL
+    // Resolve relative avatar paths against the API base URL.
     return `${API_BASE_URL}${avatarUrl}`;
 }
 

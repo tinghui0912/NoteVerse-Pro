@@ -1,31 +1,30 @@
 /**
- * API 模块统一导出。
- * 通用传输类型从 `@/lib/api-client` 导入，HTTP DTO 从生成契约导入。
+ * Central API module exports.
+ * Import transport primitives from `@/lib/api-client` and HTTP DTOs from generated contracts.
  */
 
-// API 客户端
 export {
     apiClient,
     ApiError,
 } from '../api-client';
 
-// 认证 API
+// Authentication API.
 export { authApi } from './auth';
 
-// 任务 API
+// Import job API.
 export { importJobsApi } from './import-jobs';
 
-// 文件 API
+// File API.
 export { filesApi } from './files';
 
-// XML 编辑 API
+// XML editing API.
 
-// 分享 API
+// Sharing API.
 
-// 个人资料 API
+// Profile API.
 export { profileApi } from './profile';
 
-// 练琴应用 API
+// Practice API.
 export { practiceApi } from './practice';
 export { scoresApi } from './scores';
 export { scoreSharingApi } from './score-sharing';

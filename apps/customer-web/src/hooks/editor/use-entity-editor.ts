@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 实体编辑 Hook - 管理事件的新增、修改和删除
+ * Entity editing hook for adding, updating, and deleting score events.
  */
 
 import { useCallback } from 'react';

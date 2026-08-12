@@ -58,7 +58,7 @@ def ensure_user(namespace: str, deployment: str, email: str, password: str) -> N
     code = f"""
 from sqlalchemy import select
 from app.core.security import get_password_hash
-from app.db.worker_session import SessionLocal
+from app.db.sync_session import SessionLocal
 from app.db.models.user import User
 from app.utils.timezone import utc_now_naive
 

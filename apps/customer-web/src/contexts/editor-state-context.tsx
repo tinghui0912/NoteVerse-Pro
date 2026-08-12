@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useCallback, useMemo } from
 import type { ScoreEntity, EntityLocation } from '@/types/score-types';
 
 /**
- * 编辑器模式
+ * Editor tool mode.
  */
 export type EditorMode =
     | 'select'
@@ -16,28 +16,28 @@ export type EditorMode =
     | 'deleteSlur';
 
 /**
- * EditorState Context - 管理编辑器 UI 状态
+ * Editor UI state context.
  */
 interface EditorStateContextType {
-    // 编辑器模式
+    // Active editor tool.
     editorMode: EditorMode;
     selectTool: (mode: EditorMode) => void;
 
-    // 当前编辑状态
+    // Current entity editing state.
     editingEntity: ScoreEntity | null;
     setEditingEntity: React.Dispatch<React.SetStateAction<ScoreEntity | null>>;
     editingEntityLocation: EntityLocation | null;
     setEditingEntityLocation: React.Dispatch<React.SetStateAction<EntityLocation | null>>;
 
-    // 图片查看器
+    // Original image viewer state.
     isImageViewerOpen: boolean;
     setIsImageViewerOpen: React.Dispatch<React.SetStateAction<boolean>>;
 
-    // 清空选择状态的回调（用于 Connection 操作）
+    // Callback for clearing tool-specific selection state.
     onToolChange: ((mode: EditorMode) => void) | null;
     setOnToolChange: (callback: ((mode: EditorMode) => void) | null) => void;
 
-    // Workbench UI 状态
+    // Workbench UI state.
     activeTrackId: string | null;
     setActiveTrackId: React.Dispatch<React.SetStateAction<string | null>>;
     visibleTrackIds: string[];
@@ -49,7 +49,7 @@ interface EditorStateContextType {
 const EditorStateContext = createContext<EditorStateContextType | undefined>(undefined);
 
 /**
- * EditorState Hook - 获取编辑器状态
+ * Returns editor UI state.
  */
 export function useEditorState() {
     const context = useContext(EditorStateContext);
@@ -64,7 +64,7 @@ interface EditorStateProviderProps {
 }
 
 /**
- * EditorState Provider - 提供编辑器状态上下文
+ * Provides editor UI state.
  */
 export function EditorStateProvider({ children }: EditorStateProviderProps) {
     const [editorMode, setEditorMode] = useState<EditorMode>('select');
@@ -77,10 +77,10 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
     const [inspectorOpen, setInspectorOpen] = useState(false);
 
     const selectTool = useCallback((mode: EditorMode) => {
-        // 如果点击当前已激活的模式，则切换回默认的 select 模式
+        // Clicking the active tool toggles back to select mode.
         const newMode = editorMode === mode ? 'select' : mode;
         setEditorMode(newMode);
-        // 通知 Connection 操作清空选择状态
+        // Notify connection tools so they can clear selection state.
         if (onToolChange) {
             onToolChange(newMode);
         }

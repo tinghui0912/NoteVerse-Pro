@@ -31,9 +31,9 @@ from app.processing.realtime.session_runtime import (
     PracticeSessionRuntimeRegistry,
     practice_runtime_registry,
 )
+from app.modules.practice.read_model import PracticeReadModel
 from app.modules.practice.repository import PracticeRepository
 from app.modules.practice.schemas import (
-    PracticeReportPayloadRead,
     PracticeReportRead,
     PracticeSessionDetailRead,
     PracticeSessionSummaryRead,
@@ -47,7 +47,7 @@ from app.storage import FileStorage, file_storage
 from app.utils.timezone import utc_now_naive
 
 if TYPE_CHECKING:
-    from app.processing.engines.practice_alignment.matchmaker_live import AlignmentUpdate
+    from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
 
 
 class PracticeService:
@@ -63,6 +63,7 @@ class PracticeService:
         asset_repository: ScoreAssetRepository | None = None,
         library_service: LibraryService | None = None,
         storage: FileStorage | None = None,
+        read_model: PracticeReadModel | None = None,
     ) -> None:
         self.repository = repository or PracticeRepository()
         self.runtime_registry = runtime_registry or practice_runtime_registry
@@ -72,6 +73,7 @@ class PracticeService:
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.library_service = library_service or LibraryService()
         self.storage = storage or file_storage
+        self.read_model = read_model or PracticeReadModel()
 
     async def create_session(
         self,
@@ -110,7 +112,7 @@ class PracticeService:
             report_status=PracticeReportStatus.NOT_REQUESTED,
         )
         session = await self.repository.create_session(db, session)
-        return self._to_session_summary(session)
+        return self.read_model.to_session_summary(session)
 
     async def get_session_detail(
         self,
@@ -119,7 +121,7 @@ class PracticeService:
         user_id: int,
     ) -> PracticeSessionDetailRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
-        return await self._to_session_detail(db, session)
+        return await self.read_model.to_session_detail(db, session)
 
     async def require_session_access(
         self,
@@ -210,7 +212,7 @@ class PracticeService:
             session.started_at = utc_now_naive()
         session = await self.repository.save_session(db, session)
         self._update_runtime_state(session.session_uuid, session.state.value)
-        return await self._to_session_detail(db, session)
+        return await self.read_model.to_session_detail(db, session)
 
     async def pause_session(
         self,
@@ -227,7 +229,7 @@ class PracticeService:
         session.state = PracticeSessionState.PAUSED
         session = await self.repository.save_session(db, session)
         self._update_runtime_state(session.session_uuid, session.state.value)
-        return await self._to_session_detail(db, session)
+        return await self.read_model.to_session_detail(db, session)
 
     async def resume_session(
         self,
@@ -246,7 +248,7 @@ class PracticeService:
             session.started_at = utc_now_naive()
         session = await self.repository.save_session(db, session)
         self._update_runtime_state(session.session_uuid, session.state.value)
-        return await self._to_session_detail(db, session)
+        return await self.read_model.to_session_detail(db, session)
 
     async def finish_session(
         self,
@@ -268,7 +270,7 @@ class PracticeService:
         await self.library_service.mark_practiced(db, user_id, session.score_id)
         await db.commit()
         self.runtime_registry.release(session.session_uuid)
-        return await self._to_session_detail(db, session)
+        return await self.read_model.to_session_detail(db, session)
 
     async def request_report(
         self,
@@ -301,7 +303,7 @@ class PracticeService:
         session.report_payload = json.dumps(report_payload)
         session.error = None
         session = await self.repository.save_report(db, session)
-        return self._to_report_result(session)
+        return self.read_model.to_report_result(session)
 
     async def persist_alignment(
         self,
@@ -327,7 +329,7 @@ class PracticeService:
         user_id: int,
     ) -> PracticeReportRead:
         session = await self._require_session_for_user(db, session_uuid, user_id)
-        return self._to_report_result(session)
+        return self.read_model.to_report_result(session)
 
     async def _require_session_for_user(
         self,
@@ -353,51 +355,3 @@ class PracticeService:
         runtime = self.runtime_registry.get(session_uuid)
         if runtime is not None:
             runtime.state = state
-
-    @staticmethod
-    def _to_session_summary(session: PracticeSession) -> PracticeSessionSummaryRead:
-        return PracticeSessionSummaryRead(
-            session_id=session.session_uuid,
-            state=session.state,
-            ws_url=f"/api/v1/practice/sessions/{session.session_uuid}/stream",
-        )
-
-    @staticmethod
-    async def _to_session_detail(
-        db: AsyncSession,
-        session: PracticeSession,
-    ) -> PracticeSessionDetailRead:
-        score = await db.get(Score, session.score_id)
-        revision = await db.get(ScoreRevision, session.revision_id)
-        if not score or not revision or not session.access_origin:
-            raise ResourceNotFoundException(
-                "practice_revision", session.session_uuid, ErrorCode.REVISION_NOT_FOUND
-            )
-        return PracticeSessionDetailRead(
-            session_id=session.session_uuid,
-            score_id=score.score_uuid,
-            revision_id=revision.revision_uuid,
-            access_origin=session.access_origin,
-            state=session.state,
-            sample_rate=session.sample_rate,
-            channels=session.channels,
-            frame_format=session.frame_format,
-            started_at=session.started_at.isoformat() if session.started_at else None,
-            finished_at=session.finished_at.isoformat() if session.finished_at else None,
-            last_beat_position=session.last_beat_position,
-            last_confidence=session.last_confidence,
-            report_status=session.report_status,
-        )
-
-    @staticmethod
-    def _to_report_result(session: PracticeSession) -> PracticeReportRead:
-        parsed_payload: PracticeReportPayloadRead | None = None
-        if session.report_payload:
-            parsed_payload = PracticeReportPayloadRead.model_validate(
-                json.loads(session.report_payload)
-            )
-        return PracticeReportRead(
-            session_id=session.session_uuid,
-            report_status=session.report_status,
-            report_payload=parsed_payload,
-        )

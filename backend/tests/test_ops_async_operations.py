@@ -41,7 +41,18 @@ from app.modules.ops.schemas import (
     AsyncOperationRead,
     AsyncOperationStatus,
 )
-from app.modules.ops.service import AsyncOperationFilters, OpsAsyncOperationService
+from app.modules.ops.operation_filters import AsyncOperationFilters
+from app.modules.ops.operation_projection import (
+    mail_operation_status,
+    matches_operation_filters,
+    outbox_operation_status,
+)
+from app.modules.ops.command_service import RETRYABLE_OPERATION_KINDS
+from app.modules.ops.query_service import (
+    QUERY_OPERATION_KIND_ORDER,
+    OpsAsyncOperationQueryService,
+    selected_query_operation_kinds,
+)
 from app.modules.async_operations.diagnostics import (
     AsyncOperationErrorClassValue,
     classify_async_error,
@@ -74,6 +85,16 @@ from app.modules.platform_operators.service import OperatorAuthenticationService
 
 app = create_app()
 control_settings = require_control_plane_settings()
+
+
+def test_ops_query_and_retry_kind_contracts_cover_every_async_operation_kind() -> None:
+    all_kinds = tuple(AsyncOperationKind)
+
+    assert QUERY_OPERATION_KIND_ORDER == all_kinds
+    assert RETRYABLE_OPERATION_KINDS == all_kinds
+    assert selected_query_operation_kinds(None) == all_kinds
+    for kind in all_kinds:
+        assert selected_query_operation_kinds(kind) == (kind,)
 
 
 @pytest.fixture
@@ -308,16 +329,15 @@ def _create_score_revision(
 
 
 def test_ops_outbox_status_normalization_distinguishes_due_failed_and_exhausted() -> None:
-    service = OpsAsyncOperationService()
     now = utc_now_naive()
 
-    retrying = service._outbox_status(
+    retrying = outbox_operation_status(
         RenderOutboxStatus.FAILED,
         attempts=1,
         max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         next_attempt_at=now,
     )
-    exhausted = service._outbox_status(
+    exhausted = outbox_operation_status(
         PlaybackOutboxStatus.FAILED,
         attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
         max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
@@ -329,7 +349,6 @@ def test_ops_outbox_status_normalization_distinguishes_due_failed_and_exhausted(
 
 
 def test_ops_mail_status_normalization_preserves_permanent_failure() -> None:
-    service = OpsAsyncOperationService()
     outbox = MailOutbox(
         category="auth",
         dedupe_key="mail:ops-test",
@@ -338,7 +357,7 @@ def test_ops_mail_status_normalization_preserves_permanent_failure() -> None:
         status=MailOutboxStatus.PERMANENT_FAILURE,
     )
 
-    assert service._mail_status(outbox) == AsyncOperationStatus.PERMANENT_FAILED
+    assert mail_operation_status(outbox) == AsyncOperationStatus.PERMANENT_FAILED
 
 
 def test_ops_error_classification_keeps_infrastructure_errors_separate() -> None:
@@ -371,7 +390,7 @@ def test_ops_filters_match_status_error_class_resource_and_time_window() -> None
         updated_at=now,
     )
 
-    assert OpsAsyncOperationService._matches_filters(
+    assert matches_operation_filters(
         operation,
         AsyncOperationFilters(
             status=AsyncOperationStatus.RETRYING,
@@ -381,7 +400,7 @@ def test_ops_filters_match_status_error_class_resource_and_time_window() -> None
             updated_before=now + timedelta(minutes=1),
         ),
     )
-    assert not OpsAsyncOperationService._matches_filters(
+    assert not matches_operation_filters(
         operation,
         AsyncOperationFilters(error_class=AsyncOperationErrorClass.PERMANENT),
     )
@@ -414,7 +433,7 @@ async def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -
     )
     ops_session.commit()
 
-    service = OpsAsyncOperationService()
+    service = OpsAsyncOperationQueryService()
     summary = await service.summary(
         AsyncSessionAdapter(ops_session),
         kind=AsyncOperationKind.MAIL,

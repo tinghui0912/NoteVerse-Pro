@@ -38,29 +38,17 @@ spec:
           envFrom:
             - configMapRef:
                 name: noteverse-backend-config
+            - configMapRef:
+                name: noteverse-backend-worker-config
+            - configMapRef:
+                name: noteverse-backend-practice-config
             - secretRef:
                 name: noteverse-backend-secret
           env:
-            - name: MODEL_ROOT
-              value: /opt/noteverse/models
-            - name: PRACTICE_SOUNDFONT_PATH
-              value: /opt/noteverse/models/soundfonts/FluidR3_GM.sf2
-            - name: PLAYBACK_SOUNDFONT_PATH
-              value: /opt/noteverse/models/soundfonts/FluidR3_GM.sf2
-            - name: HF_HOME
-              value: /opt/noteverse/models/huggingface
             - name: HF_HUB_OFFLINE
               value: "false"
             - name: TRANSFORMERS_OFFLINE
               value: "false"
-            - name: PADDLEOCR_MODEL_ROOT
-              value: /opt/noteverse/models/paddleocr/official_models
-            - name: PADDLEOCR_DETECTION_MODEL_DIR
-              value: /opt/noteverse/models/paddleocr/official_models/PP-OCRv6_medium_det
-            - name: PADDLEOCR_RECOGNITION_MODEL_DIR
-              value: /opt/noteverse/models/paddleocr/official_models/PP-OCRv6_medium_rec
-            - name: PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR
-              value: /opt/noteverse/models/paddleocr/official_models/PP-LCNet_x1_0_textline_ori
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:

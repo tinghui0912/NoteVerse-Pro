@@ -21,6 +21,13 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
 )
+from app.modules.library.folder_tree import (
+    LibraryFolderCounts,
+    build_folder_tree_read,
+    descendant_folder_ids,
+    folder_level,
+    subtree_height,
+)
 from app.modules.library.repository import LibraryRepository
 from app.modules.library.schemas import (
     FolderDeleteMode,
@@ -106,45 +113,16 @@ class LibraryService:
             mastered_count,
             direct_counts,
         ) = await self.repository.counts(db, user_id)
-        children: dict[int | None, list[ScoreLibraryFolder]] = {}
-        for folder in folders:
-            children.setdefault(folder.parent_folder_id, []).append(folder)
-
-        def recursive_count(folder_id: int) -> int:
-            total = direct_counts.get(folder_id, 0)
-            for child in children.get(folder_id, []):
-                child_id = require_persisted_id(child.id, entity="library folder")
-                total += recursive_count(child_id)
-            return total
-
-        return LibraryFolderTreeRead(
-            all_count=all_count,
-            favorite_count=favorite_count,
-            recent_practice_count=recent_practice_count,
-            to_practice_count=to_practice_count,
-            mastered_count=mastered_count,
-            folders=[
-                LibraryFolderRead(
-                    folder_id=folder.folder_uuid,
-                    parent_folder_id=(
-                        self._folder_uuid_by_id(folders, folder.parent_folder_id)
-                        if folder.parent_folder_id
-                        else None
-                    ),
-                    name=folder.name,
-                    position=folder.position,
-                    direct_count=direct_counts.get(
-                        require_persisted_id(folder.id, entity="library folder"),
-                        0,
-                    ),
-                    recursive_count=recursive_count(
-                        require_persisted_id(folder.id, entity="library folder")
-                    ),
-                    created_at=folder.created_at,
-                    updated_at=folder.updated_at,
-                )
-                for folder in folders
-            ],
+        return build_folder_tree_read(
+            folders,
+            LibraryFolderCounts(
+                all_count=all_count,
+                favorite_count=favorite_count,
+                recent_practice_count=recent_practice_count,
+                to_practice_count=to_practice_count,
+                mastered_count=mastered_count,
+                direct_counts=direct_counts,
+            ),
         )
 
     async def create_folder(
@@ -157,7 +135,7 @@ class LibraryService:
             if parent
             else None
         )
-        if self._folder_level(folders, parent_id) + 1 > self.MAX_FOLDER_LEVEL:
+        if folder_level(folders, parent_id) + 1 > self.MAX_FOLDER_LEVEL:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
         now = utc_now_naive()
         folder = ScoreLibraryFolder(
@@ -194,11 +172,11 @@ class LibraryService:
         if "parent_folder_id" in request.model_fields_set:
             parent = await self._optional_folder(db, user_id, request.parent_folder_id)
             parent_id = require_persisted_id(parent.id, entity="library folder") if parent else None
-            if parent_id == folder_id or parent_id in self._descendant_ids(folders, folder_id):
+            if parent_id == folder_id or parent_id in descendant_folder_ids(folders, folder_id):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
             if (
-                self._folder_level(folders, parent_id)
-                + self._subtree_height(folders, folder_id)
+                folder_level(folders, parent_id)
+                + subtree_height(folders, folder_id)
                 > self.MAX_FOLDER_LEVEL
             ):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
@@ -223,7 +201,7 @@ class LibraryService:
             raise ResourceNotFoundException("library_folder", folder_uuid)
         folder_id = require_persisted_id(folder.id, entity="library folder")
         folders = await self.repository.folders(db, user_id)
-        descendant_ids = self._descendant_ids(folders, folder_id)
+        descendant_ids = descendant_folder_ids(folders, folder_id)
         affected_folder_ids = {folder_id, *descendant_ids}
         target_parent_id = None
         if request.mode == FolderDeleteMode.MOVE_CONTENTS_TO_PARENT:
@@ -261,7 +239,10 @@ class LibraryService:
         if folder:
             folders = await self.repository.folders(db, user_id)
             selected_folder_id = require_persisted_id(folder.id, entity="library folder")
-            folder_ids = {selected_folder_id, *self._descendant_ids(folders, selected_folder_id)}
+            folder_ids = {
+                selected_folder_id,
+                *descendant_folder_ids(folders, selected_folder_id),
+            }
         rows, total = await self.repository.list_entries(
             db,
             user_id,
@@ -507,65 +488,4 @@ class LibraryService:
         folder = await db.get(ScoreLibraryFolder, folder_id)
         return folder.folder_uuid if folder else None
 
-    @staticmethod
-    def _folder_uuid_by_id(
-        folders: list[ScoreLibraryFolder], folder_id: int | None
-    ) -> str | None:
-        if folder_id is None:
-            return None
-        for folder in folders:
-            if folder.id == folder_id:
-                return folder.folder_uuid
-        return None
-
-    @staticmethod
-    def _descendant_ids(folders: list[ScoreLibraryFolder], folder_id: int) -> set[int]:
-        children: dict[int | None, list[ScoreLibraryFolder]] = {}
-        for folder in folders:
-            children.setdefault(folder.parent_folder_id, []).append(folder)
-        result: set[int] = set()
-
-        def visit(parent_id: int) -> None:
-            for child in children.get(parent_id, []):
-                child_id = require_persisted_id(child.id, entity="library folder")
-                result.add(child_id)
-                visit(child_id)
-
-        visit(folder_id)
-        return result
-
-    @staticmethod
-    def _folder_level(folders: list[ScoreLibraryFolder], folder_id: int | None) -> int:
-        if folder_id is None:
-            return 0
-        level = 1
-        by_id = {
-            require_persisted_id(folder.id, entity="library folder"): folder
-            for folder in folders
-        }
-        current = by_id.get(folder_id)
-        seen = {folder_id}
-        while current and current.parent_folder_id is not None:
-            parent_id = current.parent_folder_id
-            if parent_id in seen:
-                break
-            seen.add(parent_id)
-            level += 1
-            current = by_id.get(parent_id)
-        return level
-
-    @classmethod
-    def _subtree_height(cls, folders: list[ScoreLibraryFolder], folder_id: int) -> int:
-        children: dict[int | None, list[ScoreLibraryFolder]] = {}
-        for folder in folders:
-            children.setdefault(folder.parent_folder_id, []).append(folder)
-
-        def visit(parent_id: int) -> int:
-            child_heights = [
-                visit(require_persisted_id(child.id, entity="library folder"))
-                for child in children.get(parent_id, [])
-            ]
-            return 1 + (max(child_heights) if child_heights else 0)
-
-        return visit(folder_id)
 

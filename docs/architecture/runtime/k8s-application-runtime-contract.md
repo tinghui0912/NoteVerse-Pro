@@ -236,18 +236,20 @@ frontend ConfigMap.
 
 ### Kubernetes ConfigMaps
 
-Store these as ConfigMaps:
+Store non-secret runtime values as ConfigMaps. Use a shared backend baseline
+only for values that are safe and meaningful across backend roles, then add
+role-specific ConfigMaps for runtime-owned settings:
 
-- public URLs and origins:
+- shared backend public URLs and origins:
   - `FRONTEND_BASE_URL`;
   - `BACKEND_CORS_ORIGINS`;
-  - `NEXT_BACKEND_ORIGIN`;
-- cookie/header names:
+  - `TRUSTED_PROXY_CIDRS`;
+- shared customer cookie/header names:
   - `AUTH_COOKIE_NAME`;
   - `REFRESH_COOKIE_NAME`;
   - `CSRF_COOKIE_NAME`;
   - `CSRF_HEADER_NAME`;
-- storage mode and non-secret S3 settings:
+- shared storage mode and non-secret S3 settings:
   - `FILE_STORAGE_BACKEND`;
   - `S3_ENDPOINT_URL`;
   - `S3_REGION`;
@@ -255,21 +257,53 @@ Store these as ConfigMaps:
   - `S3_PUBLIC_BASE_URL`;
   - `S3_FORCE_PATH_STYLE`;
   - `S3_PRESIGN_EXPIRE_SECONDS`;
-- runtime paths:
+- shared runtime paths:
   - `STORAGE_ROOT`;
   - `WORK_ROOT`;
+- shared task reliability settings:
+  - import, render, playback, mail, realtime, notification, and cleanup interval,
+    timeout, retry, batch, and retention settings;
+- Worker/model-asset ConfigMap:
   - `MODEL_ROOT`;
-  - `PRACTICE_SOUNDFONT_PATH`;
   - `PLAYBACK_SOUNDFONT_PATH`;
   - `HF_HOME`;
+  - `HF_HUB_OFFLINE`;
+  - `TRANSFORMERS_OFFLINE`;
   - `PADDLEOCR_MODEL_ROOT`;
   - `PADDLEOCR_DETECTION_MODEL_DIR`;
   - `PADDLEOCR_RECOGNITION_MODEL_DIR`;
   - `PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR`;
+  - `PADDLEOCR_TIMEOUT_SECONDS`;
   - `LEGATO_REPO_PATH`;
-- task reliability settings:
-  - import, render, playback, mail, realtime, notification, and cleanup interval,
-    timeout, retry, batch, and retention settings;
+  - `LEGATO_PYTHON`;
+  - `LEGATO_DEVICE`;
+  - `LEGATO_FP16`;
+  - `LEGATO_BEAM_SIZE`;
+  - `LEGATO_BATCH_SIZE`;
+  - `LEGATO_TIMEOUT_SECONDS`;
+- Practice ConfigMap:
+  - `PRACTICE_SOUNDFONT_PATH`;
+  - `PRACTICE_AUDIO_DIAGNOSTICS`;
+  - `PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL`;
+  - `PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL`;
+- model-cache agent:
+  - consumes the shared backend, Worker/model-asset, and Practice ConfigMaps;
+  - prepares and verifies both playback and Practice soundfont targets before
+    application pods rely on the node-local model cache;
+  - overrides Hugging Face offline flags to online mode only for controlled
+    cache hydration.
+- Control Plane ConfigMap:
+  - `CONTROL_PLANE_AUTH_COOKIE_NAME`;
+  - `CONTROL_PLANE_CSRF_COOKIE_NAME`;
+  - `CONTROL_PLANE_CSRF_HEADER_NAME`;
+  - `CONTROL_PLANE_COOKIE_SECURE`;
+  - `CONTROL_PLANE_COOKIE_SAMESITE`;
+  - `CONTROL_PLANE_SESSION_EXPIRE_MINUTES`;
+  - `CONTROL_PLANE_CORS_ORIGINS`;
+- frontend ConfigMap:
+  - `NEXT_BACKEND_ORIGIN`;
+  - `NEXT_PRACTICE_ORIGIN`;
+  - public cookie/header names consumed by the browser application;
 - versioned algorithm profiles:
   - LEGATO engine/model identity and Verovio SVG output options are sourced
     from reviewed application modules, not Kubernetes environment variables;

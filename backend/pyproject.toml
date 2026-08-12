@@ -14,7 +14,7 @@ files = [
   "app/core",
   "app/db/__init__.py",
   "app/db/session.py",
-  "app/db/worker_session.py",
+  "app/db/sync_session.py",
   "app/main.py",
   "app/modules",
   "app/pipeline",

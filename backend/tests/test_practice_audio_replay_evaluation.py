@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import wave
 
-from app.processing.engines.practice_alignment.matchmaker_live import BrowserAudioStreamAdapter
+from app.processing.engines.practice_alignment.browser_audio_stream import BrowserAudioStreamAdapter
 
 
 class DummyProcessor:

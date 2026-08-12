@@ -26,6 +26,8 @@ GITOPS_ENV_ROOT = REPO_ROOT / "deploy" / "gitops" / "environments"
 ALLOWED_FILES = {
     "README.md",
     "backend-config.env",
+    "backend-practice-config.env",
+    "backend-worker-config.env",
     "control-plane-config.env",
     "customer-web-config.env",
     "gateway.yaml",

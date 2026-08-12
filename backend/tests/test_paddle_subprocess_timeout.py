@@ -175,7 +175,7 @@ def test_text_ocr_step_caps_timeout_at_paddle_limit(monkeypatch) -> None:
         first_image=__file__,
         remaining=lambda: 600,
     )
-    from app.core.config import get_worker_runtime_settings
+    from app.core.settings.worker_runtime import get_worker_runtime_settings
 
     monkeypatch.setattr(get_worker_runtime_settings(), "PADDLEOCR_TIMEOUT_SECONDS", 120)
 

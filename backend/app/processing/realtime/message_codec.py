@@ -23,7 +23,7 @@ from app.processing.realtime.protocol import (
 )
 
 if TYPE_CHECKING:
-    from app.processing.engines.practice_alignment.matchmaker_live import AlignmentUpdate
+    from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
 
 
 def parse_control_message(raw_message: str) -> PracticeClientMessage:

@@ -22,8 +22,8 @@ historical finding is not an indication that the item is still open.
 | --- | --- | --- |
 | ARC-001 | Complete | Maintain the root entry point as repository topology or quality commands change. |
 | ARC-002 | Complete | Maintain OpenAPI generation and generated TypeScript freshness checks for HTTP contracts. |
-| ARC-003 | Open | Split only measured hotspots by stable responsibilities, with direct tests for each extraction. |
-| ARC-004 | Open | Continue replacing broad orchestration hubs with intent-named units when a concrete cohesion boundary is identified. |
+| ARC-003 | Partially complete | Backend realtime alignment is no longer the largest hotspot; next measured candidates are Customer Web `event-inspector.tsx`, `editor-preview-panel.tsx`, and `musicxml/parser.ts`. |
+| ARC-004 | Partially complete | Backend service hotspots have named collaborators and stop points; continue only for measured backend services with a clear business boundary and direct tests. |
 | ARC-005 | Complete | Critical score access, import execution/job lifecycle, import worker, and Practice session service have focused coverage gates; score-access architecture boundaries are also checked. |
 | ARC-006 | Complete | Keep the isolated integration environment covering auth/CSRF, import submission, and authenticated Practice WebSocket handshake. |
 | ARC-007 | Complete | Generated OpenAPI documents are the cross-stack trigger; backend contract freshness checks prevent an unsynchronised source change from passing. Reassess only if a new contract surface is not represented by a generated artifact. |
@@ -33,7 +33,7 @@ historical finding is not an indication that the item is still open.
 | ARC-011 | Complete | No further work unless a new production prototype boundary appears. |
 | ARC-012 | Partially complete | Continue extracting only duplicated bootstrap or settings ownership with a verified runtime boundary. |
 | ARC-013 | Partially complete | Code-side ownership and Dependabot policy are complete; verify GitHub-side alerts, secret scanning, branch protection, and required reviews outside this repository. |
-| ARC-014 | Open | Complete deployment-source documentation and stale-link remediation. |
+| ARC-014 | Complete | Maintain deployment source/GitOps/observability documentation as deployment topology changes. |
 | ARC-015 | Complete | Maintain the strict Practice WebSocket v1 schema, generated artifact, runtime validators, and compatibility policy for each protocol change. |
 | ARC-016 | Partially complete (P1) | Maintain the protected-service policy-dependency test and expand it only when a new score-facing authorization entry point is introduced. |
 
@@ -75,6 +75,7 @@ historical finding is not an indication that the item is still open.
 | REC-003 | P2 | Trial the React Compiler on the editor/practice hotspot. | Capture build time, hydration, and interaction performance before/after. | Enable only if measured benefit outweighs build/debug cost. |
 | REC-004 | P2 | Introduce a shared JavaScript package only for stable cross-application contracts. | Identify at least two versioned, jointly-owned consumers with a stable API. | Package has explicit owner, semver/versioning policy, tests, and no app-specific coupling. |
 | REC-005 | P2 | Split `my_scores` into an explicit read-model/BFF query boundary if it continues to grow. | Document its write ownership and callers. | It either remains a small projection module or is renamed/restructured to make its query-only role explicit. |
+| REC-006 | P2 | Remove Chinese code comments, emoji-style symbols, and mojibake/unreadable glyphs from production code. | Separate user-facing localized strings from source comments/constants; inventory where Chinese text is actual product copy such as email templates or locale files. | Production source comments are English or removed; decorative symbols are either ASCII labels or explicit design assets; no `?` placeholders or mojibake glyphs remain in hand-maintained code. |
 
 ## Target enterprise repository model
 
@@ -942,6 +943,27 @@ deferred until the required offline models are available.
   library, and nondeterministic-kernel controls separately if strict
   reproducibility becomes a product requirement.
 
+### 2026-08-11: Deployment configuration templates aligned with source-owned profiles
+
+- Removed stale `API_V1_STR` values from staging/production application
+  ConfigMaps and the promoted staging GitOps snapshot. Customer API path
+  versioning is source-owned by `CUSTOMER_API_PREFIX`; deployment topology must
+  use gateway/root-path configuration instead of mutating the API prefix.
+- Removed Practice audio tuning fields from staging/production application
+  ConfigMaps and the promoted staging GitOps snapshot. The realtime alignment
+  tuning profile is source-owned by `PracticeAudioProfile`; only diagnostics
+  toggles and intervals remain deployment configuration.
+- Removed obsolete `HF_MODEL_REPOSITORIES` injection from Backend Quality and
+  removed manual LEGATO URL/commit inputs from the worker-image workflow. The
+  worker dependency image now derives LEGATO identity from
+  `legato_manifest.py`, and that manifest participates in the dependency image
+  fingerprint.
+
+Kubernetes application rendering, GitOps rendering, and Markdown-link checks
+passed after the cleanup. Future profile or manifest migrations must update
+local Docker templates, deployment ConfigMaps, release package inputs, and
+GitOps snapshots in the same change.
+
 ### 2026-08-10: Import manifest digest made auditable
 
 - Import-job detail responses expose only the immutable execution-manifest
@@ -1131,6 +1153,1173 @@ CSRF, import submission, and Practice WebSocket authentication/handshake.
 ARC-005 is complete. Future quality work should add a focused threshold only
 when a new critical boundary has a representative, intentionally scoped suite;
 do not use an arbitrary repository-wide fail-under value.
+
+### 2026-08-11: Practice alignment contracts separated from Matchmaker
+
+- Moved the shared `AlignmentUpdate` and `AlignmentEngine` contracts from the
+  1170-line Matchmaker implementation into the lightweight
+  `practice_alignment.contracts` module.
+- Practice service, runtime state, and WebSocket message encoding now depend on
+  that contract directly rather than importing the heavy engine merely for type
+  annotations. No compatibility re-export remains at the old implementation
+  path.
+- This was the first measured ARC-003 extraction. The independent browser PCM
+  activity adapter was the next candidate and has now been moved without
+  changing follower behavior.
+
+### 2026-08-11: Browser PCM adapter separated from Matchmaker
+
+- Moved `BrowserAudioStreamAdapter` into
+  `practice_alignment.browser_audio_stream`. It now owns browser PCM framing,
+  feature-queue admission, audio gates, adaptive noise calibration, activity
+  state, and audio diagnostics.
+- `MatchmakerLiveEngine` imports the adapter directly and retains Matchmaker
+  initialization, follower-thread orchestration, score-reference mapping, and
+  alignment update construction. Practice replay tests import the adapter from
+  its owning module; no old-path re-export or compatibility alias remains.
+- The next measured ARC-003 candidate is the pure alignment confidence and
+  continuity calculation currently embedded in `MatchmakerLiveEngine`. Extract
+  only stateless calculations first; retain engine-owned session state and
+  logging in the engine.
+
+### 2026-08-11: ARC-003 Practice alignment split stopping point
+
+- Reassessed the remaining small helpers in `MatchmakerLiveEngine`. PCM decode
+  is a trivial runtime adapter and is deliberately kept adjacent to byte-stream
+  ingestion; reference-frame-to-beat mapping depends on the engine's score,
+  tempo, frame rate, and beat-map state.
+- Neither is a stable standalone ownership boundary. Further extraction would
+  increase indirection and test coupling without reducing a material change
+  hotspot. ARC-003 is complete for Practice alignment; revisit only when a new
+  independently owned input format or reference-timeline implementation is
+  introduced.
+
+### 2026-08-11: Ops async-operation service boundaries split
+
+- Separated operator audit-event persistence into `ops.audit_service`, async
+  operation filter construction into `ops.operation_filters`, and record-to-API
+  projection/status normalization into `ops.operation_projection`.
+- Split the former broad async-operation service into an explicit read-model
+  service (`ops.query_service`) and a retry command service
+  (`ops.command_service`). The control-plane router now injects the query
+  service for list/summary endpoints and the command service for retry.
+- Removed the old generic service name and did not retain compatibility
+  aliases. Focused validation passed for Ops lint, typing, and the existing
+  async-operation test suite.
+- Added an enum-coverage contract for Ops query and retry support. A new
+  `AsyncOperationKind` must now update the query kind order and retryable kind
+  list, or the focused Ops test suite fails.
+
+ARC-004 is partially complete. The next measured candidate is a smaller
+source-specific strategy boundary inside Ops query/retry handling only if the
+per-source branches continue to grow or duplicate behavior across additional
+operation kinds. Do not split each current operation kind into separate files
+merely to eliminate small dispatch branches.
+
+### 2026-08-11: Kubernetes runtime ConfigMaps split by ownership
+
+- Split Kubernetes deployment configuration into a shared backend ConfigMap
+  plus role-specific Worker and Practice ConfigMaps. API, Beat, migration, and
+  observability exporter continue to consume only the shared backend baseline;
+  Worker consumes shared + Worker config; Practice consumes shared + Practice
+  config; Control Plane consumes shared + Control Plane config.
+- Moved model cache paths, PaddleOCR/LEGATO runtime locations, Hugging Face
+  offline runtime flags, PaddleOCR timeout, and Worker concurrency out of the
+  broad `backend-config.env` files into `backend-worker-config.env`.
+- Moved Practice soundfont path and Practice diagnostics toggles out of the
+  broad `backend-config.env` files into `backend-practice-config.env`.
+- Kept the model-cache agent's online Hugging Face overrides inline because
+  cache warming/download has different runtime semantics from normal offline
+  Worker execution.
+- Updated the release-package promotion allowlist so the new role-specific
+  env files can be promoted into GitOps desired state. This prevents GitOps
+  from silently retaining the old broad ConfigMap shape after application
+  overlays are cleaned up.
+- Added a repository guard that fails CI if clear Worker/model-asset or
+  Practice realtime keys drift back into the broad `backend-config.env` files,
+  or if the role-specific env files stop being referenced by the deployment
+  overlays.
+- Corrected the settings ownership follow-through: playback soundfont path is
+  no longer part of global `Settings`; it belongs to `WorkerRuntimeSettings`
+  and is read only by Worker playback/model-asset paths. This prevents API,
+  Beat, and Control Plane processes from requiring Worker model-asset config
+  after the Kubernetes ConfigMap split.
+- Tightened the soundfont ownership boundary: Worker/model-asset config owns
+  `PLAYBACK_SOUNDFONT_PATH`; Practice config owns `PRACTICE_SOUNDFONT_PATH`.
+  The model-asset preparation check now validates the Worker playback renderer
+  rather than requiring Practice runtime settings in Worker configuration.
+- Renamed the misleading Worker database settings/session modules to sync
+  database settings/session modules. `SYNC_DATABASE_URL` remains in the shared
+  backend config because both API import-job paths and Worker tasks use the
+  synchronous SQLAlchemy session.
+- Clarified model-cache ownership for soundfonts: Worker runtime uses
+  `PLAYBACK_SOUNDFONT_PATH`, Practice runtime uses `PRACTICE_SOUNDFONT_PATH`,
+  and the model-cache agent now consumes both role-specific ConfigMaps to
+  prepare and validate both soundfont targets without leaking Practice settings
+  into Worker pods.
+- Extracted the Celery Beat schedule map from the broader Celery app
+  configuration. The schedule intervals remain in shared runtime settings
+  because their retry/timeout/max-attempt companions are read by API/Ops
+  projections and Worker dispatch services; Beat owns only the recurring task
+  trigger mapping.
+- Extracted Celery runtime options from the Celery app assembly module. The
+  app module now creates the Celery instance, computes the Beat state file, and
+  registers framework signals; the runtime-options module owns serialization,
+  broker/backend timeout policy, task acknowledgement behavior, worker
+  lifecycle limits, task deadlines, and Beat schedule wiring.
+- Extracted shared Celery task runtime helpers from the broad task-entrypoint
+  module. Task context binding, operation logger binding, attempt tracing, and
+  scheduler lock/observability wrapping now live in `app.worker.task_runtime`;
+  `app.worker.tasks` remains the Celery task registration surface.
+- Extracted the transactional-mail outbox execution body from
+  `app.worker.tasks` into `app.worker.execution.mail_outbox`. The Celery task
+  name and registration path remain unchanged, while claim/send/failure/sent
+  handling now has an owning execution module.
+- Extracted playback outbox execution from `app.worker.tasks` into
+  `app.worker.execution.playback_outbox`. The task entrypoint remains registered
+  at the old Celery task name, while render/fail/complete and derived-asset
+  realtime event publication are owned by the playback execution module.
+- Extracted render outbox execution from `app.worker.tasks` into
+  `app.worker.execution.render_outbox`. The task entrypoint remains registered
+  at the old Celery task name, while score-revision preview rendering,
+  review-thumbnail rendering, outbox fail/complete transitions, and preview
+  realtime event publication are owned by the render execution module.
+- Extracted import-job execution from `app.worker.tasks` into
+  `app.worker.execution.import_job`. The task entrypoint remains registered at
+  the existing Celery task name, while dispatch claim, pipeline execution,
+  import attempt tracing, completion acknowledgement, and import status logging
+  are owned by the import execution module.
+- Extracted periodic maintenance scan execution from `app.worker.tasks` into
+  `app.worker.execution.maintenance`. Celery task names remain unchanged, while
+  job cleanup, dispatch recovery, notification/realtime cleanup, derived-asset
+  retention, score deletion cleanup, and outbox maintenance callbacks now live
+  in the maintenance execution module.
+- Updated scheduler-lock tests to target `app.worker.task_runtime`
+  directly. This removes the stale assumption that scheduler scan internals are
+  owned by the Celery task registration module.
+- Added `backend/app/worker/README.md` to document the Worker package ownership
+  boundaries after the task/execution/dispatch/runtime split. Removed stale
+  Celery task-route comments that referenced deleted historical task names.
+- Added a Worker architecture contract test that keeps `app.worker.tasks` as a
+  Celery registration surface, blocks direct domain/database service imports in
+  the task-entrypoint module, and prevents `app.worker.execution` modules from
+  importing task entrypoints.
+- Split the broad maintenance execution module into
+  `app.worker.execution.maintenance_dispatch` and
+  `app.worker.execution.maintenance_cleanup`. Dispatch maintenance now owns
+  recovery-and-publish scans for import/render/playback/mail durable work, while
+  cleanup maintenance owns deletion, expiry, retention, and lifecycle cleanup
+  scans.
+- Extracted shared durable-dispatch producer behavior into
+  `app.worker.dispatch.runtime`. Import/render/playback/mail dispatch modules
+  now keep flow-specific mark/trace/release details and delegate Celery
+  `send_task`, producer span creation, success/failure logging, and
+  release-on-failure handling to the dispatch runtime helper.
+- Extended the Worker architecture contract test so concrete dispatch modules
+  cannot bypass `app.worker.dispatch.runtime` with direct Celery `send_task` or
+  producer-tracing imports.
+- Kept the public durable trace-context lookup functions explicit by operation
+  kind, but extracted their shared SQL lookup/fallback behavior into a small
+  private helper in `app.worker.dispatch.tracing`. This removes duplicate row
+  handling without replacing readable operation-specific function names with a
+  generic call-site API.
+- Added `app.modules.async_operations.delivery_policy` for small pure timing
+  helpers shared by render, playback, and mail durable deliveries. The refactor
+  centralizes exponential retry-delay and lease-expiry calculations without
+  introducing a generic ORM outbox base class, preserving each service's
+  domain-specific state transitions and diagnostics.
+- Kept `RevisionRenderService`'s async API render path and sync Worker render
+  path separate because their database APIs and callers differ, but extracted
+  small private helpers for render-asset usage snapshots and best-effort storage
+  cleanup. This reduces local duplication without creating a broad async/sync
+  abstraction layer.
+- Kept `PlaybackService`'s async API render path and sync Worker render path
+  separate for the same reason, while extracting small private helpers for
+  playback storage-key construction, previous asset usage snapshots, and
+  best-effort storage cleanup. The asset-writing transaction flow remains
+  explicit in each path.
+- Split render/playback outbox payload construction into narrow private
+  operation-specific helpers. `claim()` now stays focused on claim eligibility
+  and processing-state transition, while revision preview, review thumbnail,
+  audio payload construction, and resource-exhaustion diagnostics remain
+  explicit without introducing a generic outbox base class.
+
+### 2026-08-11: Deployment source hierarchy documented
+
+- Added a deployment index at `deploy/README.md` that defines the ownership
+  boundary between reusable application templates, GitOps desired-state
+  snapshots, platform prerequisites, and observability values.
+- Clarified that `deploy/application` is source template material while
+  `deploy/gitops/environments/*` is promoted, digest-pinned desired state.
+- Replaced stale or plain-text deployment documentation paths with checked
+  relative Markdown links in application, production overlay, observability,
+  and GitOps indexes.
+
+ARC-014 is complete. Future deployment topology changes must update the
+deployment index and the nearest owning README in the same change.
+
+### 2026-08-11: Process endpoint bootstrap extracted
+
+- Extracted the repeated health and metrics route installation from the API,
+  Practice, Control Plane, and Observability composition roots into
+  `backend/app/api/runtime_endpoints.py`.
+- Kept service-specific FastAPI metadata, business routers, CSRF policy, CORS
+  origins, static mounts, and lifespan roles explicit in each composition root.
+  This avoids over-abstracting the runtime boundary while giving the shared
+  process endpoints one owner.
+- Observability remains the only runtime that enables database-backed metrics
+  and disables Redis/storage-quota readiness checks; customer-facing runtimes
+  continue exposing process-only metrics.
+
+ARC-012 remains partially complete. Continue extracting only duplicated
+bootstrap responsibilities with a stable owner and an observable behavior test.
+
+### 2026-08-11: Role runtime settings projections moved out of config
+
+- Moved the strict Worker runtime projection from `backend/app/core/config.py`
+  to `backend/app/core/settings/worker_runtime.py`.
+- Moved the strict Practice runtime projection from `backend/app/core/config.py`
+  to `backend/app/core/settings/practice_runtime.py`.
+- Updated production code, operational scripts, and tests to import the new
+  owner modules directly. No compatibility re-export remains in `config.py`.
+- Kept the global `Settings` composition in `config.py`; this change only
+  removes role-specific runtime projection logic from the shared settings
+  composition entry point.
+- Updated Practice regression tests to provide the required
+  `PRACTICE_SOUNDFONT_PATH` explicitly and clear the runtime settings cache,
+  preserving the strict no-fallback startup contract.
+
+ARC-012 remains partially complete. The next settings step should inspect
+whether `config.py` still imports setting groups that are no longer part of the
+shared API/process contract before extracting more behavior.
+
+### 2026-08-11: Task reliability ownership moved out of shared settings
+
+- Removed `TaskReliabilitySettings` from the global `Settings` composition
+  because `MAX_PROCESSING_TIME`, `CELERY_TASK_SOFT_TIME_LIMIT`, and
+  `CELERY_TASK_TIME_LIMIT` describe the Worker/Celery task shutdown envelope,
+  not a shared API/process contract.
+- Added `get_task_reliability_settings()` in
+  `backend/app/core/settings/task_reliability.py` so Worker, Beat, pipeline
+  context, Celery runtime options, and runtime checks can load only the task
+  deadline projection without requiring Worker model/engine settings.
+- Kept `WorkerRuntimeSettings` as the stricter Worker-owned aggregate that
+  validates PaddleOCR timeout against the task processing deadline.
+- Moved the task reliability environment variables from the shared Docker env
+  template to the Worker-specific Docker env template, and made the same change
+  in the local Docker env files.
+
+ARC-012 remains partially complete, but the remaining `config.py` groups now
+need another measured consumer map before more migration; do not move settings
+just because their names sound feature-specific.
+
+### 2026-08-11: Remaining shared settings consumer map reviewed
+
+- Re-ran a field-level consumer map for every settings group still composed by
+  the global `Settings` object. The review covered production code and backend
+  operational scripts, excluding tests as ownership evidence.
+- No additional settings group was selected for migration in this pass.
+- Keep the following groups in shared settings for now because they are used by
+  more than one runtime or by shared infrastructure:
+  `AsyncDatabaseSettings`, `BrowserCorsSettings`,
+  `CustomerSessionSecuritySettings`, `ImportDispatchSettings`,
+  `MailDeliverySettings`, `NotificationLifecycleSettings`,
+  `ObservabilitySettings`, `PlaybackDeliverySettings`,
+  `PublicFrontendUrlSettings`, `QueueSettings`, `RealtimeRetentionSettings`,
+  `RealtimeStreamSettings`, `RenderAssetDeliverySettings`,
+  `ScoreDeletionLifecycleSettings`, `ServiceIdentitySettings`,
+  `StorageSettings`, `SyncDatabaseSettings`, `TokenSigningSettings`,
+  `TransactionalMailProviderSettings`, and `TrustedProxySettings`.
+- `BeatSchedulerSettings` remains shared because Beat owns the lock, while
+  observability reads the leader-heartbeat interval to project durable scheduler
+  health. Splitting it would require a dedicated scheduler-runtime projection
+  and an observability contract, not a mechanical move.
+- `FingeringExecutionSettings` is not moved yet. It looks feature-specific, but
+  its fields span API admission (`FINGERING_MAX_CONTENT_BYTES`) and execution
+  controls (`FINGERING_MAX_CONCURRENCY`, `FINGERING_QUEUE_WAIT_SECONDS`). Move
+  it only after the fingering API/execution boundary is reviewed as one unit.
+- `UploadAdmissionSettings` and `AccountEmailLinkSettings` remain in shared
+  settings because they are customer API domain policy, not process runtime
+  configuration.
+
+ARC-012 should pause after this point unless a concrete single-runtime settings
+owner emerges. The next architecture work should return to measured service or
+engine hotspots rather than continuing configuration movement for its own sake.
+
+### 2026-08-11: Storage usage accounting rules extracted
+
+- Selected `backend/app/modules/storage_usage/service.py` as a measured ARC-004
+  hotspot because it owns both async API reservations and sync Worker
+  accounting while duplicating quota classification, quota validation,
+  reservation construction, and usage-event construction.
+- Extracted pure storage accounting rules to
+  `backend/app/modules/storage_usage/accounting.py`: default plan code, quota
+  categories, quota inclusion, quota availability validation, reservation
+  construction, and usage-event construction.
+- Updated runtime checks to import the default storage plan from the accounting
+  owner instead of the service facade.
+- Kept `StorageUsageService` as the public orchestration facade used by API,
+  Worker, import, revision, playback, review, and score lifecycle modules. No
+  old-path compatibility export or fallback behavior was added.
+
+ARC-004 remains partially complete. The next safe storage-usage step, if any,
+is to look for a stable transaction-script boundary across reserve/commit/release
+before splitting async and sync orchestration; do not create separate files only
+because both execution modes exist.
+
+### 2026-08-11: Storage usage state transitions centralized
+
+- Continued the measured storage-usage extraction by moving account, counter,
+  and reservation state transitions into
+  `backend/app/modules/storage_usage/accounting.py`.
+- Added helpers for reservation holds, committing reserved usage, releasing
+  reserved usage, and releasing used usage. These helpers operate on already
+  loaded ORM objects only; they do not own database reads, row locks, commits,
+  or async/sync execution mode.
+- Kept `StorageUsageService` responsible for transaction scripts, repository
+  calls, lock selection, commits, and the public async/sync facade. This avoids
+  the premature split into separate async and sync services while removing the
+  duplicated mutation logic.
+
+ARC-004 remains partially complete. Stop the storage-usage split here unless a
+future change introduces new reservation states, additional quota plans, or a
+third execution path that makes the transaction scripts themselves a measured
+hotspot.
+
+### 2026-08-11: Review confirmation asset promotion extracted
+
+- Selected `backend/app/modules/review/service.py` as the next measured ARC-004
+  hotspot after stopping the storage-usage split.
+- Extracted review-confirmation asset promotion to
+  `backend/app/modules/review/confirmation_assets.py`: copying the review
+  thumbnail into the confirmed score revision, promoting original uploads to
+  score input assets, and returning the promoted usage records needed by the
+  existing storage accounting flow.
+- Kept `ReviewService.confirm()` as the transaction owner for job locking,
+  score/revision/source creation, taxonomy/library updates, notification
+  attachment, storage quota reservation, and cleanup. The extraction does not
+  split the review transaction or introduce compatibility exports.
+- While validating the related review tests, found an existing
+  `RenderOutboxService` status overwrite: stale review-thumbnail outboxes are
+  completed by the review-thumbnail payload builder and then overwritten as
+  failed by the generic unavailable-resource handler. Fix this as a separate
+  change, not as part of the review asset extraction.
+
+ARC-004 remains partially complete. Continue only with small, behavior-covered
+extractions or concrete regression fixes uncovered by those checks.
+
+### 2026-08-11: Review-thumbnail stale outbox completion preserved
+
+- Fixed a regression uncovered while validating the review-confirmation
+  extraction: stale review-thumbnail render outboxes were marked completed by
+  the review-thumbnail payload builder, then overwritten as failed by the
+  generic unavailable-resource exhaustion handler.
+- `RenderOutboxService._build_payload()` now preserves a target-specific
+  `COMPLETED` decision and only exhausts unavailable resources when no payload
+  was built and the outbox was not completed by the target-specific builder.
+- This is a behavior fix, not a broader render-outbox refactor.
+
+ARC-004 remains partially complete. Treat target-specific terminal decisions in
+outbox builders as intentional domain policy before applying generic fallback
+handling.
+
+### 2026-08-11: Library folder-tree rules extracted
+
+- Selected `backend/app/modules/library/service.py` as the next ARC-004
+  hotspot because its folder operations mixed API orchestration with pure
+  folder-tree calculations: parent UUID projection, recursive entry counts,
+  descendant collection, folder depth, and subtree height.
+- Extracted those pure rules to
+  `backend/app/modules/library/folder_tree.py`.
+- Kept `LibraryService` responsible for database access, authorization-facing
+  behavior, folder mutation transactions, entry updates, commits, and domain
+  exceptions. The extraction does not introduce compatibility aliases or a
+  generic tree utility layer.
+- Added focused tests in `backend/tests/test_library_folder_tree.py` for
+  recursive folder counts, parent UUID projection, descendant lookup, depth,
+  and subtree height.
+
+ARC-004 remains partially complete. Stop the library split here unless future
+changes add additional folder invariants or library read-model variants; the
+remaining service methods are still readable transaction/application
+orchestration rather than an obvious separate subsystem.
+
+### 2026-08-11: Score invite domain rules extracted
+
+- Selected `backend/app/modules/score_invites/service.py` as the next measured
+  ARC-004 hotspot because it mixed invite/member transaction orchestration with
+  pure invite rules.
+- Extracted invite token hashing/generation, role ranking, display status,
+  acceptability checks, and locale-specific role labels to
+  `backend/app/modules/score_invites/rules.py`.
+- Updated existing tests to import `hash_invite_token` from the new rule owner;
+  no compatibility re-export remains in `service.py`.
+- Added focused rule tests in `backend/tests/test_score_invite_rules.py`.
+- Kept `ScoreInviteService` responsible for authorization, invite and member
+  writes, notification creation, mail outbox queueing, commits, refreshes, and
+  domain exceptions.
+
+ARC-004 remains partially complete. Do not split `ScoreInviteService` further
+until membership lifecycle, invite delivery, or notification behavior grows
+enough to justify a separately testable owner; the current service complexity
+is mostly application orchestration.
+
+### 2026-08-11: Score deletion cleanup records named
+
+- Reviewed `backend/app/modules/scores/lifecycle_service.py` as the next
+  ARC-004 hotspot.
+- Did not split the core score-deletion transaction. The service still needs to
+  coordinate score rows, revisions, sources, derived assets, input uploads,
+  optional originating import jobs, practice sessions, storage-usage releases,
+  and best-effort object deletion in a single carefully ordered cleanup flow.
+- Replaced raw storage-release tuples with
+  `backend/app/modules/scores/cleanup_records.py::StorageUsageReleaseRecord`
+  so category, bytes, object identity, storage key, and delete-storage intent
+  are named explicitly.
+- Removed the unused `user_id` parameter from the originating import-job cleanup
+  helper instead of preserving dead signature surface.
+
+ARC-004 remains partially complete. Stop this lifecycle split here unless a
+future change introduces a separately testable cleanup owner, such as a full
+import-job deletion policy or a dedicated object-storage retry queue; do not
+extract the main transaction merely to reduce file length.
+
+### 2026-08-11: Revision read model extracted
+
+- Selected `backend/app/modules/revisions/service.py` as the next ARC-004
+  hotspot because it mixed revision transaction workflows with read-model
+  projection for revision actors, restore metadata, and revision notes.
+- Extracted read projection to
+  `backend/app/modules/revisions/read_model.py::RevisionReadModel`.
+- Kept `RevisionService` responsible for authorization, create/restore
+  transactions, MusicXML validation, source storage, storage quota reservation
+  lifecycle, derivative enqueueing, notifications, realtime publication,
+  retention cleanup, note writes, and content retrieval.
+- Added focused coverage for the read model in
+  `backend/tests/test_score_revision_services.py`.
+
+ARC-004 remains partially complete. Do not split `create()` or `restore()` until
+the duplicated source-write/quota workflow can be extracted without weakening
+the current rollback and storage-reservation semantics.
+
+### 2026-08-11: Review detail read model extracted
+
+- Revisited `backend/app/modules/review/service.py` after the previous review
+  confirmation asset extraction.
+- Extracted the review detail query/projection path to
+  `backend/app/modules/review/read_model.py::ReviewReadModel`: job ownership
+  checks, pending-review validation, confirmed-job projection, review MusicXML
+  artifact loading, and original upload projection.
+- Kept `ReviewService` responsible for review confirmation and review update
+  transactions, MusicXML validation before writes, storage usage reservation
+  and accounting, thumbnail outbox creation, score/revision/source creation,
+  library/taxonomy updates, and notification attachment.
+- Existing review detail and confirmation regression tests cover the extracted
+  behavior through the public service API.
+
+ARC-004 remains partially complete. Do not split `confirm()` further unless a
+new, independently testable transaction participant emerges; after this pass,
+the remaining review service complexity is mostly write orchestration.
+
+### 2026-08-11: Playback delivery read model extracted
+
+- Selected `backend/app/modules/playback/service.py` as the next ARC-004
+  hotspot because delivery lookup and fallback projection were mixed with
+  audio rendering and storage-accounting workflows.
+- Extracted delivery DTO and read model to
+  `backend/app/modules/playback/delivery.py`: authenticated score-revision
+  delivery, revision asset lookup, previous-revision fallback lookup, storage
+  existence checks, and `PlaybackDelivery` projection.
+- Updated tests to import `PlaybackDelivery` from the delivery owner instead of
+  the service module. No compatibility re-export was added.
+- Kept `PlaybackService` responsible for render/render_sync orchestration,
+  MusicXML source lookup, renderer invocation, playback asset writes,
+  execution manifest creation, storage usage allocation/release, share/public
+  access entrypoints, and storage cleanup.
+
+ARC-004 remains partially complete. Do not merge or extract `render()` and
+`render_sync()` mechanically; the async/sync split crosses transaction,
+execution-manifest, and storage-usage APIs and needs a dedicated design pass
+before any shared writer is introduced.
+
+### 2026-08-11: Render outbox payload builder extracted
+
+- Selected `backend/app/modules/score_assets/render_outbox_service.py` as the
+  next ARC-004 hotspot because payload construction for score-revision renders
+  and review-thumbnail renders was mixed with the outbox status machine.
+- Extracted payload DTOs and target-specific payload construction to
+  `backend/app/modules/score_assets/render_payloads.py`.
+- Replaced direct status mutation inside review-thumbnail payload construction
+  with an explicit `terminal_completed` build result. `RenderOutboxService`
+  remains the owner of terminal status transitions through `complete()`.
+- Updated Worker render execution to import `RenderOutboxPayload` from the new
+  payload owner. No compatibility re-export remains in the outbox service.
+- Kept `RenderOutboxService` responsible for claiming, attempt accounting,
+  processing/failed/completed/dispatched transitions, stale delivery recovery,
+  retry timing, and diagnostic projection.
+
+ARC-004 remains partially complete. Stop this split at the payload boundary
+unless a future change adds more target types or a separately testable render
+delivery state policy; do not split the status machine itself.
+
+### 2026-08-11: Ops async-operation summary query extracted
+
+- Selected `backend/app/modules/ops/query_service.py` as the next ARC-004
+  hotspot because async-operation summary SQL aggregation and response
+  projection were mixed with operation list pagination.
+- Extracted summary row queries and status aggregation to
+  `backend/app/modules/ops/operation_summary.py`.
+- Kept `OpsAsyncOperationQueryService` responsible for public list/summary
+  entrypoints, filter construction, operation-kind selection, offset pagination,
+  and per-kind operation listing.
+- Kept retry/admin write workflows in `backend/app/modules/ops/command_service.py`
+  untouched.
+
+ARC-004 remains partially complete. Do not split ops command/retry behavior as
+part of query refactoring; only revisit query-side extraction if new operation
+kinds add enough duplicated list-row queries or summary predicates.
+
+### 2026-08-11: Practice session read model extracted
+
+- Selected `backend/app/modules/practice/service.py` as the next ARC-004
+  hotspot, but limited the cut to response/read-model construction because the
+  lifecycle and runtime-registration flows are still readable as one
+  orchestration boundary.
+- Extracted API-facing session summary/detail and report payload projection to
+  `backend/app/modules/practice/read_model.py`.
+- Kept `PracticeService` responsible for session creation, access checks,
+  stream lifecycle transitions, runtime registration/release, report generation
+  state changes, and alignment persistence.
+- Added focused read-model coverage in `backend/tests/test_practice_read_model.py`
+  and updated service tests to inject a fake read model instead of patching
+  removed private helpers.
+
+ARC-004 remains partially complete. Stop the practice split here unless a future
+change makes session lifecycle transitions or runtime registration independently
+complex enough to deserve a named collaborator.
+
+### 2026-08-11: Import-job deletion cleanup service extracted
+
+- Selected `backend/app/modules/import_jobs/service.py` as the next ARC-004
+  hotspot because import-job deletion and binary-artifact cleanup duplicated
+  orphan upload/blob discovery, row deletion, object-storage deletion, and
+  storage-usage release behavior.
+- Extracted that side-effect policy to
+  `backend/app/modules/import_jobs/deletion_service.py`.
+- Kept `ImportJobService` responsible for submit/retry/list/detail/batch-status
+  public entrypoints, user ownership checks, running-job deletion guards, and
+  artifact download authorization.
+- Added focused deletion-service orchestration coverage in
+  `backend/tests/test_import_job_deletion_service.py` and service delegation
+  coverage in `backend/tests/test_import_job_service_access.py`.
+
+ARC-004 remains partially complete. Stop this import-job split here unless retry
+request reconstruction, sync detail projection, or artifact download delivery
+accumulates new rules that justify separate named collaborators.
+
+### 2026-08-11: Playback asset record construction extracted
+
+- Revisited `backend/app/modules/playback/service.py` after the delivery
+  read-model split. The remaining large duplication is between async `render()`
+  and sync `render_sync()` asset creation, but those paths intentionally use
+  different session APIs and transaction semantics.
+- Extracted only pure record semantics to
+  `backend/app/modules/playback/asset_records.py`: revision-scoped playback
+  storage keys, previous-asset usage snapshots, and `ScorePlaybackAsset`
+  construction from renderer/storage metadata.
+- Kept `PlaybackService` responsible for authorization-facing delivery methods,
+  source validation, renderer invocation, storage writes, manifest persistence,
+  async/sync transaction boundaries, usage allocation/release calls, and
+  best-effort old-object deletion.
+- Added focused coverage in `backend/tests/test_playback_asset_records.py`.
+
+ARC-004 remains partially complete. Do not merge async and sync playback render
+transactions mechanically; revisit only if both paths can share a transaction
+port without hiding rollback and storage-cleanup behavior.
+
+### 2026-08-11: Score deletion failure policy extracted
+
+- Selected `backend/app/modules/scores/lifecycle_service.py` as the next
+  ARC-004 hotspot, but avoided splitting the main `cleanup_deleting_score()`
+  transaction because it intentionally coordinates score rows, revision assets,
+  input uploads/blobs, originating import jobs, practice sessions, usage
+  release, and best-effort object deletion.
+- Extracted failed-cleanup retry state and async-operation diagnostics to
+  `backend/app/modules/scores/deletion_failure_policy.py`.
+- Removed the unused `PracticeCleanupService` dependency from
+  `ScoreLifecycleService`; the sync cleanup path owns its current practice-row
+  deletion logic directly.
+- Removed the unused async `_single_score_originating_job_uuid()` helper instead
+  of keeping an uncalled compatibility path.
+- Added focused failure-policy coverage in
+  `backend/tests/test_score_deletion_failure_policy.py`.
+
+ARC-004 remains partially complete. Do not split `cleanup_deleting_score()`
+further until there is a concrete named transaction boundary; candidate future
+cuts are usage-release collection or originating-import-job cleanup, but only
+with direct integration tests around deletion ordering.
+
+### 2026-08-11: Render asset record construction extracted
+
+- Selected `backend/app/modules/score_assets/render_service.py` after the
+  playback asset-record split because render output storage keys, replacement
+  usage snapshots, and `ScoreRenderAsset` construction were pure record
+  semantics embedded in the render orchestration.
+- Extracted those pure helpers to
+  `backend/app/modules/score_assets/render_asset_records.py`.
+- Kept `RevisionRenderService` responsible for authorization, source lookup,
+  renderer invocation, temporary work directories, storage uploads, async/sync
+  transaction boundaries, usage allocation/release calls, and best-effort
+  cleanup of replaced or rolled-back objects.
+- Added focused record-construction coverage in
+  `backend/tests/test_render_asset_records.py`.
+
+ARC-004 remains partially complete. Do not extract the renderer invocation or
+async/sync transaction flow unless a future change introduces a tested render
+execution port; the current orchestration is clearer when the IO and rollback
+sequence stays visible.
+
+### 2026-08-11: Hotspot rescan after backend service extractions
+
+- Re-scanned production source line counts after the ARC-004 backend service
+  extractions. Generated clients such as
+  `apps/customer-web/src/generated/api/types.gen.ts` are excluded from refactor
+  targeting because they are contract outputs, not hand-maintained source.
+- Current largest hand-maintained Customer Web hotspots:
+  `apps/customer-web/src/components/editor/event-inspector.tsx` (~1227 lines),
+  `apps/customer-web/src/components/editor/editor-preview-panel.tsx` (~1100
+  lines), and `apps/customer-web/src/lib/musicxml/parser.ts` (~900 lines).
+- Current largest backend hotspots are no longer generic catch-all services:
+  `backend/app/core/runtime_checks.py` (~645 lines),
+  `backend/app/observability/async_operation_metrics.py` (~633 lines),
+  `backend/app/processing/engines/practice_alignment/matchmaker_live.py` (~554
+  lines), and several feature services in the 300-500 line range with recent
+  named collaborators and explicit stop points.
+- Decision: do not keep cutting backend services solely by line count. The next
+  ARC-003 candidate should be a Customer Web editor/musicxml hotspot with a
+  stable semantic boundary and focused tests.
+
+Next recommended candidate: `apps/customer-web/src/components/editor/event-inspector.tsx`.
+Before modifying it, identify pure display helpers, event-detail projection, or
+subsections that can move without changing the editor interaction model.
+
+### 2026-08-11: Event Inspector connection projection extracted
+
+- Started the Customer Web ARC-003 pass with
+  `apps/customer-web/src/components/editor/event-inspector.tsx`, the largest
+  current hand-maintained source hotspot after excluding generated API clients.
+- Extracted pure tie/slur connection detail projection and endpoint pitch
+  resolution to
+  `apps/customer-web/src/components/editor/event-inspector-connections.ts`.
+- Kept `EventInspectorPanel` responsible for React state, editor mutations,
+  toast handling, XML updates, and opening connection endpoints for editing.
+- Added focused unit coverage in
+  `apps/customer-web/tests/unit/event-inspector-connections.test.ts` and kept
+  the existing Verovio surface migration test green.
+
+ARC-003 remains partially complete. Continue the Event Inspector split only
+around similarly stable boundaries such as score metadata controls or
+note-property field groups; do not extract stateful editor mutation callbacks
+until a tested hook boundary is obvious.
+
+### 2026-08-11: Score Inspector metadata panel extracted
+
+- Continued the Customer Web ARC-003 pass by extracting the score-level metadata
+  inspector from `apps/customer-web/src/components/editor/event-inspector.tsx`.
+- Moved `ScoreInspectorPanel`, key-signature, time-signature, tempo picker, and
+  staff-preview UI to
+  `apps/customer-web/src/components/editor/event-score-inspector.tsx`.
+- Kept `EventInspector` responsible for choosing between score-level and
+  event-level inspector modes, and kept `EventInspectorPanel` responsible for
+  selected-event editing state and XML mutation callbacks.
+- Replaced copied mojibake metadata labels in the extracted picker constants
+  with explicit readable key labels and musical symbols, so the extracted file
+  remains parseable and maintainable.
+- Added focused helper coverage in
+  `apps/customer-web/tests/unit/event-score-inspector.test.ts` and updated the
+  surface-migration test to assert the metadata editor remains in the right
+  inspector via the new module.
+
+ARC-003 remains partially complete. The next Event Inspector cut, if any, should
+target event note-property field groups or pitch-edit helpers; avoid moving
+editor mutation callbacks until a smaller hook boundary is proven by tests.
+
+### 2026-08-11: Event Score Inspector unreadable glyph cleanup
+
+- Confirmed that `apps/customer-web/src/components/editor/event-score-inspector.tsx`
+  contained literal `?` placeholder strings in tempo-unit and key-signature
+  display constants after the extraction, not merely a font-rendering issue.
+- Replaced those constants with ASCII labels (`1/4`, `#`, `bb`, etc.) so the
+  file remains readable in terminals, diffs, CI logs, and AI/code-review tools.
+- Added REC-006 to track a broader cleanup pass for Chinese code comments,
+  emoji-style symbols, and mojibake/unreadable glyphs in hand-maintained
+  production code. Product copy and localization files must be inventoried
+  separately before removal.
+
+### 2026-08-11: Event Inspector event model helpers extracted
+
+- Continued the Customer Web ARC-003 pass by extracting event-level pure helpers
+  from `apps/customer-web/src/components/editor/event-inspector.tsx`.
+- Moved pitch parsing, pitch part updates, accidental suffix mapping,
+  entity-save conversion, summary labels/icons, and event editing constants to
+  `apps/customer-web/src/components/editor/event-inspector-event-model.ts`.
+- Replaced unreadable note/rest/chord glyphs in the event inspector summary and
+  accidental buttons with ASCII labels, consistent with REC-006.
+- Kept `EventInspectorPanel` responsible for React state, editor mutations, XML
+  updates, beam/connection operations, and field layout.
+- Added focused coverage in
+  `apps/customer-web/tests/unit/event-inspector-event-model.test.ts`.
+
+ARC-003 remains partially complete. Stop extracting pure helpers from
+`event-inspector.tsx` here; the next cut should either extract a cohesive
+note-properties component with manageable props or move to
+`editor-preview-panel.tsx`.
+
+### 2026-08-11: Editor Preview track visibility projection extracted
+
+- Continued the Customer Web ARC-003 pass with
+  `apps/customer-web/src/components/editor/editor-preview-panel.tsx`.
+- Extracted the pure track-visibility projection from score data and visible
+  track ids to
+  `apps/customer-web/src/components/editor/editor-preview-track-visibility.ts`.
+- Moved hidden source id collection, hidden tie/slur endpoint pair projection,
+  and fully hidden staff-key detection out of the React component.
+- Kept `EditorPreviewPanel` responsible for DOM hit testing, Verovio SVG class
+  application, score click/mouse handlers, playback wiring, and editor state.
+- Added focused coverage in
+  `apps/customer-web/tests/unit/editor-preview-track-visibility.test.ts` and
+  updated the Verovio surface migration guard to follow the extracted module.
+
+ARC-003 remains partially complete. The next `editor-preview-panel.tsx` cut
+should target a similarly cohesive DOM helper boundary, such as metadata
+placeholder mounting or selected-entity SVG highlighting. Avoid extracting the
+add-mode click/mouse handlers until insertion placement has stronger focused
+coverage.
+
+### 2026-08-11: Editor Preview selected entity highlighting extracted
+
+- Continued the Customer Web ARC-003 pass with another small
+  `editor-preview-panel.tsx` DOM boundary.
+- Extracted selected Verovio element class/style application to
+  `apps/customer-web/src/components/editor/editor-preview-selection-highlight.ts`.
+- Kept `EditorPreviewPanel` responsible for deriving the selected source ids,
+  resolving the track color, observing Verovio SVG mutations, and invoking the
+  highlighter after render changes.
+- Added jsdom coverage in
+  `apps/customer-web/tests/unit/editor-preview-selection-highlight.test.ts` for
+  clearing stale selections, selecting elements by `data-id`/`id`, and applying
+  the CSS selection color variable.
+- Updated the Verovio surface migration guard to assert the new helper owns the
+  DOM class/style mechanics.
+
+ARC-003 remains partially complete. The next safe `editor-preview-panel.tsx`
+cut is metadata placeholder mounting. Continue avoiding extraction of add-mode
+pointer placement until its DOM geometry behavior has more focused tests.
+
+### 2026-08-11: Editor Preview metadata placeholders extracted
+
+- Continued the Customer Web ARC-003 pass by extracting score metadata
+  placeholder mounting from
+  `apps/customer-web/src/components/editor/editor-preview-panel.tsx`.
+- Moved stale placeholder cleanup, first score-page selection, missing metadata
+  projection, and placeholder button creation to
+  `apps/customer-web/src/components/editor/editor-preview-metadata-placeholders.ts`.
+- Kept `EditorPreviewPanel` responsible for effect timing, loading-state gating,
+  translated label resolution, and passing current `ScoreData` into the DOM
+  helper.
+- Added jsdom coverage in
+  `apps/customer-web/tests/unit/editor-preview-metadata-placeholders.test.ts`
+  for descriptor projection, stale cleanup, button mounting, all-present
+  metadata, and missing page/score-data behavior.
+- Updated the Verovio surface migration guard so the placeholder DOM boundary is
+  explicit.
+
+ARC-003 remains partially complete. The next `editor-preview-panel.tsx` work
+should pause before extracting pointer insertion handlers; first add focused
+coverage for insert placement geometry or extract only another self-contained
+DOM helper with minimal props.
+
+### 2026-08-11: Score type comments cleaned for REC-006
+
+- Started the REC-006 source-comment cleanup with
+  `apps/customer-web/src/types/score-types.ts`, because this shared type file is
+  frequently read by editor, MusicXML, and preview code.
+- Replaced Chinese/mojibake comments with concise English JSDoc where the
+  comment carried useful domain meaning, and removed redundant comments where
+  the type/member name was already self-explanatory.
+- Kept all exported type names and field shapes unchanged; this was a
+  documentation/readability-only change.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs.
+
+REC-006 remains partially complete. Follow-up cleanup should be batched by
+module, starting with `apps/customer-web/src/lib/musicxml/` comments, because
+that area contains many domain-heavy Chinese comments and should be translated
+carefully rather than deleted mechanically.
+
+### 2026-08-11: MusicXML backup comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/backup.ts`, the
+  smallest MusicXML file with focused existing transformation coverage.
+- Replaced mojibake comments with concise English explanations for backup
+  normalization, consecutive-backup merging, and duration recalculation.
+- Kept the implementation logic unchanged; this was a readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML transformation tests still pass.
+
+REC-006 remains partially complete. Continue with small MusicXML batches. Good
+next candidates are `connections.ts` or `elements.ts`; defer `parser.ts` until
+after smaller files are clean because its comments encode more parsing policy.
+
+### 2026-08-11: MusicXML connection comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/connections.ts`.
+- Replaced Chinese/mojibake comments with concise English descriptions for tie
+  and slur XML mutation helpers.
+- Removed one stale orphan comment about note lookup that no longer described
+  the following function.
+- Kept the implementation logic unchanged; this was a readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML core tests still pass.
+
+REC-006 remains partially complete. Continue with `elements.ts` next, then
+`core.ts` or `flatten.ts`; keep `parser.ts` for a dedicated pass because its
+comments describe parsing policy and timing behavior.
+
+### 2026-08-11: MusicXML element comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/elements.ts`.
+- Replaced Chinese/mojibake comments with concise English descriptions for note
+  element update, creation, and lookup helpers.
+- Kept the implementation logic and exported API unchanged; this was a
+  readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML domain/core tests still pass.
+
+REC-006 remains partially complete. Continue with `core.ts` or `flatten.ts`
+next. Keep `parser.ts` for a dedicated later pass because its comments describe
+voice reconstruction, timing cursors, and connection pairing policy.
+
+### 2026-08-11: MusicXML core comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/core.ts`.
+- Replaced Chinese/mojibake comments with concise English explanations for XML
+  serialization formatting and entity-group projection.
+- Preserved the useful policy comments around MusicXML declaration handling,
+  tag indentation, forward-as-blank grouping, and chord member grouping.
+- Kept the implementation logic and exported API unchanged; this was a
+  readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML core/domain tests still pass.
+
+REC-006 remains partially complete. Continue with `flatten.ts` next. Keep
+`parser.ts` for a dedicated later pass because it is larger and its comments
+describe timing cursor and connection pairing behavior.
+
+### 2026-08-11: MusicXML flatten comments cleaned for REC-006
+
+- Continued REC-006 with `apps/customer-web/src/lib/musicxml/flatten.ts`.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  staff voice normalization, per-voice timeline cursors, chord grouping,
+  forward/backup rebuilding, and cleanup behavior.
+- Kept the implementation logic and exported API unchanged; this was a
+  readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified the existing MusicXML transformation tests still pass.
+
+REC-006 remains partially complete. The remaining MusicXML cleanup is now mostly
+`parser.ts`; handle it as a dedicated pass because it encodes parser policy,
+timing cursor behavior, and tie/slur/beam pairing strategy.
+
+### 2026-08-11: MusicXML parser top-level comments cleaned for REC-006
+
+- Started the dedicated `apps/customer-web/src/lib/musicxml/parser.ts` REC-006
+  pass with the top-level parser options, parser state, metadata extraction, and
+  expected-voice preservation comments.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  preserved empty voices, connection metadata parsing, creator/credit metadata
+  lookup, and stable editor voice ordering.
+- Replaced raw circled fingering glyph keys in `FINGERING_TEXT_MAP` with ASCII
+  Unicode escape sequences, and updated the parser unit fixture to use an XML
+  character entity. Runtime behavior is unchanged, but terminals, diffs, and CI
+  logs no longer render those symbols as mojibake.
+- Kept parser behavior and exported APIs unchanged.
+- Confirmed the first 230 lines of `parser.ts` and the parser unit test file no
+  longer contain Chinese characters or mojibake glyphs, and verified parser/core
+  tests still pass.
+
+REC-006 remains partially complete. Continue `parser.ts` in small batches. The
+next batch should cover the `parseMeasures()` timing cursor and note/chord/rest
+projection comments before moving to tie/slur/beam connection pairing.
+
+### 2026-08-11: MusicXML parser measure comments cleaned for REC-006
+
+- Continued the dedicated `apps/customer-web/src/lib/musicxml/parser.ts`
+  REC-006 pass with `parseMeasures()`.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  voice timeline cursors, backup rewinds, note/chord/rest projection, fingering
+  alignment, forward-as-blank handling, and stave/voice assembly.
+- Kept parser behavior and exported APIs unchanged; this was a
+  readability-only cleanup.
+- Confirmed the `parseMeasures()` range no longer contains Chinese characters
+  or mojibake glyphs, and verified parser/core tests still pass.
+
+REC-006 remains partially complete. Continue `parser.ts` with the
+`parseConnections()` section next, especially entity lookup-map construction and
+tie/slur/beam pairing comments.
+
+### 2026-08-11: MusicXML parser connection comments cleaned for REC-006
+
+- Completed the dedicated `apps/customer-web/src/lib/musicxml/parser.ts`
+  REC-006 pass with `parseConnections()`.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  entity lookup-map construction, entity display metadata, global start-tick
+  ordering, `noteConnections` initialization, and tie/slur/beam two-pass
+  pairing.
+- Kept parser behavior and exported APIs unchanged; this was a
+  readability-only cleanup.
+- Confirmed the full `parser.ts` file no longer contains Chinese characters,
+  mojibake glyphs, or raw circled fingering glyphs, and verified parser/core
+  tests still pass.
+
+REC-006 remains partially complete outside MusicXML. Before expanding further,
+run a fresh Customer Web source scan and choose the next module batch by
+frequency of use and comment density.
+
+### 2026-08-11: Editor score lookup comments cleaned for REC-006
+
+- Ran a fresh Customer Web source scan after completing the MusicXML comment
+  cleanup batches.
+- Selected `apps/customer-web/src/lib/editor/score-lookup.ts` because it is a
+  high-frequency editor utility used by inspector, history, and connection
+  flows, and it still contained mojibake comments.
+- Replaced mojibake comments with concise English descriptions for entity and
+  metadata lookup helpers.
+- Kept implementation logic and exported APIs unchanged.
+- Added focused coverage in `apps/customer-web/tests/unit/score-lookup.test.ts`
+  for entity lookup, metadata lookup, and missing/null inputs.
+
+REC-006 remains partially complete. Good next batches are editor contexts
+(`src/contexts/*`) or API wrapper comments (`src/lib/api/*`). Treat the visible
+Chinese language option label in navigation as product UI copy, not a cleanup
+target.
+
+### 2026-08-12: Editor context comments cleaned for REC-006
+
+- Continued REC-006 with the core Customer Web editor context files:
+  `apps/customer-web/src/contexts/editor-history-context.tsx`,
+  `apps/customer-web/src/contexts/score-data-context.tsx`, and
+  `apps/customer-web/src/contexts/editor-state-context.tsx`.
+- Replaced Chinese/mojibake comments with concise English descriptions for XML
+  history, parsed score data, expected voice preservation, editor tool state,
+  selected entity state, and tool-change callbacks.
+- Kept implementation logic and exported APIs unchanged; this was a
+  readability-only cleanup.
+- Confirmed the cleaned context files no longer contain Chinese characters or
+  mojibake glyphs, and verified lint, typecheck, route-shell, and Verovio
+  surface migration tests still pass.
+
+REC-006 remains partially complete. Good next batches are the remaining editor
+hooks with dense domain comments, especially `use-connection-operations.ts` and
+`use-metadata-editor.ts`; API wrapper comments can wait because they are thinner
+and less domain-heavy.
+
+### 2026-08-12: Editor connection operation comments cleaned for REC-006
+
+- Continued REC-006 with
+  `apps/customer-web/src/hooks/editor/use-connection-operations.ts`, a
+  high-frequency editor hook that owns tie/slur selection and mutation rules.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  operation result/selected-target types, tie/slur selection state, deletion
+  flows, adjacency checks, same-staff tie rules, cross-staff slur rules, and
+  start/stop ordering delegation to MusicXML helpers.
+- Kept implementation logic and exported hook shape unchanged; this was a
+  readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified lint, typecheck, Verovio surface migration, and MusicXML core
+  tests still pass.
+
+REC-006 remains partially complete. Continue with
+`apps/customer-web/src/hooks/editor/use-metadata-editor.ts` next because it
+contains dense MusicXML credit/layout policy comments.
+
+### 2026-08-12: Metadata editor comments cleaned for REC-006
+
+- Continued REC-006 with
+  `apps/customer-web/src/hooks/editor/use-metadata-editor.ts`.
+- Replaced Chinese/mojibake comments with concise English explanations for the
+  score metadata editing hook, the A4 MusicXML credit layout profile, typed
+  `<credit>` lookup/upsert behavior, structural metadata synchronization, and
+  project ordering inside `<identification>`.
+- Kept implementation logic, exported hook shape, and MusicXML output behavior
+  unchanged; this was a readability-only cleanup.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified lint, typecheck, Verovio surface migration, and MusicXML core
+  tests still pass.
+
+REC-006 remains partially complete. Continue with a fresh Customer Web source
+scan and prioritize remaining editor hooks/components by domain density. Avoid
+touching user-facing localized copy unless it is malformed mojibake rather than
+intentional UI text.
+
+### 2026-08-12: Editor provider and basic hook comments cleaned for REC-006
+
+- Continued REC-006 with the remaining high-frequency editor provider/basic
+  hook entry points:
+  `apps/customer-web/src/contexts/editor-provider.tsx`,
+  `apps/customer-web/src/hooks/editor/use-history-editor.ts`,
+  `apps/customer-web/src/hooks/editor/use-xml-updater.ts`, and
+  `apps/customer-web/src/hooks/editor/use-entity-editor.ts`.
+- Replaced Chinese/mojibake comments with concise English descriptions for
+  combined editor context access, History/ScoreData initialization, undo/redo
+  control, XML update action labeling, and entity add/update/delete ownership.
+- Kept implementation logic, provider composition, hook exports, and editor
+  behavior unchanged.
+- Confirmed the cleaned files no longer contain Chinese characters or mojibake
+  glyphs, and verified lint, typecheck, Verovio surface migration, and MusicXML
+  core tests still pass.
+
+REC-006 remains partially complete. Continue with `use-voice-editor.ts` next
+because it still contains dense voice deletion/empty-voice preservation comments
+that explain important MusicXML editor behavior.
+
+### 2026-08-12: Voice editor comments cleaned for REC-006
+
+- Continued REC-006 with
+  `apps/customer-web/src/hooks/editor/use-voice-editor.ts`.
+- Replaced Chinese/mojibake comments with concise English explanations for
+  voice add/clear/delete ownership, MusicXML note/forward removal, XML
+  reparsing after voice mutation, and the empty-voice restoration rule needed
+  because the parser only emits voices that contain elements.
+- Kept implementation logic, hook exports, and editor behavior unchanged.
+- Confirmed the file no longer contains Chinese characters or mojibake glyphs,
+  and verified lint, typecheck, Verovio surface migration, and MusicXML core
+  tests still pass.
+
+REC-006 remains partially complete. Continue with the focused entity-editor
+submodule comments next:
+`apps/customer-web/src/hooks/editor/entity-editor/index.ts`,
+`insert-entity.ts`, and `update-existing-entity.ts`.
+
+### 2026-08-12: Voice editor dead local-voice operations removed
+
+- Rechecked the current voice-layer call graph after the REC-006 voice editor
+  cleanup.
+- Confirmed `apps/customer-web/src/lib/editor/tracks.ts` and its tests define
+  the current product semantics as one global editor track per MusicXML voice
+  number across the score; `getEditorTrackId()` intentionally ignores
+  `staffIndex`.
+- Removed unused local-measure/staff voice operations from
+  `apps/customer-web/src/hooks/editor/use-voice-editor.ts`:
+  `handleAddVoice`, `handleClearVoice`, `handleDeleteVoice`, and their
+  private single-measure XML removal helper.
+- Renamed the remaining real operation to `handleDeleteVoiceTrack(xmlVoice)` and
+  updated `apps/customer-web/src/components/editor/voice-layer.tsx` to call it
+  without passing a misleading staff index.
+- Kept the existing runtime behavior for deleting non-empty tracks: it removes
+  matching MusicXML `note` and `forward` elements for the selected voice number
+  across all measures, recalculates backups per measure, reparses XML, and
+  records history.
+- Empty tracks are still handled by `useEditorTracks.removeEmptyTrack()`, which
+  removes the empty score-data-only voice from every measure/staff; parser-level
+  `expectedVoices` remains responsible for preserving intentional empty voices
+  during XML edit/reparse cycles.
+
+REC-006 remains partially complete. Continue with the focused entity-editor
+submodule comments next:
+`apps/customer-web/src/hooks/editor/entity-editor/index.ts`,
+`insert-entity.ts`, and `update-existing-entity.ts`.
+
+### 2026-08-12: Entity editor submodule comments cleaned for REC-006
+
+- Continued REC-006 with the focused entity-editor submodule:
+  `apps/customer-web/src/hooks/editor/entity-editor/index.ts`,
+  `apps/customer-web/src/hooks/editor/entity-editor/insert-entity.ts`, and
+  `apps/customer-web/src/hooks/editor/entity-editor/update-existing-entity.ts`.
+- Replaced Chinese/mojibake JSDoc with concise English descriptions for barrel
+  exports, pure MusicXML insertion/update helpers, and result semantics.
+- Kept implementation logic, exported function/type names, and MusicXML editing
+  behavior unchanged.
+- Confirmed the cleaned files no longer contain Chinese characters or mojibake
+  glyphs, and verified lint, typecheck, entity-editor unit tests, Verovio
+  surface migration, and MusicXML core tests still pass.
+
+REC-006 remains partially complete. Continue with remaining non-domain-heavy
+Customer Web comments, starting with authentication/profile API wrappers and
+auth context comments. Keep intentional localized UI labels such as the language
+selector text untouched.
+
+### 2026-08-12: Auth/profile comments cleaned for REC-006
+
+- Continued REC-006 with non-domain-heavy Customer Web auth/profile files:
+  `apps/customer-web/src/contexts/auth-context.tsx`,
+  `apps/customer-web/src/lib/api/auth.ts`,
+  `apps/customer-web/src/lib/api/profile.ts`, and
+  `apps/customer-web/src/hooks/queries/use-profile-mutations.ts`.
+- Replaced Chinese/mojibake comments with concise English descriptions for auth
+  context state/actions, API user mapping, session refresh behavior, auth API
+  wrappers, profile API wrappers, avatar URL construction, and profile mutation
+  hooks.
+- Kept implementation logic, API endpoints, generated DTO types, hook names, and
+  runtime behavior unchanged.
+- Confirmed the cleaned files no longer contain Chinese characters or mojibake
+  glyphs, and verified lint, typecheck, route-shell, Verovio surface migration,
+  and event-inspector model tests still pass.
+
+Entity model clarification from the same pass:
+
+- `ScoreEntityType` currently has four parsed/editor entities: `note`, `chord`,
+  `rest`, and `blank`.
+- `blank` is the Customer Web representation of a MusicXML `<forward>` element:
+  an occupied timeline gap/space in a voice, not a visible rest.
+- The Inspector edit model intentionally has three editable pitch states:
+  zero pitches saves as rest, one pitch saves as note, multiple pitches save as
+  chord. Existing blank entities are selectable and can have duration/dotted
+  edited while remaining blank; adding a pitch converts them into notes.
+
+REC-006 remains partially complete. Continue scanning remaining Customer Web
+source comments, but treat localized UI copy and valid musical glyphs as product
+content rather than cleanup targets.
+
+### 2026-08-12: Verovio blank/space editing boundary corrected
+
+- Rechecked the editor entity model after a product-semantics question about
+  `blank`/MusicXML `<forward>` entities.
+- Confirmed `ScoreEntityType` still has four internal entities: `note`, `chord`,
+  `rest`, and `blank`; `blank` is the parsed representation of MusicXML
+  `<forward>` and is useful for timeline spacing, insertion anchoring, and
+  editing intentional gaps.
+- Corrected the previous hit-test tightening: Verovio `[data-class="space"]`
+  should resolve as a blank editable entity when Verovio provides a concrete
+  space element id. Otherwise users cannot change a forward duration, such as
+  converting a one-beat forward into a two-beat forward.
+- Fixed `apps/customer-web/src/hooks/editor/entity-editor/update-existing-entity.ts`
+  so forward-backed blank entities use a dedicated update path instead of being
+  treated as `<note>` elements. The editor can now update forward duration while
+  preserving `<forward>`, or replace a blank forward with note/rest/chord XML
+  when the user changes the event kind.
+- Added regression coverage in
+  `apps/customer-web/src/hooks/editor/entity-editor/update-existing-entity.test.ts`
+  and `apps/customer-web/src/lib/editor/verovio-entity-map.test.ts`.
+
+### 2026-08-12: Remaining Customer Web comments cleaned for REC-006
+
+- Cleaned the remaining non-localized Customer Web source comments in:
+  `apps/customer-web/src/lib/api/index.ts`,
+  `apps/customer-web/src/components/media/original-image-viewer.tsx`,
+  `apps/customer-web/src/components/editor/draft-recovery-dialog.tsx`,
+  `apps/customer-web/src/components/editor/editor-sidebar.tsx`, and
+  `apps/customer-web/src/app/[locale]/(auth)/auth/login/page.tsx`.
+- Confirmed the Customer Web source scan now only reports the intentional
+  language selector label `中文` in
+  `apps/customer-web/src/components/navigation/nav-actions.tsx`.
+- Verified lint, typecheck, Verovio entity mapping tests, route-shell tests,
+  Verovio surface migration tests, event-inspector model tests, and MusicXML core
+  tests still pass.
+
+REC-006 is complete for `apps/customer-web/src` source comments under the
+current policy: remove Chinese/mojibake comments, preserve intentional localized
+UI text and valid musical glyphs. Continue with a broader repository scan only
+if the next pass expands REC-006 beyond Customer Web source files.
 
 ## Reusable completion checklist for every refactor
 
