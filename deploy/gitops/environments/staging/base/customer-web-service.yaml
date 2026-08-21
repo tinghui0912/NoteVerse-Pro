@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: noteverse-frontend
+  name: noteverse-customer-web
   labels:
-    app.kubernetes.io/component: frontend
+    app.kubernetes.io/component: customer-web
 spec:
   selector:
     app.kubernetes.io/name: noteverse
     app.kubernetes.io/part-of: noteverse
-    app.kubernetes.io/component: frontend
+    app.kubernetes.io/component: customer-web
   ports:
     - name: http
       port: 3000
