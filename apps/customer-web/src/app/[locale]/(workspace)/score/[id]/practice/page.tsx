@@ -37,16 +37,6 @@ import type {
   PracticeStatus,
 } from '@/lib/practice/practice-types';
 
-function isReliableAlignmentUpdate(payload: PracticeAlignmentUpdateMessage['payload']) {
-  return (
-    payload.match_state === 'matched' &&
-    payload.audio_active === true &&
-    (payload.input_policy_confidence ?? 1) >= 0.55 &&
-    (payload.validation_confidence ?? 1) >= 0.55 &&
-    payload.visual_confidence >= 0.55
-  );
-}
-
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
@@ -111,6 +101,20 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       validation_confidence: 1,
       input_weight: 1,
       input_policy_confidence: 1,
+      decision: {
+        action: 'advance',
+        reason: 'stable_match',
+        experience_state: 'waiting_for_input',
+        display_anchor: null,
+        confidence_summary: {
+          visual: 1,
+          alignment: 1,
+          audio: 1,
+          continuity: 1,
+          validation: 1,
+          input_policy: 1,
+        },
+      },
     };
   }, [alignment, practiceStatus, showNextNoteHint]);
   const scoreQuery = useScoreDetail(id);
@@ -214,6 +218,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           sample_rate: detail.sample_rate,
           channels: detail.channels,
           frame_samples: 640,
+          practice_mode: detail.practice_mode,
+          input_source: detail.input_source,
         },
       })
     ) {
@@ -271,9 +277,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
 
     if (message.type === 'alignment.update') {
-      if (!isReliableAlignmentUpdate(message.payload)) {
-        return;
-      }
       if (
         practiceStatusRef.current === 'arming' ||
         practiceStatusRef.current === 'listening'
@@ -580,6 +583,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       audioWorkletSupported={audioWorkletSupported}
       practiceClockStarted={practiceClockStarted}
       practiceTime={practiceTime}
+      alignment={alignment}
     />
   );
 

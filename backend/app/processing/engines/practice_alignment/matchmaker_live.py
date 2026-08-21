@@ -16,6 +16,7 @@ from app.processing.engines.practice_alignment.alignment_metrics import (
 )
 from app.processing.engines.practice_alignment.browser_audio_stream import BrowserAudioStreamAdapter, EnvironmentQuality
 from app.processing.engines.practice_alignment.contracts import AlignmentEngine, AlignmentUpdate
+from app.processing.engines.practice_alignment.follow_policy import follow_policy_for_mode
 from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
 from app.processing.engines.practice_alignment.reference_runtime import (
     build_audio_processor,
@@ -24,11 +25,11 @@ from app.processing.engines.practice_alignment.reference_runtime import (
     normalize_audio_waveform,
 )
 from app.processing.engines.practice_alignment.reference_features import trim_to_playable_start
+from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
 from app.processing.engines.practice_alignment.stream_state import (
     STREAM_STATE_HOLDING_DECAY,
     STREAM_STATE_LOST,
 )
-
 
 DEFAULT_TEMPO_BPM = 120
 
@@ -41,7 +42,13 @@ class MatchmakerLiveEngine:
         sample_rate: int,
         channels: int,
         frame_format: str,
+        practice_mode: str = "FREE_FOLLOW",
+        input_source: str = "MICROPHONE",
     ) -> None:
+        if input_source != "MICROPHONE":
+            raise RuntimeError(
+                "Matchmaker live practice sessions currently require MICROPHONE input."
+            )
         if channels != 1:
             raise RuntimeError("Matchmaker practice sessions require mono audio.")
         if frame_format != "pcm_s16le":
@@ -81,6 +88,8 @@ class MatchmakerLiveEngine:
         self.sample_rate = sample_rate
         self.channels = channels
         self.frame_format = frame_format
+        self.practice_mode = practice_mode
+        self.input_source = input_source
         self.total_bytes = 0
         self._last_beat_position: float | None = None
         self._last_alignment_timestamp_ms: int | None = None
@@ -95,13 +104,28 @@ class MatchmakerLiveEngine:
         self._alignment_update_log_count = 0
         self._alignment_decision_log_count = 0
         self._start_alignment_emitted = False
+        self._pending_audio = np.array([], dtype=np.float32)
 
+        profile = DEFAULT_PRACTICE_AUDIO_PROFILE
         self.score_part = partitura.load_score_as_part(self.score_file_path)
         self._note_array = self.score_part.note_array()
-        self._score_start_beat = self._calculate_score_start_beat(self._note_array)
-        self._score_end_beat = self._calculate_score_end_beat(self._note_array)
+        self.score_timeline = PracticeScoreTimeline.from_note_array(
+            self._note_array,
+            musicxml_path=self.score_file_path,
+        )
+        if self.score_timeline.first_playable_beat is None:
+            raise RuntimeError("Practice score timeline contains no playable events.")
+        self._score_start_beat = self.score_timeline.first_playable_beat
+        self._score_end_beat = self.score_timeline.end_beat
+        self._startup_entry_beats = self._initial_entry_region_beats(
+            width_beats=profile.startup_entry_region_beats,
+        )
+        self._follow_policy = follow_policy_for_mode(
+            self.score_timeline,
+            practice_mode=practice_mode,
+        )
+        self._pending_start_anchor_beat: float | None = None
         self.tempo = DEFAULT_TEMPO_BPM
-        profile = DEFAULT_PRACTICE_AUDIO_PROFILE
         self.frame_rate = profile.frame_rate
         self.hop_length = max(int(sample_rate / self.frame_rate), 1)
         self._queue: queue.Queue[object] = queue.Queue()
@@ -131,6 +155,7 @@ class MatchmakerLiveEngine:
             min_peak_prominence=profile.min_peak_prominence,
             onset_flux_gate=profile.onset_flux_gate,
             onset_hold_frames=profile.onset_hold_frames,
+            start_feature_window_frames=profile.startup_feature_window_frames,
             diagnostic_frame_interval=settings.PRACTICE_AUDIO_DIAGNOSTIC_FRAME_INTERVAL,
         )
 
@@ -164,7 +189,7 @@ class MatchmakerLiveEngine:
             frame_rate=self.frame_rate,
             arzt_follower=OnlineTimeWarpingArztFrame,
             ref_frame_to_beat=self._ref_frame_to_beat,
-            score_positions=np.unique(self._note_array["onset_beat"]).astype(np.float32),
+            score_positions=np.array(self.score_timeline.playable_onset_beats, dtype=np.float32),
         )
 
     def ingest_audio(self, chunk: bytes) -> AlignmentUpdate | None:
@@ -174,7 +199,27 @@ class MatchmakerLiveEngine:
             return None
 
         self.total_bytes += len(chunk)
-        audio_frame = self._pcm_s16le_to_float32(chunk)
+        audio = self._pcm_s16le_to_float32(chunk)
+        if audio.size == 0:
+            return None
+        if not hasattr(self, "_pending_audio"):
+            self._pending_audio = audio[:0]
+        if self._pending_audio.size:
+            self._pending_audio = self._np.concatenate((self._pending_audio, audio))
+        else:
+            self._pending_audio = audio
+
+        latest_update: AlignmentUpdate | None = None
+        hop_length = int(getattr(self, "hop_length", audio.size))
+        while self._pending_audio.size >= hop_length:
+            audio_frame = self._pending_audio[:hop_length]
+            self._pending_audio = self._pending_audio[hop_length:]
+            update = self._ingest_audio_frame(audio_frame)
+            if update is not None:
+                latest_update = update
+        return latest_update
+
+    def _ingest_audio_frame(self, audio_frame) -> AlignmentUpdate | None:
         if not self._stream.ingest(audio_frame):
             return None
         if not self._stream.ready_to_start:
@@ -322,7 +367,8 @@ class MatchmakerLiveEngine:
 
     def _start_alignment(self) -> AlignmentUpdate:
         """Anchor the UI to the first played note once its feature is confirmed."""
-        return self._alignment_from_beat(self._score_start_beat)
+        anchor_beat = getattr(self, "_pending_start_anchor_beat", None) or self._score_start_beat
+        return self._alignment_from_beat(anchor_beat)
 
     def _with_current_audio_state(self, alignment: AlignmentUpdate) -> AlignmentUpdate:
         audio_confidence = self._stream.activity_confidence_ceiling
@@ -390,6 +436,9 @@ class MatchmakerLiveEngine:
             "input_weight": round(getattr(self._stream, "last_input_weight", 0.0), 3),
             "input_policy_confidence": round(input_policy_confidence, 3),
         }
+        follow_policy = getattr(self, "_follow_policy", None)
+        if follow_policy is not None:
+            update["decision"] = follow_policy.decide(update)
         if self._should_log_alignment_decision():
             logger.bind(
                 event="practice_alignment.decision",
@@ -409,6 +458,8 @@ class MatchmakerLiveEngine:
                 frame_class=update["frame_class"],
                 gate_reason=update["gate_reason"],
                 queue_decision=update["queue_decision"],
+                follow_action=update.get("decision", {}).get("action"),
+                follow_reason=update.get("decision", {}).get("reason"),
             ).info("Practice alignment decision")
         return update
 
@@ -434,11 +485,19 @@ class MatchmakerLiveEngine:
         return self._score_start_feature(feature_vector) >= 0.7
 
     def _score_start_feature(self, feature_vector) -> float:
-        return self._feature_confidence_for_beat(
-            self._score_start_beat,
-            current_feature=feature_vector,
-            missing_confidence=0.0,
-        )
+        best_beat = self._score_start_beat
+        best_score = 0.0
+        for beat_position in getattr(self, "_startup_entry_beats", (self._score_start_beat,)):
+            score = self._feature_confidence_for_beat(
+                beat_position,
+                current_feature=feature_vector,
+                missing_confidence=0.0,
+            )
+            if score > best_score:
+                best_beat = beat_position
+                best_score = score
+        self._pending_start_anchor_beat = best_beat if best_score >= 0.7 else None
+        return best_score
 
     def _feature_confidence_for_beat(
         self,
@@ -512,6 +571,14 @@ class MatchmakerLiveEngine:
         end_beat = self._reference_end_beat or self._score_end_beat
         return end_beat > 0 and beat_position >= end_beat - 0.25
 
+    def _initial_entry_region_beats(self, *, width_beats: float) -> tuple[float, ...]:
+        entry_beats = tuple(
+            beat
+            for beat in self.score_timeline.playable_onset_beats
+            if self._score_start_beat <= beat <= self._score_start_beat + width_beats
+        )
+        return entry_beats or (self._score_start_beat,)
+
     @staticmethod
     def _calculate_score_start_beat(note_array) -> float:
         names = note_array.dtype.names or ()
@@ -544,10 +611,14 @@ def build_alignment_engine(
     sample_rate: int,
     channels: int,
     frame_format: str,
+    practice_mode: str = "FREE_FOLLOW",
+    input_source: str = "MICROPHONE",
 ) -> AlignmentEngine:
     return MatchmakerLiveEngine(
         score_file_path=score_file_path,
         sample_rate=sample_rate,
         channels=channels,
         frame_format=frame_format,
+        practice_mode=practice_mode,
+        input_source=input_source,
     )

@@ -7,6 +7,15 @@ export type PracticeVisualTimelineEntry = {
   index: number;
   beat: number;
   noteIds: string[];
+  eventId?: string;
+  groupId?: string;
+};
+
+export type PracticeDisplayAnchor = {
+  beat: number;
+  event_id?: string | null;
+  group_id?: string | null;
+  render_note_ids?: string[];
 };
 
 export class PracticeVerovioAdapter extends VerovioScoreAdapter {
@@ -57,6 +66,24 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
       return null;
     }
     return this.visualTimeline[index] ?? null;
+  }
+
+  getTimelineEntryForDisplayAnchor(anchor: PracticeDisplayAnchor): PracticeVisualTimelineEntry | null {
+    const baseEntry =
+      this.getTimelineEntryForBeat(anchor.beat) ??
+      this.getNextTimelineEntryAfterBeat(anchor.beat);
+    if (!baseEntry) {
+      return null;
+    }
+
+    const renderNoteIds = anchor.render_note_ids?.filter(Boolean) ?? [];
+    return {
+      ...baseEntry,
+      beat: anchor.beat,
+      eventId: anchor.event_id ?? undefined,
+      groupId: anchor.group_id ?? undefined,
+      noteIds: renderNoteIds.length > 0 ? Array.from(new Set(renderNoteIds)) : baseEntry.noteIds,
+    };
   }
 
   private buildVisualTimeline(timemap: Array<Record<string, unknown>>) {

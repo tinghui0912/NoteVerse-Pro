@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "sample_rate": 16000,
+  "description": "P0 real-engine startup invariance matrix. These scenarios intentionally encode the expected robust behavior before the initial-alignment implementation is fixed.",
+  "scenarios": [
+    {
+      "id": "once_again_phase_offset_0",
+      "description": "Baseline Once Again start with no extra sample offset.",
+      "leading_sample_offset": 0,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "once_again_phase_offset_1",
+      "description": "Once Again start shifted by one sample relative to the engine hop boundary.",
+      "leading_sample_offset": 1,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "once_again_phase_offset_quarter_hop",
+      "description": "Once Again start shifted by roughly one quarter of the 16 kHz / 30 fps hop.",
+      "leading_sample_offset": 133,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "once_again_phase_offset_half_hop",
+      "description": "Once Again start shifted by roughly one half of the 16 kHz / 30 fps hop.",
+      "leading_sample_offset": 266,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "once_again_phase_offset_hop_minus_1",
+      "description": "Once Again start shifted to the last sample before the next hop boundary.",
+      "leading_sample_offset": 532,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.7,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "once_again_armed_delay_12s",
+      "description": "The system is armed for 12 seconds before the user starts the correct opening.",
+      "armed_delay_seconds": 12,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 12.3,
+        "start_seconds_max": 13.7,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "wrong_c4_then_once_again_restart",
+      "description": "A wrong piano C4 opening must not start the score, but the later correct Once Again restart should start.",
+      "frames": [
+        { "type": "wav", "path": "public_samples/piano_uiowa_mf_c4_16k.wav" },
+        { "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 4.3,
+        "start_seconds_max": 5.8,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "once_again_chunk_256_samples",
+      "description": "Once Again should start equivalently when transport chunking is smaller than the engine hop.",
+      "chunk_size_samples": 256,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "once_again_chunk_640_samples",
+      "description": "Once Again should start equivalently when transport chunking is larger than the engine hop.",
+      "chunk_size_samples": 640,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.8,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    }
+  ]
+}

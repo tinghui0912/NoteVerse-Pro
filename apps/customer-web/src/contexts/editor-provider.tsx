@@ -16,6 +16,13 @@ export { useVoiceEditor } from '../hooks/editor/use-voice-editor';
 export { useHistoryEditor } from '../hooks/editor/use-history-editor';
 export { useXmlUpdater } from '../hooks/editor/use-xml-updater';
 export { useMetadataEditor } from '../hooks/editor/use-metadata-editor';
+export { useEditorDomainDocument } from '../hooks/editor/use-editor-domain-document';
+export { useEditorDomainEdit } from '../hooks/editor/use-editor-domain-edit';
+export { useEditorDomainRenderAnchors } from '../hooks/editor/use-editor-domain-render-anchors';
+export {
+    useEditingDomainEvent,
+    useEditingDomainInspectorViewModel,
+} from '../hooks/editor/use-editing-domain-event';
 
 /**
  * Combined hook for accessing all editor contexts from complex components.

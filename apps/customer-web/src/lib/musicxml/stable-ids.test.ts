@@ -1,7 +1,21 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { ensureStableMusicXmlIds, prepareMusicXmlIdsForVerovio, stripAppOwnedMusicXmlIdsString } from './stable-ids';
+import {
+  createUniqueMusicXmlId,
+  ensureStableMusicXmlIds,
+  prepareMusicXmlIdsForVerovio,
+  stripAppOwnedMusicXmlIdsString,
+} from './stable-ids';
+
+describe('createUniqueMusicXmlId', () => {
+  it('sanitizes the base id and adds a deterministic collision suffix', () => {
+    const usedIds = new Set(['nv-note-chord-2', 'nv-note-chord-2-2']);
+
+    expect(createUniqueMusicXmlId(' 9 note chord 2 ', usedIds)).toBe('nv-9-note-chord-2');
+    expect(createUniqueMusicXmlId('nv-note-chord-2', usedIds)).toBe('nv-note-chord-2-3');
+  });
+});
 
 describe('ensureStableMusicXmlIds', () => {
   it('preserves a legal source id', () => {

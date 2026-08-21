@@ -2,7 +2,48 @@
 
 from __future__ import annotations
 
-from typing import NotRequired, Protocol, TypedDict, runtime_checkable
+from typing import Literal, NotRequired, Protocol, TypedDict, runtime_checkable
+
+
+class PracticeDisplayAnchor(TypedDict):
+    beat: float
+    event_id: NotRequired[str]
+    group_id: NotRequired[str]
+    render_note_ids: NotRequired[list[str]]
+
+
+class PracticeConfidenceSummary(TypedDict):
+    visual: float
+    alignment: float
+    audio: float
+    continuity: float
+    validation: float
+    input_policy: float
+
+
+class AlignmentDecision(TypedDict):
+    action: Literal["advance", "hold", "relocalize", "wait"]
+    reason: Literal[
+        "stable_match",
+        "insufficient_input",
+        "entry_mismatch",
+        "low_alignment_confidence",
+        "holding_position",
+        "reacquiring",
+        "large_jump",
+    ]
+    experience_state: Literal[
+        "waiting_for_input",
+        "listening",
+        "following",
+        "heard_but_uncertain",
+        "possible_wrong_note",
+        "recovering",
+        "lost",
+        "paused",
+    ]
+    display_anchor: PracticeDisplayAnchor | None
+    confidence_summary: PracticeConfidenceSummary
 
 
 class AlignmentUpdate(TypedDict):
@@ -35,6 +76,7 @@ class AlignmentUpdate(TypedDict):
     validation_confidence: NotRequired[float]
     input_weight: NotRequired[float]
     input_policy_confidence: NotRequired[float]
+    decision: NotRequired[AlignmentDecision]
 
 
 @runtime_checkable

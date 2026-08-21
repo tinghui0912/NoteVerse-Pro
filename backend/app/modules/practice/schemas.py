@@ -1,6 +1,11 @@
 from pydantic import BaseModel, Field
 
-from app.db.models.practice import PracticeReportStatus, PracticeSessionState
+from app.db.models.practice import (
+    PracticeInputSource,
+    PracticeMode,
+    PracticeReportStatus,
+    PracticeSessionState,
+)
 from app.db.models.score_access import AccessOrigin
 
 
@@ -10,6 +15,8 @@ class CreatePracticeSessionRequest(BaseModel):
     sample_rate: int = Field(default=16000, ge=1)
     channels: int = Field(default=1, ge=1)
     frame_format: str = Field(default="pcm_s16le", min_length=1)
+    practice_mode: PracticeMode = PracticeMode.FREE_FOLLOW
+    input_source: PracticeInputSource = PracticeInputSource.MICROPHONE
 
 
 class PracticeSessionSummaryRead(BaseModel):
@@ -24,6 +31,8 @@ class PracticeSessionDetailRead(BaseModel):
     revision_id: str
     access_origin: AccessOrigin
     state: PracticeSessionState
+    practice_mode: PracticeMode
+    input_source: PracticeInputSource
     sample_rate: int
     channels: int
     frame_format: str

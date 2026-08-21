@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+﻿import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -86,9 +86,16 @@ describe('Verovio listen surfaces', () => {
 
   it('wires editor preview score clicks to the event inspector mapping layer', () => {
     const source = readSource('src/components/editor/editor-preview-panel.tsx');
-    expect(source).toContain('getVerovioElementIdFromTarget');
-    expect(source).toContain('findScoreEntityById');
-    expect(source).toContain('handleEditEntity(hit.entity, hit.location)');
+    expect(source).toContain('getVerovioRenderElementIdFromTarget');
+    expect(source).toContain('resolveDomainAnchor(renderElementId)');
+    expect(source).toContain('createDomainSelectionCompanion');
+    expect(source).toContain('data-domain-companion-kind');
+    expect(source).not.toContain('data-domain-selection-parity');
+    expect(source).not.toContain('findParsedScoreEventByRenderId');
+    expect(source).not.toContain('createDomainEditContext');
+    expect(source).not.toContain('toPreviewParsedHit');
+    expect(source).not.toContain('toParsedEventSelection');
+    expect(source).toContain('handleDomainSelectionCompanion(domainCompanion)');
     expect(source).toContain('onScoreClick={handleScoreClick}');
   });
 
@@ -103,6 +110,8 @@ describe('Verovio listen surfaces', () => {
 
   it('dispatches Verovio score clicks through editor tools', () => {
     const source = readSource('src/components/editor/editor-preview-panel.tsx');
+    const entityEditorSource = readSource('src/hooks/editor/use-entity-editor.ts');
+    const entityEditorIndex = readSource('src/hooks/editor/entity-editor/index.ts');
     expect(source).toContain("editorMode === 'add'");
     expect(source).toContain("editorMode === 'delete'");
     expect(source).toContain("editorMode === 'addTie'");
@@ -116,33 +125,68 @@ describe('Verovio listen surfaces', () => {
     expect(source).toContain('setOnToolChange');
     expect(source).toContain('clearTieSelection');
     expect(source).toContain('clearSlurSelection');
+    expect(entityEditorSource).toContain("kind: 'deleteEvent'");
+    expect(entityEditorSource).not.toContain('deleteEntity(');
+    expect(entityEditorIndex).not.toContain('./delete-entity');
   });
 
   it('renders a single Verovio insertion caret in add mode', () => {
     const source = readSource('src/components/editor/editor-preview-panel.tsx');
-    expect(source).toContain('insertPreview');
+    const rhythmicPlacement = readSource('src/lib/editor/rhythmic-insert-placement.ts');
+    expect(source).toContain('addModePreview');
+    expect(source).toContain('setInsertionPreview');
+    expect(source).toContain('data-insertion-preview-kind');
     expect(source).toContain('onScoreMouseMove={handleScoreMouseMove}');
     expect(source).toContain('getCaretColorStyle(activeTrack?.color)');
     expect(source).toContain('backgroundColor: resolvedColor');
-    expect(source).toContain('getEntityDurationTicks');
-    expect(source).toContain('snapMeasureXToGridTick');
-    expect(source).toContain('getEntityElementBounds');
-    expect(source).toContain('(current.right + next.left) / 2');
-    expect(source).toContain('getTargetStaffHasEvents');
-    expect(source).toContain('hasTimingAnchors');
+    expect(source).toContain('resolveRhythmicInsertPlacement');
+    expect(source).toContain('domainDocument');
     expect(source).toContain('getVerovioMeasureIndexFromTarget');
     expect(source).toContain('getVerovioMeasureElementFromTarget');
-    expect(source).toContain('tick: 0');
+    expect(source).not.toContain('snapMeasureXToGridTick');
+    expect(source).not.toContain('getVisualInsertPlacement');
+    expect(rhythmicPlacement).toContain('createRhythmicLayoutMap');
+    expect(rhythmicPlacement).toContain('resolveNearestLayoutPoint');
+    expect(rhythmicPlacement).toContain('rationalToTicks');
   });
 
   it('uses tap-to-position before inserting on mobile add mode', () => {
     const source = readSource('src/components/editor/editor-preview-panel.tsx');
     expect(source).toContain('useIsMobile');
     expect(source).toContain('isSameAddLocation');
-    expect(source).toContain('insertPreview?.location');
+    expect(source).toContain('addModePreview?.location');
     expect(source).toContain('isMobile &&');
     expect(source).toContain('confirmMobileInsert');
     expect(source).toContain("t('insertHere')");
+  });
+
+  it('routes add-mode explicit rest writes through the domain insert path', () => {
+    const source = readSource('src/hooks/editor/use-entity-editor.ts');
+    expect(source).toContain('applyAddModeDomainInsert');
+    expect(source).not.toContain('toWritableEntityFromAddModeCommand');
+    expect(source).not.toContain('insertEntity');
+  });
+
+  it('keeps Inspector edits out of the legacy writable-entity XML update path', () => {
+    const scoreTypes = readSource('src/types/score-types.ts');
+    const inspectorModel = readSource('src/components/editor/event-inspector-event-model.ts');
+    const entityEditor = readSource('src/hooks/editor/use-entity-editor.ts');
+    const entityEditorIndex = readSource('src/hooks/editor/entity-editor/index.ts');
+
+    expect(scoreTypes).not.toContain('InspectorWritableEntity');
+    expect(scoreTypes).not.toContain('export type WritableEntity');
+    expect(inspectorModel).not.toContain('toInspectorWritableEntityFromInspectorEditState');
+    expect(entityEditor).not.toContain('updateExistingEntity');
+    expect(entityEditorIndex).not.toContain('./update-existing-entity');
+  });
+
+  it('routes matched explicit-rest Inspector rhythm edits through the domain edit path', () => {
+    const inspector = readSource('src/components/editor/event-inspector.tsx');
+
+    expect(inspector).toContain('getExplicitRestDomainWriteEventId(domainInspector.viewModel)');
+    expect(inspector).toContain("kind: 'explicitRest'");
+    expect(inspector).toContain('toDomainRhythmOnlyExplicitRestInspectorDraft');
+    expect(inspector).toContain('applyDomainInspectorEdit({');
   });
 
   it('allows Escape to cancel active Verovio tool modes', () => {
@@ -160,7 +204,9 @@ describe('Verovio listen surfaces', () => {
 
     expect(viewport).toContain('score-editor-selected');
     expect(panel).toContain('applySelectedVerovioElements');
-    expect(panel).toContain('editingEntity.meta.sourceIds');
+    expect(panel).toContain('getRenderIdsForDomainAnchor(domainAnchors, selectedDomainAnchor)');
+    expect(panel).toContain('getDomainAnchorTrackColor(domainDocument, selectedDomainAnchor)');
+    expect(panel).not.toContain('selectedLegacyEvent');
     expect(selection).toContain("querySelectorAll(`.${SCORE_EDITOR_SELECTED_CLASS}`)");
     expect(selection).toContain('element.classList.add(SCORE_EDITOR_SELECTED_CLASS)');
     expect(selection).toContain('--score-editor-selection-color');
@@ -203,7 +249,7 @@ describe('Verovio listen surfaces', () => {
     expect(panel).toContain('useMeasureWarningOverlay');
     expect(validator).toContain('buildDirtyMeasureStatuses');
     expect(overlay).toContain('data-score-measure-warning-outline');
-    expect(overlay).not.toContain("element.textContent = '⚠'");
+    expect(overlay).not.toContain("element.textContent = '鈿?");
     expect(measureStatus).toContain('DirtyMeasureStatus');
     expect(measureStatus).toContain('getMeasureDurationTicks');
     expect(measureStatus).toContain("kind: deltaTicks > 0 ? 'overflow' : 'underfill'");
@@ -217,8 +263,10 @@ describe('Verovio listen surfaces', () => {
     expect(sidebar).toContain("label: 'addSlur'");
     expect(sidebar).not.toContain("label: 'deleteTie'");
     expect(sidebar).not.toContain("label: 'deleteSlur'");
-    expect(inspector).toContain('handleDeleteTie');
-    expect(inspector).toContain('handleDeleteSlur');
+    expect(inspector).toContain('deleteTieConnection');
+    expect(inspector).toContain('deleteSlurConnection');
+    expect(inspector).toContain('deleteDomainTieRelationshipBySourceIds');
+    expect(inspector).toContain('deleteDomainSlurRelationshipBySourceIds');
   });
 
   it('uses the Verovio score as the primary editor center surface', () => {

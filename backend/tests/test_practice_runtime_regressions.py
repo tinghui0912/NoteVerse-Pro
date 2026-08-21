@@ -768,6 +768,46 @@ def test_matchmaker_live_engine_caps_confidence_when_audio_is_inactive() -> None
     assert alignment["match_state"] == "holding_decay"
 
 
+def test_matchmaker_live_engine_buffers_arbitrary_pcm_chunks_into_hops() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._error = None
+    engine._np = np
+    engine.total_bytes = 0
+    engine.hop_length = 4
+    engine._pending_audio = np.array([], dtype=np.float32)
+    emitted_frames = []
+    updates = iter([None, {"beat_position": 3.0}])
+    pcm_chunks = iter(
+        [
+            np.array([1.0, 2.0], dtype=np.float32),
+            np.array([3.0, 4.0, 5.0], dtype=np.float32),
+            np.array([6.0, 7.0, 8.0, 9.0], dtype=np.float32),
+        ]
+    )
+    engine._pcm_s16le_to_float32 = lambda _chunk: next(pcm_chunks)
+
+    def ingest_frame(frame):
+        emitted_frames.append(frame.copy())
+        return next(updates)
+
+    engine._ingest_audio_frame = ingest_frame
+
+    assert engine.ingest_audio(b"a") is None
+    assert emitted_frames == []
+
+    assert engine.ingest_audio(b"b") is None
+    assert len(emitted_frames) == 1
+    assert emitted_frames[0].tolist() == [1.0, 2.0, 3.0, 4.0]
+    assert engine._pending_audio.tolist() == [5.0]
+
+    assert engine.ingest_audio(b"c") == {"beat_position": 3.0}
+    assert len(emitted_frames) == 2
+    assert emitted_frames[1].tolist() == [5.0, 6.0, 7.0, 8.0]
+    assert engine._pending_audio.tolist() == [9.0]
+
+
 def test_matchmaker_live_engine_caps_confidence_when_features_do_not_match_score() -> None:
     import numpy as np
 
@@ -1039,6 +1079,49 @@ def test_matchmaker_live_engine_validates_start_against_first_score_feature() ->
     assert engine._is_valid_start_feature(np.array([0.0, 1.0, 0.0], dtype=np.float32)) is False
 
 
+def test_matchmaker_live_engine_scores_start_against_entry_region() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._score_start_beat = 3.0
+    engine._startup_entry_beats = (3.0, 3.25, 3.5)
+    engine._reference_features = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
+    engine._ref_frame_to_beat = np.array([3.0, 3.25, 3.5], dtype=np.float32)
+    engine._stream = SimpleNamespace(last_feature_vector=None)
+    feature_vector = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+    assert engine._score_start_feature(feature_vector) == 1.0
+    assert engine._pending_start_anchor_beat == 3.25
+
+
+def test_matchmaker_live_engine_start_alignment_uses_entry_region_anchor() -> None:
+    import numpy as np
+
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._np = np
+    engine._score_start_beat = 3.0
+    engine._pending_start_anchor_beat = 3.25
+    engine._last_beat_position = None
+    engine._last_alignment_timestamp_ms = None
+    engine.total_bytes = 0
+    engine.channels = 1
+    engine.sample_rate = 16000
+    engine._reference_end_beat = 10.0
+    engine._score_end_beat = 10.0
+
+    alignment = engine._start_alignment()
+
+    assert alignment["beat_position"] == 3.25
+
+
 def test_matchmaker_live_engine_scores_broad_feature_matches_conservatively() -> None:
     import numpy as np
 
@@ -1095,6 +1178,47 @@ def test_browser_audio_stream_adapter_rejects_start_when_feature_validator_fails
     assert adapter.stream_state == "armed"
     assert adapter.start_streak == 0
     assert feature_queue.items == []
+
+
+def test_browser_audio_stream_adapter_can_start_from_recent_start_feature_window() -> None:
+    import numpy as np
+
+    class SequenceProcessor:
+        def __init__(self) -> None:
+            self.outputs = [
+                np.array([[1.0, 0.0, 0.0]], dtype=np.float32),
+                np.array([[1.0, 0.0, 0.0]], dtype=np.float32),
+                np.array([[0.0, 1.0, 0.0]], dtype=np.float32),
+            ]
+
+        def __call__(self, _audio):
+            return self.outputs.pop(0)
+
+    adapter = BrowserAudioStreamAdapter(
+        processor=SequenceProcessor(),
+        feature_queue=DummyQueue(),
+        np=np,
+        hop_length=4,
+        rms_gate=0.01,
+        peak_gate=0.04,
+        start_rms_gate=0.01,
+        start_peak_gate=0.04,
+        min_active_frames=3,
+        warmup_frames=0,
+        rms_noise_multiplier=4.0,
+        peak_noise_multiplier=2.5,
+        diagnostics_enabled=False,
+    )
+    adapter.start_feature_scorer = lambda feature: float(feature[0])
+
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.ready_to_start is False
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+    assert adapter.ready_to_start is False
+    assert adapter.ingest(voiced_frame(np, 0.08)) is True
+
+    assert adapter.ready_to_start is True
+    assert adapter.last_start_feature_confidence == 1.0
 
 
 def test_browser_audio_stream_adapter_requires_sustained_signal() -> None:
@@ -1469,6 +1593,8 @@ def test_practice_runtime_emits_ready_notification_once() -> None:
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
+        practice_mode="FREE_FOLLOW",
+        input_source="MICROPHONE",
         audio_buffer=AudioChunkBuffer(),
         engine=DummyReadyAlignmentEngine(),
     )

@@ -27,6 +27,19 @@ class PracticeReportStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 
+class PracticeMode(str, enum.Enum):
+    FREE_FOLLOW = "FREE_FOLLOW"
+    WAIT_FOR_NOTE = "WAIT_FOR_NOTE"
+    ASSESSMENT = "ASSESSMENT"
+    PERFORMANCE = "PERFORMANCE"
+
+
+class PracticeInputSource(str, enum.Enum):
+    MICROPHONE = "MICROPHONE"
+    MIDI = "MIDI"
+    REPLAY_AUDIO = "REPLAY_AUDIO"
+
+
 class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "practice_sessions"
     __table_args__ = (
@@ -50,6 +63,22 @@ class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]
     )
     user_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, ForeignKey("users.id")))
     state: PracticeSessionState = Field(sa_column=Column(SAEnum(PracticeSessionState, name="practicesessionstate"), nullable=False))
+    practice_mode: PracticeMode = Field(
+        default=PracticeMode.FREE_FOLLOW,
+        sa_column=Column(
+            SAEnum(PracticeMode, name="practicemode"),
+            nullable=False,
+            default=PracticeMode.FREE_FOLLOW,
+        ),
+    )
+    input_source: PracticeInputSource = Field(
+        default=PracticeInputSource.MICROPHONE,
+        sa_column=Column(
+            SAEnum(PracticeInputSource, name="practiceinputsource"),
+            nullable=False,
+            default=PracticeInputSource.MICROPHONE,
+        ),
+    )
     sample_rate: int = Field(sa_column=Column(BigInteger, nullable=False))
     channels: int = Field(sa_column=Column(BigInteger, nullable=False))
     frame_format: str = Field(sa_column=Column(String(32), nullable=False))

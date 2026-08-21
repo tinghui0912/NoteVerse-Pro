@@ -32,7 +32,7 @@ const note = (attributes = '') => `<note ${attributes}>
 describe('stable MusicXML ids', () => {
   it('preserves legal unique ids', () => {
     const normalized = ensureStableMusicXmlIdsString(baseScore(note('id="source-note-1"')));
-    const parsedNote = new MusicXMLParser(normalized).parse().measures[0]?.staves[0]?.voices[0]?.notes[0];
+    const parsedNote = new MusicXMLParser(normalized).parse().measures[0]?.staves[0]?.voices[0]?.events[0];
 
     expect(normalized).toContain('id="source-note-1"');
     expect(parseXml(normalized).querySelector('note')?.hasAttribute('id')).toBe(true);

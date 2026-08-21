@@ -42,6 +42,8 @@ class PracticeReadModel:
             revision_id=revision.revision_uuid,
             access_origin=session.access_origin,
             state=session.state,
+            practice_mode=session.practice_mode,
+            input_source=session.input_source,
             sample_rate=session.sample_rate,
             channels=session.channels,
             frame_format=session.frame_format,

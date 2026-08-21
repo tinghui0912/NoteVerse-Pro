@@ -49,6 +49,7 @@ class BrowserAudioStreamAdapter:
         min_peak_prominence: float = 8.0,
         onset_flux_gate: float = 0.35,
         onset_hold_frames: int = 45,
+        start_feature_window_frames: int | None = None,
         diagnostic_frame_interval: int = 15,
     ) -> None:
         self.processor = processor
@@ -117,6 +118,9 @@ class BrowserAudioStreamAdapter:
         self.last_start_signal_reason = "none"
         self.last_runtime_activity_reason = "not_started"
         self.last_start_feature_confidence: float | None = None
+        window_frames = start_feature_window_frames or self.min_active_frames + 1
+        self.start_feature_window_frames = max(window_frames, self.min_active_frames)
+        self._start_feature_candidates: list[tuple[int, float | None]] = []
         self._warmup_rms_values: list[float] = []
         self._warmup_peak_values: list[float] = []
 
@@ -202,15 +206,19 @@ class BrowserAudioStreamAdapter:
             self._log_diagnostics("feature_buffering", rms, peak)
             return False
         self.last_feature_vector = latest_feature_vector(features, self.np)
-        if not self.started and self.start_streak >= self.min_active_frames:
+        if not self.started and has_start_signal:
             self.last_start_feature_confidence = self._score_start_feature(
                 self.last_feature_vector,
             )
+            self._record_start_feature_candidate(self.last_start_feature_confidence)
+        if not self.started and self._startup_feature_window_ready():
+            self.last_start_feature_confidence = self._best_start_feature_confidence()
             if (
                 self.last_start_feature_confidence is not None
-                and self.last_start_feature_confidence < 0.7
+                and not self._has_enough_start_feature_matches()
             ):
                 self.activity_state.clear_start_signal()
+                self._clear_start_feature_candidates()
                 self._maybe_update_runtime_noise_floor(rms, peak)
                 self.last_chunk = target_audio[-self.hop_length :]
                 self.activity_state.reject(STREAM_STATE_ARMED)
@@ -218,6 +226,7 @@ class BrowserAudioStreamAdapter:
                 self.last_queue_decision = "start_rejected"
                 self._log_diagnostics("start_rejected", rms, peak)
                 return False
+            self._clear_start_feature_candidates()
             self.activity_state.mark_started(self.last_onset_signal)
             self.last_gate_reason = "start_confirmed"
 
@@ -426,6 +435,48 @@ class BrowserAudioStreamAdapter:
         if self.start_feature_validator is None:
             return None
         return 1.0 if self.start_feature_validator(feature_vector) else 0.0
+
+    def _record_start_feature_candidate(self, confidence: float | None) -> None:
+        self._start_feature_candidates.append((self.total_frames, confidence))
+        self._prune_start_feature_candidates()
+
+    def _prune_start_feature_candidates(self) -> None:
+        first_allowed_frame = self.total_frames - self.start_feature_window_frames + 1
+        self._start_feature_candidates = [
+            candidate
+            for candidate in self._start_feature_candidates
+            if candidate[0] >= first_allowed_frame
+        ]
+
+    def _startup_feature_window_ready(self) -> bool:
+        if self.start_feature_scorer is None and self.start_feature_validator is None:
+            return self.start_streak >= self.min_active_frames
+        self._prune_start_feature_candidates()
+        return len(self._start_feature_candidates) >= self.min_active_frames
+
+    def _best_start_feature_confidence(self) -> float | None:
+        scored_candidates = [
+            confidence
+            for _frame, confidence in self._start_feature_candidates
+            if confidence is not None
+        ]
+        if not scored_candidates:
+            return None
+        return max(scored_candidates)
+
+    def _has_enough_start_feature_matches(self) -> bool:
+        if self.last_start_feature_confidence is None:
+            return True
+        required_matches = min(2, self.min_active_frames)
+        matched_candidates = [
+            confidence
+            for _frame, confidence in self._start_feature_candidates
+            if confidence is not None and confidence >= 0.7
+        ]
+        return len(matched_candidates) >= required_matches
+
+    def _clear_start_feature_candidates(self) -> None:
+        self._start_feature_candidates.clear()
 
     def _has_tonal_signal(self, audio_frame) -> bool:
         features = self.feature_extractor.extract(

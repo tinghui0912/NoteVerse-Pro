@@ -10,7 +10,12 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
-from app.db.models.practice import PracticeReportStatus, PracticeSessionState
+from app.db.models.practice import (
+    PracticeInputSource,
+    PracticeMode,
+    PracticeReportStatus,
+    PracticeSessionState,
+)
 from app.modules.practice.service import PracticeService
 from app.shared.constants import ErrorCode
 
@@ -26,6 +31,8 @@ def _session(
         score_id=11,
         revision_id=12,
         state=state,
+        practice_mode=PracticeMode.FREE_FOLLOW,
+        input_source=PracticeInputSource.MICROPHONE,
         started_at=None,
         finished_at=None,
         report_status=PracticeReportStatus.NOT_REQUESTED,
@@ -251,6 +258,8 @@ async def test_create_session_requires_a_canonical_revision_source() -> None:
     assert created_session.revision_id == 12
     assert created_session.user_id == 7
     assert created_session.sample_rate == 16000
+    assert created_session.practice_mode == PracticeMode.FREE_FOLLOW
+    assert created_session.input_source == PracticeInputSource.MICROPHONE
 
     asset_repository.canonical_source = AsyncMock(return_value=None)
     with pytest.raises(ResourceNotFoundException) as error:
@@ -300,7 +309,49 @@ async def test_prepare_runtime_registers_the_authorized_session() -> None:
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
+        practice_mode=PracticeMode.FREE_FOLLOW,
+        input_source=PracticeInputSource.MICROPHONE,
     )
+
+
+@pytest.mark.asyncio
+async def test_create_session_rejects_modes_without_product_ready_behavior() -> None:
+    service = PracticeService()
+
+    with pytest.raises(ValidationException) as error:
+        await service.create_session(
+            Mock(),
+            score_uuid="score-1",
+            user_id=7,
+            revision_uuid="revision-1",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+            practice_mode=PracticeMode.WAIT_FOR_NOTE,
+        )
+
+    assert error.value.code == ErrorCode.VALIDATION_ERROR
+    assert error.value.details == {"field": "practice_mode"}
+
+
+@pytest.mark.asyncio
+async def test_create_session_rejects_input_sources_without_adapter_support() -> None:
+    service = PracticeService()
+
+    with pytest.raises(ValidationException) as error:
+        await service.create_session(
+            Mock(),
+            score_uuid="score-1",
+            user_id=7,
+            revision_uuid="revision-1",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+            input_source=PracticeInputSource.MIDI,
+        )
+
+    assert error.value.code == ErrorCode.VALIDATION_ERROR
+    assert error.value.details == {"field": "input_source"}
 
 
 @pytest.mark.asyncio

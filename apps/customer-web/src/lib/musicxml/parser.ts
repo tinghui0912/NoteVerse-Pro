@@ -1,6 +1,6 @@
-import type { AccidentalValue, ScoreData, ScoreEntity, Note, Chord, Rest, Blank, Measure, Stave, ConnectionData, NoteConnections, EntityInfo } from '@/types/score-types';
+import type { AccidentalValue, ScoreData, ParsedScoreEvent, Note, Chord, Rest, Measure, Stave, ConnectionData, NoteConnections, EntityInfo } from '@/types/score-types';
 import { DEFAULT_TEMPO_BPM } from '../constants/audio';
-import { extractPitch, isDottedDuration, parseArticulations, parseDuration } from './parser-values';
+import { extractPitch, parseArticulations, parseDuration } from './parser-values';
 
 // A subset of melody-forge's parsing logic, adapted for modern TypeScript and our types.
 
@@ -126,14 +126,11 @@ export class MusicXMLParser {
     const noteCount = measures.reduce((acc, measure) =>
       measure.staves.reduce((staveAcc, stave) =>
         stave.voices.reduce((voiceAcc, voice) => {
-          const count = voice.notes.reduce((entityAcc, entity) => {
+          const count = voice.events.reduce((entityAcc, entity) => {
             if (entity.type === 'chord') {
               return entityAcc + entity.pitches.length;
             }
-            if (entity.type !== 'blank') {
-              return entityAcc + 1;
-            }
-            return entityAcc;
+            return entityAcc + 1;
           }, 0);
           return voiceAcc + count;
         }, staveAcc),
@@ -178,7 +175,7 @@ export class MusicXMLParser {
           const exists = stave.voices.some(v => v.name === voiceName);
           if (!exists) {
             // Restore an expected empty voice that was absent from parsed XML.
-            stave.voices.push({ name: voiceName, notes: [] });
+            stave.voices.push({ name: voiceName, events: [] });
           }
         });
 
@@ -244,7 +241,7 @@ export class MusicXMLParser {
         '2': { clef: 'bass', name: 'bassClef', voices: [] },
       };
 
-      const voiceEntities: Record<string, ScoreEntity[]> = {};
+      const voiceEntities: Record<string, ParsedScoreEvent[]> = {};
 
       // Track timeline cursors by voice key.
       const voiceCursors: Map<string, number> = new Map();
@@ -314,11 +311,14 @@ export class MusicXMLParser {
                 }
               }
             } else if (lastEntity && lastEntity.type === 'note') {
+              const chordMemberPitch = extractPitch(noteNode);
+              if (!chordMemberPitch) continue;
+
               const firstNoteId = lastEntity.meta?.id;
               // Convert previous note to a chord, preserve meta from original note
               const newChord: Chord = {
                 type: 'chord',
-                pitches: [lastEntity.pitch, extractPitch(noteNode)].filter(p => p) as string[],
+                pitches: [lastEntity.pitch, chordMemberPitch],
                 duration: lastEntity.duration,
                 dotted: lastEntity.dotted || hasDot,
                 stemDirection: lastEntity.stemDirection,
@@ -392,7 +392,7 @@ export class MusicXMLParser {
             }
           }
         } else if (element.tagName === 'forward') {
-          // Convert MusicXML forward elements to blank UI entities.
+          // MusicXML forward advances the voice cursor; it is not an editable entity.
           const forwardNode = element;
           const staffEl = forwardNode.querySelector('staff');
           const staffIndex = staffEl ? parseInt(staffEl.textContent || '1', 10) : 1;
@@ -402,30 +402,11 @@ export class MusicXMLParser {
           if (!voiceEntities[voiceKey]) {
             voiceEntities[voiceKey] = [];
           }
-          const entityIndex = voiceEntities[voiceKey].length;
 
           // Resolve the current timeline position.
           const currentTick = getVoiceCursor(voiceKey);
 
-          // Infer dotted state from the duration ratio.
           const forwardDuration = parseInt(forwardNode.querySelector('duration')?.textContent || '4', 10);
-          const isDotted = isDottedDuration(forwardDuration, this.divisions);
-
-          const blank: Blank = {
-            type: 'blank',
-            duration: parseDuration(forwardNode, this.divisions),
-            dotted: isDotted,
-            meta: {
-              id: this.getStableElementId(forwardNode),
-              sourceIds: [this.getStableElementId(forwardNode)],
-              measureIndex,
-              staveIndex: staffIndex - 1,
-              xmlVoice: voiceIndex,
-              entityIndex,
-              startTick: currentTick,
-            },
-          };
-          voiceEntities[voiceKey].push(blank);
           // Forward advances the timeline cursor.
           setVoiceCursor(voiceKey, currentTick + forwardDuration);
         }
@@ -448,10 +429,10 @@ export class MusicXMLParser {
 
         let voice = stave.voices.find(v => v.name === `voiceLabel ${voiceIndex}`);
         if (!voice) {
-          voice = { name: `voiceLabel ${voiceIndex}`, notes: [] };
+          voice = { name: `voiceLabel ${voiceIndex}`, events: [] };
           stave.voices.push(voice);
         }
-        voice.notes.push(...voiceEntities[voiceKey]);
+        voice.events.push(...voiceEntities[voiceKey]);
       }
 
       measures.push({
@@ -483,7 +464,7 @@ export class MusicXMLParser {
           const voiceNumberMatch = voice.name.match(/voiceLabel\s*(\d+)/);
           const actualVoiceNumber = voiceNumberMatch ? parseInt(voiceNumberMatch[1], 10) : voiceIndex + 1;
 
-          voice.notes.forEach((entity, entityIndex) => {
+          voice.events.forEach((entity, entityIndex) => {
             if (entity.meta?.id) {
               // xmlVoice uses MusicXML 1-based numbering; entityIdMap keys use zero-based voice indexes.
               const key = `${measureIndex}-${entity.meta.staveIndex}-${entity.meta.xmlVoice - 1}-${entityIndex}`;
@@ -518,14 +499,6 @@ export class MusicXMLParser {
                   voiceNumber: actualVoiceNumber,
                   position: entityIndex + 1,
                 });
-              } else if (entity.type === 'blank') {
-                entityInfoMap.set(entity.meta.id, {
-                  pitch: 'blank',
-                  measureNumber: measure.number,
-                  staveLabel: stave.name,
-                  voiceNumber: actualVoiceNumber,
-                  position: entityIndex + 1,
-                });
               }
             }
           });
@@ -538,7 +511,7 @@ export class MusicXMLParser {
     measures.forEach((measure, measureIndex) => {
       measure.staves.forEach((stave) => {
         stave.voices.forEach((voice) => {
-          voice.notes.forEach((entity) => {
+          voice.events.forEach((entity) => {
             if (entity.meta?.id) {
               // Use a large per-measure offset so measure order dominates startTick.
               const globalTick = measureIndex * 1000000 + (entity.meta.startTick ?? 0);

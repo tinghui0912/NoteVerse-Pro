@@ -36,6 +36,8 @@ export function usePracticeSession({ scoreId, revisionId }: UsePracticeSessionOp
       sample_rate: PCM_SAMPLE_RATE,
       channels: PCM_CHANNELS,
       frame_format: PCM_FRAME_FORMAT,
+      practice_mode: 'FREE_FOLLOW',
+      input_source: 'MICROPHONE',
     });
     if (!response.data?.session_id || !response.data.ws_url) {
       throw new Error('Practice session creation failed.');

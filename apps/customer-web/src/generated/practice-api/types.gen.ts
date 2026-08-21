@@ -105,6 +105,8 @@ export type CreatePracticeSessionRequest = {
      * Frame Format
      */
     frame_format?: string;
+    input_source?: PracticeInputSource;
+    practice_mode?: PracticeMode;
     /**
      * Revision Id
      */
@@ -128,6 +130,16 @@ export type HttpValidationError = {
      */
     detail?: Array<ValidationError>;
 };
+
+/**
+ * PracticeInputSource
+ */
+export type PracticeInputSource = 'MICROPHONE' | 'MIDI' | 'REPLAY_AUDIO';
+
+/**
+ * PracticeMode
+ */
+export type PracticeMode = 'FREE_FOLLOW' | 'WAIT_FOR_NOTE' | 'ASSESSMENT' | 'PERFORMANCE';
 
 /**
  * PracticeReportPayloadRead
@@ -183,6 +195,7 @@ export type PracticeSessionDetailRead = {
      * Frame Format
      */
     frame_format: string;
+    input_source: PracticeInputSource;
     /**
      * Last Beat Position
      */
@@ -191,6 +204,7 @@ export type PracticeSessionDetailRead = {
      * Last Confidence
      */
     last_confidence: number | null;
+    practice_mode: PracticeMode;
     report_status: PracticeReportStatus;
     /**
      * Revision Id

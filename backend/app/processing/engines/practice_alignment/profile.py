@@ -27,6 +27,8 @@ class PracticeAudioProfile:
     min_peak_prominence: float = 12.0
     onset_flux_gate: float = 0.35
     onset_hold_frames: int = 45
+    startup_feature_window_frames: int = 4
+    startup_entry_region_beats: float = 1.25
 
 
 DEFAULT_PRACTICE_AUDIO_PROFILE = PracticeAudioProfile()

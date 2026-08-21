@@ -5,6 +5,42 @@ export const PRACTICE_WEBSOCKET_PROTOCOL_VERSION = 1;
 const envelope = z.object({ protocol_version: z.literal(PRACTICE_WEBSOCKET_PROTOCOL_VERSION) }).strict();
 const practiceSessionState = z.enum(['CREATED', 'STREAMING', 'PAUSED', 'FINISHED', 'FAILED']);
 const statePayload = z.object({ state: practiceSessionState }).strict();
+const alignmentDecision = z.object({
+  action: z.enum(['advance', 'hold', 'relocalize', 'wait']),
+  reason: z.enum([
+    'stable_match',
+    'insufficient_input',
+    'entry_mismatch',
+    'low_alignment_confidence',
+    'holding_position',
+    'reacquiring',
+    'large_jump',
+  ]),
+  experience_state: z.enum([
+    'waiting_for_input',
+    'listening',
+    'following',
+    'heard_but_uncertain',
+    'possible_wrong_note',
+    'recovering',
+    'lost',
+    'paused',
+  ]),
+  display_anchor: z.object({
+    beat: z.number(),
+    event_id: z.string().min(1).optional().nullable(),
+    group_id: z.string().min(1).optional().nullable(),
+    render_note_ids: z.array(z.string()),
+  }).strict().nullable(),
+  confidence_summary: z.object({
+    visual: z.number(),
+    alignment: z.number(),
+    audio: z.number(),
+    continuity: z.number(),
+    validation: z.number(),
+    input_policy: z.number(),
+  }).strict(),
+}).strict();
 
 export const practiceServerMessageSchema = z.discriminatedUnion('type', [
   envelope.extend({ type: z.literal('session.connecting'), payload: z.object({ session_id: z.string().min(1) }).strict() }),
@@ -25,7 +61,7 @@ export const practiceServerMessageSchema = z.discriminatedUnion('type', [
       queue_decision: z.string().min(1), tonal_signal: z.boolean(), onset_signal: z.boolean(), spectral_flatness: z.number(),
       peak_prominence: z.number(), spectral_flux: z.number(), alignment_state: z.string().min(1),
       continuity_state: z.string().min(1), beat_velocity: z.number().nullable(), validation_confidence: z.number(),
-      input_weight: z.number(), input_policy_confidence: z.number(),
+      input_weight: z.number(), input_policy_confidence: z.number(), decision: alignmentDecision,
     }).strict(),
   }),
 ]);

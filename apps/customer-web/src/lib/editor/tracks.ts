@@ -74,8 +74,8 @@ export function deriveEditorTracks(scoreData: ScoreData | null): EditorTrack[] {
         const existing = tracks.get(id);
 
         if (existing) {
-          existing.entityCount += voice.notes.length;
-          existing.measureCount += voice.notes.length > 0 ? 1 : 0;
+          existing.entityCount += voice.events.length;
+          existing.measureCount += voice.events.length > 0 ? 1 : 0;
           return;
         }
 
@@ -85,8 +85,8 @@ export function deriveEditorTracks(scoreData: ScoreData | null): EditorTrack[] {
           xmlVoice,
           label: `Voice ${xmlVoice}`,
           color: getTrackColor(staffIndex, xmlVoice),
-          entityCount: voice.notes.length,
-          measureCount: voice.notes.length > 0 ? 1 : 0,
+          entityCount: voice.events.length,
+          measureCount: voice.events.length > 0 ? 1 : 0,
         });
       });
     });

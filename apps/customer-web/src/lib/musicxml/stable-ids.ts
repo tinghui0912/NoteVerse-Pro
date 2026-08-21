@@ -40,7 +40,11 @@ function getElementSignature(element: Element, index: number): string {
   return `${APP_ID_PREFIX}-${partId}-m${measureNumber}-${tag}-${index + 1}`;
 }
 
-function createUniqueId(baseId: string, usedIds: Set<string>): string {
+/**
+ * Creates a legal MusicXML/XML identifier that does not collide with a known
+ * set of existing identifiers. The caller owns persisting the returned id.
+ */
+export function createUniqueMusicXmlId(baseId: string, usedIds: ReadonlySet<string>): string {
   const sanitized = sanitizeXmlId(baseId);
   if (!usedIds.has(sanitized)) return sanitized;
 
@@ -67,7 +71,7 @@ export function ensureStableMusicXmlIds(xmlDoc: XMLDocument): boolean {
     const canKeepExisting = existing && sanitizedExisting === existing && !usedIds.has(existing);
     const nextId = canKeepExisting
       ? existing
-      : createUniqueId(sanitizedExisting || getElementSignature(element, index), usedIds);
+      : createUniqueMusicXmlId(sanitizedExisting || getElementSignature(element, index), usedIds);
 
     usedIds.add(nextId);
 

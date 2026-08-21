@@ -73,6 +73,20 @@ class StreamingEngine:
             "input_rms": 0.04,
             "input_peak": 0.1,
             "match_state": "matched",
+            "decision": {
+                "action": "advance",
+                "reason": "stable_match",
+                "experience_state": "following",
+                "display_anchor": {"beat": 0.0, "render_note_ids": []},
+                "confidence_summary": {
+                    "visual": 0.95,
+                    "alignment": 0.95,
+                    "audio": 0.95,
+                    "continuity": 0.95,
+                    "validation": 1.0,
+                    "input_policy": 1.0,
+                },
+            },
         }
 
     @property
@@ -117,7 +131,13 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                     {
                         "protocol_version": 1,
                         "type": "client.init",
-                        "payload": {"sample_rate": 16000, "channels": 1, "frame_samples": 640},
+                        "payload": {
+                            "sample_rate": 16000,
+                            "channels": 1,
+                            "frame_samples": 640,
+                            "practice_mode": "FREE_FOLLOW",
+                            "input_source": "MICROPHONE",
+                        },
                     }
                 )
                 connecting = websocket.receive_json()
@@ -215,7 +235,13 @@ def test_practice_websocket_flow_returns_stable_alignment_error(
                     {
                         "protocol_version": 1,
                         "type": "client.init",
-                        "payload": {"sample_rate": 16000, "channels": 1, "frame_samples": 640},
+                        "payload": {
+                            "sample_rate": 16000,
+                            "channels": 1,
+                            "frame_samples": 640,
+                            "practice_mode": "FREE_FOLLOW",
+                            "input_source": "MICROPHONE",
+                        },
                     }
                 )
                 connecting = websocket.receive_json()

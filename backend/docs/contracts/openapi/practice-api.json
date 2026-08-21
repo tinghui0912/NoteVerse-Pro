@@ -202,6 +202,14 @@
             "title": "Frame Format",
             "type": "string"
           },
+          "input_source": {
+            "$ref": "#/components/schemas/PracticeInputSource",
+            "default": "MICROPHONE"
+          },
+          "practice_mode": {
+            "$ref": "#/components/schemas/PracticeMode",
+            "default": "FREE_FOLLOW"
+          },
           "revision_id": {
             "anyOf": [
               {
@@ -243,6 +251,25 @@
         },
         "title": "HTTPValidationError",
         "type": "object"
+      },
+      "PracticeInputSource": {
+        "enum": [
+          "MICROPHONE",
+          "MIDI",
+          "REPLAY_AUDIO"
+        ],
+        "title": "PracticeInputSource",
+        "type": "string"
+      },
+      "PracticeMode": {
+        "enum": [
+          "FREE_FOLLOW",
+          "WAIT_FOR_NOTE",
+          "ASSESSMENT",
+          "PERFORMANCE"
+        ],
+        "title": "PracticeMode",
+        "type": "string"
       },
       "PracticeReportPayloadRead": {
         "properties": {
@@ -348,6 +375,9 @@
             "title": "Frame Format",
             "type": "string"
           },
+          "input_source": {
+            "$ref": "#/components/schemas/PracticeInputSource"
+          },
           "last_beat_position": {
             "anyOf": [
               {
@@ -369,6 +399,9 @@
               }
             ],
             "title": "Last Confidence"
+          },
+          "practice_mode": {
+            "$ref": "#/components/schemas/PracticeMode"
           },
           "report_status": {
             "$ref": "#/components/schemas/PracticeReportStatus"
@@ -410,6 +443,8 @@
           "revision_id",
           "access_origin",
           "state",
+          "practice_mode",
+          "input_source",
           "sample_rate",
           "channels",
           "frame_format",

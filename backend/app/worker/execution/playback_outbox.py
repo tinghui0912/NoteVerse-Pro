@@ -8,7 +8,7 @@ from typing import Any
 from app.core.background_tracing import record_current_attempt_failure
 from app.db.sync_session import get_worker_db
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.playback.service import PlaybackService
+from app.modules.playback.service import PlaybackGenerationService
 from app.modules.realtime.publisher import (
     RealtimeEventTypes,
     publish_score_event_sync_best_effort,
@@ -63,7 +63,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
 
         try:
             with get_worker_db() as db:
-                PlaybackService().render_sync(
+                PlaybackGenerationService().render_sync(
                     db,
                     payload.score_uuid,
                     payload.revision_uuid,

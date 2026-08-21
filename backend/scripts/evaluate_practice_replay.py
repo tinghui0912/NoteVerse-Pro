@@ -60,7 +60,19 @@ def scenario_audio(root: Path, scenario: dict, sample_rate: int) -> np.ndarray:
             chunks.append(mix_sources(root, frame_spec, sample_rate))
         else:
             raise ValueError(f"Unsupported replay source: {frame_type}")
-    return np.concatenate(chunks) if chunks else np.array([], dtype=np.float32)
+    audio = np.concatenate(chunks) if chunks else np.array([], dtype=np.float32)
+
+    armed_delay_samples = int(float(scenario.get("armed_delay_seconds", 0.0)) * sample_rate)
+    leading_sample_offset = int(scenario.get("leading_sample_offset", 0))
+    if armed_delay_samples < 0:
+        raise ValueError("armed_delay_seconds must be non-negative")
+    if leading_sample_offset < 0:
+        raise ValueError("leading_sample_offset must be non-negative")
+
+    prefix_samples = armed_delay_samples + leading_sample_offset
+    if prefix_samples:
+        audio = np.concatenate((np.zeros(prefix_samples, dtype=np.float32), audio))
+    return audio
 
 
 def pcm_s16le(frame: np.ndarray) -> bytes:
@@ -88,17 +100,26 @@ def run_scenario(
             engine.ingest_audio(pcm_s16le(silence))
 
         audio = scenario_audio(fixture_root, scenario, sample_rate)
+        chunk_size_samples = int(scenario.get("chunk_size_samples", hop_length))
+        if chunk_size_samples <= 0:
+            raise ValueError("chunk_size_samples must be positive")
         emitted_updates: list[dict] = []
         source_states: list[str] = []
         started_frame: int | None = None
+        started_sample: int | None = None
         start_feature_confidence: float | None = None
+        start_feature_mismatch_frames = 0
+        max_start_feature_confidence: float | None = None
         pause_after_seconds = scenario.get("pause_after_seconds")
         pause_checked = False
         pause_emitted_updates = 0
         emitted_updates_before_pause: int | None = None
 
-        for frame_index, start in enumerate(range(0, len(audio) - hop_length + 1, hop_length), 1):
-            elapsed_seconds = (frame_index - 1) / DEFAULT_PRACTICE_AUDIO_PROFILE.frame_rate
+        for frame_index, start in enumerate(
+            range(0, len(audio) - chunk_size_samples + 1, chunk_size_samples),
+            1,
+        ):
+            elapsed_seconds = start / sample_rate
             if (
                 pause_after_seconds is not None
                 and not pause_checked
@@ -110,18 +131,28 @@ def run_scenario(
                 emitted_updates_before_pause = before_pause
                 pause_checked = True
 
-            update = engine.ingest_audio(pcm_s16le(audio[start : start + hop_length]))
+            update = engine.ingest_audio(pcm_s16le(audio[start : start + chunk_size_samples]))
             if update is not None:
                 emitted_updates.append(update)
             source_states.append(engine._stream.stream_state)
+            start_confidence = engine._stream.last_start_feature_confidence
+            if start_confidence is not None:
+                max_start_feature_confidence = (
+                    start_confidence
+                    if max_start_feature_confidence is None
+                    else max(max_start_feature_confidence, start_confidence)
+                )
+            if engine._stream.last_gate_reason == "start_feature_mismatch":
+                start_feature_mismatch_frames += 1
             if engine._stream.started and started_frame is None:
                 started_frame = frame_index
+                started_sample = start
                 start_feature_confidence = engine._stream.last_start_feature_confidence
 
         start_seconds = (
             None
-            if started_frame is None
-            else round((started_frame - 1) / DEFAULT_PRACTICE_AUDIO_PROFILE.frame_rate, 3)
+            if started_sample is None
+            else round(started_sample / sample_rate, 3)
         )
         first_update = emitted_updates[0] if emitted_updates else None
         emitted_beats = [update["beat_position"] for update in emitted_updates]
@@ -131,7 +162,12 @@ def run_scenario(
             "id": scenario["id"],
             "started": engine._stream.started,
             "start_seconds": start_seconds,
+            "chunk_size_samples": chunk_size_samples,
+            "leading_sample_offset": int(scenario.get("leading_sample_offset", 0)),
+            "armed_delay_seconds": float(scenario.get("armed_delay_seconds", 0.0)),
             "start_feature_confidence": start_feature_confidence,
+            "max_start_feature_confidence": max_start_feature_confidence,
+            "start_feature_mismatch_frames": start_feature_mismatch_frames,
             "first_alignment_beat": first_alignment_beat,
             "max_alignment_beat": max_alignment_beat,
             "alignment_advance": (
@@ -158,6 +194,8 @@ def run_scenario(
 
 def evaluate_result(result: dict, expect: dict) -> list[str]:
     failures: list[str] = []
+    if result.get("error"):
+        return [f"error={result['error']}"]
     if result["started"] is not expect["starts"]:
         failures.append(f"started={result['started']} expected={expect['starts']}")
     if result["started"]:
@@ -178,6 +216,18 @@ def evaluate_result(result: dict, expect: dict) -> list[str]:
                 "first_alignment_beat="
                 f"{result['first_alignment_beat']} expected={expect['first_alignment_beat']}"
             )
+        if "first_alignment_beat_min" in expect:
+            first_alignment_beat = result["first_alignment_beat"]
+            if first_alignment_beat is None:
+                failures.append("missing first_alignment_beat")
+            elif first_alignment_beat < expect["first_alignment_beat_min"]:
+                failures.append(f"first_alignment_beat={first_alignment_beat} below minimum")
+        if "first_alignment_beat_max" in expect:
+            first_alignment_beat = result["first_alignment_beat"]
+            if first_alignment_beat is None:
+                failures.append("missing first_alignment_beat")
+            elif first_alignment_beat > expect["first_alignment_beat_max"]:
+                failures.append(f"first_alignment_beat={first_alignment_beat} above maximum")
         if result["alignment_advance"] is not None and result["alignment_advance"] < expect.get(
             "min_alignment_advance", 0
         ):
@@ -209,12 +259,22 @@ def main() -> int:
     results = []
 
     for scenario in manifest["scenarios"]:
-        result = run_scenario(
-            score_path=args.score,
-            fixture_root=fixture_root,
-            scenario=scenario,
-            sample_rate=sample_rate,
-        )
+        try:
+            result = run_scenario(
+                score_path=args.score,
+                fixture_root=fixture_root,
+                scenario=scenario,
+                sample_rate=sample_rate,
+            )
+        except Exception as exc:  # pragma: no cover - exercised by real-engine fixtures.
+            result = {
+                "id": scenario["id"],
+                "started": False,
+                "error": f"{type(exc).__name__}: {exc}",
+                "chunk_size_samples": scenario.get("chunk_size_samples"),
+                "leading_sample_offset": int(scenario.get("leading_sample_offset", 0)),
+                "armed_delay_seconds": float(scenario.get("armed_delay_seconds", 0.0)),
+            }
         result["failures"] = evaluate_result(result, scenario["expect"])
         results.append(result)
 

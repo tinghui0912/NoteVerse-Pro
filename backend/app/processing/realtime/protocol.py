@@ -22,6 +22,8 @@ class ClientInitPayload(_StrictModel):
     sample_rate: int = Field(ge=1)
     channels: int = Field(ge=1)
     frame_samples: int = Field(ge=1)
+    practice_mode: Literal["FREE_FOLLOW", "WAIT_FOR_NOTE", "ASSESSMENT", "PERFORMANCE"]
+    input_source: Literal["MICROPHONE", "MIDI", "REPLAY_AUDIO"]
 
 
 class ClientTimestampPayload(_StrictModel):
@@ -87,6 +89,47 @@ class SessionErrorPayload(_StrictModel):
     public_message: str = Field(min_length=1)
 
 
+class PracticeDisplayAnchorPayload(_StrictModel):
+    beat: float
+    event_id: str | None = None
+    group_id: str | None = None
+    render_note_ids: list[str] = Field(default_factory=list)
+
+
+class PracticeConfidenceSummaryPayload(_StrictModel):
+    visual: float
+    alignment: float
+    audio: float
+    continuity: float
+    validation: float
+    input_policy: float
+
+
+class AlignmentDecisionPayload(_StrictModel):
+    action: Literal["advance", "hold", "relocalize", "wait"]
+    reason: Literal[
+        "stable_match",
+        "insufficient_input",
+        "entry_mismatch",
+        "low_alignment_confidence",
+        "holding_position",
+        "reacquiring",
+        "large_jump",
+    ]
+    experience_state: Literal[
+        "waiting_for_input",
+        "listening",
+        "following",
+        "heard_but_uncertain",
+        "possible_wrong_note",
+        "recovering",
+        "lost",
+        "paused",
+    ]
+    display_anchor: PracticeDisplayAnchorPayload | None
+    confidence_summary: PracticeConfidenceSummaryPayload
+
+
 class AlignmentUpdatePayload(_StrictModel):
     beat_position: float
     confidence: float
@@ -117,6 +160,7 @@ class AlignmentUpdatePayload(_StrictModel):
     validation_confidence: float
     input_weight: float
     input_policy_confidence: float
+    decision: AlignmentDecisionPayload
 
 
 class SessionReadyMessage(_ProtocolEnvelope):

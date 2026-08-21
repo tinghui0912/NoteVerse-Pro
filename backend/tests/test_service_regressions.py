@@ -21,7 +21,12 @@ from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
 from app.processing.engines.practice_alignment.reference_runtime import generate_score_audio, normalize_audio_waveform
 from app.processing.engines.practice_alignment.audio_features import feature_matrix
 from app.db.models.user import User
-from app.db.models.practice import PracticeReportStatus, PracticeSessionState
+from app.db.models.practice import (
+    PracticeInputSource,
+    PracticeMode,
+    PracticeReportStatus,
+    PracticeSessionState,
+)
 from app.db.models.score_access import AccessOrigin
 from app.db.models.import_job import ImportJobState
 from app.modules.files.service import FilesService
@@ -735,6 +740,8 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
     created_session = repository.create_session.await_args.args[1]
     assert created_session.revision_id == 201
     assert created_session.share_grant_id == 301
+    assert created_session.practice_mode == PracticeMode.FREE_FOLLOW
+    assert created_session.input_source == PracticeInputSource.MICROPHONE
 
 
 @pytest.mark.asyncio
@@ -747,6 +754,8 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
         revision_id=301,
         access_origin=AccessOrigin.OWNER,
         state=PracticeSessionState.CREATED,
+        practice_mode=PracticeMode.FREE_FOLLOW,
+        input_source=PracticeInputSource.MICROPHONE,
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",

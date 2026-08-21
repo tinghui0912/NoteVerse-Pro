@@ -65,6 +65,13 @@ Matchmaker's real Chroma processor and first-note score validation are available
 It includes calibration silence before every scenario and validates starts,
 negative non-starts, mixed inputs, the first emitted beat, and pause/resume.
 
+`initial_alignment_manifest.json` is the P0 startup robustness baseline. It uses
+the same real engine, but focuses on invariants that should hold before changing
+the initial-alignment algorithm: leading sample phase offsets, armed delay before
+correct entry, wrong notes followed by a correct restart, and alternate transport
+chunk sizes. This matrix may fail on the current implementation; keep the failure
+report as the baseline for the windowed startup fix.
+
 ## Public Samples
 
 The `public_samples/` directory contains small, converted 16 kHz mono PCM WAV
@@ -131,6 +138,15 @@ practice service:
 ```powershell
 docker compose -f docker-compose.backend-dev.yml exec -T practice python `
   scripts/evaluate_practice_replay.py `
+  --score /app/data/work/storage-cache/scores/<score-id>/revisions/<revision-id>/score.musicxml
+```
+
+Run the P0 initial-alignment baseline with:
+
+```powershell
+docker compose -f docker-compose.backend-dev.yml run --rm practice-quality python `
+  scripts/evaluate_practice_replay.py `
+  --manifest tests/fixtures/practice_audio/initial_alignment_manifest.json `
   --score /app/data/work/storage-cache/scores/<score-id>/revisions/<revision-id>/score.musicxml
 ```
 

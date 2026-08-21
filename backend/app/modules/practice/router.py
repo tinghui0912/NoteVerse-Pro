@@ -51,6 +51,8 @@ async def create_practice_session(
         sample_rate=request.sample_rate,
         channels=request.channels,
         frame_format=request.frame_format,
+        practice_mode=request.practice_mode,
+        input_source=request.input_source,
     )
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_CREATED)
 
@@ -185,6 +187,18 @@ async def stream_practice_session(
                 message_type = control.type
 
                 if message_type == "client.init":
+                    if control.payload.practice_mode != runtime.practice_mode:
+                        await websocket.send_json(
+                            session_error_message(public_code=ErrorCode.VALIDATION_ERROR)
+                        )
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                        break
+                    if control.payload.input_source != runtime.input_source:
+                        await websocket.send_json(
+                            session_error_message(public_code=ErrorCode.VALIDATION_ERROR)
+                        )
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                        break
                     detail = await practice_service.start_session_stream(db, session_id, user_id)
                     runtime.state = detail["state"]
                     await websocket.send_json(

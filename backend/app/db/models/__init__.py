@@ -17,6 +17,8 @@ from .revision_event import ScoreRevisionEvent
 from .revision_note import ScoreRevisionNote
 from .scheduler import SchedulerHeartbeat, SchedulerLeaderStatus
 from .practice import (
+    PracticeInputSource,
+    PracticeMode,
     PracticeReportStatus,
     PracticeSession,
     PracticeSessionState,
@@ -107,6 +109,8 @@ __all__ = [
     "SchedulerLeaderStatus",
     "PracticeSession",
     "PracticeSessionState",
+    "PracticeMode",
+    "PracticeInputSource",
     "PracticeReportStatus",
     "LibraryEntrySourceType",
     "LibraryPracticeState",

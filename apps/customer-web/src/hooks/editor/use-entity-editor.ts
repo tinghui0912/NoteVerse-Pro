@@ -9,51 +9,33 @@ import { useScoreData } from '@/contexts/score-data-context';
 import { useEditorState } from '@/contexts/editor-state-context';
 import { useHistory } from '@/contexts/editor-history-context';
 import { useTranslations } from 'next-intl';
-import type { ScoreEntity, AddLocation, EntityLocation } from '@/types/score-types';
-import { MusicXMLParser } from '@/lib/musicxml/parser';
+import type { DomainSelectionCompanion } from '@/lib/editor/domain-selection-companion';
 import {
-    parseXml,
-    serializeXml,
-    getEntityGroupsFromMeasure,
-} from '@/lib/musicxml/core';
-import { recalculateBackups } from '@/lib/musicxml/backup';
-import { repairAutomaticBeamsForVoice } from '@/lib/musicxml/automatic-beams';
-import { createDefaultEditableEvent, toScoreEntity } from '@/lib/editor/editable-event';
-import { reportUnexpectedClientError } from '@/lib/observability';
-import { insertEntity } from './entity-editor/insert-entity';
-import { updateExistingEntity } from './entity-editor/update-existing-entity';
+    findVoiceEventByMusicXmlElementIds,
+    importMusicXmlToEditorDomain,
+    type DomainAnchor,
+    type EventId,
+    type InsertionAnchor,
+} from '@/lib/editor-domain';
+import { MusicXMLParser } from '@/lib/musicxml/parser';
+import { applyEditorDomainEditToXml } from './use-editor-domain-edit';
+import {
+    applyAddModeDomainInsert,
+    createDefaultAddModeInsertCommand,
+    type AddModeInsertCommand,
+} from './entity-editor';
 
-type UpdateEntityOptions = {
-    keepInspectorOpen?: boolean;
-};
-
-function findEntityAtLocation(data: ReturnType<MusicXMLParser['parse']>, location: EntityLocation) {
-    const stave = data.measures[location.measureIndex]?.staves[location.staveIndex];
-    const voice = stave?.voices.find((candidate) => (
-        candidate.notes.some((entity) => entity.meta?.xmlVoice === location.xmlVoice)
-    ));
-    const entity = voice?.notes[location.entityIndex];
-    if (!entity?.meta) return null;
-    return { entity, location: entity.meta };
-}
-
-function findInsertedEntity(data: ReturnType<MusicXMLParser['parse']>, location: AddLocation, insertedEntityId?: string) {
-    const stave = data.measures[location.measureIndex]?.staves[location.staveIndex];
-    const candidates = stave?.voices
-        .flatMap((voice) => voice.notes)
-        .filter((entity) => (
-            entity.meta?.xmlVoice === location.xmlVoice
-            && entity.meta.measureIndex === location.measureIndex
-            && entity.meta.staveIndex === location.staveIndex
-        )) ?? [];
-
-    const byId = insertedEntityId
-        ? candidates.find((entity) => entity.meta?.sourceIds?.includes(insertedEntityId) || entity.meta?.id === insertedEntityId)
-        : undefined;
-    const exact = candidates.find((entity) => entity.meta?.startTick === location.tick);
-    const entity = byId ?? exact ?? candidates[0];
-    if (!entity?.meta) return null;
-    return { entity, location: entity.meta };
+function findInsertedSourceIds(data: ReturnType<MusicXMLParser['parse']>, insertedEntityId: string): string[] {
+    const entity = data.measures
+        .flatMap((measure) => measure.staves)
+        .flatMap((stave) => stave.voices)
+        .flatMap((voice) => voice.events)
+        .find((candidate) => (
+            candidate.meta?.sourceIds?.includes(insertedEntityId)
+            || candidate.meta?.id === insertedEntityId
+        ));
+    if (!entity?.meta) return [];
+    return entity.meta.sourceIds ?? [entity.meta.id];
 }
 
 export function useEntityEditor() {
@@ -64,40 +46,37 @@ export function useEntityEditor() {
         currentXmlRef,
         setScoreData,
         setCurrentXml,
+        reparseXml,
         getExpectedVoices
     } = useScoreData();
 
     const {
-        editingEntity,
-        setEditingEntity,
-        editingEntityLocation,
-        setEditingEntityLocation,
+        openEditingSelection,
+        clearEditingSelection,
         setInspectorOpen,
     } = useEditorState();
 
     const history = useHistory();
 
-    /**
-     * Open the Inspector for an existing event.
-     */
-    const handleEditEntity = useCallback((entity: ScoreEntity, location: EntityLocation) => {
-        setEditingEntity(entity);
-        setEditingEntityLocation(location);
+    const handleDomainSelectionCompanion = useCallback((companion: DomainSelectionCompanion) => {
+        openEditingSelection({
+            domainAnchor: companion.domainAnchor,
+            domainCompanion: companion,
+        });
         setInspectorOpen(true);
-    }, [setEditingEntity, setEditingEntityLocation, setInspectorOpen]);
+    }, [openEditingSelection, setInspectorOpen]);
 
     /**
-     * Add mode writes an empty-pitch rest immediately, then keeps it selected.
-     * The Inspector can then turn it into a note/chord by adding pitches.
+     * Add mode applies an explicit insert command, then keeps the inserted event selected.
+     * The default command inserts an explicit rest; future add tools can pass a pitched command
+     * without changing the timeline placement path.
      */
-    const handleAddEntity = useCallback((location: AddLocation) => {
-        const newEntity = toScoreEntity(createDefaultEditableEvent());
-
+    const handleAddEntity = useCallback((insertionAnchor: InsertionAnchor, command: AddModeInsertCommand = createDefaultAddModeInsertCommand()) => {
         if (!currentXml || !scoreData) return;
 
-        const result = insertEntity({
-            updatedEntity: newEntity,
-            location,
+        const result = applyAddModeDomainInsert({
+            command,
+            insertionAnchor,
             currentXml,
             scoreData,
             getExpectedVoices,
@@ -109,13 +88,15 @@ export function useEntityEditor() {
             setCurrentXml(result.newXml);
             setScoreData(result.newScoreData);
 
-            const inserted = findInsertedEntity(result.newScoreData, location, result.insertedEntityId);
-            setEditingEntity(inserted?.entity ?? newEntity);
-            setEditingEntityLocation(inserted?.location ?? {
-                measureIndex: location.measureIndex,
-                staveIndex: location.staveIndex,
-                xmlVoice: location.xmlVoice,
-                entityIndex: 0,
+            const insertedSourceIds = findInsertedSourceIds(result.newScoreData, result.insertedEntityId);
+            if (insertedSourceIds.length === 0) return;
+            const domainAnchor = findInsertedDomainAnchor(
+                result.newXml,
+                insertedSourceIds,
+            );
+            openEditingSelection({
+                domainAnchor,
+                domainCompanion: null,
             });
             setInspectorOpen(true);
         }
@@ -125,10 +106,9 @@ export function useEntityEditor() {
         currentXmlRef,
         getExpectedVoices,
         history,
+        openEditingSelection,
         scoreData,
         setCurrentXml,
-        setEditingEntity,
-        setEditingEntityLocation,
         setInspectorOpen,
         setScoreData,
         t,
@@ -138,107 +118,63 @@ export function useEntityEditor() {
      * Close the Inspector.
      */
     const handleCloseModal = useCallback(() => {
-        setEditingEntity(null);
-        setEditingEntityLocation(null);
+        clearEditingSelection();
         setInspectorOpen(false);
     }, [
-        setEditingEntity,
-        setEditingEntityLocation,
+        clearEditingSelection,
         setInspectorOpen,
     ]);
 
-    /**
-     * Update an existing event.
-     */
-    const updateEntity = useCallback((updatedEntity: ScoreEntity, options: UpdateEntityOptions = {}) => {
-        const shouldKeepInspectorOpen = options.keepInspectorOpen === true;
+    const handleDeleteEntity = useCallback((domainAnchor: DomainAnchor | null) => {
+        if (!currentXml) return;
+        const domainDeleteEventId = getDeleteEventId(domainAnchor);
+        if (!domainDeleteEventId) return;
 
-        if (!editingEntityLocation || !currentXml || !scoreData) return;
-
-        const result = updateExistingEntity({
-            updatedEntity,
-            editingEntityLocation,
-            currentXml,
-            scoreData,
-            getExpectedVoices,
+        const result = applyEditorDomainEditToXml({
+            xml: currentXml,
+            draft: {
+                kind: 'deleteEvent',
+                eventId: domainDeleteEventId,
+            },
         });
+        if (!result.success) return;
 
-        if (result.success && result.newXml && result.newScoreData) {
-            history.push(result.newXml, t('editNote'));
-            currentXmlRef.current = result.newXml;
-            setCurrentXml(result.newXml);
-            setScoreData(result.newScoreData);
-        }
-
-        if (shouldKeepInspectorOpen && result.success && result.newScoreData) {
-            const updated = findEntityAtLocation(result.newScoreData, editingEntityLocation);
-            setEditingEntity(updated?.entity ?? updatedEntity);
-            setEditingEntityLocation(updated?.location ?? editingEntityLocation);
-            setInspectorOpen(true);
-        } else {
-            setEditingEntity(null);
-            setEditingEntityLocation(null);
-            setInspectorOpen(false);
-        }
-    }, [currentXml, scoreData, editingEntityLocation, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, setEditingEntity, setEditingEntityLocation, setInspectorOpen, t]);
-
-    /**
-     * Delete an existing event from the MusicXML measure.
-     */
-    const handleDeleteEntity = useCallback((location: EntityLocation) => {
-        const { measureIndex, staveIndex, xmlVoice, entityIndex } = location;
-
-        if (!currentXml || !scoreData) return;
-
-        const measureNumber = measureIndex + 1;
-        const staffNumber = staveIndex + 1;
-        const voiceNum = xmlVoice;
-
-        try {
-            const xmlDoc = parseXml(currentXml);
-            const measureEl = xmlDoc.querySelector(`measure[number="${measureNumber}"]`);
-            if (!measureEl) return;
-
-            const entityGroups = getEntityGroupsFromMeasure(measureEl, staffNumber, voiceNum);
-            const targetGroup = entityGroups[entityIndex];
-            if (!targetGroup) return;
-
-            targetGroup.elements.forEach(el => el.parentNode?.removeChild(el));
-
-            recalculateBackups(measureEl);
-            repairAutomaticBeamsForVoice(xmlDoc, measureEl, staffNumber, voiceNum);
-
-            const newXml = serializeXml(xmlDoc);
-
-            history.push(newXml, t('deleteNote'));
-
-            currentXmlRef.current = newXml;
-            setCurrentXml(newXml);
-
-            const newParser = new MusicXMLParser(newXml, {
-                expectedVoices: getExpectedVoices(scoreData)
-            });
-            const parsedData = newParser.parse();
-            setScoreData(parsedData);
-
-        } catch (error) {
-            reportUnexpectedClientError(error, {
-                area: 'editor',
-                action: 'delete_entity',
-            });
-        }
-    }, [currentXml, scoreData, currentXmlRef, setCurrentXml, history, getExpectedVoices, setScoreData, t]);
+        history.push(result.xml, t('deleteNote'));
+        currentXmlRef.current = result.xml;
+        setCurrentXml(result.xml);
+        reparseXml(result.xml);
+        clearEditingSelection();
+        setInspectorOpen(false);
+    }, [
+        currentXml,
+        history,
+        currentXmlRef,
+        setCurrentXml,
+        reparseXml,
+        clearEditingSelection,
+        setInspectorOpen,
+        t,
+    ]);
 
     return {
-        // State
-        editingEntity,
-        editingEntityLocation,
-
         // Actions
-        handleEditEntity,
+        handleDomainSelectionCompanion,
         handleDeleteEntity,
         handleAddEntity,
         handleCloseModal,
-        updateEntity,
     };
+}
+
+function getDeleteEventId(domainAnchor: DomainAnchor | null): EventId | null {
+    if (!domainAnchor) return null;
+    if (domainAnchor.kind === 'event' || domainAnchor.kind === 'noteAtom') {
+        return domainAnchor.eventId;
+    }
+    return null;
+}
+
+function findInsertedDomainAnchor(xml: string, sourceIds: string[]): DomainAnchor | null {
+    const imported = importMusicXmlToEditorDomain(xml);
+    const event = findVoiceEventByMusicXmlElementIds(imported.document, sourceIds);
+    return event ? { kind: 'event', eventId: event.id } : null;
 }

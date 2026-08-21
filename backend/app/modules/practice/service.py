@@ -18,6 +18,8 @@ from app.db.models import (
     PracticeReportStatus,
     PracticeSession,
     PracticeSessionState,
+    PracticeInputSource,
+    PracticeMode,
     Score,
     ScoreRevision,
 )
@@ -84,7 +86,13 @@ class PracticeService:
         sample_rate: int,
         channels: int,
         frame_format: str,
+        practice_mode: PracticeMode = PracticeMode.FREE_FOLLOW,
+        input_source: PracticeInputSource = PracticeInputSource.MICROPHONE,
     ) -> PracticeSessionSummaryRead:
+        if practice_mode != PracticeMode.FREE_FOLLOW:
+            raise ValidationException(field="practice_mode")
+        if input_source != PracticeInputSource.MICROPHONE:
+            raise ValidationException(field="input_source")
         access = await self.access_policy.authorize(
             db,
             score_uuid,
@@ -106,6 +114,8 @@ class PracticeService:
             share_grant_id=access.grant.id if access.grant else None,
             user_id=user_id,
             state=PracticeSessionState.CREATED,
+            practice_mode=practice_mode,
+            input_source=input_source,
             sample_rate=sample_rate,
             channels=channels,
             frame_format=frame_format,
@@ -179,6 +189,8 @@ class PracticeService:
                 sample_rate=session.sample_rate,
                 channels=session.channels,
                 frame_format=session.frame_format,
+                practice_mode=session.practice_mode.value,
+                input_source=session.input_source.value,
             )
         except Exception as exc:
             logger.bind(

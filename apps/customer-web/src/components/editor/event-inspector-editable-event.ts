@@ -1,6 +1,6 @@
-import type { AccidentalValue, Chord, Duration, EntityLocation, Note, Rest, ScoreEntity } from '@/types/score-types';
+import type { AccidentalValue, Duration, ParsedScoreEvent } from '@/types/score-types';
 
-export type EditableEventKind = 'rest' | 'note' | 'chord';
+export type EditableEventDisplayKind = 'explicitRest' | 'singleNote' | 'chord';
 
 export type EditableEvent = {
   duration: Duration;
@@ -11,10 +11,32 @@ export type EditableEvent = {
   accidentals: Array<AccidentalValue | null | undefined>;
 };
 
-export function getEditableEventKind(event: Pick<EditableEvent, 'pitches'>): EditableEventKind {
-  if (event.pitches.length === 0) return 'rest';
-  if (event.pitches.length === 1) return 'note';
+export function isExplicitRestEditableEvent(event: Pick<EditableEvent, 'pitches'>): boolean {
+  return event.pitches.length === 0;
+}
+
+export function isPitchedEditableEvent(event: Pick<EditableEvent, 'pitches'>): boolean {
+  return event.pitches.length > 0;
+}
+
+export function getEditableEventDisplayKind(event: Pick<EditableEvent, 'pitches'>): EditableEventDisplayKind {
+  if (isExplicitRestEditableEvent(event)) return 'explicitRest';
+  if (event.pitches.length === 1) return 'singleNote';
   return 'chord';
+}
+
+export function getEditableEventSummaryPitch(
+  event: Pick<EditableEvent, 'pitches'>,
+  restLabel: string,
+): string {
+  return isExplicitRestEditableEvent(event) ? restLabel : event.pitches.join(' + ');
+}
+
+export function getEditableEventSummaryIcon(event: Pick<EditableEvent, 'pitches'>): string {
+  const displayKind = getEditableEventDisplayKind(event);
+  if (displayKind === 'explicitRest') return 'rest';
+  if (displayKind === 'chord') return 'chord';
+  return 'note';
 }
 
 export function createDefaultEditableEvent(): EditableEvent {
@@ -28,7 +50,7 @@ export function createDefaultEditableEvent(): EditableEvent {
   };
 }
 
-export function toEditableEvent(entity: ScoreEntity): EditableEvent {
+export function toEditableEvent(entity: ParsedScoreEvent): EditableEvent {
   if (entity.type === 'chord') {
     return {
       duration: entity.duration,
@@ -61,52 +83,6 @@ export function toEditableEvent(entity: ScoreEntity): EditableEvent {
   };
 }
 
-export function toScoreEntity(event: EditableEvent, location?: EntityLocation): Note | Chord | Rest {
-  const meta = location
-    ? {
-        id: '',
-        measureIndex: location.measureIndex,
-        staveIndex: location.staveIndex,
-        xmlVoice: location.xmlVoice,
-        entityIndex: location.entityIndex,
-        startTick: 0,
-      }
-    : undefined;
-
-  if (event.pitches.length === 0) {
-    return {
-      type: 'rest',
-      duration: event.duration,
-      dotted: event.dotted,
-      meta,
-    };
-  }
-
-  if (event.pitches.length === 1) {
-    return {
-      type: 'note',
-      pitch: event.pitches[0],
-      duration: event.duration,
-      dotted: event.dotted,
-      stemDirection: event.stemDirection,
-      fingering: event.fingerings[0] ?? 'none',
-      accidental: event.accidentals[0],
-      meta,
-    };
-  }
-
-  return {
-    type: 'chord',
-    pitches: [...event.pitches],
-    duration: event.duration,
-    dotted: event.dotted,
-    stemDirection: event.stemDirection,
-    fingerings: event.pitches.map((_, index) => event.fingerings[index] ?? 'none'),
-    accidentals: event.pitches.map((_, index) => event.accidentals[index]),
-    meta,
-  };
-}
-
 export function addPitch(event: EditableEvent, pitch = 'C4'): EditableEvent {
   return {
     ...event,
@@ -117,6 +93,10 @@ export function addPitch(event: EditableEvent, pitch = 'C4'): EditableEvent {
 }
 
 export function removePitch(event: EditableEvent, pitchIndex: number): EditableEvent {
+  if (event.pitches.length <= 1) {
+    return event;
+  }
+
   return {
     ...event,
     pitches: event.pitches.filter((_, index) => index !== pitchIndex),

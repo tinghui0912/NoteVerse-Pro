@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_db
 from app.core.config import settings
 from app.main import app
-from app.modules.playback.router import get_playback_service
+from app.modules.playback.router import get_playback_delivery_service
 from app.shared.constants import ErrorCode
 
 
@@ -71,7 +71,7 @@ def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
         yield object()
 
     app.dependency_overrides[get_db] = fake_get_db
-    app.dependency_overrides[get_playback_service] = lambda: FailingPlaybackService()
+    app.dependency_overrides[get_playback_delivery_service] = lambda: FailingPlaybackService()
     try:
         with TestClient(app, raise_server_exceptions=False) as client:
             response = client.get(
@@ -79,7 +79,7 @@ def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
                 headers={"X-Request-ID": "public-500-contract"},
             )
     finally:
-        app.dependency_overrides.pop(get_playback_service, None)
+        app.dependency_overrides.pop(get_playback_delivery_service, None)
         app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 500

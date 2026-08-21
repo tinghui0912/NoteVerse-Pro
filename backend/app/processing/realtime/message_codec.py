@@ -112,6 +112,7 @@ def alignment_update_message(update: AlignmentUpdate) -> dict[str, object]:
                 validation_confidence=update.get("validation_confidence", 1.0),
                 input_weight=update.get("input_weight", 0.0),
                 input_policy_confidence=update.get("input_policy_confidence", 1.0),
+                decision=update["decision"],
             )
         )
     )

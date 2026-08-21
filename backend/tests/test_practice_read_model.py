@@ -5,7 +5,12 @@ import pytest
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import Score
-from app.db.models.practice import PracticeReportStatus, PracticeSessionState
+from app.db.models.practice import (
+    PracticeInputSource,
+    PracticeMode,
+    PracticeReportStatus,
+    PracticeSessionState,
+)
 from app.db.models.score_access import AccessOrigin
 from app.modules.practice.read_model import PracticeReadModel
 from app.shared.constants import ErrorCode
@@ -18,6 +23,8 @@ def _session(**overrides: object) -> SimpleNamespace:
         "revision_id": 12,
         "access_origin": AccessOrigin.OWNER,
         "state": PracticeSessionState.CREATED,
+        "practice_mode": PracticeMode.FREE_FOLLOW,
+        "input_source": PracticeInputSource.MICROPHONE,
         "sample_rate": 16000,
         "channels": 1,
         "frame_format": "pcm_s16le",
@@ -50,6 +57,8 @@ async def test_practice_read_model_builds_session_detail() -> None:
     assert detail.revision_id == "revision-1"
     assert detail.access_origin == AccessOrigin.OWNER
     assert detail.state == PracticeSessionState.CREATED
+    assert detail.practice_mode == PracticeMode.FREE_FOLLOW
+    assert detail.input_source == PracticeInputSource.MICROPHONE
 
 
 @pytest.mark.asyncio

@@ -163,6 +163,8 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
             "revision_id",
             "access_origin",
             "state",
+            "practice_mode",
+            "input_source",
             "sample_rate",
             "channels",
             "frame_format",

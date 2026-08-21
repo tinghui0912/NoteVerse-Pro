@@ -151,6 +151,13 @@ def load_profile_replay_manifest() -> tuple[dict, Path]:
     return json.loads(manifest_path.read_text(encoding="utf-8")), manifest_path
 
 
+def load_initial_alignment_replay_manifest() -> tuple[dict, Path]:
+    manifest_path = (
+        Path(__file__).parent / "fixtures" / "practice_audio" / "initial_alignment_manifest.json"
+    )
+    return json.loads(manifest_path.read_text(encoding="utf-8")), manifest_path
+
+
 def make_adapter(np, **overrides):
     queue = DummyQueue()
     defaults = {
@@ -265,21 +272,78 @@ def test_manifest_replay_scenarios() -> None:
 def test_profile_replay_manifest_builds_finite_audio_frames() -> None:
     import numpy as np
 
-    manifest, manifest_path = load_profile_replay_manifest()
-    frame_length = int(manifest["sample_rate"] / 30)
+    for manifest, manifest_path in [
+        load_profile_replay_manifest(),
+        load_initial_alignment_replay_manifest(),
+    ]:
+        frame_length = int(manifest["sample_rate"] / 30)
 
-    for scenario in manifest["scenarios"]:
-        frames = manifest_frames(
-            np,
-            manifest_path,
-            {
-                **scenario,
-                "_manifest_frame_length": frame_length,
-            },
-        )
-        assert frames, scenario["id"]
-        assert all(frame.size == frame_length for frame in frames), scenario["id"]
-        assert all(np.isfinite(frame).all() for frame in frames), scenario["id"]
+        for scenario in manifest["scenarios"]:
+            frames = manifest_frames(
+                np,
+                manifest_path,
+                {
+                    **scenario,
+                    "_manifest_frame_length": frame_length,
+                },
+            )
+            assert frames, scenario["id"]
+            assert all(frame.size == frame_length for frame in frames), scenario["id"]
+            assert all(np.isfinite(frame).all() for frame in frames), scenario["id"]
+
+
+def test_initial_alignment_manifest_declares_phase_and_chunking_matrix() -> None:
+    manifest, _manifest_path = load_initial_alignment_replay_manifest()
+    scenarios = {scenario["id"]: scenario for scenario in manifest["scenarios"]}
+
+    assert {
+        "once_again_phase_offset_0",
+        "once_again_phase_offset_1",
+        "once_again_phase_offset_quarter_hop",
+        "once_again_phase_offset_half_hop",
+        "once_again_phase_offset_hop_minus_1",
+        "once_again_armed_delay_12s",
+        "wrong_c4_then_once_again_restart",
+        "once_again_chunk_256_samples",
+        "once_again_chunk_640_samples",
+    } <= scenarios.keys()
+    assert scenarios["once_again_phase_offset_0"]["leading_sample_offset"] == 0
+    assert scenarios["once_again_phase_offset_1"]["leading_sample_offset"] == 1
+    assert scenarios["once_again_phase_offset_quarter_hop"]["leading_sample_offset"] == 133
+    assert scenarios["once_again_phase_offset_half_hop"]["leading_sample_offset"] == 266
+    assert scenarios["once_again_phase_offset_hop_minus_1"]["leading_sample_offset"] == 532
+    assert scenarios["once_again_armed_delay_12s"]["armed_delay_seconds"] == 12
+    assert scenarios["once_again_chunk_256_samples"]["chunk_size_samples"] == 256
+    assert scenarios["once_again_chunk_640_samples"]["chunk_size_samples"] == 640
+
+
+def test_initial_alignment_scenario_audio_applies_offsets_and_armed_delay() -> None:
+    import numpy as np
+
+    from scripts.evaluate_practice_replay import scenario_audio
+
+    manifest, manifest_path = load_initial_alignment_replay_manifest()
+    sample_rate = int(manifest["sample_rate"])
+    baseline = next(
+        scenario for scenario in manifest["scenarios"] if scenario["id"] == "once_again_phase_offset_0"
+    )
+    shifted = next(
+        scenario for scenario in manifest["scenarios"] if scenario["id"] == "once_again_phase_offset_1"
+    )
+    delayed = next(
+        scenario for scenario in manifest["scenarios"] if scenario["id"] == "once_again_armed_delay_12s"
+    )
+
+    baseline_audio = scenario_audio(manifest_path.parent, baseline, sample_rate)
+    shifted_audio = scenario_audio(manifest_path.parent, shifted, sample_rate)
+    delayed_audio = scenario_audio(manifest_path.parent, delayed, sample_rate)
+
+    assert shifted_audio.size == baseline_audio.size + 1
+    assert shifted_audio[0] == 0
+    assert np.array_equal(shifted_audio[1:], baseline_audio)
+    assert delayed_audio.size == baseline_audio.size + 12 * sample_rate
+    assert np.all(delayed_audio[: 12 * sample_rate] == 0)
+    assert np.array_equal(delayed_audio[12 * sample_rate :], baseline_audio)
 
 
 def test_replay_weak_sustain_keeps_following_before_decay_window_expires() -> None:

@@ -18,6 +18,8 @@ def build_alignment_engine(
     sample_rate: int,
     channels: int,
     frame_format: str,
+    practice_mode: str = "FREE_FOLLOW",
+    input_source: str = "MICROPHONE",
 ) -> "AlignmentEngine":
     """Create the practice alignment engine without importing heavy runtime deps at module load."""
     from app.processing.engines.practice_alignment.matchmaker_live import (
@@ -29,6 +31,8 @@ def build_alignment_engine(
         sample_rate=sample_rate,
         channels=channels,
         frame_format=frame_format,
+        practice_mode=practice_mode,
+        input_source=input_source,
     )
 
 
@@ -41,6 +45,8 @@ class PracticeSessionRuntime:
     sample_rate: int
     channels: int
     frame_format: str
+    practice_mode: str
+    input_source: str
     audio_buffer: AudioChunkBuffer
     engine: "AlignmentEngine"
     websocket: object | None = None
@@ -100,6 +106,8 @@ class PracticeSessionRuntimeRegistry:
         sample_rate: int = 16000,
         channels: int = 1,
         frame_format: str = "pcm_s16le",
+        practice_mode: str = "FREE_FOLLOW",
+        input_source: str = "MICROPHONE",
     ) -> PracticeSessionRuntime:
         runtime = PracticeSessionRuntime(
             session_id=session_id,
@@ -109,12 +117,16 @@ class PracticeSessionRuntimeRegistry:
             sample_rate=sample_rate,
             channels=channels,
             frame_format=frame_format,
+            practice_mode=practice_mode,
+            input_source=input_source,
             audio_buffer=AudioChunkBuffer(),
             engine=build_alignment_engine(
                 score_file_path=score_file_path,
                 sample_rate=sample_rate,
                 channels=channels,
                 frame_format=frame_format,
+                practice_mode=practice_mode,
+                input_source=input_source,
             ),
         )
         self._runtimes[session_id] = runtime
