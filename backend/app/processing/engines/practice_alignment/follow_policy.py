@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, Mapping, NotRequired, TypedDict
 
 from app.processing.engines.practice_alignment.score_timeline import (
     PracticeEntryGroup,
@@ -106,7 +106,7 @@ class FollowPolicy:
         self._config = selected_profile.config
         self._last_display_anchor: PracticeDisplayAnchor | None = None
 
-    def decide(self, update: dict[str, object]) -> AlignmentDecision:
+    def decide(self, update: Mapping[str, Any]) -> AlignmentDecision:
         summary = _confidence_summary(update)
         beat_position = float(update["beat_position"])
         match_state = str(update.get("match_state", "matched"))
@@ -139,7 +139,15 @@ class FollowPolicy:
                 confidence_summary=summary,
             )
 
-        low_confidence = min(summary.values()) < self._config.confidence_threshold
+        confidence_values = (
+            summary["visual"],
+            summary["alignment"],
+            summary["audio"],
+            summary["continuity"],
+            summary["validation"],
+            summary["input_policy"],
+        )
+        low_confidence = min(confidence_values) < self._config.confidence_threshold
         if low_confidence:
             return self._decision(
                 action="hold" if self._last_display_anchor is not None else "wait",
@@ -228,7 +236,7 @@ class FollowPolicy:
         }
 
 
-def _confidence_summary(update: dict[str, object]) -> PracticeConfidenceSummary:
+def _confidence_summary(update: Mapping[str, Any]) -> PracticeConfidenceSummary:
     return {
         "visual": _rounded_float(update.get("visual_confidence", 1.0)),
         "alignment": _rounded_float(update.get("alignment_confidence", 1.0)),
@@ -250,7 +258,7 @@ def _anchor_from_group(beat: float, group: PracticeEntryGroup | None) -> Practic
     }
 
 
-def _rounded_float(value: object) -> float:
+def _rounded_float(value: Any) -> float:
     try:
         return round(float(value), 3)
     except (TypeError, ValueError):

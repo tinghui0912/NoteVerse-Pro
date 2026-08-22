@@ -2,7 +2,7 @@
 
 import { LoaderCircle, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/practice-types';
@@ -27,6 +27,8 @@ type PracticeSessionStatusView = {
   pending: boolean;
   uncertain: boolean;
 };
+
+const UNCERTAIN_STATUS_DELAY_MS = 350;
 
 type PracticeSessionStatusProps = {
   className?: string;
@@ -174,6 +176,27 @@ function inputHintForAlignment(
   return null;
 }
 
+function fallbackViewBeforeUncertainState(status: PracticeStatus): PracticeSessionStatusView {
+  return {
+    messageKey: status === 'listening' ? 'waitingForFirstNote' : 'settingStatusFollowing',
+    inputHintKey: null,
+    pending: false,
+    uncertain: false,
+  };
+}
+
+function isSameStatusView(
+  left: PracticeSessionStatusView | null,
+  right: PracticeSessionStatusView
+): left is PracticeSessionStatusView {
+  return (
+    left?.messageKey === right.messageKey &&
+    left.inputHintKey === right.inputHintKey &&
+    left.pending === right.pending &&
+    left.uncertain === right.uncertain
+  );
+}
+
 export function PracticeSessionStatus({
   className,
   status,
@@ -187,37 +210,52 @@ export function PracticeSessionStatus({
   alignment,
 }: PracticeSessionStatusProps) {
   const t = useTranslations('practice');
-  const resolvedView = resolvePracticeSessionStatusView({
-    status,
-    connectionStatus,
-    isLoading,
-    isPreparingSession,
-    canPrepareSession,
-    audioWorkletSupported,
-    alignment,
-  });
-  const [displayView, setDisplayView] = useState(resolvedView);
+  const resolvedView = useMemo(
+    () =>
+      resolvePracticeSessionStatusView({
+        status,
+        connectionStatus,
+        isLoading,
+        isPreparingSession,
+        canPrepareSession,
+        audioWorkletSupported,
+        alignment,
+      }),
+    [
+      alignment,
+      audioWorkletSupported,
+      canPrepareSession,
+      connectionStatus,
+      isLoading,
+      isPreparingSession,
+      status,
+    ]
+  );
+  const [delayedUncertainView, setDelayedUncertainView] =
+    useState<PracticeSessionStatusView | null>(null);
   const isRecording =
     practiceClockStarted &&
     (status === 'listening' || status === 'practicing' || status === 'paused');
 
   useEffect(() => {
     if (!resolvedView.uncertain) {
-      setDisplayView(resolvedView);
       return undefined;
     }
 
     const timeoutId = window.setTimeout(() => {
-      setDisplayView(resolvedView);
-    }, 350);
+      setDelayedUncertainView(resolvedView);
+    }, UNCERTAIN_STATUS_DELAY_MS);
     return () => window.clearTimeout(timeoutId);
   }, [
-    resolvedView.inputHintKey,
-    resolvedView.messageKey,
-    resolvedView.pending,
-    resolvedView.uncertain,
+    resolvedView,
   ]);
 
+  const displayView =
+    resolvedView.uncertain && isSameStatusView(delayedUncertainView, resolvedView)
+      ? delayedUncertainView
+      : resolvedView.uncertain
+        ? fallbackViewBeforeUncertainState(status)
+        : resolvedView;
   const message = t(displayView.messageKey);
 
   return (

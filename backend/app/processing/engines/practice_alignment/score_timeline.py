@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
+from typing import Any
 import xml.etree.ElementTree as ET
 
 
@@ -113,7 +114,7 @@ class _MusicXmlNoteMetadata:
 
 @dataclass(frozen=True)
 class _TimelineNote:
-    note: object
+    note: Any
     metadata: _MusicXmlNoteMetadata | None
 
 
@@ -218,7 +219,7 @@ def _is_pure_tie_continuation(metadata: _MusicXmlNoteMetadata | None) -> bool:
     return "stop" in tie_types and "start" not in tie_types
 
 
-def _voice_id(note, metadata: _MusicXmlNoteMetadata | None) -> str:
+def _voice_id(note: Any, metadata: _MusicXmlNoteMetadata | None) -> str:
     if metadata is not None and metadata.voice_id:
         return metadata.voice_id
     names = set(note.dtype.names or ())
