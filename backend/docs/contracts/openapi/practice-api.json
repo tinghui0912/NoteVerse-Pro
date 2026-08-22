@@ -255,8 +255,7 @@
       "PracticeInputSource": {
         "enum": [
           "MICROPHONE",
-          "MIDI",
-          "REPLAY_AUDIO"
+          "MIDI"
         ],
         "title": "PracticeInputSource",
         "type": "string"

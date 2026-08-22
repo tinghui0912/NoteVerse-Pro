@@ -69,8 +69,9 @@ negative non-starts, mixed inputs, the first emitted beat, and pause/resume.
 the same real engine, but focuses on invariants that should hold before changing
 the initial-alignment algorithm: leading sample phase offsets, armed delay before
 correct entry, wrong notes followed by a correct restart, and alternate transport
-chunk sizes. This matrix may fail on the current implementation; keep the failure
-report as the baseline for the windowed startup fix.
+chunk sizes. It also includes 1/4/8/12 repeated wrong-C4 attempts followed by a
+correct Once Again restart, so restart behavior is checked after the engine is
+already armed.
 
 ## Public Samples
 

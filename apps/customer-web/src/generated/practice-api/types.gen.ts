@@ -134,7 +134,7 @@ export type HttpValidationError = {
 /**
  * PracticeInputSource
  */
-export type PracticeInputSource = 'MICROPHONE' | 'MIDI' | 'REPLAY_AUDIO';
+export type PracticeInputSource = 'MICROPHONE' | 'MIDI';
 
 /**
  * PracticeMode

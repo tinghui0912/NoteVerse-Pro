@@ -19,7 +19,6 @@ depends_on: str | Sequence[str] | None = None
 practice_input_source_enum = sa.Enum(
     "MICROPHONE",
     "MIDI",
-    "REPLAY_AUDIO",
     name="practiceinputsource",
 )
 

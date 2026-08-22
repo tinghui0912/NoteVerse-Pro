@@ -241,6 +241,9 @@ class PracticeService:
         session.state = PracticeSessionState.PAUSED
         session = await self.repository.save_session(db, session)
         self._update_runtime_state(session.session_uuid, session.state.value)
+        runtime = self.runtime_registry.get(session.session_uuid)
+        if runtime is not None:
+            runtime.reset_input_buffer()
         return await self.read_model.to_session_detail(db, session)
 
     async def resume_session(

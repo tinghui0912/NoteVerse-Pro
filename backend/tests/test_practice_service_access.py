@@ -97,7 +97,7 @@ async def test_cached_runtime_still_requires_session_ownership() -> None:
 async def test_stream_lifecycle_updates_state_and_runtime() -> None:
     session = _session()
     service, repository, runtime_registry, _library = _service_with_session(session)
-    runtime = SimpleNamespace(state="CREATED")
+    runtime = SimpleNamespace(state="CREATED", reset_input_buffer=Mock())
     runtime_registry.get.return_value = runtime
     database = Mock()
 
@@ -110,6 +110,7 @@ async def test_stream_lifecycle_updates_state_and_runtime() -> None:
     assert resumed == {"state": PracticeSessionState.STREAMING}
     assert session.started_at is not None
     assert runtime.state == PracticeSessionState.STREAMING.value
+    runtime.reset_input_buffer.assert_called_once_with()
     assert repository.save_session.await_count == 3
 
 

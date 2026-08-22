@@ -49,6 +49,9 @@ class FailingEngine:
         _ = chunk
         raise RuntimeError("engine failure")
 
+    def reset_input_buffer(self) -> None:
+        pass
+
     @property
     def is_ready_for_performance(self) -> bool:
         return False
@@ -88,6 +91,9 @@ class StreamingEngine:
                 },
             },
         }
+
+    def reset_input_buffer(self) -> None:
+        pass
 
     @property
     def is_ready_for_performance(self) -> bool:

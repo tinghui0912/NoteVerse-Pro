@@ -1,6 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { resolvePracticeSessionStatusView } from './practice-session-status';
+// @vitest-environment jsdom
+
+import { act, cleanup, render, screen } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import { createElement } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  PracticeSessionStatus,
+  resolvePracticeSessionStatusView,
+} from './practice-session-status';
 import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
+import practiceMessages from '../../../messages/en/practice.json';
 
 type AlignmentPayload = PracticeAlignmentUpdateMessage['payload'];
 
@@ -11,7 +21,15 @@ const baseProps = {
   isPreparingSession: false,
   canPrepareSession: true,
   audioWorkletSupported: true,
+  practiceClockStarted: true,
+  practiceTime: 12,
 };
+
+const IntlProvider = NextIntlClientProvider as ComponentType<{
+  locale: string;
+  messages: { practice: typeof practiceMessages };
+  children?: ReactNode;
+}>;
 
 function makeAlignment(
   overrides: Partial<AlignmentPayload> = {}
@@ -65,6 +83,48 @@ function makeAlignment(
   };
 }
 
+function statusElement(alignment: AlignmentPayload) {
+  return createElement(
+    IntlProvider,
+    {
+      locale: 'en',
+      messages: { practice: practiceMessages },
+    },
+    createElement(PracticeSessionStatus, {
+      ...baseProps,
+      alignment,
+    })
+  );
+}
+
+function renderStatus(alignment: AlignmentPayload) {
+  return render(statusElement(alignment));
+}
+
+function makePossibleWrongNoteAlignment() {
+  return makeAlignment({
+    decision: {
+      action: 'hold',
+      reason: 'low_alignment_confidence',
+      experience_state: 'possible_wrong_note',
+      display_anchor: { beat: 3, render_note_ids: ['n1'] },
+      confidence_summary: {
+        visual: 0.2,
+        alignment: 0.2,
+        audio: 0.8,
+        continuity: 1,
+        validation: 0.2,
+        input_policy: 1,
+      },
+    },
+  });
+}
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
 describe('resolvePracticeSessionStatusView', () => {
   it('shows following when the backend decision is following', () => {
     expect(
@@ -82,22 +142,7 @@ describe('resolvePracticeSessionStatusView', () => {
     expect(
       resolvePracticeSessionStatusView({
         ...baseProps,
-        alignment: makeAlignment({
-          decision: {
-            action: 'hold',
-            reason: 'low_alignment_confidence',
-            experience_state: 'possible_wrong_note',
-            display_anchor: { beat: 3, render_note_ids: ['n1'] },
-            confidence_summary: {
-              visual: 0.2,
-              alignment: 0.2,
-              audio: 0.8,
-              continuity: 1,
-              validation: 0.2,
-              input_policy: 1,
-            },
-          },
-        }),
+        alignment: makePossibleWrongNoteAlignment(),
       })
     ).toMatchObject({
       messageKey: 'practiceStateWaitingCorrectNote',
@@ -132,5 +177,44 @@ describe('resolvePracticeSessionStatusView', () => {
       inputHintKey: 'practiceInputCheckMic',
       uncertain: false,
     });
+  });
+});
+
+describe('PracticeSessionStatus', () => {
+  it('keeps following visible for transient uncertainty', () => {
+    vi.useFakeTimers();
+    const { rerender } = renderStatus(makeAlignment());
+
+    expect(screen.getByText('Following in real time')).toBeTruthy();
+
+    rerender(statusElement(makePossibleWrongNoteAlignment()));
+
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    expect(screen.getByText('Following in real time')).toBeTruthy();
+
+    rerender(statusElement(makeAlignment()));
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(screen.getByText('Following in real time')).toBeTruthy();
+  });
+
+  it('shows uncertainty after the delay and recovers immediately on reliable following', () => {
+    vi.useFakeTimers();
+    const { rerender } = renderStatus(makeAlignment());
+
+    rerender(statusElement(makePossibleWrongNoteAlignment()));
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByText('Waiting for the correct note')).toBeTruthy();
+
+    rerender(statusElement(makeAlignment()));
+
+    expect(screen.getByText('Following in real time')).toBeTruthy();
   });
 });

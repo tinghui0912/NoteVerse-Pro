@@ -219,6 +219,9 @@ class MatchmakerLiveEngine:
                 latest_update = update
         return latest_update
 
+    def reset_input_buffer(self) -> None:
+        self._pending_audio = self._np.array([], dtype=self._np.float32)
+
     def _ingest_audio_frame(self, audio_frame) -> AlignmentUpdate | None:
         if not self._stream.ingest(audio_frame):
             return None

@@ -47,6 +47,9 @@ class DummyAlignmentEngine:
         _ = chunk
         return None
 
+    def reset_input_buffer(self) -> None:
+        pass
+
     @property
     def is_ready_for_performance(self) -> bool:
         return False
@@ -63,6 +66,9 @@ class DummyReadyAlignmentEngine:
         _ = chunk
         self._is_ready_for_performance = True
         return None
+
+    def reset_input_buffer(self) -> None:
+        pass
 
     @property
     def is_ready_for_performance(self) -> bool:
@@ -1605,6 +1611,31 @@ def test_practice_runtime_emits_ready_notification_once() -> None:
 
     assert runtime.consume_ready_notification() is True
     assert runtime.consume_ready_notification() is False
+
+
+def test_matchmaker_live_engine_reset_input_buffer_discards_partial_transport_frame() -> None:
+    import numpy as np
+
+    emitted_frames = []
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._error = None
+    engine.total_bytes = 0
+    engine._np = np
+    engine.hop_length = 4
+    engine._pending_audio = np.array([], dtype=np.float32)
+    engine._pcm_s16le_to_float32 = lambda chunk: np.frombuffer(chunk, dtype=np.float32).copy()
+
+    def ingest_frame(audio_frame):
+        emitted_frames.append(audio_frame.copy())
+        return None
+
+    engine._ingest_audio_frame = ingest_frame
+
+    engine.ingest_audio(np.array([1.0, 2.0], dtype=np.float32).tobytes())
+    engine.reset_input_buffer()
+    engine.ingest_audio(np.array([3.0, 4.0, 5.0, 6.0], dtype=np.float32).tobytes())
+
+    assert [frame.tolist() for frame in emitted_frames] == [[3.0, 4.0, 5.0, 6.0]]
 
 
 def test_alignment_engine_factory_requires_matchmaker_dependency() -> None:

@@ -54,12 +54,16 @@ def scenario_audio(root: Path, scenario: dict, sample_rate: int) -> np.ndarray:
     chunks: list[np.ndarray] = []
     for frame_spec in scenario["frames"]:
         frame_type = frame_spec["type"]
+        repeat_count = int(frame_spec.get("repeat", 1))
+        if repeat_count <= 0:
+            raise ValueError("frame repeat must be positive")
         if frame_type == "wav":
-            chunks.append(read_pcm_wav(root / frame_spec["path"], sample_rate))
+            frame_audio = read_pcm_wav(root / frame_spec["path"], sample_rate)
         elif frame_type == "mix_wav":
-            chunks.append(mix_sources(root, frame_spec, sample_rate))
+            frame_audio = mix_sources(root, frame_spec, sample_rate)
         else:
             raise ValueError(f"Unsupported replay source: {frame_type}")
+        chunks.extend(frame_audio for _ in range(repeat_count))
     audio = np.concatenate(chunks) if chunks else np.array([], dtype=np.float32)
 
     armed_delay_samples = int(float(scenario.get("armed_delay_seconds", 0.0)) * sample_rate)

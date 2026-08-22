@@ -306,7 +306,8 @@ P1 implementation status:
 - `start_confirmed` can anchor to the selected entry-region beat.
 - `PracticeAudioProfile` owns `startup_feature_window_frames` and `startup_entry_region_beats` so future tuning is reviewed with replay results.
 - Existing non-music profile scenarios, Once Again phase offsets, armed delay, wrong-note restart, and alternate chunk-size baseline all pass.
-- The current P0 fixture covers wrong C4 followed by correct restart; additional 1/4/8/12 wrong-note sequence variants should be added when more multi-note wrong-entry fixtures are available.
+- `initial_alignment_manifest.json` now includes wrong C4 followed by correct Once Again restart after 1, 4, 8, and 12 repeated wrong-note attempts.
+- The 1/4/8/12 wrong-note matrix was replayed only after the engine warmup had armed; all cases start on the later correct restart and the first emitted alignment remains anchored to the first playable score beat.
 
 ## P2 - Introduce an Alignment Decision / Follow Policy Layer
 
@@ -439,10 +440,6 @@ P2 implementation status:
   - `npm run test -- src/lib/practice/follow-controller.test.ts src/lib/practice/protocol.test.ts` -> 5 passed.
   - Once Again replay manifest -> passed all P0/P1 scenarios.
 
-Remaining P2 work:
-
-- Add visible user-facing state copy in P3 instead of overloading P2 with UI messaging.
-
 ## P3 - Expose User-Understandable Practice States
 
 Goal: when the system is uncertain, users should know what is happening and what to do next.
@@ -494,9 +491,10 @@ P3 implementation status:
   - clipped input -> microphone-distance hint
 - Uncertain state changes are delayed slightly in the status component so transient low-confidence frames do not immediately flicker the displayed message.
 - Added frontend coverage for following, possible-wrong-note, and separate input-health mapping.
+- Added component-level fake-timer coverage for uncertainty hysteresis: transient uncertainty keeps showing the last stable state, sustained uncertainty shows the user-facing prompt, and reliable following recovers immediately.
 - Verified with:
   - `npm run typecheck` in `apps/customer-web`.
-  - `npm run test -- src/lib/practice/follow-controller.test.ts src/lib/practice/protocol.test.ts src/components/practice/practice-session-status.test.ts` -> 8 passed.
+  - `npm run test -- src/lib/practice/follow-controller.test.ts src/lib/practice/protocol.test.ts src/components/practice/practice-session-status.test.ts`.
 
 ## P4 - Add Explicit Practice Modes
 
@@ -546,6 +544,7 @@ P4 implementation status:
 - Runtime registration carries `practice_mode` into the alignment engine.
 - `FollowPolicy` is selected through a mode profile; only `FREE_FOLLOW` currently has product-ready behavior.
 - Non-Free-Follow session creation is rejected with a validation error until a mode has defined and tested behavior.
+- This phase is a contract and scaffolding change, not a claim that Wait For Note, Assessment, or Performance behavior has been implemented.
 - Verified with:
   - `ruff check` for changed backend practice/mode/protocol/runtime files and related tests.
   - `pytest tests/test_practice_service_access.py tests/test_practice_read_model.py tests/test_practice_api_smoke.py tests/test_practice_websocket_flow.py tests/test_practice_runtime_regressions.py::test_practice_runtime_registry_registers_and_releases_sessions tests/test_practice_runtime_regressions.py::test_practice_runtime_emits_ready_notification_once -q` -> 24 passed.
@@ -584,8 +583,9 @@ P5 implementation status:
 - Extended frontend `PracticeVisualTimelineEntry` with optional `eventId` and `groupId`.
 - Added `PracticeDisplayAnchor` handling in `PracticeVerovioAdapter`.
 - `PracticeFollowController` now resolves highlights from backend `decision.display_anchor` first.
-- If `display_anchor.render_note_ids` is present, those render IDs become the authoritative highlight set.
-- This lets backend score events/chords/two-hand groups drive visual highlighting instead of relying only on nearest beat lookup.
+- If `display_anchor.render_note_ids` is present, those render IDs are the authoritative render projection for the current Verovio highlight path.
+- Backend score groups/events remain the authoritative musical identity; render note IDs are only the concrete SVG anchors used by the current page.
+- This phase is the first visual-following semantics slice, not the full phrase/fingering/rhythm assessment model.
 - Extended backend `PracticeScoreTimeline` events with measure numbers and tie metadata.
 - Pure tie continuations are no longer marked as entry candidates, preventing sustained notes from becoming misleading next-entry prompts.
 - Added timeline coverage for exact-onset musical groups, measure metadata, and pure tie-continuation suppression.
@@ -598,7 +598,7 @@ P5 implementation status:
 
 ## P6 - Add Performance Input Abstraction and MIDI Readiness
 
-Goal: prepare the practice system for microphone, MIDI, and file replay without binding product logic to one input type.
+Goal: prepare the practice system for microphone and MIDI input without binding product logic to one raw input shape.
 
 Tasks:
 
@@ -608,7 +608,6 @@ Tasks:
 PerformanceInputSource
   -> AudioInputSource
   -> MidiInputSource
-  -> ReplayAudioInputSource
 ```
 
 2. Merge at the semantic observation layer.
@@ -628,7 +627,7 @@ Acceptance criteria:
 
 P6 implementation status:
 
-- Added `PracticeInputSource` with `MICROPHONE`, `MIDI`, and `REPLAY_AUDIO`.
+- Added `PracticeInputSource` with `MICROPHONE` and `MIDI`.
 - Added persisted `input_source` to `PracticeSession` plus Alembic migration `0042_practice_input_source`.
 - Added `input_source` to session creation request and session detail response.
 - The frontend creates practice sessions with `input_source=MICROPHONE`.
@@ -636,7 +635,8 @@ P6 implementation status:
 - The websocket validates `client.init.input_source` against the server-owned runtime source.
 - Runtime registration carries `input_source` into the alignment engine.
 - Matchmaker live alignment explicitly accepts only `MICROPHONE` input and fails clearly for unsupported sources.
-- MIDI and replay audio are represented in the contract but rejected until their adapters and normalized evidence path are implemented.
+- MIDI is represented in the API/database/runtime contract, but session creation still rejects it until the MIDI adapter and normalized evidence path are implemented.
+- File replay is intentionally kept as a test harness capability, not a product input source.
 - Verified with:
   - `ruff check` for changed backend input-source/protocol/runtime files and related tests.
   - `pytest tests/test_practice_service_access.py tests/test_practice_read_model.py tests/test_practice_api_smoke.py tests/test_practice_websocket_flow.py tests/test_practice_runtime_regressions.py::test_practice_runtime_registry_registers_and_releases_sessions tests/test_practice_runtime_regressions.py::test_practice_runtime_emits_ready_notification_once -q` -> 25 passed.
@@ -644,7 +644,6 @@ P6 implementation status:
   - `docker compose -f docker-compose.backend-dev.yml run --rm --no-deps --entrypoint python practice scripts/export_openapi.py practice-api`.
   - `npm run generate:practice-api-types` in `apps/customer-web`.
   - `npm run typecheck` in `apps/customer-web`.
-  - `npm run check:api-types` currently reports the expected uncommitted generated-file diff after contract regeneration; rerun it after committing generated API outputs.
 
 Note:
 

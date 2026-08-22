@@ -74,6 +74,9 @@ class PracticeSessionRuntime:
         self.pending_ready_notification = False
         return True
 
+    def reset_input_buffer(self) -> None:
+        self.engine.reset_input_buffer()
+
     @property
     def environment_quality(self) -> str:
         return str(getattr(self.engine, "environment_quality", "good"))
@@ -88,6 +91,7 @@ class PracticeSessionRuntime:
         self.pending_alignment_updates = 0
 
     def close(self) -> None:
+        self.reset_input_buffer()
         self.engine.close()
 
 

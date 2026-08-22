@@ -111,6 +111,57 @@
       }
     },
     {
+      "id": "wrong_c4_x4_then_once_again_restart",
+      "description": "Four repeated wrong C4 notes must not start the score, but the later correct Once Again restart should start.",
+      "frames": [
+        { "type": "wav", "path": "public_samples/piano_uiowa_mf_c4_16k.wav", "repeat": 4 },
+        { "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 16.3,
+        "start_seconds_max": 18.0,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "wrong_c4_x8_then_once_again_restart",
+      "description": "Eight repeated wrong C4 notes must not start the score, but the later correct Once Again restart should start.",
+      "frames": [
+        { "type": "wav", "path": "public_samples/piano_uiowa_mf_c4_16k.wav", "repeat": 8 },
+        { "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 32.3,
+        "start_seconds_max": 34.2,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
+      "id": "wrong_c4_x12_then_once_again_restart",
+      "description": "Twelve repeated wrong C4 notes must not start the score, but the later correct Once Again restart should start.",
+      "frames": [
+        { "type": "wav", "path": "public_samples/piano_uiowa_mf_c4_16k.wav", "repeat": 12 },
+        { "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 48.3,
+        "start_seconds_max": 50.5,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0
+      }
+    },
+    {
       "id": "once_again_chunk_256_samples",
       "description": "Once Again should start equivalently when transport chunking is smaller than the engine hop.",
       "chunk_size_samples": 256,

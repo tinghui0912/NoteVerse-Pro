@@ -37,7 +37,6 @@ class PracticeMode(str, enum.Enum):
 class PracticeInputSource(str, enum.Enum):
     MICROPHONE = "MICROPHONE"
     MIDI = "MIDI"
-    REPLAY_AUDIO = "REPLAY_AUDIO"
 
 
 class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]

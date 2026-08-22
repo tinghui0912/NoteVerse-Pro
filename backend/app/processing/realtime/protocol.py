@@ -23,7 +23,7 @@ class ClientInitPayload(_StrictModel):
     channels: int = Field(ge=1)
     frame_samples: int = Field(ge=1)
     practice_mode: Literal["FREE_FOLLOW", "WAIT_FOR_NOTE", "ASSESSMENT", "PERFORMANCE"]
-    input_source: Literal["MICROPHONE", "MIDI", "REPLAY_AUDIO"]
+    input_source: Literal["MICROPHONE", "MIDI"]
 
 
 class ClientTimestampPayload(_StrictModel):
