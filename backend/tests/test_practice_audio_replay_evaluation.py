@@ -158,6 +158,26 @@ def load_initial_alignment_replay_manifest() -> tuple[dict, Path]:
     return json.loads(manifest_path.read_text(encoding="utf-8")), manifest_path
 
 
+def load_continuous_follow_quality_manifest() -> tuple[dict, Path]:
+    manifest_path = (
+        Path(__file__).parent
+        / "fixtures"
+        / "practice_audio"
+        / "continuous_follow_quality_manifest.json"
+    )
+    return json.loads(manifest_path.read_text(encoding="utf-8")), manifest_path
+
+
+def load_once_again_performance_annotation() -> dict:
+    annotation_path = (
+        Path(__file__).parent
+        / "fixtures"
+        / "practice_audio"
+        / "once_again_performance_annotation.json"
+    )
+    return json.loads(annotation_path.read_text(encoding="utf-8"))
+
+
 def make_adapter(np, **overrides):
     queue = DummyQueue()
     defaults = {
@@ -275,6 +295,7 @@ def test_profile_replay_manifest_builds_finite_audio_frames() -> None:
     for manifest, manifest_path in [
         load_profile_replay_manifest(),
         load_initial_alignment_replay_manifest(),
+        load_continuous_follow_quality_manifest(),
     ]:
         frame_length = int(manifest["sample_rate"] / 30)
 
@@ -317,6 +338,70 @@ def test_initial_alignment_manifest_declares_phase_and_chunking_matrix() -> None
     assert scenarios["once_again_chunk_640_samples"]["chunk_size_samples"] == 640
 
 
+def test_continuous_follow_quality_manifest_declares_tracking_matrix() -> None:
+    manifest, _manifest_path = load_continuous_follow_quality_manifest()
+    scenarios = {scenario["id"]: scenario for scenario in manifest["scenarios"]}
+
+    assert {
+        "once_again_continuous_excerpt_tracks_reliably",
+        "once_again_continuous_selected_section_completes_at_range_end",
+        "once_again_continuous_selected_section_early_stop_does_not_complete",
+        "once_again_continuous_selected_section_outside_audio_does_not_start",
+        "once_again_continuous_later_section_completes_at_range_end",
+        "once_again_continuous_with_background_speech_tracks_reliably",
+        "once_again_continuous_tail_silence_does_not_pollute_phrase_quality",
+    } <= scenarios.keys()
+    selected_section = scenarios[
+        "once_again_continuous_selected_section_completes_at_range_end"
+    ]
+    assert selected_section["practice_scope_by_beat"] == {
+        "start_beat": 3.0,
+        "end_beat": 12.0,
+    }
+    assert selected_section["expect"]["scope_completed"] is True
+    assert selected_section["expect"]["completion_reason"] == "SCOPE_END_REACHED"
+    assert selected_section["expect"]["accepted_anchor_beat_min"] == 3.0
+    assert selected_section["expect"]["accepted_anchor_beat_max"] == 12.0
+    assert selected_section["expect"]["accepted_completion_must_reach_terminal_region"] is True
+    later_section = scenarios[
+        "once_again_continuous_later_section_completes_at_range_end"
+    ]
+    assert later_section["practice_scope_by_beat"] == {
+        "start_beat": 12.0,
+        "end_beat": 23.75,
+    }
+    assert later_section["frames"][0]["start_seconds"] == 7.55
+    assert later_section["expect"]["scope_completed"] is True
+    assert later_section["expect"]["completion_reason"] == "SCOPE_END_REACHED"
+    assert later_section["expect"]["accepted_anchor_beat_min"] == 12.0
+    assert later_section["expect"]["accepted_anchor_beat_max"] == 23.75
+    assert later_section["expect"]["accepted_completion_must_reach_terminal_region"] is True
+    early_stop = scenarios[
+        "once_again_continuous_selected_section_early_stop_does_not_complete"
+    ]
+    assert early_stop["expect"]["scope_completed"] is False
+    assert early_stop["expect"]["accepted_anchor_beat_max"] == 10.0
+    assert early_stop["expect"]["accepted_completion_beat"] is None
+    outside_audio = scenarios[
+        "once_again_continuous_selected_section_outside_audio_does_not_start"
+    ]
+    assert outside_audio["expect"]["starts"] is False
+    assert outside_audio["expect"]["scope_completed"] is False
+    assert outside_audio["expect"]["accepted_completion_beat"] is None
+    assert outside_audio["frames"][0]["start_seconds"] == 4.5
+    assert (
+        scenarios["once_again_continuous_tail_silence_does_not_pollute_phrase_quality"][
+            "frames"
+        ][-1]["type"]
+        == "silence"
+    )
+    for scenario in scenarios.values():
+        expect = scenario["expect"]
+        if expect["starts"]:
+            assert expect["max_lost_episodes"] == 0
+            assert expect["min_reliable_update_ratio"] >= 0.3
+
+
 def test_initial_alignment_scenario_audio_applies_offsets_and_armed_delay() -> None:
     import numpy as np
 
@@ -344,6 +429,196 @@ def test_initial_alignment_scenario_audio_applies_offsets_and_armed_delay() -> N
     assert delayed_audio.size == baseline_audio.size + 12 * sample_rate
     assert np.all(delayed_audio[: 12 * sample_rate] == 0)
     assert np.array_equal(delayed_audio[12 * sample_rate :], baseline_audio)
+
+
+def test_replay_scenario_audio_supports_explicit_silence_segments() -> None:
+    import numpy as np
+
+    from scripts.evaluate_practice_replay import scenario_audio
+
+    manifest, manifest_path = load_continuous_follow_quality_manifest()
+    sample_rate = int(manifest["sample_rate"])
+    scenario = {
+        "frames": [
+            { "type": "silence", "duration_seconds": 0.25 },
+        ],
+    }
+
+    audio = scenario_audio(manifest_path.parent, scenario, sample_rate)
+
+    assert audio.size == int(sample_rate * 0.25)
+    assert np.all(audio == 0)
+
+
+def test_replay_runner_resolves_beat_scope_to_current_expected_group_ids() -> None:
+    from app.processing.engines.practice_alignment.target_catalog import (
+        practice_target_catalog_from_musicxml,
+    )
+    from scripts.evaluate_practice_replay import resolve_practice_scope
+
+    backend_root = Path(__file__).parent.parent
+    score_path = backend_root / "data" / "work" / "storage-cache" / "scores" / (
+        "d18c0e98-1dfd-4102-b89c-4612fda238e0"
+    ) / "revisions" / "d59e78f7-3400-4bcc-b34b-96243ed9b4ad" / "score.musicxml"
+    catalog = practice_target_catalog_from_musicxml(score_path)
+    expected_by_beat = {target.onset_beat: target.group_id for target in catalog.targets}
+
+    scope = resolve_practice_scope(
+        score_path,
+        {
+            "practice_scope_by_beat": {
+                "start_beat": 3.0,
+                "end_beat": 12.0,
+            }
+        },
+    )
+
+    assert scope == {
+        "start_expected_group_id": expected_by_beat[3.0],
+        "end_expected_group_id": expected_by_beat[12.0],
+    }
+
+
+def test_once_again_selected_section_completion_uses_reference_terminal_region() -> None:
+    from scripts.evaluate_practice_replay import run_scenario
+
+    manifest, manifest_path = load_continuous_follow_quality_manifest()
+    backend_root = Path(__file__).parent.parent
+    score_path = backend_root / "data" / "work" / "storage-cache" / "scores" / (
+        "d18c0e98-1dfd-4102-b89c-4612fda238e0"
+    ) / "revisions" / "d59e78f7-3400-4bcc-b34b-96243ed9b4ad" / "score.musicxml"
+    scenario = next(
+        item
+        for item in manifest["scenarios"]
+        if item["id"] == "once_again_continuous_selected_section_completes_at_range_end"
+    )
+
+    result = run_scenario(
+        score_path=score_path,
+        fixture_root=manifest_path.parent,
+        scenario=scenario,
+        sample_rate=int(manifest["sample_rate"]),
+    )
+
+    assert result["scope_completed"] is True
+    assert result["reference_slice"]["start_beat"] == 3.0
+    assert result["reference_slice"]["end_beat"] == 12.0
+    assert result["reference_slice"]["terminal_region_start_beat"] is not None
+    assert result["reference_slice"]["frame_step_beat"] > 0.0
+    assert result["accepted_completion_beat"] >= result["reference_slice"]["terminal_region_start_beat"]
+    assert result["accepted_completion_beat"] <= result["reference_slice"]["end_beat"]
+
+
+def test_once_again_selected_section_completion_respects_performance_annotation() -> None:
+    from scripts.evaluate_practice_replay import run_scenario
+
+    manifest, manifest_path = load_continuous_follow_quality_manifest()
+    annotation = load_once_again_performance_annotation()
+    backend_root = Path(__file__).parent.parent
+    score_path = backend_root / "data" / "work" / "storage-cache" / "scores" / (
+        annotation["score_id"]
+    ) / "revisions" / annotation["revision_id"] / "score.musicxml"
+    scenarios = {item["id"]: item for item in manifest["scenarios"]}
+    annotations = {item["id"]: item for item in annotation["annotations"]}
+    cases = (
+        (
+            "once_again_continuous_selected_section_completes_at_range_end",
+            "selected_range_3_12_terminal",
+        ),
+        (
+            "once_again_continuous_later_section_completes_at_range_end",
+            "selected_range_12_23_75_terminal",
+        ),
+    )
+
+    for scenario_id, terminal_id in cases:
+        scenario = scenarios[scenario_id]
+        terminal = annotations[terminal_id]
+
+        result = run_scenario(
+            score_path=score_path,
+            fixture_root=manifest_path.parent,
+            scenario=scenario,
+            sample_rate=int(annotation["sample_rate"]),
+        )
+
+        accepted_completion_seconds = result["accepted_completion_seconds"]
+        source_start_seconds = float(scenario["frames"][0].get("start_seconds", 0.0))
+        assert accepted_completion_seconds is not None
+        source_completion_seconds = round(
+            source_start_seconds + accepted_completion_seconds,
+            3,
+        )
+        assert result["accepted_completion_beat"] == terminal["score_beat"]
+        assert source_completion_seconds >= (
+            terminal["performance_seconds"] - terminal["early_tolerance_seconds"]
+        )
+        assert source_completion_seconds <= (
+            terminal["performance_seconds"] + terminal["late_tolerance_seconds"]
+        )
+
+
+def test_replay_evaluator_checks_follow_quality_expectations() -> None:
+    from scripts.evaluate_practice_replay import evaluate_result
+
+    result = {
+        "error": None,
+        "started": True,
+        "start_seconds": 0.5,
+        "lost_frames": 3,
+        "lost_episodes": 2,
+        "lost_frame_ratio": 0.25,
+        "following_frame_ratio": 0.7,
+        "reliable_updates": 4,
+        "reliable_update_ratio": 0.2,
+        "time_to_first_reliable_alignment": 0.4,
+        "first_alignment_beat": 3.0,
+        "alignment_advance": 4.0,
+        "accepted_anchor_beat_min": 2.5,
+        "accepted_anchor_beat_max": 12.5,
+        "scope_completed": False,
+        "completion_reason": None,
+        "accepted_completion_beat": 11.8,
+        "reference_slice": {
+            "terminal_region_start_beat": 11.93,
+        },
+        "pause_checked": False,
+        "pause_emitted_updates": 0,
+        "resume_emitted_updates": 0,
+    }
+    expect = {
+        "starts": True,
+        "max_lost_frames": 0,
+        "max_lost_episodes": 0,
+        "max_lost_frame_ratio": 0.1,
+        "min_following_frame_ratio": 0.95,
+        "min_reliable_updates": 5,
+        "min_reliable_update_ratio": 0.3,
+        "max_time_to_first_reliable_alignment": 0.12,
+        "min_alignment_advance": 8.0,
+        "accepted_anchor_beat_min": 3.0,
+        "accepted_anchor_beat_max": 12.0,
+        "scope_completed": True,
+        "completion_reason": "FINAL_EXPECTED_GROUP_MATCHED",
+        "accepted_completion_beat_min": 11.93,
+        "accepted_completion_beat_max": 12.0,
+        "accepted_completion_must_reach_terminal_region": True,
+    }
+
+    failures = evaluate_result(result, expect)
+
+    assert "lost_frames=3 above maximum" in failures
+    assert "lost_episodes=2 above maximum" in failures
+    assert "lost_frame_ratio=0.25 above maximum" in failures
+    assert "following_frame_ratio=0.7 below minimum" in failures
+    assert "reliable_updates=4 below minimum" in failures
+    assert "reliable_update_ratio=0.2 below minimum" in failures
+    assert "time_to_first_reliable_alignment=0.4 above maximum" in failures
+    assert "alignment_advance=4.0 below minimum" in failures
+    assert "accepted_anchor_beat_min=2.5 below minimum" in failures
+    assert "accepted_anchor_beat_max=12.5 above maximum" in failures
+    assert "accepted_completion_beat=11.8 before terminal_region_start_beat=11.93" in failures
+    assert "scope_completed=False expected=True" in failures
 
 
 def test_replay_weak_sustain_keeps_following_before_decay_window_expires() -> None:

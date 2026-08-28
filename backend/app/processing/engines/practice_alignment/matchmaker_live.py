@@ -3,6 +3,7 @@ from __future__ import annotations
 import queue
 import threading
 from pathlib import Path
+from typing import Literal
 
 from app.core.settings.practice_runtime import get_practice_runtime_settings
 from app.core.logger import logger
@@ -14,9 +15,31 @@ from app.processing.engines.practice_alignment.alignment_metrics import (
     continuity_state,
     validation_confidence_ceiling,
 )
-from app.processing.engines.practice_alignment.browser_audio_stream import BrowserAudioStreamAdapter, EnvironmentQuality
-from app.processing.engines.practice_alignment.contracts import AlignmentEngine, AlignmentUpdate
-from app.processing.engines.practice_alignment.follow_policy import follow_policy_for_mode
+from app.processing.engines.practice_alignment.acoustic_event_observation import AcousticEventObserver
+from app.processing.engines.practice_alignment.attempt_assembler import (
+    PracticeAttemptAssembler,
+    ResolvedPracticeAttempt,
+    ResolvedPracticeAttemptBuffer,
+    attach_attempt_outcome,
+)
+from app.processing.engines.practice_alignment.browser_audio_stream import BrowserAudioStreamAdapter
+from app.processing.engines.practice_alignment.contracts import (
+    AlignmentEngine,
+    AlignmentUpdate,
+    CompletionReason,
+    InputHealth,
+)
+from app.processing.engines.practice_alignment.expected_event_evaluator import EvaluatorEvidence
+from app.processing.engines.practice_alignment.expected_group_attempt_accumulator import (
+    ExpectedGroupAttemptAccumulator,
+)
+from app.processing.engines.practice_alignment.follow_policy import (
+    ResolvedContinuousScope,
+    follow_policy_for_progression,
+)
+from app.processing.engines.practice_alignment.musicxml_stable_ids import (
+    prepared_musicxml_path_for_practice,
+)
 from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
 from app.processing.engines.practice_alignment.reference_runtime import (
     build_audio_processor,
@@ -24,7 +47,9 @@ from app.processing.engines.practice_alignment.reference_runtime import (
     generate_score_audio,
     normalize_audio_waveform,
 )
-from app.processing.engines.practice_alignment.reference_features import trim_to_playable_start
+from app.processing.engines.practice_alignment.reference_features import (
+    slice_reference_timeline,
+)
 from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
 from app.processing.engines.practice_alignment.stream_state import (
     STREAM_STATE_HOLDING_DECAY,
@@ -42,8 +67,12 @@ class MatchmakerLiveEngine:
         sample_rate: int,
         channels: int,
         frame_format: str,
-        practice_mode: str = "FREE_FOLLOW",
+        progression_mode: str = "CONTINUOUS",
+        realtime_guidance: str = "STATUS_ONLY",
+        evaluation_profile: str = "PERFORMANCE",
         input_source: str = "MICROPHONE",
+        start_expected_group_id: str | None = None,
+        end_expected_group_id: str | None = None,
     ) -> None:
         if input_source != "MICROPHONE":
             raise RuntimeError(
@@ -88,7 +117,9 @@ class MatchmakerLiveEngine:
         self.sample_rate = sample_rate
         self.channels = channels
         self.frame_format = frame_format
-        self.practice_mode = practice_mode
+        self.progression_mode = progression_mode
+        self.realtime_guidance = realtime_guidance
+        self.evaluation_profile = evaluation_profile
         self.input_source = input_source
         self.total_bytes = 0
         self._last_beat_position: float | None = None
@@ -105,24 +136,55 @@ class MatchmakerLiveEngine:
         self._alignment_decision_log_count = 0
         self._start_alignment_emitted = False
         self._pending_audio = np.array([], dtype=np.float32)
+        self._acoustic_observer = AcousticEventObserver()
+        self._wait_for_note_attempt_assembler = PracticeAttemptAssembler()
+        self._resolved_practice_attempts = ResolvedPracticeAttemptBuffer()
+        self._wait_for_note_attempt = ExpectedGroupAttemptAccumulator(
+            observer=self._acoustic_observer,
+            lifecycle=self._wait_for_note_attempt_assembler.lifecycle,
+            sample_rate=sample_rate,
+            np_module=np,
+            window_samples=int(sample_rate * 0.5),
+            collection_frames=3,
+            release_frame_threshold=2,
+        )
 
         profile = DEFAULT_PRACTICE_AUDIO_PROFILE
-        self.score_part = partitura.load_score_as_part(self.score_file_path)
-        self._note_array = self.score_part.note_array()
-        self.score_timeline = PracticeScoreTimeline.from_note_array(
-            self._note_array,
-            musicxml_path=self.score_file_path,
-        )
+        with prepared_musicxml_path_for_practice(self.score_file_path) as prepared_path:
+            self.score_part = partitura.load_score_as_part(str(prepared_path))
+            self._note_array = self.score_part.note_array()
+            self.score_timeline = PracticeScoreTimeline.from_note_array(
+                self._note_array,
+                musicxml_path=prepared_path,
+            )
         if self.score_timeline.first_playable_beat is None:
             raise RuntimeError("Practice score timeline contains no playable events.")
-        self._score_start_beat = self.score_timeline.first_playable_beat
-        self._score_end_beat = self.score_timeline.end_beat
+        self._continuous_scope = ResolvedContinuousScope(
+            start_expected_group_id=start_expected_group_id,
+            end_expected_group_id=end_expected_group_id,
+        )
+        self._follow_policy = follow_policy_for_progression(
+            self.score_timeline,
+            progression_mode=progression_mode,
+            input_source=input_source,
+            start_expected_group_id=start_expected_group_id,
+            end_expected_group_id=end_expected_group_id,
+            continuous_scope=self._continuous_scope,
+        )
+        self._scope_start_beat = getattr(self._follow_policy, "scope_start_beat", None)
+        self._scope_end_beat = getattr(self._follow_policy, "scope_end_beat", None)
+        self._score_start_beat = (
+            self._scope_start_beat
+            if self._scope_start_beat is not None
+            else self.score_timeline.first_playable_beat
+        )
+        self._score_end_beat = (
+            self._scope_end_beat
+            if self._scope_end_beat is not None
+            else self.score_timeline.end_beat
+        )
         self._startup_entry_beats = self._initial_entry_region_beats(
             width_beats=profile.startup_entry_region_beats,
-        )
-        self._follow_policy = follow_policy_for_mode(
-            self.score_timeline,
-            practice_mode=practice_mode,
         )
         self._pending_start_anchor_beat: float | None = None
         self.tempo = DEFAULT_TEMPO_BPM
@@ -174,13 +236,29 @@ class MatchmakerLiveEngine:
         if hasattr(self._processor, "reset"):
             self._processor.reset()
         ref_frame_to_beat = self._build_ref_frame_to_beat(reference_features)
-        self._reference_features, self._ref_frame_to_beat = trim_to_playable_start(
+        self._reference_slice = slice_reference_timeline(
             reference_features,
             ref_frame_to_beat,
             score_start_beat=self._score_start_beat,
+            scope_start_beat=self._scope_start_beat,
+            scope_end_beat=self._scope_end_beat,
             np=self._np,
         )
-        self._reference_end_beat = float(self._ref_frame_to_beat[-1])
+        self._reference_features = self._reference_slice.features
+        self._ref_frame_to_beat = self._reference_slice.frame_to_beat
+        if self._ref_frame_to_beat.size == 0:
+            raise RuntimeError("Selected practice range contains no reference frames.")
+        self._continuous_scope = self._resolve_continuous_scope()
+        self._terminal_reference_region_start_beat = (
+            self._continuous_scope.terminal_reference_region_start_beat
+        )
+        if self.progression_mode == "CONTINUOUS":
+            self._follow_policy = follow_policy_for_progression(
+                self.score_timeline,
+                progression_mode=progression_mode,
+                input_source=input_source,
+                continuous_scope=self._continuous_scope,
+            )
         self._stream.start_feature_validator = self._is_valid_start_feature
         self._stream.start_feature_scorer = self._score_start_feature
         self._score_follower = build_score_follower(
@@ -219,10 +297,33 @@ class MatchmakerLiveEngine:
                 latest_update = update
         return latest_update
 
+    def ingest_midi_event(
+        self,
+        *,
+        event_type: Literal["note_on", "note_off"],
+        note_number: int,
+        velocity: int,
+        timestamp_ms: int,
+    ) -> AlignmentUpdate | None:
+        _ = (event_type, note_number, velocity, timestamp_ms)
+        raise RuntimeError("Microphone practice sessions do not accept MIDI events.")
+
     def reset_input_buffer(self) -> None:
         self._pending_audio = self._np.array([], dtype=self._np.float32)
+        attempt = getattr(self, "_wait_for_note_attempt", None)
+        if attempt is not None:
+            attempt.reset()
 
     def _ingest_audio_frame(self, audio_frame) -> AlignmentUpdate | None:
+        if getattr(self, "progression_mode", "CONTINUOUS") == "WAIT_FOR_NOTE":
+            self._stream.ingest(audio_frame)
+            if not self._stream.armed:
+                return None
+            update = self._wait_for_note_update(audio_frame)
+            if update is None or update["decision"]["reason"] == "insufficient_input":
+                return None
+            return update
+
         if not self._stream.ingest(audio_frame):
             return None
         if not self._stream.ready_to_start:
@@ -244,13 +345,233 @@ class MatchmakerLiveEngine:
             latest = self._with_current_audio_state(latest)
         return latest
 
+    def _wait_for_note_update(
+        self,
+        audio_frame,
+    ) -> AlignmentUpdate | None:
+        follow_policy = getattr(self, "_follow_policy", None)
+        if follow_policy is None:
+            return None
+
+        current_group = follow_policy.current_expected_group
+        if current_group is None:
+            decision = follow_policy.decide(self._wait_for_note_base_update(self._score_end_beat))
+            return self._wait_for_note_alignment_update(
+                beat_position=self._score_end_beat,
+                confidence=1.0,
+                scope_completed=True,
+                decision=decision,
+            )
+
+        observation = self._wait_for_note_attempt.observe_frame(
+            audio_frame,
+            candidate_signal=self._wait_for_note_candidate_signal(),
+            onset_beat=current_group.onset_beat,
+            expected_group_id=current_group.group_id,
+            timestamp_ms=self._timestamp_ms(),
+        )
+        if observation is None:
+            decision = follow_policy.decide(self._wait_for_note_base_update(current_group.onset_beat))
+            return self._wait_for_note_alignment_update(
+                beat_position=current_group.onset_beat,
+                confidence=0.0,
+                scope_completed=False,
+                decision=decision,
+            )
+
+        evidence = EvaluatorEvidence.from_audio(observation)
+        evaluation = follow_policy.evaluate_evidence(evidence)
+        outcome = None
+        if self._wait_for_note_attempt.last_resolved_attempt is not None:
+            outcome = self._wait_for_note_attempt_assembler.resolve(
+                evaluation,
+                timestamp_ms=self._wait_for_note_attempt.last_resolved_attempt.resolved_at_ms or self._timestamp_ms(),
+            )
+        decision = follow_policy.decide_evaluation(evidence=evidence, evaluation=evaluation)
+        attach_attempt_outcome(decision, outcome)
+        display_anchor = decision["display_anchor"]
+        beat_position = current_group.onset_beat if display_anchor is None else float(display_anchor["beat"])
+        update = self._wait_for_note_alignment_update(
+            beat_position=beat_position,
+            confidence=observation.confidence,
+            scope_completed=follow_policy.current_expected_group is None,
+            decision=decision,
+        )
+        self._resolved_practice_attempts.append_for_expected_group(
+            outcome=outcome,
+            action=decision["action"],
+            resolution_reason=decision["reason"],
+            experience_state=decision["experience_state"],
+            expected_group=current_group,
+            update_confidence=update["confidence"],
+            update_timestamp_ms=update["timestamp_ms"],
+            validation_confidence=update.get("validation_confidence"),
+            input_policy_confidence=update.get("input_policy_confidence"),
+        )
+        return update
+
+    def drain_resolved_practice_attempts(self) -> list[ResolvedPracticeAttempt]:
+        return self._resolved_practice_attempts.drain()
+
+    def finalize_pending_practice_attempt(
+        self,
+        *,
+        reason: Literal["practice_paused", "practice_finished", "connection_closed"],
+    ) -> list[ResolvedPracticeAttempt]:
+        follow_policy = getattr(self, "_follow_policy", None)
+        if follow_policy is None or not hasattr(follow_policy, "current_expected_group"):
+            self.reset_input_buffer()
+            return self.drain_resolved_practice_attempts()
+
+        current_group = follow_policy.current_expected_group
+        if current_group is None:
+            self.reset_input_buffer()
+            return self.drain_resolved_practice_attempts()
+
+        timestamp_ms = self._timestamp_ms()
+        observation = self._wait_for_note_attempt.finalize_pending(
+            onset_beat=current_group.onset_beat,
+            timestamp_ms=timestamp_ms,
+        )
+        if observation is None:
+            self.reset_input_buffer()
+            return self.drain_resolved_practice_attempts()
+
+        evidence = EvaluatorEvidence.from_audio(observation)
+        evaluation = follow_policy.evaluate_evidence(evidence)
+        outcome = self._wait_for_note_attempt_assembler.resolve(
+            evaluation,
+            timestamp_ms=timestamp_ms,
+        )
+        update = self._wait_for_note_alignment_update(
+            beat_position=current_group.onset_beat,
+            confidence=observation.confidence,
+            scope_completed=False,
+            decision=follow_policy.decide(self._wait_for_note_base_update(current_group.onset_beat)),
+        )
+        self._resolved_practice_attempts.append_for_expected_group(
+            outcome=outcome,
+            action="hold",
+            resolution_reason=reason,
+            experience_state="paused",
+            expected_group=current_group,
+            update_confidence=update["confidence"],
+            update_timestamp_ms=update["timestamp_ms"],
+            validation_confidence=update.get("validation_confidence"),
+            input_policy_confidence=update.get("input_policy_confidence"),
+        )
+        self.reset_input_buffer()
+        return self.drain_resolved_practice_attempts()
+
+    def _reset_wait_for_note_event(self) -> None:
+        self._wait_for_note_attempt.reset()
+
+    def _clear_wait_for_note_audio(self) -> None:
+        self._wait_for_note_attempt.clear_audio()
+
+    def _wait_for_note_candidate_signal(self) -> bool:
+        if getattr(self._stream, "last_onset_signal", False):
+            return True
+
+        rms_gate = min(
+            getattr(self._stream, "start_rms_gate", 0.025) * 0.5,
+            getattr(self._stream, "rms_gate", 0.015) * 0.75,
+        )
+        peak_gate = min(
+            getattr(self._stream, "start_peak_gate", 0.06) * 0.55,
+            getattr(self._stream, "peak_gate", 0.06) * 0.75,
+        )
+        return (
+            getattr(self._stream, "last_rms", 0.0) >= rms_gate
+            or getattr(self._stream, "last_peak", 0.0) >= peak_gate
+        )
+
+    def _wait_for_note_base_update(self, beat_position: float) -> AlignmentUpdate:
+        return {
+            "beat_position": round(beat_position, 3),
+            "confidence": 0.0,
+            "alignment_confidence": 0.0,
+            "audio_confidence": 0.0,
+            "continuity_confidence": 1.0,
+            "visual_confidence": 0.0,
+            "timestamp_ms": self._timestamp_ms(),
+            "scope_completed": False,
+            "completion_reason": None,
+            "audio_active": self._stream.last_audio_active,
+            "input_rms": round(self._stream.last_rms, 5),
+            "input_peak": round(self._stream.last_peak, 5),
+            "input_health": self._stream.input_health,
+            "match_state": "matched" if self._stream.last_audio_active else "no_input",
+        }
+
+    def _wait_for_note_alignment_update(
+        self,
+        *,
+        beat_position: float,
+        confidence: float,
+        scope_completed: bool,
+        decision,
+    ) -> AlignmentUpdate:
+        previous_beat_position = self._last_beat_position
+        previous_timestamp_ms = getattr(self, "_last_alignment_timestamp_ms", None)
+        timestamp_ms = self._timestamp_ms()
+        beat_delta = (
+            None
+            if previous_beat_position is None
+            else round(beat_position - previous_beat_position, 3)
+        )
+        self._last_beat_position = beat_position
+        self._last_alignment_timestamp_ms = timestamp_ms
+        confidence = round(confidence, 3)
+        match_state = "matched" if self._stream.last_audio_active else "no_input"
+        return {
+            "beat_position": round(beat_position, 3),
+            "confidence": confidence,
+            "alignment_confidence": confidence,
+            "audio_confidence": confidence,
+            "continuity_confidence": 1.0,
+            "visual_confidence": confidence,
+            "timestamp_ms": timestamp_ms,
+            "scope_completed": scope_completed,
+            "completion_reason": (
+                "FINAL_EXPECTED_GROUP_MATCHED" if scope_completed else None
+            ),
+            "audio_active": self._stream.last_audio_active,
+            "input_rms": round(self._stream.last_rms, 5),
+            "input_peak": round(self._stream.last_peak, 5),
+            "input_health": self._stream.input_health,
+            "match_state": match_state,
+            "feature_confidence": confidence,
+            "beat_delta": beat_delta,
+            "continuity_state": continuity_state(beat_delta),
+            "beat_velocity": beat_velocity(
+                beat_delta=beat_delta,
+                timestamp_ms=timestamp_ms,
+                previous_timestamp_ms=previous_timestamp_ms,
+            ),
+            "stream_state": self._stream.stream_state,
+            "frame_class": getattr(self._stream, "last_frame_class", "unknown"),
+            "gate_reason": getattr(self._stream, "last_gate_reason", "unknown"),
+            "queue_decision": getattr(self._stream, "last_queue_decision", "unknown"),
+            "tonal_signal": getattr(self._stream, "last_tonal_signal", False),
+            "onset_signal": getattr(self._stream, "last_onset_signal", False),
+            "spectral_flatness": round(getattr(self._stream, "last_spectral_flatness", 1.0), 5),
+            "peak_prominence": round(getattr(self._stream, "last_peak_prominence", 0.0), 2),
+            "spectral_flux": round(getattr(self._stream, "last_spectral_flux", 0.0), 5),
+            "alignment_state": "matched" if confidence >= 0.75 else "uncertain",
+            "validation_confidence": confidence,
+            "input_weight": round(getattr(self._stream, "last_input_weight", 0.0), 3),
+            "input_policy_confidence": round(getattr(self._stream, "last_input_policy_confidence", confidence), 3),
+            "decision": decision,
+        }
+
     @property
     def is_ready_for_performance(self) -> bool:
         return self._stream.armed
 
     @property
-    def environment_quality(self) -> EnvironmentQuality:
-        return self._stream.environment_quality
+    def input_health(self) -> InputHealth:
+        return self._stream.input_health
 
     def close(self) -> None:
         self._closed.set()
@@ -292,9 +613,9 @@ class MatchmakerLiveEngine:
                         raw_beat=round(float(beat_position), 2),
                         beat=round(alignment["beat_position"], 2),
                         confidence=round(alignment["confidence"], 2),
-                        completed=alignment["score_completed"],
+                        completed=alignment["scope_completed"],
                     ).info("Practice alignment update")
-                if alignment["score_completed"]:
+                if alignment["scope_completed"]:
                     self._follower_finished = True
                     break
             else:
@@ -322,6 +643,23 @@ class MatchmakerLiveEngine:
         return self._np.array(
             [self._frame_to_beat(frame_index) for frame_index in range(frame_count)],
             dtype=self._np.float32,
+        )
+
+    def _resolve_continuous_scope(self) -> ResolvedContinuousScope:
+        return ResolvedContinuousScope(
+            start_expected_group_id=getattr(
+                self._continuous_scope,
+                "start_expected_group_id",
+                None,
+            ),
+            end_expected_group_id=getattr(
+                self._continuous_scope,
+                "end_expected_group_id",
+                None,
+            ),
+            terminal_reference_region_start_beat=(
+                self._reference_slice.terminal_region_start_beat
+            ),
         )
 
     def _frame_to_beat(self, current_frame: int) -> float:
@@ -357,10 +695,12 @@ class MatchmakerLiveEngine:
             "continuity_confidence": continuity_confidence,
             "visual_confidence": confidence,
             "timestamp_ms": timestamp_ms,
-            "score_completed": self._score_completed(beat_position),
+            "scope_completed": self._scope_completed(beat_position),
+            "completion_reason": self._continuous_completion_reason(beat_position),
             "audio_active": True,
             "input_rms": 0.0,
             "input_peak": 0.0,
+            "input_health": self._stream.input_health,
             "match_state": "matched",
             "feature_confidence": 1.0,
             "beat_delta": beat_delta,
@@ -415,6 +755,7 @@ class MatchmakerLiveEngine:
             "audio_active": self._stream.last_audio_active,
             "input_rms": round(self._stream.last_rms, 5),
             "input_peak": round(self._stream.last_peak, 5),
+            "input_health": self._stream.input_health,
             "match_state": match_state,
             "feature_confidence": round(feature_confidence, 3),
             "stream_state": self._stream.stream_state,
@@ -442,6 +783,11 @@ class MatchmakerLiveEngine:
         follow_policy = getattr(self, "_follow_policy", None)
         if follow_policy is not None:
             update["decision"] = follow_policy.decide(update)
+            if getattr(follow_policy, "scope_end_beat", None) is not None:
+                update["scope_completed"] = bool(update["decision"].get("scope_completed", False))
+                update["completion_reason"] = (
+                    "SCOPE_END_REACHED" if update["scope_completed"] else None
+                )
         if self._should_log_alignment_decision():
             logger.bind(
                 event="practice_alignment.decision",
@@ -488,19 +834,13 @@ class MatchmakerLiveEngine:
         return self._score_start_feature(feature_vector) >= 0.7
 
     def _score_start_feature(self, feature_vector) -> float:
-        best_beat = self._score_start_beat
-        best_score = 0.0
-        for beat_position in getattr(self, "_startup_entry_beats", (self._score_start_beat,)):
-            score = self._feature_confidence_for_beat(
-                beat_position,
-                current_feature=feature_vector,
-                missing_confidence=0.0,
-            )
-            if score > best_score:
-                best_beat = beat_position
-                best_score = score
-        self._pending_start_anchor_beat = best_beat if best_score >= 0.7 else None
-        return best_score
+        score = self._feature_confidence_for_beat(
+            self._score_start_beat,
+            current_feature=feature_vector,
+            missing_confidence=0.0,
+        )
+        self._pending_start_anchor_beat = self._score_start_beat if score >= 0.7 else None
+        return score
 
     def _feature_confidence_for_beat(
         self,
@@ -570,9 +910,23 @@ class MatchmakerLiveEngine:
             return 0.7
         return 0.95
 
-    def _score_completed(self, beat_position: float) -> bool:
-        end_beat = self._reference_end_beat or self._score_end_beat
-        return end_beat > 0 and beat_position >= end_beat - 0.25
+    def _scope_completed(self, beat_position: float) -> bool:
+        terminal_start = getattr(self, "_terminal_reference_region_start_beat", None)
+        if terminal_start is None:
+            reference_slice = getattr(self, "_reference_slice", None)
+            terminal_start = (
+                reference_slice.terminal_region_start_beat
+                if reference_slice is not None
+                else self._score_end_beat
+            )
+        return terminal_start > 0 and beat_position >= terminal_start
+
+    def _continuous_completion_reason(self, beat_position: float) -> CompletionReason | None:
+        if not self._scope_completed(beat_position):
+            return None
+        if self._scope_end_beat is not None:
+            return "SCOPE_END_REACHED"
+        return "FULL_SCORE_END_REACHED"
 
     def _initial_entry_region_beats(self, *, width_beats: float) -> tuple[float, ...]:
         entry_beats = tuple(
@@ -614,14 +968,22 @@ def build_alignment_engine(
     sample_rate: int,
     channels: int,
     frame_format: str,
-    practice_mode: str = "FREE_FOLLOW",
+    progression_mode: str = "CONTINUOUS",
+    realtime_guidance: str = "STATUS_ONLY",
+    evaluation_profile: str = "PERFORMANCE",
     input_source: str = "MICROPHONE",
+    start_expected_group_id: str | None = None,
+    end_expected_group_id: str | None = None,
 ) -> AlignmentEngine:
     return MatchmakerLiveEngine(
         score_file_path=score_file_path,
         sample_rate=sample_rate,
         channels=channels,
         frame_format=frame_format,
-        practice_mode=practice_mode,
+        progression_mode=progression_mode,
+        realtime_guidance=realtime_guidance,
+        evaluation_profile=evaluation_profile,
         input_source=input_source,
+        start_expected_group_id=start_expected_group_id,
+        end_expected_group_id=end_expected_group_id,
     )

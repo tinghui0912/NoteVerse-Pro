@@ -7,16 +7,33 @@ import {
   PCM_FRAME_FORMAT,
   PCM_SAMPLE_RATE,
 } from '@/lib/practice/audio-stream';
-import type { PracticeSessionDetailRead, PracticeSessionState } from '@/generated/practice-api';
+import { practicePolicyForPreset, type PracticeSessionPreset } from '@/lib/practice/session-policy';
+import type {
+  PracticeInputSource,
+  PracticeSessionCompletionOutcomeRead,
+  PracticeSessionDetailRead,
+  PracticeSessionScope,
+  PracticeSessionState,
+} from '@/generated/practice-api';
 
 interface UsePracticeSessionOptions {
   scoreId: string;
   revisionId?: string;
+  preset: PracticeSessionPreset;
+  inputSource: PracticeInputSource;
+  practiceScope?: PracticeSessionScope | null;
 }
 
-export function usePracticeSession({ scoreId, revisionId }: UsePracticeSessionOptions) {
+export function usePracticeSession({
+  scoreId,
+  revisionId,
+  preset,
+  inputSource,
+  practiceScope,
+}: UsePracticeSessionOptions) {
   const [session, setSession] = useState<PracticeSessionDetailRead | null>(null);
   const detailRef = useRef<PracticeSessionDetailRead | null>(null);
+  const versionRef = useRef(0);
 
   const sync = useCallback((detail: PracticeSessionDetailRead) => {
     detailRef.current = detail;
@@ -25,19 +42,21 @@ export function usePracticeSession({ scoreId, revisionId }: UsePracticeSessionOp
   }, []);
 
   const clear = useCallback(() => {
+    versionRef.current += 1;
     detailRef.current = null;
     setSession(null);
   }, []);
 
   const create = useCallback(async () => {
+    const version = versionRef.current;
     const response = await practiceApi.createPracticeSession({
       score_id: scoreId,
       revision_id: revisionId,
       sample_rate: PCM_SAMPLE_RATE,
       channels: PCM_CHANNELS,
       frame_format: PCM_FRAME_FORMAT,
-      practice_mode: 'FREE_FOLLOW',
-      input_source: 'MICROPHONE',
+      practice_scope: practiceScope ?? undefined,
+      ...practicePolicyForPreset(preset, inputSource),
     });
     if (!response.data?.session_id || !response.data.ws_url) {
       throw new Error('Practice session creation failed.');
@@ -46,8 +65,11 @@ export function usePracticeSession({ scoreId, revisionId }: UsePracticeSessionOp
     if (!detailResponse.data) {
       throw new Error('Practice session details are unavailable.');
     }
+    if (version !== versionRef.current) {
+      return null;
+    }
     return { detail: sync(detailResponse.data), wsUrl: response.data.ws_url };
-  }, [revisionId, scoreId, sync]);
+  }, [inputSource, practiceScope, preset, revisionId, scoreId, sync]);
 
   const runRestControl = useCallback(
     async (action: 'pause' | 'resume' | 'finish', sessionId = detailRef.current?.session_id) => {
@@ -77,8 +99,39 @@ export function usePracticeSession({ scoreId, revisionId }: UsePracticeSessionOp
     });
   }, []);
 
+  const updateFinished = useCallback(
+    (
+      state: PracticeSessionState,
+      completionOutcome: PracticeSessionCompletionOutcomeRead
+    ) => {
+      setSession((current) => {
+        if (!current) {
+          return current;
+        }
+        const next = {
+          ...current,
+          state,
+          completion_outcome: completionOutcome,
+        };
+        detailRef.current = next;
+        return next;
+      });
+    },
+    []
+  );
+
   const getDetail = useCallback(() => detailRef.current, []);
   const getSessionId = useCallback(() => detailRef.current?.session_id ?? null, []);
 
-  return { clear, create, getDetail, getSessionId, runRestControl, session, sync, updateState };
+  return {
+    clear,
+    create,
+    getDetail,
+    getSessionId,
+    runRestControl,
+    session,
+    sync,
+    updateFinished,
+    updateState,
+  };
 }

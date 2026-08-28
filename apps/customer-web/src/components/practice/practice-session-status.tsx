@@ -11,15 +11,22 @@ import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
 type PracticeStatusMessageKey =
   | 'preparingPractice'
   | 'preparingToPlay'
+  | 'finishingPractice'
   | 'waitingForFirstNote'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
   | 'settingStatusReady'
   | 'practiceStateHeardUncertain'
+  | 'practiceStatePartiallyMatched'
   | 'practiceStateWaitingCorrectNote'
   | 'practiceStateFindingPlace';
 
-type PracticeInputHintKey = 'practiceInputCheckMic' | 'practiceInputClipping' | null;
+type PracticeInputHintKey =
+  | 'practiceInputCheckMic'
+  | 'practiceInputClipping'
+  | 'practiceInputNoiseElevated'
+  | 'practiceInputNoiseHigh'
+  | null;
 
 type PracticeSessionStatusView = {
   messageKey: PracticeStatusMessageKey;
@@ -73,7 +80,7 @@ export function resolvePracticeSessionStatusView({
     canPrepareSession &&
     audioWorkletSupported &&
     !isLoading &&
-    (isPreparingSession || connectionStatus !== 'ready');
+    (isPreparingSession || connectionStatus === 'connecting');
 
   if (isPreparingConnection) {
     return {
@@ -87,6 +94,15 @@ export function resolvePracticeSessionStatusView({
   if (isPreparing) {
     return {
       messageKey: 'preparingToPlay',
+      inputHintKey: null,
+      pending: true,
+      uncertain: false,
+    };
+  }
+
+  if (status === 'finishing') {
+    return {
+      messageKey: 'finishingPractice',
       inputHintKey: null,
       pending: true,
       uncertain: false,
@@ -132,6 +148,15 @@ export function resolvePracticeSessionStatusView({
     };
   }
 
+  if (experienceState === 'partially_matched') {
+    return {
+      messageKey: 'practiceStatePartiallyMatched',
+      inputHintKey,
+      pending: false,
+      uncertain: false,
+    };
+  }
+
   if (experienceState === 'possible_wrong_note') {
     return {
       messageKey: 'practiceStateWaitingCorrectNote',
@@ -164,14 +189,17 @@ function inputHintForAlignment(
   if (!alignment) {
     return null;
   }
-  if (alignment.input_peak >= 0.98) {
+  if (!alignment.input_health.available || alignment.input_health.level === 'too_quiet') {
+    return 'practiceInputCheckMic';
+  }
+  if (alignment.input_health.level === 'clipping') {
     return 'practiceInputClipping';
   }
-  if (
-    alignment.decision.experience_state === 'waiting_for_input' &&
-    alignment.input_rms < 0.003
-  ) {
-    return 'practiceInputCheckMic';
+  if (alignment.input_health.noise === 'high') {
+    return 'practiceInputNoiseHigh';
+  }
+  if (alignment.input_health.noise === 'elevated') {
+    return 'practiceInputNoiseElevated';
   }
   return null;
 }

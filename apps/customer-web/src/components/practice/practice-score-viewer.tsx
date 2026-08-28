@@ -3,18 +3,11 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, Maximize, Minimize, Settings } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
-import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { PracticeFollowController } from '@/lib/practice/follow-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
@@ -23,11 +16,7 @@ import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
 
 type PracticeScoreViewerProps = {
   className?: string;
-  bottomControls?: ReactNode;
   sessionStatus?: ReactNode;
-  isMaximized: boolean;
-  onOpenSettings: () => void;
-  onToggleMaximize: () => void;
   xmlContent: string | null;
   isLoadingXml: boolean;
   practiceStatus:
@@ -37,29 +26,46 @@ type PracticeScoreViewerProps = {
     | 'listening'
     | 'practicing'
     | 'paused'
+    | 'finishing'
     | 'finished';
   alignment?: PracticeAlignmentUpdateMessage['payload'] | null;
+  selectedRangeRenderNoteIds?: readonly string[];
+  selectedRangeStartRenderNoteIds?: readonly string[];
+  selectedRangeEndRenderNoteIds?: readonly string[];
+  onRenderNoteClick?: (renderNoteId: string) => void;
 };
 
 export function PracticeScoreViewer({
   className,
-  bottomControls = null,
   sessionStatus = null,
-  isMaximized,
-  onOpenSettings,
-  onToggleMaximize,
   xmlContent,
   isLoadingXml,
   practiceStatus,
   alignment = null,
+  selectedRangeRenderNoteIds = [],
+  selectedRangeStartRenderNoteIds = [],
+  selectedRangeEndRenderNoteIds = [],
+  onRenderNoteClick,
 }: PracticeScoreViewerProps) {
   const isMobile = useIsMobile();
-  const t = useTranslations('common');
   const tPractice = useTranslations('practice');
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const followController = useMemo(() => new PracticeFollowController(), []);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const rangeSelectionCss = useMemo(
+    () =>
+      [
+        rangeNoteStyleRules(selectedRangeRenderNoteIds, 'range'),
+        rangeNoteStyleRules(selectedRangeStartRenderNoteIds, 'start'),
+        rangeNoteStyleRules(selectedRangeEndRenderNoteIds, 'end'),
+      ].join('\n'),
+    [
+      selectedRangeEndRenderNoteIds,
+      selectedRangeRenderNoteIds,
+      selectedRangeStartRenderNoteIds,
+    ]
+  );
   const [renderRevision, setRenderRevision] = useState(0);
   const handleRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
@@ -121,11 +127,22 @@ export function PracticeScoreViewer({
     <div
       className={cn(
         'relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm',
-        isMaximized ? 'fixed inset-0 z-[45] rounded-none' : 'min-h-[38rem]',
+        'min-h-[38rem]',
         className
       )}
+      data-practice-range-note-ids={selectedRangeRenderNoteIds.join(',')}
+      data-practice-range-start-note-ids={selectedRangeStartRenderNoteIds.join(',')}
+      data-practice-range-end-note-ids={selectedRangeEndRenderNoteIds.join(',')}
     >
       <style jsx global>{`
+        .practice-score-svg-selectable svg {
+          cursor: crosshair;
+        }
+        .practice-score-svg-selectable [data-class='note'],
+        .practice-score-svg-selectable .note {
+          pointer-events: bounding-box;
+        }
+        ${rangeSelectionCss}
         .practice-score-svg .practice-note-active {
           fill: #f97316 !important;
           stroke: #ea580c !important;
@@ -156,10 +173,6 @@ export function PracticeScoreViewer({
         .practice-score-svg-fit svg {
           width: 100% !important;
         }
-        .practice-score-svg-natural svg {
-          width: auto;
-          max-width: none;
-        }
         .practice-score-scroll {
           -ms-overflow-style: none;
           scrollbar-width: none;
@@ -170,44 +183,8 @@ export function PracticeScoreViewer({
       `}</style>
 
       <div className="relative z-40 flex min-h-14 shrink-0 items-center border-b border-slate-200 bg-white/95 px-3 backdrop-blur sm:px-4">
-        <div className="flex min-w-0 flex-1 justify-center px-11 sm:px-14">
+        <div className="flex min-w-0 flex-1 justify-center">
           {sessionStatus}
-        </div>
-        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2 sm:right-4">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-950"
-                  onClick={onOpenSettings}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>
-                <p>{tPractice('settingsTitle')}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-950"
-                  onClick={onToggleMaximize}
-                >
-                  {isMaximized ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>
-                <p>{isMaximized ? t('minimize') : t('maximize')}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
       </div>
 
@@ -219,18 +196,18 @@ export function PracticeScoreViewer({
         onRendered={handleRendered}
         className={cn(
           'practice-score-scroll min-h-0 flex-1 overflow-auto bg-white',
-          isMaximized ? 'px-6 pb-28 pt-4' : 'px-4 py-4'
+          'px-4 py-4'
         )}
         pageClassName={cn(
           'bg-white',
-          isMaximized
-            ? 'w-fit max-w-full overflow-x-auto'
-            : 'w-full overflow-hidden border-0 shadow-none'
+          'w-full overflow-hidden border-0 shadow-none'
         )}
         svgClassName={cn(
           'practice-score-svg',
-          isMaximized ? 'practice-score-svg-natural' : 'practice-score-svg-fit'
+          onRenderNoteClick ? 'practice-score-svg-selectable' : null,
+          'practice-score-svg-fit'
         )}
+        onRenderNoteClick={onRenderNoteClick}
         loadingContent={
           <PreviewLoading label={tPractice('preparingPractice')} className="min-h-[45vh]" />
         }
@@ -245,12 +222,67 @@ export function PracticeScoreViewer({
           </div>
         )}
       />
-
-      {isMaximized && bottomControls ? (
-        <div className="absolute inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:px-6">
-          <div className="mx-auto max-w-5xl">{bottomControls}</div>
-        </div>
-      ) : null}
     </div>
   );
+}
+
+function cssStringLiteral(value: string) {
+  return JSON.stringify(value);
+}
+
+function renderedNoteSelector(noteId: string) {
+  return `.practice-score-svg [data-id=${cssStringLiteral(noteId)}]`;
+}
+
+function renderedNoteDescendantSelector(noteId: string) {
+  return `${renderedNoteSelector(noteId)} use,
+${renderedNoteSelector(noteId)} path,
+${renderedNoteSelector(noteId)} ellipse,
+${renderedNoteSelector(noteId)} circle,
+${renderedNoteSelector(noteId)} polygon,
+${renderedNoteSelector(noteId)} rect,
+${renderedNoteSelector(noteId)} line,
+${renderedNoteSelector(noteId)} polyline,
+${renderedNoteSelector(noteId)} .stem,
+${renderedNoteSelector(noteId)} .flag,
+${renderedNoteSelector(noteId)} .beam,
+${renderedNoteSelector(noteId)} .notehead`;
+}
+
+function rangeNoteStyleRules(
+  noteIds: readonly string[],
+  role: 'range' | 'start' | 'end'
+) {
+  const uniqueNoteIds = Array.from(new Set(noteIds.filter(Boolean)));
+  if (uniqueNoteIds.length === 0) {
+    return '';
+  }
+
+  const baseRules = uniqueNoteIds
+    .map((noteId) => {
+      const selector = renderedNoteSelector(noteId);
+      const descendantSelector = renderedNoteDescendantSelector(noteId);
+      const filter =
+        role === 'range'
+          ? 'drop-shadow(0 0 4px rgba(13, 148, 136, 0.45))'
+          : role === 'start'
+            ? 'drop-shadow(0 0 6px rgba(5, 150, 105, 0.7))'
+            : 'drop-shadow(0 0 6px rgba(20, 184, 166, 0.75))';
+      const strokeWidth = role === 'range' ? '1.75px' : '3px';
+      return `${selector} {
+  fill: #0d9488 !important;
+  stroke: #0f766e !important;
+  stroke-width: ${strokeWidth} !important;
+  opacity: 1 !important;
+  filter: ${filter};
+}
+${descendantSelector} {
+  fill: #0d9488 !important;
+  stroke: #0f766e !important;
+  opacity: 1 !important;
+}`;
+    })
+    .join('\n');
+
+  return baseRules;
 }

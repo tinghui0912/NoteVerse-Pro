@@ -19,5 +19,6 @@ export type VerovioToolkitFactory = () => Promise<VerovioToolkitLike>;
 
 export type VerovioLoadOptions = {
   renderMidi?: boolean;
+  prepareGenericRenderIds?: boolean;
   toolkitOptions?: Record<string, unknown>;
 };

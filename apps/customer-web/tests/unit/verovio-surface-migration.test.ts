@@ -146,7 +146,7 @@ describe('Verovio listen surfaces', () => {
     expect(source).not.toContain('snapMeasureXToGridTick');
     expect(source).not.toContain('getVisualInsertPlacement');
     expect(rhythmicPlacement).toContain('createRhythmicLayoutMap');
-    expect(rhythmicPlacement).toContain('resolveNearestLayoutPoint');
+    expect(rhythmicPlacement).toContain('resolveNearestInsertableLayoutPoint');
     expect(rhythmicPlacement).toContain('rationalToTicks');
   });
 

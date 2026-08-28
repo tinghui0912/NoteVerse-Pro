@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from app.processing.realtime.protocol import (
     AlignmentUpdateMessage,
     AlignmentUpdatePayload,
+    InputHealthPayload,
     PracticeClientMessage,
     PracticeServerMessage,
     SessionArmedMessage,
@@ -13,6 +14,7 @@ from app.processing.realtime.protocol import (
     SessionErrorMessage,
     SessionErrorPayload,
     SessionFinishedMessage,
+    SessionFinishedPayload,
     SessionConnectingMessage,
     SessionConnectingPayload,
     SessionReadyMessage,
@@ -23,7 +25,7 @@ from app.processing.realtime.protocol import (
 )
 
 if TYPE_CHECKING:
-    from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
+    from app.processing.engines.practice_alignment.contracts import AlignmentUpdate, InputHealth
 
 
 def parse_control_message(raw_message: str) -> PracticeClientMessage:
@@ -49,12 +51,12 @@ def session_connecting_message(session_id: str) -> dict[str, object]:
     return _message_payload(SessionConnectingMessage(payload=SessionConnectingPayload(session_id=session_id)))
 
 
-def session_armed_message(session_id: str, environment_quality: str) -> dict[str, object]:
+def session_armed_message(session_id: str, input_health: "InputHealth") -> dict[str, object]:
     return _message_payload(
         SessionArmedMessage(
             payload=SessionArmedPayload(
                 session_id=session_id,
-                environment_quality=environment_quality,
+                input_health=InputHealthPayload(**input_health),
             )
         )
     )
@@ -64,8 +66,18 @@ def state_changed_message(state: str) -> dict[str, object]:
     return _message_payload(SessionStateChangedMessage(payload=SessionStatePayload(state=state)))
 
 
-def session_finished_message(state: str) -> dict[str, object]:
-    return _message_payload(SessionFinishedMessage(payload=SessionStatePayload(state=state)))
+def session_finished_message(
+    state: str,
+    completion_outcome: dict[str, object],
+) -> dict[str, object]:
+    return _message_payload(
+        SessionFinishedMessage(
+            payload=SessionFinishedPayload(
+                state=state,
+                completion_outcome=completion_outcome,
+            )
+        )
+    )
 
 
 def session_error_message(public_code: str, public_message: str | None = None) -> dict[str, object]:
@@ -90,10 +102,12 @@ def alignment_update_message(update: AlignmentUpdate) -> dict[str, object]:
                 continuity_confidence=update["continuity_confidence"],
                 visual_confidence=update["visual_confidence"],
                 timestamp_ms=update["timestamp_ms"],
-                score_completed=update["score_completed"],
+                scope_completed=update["scope_completed"],
+                completion_reason=update["completion_reason"],
                 audio_active=update.get("audio_active", True),
                 input_rms=update.get("input_rms", 0.0),
                 input_peak=update.get("input_peak", 0.0),
+                input_health=InputHealthPayload(**update["input_health"]),
                 match_state=update.get("match_state", "matched"),
                 feature_confidence=update.get("feature_confidence", 1.0),
                 beat_delta=update.get("beat_delta"),

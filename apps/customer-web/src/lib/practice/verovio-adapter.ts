@@ -22,7 +22,7 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
   private visualTimeline: PracticeVisualTimelineEntry[] = [];
 
   override async loadMusicXml(xml: string) {
-    await super.loadMusicXml(xml, { renderMidi: true });
+    await super.loadMusicXml(xml, { renderMidi: true, prepareGenericRenderIds: false });
     this.visualTimeline = this.buildVisualTimeline(this.renderTimemap());
   }
 

@@ -94,7 +94,8 @@ class PracticeErrorCode:
     PRACTICE_STREAM_CLOSED = "practice_stream_closed"
     PRACTICE_AUDIO_FORMAT_UNSUPPORTED = "practice_audio_format_unsupported"
     PRACTICE_ALIGNMENT_FAILED = "practice_alignment_failed"
-    PRACTICE_REPORT_FAILED = "practice_report_failed"
+    PRACTICE_SCOPE_INVALID = "practice_scope_invalid"
+    PRACTICE_SCOPE_TARGET_NOT_FOUND = "practice_scope_target_not_found"
     NO_PRACTICE_ACCESS = "no_practice_access"
 
 

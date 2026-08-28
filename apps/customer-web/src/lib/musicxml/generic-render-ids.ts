@@ -30,14 +30,34 @@ function setGeneratedId(element: Element, id: string): void {
   element.setAttribute(GENERATED_ID_MARKER, 'true');
 }
 
-function getElementSignature(element: Element, index: number): string {
+function localName(element: Element): string {
+  return element.localName.toLowerCase();
+}
+
+function directChildrenByName(parent: Element, names: ReadonlySet<string>): Element[] {
+  return Array.from(parent.children).filter((child) => names.has(localName(child)));
+}
+
+function oneBasedOrdinal(items: Element[], element: Element): number {
+  const index = items.indexOf(element);
+  return index >= 0 ? index + 1 : 1;
+}
+
+function getElementSignature(element: Element): string {
   const measure = element.closest('measure');
   const part = element.closest('part');
-  const measureNumber = sanitizeXmlId(measure?.getAttribute('number') || String(index + 1));
-  const partId = sanitizeXmlId(part?.getAttribute('id') || 'part');
-  const tag = element.tagName.toLowerCase();
+  const partOrdinal = part?.parentElement
+    ? oneBasedOrdinal(directChildrenByName(part.parentElement, new Set(['part'])), part)
+    : 1;
+  const measureOrdinal = part && measure
+    ? oneBasedOrdinal(directChildrenByName(part, new Set(['measure'])), measure)
+    : 1;
+  const eventOrdinal = measure
+    ? oneBasedOrdinal(directChildrenByName(measure, new Set(['note', 'forward'])), element)
+    : 1;
+  const tag = localName(element);
 
-  return `${APP_ID_PREFIX}-${partId}-m${measureNumber}-${tag}-${index + 1}`;
+  return `${APP_ID_PREFIX}-p${partOrdinal}-m${measureOrdinal}-${tag}${eventOrdinal}`;
 }
 
 /**
@@ -61,17 +81,17 @@ export function createUniqueMusicXmlId(baseId: string, usedIds: ReadonlySet<stri
  * Existing legal unique ids are preserved. Missing, duplicate, or invalid ids
  * are replaced with app-owned ids and written back into the XML document.
  */
-export function ensureStableMusicXmlIds(xmlDoc: XMLDocument): boolean {
+export function ensureGenericRenderMusicXmlIds(xmlDoc: XMLDocument): boolean {
   const usedIds = new Set<string>();
   let changed = false;
 
-  Array.from(xmlDoc.querySelectorAll('note, forward')).forEach((element, index) => {
+  Array.from(xmlDoc.querySelectorAll('note, forward')).forEach((element) => {
     const existing = getExistingXmlId(element);
     const sanitizedExisting = existing ? sanitizeXmlId(existing) : '';
     const canKeepExisting = existing && sanitizedExisting === existing && !usedIds.has(existing);
     const nextId = canKeepExisting
       ? existing
-      : createUniqueMusicXmlId(sanitizedExisting || getElementSignature(element, index), usedIds);
+      : createUniqueMusicXmlId(sanitizedExisting || getElementSignature(element), usedIds);
 
     usedIds.add(nextId);
 
@@ -84,14 +104,14 @@ export function ensureStableMusicXmlIds(xmlDoc: XMLDocument): boolean {
   return changed;
 }
 
-export function ensureStableMusicXmlIdsString(xml: string): string {
+export function ensureGenericRenderMusicXmlIdsString(xml: string): string {
   const xmlDoc = parseXml(xml);
-  const changed = ensureStableMusicXmlIds(xmlDoc);
+  const changed = ensureGenericRenderMusicXmlIds(xmlDoc);
   return changed ? serializeXml(xmlDoc) : xml;
 }
 
 /** Removes editor-generated ids before persisting canonical MusicXML. */
-export function stripAppOwnedMusicXmlIdsString(xml: string): string {
+export function stripAppOwnedGenericRenderMusicXmlIdsString(xml: string): string {
   const xmlDoc = parseXml(xml);
   let changed = false;
   xmlDoc.querySelectorAll('note, forward').forEach((element) => {
@@ -105,8 +125,8 @@ export function stripAppOwnedMusicXmlIdsString(xml: string): string {
 }
 
 /** Removes editor-only metadata from Verovio's disposable render copy. */
-export function prepareMusicXmlIdsForVerovio(xml: string): string {
-  const xmlDoc = parseXml(ensureStableMusicXmlIdsString(xml));
+export function prepareMusicXmlIdsForGenericVerovioRender(xml: string): string {
+  const xmlDoc = parseXml(ensureGenericRenderMusicXmlIdsString(xml));
   let changed = false;
   xmlDoc.querySelectorAll('note, forward').forEach((element) => {
     if (element.hasAttribute(GENERATED_ID_MARKER)) {

@@ -192,7 +192,7 @@ export class PracticeFollowController {
       alignment.decision.action === 'wait'
     ) {
       this.clearPendingCandidate();
-      return null;
+      return this.state.lastAcceptedBeat === null ? candidate : null;
     }
 
     if (alignment.decision.action === 'relocalize') {
@@ -240,16 +240,16 @@ export class PracticeFollowController {
     adapter: PracticeVerovioAdapter,
     alignment: PracticeAlignmentUpdateMessage['payload']
   ) {
+    const displayAnchor = alignment.decision.display_anchor;
+    if (displayAnchor) {
+      return adapter.getTimelineEntryForDisplayAnchor(displayAnchor);
+    }
+
     if (
       alignment.decision.action === 'hold' ||
       alignment.decision.action === 'wait'
     ) {
       return null;
-    }
-
-    const displayAnchor = alignment.decision.display_anchor;
-    if (displayAnchor) {
-      return adapter.getTimelineEntryForDisplayAnchor(displayAnchor);
     }
 
     const anchorBeat = alignment.beat_position;

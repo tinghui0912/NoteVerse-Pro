@@ -305,14 +305,31 @@ class PracticeAudioGate:
         effective_peak_gate: float,
     ) -> StartSignalDecision:
         prominence_gate = max(self.config.min_peak_prominence * 3.0, 24.0)
+        focused_musical_candidate = (
+            features.spectral_flatness <= 0.30
+            and features.peak_prominence >= prominence_gate
+        )
+        has_candidate_energy = (
+            features.rms >= min(self.config.start_rms_gate * 0.5, self.config.rms_gate)
+            and features.peak >= min(
+                self.config.start_peak_gate * 0.55,
+                self.config.peak_gate * 0.75,
+            )
+        )
         strong_start = (
             features.rms >= effective_rms_gate
             and features.peak >= effective_peak_gate
-            and features.tonal_signal
+            and (features.tonal_signal or focused_musical_candidate)
             and features.peak_prominence >= prominence_gate
         )
         if strong_start:
-            return StartSignalDecision(True, "strong_start")
+            return StartSignalDecision(
+                True,
+                "strong_start" if features.tonal_signal else "focused_musical_start",
+            )
+
+        if not features.tonal_signal and focused_musical_candidate and has_candidate_energy:
+            return StartSignalDecision(True, "focused_musical_start_candidate")
 
         if not features.tonal_signal:
             return StartSignalDecision(False, "not_tonal")

@@ -61,10 +61,17 @@ function makeAlignment(
     continuity_confidence: 0.95,
     visual_confidence: 0.95,
     timestamp_ms: 20,
-    score_completed: false,
+    scope_completed: false,
+      completion_reason: null,
     audio_active: true,
     input_rms: 0.04,
     input_peak: 0.1,
+    input_health: {
+      available: true,
+      level: 'good',
+      noise: 'good',
+      confidence: 1,
+    },
     match_state: 'matched',
     feature_confidence: 0.95,
     beat_delta: null,
@@ -167,6 +174,36 @@ describe('PracticeFollowController', () => {
     );
 
     expect(container.querySelector('.practice-note-active')).toBeNull();
+  });
+
+  it('uses wait display anchors to show the current step-by-step target', () => {
+    const controller = new PracticeFollowController();
+    const container = makeContainer();
+    const adapter = makeAdapter(entries);
+
+    controller.apply(
+      container,
+      adapter,
+      makeAlignment({
+        decision: {
+          action: 'wait',
+          reason: 'insufficient_input',
+          experience_state: 'listening',
+          display_anchor: { beat: 3, render_note_ids: ['n1'] },
+          confidence_summary: {
+            visual: 0,
+            alignment: 0,
+            audio: 0,
+            continuity: 1,
+            validation: 0,
+            input_policy: 0,
+          },
+        },
+      })
+    );
+
+    expect(container.querySelector('[data-id="n1"]')).toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
   });
 
   it('allows relocalize decisions to jump to a confirmed distant anchor', () => {

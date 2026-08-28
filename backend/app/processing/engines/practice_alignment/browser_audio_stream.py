@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Callable, Literal
+from typing import Callable
 
 from app.processing.engines.practice_alignment.audio_activity import (
     ActivityConfidenceEstimator,
@@ -18,12 +18,13 @@ from app.processing.engines.practice_alignment.audio_activity import (
 )
 from app.processing.engines.practice_alignment.audio_diagnostics import log_audio_gate_diagnostic
 from app.processing.engines.practice_alignment.audio_features import feature_matrix, latest_feature_vector
+from app.processing.engines.practice_alignment.contracts import InputHealth, InputLevel, InputNoise
 from app.processing.engines.practice_alignment.stream_state import (
     STREAM_STATE_ARMED,
     STREAM_STATE_CALIBRATING,
 )
 
-EnvironmentQuality = Literal["good", "noisy", "poor"]
+HIGH_CONFIDENCE_START_FEATURE_MATCH = 0.98
 
 class BrowserAudioStreamAdapter:
     """Small adapter that feeds browser PCM frames into Matchmaker's queue."""
@@ -120,7 +121,7 @@ class BrowserAudioStreamAdapter:
         self.last_start_feature_confidence: float | None = None
         window_frames = start_feature_window_frames or self.min_active_frames + 1
         self.start_feature_window_frames = max(window_frames, self.min_active_frames)
-        self._start_feature_candidates: list[tuple[int, float | None]] = []
+        self._start_feature_candidates: list[tuple[int, float | None, str]] = []
         self._warmup_rms_values: list[float] = []
         self._warmup_peak_values: list[float] = []
 
@@ -437,7 +438,9 @@ class BrowserAudioStreamAdapter:
         return 1.0 if self.start_feature_validator(feature_vector) else 0.0
 
     def _record_start_feature_candidate(self, confidence: float | None) -> None:
-        self._start_feature_candidates.append((self.total_frames, confidence))
+        self._start_feature_candidates.append(
+            (self.total_frames, confidence, self.last_start_signal_reason)
+        )
         self._prune_start_feature_candidates()
 
     def _prune_start_feature_candidates(self) -> None:
@@ -452,12 +455,14 @@ class BrowserAudioStreamAdapter:
         if self.start_feature_scorer is None and self.start_feature_validator is None:
             return self.start_streak >= self.min_active_frames
         self._prune_start_feature_candidates()
-        return len(self._start_feature_candidates) >= self.min_active_frames
+        if self._has_high_confidence_start_feature_match():
+            return True
+        return len(self._start_feature_candidates) >= self._required_start_feature_matches()
 
     def _best_start_feature_confidence(self) -> float | None:
         scored_candidates = [
             confidence
-            for _frame, confidence in self._start_feature_candidates
+            for _frame, confidence, _reason in self._start_feature_candidates
             if confidence is not None
         ]
         if not scored_candidates:
@@ -467,13 +472,25 @@ class BrowserAudioStreamAdapter:
     def _has_enough_start_feature_matches(self) -> bool:
         if self.last_start_feature_confidence is None:
             return True
-        required_matches = min(2, self.min_active_frames)
+        if self._has_high_confidence_start_feature_match():
+            return True
         matched_candidates = [
             confidence
-            for _frame, confidence in self._start_feature_candidates
+            for _frame, confidence, _reason in self._start_feature_candidates
             if confidence is not None and confidence >= 0.7
         ]
-        return len(matched_candidates) >= required_matches
+        return len(matched_candidates) >= self._required_start_feature_matches()
+
+    def _required_start_feature_matches(self) -> int:
+        return min(2, self.min_active_frames)
+
+    def _has_high_confidence_start_feature_match(self) -> bool:
+        return any(
+            confidence is not None
+            and confidence >= HIGH_CONFIDENCE_START_FEATURE_MATCH
+            and reason.startswith("focused_musical_start")
+            for _frame, confidence, reason in self._start_feature_candidates
+        )
 
     def _clear_start_feature_candidates(self) -> None:
         self._start_feature_candidates.clear()
@@ -528,17 +545,56 @@ class BrowserAudioStreamAdapter:
         self._warmup_peak_values.append(peak)
 
     @property
-    def environment_quality(self) -> EnvironmentQuality:
-        if not self._warmup_rms_values or not self._warmup_peak_values:
-            return "good"
+    def input_health(self) -> InputHealth:
+        rms_p90, peak_p90 = self._warmup_percentiles()
 
-        rms_p90 = float(self.np.percentile(self._warmup_rms_values, 90))
-        peak_p90 = float(self.np.percentile(self._warmup_peak_values, 90))
-        if rms_p90 >= self.start_rms_gate * 0.8 or peak_p90 >= self.start_peak_gate * 0.8:
-            return "poor"
-        if rms_p90 >= self.rms_gate * 0.75 or peak_p90 >= self.peak_gate * 0.75:
-            return "noisy"
-        return "good"
+        level: InputLevel = "good"
+        if peak_p90 >= 0.98 or self.last_peak >= 0.98:
+            level = "clipping"
+        elif (
+            self.armed
+            and self.total_frames > self.warmup_frames
+            and self.no_input_streak >= min(6, self.no_input_frames)
+            and self.last_rms < self.rms_gate * 0.25
+            and self.last_peak < self.peak_gate * 0.25
+        ):
+            level = "too_quiet"
+
+        noise: InputNoise = "good"
+        noise_rms = rms_p90
+        noise_peak = peak_p90
+        if self._current_frame_can_update_noise_health():
+            noise_rms = max(noise_rms, self.last_rms)
+            noise_peak = max(noise_peak, self.last_peak)
+
+        if noise_rms >= self.start_rms_gate * 0.8 or noise_peak >= self.start_peak_gate * 0.8:
+            noise = "high"
+        elif noise_rms >= self.rms_gate * 0.75 or noise_peak >= self.peak_gate * 0.75:
+            noise = "elevated"
+
+        confidence = min(1.0, len(self._warmup_rms_values) / max(self.warmup_frames, 1))
+        return {
+            "available": True,
+            "level": level,
+            "noise": noise,
+            "confidence": round(confidence, 3),
+        }
+
+    def _warmup_percentiles(self) -> tuple[float, float]:
+        if not self._warmup_rms_values or not self._warmup_peak_values:
+            return 0.0, 0.0
+        return (
+            float(self.np.percentile(self._warmup_rms_values, 90)),
+            float(self.np.percentile(self._warmup_peak_values, 90)),
+        )
+
+    def _current_frame_can_update_noise_health(self) -> bool:
+        return (
+            self.armed
+            and not self.last_tonal_signal
+            and not self.last_onset_signal
+            and self.last_frame_class != "tonal"
+        )
 
     def _refresh_calibrated_gates(self) -> None:
         self.calibrator.refresh_gates()

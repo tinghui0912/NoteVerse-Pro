@@ -5,9 +5,9 @@ export type ClientOptions = {
 };
 
 /**
- * APIResponse[PracticeReportRead]
+ * APIResponse[PracticeReadyScoreContentRead]
  */
-export type ApiResponsePracticeReportRead = {
+export type ApiResponsePracticeReadyScoreContentRead = {
     /**
      * Code
      *
@@ -17,7 +17,7 @@ export type ApiResponsePracticeReportRead = {
     /**
      * Response payload
      */
-    data?: PracticeReportRead | null;
+    data?: PracticeReadyScoreContentRead | null;
     /**
      * Message
      *
@@ -61,9 +61,9 @@ export type ApiResponsePracticeSessionDetailRead = {
 };
 
 /**
- * APIResponse[PracticeSessionSummaryRead]
+ * APIResponse[PracticeSessionResultSummaryRead]
  */
-export type ApiResponsePracticeSessionSummaryRead = {
+export type ApiResponsePracticeSessionResultSummaryRead = {
     /**
      * Code
      *
@@ -73,7 +73,63 @@ export type ApiResponsePracticeSessionSummaryRead = {
     /**
      * Response payload
      */
-    data?: PracticeSessionSummaryRead | null;
+    data?: PracticeSessionResultSummaryRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PracticeSessionStartRead]
+ */
+export type ApiResponsePracticeSessionStartRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PracticeSessionStartRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PracticeTargetCatalogRead]
+ */
+export type ApiResponsePracticeTargetCatalogRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PracticeTargetCatalogRead | null;
     /**
      * Message
      *
@@ -101,12 +157,15 @@ export type CreatePracticeSessionRequest = {
      * Channels
      */
     channels?: number;
+    evaluation_profile?: PracticeEvaluationProfile;
     /**
      * Frame Format
      */
     frame_format?: string;
     input_source?: PracticeInputSource;
-    practice_mode?: PracticeMode;
+    practice_scope?: PracticeSessionScope | null;
+    progression_mode?: PracticeProgressionMode;
+    realtime_guidance?: PracticeRealtimeGuidance;
     /**
      * Revision Id
      */
@@ -132,51 +191,72 @@ export type HttpValidationError = {
 };
 
 /**
+ * PracticeEvaluationProfile
+ */
+export type PracticeEvaluationProfile = 'LEARNING' | 'PERFORMANCE';
+
+/**
  * PracticeInputSource
  */
 export type PracticeInputSource = 'MICROPHONE' | 'MIDI';
 
 /**
- * PracticeMode
+ * PracticeProgressionMode
  */
-export type PracticeMode = 'FREE_FOLLOW' | 'WAIT_FOR_NOTE' | 'ASSESSMENT' | 'PERFORMANCE';
+export type PracticeProgressionMode = 'WAIT_FOR_NOTE' | 'CONTINUOUS';
 
 /**
- * PracticeReportPayloadRead
+ * PracticeReadyScoreContentRead
  */
-export type PracticeReportPayloadRead = {
+export type PracticeReadyScoreContentRead = {
     /**
-     * Metrics
+     * Content
      */
-    metrics: {
-        [key: string]: number | number | string | null;
-    };
+    content: string;
     /**
-     * Recommendations
+     * Mime Type
      */
-    recommendations: Array<string>;
+    mime_type?: string;
     /**
-     * Summary
+     * Revision Id
      */
-    summary: string;
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
 };
 
 /**
- * PracticeReportRead
+ * PracticeRealtimeGuidance
  */
-export type PracticeReportRead = {
-    report_payload: PracticeReportPayloadRead | null;
-    report_status: PracticeReportStatus;
-    /**
-     * Session Id
-     */
-    session_id: string;
-};
+export type PracticeRealtimeGuidance = 'STATUS_ONLY' | 'GUIDED';
 
 /**
- * PracticeReportStatus
+ * PracticeSessionCompletionOutcomeRead
  */
-export type PracticeReportStatus = 'NOT_REQUESTED' | 'PENDING' | 'READY' | 'FAILED';
+export type PracticeSessionCompletionOutcomeRead = {
+    /**
+     * Kind
+     */
+    kind: 'FULL_PIECE_LEARNING' | 'FULL_PIECE_PERFORMANCE' | 'SELECTED_SECTION';
+    /**
+     * Playback Expected
+     */
+    playback_expected: boolean;
+    /**
+     * Scope Kind
+     */
+    scope_kind: 'FULL_PIECE' | 'SELECTED_RANGE';
+    /**
+     * Summary Artifact Kind
+     */
+    summary_artifact_kind: 'LEARNING_SUMMARY' | 'PERFORMANCE_SUMMARY' | 'SECTION_SUMMARY';
+    /**
+     * Summary Available
+     */
+    summary_available: boolean;
+};
 
 /**
  * PracticeSessionDetailRead
@@ -187,6 +267,8 @@ export type PracticeSessionDetailRead = {
      * Channels
      */
     channels: number;
+    completion_outcome: PracticeSessionCompletionOutcomeRead | null;
+    evaluation_profile: PracticeEvaluationProfile;
     /**
      * Finished At
      */
@@ -204,8 +286,9 @@ export type PracticeSessionDetailRead = {
      * Last Confidence
      */
     last_confidence: number | null;
-    practice_mode: PracticeMode;
-    report_status: PracticeReportStatus;
+    practice_scope?: PracticeSessionScope | null;
+    progression_mode: PracticeProgressionMode;
+    realtime_guidance: PracticeRealtimeGuidance;
     /**
      * Revision Id
      */
@@ -227,17 +310,47 @@ export type PracticeSessionDetailRead = {
      */
     started_at: string | null;
     state: PracticeSessionState;
+    summary_status: PracticeSessionSummaryStatus;
 };
 
 /**
- * PracticeSessionState
+ * PracticeSessionResultSummaryRead
  */
-export type PracticeSessionState = 'CREATED' | 'STREAMING' | 'PAUSED' | 'FINISHED' | 'FAILED';
+export type PracticeSessionResultSummaryRead = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    summary_payload: PracticeSessionSummaryPayloadRead | null;
+    summary_status: PracticeSessionSummaryStatus;
+};
 
 /**
- * PracticeSessionSummaryRead
+ * PracticeSessionScope
  */
-export type PracticeSessionSummaryRead = {
+export type PracticeSessionScope = {
+    /**
+     * End Expected Group Id
+     */
+    end_expected_group_id?: string | null;
+    /**
+     * End Measure Number
+     */
+    end_measure_number?: string | null;
+    /**
+     * Start Expected Group Id
+     */
+    start_expected_group_id: string;
+    /**
+     * Start Measure Number
+     */
+    start_measure_number?: string | null;
+};
+
+/**
+ * PracticeSessionStartRead
+ */
+export type PracticeSessionStartRead = {
     /**
      * Session Id
      */
@@ -247,6 +360,302 @@ export type PracticeSessionSummaryRead = {
      * Ws Url
      */
     ws_url: string;
+};
+
+/**
+ * PracticeSessionState
+ */
+export type PracticeSessionState = 'CREATED' | 'STREAMING' | 'PAUSED' | 'FINISHED' | 'FAILED';
+
+/**
+ * PracticeSessionSummaryAttemptRead
+ */
+export type PracticeSessionSummaryAttemptRead = {
+    /**
+     * Action
+     */
+    action: string;
+    /**
+     * Attempt Index
+     */
+    attempt_index: number;
+    /**
+     * Attempt Uid
+     */
+    attempt_uid: string;
+    /**
+     * Beat Position
+     */
+    beat_position: number;
+    /**
+     * Completion Status
+     */
+    completion_status: string;
+    /**
+     * Confidence
+     */
+    confidence: number;
+    /**
+     * Correctness Scope
+     */
+    correctness_scope: string;
+    /**
+     * Evaluator Version
+     */
+    evaluator_version?: string | null;
+    /**
+     * Event Id
+     */
+    event_id?: string | null;
+    /**
+     * Evidence Profile
+     */
+    evidence_profile: string;
+    /**
+     * Expected Group Id
+     */
+    expected_group_id?: string | null;
+    /**
+     * Input Source
+     */
+    input_source: string;
+    /**
+     * Measure Numbers
+     */
+    measure_numbers?: Array<string>;
+    /**
+     * Policy Profile Version
+     */
+    policy_profile_version?: string | null;
+    /**
+     * Render Note Ids
+     */
+    render_note_ids?: Array<string>;
+    /**
+     * Resolution Reason
+     */
+    resolution_reason: string;
+    /**
+     * Resolved At Ms
+     */
+    resolved_at_ms?: number | null;
+    /**
+     * Result
+     */
+    result: string;
+    /**
+     * Scoring Included
+     */
+    scoring_included: boolean;
+    /**
+     * Started At Ms
+     */
+    started_at_ms?: number | null;
+};
+
+/**
+ * PracticeSessionSummaryMeasureRead
+ */
+export type PracticeSessionSummaryMeasureRead = {
+    /**
+     * Attempt Count
+     */
+    attempt_count: number;
+    /**
+     * Average Confidence
+     */
+    average_confidence?: number | null;
+    /**
+     * Completed Target Count
+     */
+    completed_target_count: number;
+    /**
+     * Difficulty Score
+     */
+    difficulty_score: number;
+    /**
+     * Incomplete Target Count
+     */
+    incomplete_target_count: number;
+    /**
+     * Interrupted Attempt Count
+     */
+    interrupted_attempt_count: number;
+    /**
+     * Measure Number
+     */
+    measure_number: string;
+    /**
+     * Mismatch Attempt Count
+     */
+    mismatch_attempt_count: number;
+    /**
+     * Partial Attempt Count
+     */
+    partial_attempt_count: number;
+    /**
+     * Scorable Attempt Count
+     */
+    scorable_attempt_count: number;
+    /**
+     * Target Count
+     */
+    target_count: number;
+};
+
+/**
+ * PracticeSessionSummaryPayloadRead
+ */
+export type PracticeSessionSummaryPayloadRead = {
+    /**
+     * Attempts
+     */
+    attempts?: Array<PracticeSessionSummaryAttemptRead>;
+    /**
+     * Difficult Measures
+     */
+    difficult_measures?: Array<PracticeSessionSummaryMeasureRead>;
+    /**
+     * Metrics
+     */
+    metrics: {
+        [key: string]: number | number | string | null;
+    };
+    /**
+     * Recommendations
+     */
+    recommendations: Array<string>;
+    /**
+     * Summary
+     */
+    summary: string;
+    /**
+     * Targets
+     */
+    targets?: Array<PracticeSessionSummaryTargetRead>;
+};
+
+/**
+ * PracticeSessionSummaryStatus
+ */
+export type PracticeSessionSummaryStatus = 'NOT_REQUESTED' | 'PENDING' | 'READY' | 'FAILED';
+
+/**
+ * PracticeSessionSummaryTargetRead
+ */
+export type PracticeSessionSummaryTargetRead = {
+    /**
+     * Attempt Count
+     */
+    attempt_count: number;
+    /**
+     * Completed
+     */
+    completed: boolean;
+    /**
+     * Completion Status
+     */
+    completion_status: string;
+    /**
+     * Expected Group Id
+     */
+    expected_group_id: string;
+    /**
+     * Interrupted Attempt Count
+     */
+    interrupted_attempt_count: number;
+    /**
+     * Last Confidence
+     */
+    last_confidence: number;
+    /**
+     * Last Result
+     */
+    last_result: string;
+    /**
+     * Matched Attempt Count
+     */
+    matched_attempt_count: number;
+    /**
+     * Measure Numbers
+     */
+    measure_numbers?: Array<string>;
+    /**
+     * Mismatch Attempt Count
+     */
+    mismatch_attempt_count: number;
+    /**
+     * Partial Attempt Count
+     */
+    partial_attempt_count: number;
+    /**
+     * Render Note Ids
+     */
+    render_note_ids?: Array<string>;
+    /**
+     * Scorable Attempt Count
+     */
+    scorable_attempt_count: number;
+};
+
+/**
+ * PracticeTargetCatalogRead
+ */
+export type PracticeTargetCatalogRead = {
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Targets
+     */
+    targets?: Array<PracticeTargetRead>;
+};
+
+/**
+ * PracticeTargetRead
+ */
+export type PracticeTargetRead = {
+    /**
+     * Event Ids
+     */
+    event_ids?: Array<string>;
+    /**
+     * Group Id
+     */
+    group_id: string;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Measure Numbers
+     */
+    measure_numbers?: Array<string>;
+    /**
+     * Onset Beat
+     */
+    onset_beat: number;
+    /**
+     * Pitches
+     */
+    pitches?: Array<string>;
+    /**
+     * Render Note Ids
+     */
+    render_note_ids?: Array<string>;
+    /**
+     * Staff Ids
+     */
+    staff_ids?: Array<string>;
+    /**
+     * Voice Ids
+     */
+    voice_ids?: Array<string>;
 };
 
 /**
@@ -297,6 +706,74 @@ export type RootGetResponses = {
 
 export type RootGetResponse = RootGetResponses[keyof RootGetResponses];
 
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+        /**
+         * Revision Id
+         */
+        revision_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content';
+};
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetError = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors];
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeReadyScoreContentRead;
+};
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponse = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses];
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+        /**
+         * Revision Id
+         */
+        revision_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets';
+};
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetError = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors];
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeTargetCatalogRead;
+};
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponse = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses];
+
 export type CreatePracticeSessionApiV1PracticeSessionsPostData = {
     body: CreatePracticeSessionRequest;
     path?: never;
@@ -317,7 +794,7 @@ export type CreatePracticeSessionApiV1PracticeSessionsPostResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeSessionSummaryRead;
+    200: ApiResponsePracticeSessionStartRead;
 };
 
 export type CreatePracticeSessionApiV1PracticeSessionsPostResponse = CreatePracticeSessionApiV1PracticeSessionsPostResponses[keyof CreatePracticeSessionApiV1PracticeSessionsPostResponses];
@@ -412,66 +889,6 @@ export type PausePracticeSessionApiV1PracticeSessionsSessionIdPausePostResponses
 
 export type PausePracticeSessionApiV1PracticeSessionsSessionIdPausePostResponse = PausePracticeSessionApiV1PracticeSessionsSessionIdPausePostResponses[keyof PausePracticeSessionApiV1PracticeSessionsSessionIdPausePostResponses];
 
-export type GetPracticeReportApiV1PracticeSessionsSessionIdReportGetData = {
-    body?: never;
-    path: {
-        /**
-         * Session Id
-         */
-        session_id: string;
-    };
-    query?: never;
-    url: '/api/v1/practice/sessions/{session_id}/report';
-};
-
-export type GetPracticeReportApiV1PracticeSessionsSessionIdReportGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetPracticeReportApiV1PracticeSessionsSessionIdReportGetError = GetPracticeReportApiV1PracticeSessionsSessionIdReportGetErrors[keyof GetPracticeReportApiV1PracticeSessionsSessionIdReportGetErrors];
-
-export type GetPracticeReportApiV1PracticeSessionsSessionIdReportGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePracticeReportRead;
-};
-
-export type GetPracticeReportApiV1PracticeSessionsSessionIdReportGetResponse = GetPracticeReportApiV1PracticeSessionsSessionIdReportGetResponses[keyof GetPracticeReportApiV1PracticeSessionsSessionIdReportGetResponses];
-
-export type RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostData = {
-    body?: never;
-    path: {
-        /**
-         * Session Id
-         */
-        session_id: string;
-    };
-    query?: never;
-    url: '/api/v1/practice/sessions/{session_id}/report';
-};
-
-export type RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostError = RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostErrors[keyof RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostErrors];
-
-export type RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePracticeReportRead;
-};
-
-export type RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostResponse = RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostResponses[keyof RequestPracticeReportApiV1PracticeSessionsSessionIdReportPostResponses];
-
 export type ResumePracticeSessionApiV1PracticeSessionsSessionIdResumePostData = {
     body?: never;
     path: {
@@ -501,6 +918,36 @@ export type ResumePracticeSessionApiV1PracticeSessionsSessionIdResumePostRespons
 };
 
 export type ResumePracticeSessionApiV1PracticeSessionsSessionIdResumePostResponse = ResumePracticeSessionApiV1PracticeSessionsSessionIdResumePostResponses[keyof ResumePracticeSessionApiV1PracticeSessionsSessionIdResumePostResponses];
+
+export type GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/sessions/{session_id}/summary';
+};
+
+export type GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetError = GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetErrors[keyof GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetErrors];
+
+export type GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeSessionResultSummaryRead;
+};
+
+export type GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetResponse = GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetResponses[keyof GetPracticeSessionSummaryApiV1PracticeSessionsSessionIdSummaryGetResponses];
 
 export type LivenessHealthLiveGetData = {
     body?: never;

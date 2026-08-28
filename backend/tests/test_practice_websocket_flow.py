@@ -7,9 +7,53 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.db.models.practice import PracticeSessionSummaryStatus, PracticeSessionState
+from app.db.models.score_access import AccessOrigin
 from app.modules.practice.dependencies import get_practice_service
+from app.modules.practice.schemas import PracticeSessionDetailRead
 from app.practice_main import app
 from app.processing.realtime.session_runtime import practice_runtime_registry
+
+GOOD_INPUT_HEALTH = {
+    "available": True,
+    "level": "good",
+    "noise": "good",
+    "confidence": 1.0,
+}
+
+
+def _session_detail(state: PracticeSessionState) -> PracticeSessionDetailRead:
+    completion_outcome = (
+        {
+            "kind": "FULL_PIECE_PERFORMANCE",
+            "scope_kind": "FULL_PIECE",
+            "summary_artifact_kind": "PERFORMANCE_SUMMARY",
+            "playback_expected": True,
+            "summary_available": True,
+        }
+        if state == PracticeSessionState.FINISHED
+        else None
+    )
+    return PracticeSessionDetailRead(
+        session_id="session-1",
+        score_id="score-1",
+        revision_id="revision-1",
+        access_origin=AccessOrigin.OWNER,
+        state=state,
+        progression_mode="CONTINUOUS",
+        realtime_guidance="STATUS_ONLY",
+        evaluation_profile="PERFORMANCE",
+        input_source="MICROPHONE",
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+        started_at=None,
+        finished_at=None,
+        last_beat_position=None,
+        last_confidence=None,
+        summary_status=PracticeSessionSummaryStatus.NOT_REQUESTED,
+        completion_outcome=completion_outcome,
+    )
 
 
 class FakePracticeService:
@@ -25,23 +69,29 @@ class FakePracticeService:
 
     async def start_session_stream(self, db, session_uuid: str, user_id: int):
         _ = (db, user_id)
-        return {"state": "STREAMING"}
+        return _session_detail(PracticeSessionState.STREAMING)
 
     async def pause_session(self, db, session_uuid: str, user_id: int):
         _ = (db, session_uuid, user_id)
-        return {"state": "PAUSED"}
+        return _session_detail(PracticeSessionState.PAUSED)
 
     async def resume_session(self, db, session_uuid: str, user_id: int):
         _ = (db, session_uuid, user_id)
-        return {"state": "STREAMING"}
+        return _session_detail(PracticeSessionState.STREAMING)
 
     async def finish_session(self, db, session_uuid: str, user_id: int):
         _ = (db, user_id)
         practice_runtime_registry.release(session_uuid)
-        return {"state": "FINISHED"}
+        return _session_detail(PracticeSessionState.FINISHED)
 
     async def persist_alignment(self, db, session_uuid: str, alignment):
         _ = (db, session_uuid, alignment)
+
+    async def persist_practice_attempt(self, db, session_uuid: str, resolved_attempt):
+        _ = (db, session_uuid, resolved_attempt)
+
+    async def finalize_pending_practice_attempts(self, db, session_uuid: str, *, reason):
+        _ = (db, session_uuid, reason)
 
 
 class FailingEngine:
@@ -51,6 +101,13 @@ class FailingEngine:
 
     def reset_input_buffer(self) -> None:
         pass
+
+    def drain_resolved_practice_attempts(self):
+        return []
+
+    def finalize_pending_practice_attempt(self, *, reason):
+        _ = reason
+        return []
 
     @property
     def is_ready_for_performance(self) -> bool:
@@ -71,10 +128,12 @@ class StreamingEngine:
             "continuity_confidence": 0.95,
             "visual_confidence": 0.95,
             "timestamp_ms": 20,
-            "score_completed": False,
+            "scope_completed": False,
+            "completion_reason": None,
             "audio_active": True,
             "input_rms": 0.04,
             "input_peak": 0.1,
+            "input_health": GOOD_INPUT_HEALTH,
             "match_state": "matched",
             "decision": {
                 "action": "advance",
@@ -95,9 +154,20 @@ class StreamingEngine:
     def reset_input_buffer(self) -> None:
         pass
 
+    def drain_resolved_practice_attempts(self):
+        return []
+
+    def finalize_pending_practice_attempt(self, *, reason):
+        _ = reason
+        return []
+
     @property
     def is_ready_for_performance(self) -> bool:
         return False
+
+    @property
+    def input_health(self):
+        return GOOD_INPUT_HEALTH
 
     def close(self) -> None:
         pass
@@ -141,7 +211,9 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                             "sample_rate": 16000,
                             "channels": 1,
                             "frame_samples": 640,
-                            "practice_mode": "FREE_FOLLOW",
+                            "progression_mode": "CONTINUOUS",
+                            "realtime_guidance": "STATUS_ONLY",
+                            "evaluation_profile": "PERFORMANCE",
                             "input_source": "MICROPHONE",
                         },
                     }
@@ -207,7 +279,16 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                 assert finished == {
                     "protocol_version": 1,
                     "type": "session.finished",
-                    "payload": {"state": "FINISHED"},
+                    "payload": {
+                        "state": "FINISHED",
+                        "completion_outcome": {
+                            "kind": "FULL_PIECE_PERFORMANCE",
+                            "scope_kind": "FULL_PIECE",
+                            "summary_artifact_kind": "PERFORMANCE_SUMMARY",
+                            "playback_expected": True,
+                            "summary_available": True,
+                        },
+                    },
                 }
     finally:
         app.dependency_overrides.pop(get_practice_service, None)
@@ -245,7 +326,9 @@ def test_practice_websocket_flow_returns_stable_alignment_error(
                             "sample_rate": 16000,
                             "channels": 1,
                             "frame_samples": 640,
-                            "practice_mode": "FREE_FOLLOW",
+                            "progression_mode": "CONTINUOUS",
+                            "realtime_guidance": "STATUS_ONLY",
+                            "evaluation_profile": "PERFORMANCE",
                             "input_source": "MICROPHONE",
                         },
                     }

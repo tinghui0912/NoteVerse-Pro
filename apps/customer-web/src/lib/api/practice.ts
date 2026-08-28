@@ -1,15 +1,17 @@
 import { apiClient, ApiResponse } from '../api-client';
 import type {
     CreatePracticeSessionRequest,
-    PracticeReportRead,
+    PracticeSessionResultSummaryRead,
     PracticeSessionDetailRead,
-    PracticeSessionSummaryRead,
+    PracticeSessionStartRead,
+    PracticeReadyScoreContentRead,
+    PracticeTargetCatalogRead,
 } from '@/generated/practice-api';
 
 export async function createPracticeSession(
     data: CreatePracticeSessionRequest
-): Promise<ApiResponse<PracticeSessionSummaryRead>> {
-    return apiClient.post<ApiResponse<PracticeSessionSummaryRead>>('/practice/sessions', data);
+): Promise<ApiResponse<PracticeSessionStartRead>> {
+    return apiClient.post<ApiResponse<PracticeSessionStartRead>>('/practice/sessions', data);
 }
 
 export async function getPracticeSession(
@@ -42,19 +44,35 @@ export async function finishPracticeSession(
     );
 }
 
-export async function requestPracticeReport(
+export async function getPracticeSessionSummary(
     sessionId: string
-): Promise<ApiResponse<PracticeReportRead>> {
-    return apiClient.post<ApiResponse<PracticeReportRead>>(
-        `/practice/sessions/${sessionId}/report`
+): Promise<ApiResponse<PracticeSessionResultSummaryRead>> {
+    return apiClient.get<ApiResponse<PracticeSessionResultSummaryRead>>(
+        `/practice/sessions/${sessionId}/summary`
     );
 }
 
-export async function getPracticeReport(
-    sessionId: string
-): Promise<ApiResponse<PracticeReportRead>> {
-    return apiClient.get<ApiResponse<PracticeReportRead>>(
-        `/practice/sessions/${sessionId}/report`
+export async function getPracticeTargets(
+    scoreId: string,
+    revisionId: string,
+    signal?: AbortSignal
+): Promise<ApiResponse<PracticeTargetCatalogRead>> {
+    return apiClient.get<ApiResponse<PracticeTargetCatalogRead>>(
+        `/practice/scores/${scoreId}/revisions/${revisionId}/targets`,
+        undefined,
+        { signal }
+    );
+}
+
+export async function getPracticeReadyScoreContent(
+    scoreId: string,
+    revisionId: string,
+    signal?: AbortSignal
+): Promise<ApiResponse<PracticeReadyScoreContentRead>> {
+    return apiClient.get<ApiResponse<PracticeReadyScoreContentRead>>(
+        `/practice/scores/${scoreId}/revisions/${revisionId}/content`,
+        undefined,
+        { signal }
     );
 }
 
@@ -64,6 +82,7 @@ export const practiceApi = {
     pausePracticeSession,
     resumePracticeSession,
     finishPracticeSession,
-    requestPracticeReport,
-    getPracticeReport,
+    getPracticeSessionSummary,
+    getPracticeTargets,
+    getPracticeReadyScoreContent,
 };

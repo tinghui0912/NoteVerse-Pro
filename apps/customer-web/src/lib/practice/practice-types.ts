@@ -5,6 +5,7 @@ export type PracticeStatus =
   | 'listening'
   | 'practicing'
   | 'paused'
+  | 'finishing'
   | 'finished';
 
 export type PracticeConnectionStatus = 'disconnected' | 'connecting' | 'ready' | 'error';

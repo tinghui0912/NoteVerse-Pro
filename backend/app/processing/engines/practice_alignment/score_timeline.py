@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from pathlib import Path
 import re
 from typing import Any
@@ -34,6 +35,18 @@ class PracticeEntryGroup:
     event_ids: tuple[str, ...]
     render_note_ids: tuple[str, ...]
     entry_candidate: bool
+
+
+@dataclass(frozen=True)
+class ExpectedPracticeGroup:
+    group_id: str
+    onset_beat: ScoreBeat
+    event_ids: tuple[str, ...]
+    render_note_ids: tuple[str, ...]
+    pitches: tuple[str, ...]
+    measure_numbers: tuple[str, ...]
+    staff_ids: tuple[str, ...]
+    voice_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -77,7 +90,10 @@ class PracticeScoreTimeline:
         events = tuple(
             _event_from_notes(index, key, notes)
             for index, (key, notes) in enumerate(
-                sorted(grouped.items(), key=lambda item: (item[0][0], item[0][3], item[0][2]))
+                sorted(
+                    grouped.items(),
+                    key=lambda item: (item[0][0], item[0][3], item[0][2], item[0][1]),
+                )
             )
         )
         entry_groups = _build_entry_groups(events)
@@ -103,12 +119,51 @@ class PracticeScoreTimeline:
             return None
         return min(self.entry_groups, key=lambda group: abs(group.onset_beat - beat))
 
+    def entry_group_for_id(self, group_id: str) -> PracticeEntryGroup | None:
+        return next((group for group in self.entry_groups if group.group_id == group_id), None)
+
+    @property
+    def expected_practice_groups(self) -> tuple[ExpectedPracticeGroup, ...]:
+        return tuple(
+            expected_group
+            for group in self.entry_groups
+            if (expected_group := self.expected_group_for_entry(group.group_id)) is not None
+        )
+
+    def expected_group_for_entry(self, group_id: str) -> ExpectedPracticeGroup | None:
+        group = next((item for item in self.entry_groups if item.group_id == group_id), None)
+        if group is None or not group.entry_candidate:
+            return None
+
+        events_by_id = {event.event_id: event for event in self.events}
+        events = tuple(
+            event
+            for event_id in group.event_ids
+            if (event := events_by_id.get(event_id)) is not None and event.entry_candidate
+        )
+        if not events:
+            return None
+
+        return ExpectedPracticeGroup(
+            group_id=group.group_id,
+            onset_beat=group.onset_beat,
+            event_ids=tuple(event.event_id for event in events),
+            render_note_ids=tuple(dict.fromkeys(note_id for event in events for note_id in event.render_note_ids)),
+            pitches=tuple(dict.fromkeys(pitch for event in events for pitch in event.pitches)),
+            measure_numbers=tuple(
+                dict.fromkeys(number for event in events for number in event.measure_numbers)
+            ),
+            staff_ids=tuple(dict.fromkeys(staff_id for event in events for staff_id in event.staff_ids)),
+            voice_ids=tuple(dict.fromkeys(voice_id for event in events for voice_id in event.voice_ids)),
+        )
+
 
 @dataclass(frozen=True)
 class _MusicXmlNoteMetadata:
     staff_id: str
     voice_id: str
     measure_number: str
+    semantic_locator: str
     tie_types: tuple[str, ...]
 
 
@@ -128,11 +183,12 @@ def _build_entry_groups(events: tuple[PracticeScoreEvent, ...]) -> tuple[Practic
     groups: list[PracticeEntryGroup] = []
     for index, onset_beat in enumerate(sorted(grouped)):
         events_at_beat = grouped[onset_beat]
+        event_ids = tuple(event.event_id for event in events_at_beat)
         groups.append(
             PracticeEntryGroup(
-                group_id=f"entry-{index}",
+                group_id=_stable_entry_group_id(onset_beat, event_ids),
                 onset_beat=onset_beat,
-                event_ids=tuple(event.event_id for event in events_at_beat),
+                event_ids=event_ids,
                 render_note_ids=tuple(
                     dict.fromkeys(
                         note_id for event in events_at_beat for note_id in event.render_note_ids
@@ -168,7 +224,15 @@ def _event_from_notes(
         )
     )
     entry_candidate = any(not _is_pure_tie_continuation(item.metadata) for item in notes)
-    event_id = _stable_event_id(index, onset_beat, voice_id, staff_id, render_note_ids)
+    semantic_locator = _event_semantic_locator(index, notes)
+    event_id = _stable_event_id(
+        index,
+        onset_beat,
+        duration_beats,
+        voice_id,
+        staff_id,
+        semantic_locator,
+    )
     return PracticeScoreEvent(
         event_id=event_id,
         onset_beat=onset_beat,
@@ -193,23 +257,43 @@ def _musicxml_note_metadata(path: str | Path | None) -> dict[str, _MusicXmlNoteM
         return {}
 
     metadata: dict[str, _MusicXmlNoteMetadata] = {}
-    for measure in root.findall(".//{*}measure"):
-        measure_number = measure.get("number", "")
-        for note in measure.findall("{*}note"):
-            note_id = note.get("id")
-            if not note_id:
-                continue
-            metadata[note_id] = _MusicXmlNoteMetadata(
-                staff_id=_child_text(note, "staff"),
-                voice_id=_child_text(note, "voice"),
-                measure_number=measure_number,
-                tie_types=tuple(
-                    tie_type
-                    for tie in note.findall("{*}tie")
-                    if (tie_type := (tie.get("type") or "").strip())
-                ),
-            )
+    for part_index, part in enumerate(_direct_children_by_local_name(root, "part"), start=1):
+        for measure_index, measure in enumerate(
+            _direct_children_by_local_name(part, "measure"),
+            start=1,
+        ):
+            measure_number = measure.get("number", "")
+            selectable_index = 0
+            for element in list(measure):
+                tag = _local_name(element.tag)
+                if tag not in {"note", "forward"}:
+                    continue
+                selectable_index += 1
+                if tag != "note":
+                    continue
+                note_id = element.get("id")
+                if not note_id:
+                    continue
+                metadata[note_id] = _MusicXmlNoteMetadata(
+                    staff_id=_child_text(element, "staff"),
+                    voice_id=_child_text(element, "voice"),
+                    measure_number=measure_number,
+                    semantic_locator=f"p{part_index}-m{measure_index}-e{selectable_index}",
+                    tie_types=tuple(
+                        tie_type
+                        for tie in element.findall("{*}tie")
+                        if (tie_type := (tie.get("type") or "").strip())
+                    ),
+                )
     return metadata
+
+
+def _direct_children_by_local_name(element: ET.Element, name: str) -> tuple[ET.Element, ...]:
+    return tuple(child for child in list(element) if _local_name(child.tag) == name)
+
+
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
 
 
 def _is_pure_tie_continuation(metadata: _MusicXmlNoteMetadata | None) -> bool:
@@ -235,16 +319,36 @@ def _child_text(parent: ET.Element, child_name: str) -> str:
     return child.text.strip()
 
 
+def _event_semantic_locator(index: int, notes: list[_TimelineNote]) -> str:
+    for item in notes:
+        if item.metadata is not None and item.metadata.semantic_locator:
+            return item.metadata.semantic_locator
+    return f"i{index}"
+
+
 def _stable_event_id(
     index: int,
     onset_beat: ScoreBeat,
+    duration_beats: ScoreBeat,
     voice_id: str,
     staff_id: str,
-    render_note_ids: tuple[str, ...],
+    semantic_locator: str,
 ) -> str:
-    first_note_id = render_note_ids[0] if render_note_ids else f"event-{index}"
-    parts = ["event", _safe_id(str(onset_beat)), _safe_id(staff_id), _safe_id(voice_id), first_note_id]
+    parts = [
+        "event",
+        _safe_id(str(onset_beat)),
+        _safe_id(str(duration_beats)),
+        _safe_id(staff_id),
+        _safe_id(voice_id),
+        _safe_id(semantic_locator or f"i{index}"),
+    ]
     return "-".join(part for part in parts if part)
+
+
+def _stable_entry_group_id(onset_beat: ScoreBeat, event_ids: tuple[str, ...]) -> str:
+    identity = "|".join((str(onset_beat), *event_ids))
+    digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:12]
+    return f"entry-{_safe_id(str(onset_beat))}-{digest}"
 
 
 def _field_as_string(value: object) -> str:

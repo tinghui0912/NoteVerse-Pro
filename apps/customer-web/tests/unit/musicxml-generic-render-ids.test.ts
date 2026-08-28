@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { ensureStableMusicXmlIdsString, MusicXMLParser, parseXml } from '@/lib/musicxml';
+import { ensureGenericRenderMusicXmlIdsString, MusicXMLParser, parseXml } from '@/lib/musicxml';
 
 const baseScore = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
@@ -29,9 +29,9 @@ const note = (attributes = '') => `<note ${attributes}>
   <staff>1</staff>
 </note>`;
 
-describe('stable MusicXML ids', () => {
+describe('generic render MusicXML ids', () => {
   it('preserves legal unique ids', () => {
-    const normalized = ensureStableMusicXmlIdsString(baseScore(note('id="source-note-1"')));
+    const normalized = ensureGenericRenderMusicXmlIdsString(baseScore(note('id="source-note-1"')));
     const parsedNote = new MusicXMLParser(normalized).parse().measures[0]?.staves[0]?.voices[0]?.events[0];
 
     expect(normalized).toContain('id="source-note-1"');
@@ -40,7 +40,7 @@ describe('stable MusicXML ids', () => {
   });
 
   it('adds app-owned ids to editable elements without source ids', () => {
-    const normalized = ensureStableMusicXmlIdsString(baseScore(`${note()}<forward><duration>1</duration><voice>1</voice><staff>1</staff></forward>`));
+    const normalized = ensureGenericRenderMusicXmlIdsString(baseScore(`${note()}<forward><duration>1</duration><voice>1</voice><staff>1</staff></forward>`));
     const doc = parseXml(normalized);
     const elements = Array.from(doc.querySelectorAll('note, forward'));
     const ids = elements.map((element) => element.getAttribute('id'));
@@ -52,7 +52,7 @@ describe('stable MusicXML ids', () => {
   });
 
   it('renames duplicate ids instead of keeping ambiguous SVG anchors', () => {
-    const normalized = ensureStableMusicXmlIdsString(baseScore(`${note('id="same-id"')}${note('id="same-id"')}`));
+    const normalized = ensureGenericRenderMusicXmlIdsString(baseScore(`${note('id="same-id"')}${note('id="same-id"')}`));
     const elements = Array.from(parseXml(normalized).querySelectorAll('note'));
     const ids = elements.map((element) => element.getAttribute('id'));
 
@@ -62,7 +62,7 @@ describe('stable MusicXML ids', () => {
   });
 
   it('normalizes invalid ids to legal XML id values', () => {
-    const normalized = ensureStableMusicXmlIdsString(baseScore(note('id="1 bad id"')));
+    const normalized = ensureGenericRenderMusicXmlIdsString(baseScore(note('id="1 bad id"')));
     const noteEl = parseXml(normalized).querySelector('note');
     const id = noteEl?.getAttribute('id');
 

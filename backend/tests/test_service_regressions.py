@@ -22,14 +22,21 @@ from app.processing.engines.practice_alignment.reference_runtime import generate
 from app.processing.engines.practice_alignment.audio_features import feature_matrix
 from app.db.models.user import User
 from app.db.models.practice import (
+    PracticeAttempt,
+    PracticeAttemptCompletionStatus,
+    PracticeAttemptResolutionReason,
+    PracticeAttemptResult,
+    PracticeEvaluationProfile,
     PracticeInputSource,
-    PracticeMode,
-    PracticeReportStatus,
+    PracticeProgressionMode,
+    PracticeRealtimeGuidance,
+    PracticeSessionSummaryStatus,
     PracticeSessionState,
 )
 from app.db.models.score_access import AccessOrigin
 from app.db.models.import_job import ImportJobState
 from app.modules.files.service import FilesService
+from app.modules.practice.read_model import PracticeReadModel
 from app.modules.practice.service import PracticeService
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.profile_service import ProfileService
@@ -313,7 +320,7 @@ async def test_avatar_service_replaces_user_avatar_and_deletes_old_file() -> Non
         image.save(image_bytes, format="PNG")
 
         filename, avatar_url = await service.replace_user_avatar(
-            db,  # type: ignore[arg-type]
+            db,
             user,
             file_bytes=image_bytes.getvalue(),
             filename="avatar.png",
@@ -740,7 +747,9 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
     created_session = repository.create_session.await_args.args[1]
     assert created_session.revision_id == 201
     assert created_session.share_grant_id == 301
-    assert created_session.practice_mode == PracticeMode.FREE_FOLLOW
+    assert created_session.progression_mode == PracticeProgressionMode.CONTINUOUS
+    assert created_session.realtime_guidance == PracticeRealtimeGuidance.STATUS_ONLY
+    assert created_session.evaluation_profile == PracticeEvaluationProfile.PERFORMANCE
     assert created_session.input_source == PracticeInputSource.MICROPHONE
 
 
@@ -754,17 +763,23 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
         revision_id=301,
         access_origin=AccessOrigin.OWNER,
         state=PracticeSessionState.CREATED,
-        practice_mode=PracticeMode.FREE_FOLLOW,
+        progression_mode=PracticeProgressionMode.CONTINUOUS,
+        realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
+        evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
         input_source=PracticeInputSource.MICROPHONE,
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
+        scope_start_expected_group_id=None,
+        scope_end_expected_group_id=None,
+        scope_start_measure_number=None,
+        scope_end_measure_number=None,
         started_at=None,
         finished_at=None,
         last_beat_position=None,
         last_confidence=None,
-        report_status=PracticeReportStatus.NOT_REQUESTED,
-        report_payload=None,
+        summary_status=PracticeSessionSummaryStatus.NOT_REQUESTED,
+        summary_payload=None,
     )
     repository.get_session_by_uuid = AsyncMock(return_value=session)
     repository.save_session = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
@@ -829,10 +844,17 @@ async def test_practice_service_persist_alignment_updates_latest_position() -> N
         "continuity_confidence": 0.95,
         "visual_confidence": 0.95,
         "timestamp_ms": 320,
-        "score_completed": False,
+        "scope_completed": False,
+            "completion_reason": None,
         "audio_active": True,
         "input_rms": 0.04,
         "input_peak": 0.1,
+        "input_health": {
+            "available": True,
+            "level": "good",
+            "noise": "good",
+            "confidence": 1.0,
+        },
         "match_state": "matched",
     }
 
@@ -843,52 +865,228 @@ async def test_practice_service_persist_alignment_updates_latest_position() -> N
 
 
 @pytest.mark.asyncio
-async def test_practice_service_request_report_persists_structured_payload() -> None:
+async def test_practice_service_finish_session_persists_structured_summary_payload() -> None:
     repository = Mock()
     session = SimpleNamespace(
+        id=1,
         session_uuid="session-1",
         user_id=1,
-        state=PracticeSessionState.FINISHED,
+        score_id=11,
+        state=PracticeSessionState.PAUSED,
         access_origin=AccessOrigin.OWNER,
+        progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
+        realtime_guidance=PracticeRealtimeGuidance.GUIDED,
+        evaluation_profile=PracticeEvaluationProfile.LEARNING,
+        input_source=PracticeInputSource.MICROPHONE,
         started_at=None,
         finished_at=None,
         last_beat_position=18.5,
         last_confidence=0.88,
-        report_status=PracticeReportStatus.NOT_REQUESTED,
-        report_payload=None,
+        summary_status=PracticeSessionSummaryStatus.NOT_REQUESTED,
+        summary_payload=None,
         error=None,
     )
     repository.get_session_by_uuid = AsyncMock(return_value=session)
-    repository.save_report = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
-    service = PracticeService(repository=repository)
+    repository.save_session = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
+    repository.list_attempts_for_session = AsyncMock(
+        return_value=[
+            PracticeAttempt(
+                session_id=1,
+                attempt_index=1,
+                attempt_uid="attempt-1",
+                expected_group_id="entry-1",
+                event_id="event-1",
+                beat_position=4.0,
+                render_note_ids='["n1", "n2"]',
+                measure_numbers='["1"]',
+                result=PracticeAttemptResult.PARTIAL,
+                action="wait",
+                completion_status=PracticeAttemptCompletionStatus.COMPLETED,
+                resolution_reason=PracticeAttemptResolutionReason.PARTIAL_MATCH,
+                experience_state="waiting_for_note",
+                input_source=PracticeInputSource.MICROPHONE,
+                evidence_profile="MICROPHONE_BEST_EFFORT",
+                correctness_scope="acoustic_single_note_strict_chord_best_effort",
+                confidence=0.45,
+                timestamp_ms=100,
+            ),
+            PracticeAttempt(
+                session_id=1,
+                attempt_index=2,
+                attempt_uid="attempt-2",
+                expected_group_id="entry-1",
+                event_id="event-1",
+                beat_position=4.0,
+                render_note_ids='["n1", "n2"]',
+                measure_numbers='["1"]',
+                result=PracticeAttemptResult.MATCH,
+                action="advance",
+                completion_status=PracticeAttemptCompletionStatus.COMPLETED,
+                resolution_reason=PracticeAttemptResolutionReason.STABLE_MATCH,
+                experience_state="following",
+                input_source=PracticeInputSource.MICROPHONE,
+                evidence_profile="MICROPHONE_BEST_EFFORT",
+                correctness_scope="acoustic_single_note_strict_chord_best_effort",
+                confidence=0.91,
+                timestamp_ms=240,
+            ),
+            PracticeAttempt(
+                session_id=1,
+                attempt_index=3,
+                attempt_uid="attempt-3",
+                expected_group_id="entry-2",
+                event_id="event-2",
+                beat_position=5.0,
+                render_note_ids='["n3"]',
+                measure_numbers='["2"]',
+                result=PracticeAttemptResult.MISMATCH,
+                action="hold",
+                completion_status=PracticeAttemptCompletionStatus.INTERRUPTED,
+                resolution_reason=PracticeAttemptResolutionReason.CONNECTION_CLOSED,
+                experience_state="paused",
+                input_source=PracticeInputSource.MICROPHONE,
+                evidence_profile="MICROPHONE_BEST_EFFORT",
+                correctness_scope="acoustic_single_note_strict_chord_best_effort",
+                confidence=0.4,
+                timestamp_ms=300,
+            ),
+        ]
+    )
+    library_service = Mock()
+    library_service.mark_practiced = AsyncMock()
+    read_model = Mock()
+    read_model.to_session_detail = AsyncMock(return_value=SimpleNamespace(state=session.state))
+    service = PracticeService(
+        repository=repository,
+        library_service=library_service,
+        read_model=read_model,
+    )
+    db = AsyncMock()
 
-    result = await service.request_report(AsyncMock(), "session-1", user_id=1)
+    await service.finish_session(db, "session-1", user_id=1)
+    result = PracticeReadModel().to_session_summary_result(session)
 
-    assert result.report_status == PracticeReportStatus.READY
-    assert result.report_payload is not None
-    assert result.report_payload.metrics["confidence_label"] == "Strong"
-    assert session.report_status == PracticeReportStatus.READY
-    assert session.report_payload is not None
-    assert repository.save_report.await_count == 2
+    assert result.summary_status == PracticeSessionSummaryStatus.READY
+    assert result.summary_payload is not None
+    assert result.summary_payload.metrics["confidence_label"] == "Strong"
+    assert result.summary_payload.metrics["input_source"] == "MICROPHONE"
+    assert result.summary_payload.metrics["evidence_profile"] == "MICROPHONE_BEST_EFFORT"
+    assert (
+        result.summary_payload.metrics["correctness_scope"]
+        == "acoustic_single_note_strict_chord_best_effort"
+    )
+    assert result.summary_payload.metrics["attempt_count"] == 3
+    assert result.summary_payload.metrics["scorable_attempt_count"] == 2
+    assert result.summary_payload.metrics["interrupted_attempts"] == 1
+    assert result.summary_payload.metrics["scoring_coverage"] == 0.667
+    assert result.summary_payload.metrics["target_count"] == 2
+    assert result.summary_payload.metrics["scorable_target_count"] == 1
+    assert result.summary_payload.metrics["completed_targets"] == 1
+    assert result.summary_payload.metrics["scorable_completed_targets"] == 1
+    assert result.summary_payload.metrics["interrupted_target_count"] == 1
+    assert result.summary_payload.metrics["targets_with_partial"] == 1
+    assert result.summary_payload.metrics["targets_with_mismatch"] == 0
+    assert result.summary_payload.metrics["target_completion_rate"] == 0.5
+    assert result.summary_payload.metrics["scorable_target_completion_rate"] == 1.0
+    assert len(result.summary_payload.attempts) == 3
+    interrupted_attempt = result.summary_payload.attempts[2]
+    assert interrupted_attempt.completion_status == "INTERRUPTED"
+    assert interrupted_attempt.scoring_included is False
+    assert interrupted_attempt.resolution_reason == "connection_closed"
+    assert interrupted_attempt.measure_numbers == ["2"]
+    assert [target.expected_group_id for target in result.summary_payload.targets] == [
+        "entry-1",
+        "entry-2",
+    ]
+    first_target = result.summary_payload.targets[0]
+    assert first_target.measure_numbers == ["1"]
+    assert first_target.attempt_count == 2
+    assert first_target.completed is True
+    assert first_target.partial_attempt_count == 1
+    second_target = result.summary_payload.targets[1]
+    assert second_target.measure_numbers == ["2"]
+    assert second_target.interrupted_attempt_count == 1
+    assert second_target.completed is False
+    assert [measure.measure_number for measure in result.summary_payload.difficult_measures] == [
+        "1",
+        "2",
+    ]
+    hardest_measure = result.summary_payload.difficult_measures[0]
+    assert hardest_measure.incomplete_target_count == 0
+    assert hardest_measure.interrupted_attempt_count == 0
+    assert hardest_measure.difficulty_score == 1.5
+    interrupted_only_measure = result.summary_payload.difficult_measures[1]
+    assert interrupted_only_measure.incomplete_target_count == 1
+    assert interrupted_only_measure.interrupted_attempt_count == 1
+    assert interrupted_only_measure.difficulty_score == 0.0
+    assert session.summary_status == PracticeSessionSummaryStatus.READY
+    assert session.summary_payload is not None
+    assert repository.save_session.await_count == 2
 
 
 @pytest.mark.asyncio
-async def test_practice_service_get_report_parses_existing_payload() -> None:
+async def test_practice_service_finish_session_marks_midi_as_strict_evidence() -> None:
+    repository = Mock()
+    session = SimpleNamespace(
+        id=1,
+        session_uuid="session-1",
+        user_id=1,
+        score_id=11,
+        state=PracticeSessionState.PAUSED,
+        access_origin=AccessOrigin.OWNER,
+        progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
+        realtime_guidance=PracticeRealtimeGuidance.GUIDED,
+        evaluation_profile=PracticeEvaluationProfile.LEARNING,
+        input_source=PracticeInputSource.MIDI,
+        started_at=None,
+        finished_at=None,
+        last_beat_position=18.5,
+        last_confidence=1.0,
+        summary_status=PracticeSessionSummaryStatus.NOT_REQUESTED,
+        summary_payload=None,
+        error=None,
+    )
+    repository.get_session_by_uuid = AsyncMock(return_value=session)
+    repository.save_session = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
+    repository.list_attempts_for_session = AsyncMock(return_value=[])
+    library_service = Mock()
+    library_service.mark_practiced = AsyncMock()
+    read_model = Mock()
+    read_model.to_session_detail = AsyncMock(return_value=SimpleNamespace(state=session.state))
+    service = PracticeService(
+        repository=repository,
+        library_service=library_service,
+        read_model=read_model,
+    )
+    db = AsyncMock()
+
+    await service.finish_session(db, "session-1", user_id=1)
+    result = PracticeReadModel().to_session_summary_result(session)
+
+    assert result.summary_payload is not None
+    assert result.summary_payload.metrics["input_source"] == "MIDI"
+    assert result.summary_payload.metrics["evidence_profile"] == "MIDI_STRICT"
+    assert result.summary_payload.metrics["correctness_scope"] == "symbolic_exact_notes"
+    assert any("strictest note evidence" in item for item in result.summary_payload.recommendations)
+
+
+@pytest.mark.asyncio
+async def test_practice_service_get_summary_parses_existing_payload() -> None:
     repository = Mock()
     session = SimpleNamespace(
         session_uuid="session-1",
         user_id=1,
-        report_status=PracticeReportStatus.READY,
-        report_payload='{"summary":"done","metrics":{"state":"FINISHED"},"recommendations":["keep going"]}',
+        summary_status=PracticeSessionSummaryStatus.READY,
+        summary_payload='{"summary":"done","metrics":{"state":"FINISHED"},"recommendations":["keep going"]}',
     )
     repository.get_session_by_uuid = AsyncMock(return_value=session)
     service = PracticeService(repository=repository)
 
-    result = await service.get_report(AsyncMock(), "session-1", user_id=1)
+    result = await service.get_summary(AsyncMock(), "session-1", user_id=1)
 
     assert result.session_id == "session-1"
-    assert result.report_status == PracticeReportStatus.READY
-    assert result.report_payload is not None
-    assert result.report_payload.summary == "done"
-    assert result.report_payload.metrics == {"state": "FINISHED"}
-    assert result.report_payload.recommendations == ["keep going"]
+    assert result.summary_status == PracticeSessionSummaryStatus.READY
+    assert result.summary_payload is not None
+    assert result.summary_payload.summary == "done"
+    assert result.summary_payload.metrics == {"state": "FINISHED"}
+    assert result.summary_payload.recommendations == ["keep going"]

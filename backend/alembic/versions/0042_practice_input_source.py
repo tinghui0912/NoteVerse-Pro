@@ -1,7 +1,7 @@
 """Add explicit input source to practice sessions.
 
 Revision ID: 0042_practice_input_source
-Revises: 0041_practice_session_mode
+Revises: 0041_practice_session_policy
 """
 
 from collections.abc import Sequence
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 revision: str = "0042_practice_input_source"
-down_revision: str | None = "0041_practice_session_mode"
+down_revision: str | None = "0041_practice_session_policy"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

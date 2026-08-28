@@ -14,9 +14,11 @@ from app.db.model_utils import require_persisted_id
 from app.modules.practice.dependencies import get_practice_service, get_websocket_current_user
 from app.modules.practice.schemas import (
     CreatePracticeSessionRequest,
-    PracticeReportRead,
+    PracticeReadyScoreContentRead,
+    PracticeSessionResultSummaryRead,
     PracticeSessionDetailRead,
-    PracticeSessionSummaryRead,
+    PracticeSessionStartRead,
+    PracticeTargetCatalogRead,
 )
 from app.modules.practice.service import PracticeService
 from app.processing.realtime.message_codec import (
@@ -29,13 +31,80 @@ from app.processing.realtime.message_codec import (
     session_ready_message,
     state_changed_message,
 )
+from app.processing.realtime.protocol import ClientInitPayload
+from app.processing.realtime.session_runtime import PracticeSessionRuntime
 from app.shared.constants import ErrorCode, SuccessCode
 from app.shared.responses import APIResponse, success_response
 
 router = APIRouter()
 
+_CLIENT_INIT_POLICY_FIELDS = (
+    "progression_mode",
+    "realtime_guidance",
+    "evaluation_profile",
+    "input_source",
+)
 
-@router.post("/sessions", response_model=APIResponse[PracticeSessionSummaryRead])
+
+async def _send_alignment_and_finish_if_needed(
+    *,
+    websocket: WebSocket,
+    db: AsyncSession,
+    practice_service: PracticeService,
+    runtime: PracticeSessionRuntime,
+    session_id: str,
+    user_id: int,
+    alignment,
+) -> str | None:
+    await websocket.send_json(alignment_update_message(alignment))
+    for resolved_attempt in runtime.drain_resolved_practice_attempts():
+        await practice_service.persist_practice_attempt(db, session_id, resolved_attempt)
+    if runtime.should_persist_alignment():
+        await practice_service.persist_alignment(db, session_id, alignment)
+        runtime.mark_alignment_persisted()
+    if not runtime.is_scope_completed():
+        return None
+
+    if runtime.pending_alignment_updates > 0:
+        await practice_service.persist_alignment(db, session_id, alignment)
+        runtime.mark_alignment_persisted()
+    detail = await practice_service.finish_session(db, session_id, user_id)
+    state = _practice_session_state_value(detail)
+    runtime.state = state
+    await websocket.send_json(
+        session_finished_message(
+            state,
+            _practice_session_completion_outcome_value(detail),
+        )
+    )
+    return state
+
+
+def _client_init_policy_mismatch(
+    payload: ClientInitPayload,
+    runtime: PracticeSessionRuntime,
+) -> dict[str, object] | None:
+    for field_name in _CLIENT_INIT_POLICY_FIELDS:
+        expected = str(getattr(runtime, field_name))
+        actual = str(getattr(payload, field_name))
+        if actual != expected:
+            return {"field": field_name, "expected": expected, "actual": actual}
+    return None
+
+
+def _practice_session_state_value(detail: PracticeSessionDetailRead) -> str:
+    return detail.state.value
+
+
+def _practice_session_completion_outcome_value(
+    detail: PracticeSessionDetailRead,
+) -> dict[str, object]:
+    if detail.completion_outcome is None:
+        raise RuntimeError("finished practice session is missing completion outcome")
+    return detail.completion_outcome.model_dump(mode="json")
+
+
+@router.post("/sessions", response_model=APIResponse[PracticeSessionStartRead])
 async def create_practice_session(
     request: CreatePracticeSessionRequest,
     current_user: User = Depends(get_current_user),
@@ -51,10 +120,50 @@ async def create_practice_session(
         sample_rate=request.sample_rate,
         channels=request.channels,
         frame_format=request.frame_format,
-        practice_mode=request.practice_mode,
+        progression_mode=request.progression_mode,
+        realtime_guidance=request.realtime_guidance,
+        evaluation_profile=request.evaluation_profile,
         input_source=request.input_source,
+        practice_scope=request.practice_scope,
     )
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_CREATED)
+
+
+@router.get(
+    "/scores/{score_id}/revisions/{revision_id}/targets",
+    response_model=APIResponse[PracticeTargetCatalogRead],
+)
+async def list_practice_targets(
+    score_id: str,
+    revision_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.list_practice_targets(db, score_id, user_id, revision_id)
+    return success_response(data=result)
+
+
+@router.get(
+    "/scores/{score_id}/revisions/{revision_id}/content",
+    response_model=APIResponse[PracticeReadyScoreContentRead],
+)
+async def get_practice_ready_score_content(
+    score_id: str,
+    revision_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.get_practice_ready_score_content(
+        db,
+        score_id,
+        user_id,
+        revision_id,
+    )
+    return success_response(data=result)
 
 
 @router.get("/sessions/{session_id}", response_model=APIResponse[PracticeSessionDetailRead])
@@ -105,27 +214,15 @@ async def finish_practice_session(
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_FINISHED)
 
 
-@router.post("/sessions/{session_id}/report", response_model=APIResponse[PracticeReportRead])
-async def request_practice_report(
+@router.get("/sessions/{session_id}/summary", response_model=APIResponse[PracticeSessionResultSummaryRead])
+async def get_practice_session_summary(
     session_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     practice_service: PracticeService = Depends(get_practice_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await practice_service.request_report(db, session_id, user_id)
-    return success_response(data=result, message=SuccessCode.PRACTICE_REPORT_READY)
-
-
-@router.get("/sessions/{session_id}/report", response_model=APIResponse[PracticeReportRead])
-async def get_practice_report(
-    session_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    practice_service: PracticeService = Depends(get_practice_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    result = await practice_service.get_report(db, session_id, user_id)
+    result = await practice_service.get_summary(db, session_id, user_id)
     return success_response(data=result)
 
 
@@ -137,18 +234,23 @@ async def stream_practice_session(
     practice_service: PracticeService = Depends(get_practice_service),
 ):
     started_at = time.monotonic()
+    phase = "authenticating"
     user_id: int | None = None
     terminal_event = "practice.websocket.closed"
+    terminal_reason = "loop_exited"
     terminal_fields: dict[str, object] = {}
     accepted = False
+    runtime = None
 
     try:
         current_user = await get_websocket_current_user(websocket, db)
         user_id = require_persisted_id(current_user.id, entity="user")
         await practice_service.require_session_access(db, session_id, user_id)
 
+        phase = "accepting"
         await websocket.accept()
         accepted = True
+        phase = "accepted"
         realtime_connection_opened(channel="practice_websocket")
         logger.bind(
             event="practice.websocket.accepted",
@@ -157,19 +259,42 @@ async def stream_practice_session(
             user_id=user_id,
         ).info("practice websocket accepted")
         await websocket.send_json(session_connecting_message(session_id))
+
+        phase = "preparing_runtime"
+        prepare_started_at = time.monotonic()
+        logger.bind(
+            event="practice.websocket.runtime_preparing",
+            operation_kind="practice",
+            session_id=session_id,
+            user_id=user_id,
+        ).info("practice websocket runtime preparing")
         runtime = await practice_service.prepare_stream_runtime(db, session_id, user_id)
         runtime.websocket = websocket
+        prepare_ms = round((time.monotonic() - prepare_started_at) * 1000)
+        phase = "waiting_for_client_init"
         logger.bind(
             event="practice.websocket.ready",
             operation_kind="practice",
             session_id=session_id,
             user_id=user_id,
+            prepare_ms=prepare_ms,
+            state=runtime.state,
+            sample_rate=runtime.sample_rate,
+            channels=runtime.channels,
+            frame_format=runtime.frame_format,
+            progression_mode=runtime.progression_mode,
+            realtime_guidance=runtime.realtime_guidance,
+            evaluation_profile=runtime.evaluation_profile,
+            input_source=runtime.input_source,
         ).info("practice websocket ready")
 
         while True:
             message = await websocket.receive()
 
             if message["type"] == "websocket.disconnect":
+                terminal_event = "practice.websocket.disconnected"
+                terminal_reason = "client_disconnected"
+                terminal_fields = {"status_code": message.get("code")}
                 break
 
             text = message.get("text")
@@ -177,6 +302,17 @@ async def stream_practice_session(
                 try:
                     control = parse_control_message(text)
                 except ValueError:
+                    terminal_event = "practice.websocket.failed"
+                    terminal_reason = "invalid_control_message"
+                    terminal_fields = {"public_code": ErrorCode.PRACTICE_STREAM_CLOSED}
+                    logger.bind(
+                        event="practice.websocket.control_rejected",
+                        operation_kind="practice",
+                        session_id=session_id,
+                        user_id=user_id,
+                        phase=phase,
+                        reason=terminal_reason,
+                    ).warning("practice websocket control rejected: reason=invalid_control_message")
                     await websocket.send_json(
                         session_error_message(
                             public_code=ErrorCode.PRACTICE_STREAM_CLOSED,
@@ -187,24 +323,60 @@ async def stream_practice_session(
                 message_type = control.type
 
                 if message_type == "client.init":
-                    if control.payload.practice_mode != runtime.practice_mode:
-                        await websocket.send_json(
-                            session_error_message(public_code=ErrorCode.VALIDATION_ERROR)
-                        )
-                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                        break
-                    if control.payload.input_source != runtime.input_source:
+                    phase = "client_init_received"
+                    logger.bind(
+                        event="practice.websocket.client_init",
+                        operation_kind="practice",
+                        session_id=session_id,
+                        user_id=user_id,
+                        sample_rate=control.payload.sample_rate,
+                        channels=control.payload.channels,
+                        frame_samples=control.payload.frame_samples,
+                        progression_mode=control.payload.progression_mode,
+                        realtime_guidance=control.payload.realtime_guidance,
+                        evaluation_profile=control.payload.evaluation_profile,
+                        input_source=control.payload.input_source,
+                    ).info("practice websocket client.init received")
+                    policy_mismatch = _client_init_policy_mismatch(control.payload, runtime)
+                    if policy_mismatch is not None:
+                        terminal_event = "practice.websocket.failed"
+                        terminal_reason = "client_init_policy_mismatch"
+                        terminal_fields = policy_mismatch
+                        logger.bind(
+                            event="practice.websocket.client_init_rejected",
+                            operation_kind="practice",
+                            session_id=session_id,
+                            user_id=user_id,
+                            **terminal_fields,
+                        ).warning("practice websocket client.init rejected")
                         await websocket.send_json(
                             session_error_message(public_code=ErrorCode.VALIDATION_ERROR)
                         )
                         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                         break
                     detail = await practice_service.start_session_stream(db, session_id, user_id)
-                    runtime.state = detail["state"]
+                    state = _practice_session_state_value(detail)
+                    runtime.state = state
                     await websocket.send_json(
-                        session_ready_message(session_id=session_id, state=detail["state"])
+                        session_ready_message(session_id=session_id, state=state)
                     )
+                    if runtime.consume_ready_notification():
+                        await websocket.send_json(
+                            session_armed_message(
+                                session_id=session_id,
+                                input_health=runtime.input_health,
+                            )
+                        )
+                    phase = "streaming"
+                    logger.bind(
+                        event="practice.websocket.session_ready_sent",
+                        operation_kind="practice",
+                        session_id=session_id,
+                        user_id=user_id,
+                        state=runtime.state,
+                    ).info("practice websocket session.ready sent")
                 elif message_type == "client.pause":
+                    phase = "pausing"
                     if runtime.last_alignment is not None and runtime.pending_alignment_updates > 0:
                         await practice_service.persist_alignment(
                             db,
@@ -213,13 +385,19 @@ async def stream_practice_session(
                         )
                         runtime.mark_alignment_persisted()
                     detail = await practice_service.pause_session(db, session_id, user_id)
-                    runtime.state = detail["state"]
-                    await websocket.send_json(state_changed_message(detail["state"]))
+                    state = _practice_session_state_value(detail)
+                    runtime.state = state
+                    await websocket.send_json(state_changed_message(state))
+                    phase = "paused"
                 elif message_type == "client.resume":
+                    phase = "resuming"
                     detail = await practice_service.resume_session(db, session_id, user_id)
-                    runtime.state = detail["state"]
-                    await websocket.send_json(state_changed_message(detail["state"]))
+                    state = _practice_session_state_value(detail)
+                    runtime.state = state
+                    await websocket.send_json(state_changed_message(state))
+                    phase = "streaming"
                 elif message_type == "client.finish":
+                    phase = "finishing"
                     if runtime.last_alignment is not None and runtime.pending_alignment_updates > 0:
                         await practice_service.persist_alignment(
                             db,
@@ -228,12 +406,61 @@ async def stream_practice_session(
                         )
                         runtime.mark_alignment_persisted()
                     detail = await practice_service.finish_session(db, session_id, user_id)
-                    runtime.state = detail["state"]
-                    await websocket.send_json(session_finished_message(detail["state"]))
+                    state = _practice_session_state_value(detail)
+                    runtime.state = state
+                    await websocket.send_json(
+                        session_finished_message(
+                            state,
+                            _practice_session_completion_outcome_value(detail),
+                        )
+                    )
+                    terminal_event = "practice.websocket.finished"
+                    terminal_reason = "client_finished"
+                    terminal_fields = {"state": runtime.state}
                     break
                 elif message_type == "client.heartbeat":
                     continue
+                elif message_type == "client.midi_event":
+                    if runtime.state != "STREAMING":
+                        continue
+                    phase = "streaming_midi"
+                    try:
+                        alignment = runtime.process_midi_event(
+                            event_type=control.payload.event_type,
+                            note_number=control.payload.note_number,
+                            velocity=control.payload.velocity,
+                            timestamp_ms=control.payload.timestamp_ms,
+                        )
+                    except RuntimeError:
+                        terminal_event = "practice.websocket.failed"
+                        terminal_reason = "midi_processing_failed"
+                        terminal_fields = {"public_code": ErrorCode.PRACTICE_ALIGNMENT_FAILED}
+                        await websocket.send_json(
+                            session_error_message(
+                                public_code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+                            )
+                        )
+                        break
+
+                    if alignment is not None:
+                        finished_state = await _send_alignment_and_finish_if_needed(
+                            websocket=websocket,
+                            db=db,
+                            practice_service=practice_service,
+                            runtime=runtime,
+                            session_id=session_id,
+                            user_id=user_id,
+                            alignment=alignment,
+                        )
+                        if finished_state is not None:
+                            terminal_event = "practice.websocket.finished"
+                            terminal_reason = "scope_completed"
+                            terminal_fields = {"state": finished_state}
+                            break
                 else:
+                    terminal_event = "practice.websocket.failed"
+                    terminal_reason = "unsupported_control_message"
+                    terminal_fields = {"message_type": message_type}
                     await websocket.send_json(
                         session_error_message(
                             public_code=ErrorCode.PRACTICE_STREAM_CLOSED,
@@ -243,9 +470,13 @@ async def stream_practice_session(
             if binary_payload is not None:
                 if runtime.state != "STREAMING":
                     continue
+                phase = "streaming_audio"
                 try:
                     alignment = runtime.process_audio_chunk(binary_payload)
                 except RuntimeError:
+                    terminal_event = "practice.websocket.failed"
+                    terminal_reason = "alignment_failed"
+                    terminal_fields = {"public_code": ErrorCode.PRACTICE_ALIGNMENT_FAILED}
                     await websocket.send_json(
                         session_error_message(
                             public_code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
@@ -257,26 +488,29 @@ async def stream_practice_session(
                     await websocket.send_json(
                         session_armed_message(
                             session_id=session_id,
-                            environment_quality=runtime.environment_quality,
+                            input_health=runtime.input_health,
                         )
                     )
 
                 if alignment is not None:
-                    await websocket.send_json(alignment_update_message(alignment))
-                    if runtime.should_persist_alignment():
-                        await practice_service.persist_alignment(db, session_id, alignment)
-                        runtime.mark_alignment_persisted()
-                    if runtime.is_score_completed():
-                        if runtime.pending_alignment_updates > 0:
-                            await practice_service.persist_alignment(db, session_id, alignment)
-                            runtime.mark_alignment_persisted()
-                        detail = await practice_service.finish_session(db, session_id, user_id)
-                        runtime.state = detail["state"]
-                        await websocket.send_json(session_finished_message(detail["state"]))
+                    finished_state = await _send_alignment_and_finish_if_needed(
+                        websocket=websocket,
+                        db=db,
+                        practice_service=practice_service,
+                        runtime=runtime,
+                        session_id=session_id,
+                        user_id=user_id,
+                        alignment=alignment,
+                    )
+                    if finished_state is not None:
+                        terminal_event = "practice.websocket.finished"
+                        terminal_reason = "scope_completed"
+                        terminal_fields = {"state": finished_state}
                         break
 
     except AppException as exc:
         terminal_event = "practice.websocket.failed"
+        terminal_reason = "application_exception"
         terminal_fields = {"public_code": exc.code, "exception_type": type(exc).__name__}
         if not accepted:
             await websocket.accept()
@@ -289,13 +523,25 @@ async def stream_practice_session(
         )
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
     except WebSocketDisconnect as exc:
+        terminal_event = "practice.websocket.disconnected"
+        terminal_reason = "websocket_disconnect_exception"
         terminal_fields = {"status_code": exc.code}
     except Exception as exc:
         terminal_event = "practice.websocket.failed"
+        terminal_reason = "unexpected_exception"
         terminal_fields = {
             "public_code": ErrorCode.PRACTICE_STREAM_CLOSED,
             "exception_type": type(exc).__name__,
         }
+        logger.bind(
+            event=terminal_event,
+            operation_kind="practice",
+            session_id=session_id,
+            user_id=user_id,
+            phase=phase,
+            reason=terminal_reason,
+            **terminal_fields,
+        ).exception("practice websocket unexpected exception")
         if not accepted:
             await websocket.accept()
             accepted = True
@@ -305,16 +551,36 @@ async def stream_practice_session(
         )
         await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
     finally:
+        if runtime is not None and terminal_event != "practice.websocket.finished":
+            try:
+                await practice_service.finalize_pending_practice_attempts(
+                    db,
+                    session_id,
+                    reason="connection_closed",
+                )
+            except Exception as exc:
+                logger.bind(
+                    event="practice.websocket.pending_attempt_finalize_failed",
+                    operation_kind="practice",
+                    session_id=session_id,
+                    user_id=user_id,
+                    phase=phase,
+                    reason=terminal_reason,
+                    exception_type=type(exc).__name__,
+                ).opt(exception=exc).warning("practice websocket pending attempt finalize failed")
         cleanup_runtime = practice_service.runtime_registry.get(session_id)
         if cleanup_runtime is not None and cleanup_runtime.websocket is websocket:
             cleanup_runtime.websocket = None
         if accepted:
             realtime_connection_closed(channel="practice_websocket")
+        duration_ms = round((time.monotonic() - started_at) * 1000)
         logger.bind(
             event=terminal_event,
             operation_kind="practice",
             session_id=session_id,
             user_id=user_id,
-            duration_ms=round((time.monotonic() - started_at) * 1000),
+            duration_ms=duration_ms,
+            phase=phase,
+            reason=terminal_reason,
             **terminal_fields,
         ).info("practice websocket terminal event")

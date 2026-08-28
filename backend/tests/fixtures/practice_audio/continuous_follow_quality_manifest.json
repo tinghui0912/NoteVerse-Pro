@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "sample_rate": 16000,
+  "description": "Privacy-safe CONTINUOUS follow-quality replay baseline. These scenarios measure post-start tracking quality separately from startup admission.",
+  "scenarios": [
+    {
+      "id": "once_again_continuous_excerpt_tracks_reliably",
+      "description": "The authorized Once Again excerpt starts and keeps reliable tracking through the playable phrase.",
+      "tail_ignore_seconds": 0.8,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0,
+        "max_lost_episodes": 0,
+        "max_lost_frame_ratio": 0,
+        "min_following_frame_ratio": 0.95,
+        "min_reliable_update_ratio": 0.3,
+        "max_time_to_first_reliable_alignment": 0.12
+      }
+    },
+    {
+      "id": "once_again_continuous_selected_section_completes_at_range_end",
+      "description": "A bounded continuous selected-section replay starts inside the selected range, never accepts anchors outside that range, and completes at the selected end.",
+      "practice_scope_by_beat": {
+        "start_beat": 3.0,
+        "end_beat": 12.0
+      },
+      "tail_ignore_seconds": 0.8,
+      "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "accepted_anchor_beat_min": 3.0,
+        "accepted_anchor_beat_max": 12.0,
+        "accepted_completion_must_reach_terminal_region": true,
+        "scope_completed": true,
+        "completion_reason": "SCOPE_END_REACHED",
+        "max_lost_frames": 0,
+        "max_lost_episodes": 0,
+        "max_lost_frame_ratio": 0,
+        "min_following_frame_ratio": 0.95,
+        "min_reliable_update_ratio": 0.3,
+        "max_time_to_first_reliable_alignment": 0.12
+      }
+    },
+    {
+      "id": "once_again_continuous_selected_section_early_stop_does_not_complete",
+      "description": "A bounded continuous selected-section replay that stops near beat 10 must not complete the range ending at beat 12.",
+      "practice_scope_by_beat": {
+        "start_beat": 3.0,
+        "end_beat": 12.0
+      },
+      "tail_ignore_seconds": 0,
+      "frames": [
+        {
+          "type": "wav",
+          "path": "local_recordings/once_again_excerpt_16k.wav",
+          "duration_seconds": 5.0
+        }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "accepted_anchor_beat_min": 3.0,
+        "accepted_anchor_beat_max": 10.0,
+        "scope_completed": false,
+        "accepted_completion_beat": null,
+        "max_lost_frames": 0,
+        "max_lost_episodes": 0,
+        "max_lost_frame_ratio": 0,
+        "min_following_frame_ratio": 0.95,
+        "min_reliable_update_ratio": 0.3,
+        "max_time_to_first_reliable_alignment": 0.12
+      }
+    },
+    {
+      "id": "once_again_continuous_selected_section_outside_audio_does_not_start",
+      "description": "A bounded continuous selected-section replay fed with later selected-range-external audio must not start or accept anchors from outside the cropped reference.",
+      "practice_scope_by_beat": {
+        "start_beat": 3.0,
+        "end_beat": 12.0
+      },
+      "tail_ignore_seconds": 0,
+      "frames": [
+        {
+          "type": "wav",
+          "path": "local_recordings/once_again_excerpt_16k.wav",
+          "start_seconds": 4.5,
+          "duration_seconds": 2.5
+        }
+      ],
+      "expect": {
+        "starts": false,
+        "scope_completed": false,
+        "accepted_completion_beat": null
+      }
+    },
+    {
+      "id": "once_again_continuous_later_section_completes_at_range_end",
+      "description": "A later bounded continuous selected-section replay starts from the selected section's own entry and completes at its terminal boundary.",
+      "practice_scope_by_beat": {
+        "start_beat": 12.0,
+        "end_beat": 23.75
+      },
+      "tail_ignore_seconds": 0,
+      "frames": [
+        {
+          "type": "wav",
+          "path": "local_recordings/once_again_excerpt_16k.wav",
+          "start_seconds": 7.55
+        }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.0,
+        "start_seconds_max": 1.2,
+        "first_alignment_beat_min": 12.0,
+        "first_alignment_beat_max": 12.2,
+        "min_alignment_advance": 11.5,
+        "accepted_anchor_beat_min": 12.0,
+        "accepted_anchor_beat_max": 23.75,
+        "accepted_completion_must_reach_terminal_region": true,
+        "scope_completed": true,
+        "completion_reason": "SCOPE_END_REACHED",
+        "max_lost_frames": 0,
+        "max_lost_episodes": 0,
+        "max_lost_frame_ratio": 0,
+        "min_following_frame_ratio": 0.95,
+        "min_reliable_update_ratio": 0.3,
+        "max_time_to_first_reliable_alignment": 0.2
+      }
+    },
+    {
+      "id": "once_again_continuous_with_background_speech_tracks_reliably",
+      "description": "Low-level speech during the piano excerpt may reduce confidence but should not lose the follower.",
+      "tail_ignore_seconds": 0.8,
+      "frames": [
+        {
+          "type": "mix_wav",
+          "duration_seconds": 8,
+          "sources": [
+            { "path": "local_recordings/once_again_excerpt_16k.wav" },
+            {
+              "path": "public_samples/speech_fsd_0_jackson_0_16k.wav",
+              "gain_db": -12,
+              "offset_seconds": 1,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_max": 1.8,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0,
+        "max_lost_episodes": 0,
+        "max_lost_frame_ratio": 0,
+        "min_following_frame_ratio": 0.95,
+        "min_reliable_update_ratio": 0.3,
+        "max_time_to_first_reliable_alignment": 0.12
+      }
+    },
+    {
+      "id": "once_again_continuous_tail_silence_does_not_pollute_phrase_quality",
+      "description": "A natural pause after the playable phrase is ignored for phrase-quality metrics.",
+      "tail_ignore_seconds": 2.2,
+      "frames": [
+        { "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" },
+        { "type": "silence", "duration_seconds": 2.0 }
+      ],
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.6,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.2,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0,
+        "max_lost_episodes": 0,
+        "max_lost_frame_ratio": 0,
+        "min_following_frame_ratio": 0.95,
+        "min_reliable_update_ratio": 0.3,
+        "max_time_to_first_reliable_alignment": 0.12
+      }
+    }
+  ]
+}

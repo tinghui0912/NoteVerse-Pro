@@ -43,10 +43,17 @@ function makeAlignment(
     continuity_confidence: 0.95,
     visual_confidence: 0.95,
     timestamp_ms: 20,
-    score_completed: false,
+    scope_completed: false,
+      completion_reason: null,
     audio_active: true,
     input_rms: 0.04,
     input_peak: 0.1,
+    input_health: {
+      available: true,
+      level: 'good',
+      noise: 'good',
+      confidence: 1,
+    },
     match_state: 'matched',
     feature_confidence: 0.95,
     beat_delta: null,
@@ -150,12 +157,44 @@ describe('resolvePracticeSessionStatusView', () => {
     });
   });
 
+  it('shows partial-match guidance without marking it as uncertain', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        ...baseProps,
+        alignment: makeAlignment({
+          decision: {
+            action: 'wait',
+            reason: 'partial_match',
+            experience_state: 'partially_matched',
+            display_anchor: { beat: 3, render_note_ids: ['n1'] },
+            confidence_summary: {
+              visual: 0.9,
+              alignment: 0.9,
+              audio: 0.9,
+              continuity: 1,
+              validation: 0.9,
+              input_policy: 1,
+            },
+          },
+        }),
+      })
+    ).toMatchObject({
+      messageKey: 'practiceStatePartiallyMatched',
+      uncertain: false,
+    });
+  });
+
   it('keeps input health separate from the practice state', () => {
     expect(
       resolvePracticeSessionStatusView({
         ...baseProps,
         alignment: makeAlignment({
-          input_rms: 0.001,
+          input_health: {
+            available: true,
+            level: 'too_quiet',
+            noise: 'good',
+            confidence: 1,
+          },
           decision: {
             action: 'wait',
             reason: 'insufficient_input',
@@ -176,6 +215,56 @@ describe('resolvePracticeSessionStatusView', () => {
       messageKey: 'waitingForFirstNote',
       inputHintKey: 'practiceInputCheckMic',
       uncertain: false,
+    });
+  });
+
+  it('shows runtime noise health without changing the practice state', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        ...baseProps,
+        alignment: makeAlignment({
+          input_health: {
+            available: true,
+            level: 'good',
+            noise: 'high',
+            confidence: 1,
+          },
+        }),
+      })
+    ).toMatchObject({
+      messageKey: 'settingStatusFollowing',
+      inputHintKey: 'practiceInputNoiseHigh',
+      uncertain: false,
+    });
+  });
+
+  it('does not show a pending connection state after an idle setup failure', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        status: 'idle',
+        connectionStatus: 'error',
+        isLoading: false,
+        isPreparingSession: false,
+        canPrepareSession: true,
+        audioWorkletSupported: true,
+        alignment: null,
+      })
+    ).toMatchObject({
+      messageKey: 'settingStatusReady',
+      pending: false,
+    });
+  });
+
+  it('shows a distinct pending state while completion is being finalized', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        ...baseProps,
+        status: 'finishing',
+        alignment: null,
+      })
+    ).toMatchObject({
+      messageKey: 'finishingPractice',
+      pending: true,
     });
   });
 });

@@ -6,11 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import PracticeSession, Score, ScoreRevision
+from app.db.models.practice import (
+    PracticeInputSource,
+    PracticeProgressionMode,
+    PracticeSessionState,
+)
 from app.modules.practice.schemas import (
-    PracticeReportPayloadRead,
-    PracticeReportRead,
+    PracticeSessionCompletionOutcomeRead,
+    PracticeSessionSummaryPayloadRead,
+    PracticeSessionResultSummaryRead,
+    PracticeSessionScope,
     PracticeSessionDetailRead,
-    PracticeSessionSummaryRead,
+    PracticeSessionStartRead,
 )
 from app.shared.constants import ErrorCode
 
@@ -18,8 +25,8 @@ from app.shared.constants import ErrorCode
 class PracticeReadModel:
     """Build API-facing practice session read models."""
 
-    def to_session_summary(self, session: PracticeSession) -> PracticeSessionSummaryRead:
-        return PracticeSessionSummaryRead(
+    def to_session_start(self, session: PracticeSession) -> PracticeSessionStartRead:
+        return PracticeSessionStartRead(
             session_id=session.session_uuid,
             state=session.state,
             ws_url=f"/api/v1/practice/sessions/{session.session_uuid}/stream",
@@ -42,8 +49,20 @@ class PracticeReadModel:
             revision_id=revision.revision_uuid,
             access_origin=session.access_origin,
             state=session.state,
-            practice_mode=session.practice_mode,
+            progression_mode=session.progression_mode,
+            realtime_guidance=session.realtime_guidance,
+            evaluation_profile=session.evaluation_profile,
             input_source=session.input_source,
+            practice_scope=(
+                PracticeSessionScope(
+                    start_expected_group_id=session.scope_start_expected_group_id,
+                    end_expected_group_id=session.scope_end_expected_group_id,
+                    start_measure_number=session.scope_start_measure_number,
+                    end_measure_number=session.scope_end_measure_number,
+                )
+                if session.scope_start_expected_group_id
+                else None
+            ),
             sample_rate=session.sample_rate,
             channels=session.channels,
             frame_format=session.frame_format,
@@ -51,17 +70,53 @@ class PracticeReadModel:
             finished_at=session.finished_at.isoformat() if session.finished_at else None,
             last_beat_position=session.last_beat_position,
             last_confidence=session.last_confidence,
-            report_status=session.report_status,
+            summary_status=session.summary_status,
+            completion_outcome=_completion_outcome_for_session(session),
         )
 
-    def to_report_result(self, session: PracticeSession) -> PracticeReportRead:
-        parsed_payload: PracticeReportPayloadRead | None = None
-        if session.report_payload:
-            parsed_payload = PracticeReportPayloadRead.model_validate(
-                json.loads(session.report_payload)
+    def to_session_summary_result(self, session: PracticeSession) -> PracticeSessionResultSummaryRead:
+        parsed_payload: PracticeSessionSummaryPayloadRead | None = None
+        if session.summary_payload:
+            parsed_payload = PracticeSessionSummaryPayloadRead.model_validate(
+                json.loads(session.summary_payload)
             )
-        return PracticeReportRead(
+        return PracticeSessionResultSummaryRead(
             session_id=session.session_uuid,
-            report_status=session.report_status,
-            report_payload=parsed_payload,
+            summary_status=session.summary_status,
+            summary_payload=parsed_payload,
         )
+
+
+def _completion_outcome_for_session(
+    session: PracticeSession,
+) -> PracticeSessionCompletionOutcomeRead | None:
+    if session.state != PracticeSessionState.FINISHED:
+        return None
+
+    playback_expected = session.input_source == PracticeInputSource.MICROPHONE
+    is_selected_section = bool(session.scope_start_expected_group_id)
+    if is_selected_section:
+        return PracticeSessionCompletionOutcomeRead(
+            kind="SELECTED_SECTION",
+            scope_kind="SELECTED_RANGE",
+            summary_artifact_kind="SECTION_SUMMARY",
+            playback_expected=playback_expected,
+            summary_available=False,
+        )
+
+    if session.progression_mode == PracticeProgressionMode.CONTINUOUS:
+        return PracticeSessionCompletionOutcomeRead(
+            kind="FULL_PIECE_PERFORMANCE",
+            scope_kind="FULL_PIECE",
+            summary_artifact_kind="PERFORMANCE_SUMMARY",
+            playback_expected=playback_expected,
+            summary_available=True,
+        )
+
+    return PracticeSessionCompletionOutcomeRead(
+        kind="FULL_PIECE_LEARNING",
+        scope_kind="FULL_PIECE",
+        summary_artifact_kind="LEARNING_SUMMARY",
+        playback_expected=playback_expected,
+        summary_available=False,
+    )

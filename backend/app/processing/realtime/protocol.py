@@ -22,12 +22,21 @@ class ClientInitPayload(_StrictModel):
     sample_rate: int = Field(ge=1)
     channels: int = Field(ge=1)
     frame_samples: int = Field(ge=1)
-    practice_mode: Literal["FREE_FOLLOW", "WAIT_FOR_NOTE", "ASSESSMENT", "PERFORMANCE"]
+    progression_mode: Literal["WAIT_FOR_NOTE", "CONTINUOUS"]
+    realtime_guidance: Literal["STATUS_ONLY", "GUIDED"]
+    evaluation_profile: Literal["LEARNING", "PERFORMANCE"]
     input_source: Literal["MICROPHONE", "MIDI"]
 
 
 class ClientTimestampPayload(_StrictModel):
     t: int = Field(ge=0)
+
+
+class ClientMidiEventPayload(_StrictModel):
+    event_type: Literal["note_on", "note_off"]
+    note_number: int = Field(ge=0, le=127)
+    velocity: int = Field(default=0, ge=0, le=127)
+    timestamp_ms: int = Field(ge=0)
 
 
 class ClientInitMessage(_ProtocolEnvelope):
@@ -55,12 +64,18 @@ class ClientHeartbeatMessage(_ProtocolEnvelope):
     payload: ClientTimestampPayload
 
 
+class ClientMidiEventMessage(_ProtocolEnvelope):
+    type: Literal["client.midi_event"]
+    payload: ClientMidiEventPayload
+
+
 PracticeClientMessage = Annotated[
     ClientInitMessage
     | ClientPauseMessage
     | ClientResumeMessage
     | ClientFinishMessage
-    | ClientHeartbeatMessage,
+    | ClientHeartbeatMessage
+    | ClientMidiEventMessage,
     Field(discriminator="type"),
 ]
 practice_client_message_adapter = TypeAdapter(PracticeClientMessage)
@@ -75,13 +90,41 @@ class SessionConnectingPayload(_StrictModel):
     session_id: str = Field(min_length=1)
 
 
+class InputHealthPayload(_StrictModel):
+    available: bool
+    level: Literal["good", "too_quiet", "clipping"]
+    noise: Literal["good", "elevated", "high"]
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
 class SessionArmedPayload(_StrictModel):
     session_id: str = Field(min_length=1)
-    environment_quality: Literal["good", "noisy", "poor"]
+    input_health: InputHealthPayload
 
 
 class SessionStatePayload(_StrictModel):
     state: str = Field(min_length=1)
+
+
+class SessionCompletionOutcomePayload(_StrictModel):
+    kind: Literal[
+        "FULL_PIECE_LEARNING",
+        "FULL_PIECE_PERFORMANCE",
+        "SELECTED_SECTION",
+    ]
+    scope_kind: Literal["FULL_PIECE", "SELECTED_RANGE"]
+    summary_artifact_kind: Literal[
+        "LEARNING_SUMMARY",
+        "PERFORMANCE_SUMMARY",
+        "SECTION_SUMMARY",
+    ]
+    playback_expected: bool
+    summary_available: bool
+
+
+class SessionFinishedPayload(_StrictModel):
+    state: str = Field(min_length=1)
+    completion_outcome: SessionCompletionOutcomePayload
 
 
 class SessionErrorPayload(_StrictModel):
@@ -109,6 +152,7 @@ class AlignmentDecisionPayload(_StrictModel):
     action: Literal["advance", "hold", "relocalize", "wait"]
     reason: Literal[
         "stable_match",
+        "partial_match",
         "insufficient_input",
         "entry_mismatch",
         "low_alignment_confidence",
@@ -120,6 +164,7 @@ class AlignmentDecisionPayload(_StrictModel):
         "waiting_for_input",
         "listening",
         "following",
+        "partially_matched",
         "heard_but_uncertain",
         "possible_wrong_note",
         "recovering",
@@ -128,6 +173,13 @@ class AlignmentDecisionPayload(_StrictModel):
     ]
     display_anchor: PracticeDisplayAnchorPayload | None
     confidence_summary: PracticeConfidenceSummaryPayload
+    attempt_state: Literal["pending", "resolved"] | None = None
+    attempt_id: str | None = None
+    attempt_sequence: int | None = Field(default=None, ge=1)
+    attempt_started_at_ms: int | None = Field(default=None, ge=0)
+    attempt_resolved_at_ms: int | None = Field(default=None, ge=0)
+    evaluator_version: str | None = None
+    policy_profile_version: str | None = None
 
 
 class AlignmentUpdatePayload(_StrictModel):
@@ -138,10 +190,16 @@ class AlignmentUpdatePayload(_StrictModel):
     continuity_confidence: float
     visual_confidence: float
     timestamp_ms: int = Field(ge=0)
-    score_completed: bool
+    scope_completed: bool
+    completion_reason: Literal[
+        "FULL_SCORE_END_REACHED",
+        "SCOPE_END_REACHED",
+        "FINAL_EXPECTED_GROUP_MATCHED",
+    ] | None
     audio_active: bool
     input_rms: float
     input_peak: float
+    input_health: InputHealthPayload
     match_state: Literal["matched", "holding_decay", "lost", "no_input"]
     feature_confidence: float
     beat_delta: float | None
@@ -185,7 +243,7 @@ class SessionStateChangedMessage(_ProtocolEnvelope):
 
 class SessionFinishedMessage(_ProtocolEnvelope):
     type: Literal["session.finished"] = "session.finished"
-    payload: SessionStatePayload
+    payload: SessionFinishedPayload
 
 
 class SessionErrorMessage(_ProtocolEnvelope):
