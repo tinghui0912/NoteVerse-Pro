@@ -1,4 +1,4 @@
 # Core configuration and shared runtime helpers.
 pydantic[email]==2.13.4
-pydantic-settings==2.14.1
+pydantic-settings==2.15.0
 loguru==0.7.3
