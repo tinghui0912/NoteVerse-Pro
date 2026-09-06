@@ -8,10 +8,8 @@ from app.processing.engines.practice_alignment.expected_event_evaluator import (
 from app.processing.engines.practice_alignment.follow_policy import (
     FollowPolicyConfig,
     FollowPolicyProfile,
-    FollowPolicy,
     PracticeScopeTargetNotFound,
     PracticeScopeInvalidRange,
-    ResolvedContinuousScope,
     WaitForNoteFollowPolicy,
     follow_policy_for_progression,
 )
@@ -76,6 +74,54 @@ def make_update(**overrides):
     }
     update.update(overrides)
     return update
+
+
+def test_practice_score_timeline_resolves_entry_group_end_beat() -> None:
+    timeline = PracticeScoreTimeline(
+        events=(
+            PracticeScoreEvent(
+                event_id="event-upper",
+                onset_beat=4.0,
+                duration_beats=0.5,
+                pitches=("C5",),
+                render_note_ids=("n1",),
+                measure_numbers=("2",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+            PracticeScoreEvent(
+                event_id="event-lower",
+                onset_beat=4.0,
+                duration_beats=1.5,
+                pitches=("C3",),
+                render_note_ids=("n2",),
+                measure_numbers=("2",),
+                staff_ids=("2",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+        ),
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-4",
+                onset_beat=4.0,
+                event_ids=("event-upper", "event-lower"),
+                render_note_ids=("n1", "n2"),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-upper",
+        first_playable_beat=4.0,
+        end_beat=5.5,
+    )
+
+    assert timeline.entry_group_end_beat("entry-4") == 5.5
+    assert timeline.entry_group_end_beat("missing") is None
 
 
 def make_wait_for_note_timeline() -> PracticeScoreTimeline:
@@ -166,82 +212,6 @@ def make_multi_target_wait_for_note_timeline() -> PracticeScoreTimeline:
     )
 
 
-def test_follow_policy_advances_first_stable_match() -> None:
-    decision = FollowPolicy(make_timeline()).decide(make_update())
-
-    assert decision["action"] == "advance"
-    assert decision["reason"] == "stable_match"
-    assert decision["display_anchor"] == {
-        "beat": 3.0,
-        "event_id": "event-3",
-        "group_id": "entry-0",
-        "render_note_ids": ["n1"],
-    }
-
-
-def test_follow_policy_waits_when_first_input_is_not_reliable() -> None:
-    decision = FollowPolicy(make_timeline()).decide(
-        make_update(visual_confidence=0.4, validation_confidence=0.4)
-    )
-
-    assert decision["action"] == "wait"
-    assert decision["reason"] == "low_alignment_confidence"
-    assert decision["display_anchor"] is None
-
-
-def test_follow_policy_holds_last_anchor_when_audio_drops_out() -> None:
-    policy = FollowPolicy(make_timeline())
-    policy.decide(make_update())
-
-    decision = policy.decide(make_update(audio_active=False, match_state="holding_decay"))
-
-    assert decision["action"] == "hold"
-    assert decision["reason"] == "holding_position"
-    assert decision["experience_state"] == "recovering"
-    anchor = decision["display_anchor"]
-    assert anchor is not None
-    assert anchor["beat"] == 3.0
-
-
-def test_follow_policy_holds_on_backward_reacquisition() -> None:
-    policy = FollowPolicy(make_timeline())
-    policy.decide(make_update(beat_position=4.0))
-
-    decision = policy.decide(make_update(beat_position=3.0))
-
-    assert decision["action"] == "hold"
-    assert decision["reason"] == "reacquiring"
-    anchor = decision["display_anchor"]
-    assert anchor is not None
-    assert anchor["beat"] == 4.0
-
-
-def test_follow_policy_relocalizes_large_jump_only_when_confident() -> None:
-    policy = FollowPolicy(make_timeline())
-    policy.decide(make_update(beat_position=3.0))
-
-    decision = policy.decide(make_update(beat_position=9.0, visual_confidence=0.82))
-
-    assert decision["action"] == "relocalize"
-    assert decision["reason"] == "large_jump"
-    anchor = decision["display_anchor"]
-    assert anchor is not None
-    assert anchor["beat"] == 9.0
-
-
-def test_follow_policy_holds_large_jump_when_recovery_confidence_is_low() -> None:
-    policy = FollowPolicy(make_timeline())
-    policy.decide(make_update(beat_position=3.0))
-
-    decision = policy.decide(make_update(beat_position=9.0, visual_confidence=0.7))
-
-    assert decision["action"] == "hold"
-    assert decision["reason"] == "large_jump"
-    anchor = decision["display_anchor"]
-    assert anchor is not None
-    assert anchor["beat"] == 3.0
-
-
 def test_follow_policy_factory_creates_wait_for_note_policy() -> None:
     policy = follow_policy_for_progression(
         make_wait_for_note_timeline(),
@@ -253,129 +223,16 @@ def test_follow_policy_factory_creates_wait_for_note_policy() -> None:
     assert policy.current_expected_group.pitches == ("C4",)
 
 
-def test_follow_policy_factory_creates_scoped_continuous_policy() -> None:
-    policy = follow_policy_for_progression(
-        make_timeline(),
-        progression_mode="CONTINUOUS",
-        start_expected_group_id="entry-1",
-        end_expected_group_id="entry-2",
-    )
-
-    assert isinstance(policy, FollowPolicy)
-    assert policy.scope_start_beat == 4.0
-    assert policy.scope_end_beat == 9.0
-
-
-def test_continuous_policy_rejects_unknown_scoped_expected_group() -> None:
+def test_follow_policy_factory_rejects_continuous_until_fixed_clock_engine_exists() -> None:
     try:
         follow_policy_for_progression(
             make_timeline(),
             progression_mode="CONTINUOUS",
-            start_expected_group_id="missing-entry",
         )
-    except PracticeScopeTargetNotFound as exc:
-        assert exc.expected_group_id == "missing-entry"
+    except ValueError as exc:
+        assert "Unsupported progression mode" in str(exc)
     else:
-        raise AssertionError("Expected invalid continuous scoped practice target to fail.")
-
-
-def test_continuous_policy_rejects_reversed_scoped_range() -> None:
-    try:
-        follow_policy_for_progression(
-            make_timeline(),
-            progression_mode="CONTINUOUS",
-            start_expected_group_id="entry-2",
-            end_expected_group_id="entry-1",
-        )
-    except PracticeScopeInvalidRange:
-        pass
-    else:
-        raise AssertionError("Expected reversed continuous scoped practice range to fail.")
-
-
-def test_continuous_policy_never_accepts_alignment_before_scoped_range() -> None:
-    policy = follow_policy_for_progression(
-        make_timeline(),
-        progression_mode="CONTINUOUS",
-        start_expected_group_id="entry-1",
-        end_expected_group_id="entry-2",
-    )
-
-    decision = policy.decide(make_update(beat_position=3.0))
-
-    assert decision["action"] == "wait"
-    assert decision["reason"] == "reacquiring"
-    assert decision["experience_state"] == "recovering"
-    assert decision["display_anchor"] is None
-
-
-def test_continuous_policy_never_accepts_alignment_after_scoped_range() -> None:
-    policy = follow_policy_for_progression(
-        make_timeline(),
-        progression_mode="CONTINUOUS",
-        start_expected_group_id="entry-0",
-        end_expected_group_id="entry-1",
-    )
-    accepted = policy.decide(make_update(beat_position=4.0))
-    assert accepted["action"] == "advance"
-
-    decision = policy.decide(make_update(beat_position=9.0))
-
-    assert decision["action"] == "hold"
-    assert decision["reason"] == "reacquiring"
-    assert decision["experience_state"] == "recovering"
-    assert decision["display_anchor"] == accepted["display_anchor"]
-
-
-def test_continuous_policy_marks_scoped_range_complete_at_end_boundary() -> None:
-    policy = follow_policy_for_progression(
-        make_timeline(),
-        progression_mode="CONTINUOUS",
-        start_expected_group_id="entry-0",
-        end_expected_group_id="entry-1",
-    )
-
-    decision = policy.decide(make_update(beat_position=4.0))
-
-    assert decision["action"] == "advance"
-    assert decision["scope_completed"] is True
-    assert decision["display_anchor"] is not None
-    assert decision["display_anchor"]["group_id"] == "entry-1"
-
-
-def test_continuous_policy_does_not_complete_near_end_without_terminal_region() -> None:
-    policy = follow_policy_for_progression(
-        make_timeline(),
-        progression_mode="CONTINUOUS",
-        start_expected_group_id="entry-0",
-        end_expected_group_id="entry-1",
-    )
-
-    decision = policy.decide(make_update(beat_position=3.8))
-
-    assert decision["action"] == "advance"
-    assert decision["display_anchor"] is not None
-    assert "scope_completed" not in decision
-
-
-def test_continuous_policy_projects_terminal_region_alignment_to_scoped_end_boundary() -> None:
-    policy = follow_policy_for_progression(
-        make_timeline(),
-        progression_mode="CONTINUOUS",
-        continuous_scope=ResolvedContinuousScope(
-            start_expected_group_id="entry-0",
-            end_expected_group_id="entry-1",
-            terminal_reference_region_start_beat=3.8,
-        ),
-    )
-
-    decision = policy.decide(make_update(beat_position=3.8))
-
-    assert decision["action"] == "advance"
-    assert decision["scope_completed"] is True
-    assert decision["display_anchor"] is not None
-    assert decision["display_anchor"]["beat"] == 4.0
-    assert decision["display_anchor"]["group_id"] == "entry-1"
+        raise AssertionError("Expected Continuous to be rejected by the live follow policy.")
 
 
 def test_wait_for_note_policy_can_start_from_scoped_expected_group() -> None:

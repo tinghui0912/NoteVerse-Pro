@@ -25,6 +25,8 @@ export function usePracticeMidiStream(
   const onInputsDisconnectedRef = useRef(options.onInputsDisconnected);
   const midiAccessRef = useRef<MIDIAccess | null>(null);
   const streamingRef = useRef(false);
+  const activeSegmentStartedAtMsRef = useRef<number | null>(null);
+  const accumulatedActiveMsRef = useRef(0);
   const connectedInputIdsRef = useRef(new Set<string>());
   const [hasMidiPermission, setHasMidiPermission] = useState<boolean | null>(null);
   const [connectedInputCount, setConnectedInputCount] = useState<number | null>(null);
@@ -42,8 +44,28 @@ export function usePracticeMidiStream(
     onInputsDisconnectedRef.current = options.onInputsDisconnected;
   }, [options.onInputsDisconnected]);
 
+  const streamTimestampMs = useCallback(() => {
+    const segmentStartedAtMs = activeSegmentStartedAtMsRef.current;
+    const currentSegmentMs =
+      segmentStartedAtMs === null ? 0 : performance.now() - segmentStartedAtMs;
+    return Math.max(0, Math.round(accumulatedActiveMsRef.current + currentSegmentMs));
+  }, []);
+
   const setStreaming = useCallback((streaming: boolean) => {
+    if (streamingRef.current === streaming) {
+      return;
+    }
+    if (!streaming) {
+      const segmentStartedAtMs = activeSegmentStartedAtMsRef.current;
+      if (segmentStartedAtMs !== null) {
+        accumulatedActiveMsRef.current += Math.max(0, performance.now() - segmentStartedAtMs);
+      }
+      activeSegmentStartedAtMsRef.current = null;
+      streamingRef.current = false;
+      return;
+    }
     streamingRef.current = streaming;
+    activeSegmentStartedAtMsRef.current = performance.now();
   }, []);
 
   const syncConnectedInputs = useCallback((access: MIDIAccess) => {
@@ -57,6 +79,8 @@ export function usePracticeMidiStream(
 
   const teardown = useCallback(() => {
     streamingRef.current = false;
+    activeSegmentStartedAtMsRef.current = null;
+    accumulatedActiveMsRef.current = 0;
     midiAccessRef.current?.inputs.forEach((input) => {
       input.onmidimessage = null;
     });
@@ -91,7 +115,7 @@ export function usePracticeMidiStream(
           if (!event.data) {
             return;
           }
-          const midiEvent = parseMidiMessage(event.data);
+          const midiEvent = parseMidiMessage(event.data, streamTimestampMs());
           if (midiEvent) {
             onMidiEventRef.current(midiEvent);
           }
@@ -107,7 +131,7 @@ export function usePracticeMidiStream(
             if (!streamingRef.current || !event.data) {
               return;
             }
-            const midiEvent = parseMidiMessage(event.data);
+            const midiEvent = parseMidiMessage(event.data, streamTimestampMs());
             if (midiEvent) {
               onMidiEventRef.current(midiEvent);
             }
@@ -126,7 +150,7 @@ export function usePracticeMidiStream(
       }
       throw error;
     }
-  }, [syncConnectedInputs, teardown]);
+  }, [streamTimestampMs, syncConnectedInputs, teardown]);
 
   useEffect(() => teardown, [teardown]);
 
@@ -141,7 +165,7 @@ export function usePracticeMidiStream(
   };
 }
 
-function parseMidiMessage(data: Uint8Array): PracticeMidiEvent | null {
+function parseMidiMessage(data: Uint8Array, timestampMs: number): PracticeMidiEvent | null {
   if (data.length < 3) {
     return null;
   }
@@ -153,7 +177,7 @@ function parseMidiMessage(data: Uint8Array): PracticeMidiEvent | null {
       event_type: 'note_on',
       note_number: noteNumber,
       velocity,
-      timestamp_ms: Date.now(),
+      timestamp_ms: timestampMs,
     };
   }
   if (status === 0x80 || status === 0x90) {
@@ -161,7 +185,7 @@ function parseMidiMessage(data: Uint8Array): PracticeMidiEvent | null {
       event_type: 'note_off',
       note_number: noteNumber,
       velocity,
-      timestamp_ms: Date.now(),
+      timestamp_ms: timestampMs,
     };
   }
   return null;

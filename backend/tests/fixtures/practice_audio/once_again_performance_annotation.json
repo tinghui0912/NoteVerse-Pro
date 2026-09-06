@@ -1,6 +1,9 @@
 {
   "version": 1,
   "audio_path": "local_recordings/once_again_excerpt_16k.wav",
+  "audio_sha256": "2383ae6829e02bdf6ae0cd7cf4058aa3643a808c76198bbd9fccc73d35225607",
+  "source_audio_path": "local_recordings/Once Again.wav",
+  "source_audio_sha256": "82cdafd7fe4b255d2dea67dbb0b0e3e04f5763d4932fdd9b2b7b2934683ae90c",
   "score_id": "d18c0e98-1dfd-4102-b89c-4612fda238e0",
   "revision_id": "d59e78f7-3400-4bcc-b34b-96243ed9b4ad",
   "sample_rate": 16000,
@@ -17,12 +20,12 @@
       "id": "selected_range_3_12_terminal",
       "kind": "range_boundary",
       "score_beat": 12.0,
-      "performance_seconds": 7.9,
-      "early_tolerance_seconds": 0.15,
-      "late_tolerance_seconds": 0.55
+      "performance_seconds": 9.56,
+      "early_tolerance_seconds": 0.2,
+      "late_tolerance_seconds": 0.4
     },
     {
-      "id": "selected_range_12_23_75_start",
+      "id": "selected_range_12_24_start",
       "kind": "range_boundary",
       "score_beat": 12.0,
       "performance_seconds": 7.85,
@@ -30,10 +33,10 @@
       "late_tolerance_seconds": 0.35
     },
     {
-      "id": "selected_range_12_23_75_terminal",
+      "id": "selected_range_12_24_terminal",
       "kind": "range_boundary",
-      "score_beat": 23.75,
-      "performance_seconds": 17.68,
+      "score_beat": 24.0,
+      "performance_seconds": 18.21,
       "early_tolerance_seconds": 0.25,
       "late_tolerance_seconds": 0.45
     }

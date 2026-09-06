@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import builtins
-import queue
-import threading
 from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -16,7 +14,10 @@ from app.processing.engines.practice_alignment.alignment_metrics import (
     validation_confidence_ceiling,
 )
 from app.processing.engines.practice_alignment.acoustic_event_observation import AcousticEventObserver
-from app.processing.engines.practice_alignment.audio_activity import AudioFrameFeatures
+from app.processing.engines.practice_alignment.audio_activity import (
+    AudioGateConfig,
+    AudioFrameFeatures,
+)
 from app.processing.engines.practice_alignment.attempt_assembler import (
     PracticeAttemptAssembler,
     ResolvedPracticeAttemptBuffer,
@@ -30,9 +31,10 @@ from app.processing.engines.practice_alignment.matchmaker_live import (
     MatchmakerLiveEngine,
     build_alignment_engine,
 )
+from app.processing.engines.practice_alignment.profile import (
+    PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID,
+)
 from app.processing.engines.practice_alignment.follow_policy import (
-    FollowPolicy,
-    ResolvedContinuousScope,
     WaitForNoteFollowPolicy,
 )
 from app.processing.engines.practice_alignment.reference_runtime import (
@@ -49,10 +51,15 @@ from app.processing.engines.practice_alignment.score_timeline import (
     PracticeScoreEvent,
     PracticeScoreTimeline,
 )
+from app.processing.performance.clock import PerformanceClockState
+from app.processing.performance.runtime import PerformanceRuntime
 from app.processing.realtime.audio_buffer import AudioChunkBuffer
 from app.processing.realtime.message_codec import session_armed_message
-from app.processing.realtime.session_runtime import PracticeSessionRuntimeRegistry
-from app.processing.realtime.session_runtime import PracticeSessionRuntime
+from app.processing.realtime.session_runtime import (
+    PerformancePracticeSessionRuntime,
+    PracticeSessionRuntime,
+    PracticeSessionRuntimeRegistry,
+)
 
 ORIGINAL_IMPORT = builtins.__import__
 GOOD_INPUT_HEALTH = {
@@ -280,34 +287,6 @@ def test_matchmaker_live_engine_builds_arzt_follower() -> None:
     assert follower.queue_timeout is None
 
 
-def test_matchmaker_live_engine_uses_terminal_reference_region_for_completion() -> None:
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._score_end_beat = 69.0
-    engine._terminal_reference_region_start_beat = 66.68
-
-    assert engine._scope_completed(66.67) is False
-    assert engine._scope_completed(66.68) is True
-
-
-def test_matchmaker_live_engine_defaults_completion_to_reference_end() -> None:
-    import numpy as np
-
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._reference_slice = slice_reference_timeline(
-        np.array([[0.0], [1.0]], dtype=np.float32),
-        np.array([66.92, 66.93], dtype=np.float32),
-        score_start_beat=0.0,
-        scope_start_beat=None,
-        scope_end_beat=None,
-        np=np,
-    )
-    engine._score_end_beat = 69.0
-
-    assert engine._scope_completed(66.91) is False
-    assert engine._scope_completed(66.92) is True
-    assert engine._scope_completed(66.93) is True
-
-
 def test_reference_timeline_slice_derives_terminal_region_from_cropped_reference() -> None:
     import numpy as np
 
@@ -326,29 +305,53 @@ def test_reference_timeline_slice_derives_terminal_region_from_cropped_reference
     assert reference_slice.terminal_region_start_beat == 11.73
 
 
-def test_matchmaker_live_engine_resolves_continuous_scope_from_reference_slice() -> None:
-    import numpy as np
-
+def test_matchmaker_live_engine_resolves_selected_group_reference_end() -> None:
     engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._np = np
-    engine._continuous_scope = ResolvedContinuousScope(
-        start_expected_group_id="entry-start",
-        end_expected_group_id="entry-end",
-    )
-    engine._reference_slice = slice_reference_timeline(
-        np.array([[0.0], [1.0], [2.0], [3.0]], dtype=np.float32),
-        np.array([11.59, 11.66, 11.73, 11.8], dtype=np.float32),
-        score_start_beat=3.0,
-        scope_start_beat=3.0,
-        scope_end_beat=None,
-        np=np,
+    engine.score_timeline = PracticeScoreTimeline(
+        events=(
+            PracticeScoreEvent(
+                event_id="event-upper",
+                onset_beat=12.0,
+                duration_beats=0.25,
+                pitches=("D5",),
+                render_note_ids=("n1",),
+                measure_numbers=("4",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+            PracticeScoreEvent(
+                event_id="event-lower",
+                onset_beat=12.0,
+                duration_beats=1.0,
+                pitches=("D3",),
+                render_note_ids=("n2",),
+                measure_numbers=("4",),
+                staff_ids=("2",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+        ),
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-12",
+                onset_beat=12.0,
+                event_ids=("event-upper", "event-lower"),
+                render_note_ids=("n1", "n2"),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-upper",
+        first_playable_beat=12.0,
+        end_beat=13.0,
     )
 
-    assert engine._resolve_continuous_scope() == ResolvedContinuousScope(
-        start_expected_group_id="entry-start",
-        end_expected_group_id="entry-end",
-        terminal_reference_region_start_beat=11.73,
-    )
+    assert engine._resolve_scope_reference_end_beat("entry-12") == 13.0
+    assert engine._resolve_scope_reference_end_beat(None) is None
 
 
 def test_matchmaker_live_engine_trims_reference_before_first_playable_note() -> None:
@@ -399,32 +402,10 @@ def test_matchmaker_live_engine_does_not_restore_full_reference_for_empty_range(
     assert beats.tolist() == []
 
 
-def test_matchmaker_live_engine_start_alignment_anchors_to_first_played_note() -> None:
+def test_matchmaker_live_engine_exposes_runtime_profile_id() -> None:
     engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._score_start_beat = 3.0
-    engine._last_beat_position = None
-    engine._last_alignment_timestamp_ms = None
-    engine._timestamp_ms = lambda: 1000
-    engine._confidence_for_beat = lambda _beat: 0.95
-    engine._continuity_confidence_for_beat = lambda _beat: 0.95
-    engine._scope_completed = lambda _beat: False
-    engine._stream = SimpleNamespace(input_health=GOOD_INPUT_HEALTH)
 
-    alignment = engine._start_alignment()
-
-    assert alignment["beat_position"] == 3.0
-    assert alignment["continuity_state"] == "initial"
-
-
-def test_finished_follower_is_not_restarted() -> None:
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._closed = threading.Event()
-    engine._follower_finished = True
-    engine._worker = None
-
-    engine._ensure_worker_started()
-
-    assert engine._worker is None
+    assert engine.runtime_profile_id == PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID
 
 
 def test_browser_audio_stream_adapter_rejects_quiet_frames() -> None:
@@ -937,99 +918,6 @@ def test_browser_audio_stream_adapter_marks_no_input_after_sustained_quiet() -> 
     assert len(feature_queue.items) == 2
 
 
-def test_matchmaker_live_engine_keeps_alignment_updates_during_no_input() -> None:
-    import numpy as np
-
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._error = None
-    engine.total_bytes = 0
-    engine._updates = queue.Queue()
-    engine._updates.put(
-        {
-            "beat_position": 4.0,
-            "confidence": 0.95,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 0.95,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "timestamp_ms": 1000,
-            "scope_completed": False,
-            "completion_reason": None,
-            "audio_active": True,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
-            "match_state": "matched",
-        }
-    )
-    engine._stream = SimpleNamespace(
-        ingest=lambda _audio_frame: True,
-        ready_to_start=True,
-        no_input_streak=24,
-        last_audio_active=False,
-        last_rms=0.0,
-        last_peak=0.0,
-        input_health=GOOD_INPUT_HEALTH,
-        stream_state="lost",
-        activity_confidence_ceiling=0.0,
-    )
-    engine._ensure_worker_started = lambda: None
-    engine._pcm_s16le_to_float32 = lambda _chunk: np.zeros(16, dtype=np.float32)
-
-    alignment = engine.ingest_audio(b"\x00\x00")
-
-    assert alignment is not None
-    assert alignment["confidence"] == 0.0
-    assert alignment["audio_active"] is False
-    assert alignment["match_state"] == "lost"
-    assert engine._updates.empty()
-
-
-def test_matchmaker_live_engine_caps_confidence_when_audio_is_inactive() -> None:
-    import numpy as np
-
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._error = None
-    engine.total_bytes = 0
-    engine._updates = queue.Queue()
-    engine._updates.put(
-        {
-            "beat_position": 4.0,
-            "confidence": 0.95,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 0.95,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "timestamp_ms": 1000,
-            "scope_completed": False,
-            "completion_reason": None,
-            "audio_active": True,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
-            "match_state": "matched",
-        }
-    )
-    engine._stream = SimpleNamespace(
-        ingest=lambda _audio_frame: True,
-        ready_to_start=True,
-        no_input_streak=1,
-        last_audio_active=False,
-        last_rms=0.006,
-        last_peak=0.02,
-        input_health=GOOD_INPUT_HEALTH,
-        stream_state="holding_decay",
-        activity_confidence_ceiling=0.35,
-    )
-    engine._ensure_worker_started = lambda: None
-    engine._pcm_s16le_to_float32 = lambda _chunk: np.zeros(16, dtype=np.float32)
-
-    alignment = engine.ingest_audio(b"\x00\x00")
-
-    assert alignment is not None
-    assert alignment["confidence"] == 0.35
-    assert alignment["audio_active"] is False
-    assert alignment["match_state"] == "holding_decay"
-
-
 def test_matchmaker_live_engine_buffers_arbitrary_pcm_chunks_into_hops() -> None:
     import numpy as np
 
@@ -1070,100 +958,6 @@ def test_matchmaker_live_engine_buffers_arbitrary_pcm_chunks_into_hops() -> None
     assert engine._pending_audio.tolist() == [9.0]
 
 
-def test_matchmaker_live_engine_caps_confidence_when_features_do_not_match_score() -> None:
-    import numpy as np
-
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._np = np
-    engine._reference_features = np.array(
-        [
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-        ],
-        dtype=np.float32,
-    )
-    engine._ref_frame_to_beat = np.array([0.0, 1.0], dtype=np.float32)
-    engine._stream = SimpleNamespace(
-        activity_confidence_ceiling=1.0,
-        last_audio_active=True,
-        last_rms=0.1,
-        last_peak=0.3,
-        input_health=GOOD_INPUT_HEALTH,
-        stream_state="following",
-        last_feature_vector=np.array([0.0, 1.0, 0.0], dtype=np.float32),
-    )
-
-    alignment = engine._with_current_audio_state(
-        {
-            "beat_position": 0.0,
-            "confidence": 0.95,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 1.0,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "timestamp_ms": 1000,
-            "scope_completed": False,
-            "completion_reason": None,
-            "audio_active": True,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
-            "match_state": "matched",
-        }
-    )
-
-    assert alignment["alignment_confidence"] == 0.0
-    assert alignment["visual_confidence"] == 0.0
-    assert alignment["confidence"] == 0.0
-    assert alignment["alignment_state"] == "feature_mismatch"
-
-
-def test_matchmaker_live_engine_keeps_confidence_when_features_match_score() -> None:
-    import numpy as np
-
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._np = np
-    engine._reference_features = np.array(
-        [
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-        ],
-        dtype=np.float32,
-    )
-    engine._ref_frame_to_beat = np.array([0.0, 1.0], dtype=np.float32)
-    engine._stream = SimpleNamespace(
-        activity_confidence_ceiling=1.0,
-        last_audio_active=True,
-        last_rms=0.1,
-        last_peak=0.3,
-        input_health=GOOD_INPUT_HEALTH,
-        stream_state="following",
-        last_feature_vector=np.array([1.0, 0.0, 0.0], dtype=np.float32),
-    )
-
-    alignment = engine._with_current_audio_state(
-        {
-            "beat_position": 0.0,
-            "confidence": 0.95,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 1.0,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "timestamp_ms": 1000,
-            "scope_completed": False,
-            "completion_reason": None,
-            "audio_active": True,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
-            "match_state": "matched",
-        }
-    )
-
-    assert alignment["alignment_confidence"] == 0.95
-    assert alignment["visual_confidence"] == 0.95
-    assert alignment["confidence"] == 0.95
-    assert alignment["alignment_state"] == "matched"
-
-
 def test_matchmaker_live_engine_explains_continuity_state() -> None:
     assert continuity_state(None) == "initial"
     assert continuity_state(-0.8) == "rollback"
@@ -1171,46 +965,6 @@ def test_matchmaker_live_engine_explains_continuity_state() -> None:
     assert continuity_state(5.0) == "jump"
     assert continuity_state(9.0) == "large_jump"
     assert continuity_state(1.0) == "stable"
-
-
-def test_matchmaker_live_engine_caps_weak_feature_match_below_visual_threshold() -> None:
-    import numpy as np
-
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._np = np
-    engine._reference_features = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
-    engine._ref_frame_to_beat = np.array([0.0], dtype=np.float32)
-    engine._stream = SimpleNamespace(
-        activity_confidence_ceiling=1.0,
-        last_audio_active=True,
-        last_rms=0.1,
-        last_peak=0.3,
-        input_health=GOOD_INPUT_HEALTH,
-        stream_state="following",
-        last_feature_vector=np.array([1.0, 0.7, 0.0], dtype=np.float32),
-    )
-
-    alignment = engine._with_current_audio_state(
-        {
-            "beat_position": 0.0,
-            "confidence": 0.95,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 1.0,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "timestamp_ms": 1000,
-            "scope_completed": False,
-            "completion_reason": None,
-            "audio_active": True,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
-            "match_state": "matched",
-        }
-    )
-
-    assert alignment["alignment_state"] == "weak_feature_match"
-    assert alignment["validation_confidence"] == 0.5
-    assert alignment["visual_confidence"] == 0.5
 
 
 def test_matchmaker_live_engine_validation_ceiling_penalizes_unstable_continuity() -> None:
@@ -1244,48 +998,6 @@ def test_matchmaker_live_engine_validation_ceiling_penalizes_unstable_continuity
     )
 
 
-def test_matchmaker_live_engine_caps_confidence_with_input_policy_ceiling() -> None:
-    import numpy as np
-
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._np = np
-    engine._reference_features = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
-    engine._ref_frame_to_beat = np.array([0.0], dtype=np.float32)
-    engine._stream = SimpleNamespace(
-        activity_confidence_ceiling=1.0,
-        last_audio_active=True,
-        last_rms=0.1,
-        last_peak=0.3,
-        input_health=GOOD_INPUT_HEALTH,
-        stream_state="following",
-        last_feature_vector=np.array([1.0, 0.0, 0.0], dtype=np.float32),
-        last_input_weight=0.0,
-        last_input_policy_confidence=0.2,
-    )
-
-    alignment = engine._with_current_audio_state(
-        {
-            "beat_position": 0.0,
-            "confidence": 0.95,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 1.0,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "timestamp_ms": 1000,
-            "scope_completed": False,
-            "completion_reason": None,
-            "audio_active": True,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
-            "match_state": "matched",
-        }
-    )
-
-    assert alignment["alignment_state"] == "matched"
-    assert alignment["input_policy_confidence"] == 0.2
-    assert alignment["visual_confidence"] == 0.2
-
-
 def test_matchmaker_live_engine_calculates_beat_velocity() -> None:
     assert (
         beat_velocity(
@@ -1305,7 +1017,7 @@ def test_matchmaker_live_engine_calculates_beat_velocity() -> None:
     )
 
 
-def test_matchmaker_live_engine_samples_alignment_diagnostics(monkeypatch) -> None:
+def test_matchmaker_live_engine_samples_decision_diagnostics(monkeypatch) -> None:
     engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
 
     monkeypatch.setattr(
@@ -1318,11 +1030,6 @@ def test_matchmaker_live_engine_samples_alignment_diagnostics(monkeypatch) -> No
         "PRACTICE_ALIGNMENT_DIAGNOSTIC_UPDATE_INTERVAL",
         3,
     )
-
-    assert engine._should_log_alignment_update() is True
-    assert engine._should_log_alignment_update() is False
-    assert engine._should_log_alignment_update() is True
-    assert engine._should_log_alignment_update() is False
 
     assert engine._should_log_alignment_decision() is True
     assert engine._should_log_alignment_decision() is False
@@ -1377,26 +1084,6 @@ def test_matchmaker_live_engine_scores_initial_start_against_first_playable_beat
     assert engine._pending_start_anchor_beat == 3.0
 
 
-def test_matchmaker_live_engine_start_alignment_uses_entry_region_anchor() -> None:
-    import numpy as np
-
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._np = np
-    engine._score_start_beat = 3.0
-    engine._pending_start_anchor_beat = 3.25
-    engine._last_beat_position = None
-    engine._last_alignment_timestamp_ms = None
-    engine.total_bytes = 0
-    engine.channels = 1
-    engine.sample_rate = 16000
-    engine._score_end_beat = 10.0
-    engine._stream = SimpleNamespace(input_health=GOOD_INPUT_HEALTH)
-
-    alignment = engine._start_alignment()
-
-    assert alignment["beat_position"] == 3.25
-
-
 def test_matchmaker_live_engine_scores_broad_feature_matches_conservatively() -> None:
     import numpy as np
 
@@ -1409,152 +1096,6 @@ def test_matchmaker_live_engine_scores_broad_feature_matches_conservatively() ->
     broad_feature = np.array([0.75, 0.45, 0.35], dtype=np.float32)
 
     assert engine._feature_confidence_for_beat(0.0, current_feature=broad_feature) < 0.55
-
-
-def test_matchmaker_live_engine_uses_policy_completion_for_scoped_continuous_range() -> None:
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._follow_policy = FollowPolicy(
-        PracticeScoreTimeline(
-            events=(),
-            entry_groups=(
-                PracticeEntryGroup(
-                    group_id="entry-0",
-                    onset_beat=3.0,
-                    event_ids=("event-3",),
-                    render_note_ids=("n1",),
-                    entry_candidate=True,
-                ),
-                PracticeEntryGroup(
-                    group_id="entry-1",
-                    onset_beat=4.0,
-                    event_ids=("event-4",),
-                    render_note_ids=("n2",),
-                    entry_candidate=True,
-                ),
-            ),
-            first_playable_event_id="event-3",
-            first_playable_beat=3.0,
-            end_beat=10.0,
-        ),
-        resolved_scope=ResolvedContinuousScope(
-            start_expected_group_id="entry-0",
-            end_expected_group_id="entry-1",
-        ),
-    )
-    engine._stream = _active_stream_state()
-    engine._feature_confidence_for_beat = lambda _beat: 0.95
-    engine._should_log_alignment_decision = lambda: False
-
-    update = engine._with_current_audio_state(
-        {
-            "beat_position": 4.0,
-            "confidence": 0.95,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 1.0,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "timestamp_ms": 10,
-            "scope_completed": False,
-            "completion_reason": None,
-            "audio_active": True,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
-            "input_health": GOOD_INPUT_HEALTH,
-            "match_state": "matched",
-            "feature_confidence": 1.0,
-            "beat_delta": None,
-            "continuity_state": "initial",
-            "beat_velocity": None,
-        }
-    )
-
-    assert update["scope_completed"] is True
-    assert update["decision"]["action"] == "advance"
-
-
-def test_matchmaker_live_engine_rejects_raw_completion_outside_scoped_continuous_range() -> None:
-    timeline = PracticeScoreTimeline(
-        events=(),
-        entry_groups=(
-            PracticeEntryGroup(
-                group_id="entry-0",
-                onset_beat=3.0,
-                event_ids=("event-3",),
-                render_note_ids=("n1",),
-                entry_candidate=True,
-            ),
-            PracticeEntryGroup(
-                group_id="entry-1",
-                onset_beat=4.0,
-                event_ids=("event-4",),
-                render_note_ids=("n2",),
-                entry_candidate=True,
-            ),
-            PracticeEntryGroup(
-                group_id="entry-outside",
-                onset_beat=9.0,
-                event_ids=("event-9",),
-                render_note_ids=("n9",),
-                entry_candidate=True,
-            ),
-        ),
-        first_playable_event_id="event-3",
-        first_playable_beat=3.0,
-        end_beat=10.0,
-    )
-    follow_policy = FollowPolicy(
-        timeline,
-        resolved_scope=ResolvedContinuousScope(
-            start_expected_group_id="entry-0",
-            end_expected_group_id="entry-1",
-        ),
-    )
-    follow_policy.decide(
-        {
-            "beat_position": 4.0,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 0.95,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "validation_confidence": 0.95,
-            "input_policy_confidence": 0.95,
-            "audio_active": True,
-            "match_state": "matched",
-        }
-    )
-    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
-    engine._follow_policy = follow_policy
-    engine._stream = _active_stream_state()
-    engine._feature_confidence_for_beat = lambda _beat: 0.95
-    engine._should_log_alignment_decision = lambda: False
-
-    update = engine._with_current_audio_state(
-        {
-            "beat_position": 9.0,
-            "confidence": 0.95,
-            "alignment_confidence": 0.95,
-            "audio_confidence": 1.0,
-            "continuity_confidence": 0.95,
-            "visual_confidence": 0.95,
-            "timestamp_ms": 20,
-            "scope_completed": True,
-            "completion_reason": "FINAL_EXPECTED_GROUP_MATCHED",
-            "audio_active": True,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
-            "input_health": GOOD_INPUT_HEALTH,
-            "match_state": "matched",
-            "feature_confidence": 1.0,
-            "beat_delta": 5.0,
-            "continuity_state": "jump",
-            "beat_velocity": None,
-        }
-    )
-
-    assert update["scope_completed"] is False
-    assert update["decision"]["action"] == "hold"
-    assert update["decision"]["reason"] == "reacquiring"
-    assert update["decision"]["display_anchor"]["group_id"] == "entry-1"
 
 
 def test_matchmaker_live_engine_rejects_non_finite_start_features() -> None:
@@ -2108,6 +1649,98 @@ def test_practice_runtime_registry_registers_and_releases_sessions() -> None:
     assert registry.get("session-1") is None
 
 
+def test_practice_runtime_registry_builds_fixed_clock_performance_runtime() -> None:
+    registry = PracticeSessionRuntimeRegistry()
+    performance_runtime = PerformanceRuntime(
+        score_timeline=PracticeScoreTimeline(
+            events=(
+                PracticeScoreEvent(
+                    event_id="event-1",
+                    onset_beat=1.0,
+                    duration_beats=1.0,
+                    pitches=("C4",),
+                    render_note_ids=("n1",),
+                    measure_numbers=("1",),
+                    staff_ids=("1",),
+                    voice_ids=("1",),
+                    tie_types=(),
+                    playable=True,
+                    entry_candidate=True,
+                ),
+            ),
+            entry_groups=(
+                PracticeEntryGroup(
+                    group_id="entry-1",
+                    onset_beat=1.0,
+                    event_ids=("event-1",),
+                    render_note_ids=("n1",),
+                    entry_candidate=True,
+                ),
+            ),
+            first_playable_event_id="event-1",
+            first_playable_beat=1.0,
+            end_beat=3.0,
+        )
+    )
+
+    with patch(
+        "app.processing.realtime.session_runtime.build_performance_runtime",
+        return_value=performance_runtime,
+    ) as build_runtime:
+        runtime = registry.register(
+            session_id="session-1",
+            task_id="task-1",
+            state="CREATED",
+            score_file_path="score.xml",
+            progression_mode="CONTINUOUS",
+            realtime_guidance="STATUS_ONLY",
+            evaluation_profile="PERFORMANCE",
+            start_expected_group_id="entry-1",
+            end_expected_group_id="entry-1",
+            runtime_kind="FIXED_CLOCK_PERFORMANCE",
+        )
+
+    assert isinstance(runtime, PerformancePracticeSessionRuntime)
+    build_runtime.assert_called_once_with(
+        score_file_path="score.xml",
+        start_expected_group_id="entry-1",
+        end_expected_group_id="entry-1",
+    )
+    sync = runtime.start_performance(now_ms=0)
+    assert sync.state == PerformanceClockState.COUNT_IN
+    assert sync.count_in_remaining_pulses == 4
+    assert sync.scope_start_beat == 1.0
+    assert registry.release("session-1") is runtime
+
+
+def test_practice_runtime_registry_rejects_runtime_kind_config_mismatch() -> None:
+    registry = PracticeSessionRuntimeRegistry()
+
+    with pytest.raises(RuntimeError, match="canonical Performance config"):
+        registry.register(
+            session_id="session-1",
+            task_id="task-1",
+            state="CREATED",
+            score_file_path="score.xml",
+            progression_mode="WAIT_FOR_NOTE",
+            realtime_guidance="GUIDED",
+            evaluation_profile="LEARNING",
+            runtime_kind="FIXED_CLOCK_PERFORMANCE",
+        )
+
+    with pytest.raises(RuntimeError, match="canonical learning config"):
+        registry.register(
+            session_id="session-2",
+            task_id="task-1",
+            state="CREATED",
+            score_file_path="score.xml",
+            progression_mode="CONTINUOUS",
+            realtime_guidance="STATUS_ONLY",
+            evaluation_profile="PERFORMANCE",
+            runtime_kind="STEP_BY_STEP",
+        )
+
+
 def test_practice_runtime_emits_ready_notification_once() -> None:
     runtime = PracticeSessionRuntime(
         session_id="session-1",
@@ -2117,9 +1750,9 @@ def test_practice_runtime_emits_ready_notification_once() -> None:
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
-        progression_mode="CONTINUOUS",
-        realtime_guidance="STATUS_ONLY",
-        evaluation_profile="PERFORMANCE",
+        progression_mode="WAIT_FOR_NOTE",
+        realtime_guidance="GUIDED",
+        evaluation_profile="LEARNING",
         input_source="MICROPHONE",
         audio_buffer=AudioChunkBuffer(),
         engine=DummyReadyAlignmentEngine(),
@@ -2305,7 +1938,16 @@ def make_wait_for_note_engine(np):
         release_frame_threshold=2,
     )
     engine._follow_policy = WaitForNoteFollowPolicy(wait_for_note_timeline())
+    gate_config = AudioGateConfig(
+        rms_gate=0.015,
+        peak_gate=0.06,
+        start_rms_gate=0.025,
+        start_peak_gate=0.06,
+        min_peak_prominence=12.0,
+        onset_hold_frames=45,
+    )
     engine._stream = SimpleNamespace(
+        audio_gate=SimpleNamespace(config=gate_config),
         armed=True,
         last_audio_active=True,
         last_rms=0.2,
@@ -2322,6 +1964,10 @@ def make_wait_for_note_engine(np):
         last_spectral_flux=0.5,
         last_input_weight=1.0,
         last_input_policy_confidence=1.0,
+        rms_gate=gate_config.rms_gate,
+        peak_gate=gate_config.peak_gate,
+        start_rms_gate=gate_config.start_rms_gate,
+        start_peak_gate=gate_config.start_peak_gate,
     )
     configure_wait_for_note_candidate_stream(engine)
     return engine
@@ -2351,6 +1997,37 @@ def configure_wait_for_note_candidate_stream(engine, *, rms: float = 0.2, peak: 
         return False
 
     engine._stream.ingest = ingest
+
+
+def test_wait_for_note_candidate_signal_uses_audio_gate_start_energy_ratios() -> None:
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    gate_config = AudioGateConfig(
+        rms_gate=0.015,
+        peak_gate=0.06,
+        start_rms_gate=0.025,
+        start_peak_gate=0.06,
+        min_peak_prominence=12.0,
+        onset_hold_frames=45,
+    )
+    engine._stream = SimpleNamespace(
+        audio_gate=SimpleNamespace(config=gate_config),
+        last_onset_signal=False,
+        start_rms_gate=0.025,
+        rms_gate=0.015,
+        start_peak_gate=0.06,
+        peak_gate=0.06,
+        last_rms=0.011,
+        last_peak=0.032,
+    )
+
+    assert engine._wait_for_note_candidate_signal() is False
+
+    engine._stream.last_rms = 0.01125
+    assert engine._wait_for_note_candidate_signal() is True
+
+    engine._stream.last_rms = 0.0
+    engine._stream.last_peak = 0.033
+    assert engine._wait_for_note_candidate_signal() is True
 
 
 def configure_wait_for_note_silence_stream(engine):
@@ -2611,4 +2288,15 @@ def test_matchmaker_live_engine_rejects_unsupported_frame_format() -> None:
             sample_rate=16000,
             channels=1,
             frame_format="float32",
+        )
+
+
+def test_matchmaker_live_engine_rejects_continuous_progression() -> None:
+    with pytest.raises(RuntimeError, match="fixed-clock"):
+        MatchmakerLiveEngine(
+            score_file_path="score.xml",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+            progression_mode="CONTINUOUS",
         )

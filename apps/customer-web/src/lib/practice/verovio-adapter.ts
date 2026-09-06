@@ -6,6 +6,7 @@ import {
 export type PracticeVisualTimelineEntry = {
   index: number;
   beat: number;
+  endBeat: number;
   noteIds: string[];
   eventId?: string;
   groupId?: string;
@@ -48,6 +49,49 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
     return bestEntry;
   }
 
+  getCursorTimelineEntryForBeatRange(
+    beat: number,
+    startBeat: number,
+    terminalBeat: number,
+    allowedNoteIds: readonly string[] = []
+  ): PracticeVisualTimelineEntry | null {
+    if (
+      !Number.isFinite(beat) ||
+      !Number.isFinite(startBeat) ||
+      !Number.isFinite(terminalBeat) ||
+      terminalBeat < startBeat
+    ) {
+      return null;
+    }
+
+    const beatEpsilon = 0.001;
+    const boundedBeat = Math.min(Math.max(beat, startBeat), terminalBeat);
+    const allowed = allowedNoteIds.length > 0 ? new Set(allowedNoteIds) : null;
+    let cursorEntry: PracticeVisualTimelineEntry | null = null;
+
+    for (const entry of this.visualTimeline) {
+      if (entry.beat < startBeat - beatEpsilon) {
+        continue;
+      }
+      if (entry.beat > terminalBeat + beatEpsilon || entry.beat > boundedBeat + beatEpsilon) {
+        break;
+      }
+
+      const noteIds = allowed
+        ? entry.noteIds.filter((noteId) => allowed.has(noteId))
+        : entry.noteIds;
+      if (noteIds.length === 0) {
+        continue;
+      }
+      cursorEntry = {
+        ...entry,
+        noteIds: Array.from(new Set(noteIds)),
+      };
+    }
+
+    return cursorEntry;
+  }
+
   getNextTimelineEntryAfterBeat(beat: number): PracticeVisualTimelineEntry | null {
     if (!Number.isFinite(beat) || this.visualTimeline.length === 0) {
       return null;
@@ -87,27 +131,46 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
   }
 
   private buildVisualTimeline(timemap: Array<Record<string, unknown>>) {
-    const groupedByBeat = new Map<number, string[]>();
+    const noteStarts = new Map<string, number>();
+    const groupedByBeat = new Map<number, { endBeat: number; noteIds: string[] }>();
 
     for (const entry of timemap) {
-      const noteIds = Array.isArray(entry.on)
-        ? entry.on.filter((value): value is string => typeof value === 'string')
-        : [];
       const beat = readNumericTimemapValue(entry, ['qstamp', 'beat']);
-      if (noteIds.length === 0 || beat === null) {
+      if (beat === null) {
         continue;
       }
 
       const roundedBeat = Math.round(beat * 1000) / 1000;
-      groupedByBeat.set(roundedBeat, [...(groupedByBeat.get(roundedBeat) ?? []), ...noteIds]);
+      const onIds = Array.isArray(entry.on)
+        ? entry.on.filter((value): value is string => typeof value === 'string')
+        : [];
+      const offIds = Array.isArray(entry.off)
+        ? entry.off.filter((value): value is string => typeof value === 'string')
+        : [];
+
+      for (const noteId of onIds) {
+        noteStarts.set(noteId, roundedBeat);
+      }
+      for (const noteId of offIds) {
+        const startBeat = noteStarts.get(noteId);
+        if (startBeat === undefined || roundedBeat <= startBeat) {
+          continue;
+        }
+        const current = groupedByBeat.get(startBeat) ?? { endBeat: startBeat, noteIds: [] };
+        groupedByBeat.set(startBeat, {
+          endBeat: Math.max(current.endBeat, roundedBeat),
+          noteIds: [...current.noteIds, noteId],
+        });
+      }
     }
 
     return Array.from(groupedByBeat.entries())
       .sort(([leftBeat], [rightBeat]) => leftBeat - rightBeat)
-      .map(([beat, noteIds], index) => ({
+      .map(([beat, group], index) => ({
         index,
         beat,
-        noteIds: Array.from(new Set(noteIds)),
+        endBeat: group.endBeat,
+        noteIds: Array.from(new Set(group.noteIds)),
       }));
   }
 }

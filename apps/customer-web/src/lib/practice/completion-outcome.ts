@@ -7,9 +7,6 @@ export type PracticeCompletionOutcomeKind =
 
 export type PracticeCompletionOutcome = {
   kind: PracticeCompletionOutcomeKind;
-  expectsPlayback: boolean;
-  canViewSummary: boolean;
-  canStartFullPiecePerformance: boolean;
 };
 
 type ResolvePracticeCompletionOutcomeOptions = {
@@ -25,9 +22,6 @@ export function resolvePracticeCompletionOutcome({
 
   return {
     kind: completionOutcomeKind(completionOutcome.kind),
-    expectsPlayback: completionOutcome.playback_expected,
-    canViewSummary: completionOutcome.summary_available,
-    canStartFullPiecePerformance: completionOutcome.kind === 'FULL_PIECE_LEARNING',
   };
 }
 

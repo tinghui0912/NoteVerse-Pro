@@ -1,13 +1,13 @@
 'use client';
 
-import { Cable, Footprints, Headphones, Mic, Sparkles } from 'lucide-react';
+import { Cable, Headphones, ListChecks, Mic, Music2, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { PracticeConnectionStatus } from '@/lib/practice/practice-types';
-import type { PracticeSessionPreset } from '@/lib/practice/session-policy';
 import type { PracticeInputSource } from '@/generated/practice-api';
+import type { PracticeSessionMode } from '@/lib/practice/session-policy';
 
 type PracticeSettingsPanelProps = {
   className?: string;
@@ -17,13 +17,13 @@ type PracticeSettingsPanelProps = {
   midiSupported: boolean;
   hasMidiPermission: boolean | null;
   hasMidiInput: boolean | null;
-  preset: PracticeSessionPreset;
-  presetLocked: boolean;
+  practiceMode: PracticeSessionMode;
+  practiceModeLocked: boolean;
   inputSource: PracticeInputSource;
   microphoneInputLocked: boolean;
   midiInputLocked: boolean;
   showNextNoteHint: boolean;
-  onPresetChange: (preset: PracticeSessionPreset) => void;
+  onPracticeModeChange: (practiceMode: PracticeSessionMode) => void;
   onInputSourceChange: (inputSource: PracticeInputSource) => void;
   onShowNextNoteHintChange: (checked: boolean) => void;
 };
@@ -36,13 +36,13 @@ export function PracticeSettingsPanel({
   midiSupported,
   hasMidiPermission,
   hasMidiInput,
-  preset,
-  presetLocked,
+  practiceMode,
+  practiceModeLocked,
   inputSource,
   microphoneInputLocked,
   midiInputLocked,
   showNextNoteHint,
-  onPresetChange,
+  onPracticeModeChange,
   onInputSourceChange,
   onShowNextNoteHintChange,
 }: PracticeSettingsPanelProps) {
@@ -77,38 +77,48 @@ export function PracticeSettingsPanel({
       <div className="divide-y divide-slate-100">
         <section className="px-5 py-5" aria-labelledby="practice-mode-heading">
           <h3 id="practice-mode-heading" className="text-sm font-semibold text-slate-900">
-            {t('settingsPracticeStyle')}
+            {t('settingsMode')}
           </h3>
-          <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
+          <div className="mt-3 grid gap-2">
             <button
               type="button"
               className={cn(
-                'flex min-h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-                preset === 'STEP_BY_STEP'
-                  ? 'bg-white text-slate-950 shadow-sm'
-                  : 'text-slate-600 hover:bg-white/70 hover:text-slate-950'
+                'flex min-h-14 items-center gap-3 rounded-md border px-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                practiceMode === 'STEP_BY_STEP'
+                  ? 'border-orange-200 bg-orange-50 text-slate-950'
+                  : 'border-slate-200 hover:bg-slate-50'
               )}
-              onClick={() => onPresetChange('STEP_BY_STEP')}
-              disabled={presetLocked}
-              aria-pressed={preset === 'STEP_BY_STEP'}
+              disabled={practiceModeLocked}
+              onClick={() => onPracticeModeChange('STEP_BY_STEP')}
+              aria-pressed={practiceMode === 'STEP_BY_STEP'}
             >
-              <Footprints className="h-4 w-4" aria-hidden="true" />
-              <span>{t('settingModeStepByStep')}</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-orange-600">
+                <ListChecks className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-slate-900">{t('settingStepByStep')}</span>
+                <span className="mt-0.5 block text-xs text-slate-500">{t('settingStepByStepDesc')}</span>
+              </span>
             </button>
             <button
               type="button"
               className={cn(
-                'flex min-h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-                preset === 'CONTINUOUS_PLAY'
-                  ? 'bg-white text-slate-950 shadow-sm'
-                  : 'text-slate-600 hover:bg-white/70 hover:text-slate-950'
+                'flex min-h-14 items-center gap-3 rounded-md border px-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                practiceMode === 'CONTINUOUS_PLAY'
+                  ? 'border-orange-200 bg-orange-50 text-slate-950'
+                  : 'border-slate-200 hover:bg-slate-50'
               )}
-              onClick={() => onPresetChange('CONTINUOUS_PLAY')}
-              disabled={presetLocked}
-              aria-pressed={preset === 'CONTINUOUS_PLAY'}
+              disabled={practiceModeLocked}
+              onClick={() => onPracticeModeChange('CONTINUOUS_PLAY')}
+              aria-pressed={practiceMode === 'CONTINUOUS_PLAY'}
             >
-              <Headphones className="h-4 w-4" aria-hidden="true" />
-              <span>{t('settingModeContinuousPerformance')}</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-orange-600">
+                <Music2 className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-slate-900">{t('settingContinuousPlay')}</span>
+                <span className="mt-0.5 block text-xs text-slate-500">{t('settingContinuousPlayDesc')}</span>
+              </span>
             </button>
           </div>
         </section>
@@ -161,30 +171,32 @@ export function PracticeSettingsPanel({
           </div>
         </section>
 
-        <section className="px-5 py-5" aria-labelledby="practice-follow-heading">
-          <h3 id="practice-follow-heading" className="text-sm font-semibold text-slate-900">
-            {t('settingsFollow')}
-          </h3>
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
-                <Headphones className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div>
-                <label htmlFor="practice-next-note-hint" className="text-sm font-medium text-slate-900">
-                  {t('settingNextNoteHint')}
-                </label>
-                <p className="mt-0.5 text-xs leading-5 text-slate-500">{t('settingNextNoteHintDesc')}</p>
+        {practiceMode === 'STEP_BY_STEP' ? (
+          <section className="px-5 py-5" aria-labelledby="practice-follow-heading">
+            <h3 id="practice-follow-heading" className="text-sm font-semibold text-slate-900">
+              {t('settingsFollow')}
+            </h3>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+                  <Headphones className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <label htmlFor="practice-next-note-hint" className="text-sm font-medium text-slate-900">
+                    {t('settingNextNoteHint')}
+                  </label>
+                  <p className="mt-0.5 text-xs leading-5 text-slate-500">{t('settingNextNoteHintDesc')}</p>
+                </div>
               </div>
+              <Switch
+                id="practice-next-note-hint"
+                checked={showNextNoteHint}
+                onCheckedChange={onShowNextNoteHintChange}
+                aria-label={t('settingNextNoteHint')}
+              />
             </div>
-            <Switch
-              id="practice-next-note-hint"
-              checked={showNextNoteHint}
-              onCheckedChange={onShowNextNoteHintChange}
-              aria-label={t('settingNextNoteHint')}
-            />
-          </div>
-        </section>
+          </section>
+        ) : null}
 
       </div>
     </aside>

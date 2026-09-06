@@ -10,9 +10,15 @@ import { EmptyState } from '@/components/states';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { PracticeFollowController } from '@/lib/practice/follow-controller';
+import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
-import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
+import type {
+  PracticeAlignmentUpdateMessage,
+  PracticePerformanceClockPayload,
+  PracticePerformanceTimelinePayload,
+} from '@/lib/practice/protocol';
+import type { PracticeSessionMode } from '@/lib/practice/session-policy';
 
 type PracticeScoreViewerProps = {
   className?: string;
@@ -29,6 +35,9 @@ type PracticeScoreViewerProps = {
     | 'finishing'
     | 'finished';
   alignment?: PracticeAlignmentUpdateMessage['payload'] | null;
+  performanceClockSync?: PracticePerformanceClockPayload | null;
+  performanceTimeline?: PracticePerformanceTimelinePayload | null;
+  sessionMode: PracticeSessionMode;
   selectedRangeRenderNoteIds?: readonly string[];
   selectedRangeStartRenderNoteIds?: readonly string[];
   selectedRangeEndRenderNoteIds?: readonly string[];
@@ -42,6 +51,9 @@ export function PracticeScoreViewer({
   isLoadingXml,
   practiceStatus,
   alignment = null,
+  performanceClockSync = null,
+  performanceTimeline = null,
+  sessionMode,
   selectedRangeRenderNoteIds = [],
   selectedRangeStartRenderNoteIds = [],
   selectedRangeEndRenderNoteIds = [],
@@ -52,21 +64,11 @@ export function PracticeScoreViewer({
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const followController = useMemo(() => new PracticeFollowController(), []);
+  const performancePlayheadController = useMemo(() => new PerformancePlayheadController(), []);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const rangeSelectionCss = useMemo(
-    () =>
-      [
-        rangeNoteStyleRules(selectedRangeRenderNoteIds, 'range'),
-        rangeNoteStyleRules(selectedRangeStartRenderNoteIds, 'start'),
-        rangeNoteStyleRules(selectedRangeEndRenderNoteIds, 'end'),
-      ].join('\n'),
-    [
-      selectedRangeEndRenderNoteIds,
-      selectedRangeRenderNoteIds,
-      selectedRangeStartRenderNoteIds,
-    ]
-  );
   const [renderRevision, setRenderRevision] = useState(0);
+  const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
   const handleRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       containerRef.current = container;
@@ -82,6 +84,7 @@ export function PracticeScoreViewer({
     }
 
     const shouldClearFollowState =
+      sessionMode !== 'STEP_BY_STEP' ||
       !alignment ||
       !xmlContent ||
       renderRevision === 0 ||
@@ -98,13 +101,120 @@ export function PracticeScoreViewer({
       followController.refreshDecorations(container);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [adapter, alignment, followController, practiceStatus, renderRevision, xmlContent]);
+  }, [
+    adapter,
+    alignment,
+    followController,
+    practiceStatus,
+    renderRevision,
+    sessionMode,
+    xmlContent,
+  ]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (
+      !container ||
+      sessionMode !== 'CONTINUOUS_PLAY' ||
+      !performanceClockSync ||
+      !xmlContent ||
+      renderRevision === 0 ||
+      practiceStatus === 'idle' ||
+      practiceStatus === 'finished'
+    ) {
+      if (container) {
+        performancePlayheadController.clear(container);
+      }
+      return;
+    }
+
+    if (performanceTimeline) {
+      performancePlayheadController.receiveTimeline(performanceTimeline);
+    }
+    const rangeNoteIds = selectedRangeRenderNoteIdSignature
+      ? selectedRangeRenderNoteIdSignature.split('\u001f')
+      : [];
+    performancePlayheadController.receiveSelectedRangeNoteIds(rangeNoteIds);
+    performancePlayheadController.receiveSync(performanceClockSync);
+    let frame: number | null = null;
+    const renderPlayhead = () => {
+      performancePlayheadController.apply(container, adapter);
+      if (performanceClockSync.state === 'COUNT_IN' || performanceClockSync.state === 'RUNNING') {
+        frame = window.requestAnimationFrame(renderPlayhead);
+      }
+    };
+
+    frame = window.requestAnimationFrame(renderPlayhead);
+    return () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
+  }, [
+    adapter,
+    performanceClockSync,
+    performanceTimeline,
+    performancePlayheadController,
+    practiceStatus,
+    renderRevision,
+    selectedRangeRenderNoteIdSignature,
+    sessionMode,
+    xmlContent,
+  ]);
+
+  useEffect(() => {
+    const container = rootRef.current;
+    if (!container || !xmlContent || renderRevision === 0) {
+      return;
+    }
+
+    const rangeNoteIds = selectedRangeRenderNoteIdSignature
+      ? selectedRangeRenderNoteIdSignature.split('\u001f')
+      : [];
+    let frame: number | null = null;
+    const scheduleSync = () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        clearRangeBackgrounds(container);
+        applyRangeBackgrounds(container, rangeNoteIds);
+      });
+    };
+
+    scheduleSync();
+    const scoreRoot = container.querySelector<HTMLElement>('.practice-score-svg') ?? container;
+    const mutationObserver = new MutationObserver((mutations) => {
+      if (mutations.every(isRangeBackgroundMutation)) {
+        return;
+      }
+      scheduleSync();
+    });
+    mutationObserver.observe(scoreRoot, { childList: true, subtree: true });
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => scheduleSync());
+    resizeObserver?.observe(scoreRoot);
+
+    return () => {
+      mutationObserver.disconnect();
+      resizeObserver?.disconnect();
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      clearRangeBackgrounds(container);
+    };
+  }, [renderRevision, selectedRangeRenderNoteIdSignature, xmlContent]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (
       !container ||
       !alignment ||
+      sessionMode !== 'STEP_BY_STEP' ||
       !xmlContent ||
       renderRevision === 0 ||
       practiceStatus === 'idle' ||
@@ -125,6 +235,7 @@ export function PracticeScoreViewer({
 
   return (
     <div
+      ref={rootRef}
       className={cn(
         'relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm',
         'min-h-[38rem]',
@@ -142,7 +253,12 @@ export function PracticeScoreViewer({
         .practice-score-svg-selectable .note {
           pointer-events: bounding-box;
         }
-        ${rangeSelectionCss}
+        .practice-score-svg .practice-range-background {
+          fill: rgb(251 191 36 / 10%);
+          stroke: rgb(245 158 11 / 34%);
+          stroke-width: 1.2px;
+          pointer-events: none;
+        }
         .practice-score-svg .practice-note-active {
           fill: #f97316 !important;
           stroke: #ea580c !important;
@@ -165,6 +281,12 @@ export function PracticeScoreViewer({
           fill: #f97316 !important;
           stroke: #ea580c !important;
           opacity: 1 !important;
+        }
+        .practice-score-svg .practice-note-active .practice-range-background {
+          fill: rgb(251 191 36 / 10%) !important;
+          stroke: rgb(245 158 11 / 34%) !important;
+          stroke-width: 1.2px !important;
+          filter: none !important;
         }
         .practice-score-svg svg {
           display: block;
@@ -230,59 +352,97 @@ function cssStringLiteral(value: string) {
   return JSON.stringify(value);
 }
 
-function renderedNoteSelector(noteId: string) {
-  return `.practice-score-svg [data-id=${cssStringLiteral(noteId)}]`;
+function clearRangeBackgrounds(container: HTMLElement) {
+  container
+    .querySelectorAll('[data-practice-range-background]')
+    .forEach((element) => element.remove());
 }
 
-function renderedNoteDescendantSelector(noteId: string) {
-  return `${renderedNoteSelector(noteId)} use,
-${renderedNoteSelector(noteId)} path,
-${renderedNoteSelector(noteId)} ellipse,
-${renderedNoteSelector(noteId)} circle,
-${renderedNoteSelector(noteId)} polygon,
-${renderedNoteSelector(noteId)} rect,
-${renderedNoteSelector(noteId)} line,
-${renderedNoteSelector(noteId)} polyline,
-${renderedNoteSelector(noteId)} .stem,
-${renderedNoteSelector(noteId)} .flag,
-${renderedNoteSelector(noteId)} .beam,
-${renderedNoteSelector(noteId)} .notehead`;
+function isRangeBackgroundMutation(mutation: MutationRecord) {
+  const changedNodes = [...mutation.addedNodes, ...mutation.removedNodes];
+  return (
+    changedNodes.length > 0 &&
+    changedNodes.every(
+      (node) =>
+        node instanceof Element &&
+        node.hasAttribute('data-practice-range-background')
+    )
+  );
 }
 
-function rangeNoteStyleRules(
-  noteIds: readonly string[],
-  role: 'range' | 'start' | 'end'
+function applyRangeBackgrounds(
+  container: HTMLElement,
+  noteIds: readonly string[]
 ) {
-  const uniqueNoteIds = Array.from(new Set(noteIds.filter(Boolean)));
-  if (uniqueNoteIds.length === 0) {
-    return '';
+  const systemBoxes = new Map<SVGGraphicsElement, DOMRect>();
+  for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
+    const note = container.querySelector<SVGGraphicsElement>(
+      `[data-id=${cssStringLiteral(noteId)}]`
+    );
+    if (!note || typeof note.getBBox !== 'function') {
+      continue;
+    }
+
+    let box: DOMRect;
+    try {
+      box = note.getBBox();
+    } catch {
+      continue;
+    }
+
+    const system = note.closest<SVGGraphicsElement>('.system');
+    const layer = system ?? note.ownerSVGElement;
+    if (!layer) {
+      continue;
+    }
+
+    const currentBox = systemBoxes.get(layer);
+    systemBoxes.set(layer, currentBox ? mergeRangeBox(currentBox, box) : box);
   }
 
-  const baseRules = uniqueNoteIds
-    .map((noteId) => {
-      const selector = renderedNoteSelector(noteId);
-      const descendantSelector = renderedNoteDescendantSelector(noteId);
-      const filter =
-        role === 'range'
-          ? 'drop-shadow(0 0 4px rgba(13, 148, 136, 0.45))'
-          : role === 'start'
-            ? 'drop-shadow(0 0 6px rgba(5, 150, 105, 0.7))'
-            : 'drop-shadow(0 0 6px rgba(20, 184, 166, 0.75))';
-      const strokeWidth = role === 'range' ? '1.75px' : '3px';
-      return `${selector} {
-  fill: #0d9488 !important;
-  stroke: #0f766e !important;
-  stroke-width: ${strokeWidth} !important;
-  opacity: 1 !important;
-  filter: ${filter};
+  for (const [layer, rangeBox] of systemBoxes) {
+    const verticalBox = rangeVerticalBox(layer, rangeBox);
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    const paddingX = Math.max(8, rangeBox.width * 0.02);
+    const paddingY = Math.max(8, verticalBox.height * 0.04);
+    rect.setAttribute('data-practice-range-background', 'true');
+    rect.setAttribute('class', 'practice-range-background');
+    rect.setAttribute('x', String(rangeBox.x - paddingX));
+    rect.setAttribute('y', String(verticalBox.y - paddingY));
+    rect.setAttribute('width', String(rangeBox.width + paddingX * 2));
+    rect.setAttribute('height', String(verticalBox.height + paddingY * 2));
+    rect.setAttribute('rx', '4');
+    layer.insertBefore(rect, layer.firstChild);
+  }
 }
-${descendantSelector} {
-  fill: #0d9488 !important;
-  stroke: #0f766e !important;
-  opacity: 1 !important;
-}`;
-    })
-    .join('\n');
 
-  return baseRules;
+function mergeRangeBox(first: DOMRect, second: DOMRect): DOMRect {
+  const x = Math.min(first.x, second.x);
+  const y = Math.min(first.y, second.y);
+  const right = Math.max(first.x + first.width, second.x + second.width);
+  const bottom = Math.max(first.y + first.height, second.y + second.height);
+  return DOMRect.fromRect({
+    x,
+    y,
+    width: right - x,
+    height: bottom - y,
+  });
+}
+
+function rangeVerticalBox(layer: SVGGraphicsElement, rangeBox: DOMRect): DOMRect {
+  if (!layer.classList.contains('system')) {
+    return rangeBox;
+  }
+
+  try {
+    const systemBox = layer.getBBox();
+    return DOMRect.fromRect({
+      x: rangeBox.x,
+      y: systemBox.y,
+      width: rangeBox.width,
+      height: systemBox.height,
+    });
+  } catch {
+    return rangeBox;
+  }
 }

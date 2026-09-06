@@ -118,6 +118,7 @@ class SessionCompletionOutcomePayload(_StrictModel):
         "PERFORMANCE_SUMMARY",
         "SECTION_SUMMARY",
     ]
+    completion_reason: Literal["SCOPE_COMPLETED", "STOPPED_BY_USER"]
     playback_expected: bool
     summary_available: bool
 
@@ -149,7 +150,7 @@ class PracticeConfidenceSummaryPayload(_StrictModel):
 
 
 class AlignmentDecisionPayload(_StrictModel):
-    action: Literal["advance", "hold", "relocalize", "wait"]
+    action: Literal["advance", "hold", "wait"]
     reason: Literal[
         "stable_match",
         "partial_match",
@@ -221,6 +222,34 @@ class AlignmentUpdatePayload(_StrictModel):
     decision: AlignmentDecisionPayload
 
 
+class PerformanceClockSyncPayload(_StrictModel):
+    state: Literal["READY", "COUNT_IN", "RUNNING", "PAUSED", "ENDED"]
+    musical_beat: float
+    performance_time_ms: float = Field(ge=0.0)
+    count_in_remaining_ms: float = Field(ge=0.0)
+    count_in_remaining_pulses: float = Field(ge=0.0)
+    scope_completed: bool
+    scope_start_group_id: str | None = None
+    scope_end_group_id: str | None = None
+    scope_start_beat: float
+    scope_terminal_beat: float
+    nominal_scope_duration_ms: float = Field(ge=0.0)
+    speed_ratio: float = Field(gt=0.0)
+
+
+class PerformanceTimelineProjectionSegmentPayload(_StrictModel):
+    start_performance_time_ms: float = Field(ge=0.0)
+    end_performance_time_ms: float = Field(ge=0.0)
+    start_beat: float
+    end_beat: float
+
+
+class PerformanceTimelineProjectionPayload(_StrictModel):
+    scope_start_beat: float
+    scope_terminal_beat: float
+    segments: list[PerformanceTimelineProjectionSegmentPayload]
+
+
 class SessionReadyMessage(_ProtocolEnvelope):
     type: Literal["session.ready"] = "session.ready"
     payload: SessionReadyPayload
@@ -256,6 +285,36 @@ class AlignmentUpdateMessage(_ProtocolEnvelope):
     payload: AlignmentUpdatePayload
 
 
+class PerformanceClockSyncMessage(_ProtocolEnvelope):
+    type: Literal["performance.clock_sync"] = "performance.clock_sync"
+    payload: PerformanceClockSyncPayload
+
+
+class PerformanceTimelineMessage(_ProtocolEnvelope):
+    type: Literal["performance.timeline"] = "performance.timeline"
+    payload: PerformanceTimelineProjectionPayload
+
+
+class PerformanceStartedMessage(_ProtocolEnvelope):
+    type: Literal["performance.started"] = "performance.started"
+    payload: PerformanceClockSyncPayload
+
+
+class PerformancePausedMessage(_ProtocolEnvelope):
+    type: Literal["performance.paused"] = "performance.paused"
+    payload: PerformanceClockSyncPayload
+
+
+class PerformanceResumedMessage(_ProtocolEnvelope):
+    type: Literal["performance.resumed"] = "performance.resumed"
+    payload: PerformanceClockSyncPayload
+
+
+class PerformanceEndedMessage(_ProtocolEnvelope):
+    type: Literal["performance.ended"] = "performance.ended"
+    payload: PerformanceClockSyncPayload
+
+
 PracticeServerMessage = Annotated[
     SessionConnectingMessage
     | SessionReadyMessage
@@ -263,7 +322,13 @@ PracticeServerMessage = Annotated[
     | SessionStateChangedMessage
     | SessionFinishedMessage
     | SessionErrorMessage
-    | AlignmentUpdateMessage,
+    | AlignmentUpdateMessage
+    | PerformanceTimelineMessage
+    | PerformanceClockSyncMessage
+    | PerformanceStartedMessage
+    | PerformancePausedMessage
+    | PerformanceResumedMessage
+    | PerformanceEndedMessage,
     Field(discriminator="type"),
 ]
 practice_server_message_adapter = TypeAdapter(PracticeServerMessage)

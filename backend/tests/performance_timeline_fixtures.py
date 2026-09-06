@@ -1,0 +1,79 @@
+from __future__ import annotations
+
+from app.processing.engines.practice_alignment.score_timeline import (
+    PracticeEntryGroup,
+    PracticeScoreEvent,
+    PracticeScoreTimeline,
+)
+
+
+def score_timeline() -> PracticeScoreTimeline:
+    return PracticeScoreTimeline(
+        events=(
+            PracticeScoreEvent(
+                event_id="event-1",
+                onset_beat=1.0,
+                duration_beats=1.0,
+                pitches=("C4",),
+                render_note_ids=("n1",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+            PracticeScoreEvent(
+                event_id="event-2",
+                onset_beat=2.0,
+                duration_beats=1.0,
+                pitches=("D4",),
+                render_note_ids=("n2",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+            PracticeScoreEvent(
+                event_id="event-3",
+                onset_beat=3.0,
+                duration_beats=1.0,
+                pitches=("E4",),
+                render_note_ids=("n3",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+        ),
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-1",
+                onset_beat=1.0,
+                event_ids=("event-1",),
+                render_note_ids=("n1",),
+                entry_candidate=True,
+            ),
+            PracticeEntryGroup(
+                group_id="entry-2",
+                onset_beat=2.0,
+                event_ids=("event-2",),
+                render_note_ids=("n2",),
+                entry_candidate=True,
+            ),
+            PracticeEntryGroup(
+                group_id="entry-3",
+                onset_beat=3.0,
+                event_ids=("event-3",),
+                render_note_ids=("n3",),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-1",
+        first_playable_beat=1.0,
+        end_beat=5.0,
+    )

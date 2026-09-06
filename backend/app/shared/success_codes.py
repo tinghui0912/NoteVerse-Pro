@@ -35,6 +35,7 @@ class PracticeSuccessCode:
     PRACTICE_SESSION_PAUSED = "practice_session_paused"
     PRACTICE_SESSION_RESUMED = "practice_session_resumed"
     PRACTICE_SESSION_FINISHED = "practice_session_finished"
+    PRACTICE_REPLAY_SAVED = "practice_replay_saved"
 
 
 class AccountSuccessCode:

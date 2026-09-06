@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -20,11 +21,14 @@ from app.db.models.practice import (
     PracticeInputSource,
     PracticeProgressionMode,
     PracticeRealtimeGuidance,
+    PracticeReplayArtifactKind,
+    PracticeSessionCompletionReason,
     PracticeSessionSummaryStatus,
     PracticeSessionState,
 )
 from app.modules.practice.service import PracticeService
 from app.modules.practice.schemas import PracticeSessionScope
+from app.modules.practice.session_config import PracticeSessionPreset
 from app.modules.score_access.policy import ScoreAction
 from app.processing.engines.practice_alignment.target_catalog import (
     PracticeTargetCatalog,
@@ -59,9 +63,9 @@ def _session(
         score_id=11,
         revision_id=12,
         state=state,
-        progression_mode=PracticeProgressionMode.CONTINUOUS,
-        realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
-        evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
+        progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
+        realtime_guidance=PracticeRealtimeGuidance.GUIDED,
+        evaluation_profile=PracticeEvaluationProfile.LEARNING,
         input_source=PracticeInputSource.MICROPHONE,
         scope_start_expected_group_id=None,
         scope_end_expected_group_id=None,
@@ -78,6 +82,7 @@ def _session(
         frame_format="pcm_s16le",
         last_beat_position=None,
         last_confidence=None,
+        completion_reason=None,
     )
 
 
@@ -88,12 +93,15 @@ def _service_with_session(session: object | None) -> tuple[PracticeService, Mock
     repository.list_attempts_for_session = AsyncMock(return_value=[])
     repository.get_attempt_by_uid = AsyncMock(return_value=None)
     repository.create_attempt_if_absent = AsyncMock(return_value=True)
+    repository.has_replay_artifact_for_session = AsyncMock(return_value=False)
     runtime_registry = Mock()
     runtime_registry.get.return_value = None
     library_service = Mock()
     library_service.mark_practiced = AsyncMock()
     read_model = Mock()
-    read_model.to_session_detail = AsyncMock(side_effect=lambda _db, value: {"state": value.state})
+    read_model.to_session_detail = AsyncMock(
+        side_effect=lambda _db, value, **_kwargs: {"state": value.state}
+    )
     service = PracticeService(
         repository=repository,
         runtime_registry=runtime_registry,
@@ -101,6 +109,71 @@ def _service_with_session(session: object | None) -> tuple[PracticeService, Mock
         read_model=read_model,
     )
     return service, repository, runtime_registry, library_service
+
+
+@pytest.mark.asyncio
+async def test_list_saved_performances_returns_saved_replay_entries() -> None:
+    saved_session = _session(state=PracticeSessionState.FINISHED)
+    saved_session.session_uuid = "saved-session"
+    saved_session.evaluation_profile = PracticeEvaluationProfile.PERFORMANCE
+    saved_session.progression_mode = PracticeProgressionMode.CONTINUOUS
+    saved_session.realtime_guidance = PracticeRealtimeGuidance.STATUS_ONLY
+    saved_session.completion_reason = PracticeSessionCompletionReason.STOPPED_BY_USER
+    saved_session.started_at = datetime(2026, 9, 5, 10, 0, 0)
+    saved_session.finished_at = datetime(2026, 9, 5, 10, 1, 0)
+    saved_session.summary_status = PracticeSessionSummaryStatus.READY
+    saved_session.summary_payload = json.dumps(
+        {
+            "summary": "No durable evaluation.",
+            "metrics": {"expected_outcome_count": 0},
+            "recommendations": [],
+            "targets": [],
+            "difficult_measures": [],
+        }
+    )
+
+    artifact = SimpleNamespace(
+        artifact_uuid="artifact-1",
+        kind=PracticeReplayArtifactKind.AUDIO_RECORDING,
+        duration_ms=61000,
+        created_at=datetime(2026, 9, 5, 10, 2, 0),
+    )
+
+    repository = Mock()
+    repository.list_saved_performances_for_score_user = AsyncMock(
+        return_value=[(saved_session, artifact)]
+    )
+    access_policy = Mock()
+    access_policy.authorize = AsyncMock(
+        return_value=SimpleNamespace(score=SimpleNamespace(id=11))
+    )
+    service = PracticeService(repository=repository, access_policy=access_policy)
+    database = AsyncMock()
+    database.get = AsyncMock(return_value=SimpleNamespace(revision_uuid="revision-1"))
+
+    history = await service.list_saved_performances(
+        database,
+        "score-1",
+        user_id=7,
+    )
+
+    assert [item.session_id for item in history] == ["saved-session"]
+    assert history[0].artifact_id == "artifact-1"
+    assert history[0].replay_duration_ms == 61000
+    assert history[0].evaluation_available is False
+    access_policy.authorize.assert_awaited_once_with(
+        database,
+        "score-1",
+        ScoreAction.PRACTICE,
+        user_id=7,
+        revision_uuid=None,
+    )
+    repository.list_saved_performances_for_score_user.assert_awaited_once_with(
+        database,
+        score_id=11,
+        user_id=7,
+        limit=10,
+    )
 
 
 @pytest.mark.asyncio
@@ -277,7 +350,12 @@ async def test_lifecycle_rejects_invalid_state_transitions() -> None:
     with pytest.raises(ValidationException) as resume_error:
         await service.resume_session(Mock(), "session-1", 7)
     with pytest.raises(ValidationException) as finish_error:
-        await service.finish_session(Mock(), "session-1", 7)
+        await service.finish_session(
+            Mock(),
+            "session-1",
+            7,
+            completion_reason=PracticeSessionCompletionReason.STOPPED_BY_USER,
+        )
 
     for error in (start_error, pause_error, resume_error, finish_error):
         assert error.value.code == ErrorCode.PRACTICE_SESSION_INVALID_STATE
@@ -298,17 +376,76 @@ async def test_finish_marks_practice_and_releases_its_runtime() -> None:
 
     assert result == {"state": PracticeSessionState.FINISHED}
     assert session.finished_at is not None
-    assert session.summary_status == PracticeSessionSummaryStatus.READY
-    assert json.loads(session.summary_payload) == {"summary": "Finished"}
-    assert repository.save_session.await_count == 2
-    library_service.mark_practiced.assert_awaited_once_with(database, 7, 11)
-    database.commit.assert_awaited_once()
+    assert session.completion_reason == PracticeSessionCompletionReason.STOPPED_BY_USER
+    assert session.summary_status == PracticeSessionSummaryStatus.PENDING
+    assert session.summary_payload is None
+    assert repository.save_session.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_scope_completion_finish_records_completion_reason() -> None:
+    session = _session(state=PracticeSessionState.STREAMING)
+    service, _repository, _runtime, _library = _service_with_session(session)
+    service.summary_builder = Mock()
+    service.summary_builder.build.return_value = {"summary": "Complete"}
+    database = Mock()
+    database.commit = AsyncMock()
+
+    await service.finish_session(
+        database,
+        "session-1",
+        7,
+        completion_reason=PracticeSessionCompletionReason.SCOPE_COMPLETED,
+    )
+
+    assert session.state == PracticeSessionState.FINISHED
+    assert session.completion_reason == PracticeSessionCompletionReason.SCOPE_COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_finish_is_idempotent_for_same_completion_reason() -> None:
+    session = _session(state=PracticeSessionState.FINISHED)
+    session.completion_reason = PracticeSessionCompletionReason.SCOPE_COMPLETED
+    service, repository, runtime_registry, library_service = _service_with_session(session)
+
+    result = await service.finish_session(
+        Mock(),
+        "session-1",
+        7,
+        completion_reason=PracticeSessionCompletionReason.SCOPE_COMPLETED,
+    )
+
+    assert result == {"state": PracticeSessionState.FINISHED}
+    repository.save_session.assert_not_awaited()
+    runtime_registry.release.assert_not_called()
+    library_service.mark_practiced.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_active_stream_failure_marks_session_failed_and_releases_runtime() -> None:
+    session = _session(state=PracticeSessionState.STREAMING)
+    service, repository, runtime_registry, _library = _service_with_session(session)
+
+    result = await service.fail_active_session_stream(
+        Mock(),
+        "session-1",
+        7,
+        reason="performance websocket disconnected before terminal boundary",
+    )
+
+    assert result == {"state": PracticeSessionState.FAILED}
+    assert session.state == PracticeSessionState.FAILED
+    assert session.error == "performance websocket disconnected before terminal boundary"
+    assert session.finished_at is not None
+    assert session.completion_reason is None
+    repository.save_session.assert_awaited_once()
     runtime_registry.release.assert_called_once_with("session-1")
 
 
 @pytest.mark.asyncio
-async def test_finish_persists_a_ready_summary_payload() -> None:
-    session = _session(state=PracticeSessionState.PAUSED)
+async def test_build_summary_persists_a_ready_summary_payload() -> None:
+    session = _session(state=PracticeSessionState.FINISHED)
+    session.completion_reason = PracticeSessionCompletionReason.STOPPED_BY_USER
     service, repository, _runtime, _library = _service_with_session(session)
     summary_builder = Mock()
     summary_builder.build.return_value = {"summary": "Strong timing"}
@@ -316,25 +453,26 @@ async def test_finish_persists_a_ready_summary_payload() -> None:
     database = Mock()
     database.commit = AsyncMock()
 
-    await service.finish_session(database, "session-1", 7)
+    await service.build_summary_for_finished_session(database, "session-1", 7)
 
     assert session.summary_status == PracticeSessionSummaryStatus.READY
     assert json.loads(session.summary_payload) == {"summary": "Strong timing"}
     assert session.error is None
     repository.list_attempts_for_session.assert_awaited_once_with(database, 1)
-    assert repository.save_session.await_count == 2
+    repository.save_session.assert_awaited_once_with(database, session)
 
 
 @pytest.mark.asyncio
-async def test_finish_records_summary_failure_without_blocking_session_completion() -> None:
-    session = _session(state=PracticeSessionState.PAUSED)
+async def test_build_summary_records_failure_without_reopening_finished_session() -> None:
+    session = _session(state=PracticeSessionState.FINISHED)
+    session.completion_reason = PracticeSessionCompletionReason.STOPPED_BY_USER
     service, repository, _runtime, _library = _service_with_session(session)
     service.summary_builder = Mock()
     service.summary_builder.build.side_effect = RuntimeError("internal summary builder error")
     database = Mock()
     database.commit = AsyncMock()
 
-    result = await service.finish_session(database, "session-1", 7)
+    result = await service.build_summary_for_finished_session(database, "session-1", 7)
 
     assert result == {"state": PracticeSessionState.FINISHED}
     assert session.state == PracticeSessionState.FINISHED
@@ -343,7 +481,7 @@ async def test_finish_records_summary_failure_without_blocking_session_completio
         "summary": "Practice summary generation failed."
     }
     assert session.error == "internal summary builder error"
-    assert repository.save_session.await_count == 2
+    repository.save_session.assert_awaited_once_with(database, session)
 
 
 @pytest.mark.asyncio
@@ -558,9 +696,9 @@ async def test_create_session_requires_a_canonical_revision_source() -> None:
     assert created_session.revision_id == 12
     assert created_session.user_id == 7
     assert created_session.sample_rate == 16000
-    assert created_session.progression_mode == PracticeProgressionMode.CONTINUOUS
-    assert created_session.realtime_guidance == PracticeRealtimeGuidance.STATUS_ONLY
-    assert created_session.evaluation_profile == PracticeEvaluationProfile.PERFORMANCE
+    assert created_session.progression_mode == PracticeProgressionMode.WAIT_FOR_NOTE
+    assert created_session.realtime_guidance == PracticeRealtimeGuidance.GUIDED
+    assert created_session.evaluation_profile == PracticeEvaluationProfile.LEARNING
     assert created_session.input_source == PracticeInputSource.MICROPHONE
 
     asset_repository.canonical_source = AsyncMock(return_value=None)
@@ -611,17 +749,67 @@ async def test_prepare_runtime_registers_the_authorized_session() -> None:
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
-        progression_mode=PracticeProgressionMode.CONTINUOUS,
-        realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
-        evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
+        progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
+        realtime_guidance=PracticeRealtimeGuidance.GUIDED,
+        evaluation_profile=PracticeEvaluationProfile.LEARNING,
         input_source=PracticeInputSource.MICROPHONE,
         start_expected_group_id=None,
         end_expected_group_id=None,
+        runtime_kind="STEP_BY_STEP",
     )
 
 
 @pytest.mark.asyncio
-async def test_create_session_accepts_wait_for_note_learning_preset() -> None:
+async def test_prepare_runtime_registers_fixed_clock_performance_session() -> None:
+    session = _session()
+    session.progression_mode = PracticeProgressionMode.CONTINUOUS
+    session.realtime_guidance = PracticeRealtimeGuidance.STATUS_ONLY
+    session.evaluation_profile = PracticeEvaluationProfile.PERFORMANCE
+    session.input_source = PracticeInputSource.MIDI
+    session.scope_start_expected_group_id = "entry-4"
+    session.scope_end_expected_group_id = "entry-6"
+    service, repository, runtime_registry, _library = _service_with_session(session)
+    database = Mock()
+    database.get = AsyncMock(
+        side_effect=[
+            SimpleNamespace(score_uuid="score-1"),
+            SimpleNamespace(id=12, revision_uuid="revision-1"),
+        ]
+    )
+    service.asset_repository = Mock()
+    service.asset_repository.canonical_source = AsyncMock(
+        return_value=SimpleNamespace(storage_key="scores/score-1.musicxml")
+    )
+    service.storage = Mock()
+    service.storage.local_path.return_value = "/cache/score-1.musicxml"
+    service.storage.materialize_to_local.return_value = "/materialized/score-1.musicxml"
+    runtime = SimpleNamespace()
+    runtime_registry.get.return_value = None
+    runtime_registry.register.return_value = runtime
+
+    assert await service.prepare_stream_runtime(database, "session-1", 7) is runtime
+
+    repository.get_session_by_uuid.assert_awaited_once_with(database, "session-1")
+    runtime_registry.register.assert_called_once_with(
+        session_id="session-1",
+        task_id="score-1",
+        state="CREATED",
+        score_file_path="/materialized/score-1.musicxml",
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+        progression_mode=PracticeProgressionMode.CONTINUOUS,
+        realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
+        evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
+        input_source=PracticeInputSource.MIDI,
+        start_expected_group_id="entry-4",
+        end_expected_group_id="entry-6",
+        runtime_kind="FIXED_CLOCK_PERFORMANCE",
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_session_projects_step_by_step_preset_to_wait_for_note_learning() -> None:
     repository = Mock()
     repository.create_session = AsyncMock(side_effect=lambda _db, value: value)
     access_policy = Mock()
@@ -651,9 +839,7 @@ async def test_create_session_accepts_wait_for_note_learning_preset() -> None:
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
-        progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
-        realtime_guidance=PracticeRealtimeGuidance.GUIDED,
-        evaluation_profile=PracticeEvaluationProfile.LEARNING,
+        preset=PracticeSessionPreset.STEP_BY_STEP,
     )
 
     created_session = repository.create_session.await_args.args[1]
@@ -693,9 +879,7 @@ async def test_create_session_persists_scoped_wait_for_note_target() -> None:
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
-        progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
-        realtime_guidance=PracticeRealtimeGuidance.GUIDED,
-        evaluation_profile=PracticeEvaluationProfile.LEARNING,
+        preset=PracticeSessionPreset.STEP_BY_STEP,
         practice_scope=PracticeSessionScope(
             start_expected_group_id="entry-4",
             end_expected_group_id="entry-6",
@@ -712,7 +896,7 @@ async def test_create_session_persists_scoped_wait_for_note_target() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_session_persists_scoped_continuous_target() -> None:
+async def test_create_session_projects_continuous_play_to_fixed_clock_performance() -> None:
     repository = Mock()
     repository.create_session = AsyncMock(side_effect=lambda _db, value: value)
     access_policy = Mock()
@@ -742,9 +926,7 @@ async def test_create_session_persists_scoped_continuous_target() -> None:
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
-        progression_mode=PracticeProgressionMode.CONTINUOUS,
-        realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
-        evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
+        preset=PracticeSessionPreset.CONTINUOUS_PLAY,
         input_source=PracticeInputSource.MICROPHONE,
         practice_scope=PracticeSessionScope(
             start_expected_group_id="entry-4",
@@ -756,18 +938,18 @@ async def test_create_session_persists_scoped_continuous_target() -> None:
 
     created_session = repository.create_session.await_args.args[1]
     assert created_session.progression_mode == PracticeProgressionMode.CONTINUOUS
+    assert created_session.realtime_guidance == PracticeRealtimeGuidance.STATUS_ONLY
+    assert created_session.evaluation_profile == PracticeEvaluationProfile.PERFORMANCE
     assert created_session.input_source == PracticeInputSource.MICROPHONE
     assert created_session.scope_start_expected_group_id == "entry-4"
     assert created_session.scope_end_expected_group_id == "entry-6"
-    assert created_session.scope_start_measure_number == "12"
-    assert created_session.scope_end_measure_number == "12"
 
 
 @pytest.mark.asyncio
-async def test_create_session_rejects_incoherent_wait_for_note_policy() -> None:
+async def test_create_session_does_not_accept_public_internal_policy_combinations() -> None:
     service = PracticeService()
 
-    with pytest.raises(ValidationException) as error:
+    with pytest.raises(TypeError):
         await service.create_session(
             Mock(),
             score_uuid="score-1",
@@ -776,11 +958,8 @@ async def test_create_session_rejects_incoherent_wait_for_note_policy() -> None:
             sample_rate=16000,
             channels=1,
             frame_format="pcm_s16le",
-            progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
+            realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,  # type: ignore[call-arg]
         )
-
-    assert error.value.code == ErrorCode.VALIDATION_ERROR
-    assert error.value.details == {"field": "realtime_guidance"}
 
 
 @pytest.mark.asyncio
@@ -814,9 +993,7 @@ async def test_create_session_accepts_wait_for_note_midi_policy() -> None:
         sample_rate=16000,
         channels=1,
         frame_format="pcm_s16le",
-        progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
-        realtime_guidance=PracticeRealtimeGuidance.GUIDED,
-        evaluation_profile=PracticeEvaluationProfile.LEARNING,
+        preset=PracticeSessionPreset.STEP_BY_STEP,
         input_source=PracticeInputSource.MIDI,
     )
 
@@ -825,26 +1002,45 @@ async def test_create_session_accepts_wait_for_note_midi_policy() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_session_rejects_continuous_midi_until_midi_following_exists() -> None:
-    service = PracticeService()
-
-    with pytest.raises(ValidationException) as error:
-        await service.create_session(
-            Mock(),
-            score_uuid="score-1",
-            user_id=7,
-            revision_uuid="revision-1",
-            sample_rate=16000,
-            channels=1,
-            frame_format="pcm_s16le",
-            progression_mode=PracticeProgressionMode.CONTINUOUS,
-            realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
-            evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
-            input_source=PracticeInputSource.MIDI,
+async def test_create_session_accepts_continuous_play_midi_policy() -> None:
+    repository = Mock()
+    repository.create_session = AsyncMock(side_effect=lambda _db, session: session)
+    access_policy = Mock()
+    access_policy.authorize = AsyncMock(
+        return_value=SimpleNamespace(
+            score=SimpleNamespace(id=11),
+            revision=SimpleNamespace(id=12),
+            origin="OWNER",
+            grant=None,
         )
+    )
+    asset_repository = Mock()
+    asset_repository.canonical_source = AsyncMock(
+        return_value=SimpleNamespace(storage_key="scores/score-1.musicxml")
+    )
+    service = PracticeService(
+        repository=repository,
+        access_policy=access_policy,
+        asset_repository=asset_repository,
+    )
 
-    assert error.value.code == ErrorCode.VALIDATION_ERROR
-    assert error.value.details == {"field": "input_source"}
+    await service.create_session(
+        Mock(),
+        score_uuid="score-1",
+        user_id=7,
+        revision_uuid="revision-1",
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+        preset=PracticeSessionPreset.CONTINUOUS_PLAY,
+        input_source=PracticeInputSource.MIDI,
+    )
+
+    created_session = repository.create_session.await_args.args[1]
+    assert created_session.progression_mode == PracticeProgressionMode.CONTINUOUS
+    assert created_session.realtime_guidance == PracticeRealtimeGuidance.STATUS_ONLY
+    assert created_session.evaluation_profile == PracticeEvaluationProfile.PERFORMANCE
+    assert created_session.input_source == PracticeInputSource.MIDI
 
 
 @pytest.mark.asyncio

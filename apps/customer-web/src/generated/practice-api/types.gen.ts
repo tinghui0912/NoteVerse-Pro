@@ -33,6 +33,34 @@ export type ApiResponsePracticeReadyScoreContentRead = {
 };
 
 /**
+ * APIResponse[PracticeReplayUploadAuthorizationRead]
+ */
+export type ApiResponsePracticeReplayUploadAuthorizationRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PracticeReplayUploadAuthorizationRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
  * APIResponse[PracticeSessionDetailRead]
  */
 export type ApiResponsePracticeSessionDetailRead = {
@@ -145,6 +173,122 @@ export type ApiResponsePracticeTargetCatalogRead = {
 };
 
 /**
+ * APIResponse[SavedPracticeReplayArtifactRead]
+ */
+export type ApiResponseSavedPracticeReplayArtifactRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: SavedPracticeReplayArtifactRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[SavedPracticeReplayPlaybackRead]
+ */
+export type ApiResponseSavedPracticeReplayPlaybackRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: SavedPracticeReplayPlaybackRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[list[SavedPracticePerformanceRead]]
+ */
+export type ApiResponseListSavedPracticePerformanceRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Data
+     *
+     * Response payload
+     */
+    data?: Array<SavedPracticePerformanceRead> | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[list[SavedPracticeReplayArtifactRead]]
+ */
+export type ApiResponseListSavedPracticeReplayArtifactRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Data
+     *
+     * Response payload
+     */
+    data?: Array<SavedPracticeReplayArtifactRead> | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
  * AccessOrigin
  */
 export type AccessOrigin = 'OWNER' | 'MEMBERSHIP' | 'SHARE' | 'PUBLICATION';
@@ -157,15 +301,13 @@ export type CreatePracticeSessionRequest = {
      * Channels
      */
     channels?: number;
-    evaluation_profile?: PracticeEvaluationProfile;
     /**
      * Frame Format
      */
     frame_format?: string;
     input_source?: PracticeInputSource;
     practice_scope?: PracticeSessionScope | null;
-    progression_mode?: PracticeProgressionMode;
-    realtime_guidance?: PracticeRealtimeGuidance;
+    preset?: PracticeSessionPreset;
     /**
      * Revision Id
      */
@@ -201,6 +343,60 @@ export type PracticeEvaluationProfile = 'LEARNING' | 'PERFORMANCE';
 export type PracticeInputSource = 'MICROPHONE' | 'MIDI';
 
 /**
+ * PracticePerformanceReportAvailabilityRead
+ */
+export type PracticePerformanceReportAvailabilityRead = {
+    /**
+     * Evaluation Available
+     */
+    evaluation_available: boolean;
+    /**
+     * Saved Replay Available
+     */
+    saved_replay_available: boolean;
+};
+
+/**
+ * PracticePerformanceTimelineRead
+ */
+export type PracticePerformanceTimelineRead = {
+    /**
+     * Scope Start Beat
+     */
+    scope_start_beat: number;
+    /**
+     * Scope Terminal Beat
+     */
+    scope_terminal_beat: number;
+    /**
+     * Segments
+     */
+    segments?: Array<PracticePerformanceTimelineSegmentRead>;
+};
+
+/**
+ * PracticePerformanceTimelineSegmentRead
+ */
+export type PracticePerformanceTimelineSegmentRead = {
+    /**
+     * End Beat
+     */
+    end_beat: number;
+    /**
+     * End Performance Time Ms
+     */
+    end_performance_time_ms: number;
+    /**
+     * Start Beat
+     */
+    start_beat: number;
+    /**
+     * Start Performance Time Ms
+     */
+    start_performance_time_ms: number;
+};
+
+/**
  * PracticeProgressionMode
  */
 export type PracticeProgressionMode = 'WAIT_FOR_NOTE' | 'CONTINUOUS';
@@ -233,9 +429,130 @@ export type PracticeReadyScoreContentRead = {
 export type PracticeRealtimeGuidance = 'STATUS_ONLY' | 'GUIDED';
 
 /**
+ * PracticeReplayArtifactKind
+ */
+export type PracticeReplayArtifactKind = 'AUDIO_RECORDING' | 'MIDI_EVENTS';
+
+/**
+ * PracticeReplayFinalizeRequest
+ */
+export type PracticeReplayFinalizeRequest = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Checksum Sha256
+     */
+    checksum_sha256: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Format Version
+     */
+    format_version: number;
+    kind: PracticeReplayArtifactKind;
+    /**
+     * Timebase Version
+     */
+    timebase_version: number;
+};
+
+/**
+ * PracticeReplayUploadAuthorizationRead
+ */
+export type PracticeReplayUploadAuthorizationRead = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Checksum Sha256
+     */
+    checksum_sha256: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Format Version
+     */
+    format_version: number;
+    kind: PracticeReplayArtifactKind;
+    /**
+     * Timebase Version
+     */
+    timebase_version: number;
+    /**
+     * Upload Headers
+     */
+    upload_headers: {
+        [key: string]: string;
+    };
+    /**
+     * Upload Method
+     */
+    upload_method: string;
+    /**
+     * Upload Url
+     */
+    upload_url: string;
+};
+
+/**
+ * PracticeReplayUploadAuthorizationRequest
+ */
+export type PracticeReplayUploadAuthorizationRequest = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Checksum Sha256
+     */
+    checksum_sha256: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Format Version
+     */
+    format_version: number;
+    kind: PracticeReplayArtifactKind;
+    /**
+     * Timebase Version
+     */
+    timebase_version: number;
+};
+
+/**
  * PracticeSessionCompletionOutcomeRead
  */
 export type PracticeSessionCompletionOutcomeRead = {
+    completion_reason: PracticeSessionCompletionReason;
     /**
      * Kind
      */
@@ -257,6 +574,11 @@ export type PracticeSessionCompletionOutcomeRead = {
      */
     summary_available: boolean;
 };
+
+/**
+ * PracticeSessionCompletionReason
+ */
+export type PracticeSessionCompletionReason = 'SCOPE_COMPLETED' | 'STOPPED_BY_USER';
 
 /**
  * PracticeSessionDetailRead
@@ -286,7 +608,9 @@ export type PracticeSessionDetailRead = {
      * Last Confidence
      */
     last_confidence: number | null;
+    performance_report_availability?: PracticePerformanceReportAvailabilityRead | null;
     practice_scope?: PracticeSessionScope | null;
+    preset: PracticeSessionPreset;
     progression_mode: PracticeProgressionMode;
     realtime_guidance: PracticeRealtimeGuidance;
     /**
@@ -314,9 +638,15 @@ export type PracticeSessionDetailRead = {
 };
 
 /**
+ * PracticeSessionPreset
+ */
+export type PracticeSessionPreset = 'STEP_BY_STEP' | 'CONTINUOUS_PLAY';
+
+/**
  * PracticeSessionResultSummaryRead
  */
 export type PracticeSessionResultSummaryRead = {
+    performance_timeline?: PracticePerformanceTimelineRead | null;
     /**
      * Session Id
      */
@@ -557,6 +887,14 @@ export type PracticeSessionSummaryTargetRead = {
      */
     completion_status: string;
     /**
+     * Confirmed Correct Render Note Ids
+     */
+    confirmed_correct_render_note_ids?: Array<string>;
+    /**
+     * Confirmed Error Render Note Ids
+     */
+    confirmed_error_render_note_ids?: Array<string>;
+    /**
      * Expected Group Id
      */
     expected_group_id: string;
@@ -585,6 +923,10 @@ export type PracticeSessionSummaryTargetRead = {
      */
     mismatch_attempt_count: number;
     /**
+     * Missing Pitches
+     */
+    missing_pitches?: Array<string>;
+    /**
      * Partial Attempt Count
      */
     partial_attempt_count: number;
@@ -596,6 +938,10 @@ export type PracticeSessionSummaryTargetRead = {
      * Scorable Attempt Count
      */
     scorable_attempt_count: number;
+    /**
+     * Unexpected Pitches
+     */
+    unexpected_pitches?: Array<string>;
 };
 
 /**
@@ -656,6 +1002,115 @@ export type PracticeTargetRead = {
      * Voice Ids
      */
     voice_ids?: Array<string>;
+};
+
+/**
+ * SavedPracticePerformanceRead
+ */
+export type SavedPracticePerformanceRead = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    completion_reason: PracticeSessionCompletionReason;
+    /**
+     * Evaluation Available
+     */
+    evaluation_available: boolean;
+    /**
+     * Finished At
+     */
+    finished_at: string;
+    input_source: PracticeInputSource;
+    kind: PracticeReplayArtifactKind;
+    practice_scope?: PracticeSessionScope | null;
+    /**
+     * Replay Duration Ms
+     */
+    replay_duration_ms: number;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Saved At
+     */
+    saved_at: string;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Started At
+     */
+    started_at: string | null;
+};
+
+/**
+ * SavedPracticeReplayArtifactRead
+ */
+export type SavedPracticeReplayArtifactRead = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Checksum Sha256
+     */
+    checksum_sha256: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Format Version
+     */
+    format_version: number;
+    input_source: PracticeInputSource;
+    kind: PracticeReplayArtifactKind;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Timebase Version
+     */
+    timebase_version: number;
+};
+
+/**
+ * SavedPracticeReplayPlaybackRead
+ */
+export type SavedPracticeReplayPlaybackRead = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    kind: PracticeReplayArtifactKind;
+    /**
+     * Playback Url
+     */
+    playback_url: string;
 };
 
 /**
@@ -774,6 +1229,41 @@ export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTarg
 
 export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponse = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses];
 
+export type ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+    };
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/practice/scores/{score_id}/saved-performances';
+};
+
+export type ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetError = ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetErrors[keyof ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetErrors];
+
+export type ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseListSavedPracticePerformanceRead;
+};
+
+export type ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetResponse = ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetResponses[keyof ListSavedPracticePerformancesApiV1PracticeScoresScoreIdSavedPerformancesGetResponses];
+
 export type CreatePracticeSessionApiV1PracticeSessionsPostData = {
     body: CreatePracticeSessionRequest;
     path?: never;
@@ -888,6 +1378,202 @@ export type PausePracticeSessionApiV1PracticeSessionsSessionIdPausePostResponses
 };
 
 export type PausePracticeSessionApiV1PracticeSessionsSessionIdPausePostResponse = PausePracticeSessionApiV1PracticeSessionsSessionIdPausePostResponses[keyof PausePracticeSessionApiV1PracticeSessionsSessionIdPausePostResponses];
+
+export type ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/sessions/{session_id}/replay-artifacts';
+};
+
+export type ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetError = ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetErrors[keyof ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetErrors];
+
+export type ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseListSavedPracticeReplayArtifactRead;
+};
+
+export type ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetResponse = ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetResponses[keyof ListPracticeReplayArtifactsApiV1PracticeSessionsSessionIdReplayArtifactsGetResponses];
+
+export type FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostData = {
+    body: PracticeReplayFinalizeRequest;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/sessions/{session_id}/replay-artifacts';
+};
+
+export type FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostError = FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostErrors[keyof FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostErrors];
+
+export type FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseSavedPracticeReplayArtifactRead;
+};
+
+export type FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostResponse = FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostResponses[keyof FinalizePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsPostResponses];
+
+export type DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+        /**
+         * Artifact Id
+         */
+        artifact_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/sessions/{session_id}/replay-artifacts/{artifact_id}';
+};
+
+export type DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteError = DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteErrors[keyof DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteErrors];
+
+export type DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseSavedPracticeReplayArtifactRead;
+};
+
+export type DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteResponse = DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteResponses[keyof DeletePracticeReplayArtifactApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdDeleteResponses];
+
+export type GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+        /**
+         * Artifact Id
+         */
+        artifact_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/sessions/{session_id}/replay-artifacts/{artifact_id}/playback-url';
+};
+
+export type GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetError = GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetErrors[keyof GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetErrors];
+
+export type GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseSavedPracticeReplayPlaybackRead;
+};
+
+export type GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetResponse = GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetResponses[keyof GetPracticeReplayArtifactPlaybackUrlApiV1PracticeSessionsSessionIdReplayArtifactsArtifactIdPlaybackUrlGetResponses];
+
+export type AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostData = {
+    body: PracticeReplayUploadAuthorizationRequest;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/sessions/{session_id}/replay-upload-authorizations';
+};
+
+export type AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostError = AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostErrors[keyof AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostErrors];
+
+export type AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeReplayUploadAuthorizationRead;
+};
+
+export type AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostResponse = AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostResponses[keyof AuthorizePracticeReplayUploadApiV1PracticeSessionsSessionIdReplayUploadAuthorizationsPostResponses];
+
+export type UploadPracticeReplayObjectForLocalStorageApiV1PracticeSessionsSessionIdReplayUploadsArtifactIdPutData = {
+    body?: never;
+    headers: {
+        /**
+         * X-Noteverse-Content-Sha256
+         */
+        'x-noteverse-content-sha256': string;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+        /**
+         * Artifact Id
+         */
+        artifact_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/sessions/{session_id}/replay-uploads/{artifact_id}';
+};
+
+export type UploadPracticeReplayObjectForLocalStorageApiV1PracticeSessionsSessionIdReplayUploadsArtifactIdPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UploadPracticeReplayObjectForLocalStorageApiV1PracticeSessionsSessionIdReplayUploadsArtifactIdPutError = UploadPracticeReplayObjectForLocalStorageApiV1PracticeSessionsSessionIdReplayUploadsArtifactIdPutErrors[keyof UploadPracticeReplayObjectForLocalStorageApiV1PracticeSessionsSessionIdReplayUploadsArtifactIdPutErrors];
+
+export type UploadPracticeReplayObjectForLocalStorageApiV1PracticeSessionsSessionIdReplayUploadsArtifactIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ResumePracticeSessionApiV1PracticeSessionsSessionIdResumePostData = {
     body?: never;

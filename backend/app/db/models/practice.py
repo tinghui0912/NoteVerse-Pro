@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Column, DateTime, Enum as SAEnum, Float, ForeignKey, Index, String, Text
+from sqlalchemy import BigInteger, CheckConstraint, Column, DateTime, Enum as SAEnum, Float, ForeignKey, Index, Integer, String, Text
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.db.models.score_access import AccessOrigin
@@ -27,6 +27,11 @@ class PracticeSessionSummaryStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 
+class PracticeSessionCompletionReason(str, enum.Enum):
+    SCOPE_COMPLETED = "SCOPE_COMPLETED"
+    STOPPED_BY_USER = "STOPPED_BY_USER"
+
+
 class PracticeProgressionMode(str, enum.Enum):
     WAIT_FOR_NOTE = "WAIT_FOR_NOTE"
     CONTINUOUS = "CONTINUOUS"
@@ -45,6 +50,19 @@ class PracticeEvaluationProfile(str, enum.Enum):
 class PracticeInputSource(str, enum.Enum):
     MICROPHONE = "MICROPHONE"
     MIDI = "MIDI"
+
+
+class PracticeReplayArtifactKind(str, enum.Enum):
+    AUDIO_RECORDING = "AUDIO_RECORDING"
+    MIDI_EVENTS = "MIDI_EVENTS"
+
+
+class PracticeReplayObjectDeletionStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    DISPATCHED = "DISPATCHED"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class PracticeAttemptResult(str, enum.Enum):
@@ -102,27 +120,27 @@ class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]
     user_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, ForeignKey("users.id")))
     state: PracticeSessionState = Field(sa_column=Column(SAEnum(PracticeSessionState, name="practicesessionstate"), nullable=False))
     progression_mode: PracticeProgressionMode = Field(
-        default=PracticeProgressionMode.CONTINUOUS,
+        default=PracticeProgressionMode.WAIT_FOR_NOTE,
         sa_column=Column(
             SAEnum(PracticeProgressionMode, name="practiceprogressionmode"),
             nullable=False,
-            default=PracticeProgressionMode.CONTINUOUS,
+            default=PracticeProgressionMode.WAIT_FOR_NOTE,
         ),
     )
     realtime_guidance: PracticeRealtimeGuidance = Field(
-        default=PracticeRealtimeGuidance.STATUS_ONLY,
+        default=PracticeRealtimeGuidance.GUIDED,
         sa_column=Column(
             SAEnum(PracticeRealtimeGuidance, name="practicerealtimeguidance"),
             nullable=False,
-            default=PracticeRealtimeGuidance.STATUS_ONLY,
+            default=PracticeRealtimeGuidance.GUIDED,
         ),
     )
     evaluation_profile: PracticeEvaluationProfile = Field(
-        default=PracticeEvaluationProfile.PERFORMANCE,
+        default=PracticeEvaluationProfile.LEARNING,
         sa_column=Column(
             SAEnum(PracticeEvaluationProfile, name="practiceevaluationprofile"),
             nullable=False,
-            default=PracticeEvaluationProfile.PERFORMANCE,
+            default=PracticeEvaluationProfile.LEARNING,
         ),
     )
     input_source: PracticeInputSource = Field(
@@ -145,6 +163,15 @@ class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]
     last_beat_position: Optional[float] = Field(default=None, sa_column=Column(Float))
     last_confidence: Optional[float] = Field(default=None, sa_column=Column(Float))
     audio_path: Optional[str] = Field(default=None, sa_column=Column(String(512)))
+    completion_reason: Optional[PracticeSessionCompletionReason] = Field(
+        default=None,
+        sa_column=Column(
+            SAEnum(
+                PracticeSessionCompletionReason,
+                name="practicesessioncompletionreason",
+            )
+        ),
+    )
     summary_status: PracticeSessionSummaryStatus = Field(
         sa_column=Column(
             SAEnum(PracticeSessionSummaryStatus, name="practicesessionsummarystatus"),
@@ -213,3 +240,104 @@ class PracticeAttempt(SQLModel, table=True):  # type: ignore[call-arg]
     input_policy_confidence: Optional[float] = Field(default=None, sa_column=Column(Float))
     timestamp_ms: int = Field(sa_column=Column(BigInteger, nullable=False))
     created_at: datetime = Field(default_factory=utc_now_naive, sa_column=Column(DateTime, default=utc_now_naive, nullable=False))
+
+
+class PracticeReplayArtifact(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "practice_replay_artifacts"
+    __table_args__ = (
+        Index("idx_practice_replay_artifacts_session_created", "session_id", "created_at"),
+        Index("uq_practice_replay_artifacts_uuid", "artifact_uuid", unique=True),
+        Index("uq_practice_replay_artifacts_object_key", "object_key", unique=True),
+        Index("uq_practice_replay_artifacts_session_kind", "session_id", "kind", unique=True),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    artifact_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    session_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("practice_sessions.id", ondelete="CASCADE"), nullable=False)
+    )
+    kind: PracticeReplayArtifactKind = Field(
+        sa_column=Column(
+            SAEnum(PracticeReplayArtifactKind, name="practicereplayartifactkind"),
+            nullable=False,
+        )
+    )
+    input_source: PracticeInputSource = Field(
+        sa_column=Column(SAEnum(PracticeInputSource, name="practiceinputsource"), nullable=False)
+    )
+    storage_backend: str = Field(sa_column=Column(String(64), nullable=False))
+    object_key: str = Field(sa_column=Column(String(768), nullable=False))
+    content_type: str = Field(sa_column=Column(String(128), nullable=False))
+    byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
+    checksum_sha256: str = Field(sa_column=Column(String(64), nullable=False))
+    duration_ms: int = Field(sa_column=Column(BigInteger, nullable=False))
+    timebase_version: int = Field(sa_column=Column(BigInteger, nullable=False))
+    format_version: int = Field(sa_column=Column(BigInteger, nullable=False))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+
+
+class PracticeReplayObjectDeletionOutbox(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "practice_replay_object_deletion_outbox"
+    __table_args__ = (
+        CheckConstraint("attempt_count >= 0", name="ck_practice_replay_object_delete_attempt_count"),
+        Index(
+            "idx_practice_replay_object_delete_status_available",
+            "status",
+            "next_attempt_at",
+        ),
+        Index(
+            "idx_practice_replay_object_delete_dispatched",
+            "status",
+            "dispatched_at",
+        ),
+        Index(
+            "uq_practice_replay_object_delete_artifact",
+            "artifact_uuid",
+            unique=True,
+        ),
+    )
+
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    outbox_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
+    artifact_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    storage_backend: str = Field(sa_column=Column(String(64), nullable=False))
+    object_key: str = Field(sa_column=Column(String(768), nullable=False))
+    status: PracticeReplayObjectDeletionStatus = Field(
+        default=PracticeReplayObjectDeletionStatus.PENDING,
+        sa_column=Column(
+            SAEnum(
+                PracticeReplayObjectDeletionStatus,
+                name="practicereplayobjectdeletionstatus",
+            ),
+            default=PracticeReplayObjectDeletionStatus.PENDING,
+            nullable=False,
+        ),
+    )
+    attempt_count: int = Field(
+        default=0,
+        sa_column=Column(Integer, default=0, nullable=False),
+    )
+    next_attempt_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    dispatched_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(
+            DateTime,
+            default=utc_now_naive,
+            onupdate=utc_now_naive,
+            nullable=False,
+        ),
+    )

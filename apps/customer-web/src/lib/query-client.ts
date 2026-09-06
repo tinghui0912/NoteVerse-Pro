@@ -90,6 +90,8 @@ export const queryKeys = {
             ['practice', 'targets', { scoreId, revisionId }] as const,
         readyContent: (scoreId: string, revisionId: string) =>
             ['practice', 'ready-content', { scoreId, revisionId }] as const,
+        savedPerformances: (scoreId: string) =>
+            ['practice', 'saved-performances', { scoreId }] as const,
     },
     storageUsage: {
         all: ['storage-usage'] as const,

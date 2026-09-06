@@ -1,22 +1,32 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import PracticeSummaryPage from './page';
-import type { PracticeSessionSummaryPayloadRead, PracticeSessionResultSummaryRead } from '@/generated/practice-api';
+import type {
+  PracticeSessionDetailRead,
+  PracticeSessionResultSummaryRead,
+  PracticeSessionSummaryPayloadRead,
+  SavedPracticeReplayArtifactRead,
+} from '@/generated/practice-api';
+import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 
 const navigationMocks = vi.hoisted(() => ({
   back: vi.fn(),
-  push: vi.fn(),
   scoreId: 'score-1',
   sessionId: 'session-1' as string | null,
 }));
 
 const apiMocks = vi.hoisted(() => ({
-  getPracticeSessionSummary: vi.fn(),
   getPracticeSession: vi.fn(),
+  getPracticeSessionSummary: vi.fn(),
+  listPracticeReplayArtifacts: vi.fn(),
+  getPracticeReplayArtifactPlaybackUrl: vi.fn(),
+  authorizePracticeReplayUpload: vi.fn(),
+  uploadPracticeReplayObject: vi.fn(),
+  finalizePracticeReplayArtifact: vi.fn(),
 }));
 
 const practiceContentMocks = vi.hoisted(() => ({
@@ -27,70 +37,58 @@ const observabilityMocks = vi.hoisted(() => ({
   reportUnexpectedClientError: vi.fn(),
 }));
 
+const toastMocks = vi.hoisted(() => ({
+  toast: vi.fn(),
+}));
+
+const localReplayStoreMocks = vi.hoisted(() => ({
+  readPlayablePerformanceReplay: vi.fn(),
+}));
+
+const playheadMocks = vi.hoisted(() => ({
+  applyPerformanceTime: vi.fn(),
+  clear: vi.fn(),
+}));
+
 const translationMocks = vi.hoisted(() => {
   const practice: Record<string, string> = {
-    analysisFailedDesc: 'An error occurred while generating the Practice summary. Please try again later.',
+    analysisFailedDesc: 'Analysis failed.',
     analysisFailedTitle: 'Analysis Failed',
-    attempts: 'Attempts',
-    attempt: 'Attempt',
-    attemptsEmpty: 'No resolved attempts were recorded for this session.',
     backToPractice: 'Back to Practice',
-    completionStatus: 'Status',
-    confidence: 'Confidence',
-    'attemptCompletion.COMPLETED': 'Completed',
-    'attemptCompletion.INTERRUPTED': 'Interrupted',
-    'attemptResult.MATCH': 'Matched',
-    'attemptResult.MISMATCH': 'Mismatch',
-    'attemptResult.PARTIAL': 'Partial',
-    loadingSummary: 'Loading Practice summary...',
-    loadingSummaryScore: 'Loading score annotations...',
-    metrics: 'Metrics',
-    learningDifficultMeasures: 'Measures to review',
-    learningDifficultMeasuresEmpty: 'No difficult learning positions were identified in this summary.',
-    performanceProblemMeasures: 'Problem measures',
-    performanceProblemMeasuresEmpty: 'No performance problem measures were identified in this summary.',
-    sectionMeasuresToReview: 'Section targets to review',
-    sectionMeasuresEmpty: 'No difficult positions were identified in this section.',
+    confirmedCorrectStrikes: 'Correct strikes',
+    extraPitchCount: 'Extra playing',
     focusMeasure: 'Focus',
-    summaryMissingSession: 'This Practice summary is missing a practice session.',
-    summaryInvalidSession: 'This Practice summary does not belong to the current score.',
-    learningSummarySubtitle: 'Review how this step-by-step practice went and where to revisit next.',
-    learningSummaryTitle: 'Learning Summary',
-    performanceSummarySubtitle: 'Review this full performance take, including accuracy, continuity, and confidence.',
-    performanceSummaryTitle: 'Performance summary',
-    sectionSummarySubtitle: 'Review this selected practice range before returning to the full score.',
-    sectionSummaryTitle: 'Section Summary',
-    recommendations: 'Recommendations',
-    learningRecommendationsEmpty: 'No learning recommendations are available for this summary.',
-    performanceRecommendationsEmpty: 'No performance recommendations are available for this summary.',
-    sectionRecommendationsEmpty: 'No section-specific recommendations are available.',
-    learningAccuracy: 'First-pass accuracy',
-    learningCompletion: 'Target completion',
-    learningCoverage: 'Learning coverage',
-    performanceAccuracy: 'Accuracy',
-    performanceCompletion: 'Performance completion',
-    performanceCoverage: 'Analysis coverage',
-    summaryInterruptedCount: '{count} interrupted attempts',
-    summaryScorableAttempts: '{count} scorable attempts',
-    summaryTargetCount: '{completed} of {total} targets completed',
-    scoreAnnotations: 'Annotated score',
-    scoreAnnotationsEmpty: 'No specific score positions need annotation.',
-    scoreAnnotationsUnavailable: 'Score annotations are unavailable for this summary.',
+    loadingSummary: 'Loading practice summary...',
+    loadingSummaryScore: 'Loading score annotations...',
     measureNumber: 'Measure {number}',
-    measureTargets: '{completed} of {total} targets completed',
+    mismatches: 'Wrong',
+    missingPitchesLabel: 'Missing',
+    missingStrikes: 'Missing strikes',
+    partials: 'Partial',
+    performanceProblemMeasures: 'Measures needing attention',
+    performanceReportUnavailableDesc: 'This practice session does not have a performance report.',
+    performanceSummarySubtitle: 'Replay this performance and review reliable results.',
+    performanceSummaryTitle: 'Performance Summary',
+    playback: 'Playback',
+    playReplay: 'Replay',
+    problemMeasureCount: '{count} measures needing attention',
     reviewReasonIncomplete: 'Unresolved target in this measure',
     reviewReasonNeedsAttention: 'Review this measure',
     reviewReasonPartialNotes: 'Partial notes were recorded here',
     reviewReasonWrongNotes: 'Wrong notes were recorded here',
-    mismatches: 'Wrong',
-    partials: 'Partial',
-    'resolutionReasonValue.connection_closed': 'Connection closed',
-    'resolutionReasonValue.entry_mismatch': 'Wrong note',
-    'resolutionReasonValue.stable_match': 'Stable match',
-    resolutionReason: 'Resolution',
-    result: 'Result',
+    replaySeek: 'Replay position',
+    savePerformance: 'Save Replay',
+    savePerformanceFailedDesc: 'This performance could not be saved.',
+    savePerformanceFailedTitle: 'Save failed',
+    savePerformanceSuccessDesc: 'You can replay this performance from the report later.',
+    savePerformanceSuccessTitle: 'Performance saved',
+    savedReplayPlaybackFailed: 'This saved performance could not be played.',
+    scoreAnnotations: 'Annotated score',
+    scoreAnnotationsUnavailable: 'Score annotations are unavailable.',
     summary: 'Summary',
-    target: 'Target',
+    summaryInvalidSession: 'This practice summary does not belong to the current score.',
+    summaryMissingSession: 'This practice summary is missing a practice session.',
+    unexpectedPitchesLabel: 'Extra playing',
   };
   const errors: Record<string, string> = {};
 
@@ -122,7 +120,6 @@ vi.mock('next/navigation', () => ({
   useParams: () => ({ id: navigationMocks.scoreId }),
   useRouter: () => ({
     back: navigationMocks.back,
-    push: navigationMocks.push,
   }),
   useSearchParams: () => ({
     get: (key: string) => (key === 'sessionId' ? navigationMocks.sessionId : null),
@@ -131,14 +128,61 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/api', () => ({
   practiceApi: {
-    getPracticeSessionSummary: (...args: unknown[]) => apiMocks.getPracticeSessionSummary(...args),
+    authorizePracticeReplayUpload: (...args: unknown[]) =>
+      apiMocks.authorizePracticeReplayUpload(...args),
+    finalizePracticeReplayArtifact: (...args: unknown[]) =>
+      apiMocks.finalizePracticeReplayArtifact(...args),
+    getPracticeReplayArtifactPlaybackUrl: (...args: unknown[]) =>
+      apiMocks.getPracticeReplayArtifactPlaybackUrl(...args),
     getPracticeSession: (...args: unknown[]) => apiMocks.getPracticeSession(...args),
+    getPracticeSessionSummary: (...args: unknown[]) =>
+      apiMocks.getPracticeSessionSummary(...args),
+    listPracticeReplayArtifacts: (...args: unknown[]) =>
+      apiMocks.listPracticeReplayArtifacts(...args),
+    uploadPracticeReplayObject: (...args: unknown[]) =>
+      apiMocks.uploadPracticeReplayObject(...args),
   },
 }));
 
 vi.mock('@/lib/observability', () => ({
   reportUnexpectedClientError: (...args: unknown[]) =>
     observabilityMocks.reportUnexpectedClientError(...args),
+}));
+
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ toast: toastMocks.toast }),
+}));
+
+vi.mock('@/lib/practice/local-performance-replay-store', () => ({
+  readPlayablePerformanceReplay: (...args: unknown[]) =>
+    localReplayStoreMocks.readPlayablePerformanceReplay(...args),
+}));
+
+vi.mock('@/components/practice/performance-replay-player', () => ({
+  PerformanceReplayPlayer: ({
+    actions,
+    autoStart,
+    onReplayTimeChange,
+    replay,
+  }: {
+    actions?: ReactNode;
+    autoStart?: boolean;
+    onReplayTimeChange?: (timeMs: number | null) => void;
+    replay: PlayablePerformanceReplay;
+  }) => (
+    <div data-auto-start={autoStart ? 'true' : 'false'} data-testid="performance-replay-player">
+      <button type="button" onClick={() => onReplayTimeChange?.(120)}>
+        {replay.kind}
+      </button>
+      {actions}
+    </div>
+  ),
+}));
+
+vi.mock('@/lib/practice/performance-playhead-controller', () => ({
+  PerformancePlayheadController: vi.fn(function PerformancePlayheadController() {
+    return playheadMocks;
+  }),
 }));
 
 vi.mock('@/components/loading', () => ({
@@ -179,6 +223,8 @@ vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
     >
       <span data-id="n1" />
       <span data-id="n2" />
+      <span data-id="n3" />
+      <span data-id="n4" />
     </div>
   ),
 }));
@@ -193,128 +239,173 @@ vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({
   },
 }));
 
-const summaryPayload: PracticeSessionSummaryPayloadRead = {
-  summary: 'You completed one target and should revisit the ending.',
-  recommendations: ['Review the second measure slowly.'],
-  metrics: {
-    attempt_count: 3,
-    completed_targets: 1,
-    interrupted_attempts: 1,
-    match_rate: 0.5,
-    scorable_attempt_count: 2,
-    scorable_target_completion_rate: 1,
-    scorable_target_count: 1,
-    scoring_coverage: 0.667,
-    scoring_policy_version: 'practice-summary-scoring-v1',
-    target_completion_rate: 0.5,
-    target_count: 2,
-  },
-  attempts: [
-    {
-      action: 'advance',
-      attempt_index: 1,
-      attempt_uid: 'attempt-1',
-      beat_position: 1,
-      completion_status: 'COMPLETED',
-      confidence: 0.91,
-      correctness_scope: 'entry',
-      evidence_profile: 'deterministic',
-      input_source: 'MIDI',
-      measure_numbers: ['1'],
-      render_note_ids: ['n1'],
-      resolution_reason: 'stable_match',
-      result: 'MATCH',
-      scoring_included: true,
-    },
-    {
-      action: 'hold',
-      attempt_index: 2,
-      attempt_uid: 'attempt-2',
-      beat_position: 2,
-      completion_status: 'COMPLETED',
-      confidence: 0.2,
-      correctness_scope: 'entry',
-      event_id: 'event-2',
-      evidence_profile: 'deterministic',
-      input_source: 'MIDI',
-      measure_numbers: ['2'],
-      render_note_ids: [],
-      resolution_reason: 'entry_mismatch',
-      result: 'MISMATCH',
-      scoring_included: true,
-    },
-    {
-      action: 'wait',
-      attempt_index: 3,
-      attempt_uid: 'attempt-3',
-      beat_position: 3,
-      completion_status: 'INTERRUPTED',
-      confidence: 0.4,
-      correctness_scope: 'entry',
-      evidence_profile: 'deterministic',
-      expected_group_id: 'entry-3',
-      input_source: 'MIDI',
-      measure_numbers: ['2'],
-      render_note_ids: ['n3'],
-      resolution_reason: 'connection_closed',
-      result: 'PARTIAL',
-      scoring_included: false,
-    },
-  ],
-  targets: [
-    {
-      expected_group_id: 'entry-1',
-      measure_numbers: ['1'],
-      render_note_ids: ['n1'],
-      attempt_count: 2,
-      scorable_attempt_count: 2,
-      interrupted_attempt_count: 0,
-      matched_attempt_count: 1,
-      partial_attempt_count: 1,
-      mismatch_attempt_count: 0,
-      completed: true,
-      completion_status: 'completed',
-      last_result: 'MATCH',
-      last_confidence: 0.91,
-    },
-    {
-      expected_group_id: 'entry-2',
-      measure_numbers: ['2'],
-      render_note_ids: ['n2'],
-      attempt_count: 2,
-      scorable_attempt_count: 1,
-      interrupted_attempt_count: 1,
-      matched_attempt_count: 0,
-      partial_attempt_count: 1,
-      mismatch_attempt_count: 1,
-      completed: false,
-      completion_status: 'incomplete',
-      last_result: 'PARTIAL',
-      last_confidence: 0.4,
-    },
-  ],
+function session(
+  overrides: Partial<PracticeSessionDetailRead> = {}
+): PracticeSessionDetailRead {
+  return {
+    access_origin: 'OWNER',
+    channels: 1,
+    evaluation_profile: 'PERFORMANCE',
+    finished_at: null,
+    frame_format: 'pcm_s16le',
+    input_source: 'MIDI',
+    last_beat_position: null,
+    last_confidence: null,
+    progression_mode: 'CONTINUOUS',
+    realtime_guidance: 'SILENT',
+    revision_id: 'revision-from-session',
+    sample_rate: 16000,
+    score_id: 'score-1',
+    session_id: 'session-1',
+    started_at: null,
+    state: 'FINISHED',
+    summary_status: 'READY',
+    ...overrides,
+  } as PracticeSessionDetailRead;
+}
+
+const midiPerformanceSummaryPayload: PracticeSessionSummaryPayloadRead = {
+  attempts: [],
   difficult_measures: [
     {
-      measure_number: '2',
-      target_count: 1,
+      attempt_count: 1,
+      average_confidence: 1,
       completed_target_count: 0,
+      difficulty_score: 5,
       incomplete_target_count: 1,
-      attempt_count: 2,
-      scorable_attempt_count: 1,
-      interrupted_attempt_count: 1,
-      partial_attempt_count: 1,
+      interrupted_attempt_count: 0,
+      measure_number: '1',
       mismatch_attempt_count: 1,
-      average_confidence: 0.4,
-      difficulty_score: 6.75,
+      partial_attempt_count: 0,
+      scorable_attempt_count: 1,
+      target_count: 1,
+    },
+  ],
+  metrics: {
+    confirmed_correct_strike_targets: 2,
+    evaluation_profile: 'PERFORMANCE',
+    expected_outcome_count: 3,
+    extra_pitch_count: 1,
+    input_source: 'MIDI',
+    matched_expected_groups: 1,
+    mismatched_expected_groups: 1,
+    missing_strike_targets: 1,
+    not_observed_expected_groups: 1,
+    problem_measure_count: 1,
+  },
+  recommendations: ['Review the confirmed issue slowly.'],
+  summary: 'Performance session completed.',
+  targets: [
+    {
+      attempt_count: 1,
+      completed: true,
+      completion_status: 'completed',
+      confirmed_correct_render_note_ids: ['n1'],
+      confirmed_error_render_note_ids: [],
+      expected_group_id: 'entry-1',
+      interrupted_attempt_count: 0,
+      last_confidence: 1,
+      last_result: 'MATCH',
+      matched_attempt_count: 1,
+      measure_numbers: ['1'],
+      mismatch_attempt_count: 0,
+      missing_pitches: [],
+      partial_attempt_count: 0,
+      render_note_ids: ['n1'],
+      scorable_attempt_count: 1,
+      unexpected_pitches: [],
+    },
+    {
+      attempt_count: 1,
+      completed: false,
+      completion_status: 'incomplete',
+      confirmed_correct_render_note_ids: ['n2'],
+      confirmed_error_render_note_ids: ['n3'],
+      expected_group_id: 'entry-2',
+      interrupted_attempt_count: 0,
+      last_confidence: 1,
+      last_result: 'MISMATCH',
+      matched_attempt_count: 0,
+      measure_numbers: ['1'],
+      mismatch_attempt_count: 1,
+      missing_pitches: ['G4'],
+      partial_attempt_count: 0,
+      render_note_ids: ['n2', 'n3'],
+      scorable_attempt_count: 1,
+      unexpected_pitches: ['F4'],
+    },
+    {
+      attempt_count: 1,
+      completed: false,
+      completion_status: 'incomplete',
+      confirmed_correct_render_note_ids: [],
+      confirmed_error_render_note_ids: [],
+      expected_group_id: 'entry-3',
+      interrupted_attempt_count: 0,
+      last_confidence: 0,
+      last_result: 'NOT_OBSERVED',
+      matched_attempt_count: 0,
+      measure_numbers: ['2'],
+      mismatch_attempt_count: 0,
+      missing_pitches: [],
+      partial_attempt_count: 0,
+      render_note_ids: ['n4'],
+      scorable_attempt_count: 0,
+      unexpected_pitches: [],
     },
   ],
 };
 
-function summaryRead(payload: PracticeSessionSummaryPayloadRead | null): PracticeSessionResultSummaryRead {
+function summaryRead(
+  payload: PracticeSessionSummaryPayloadRead | null
+): PracticeSessionResultSummaryRead {
   return {
+    performance_timeline: {
+      scope_start_beat: 0,
+      scope_terminal_beat: 4,
+      segments: [
+        {
+          end_beat: 4,
+          end_performance_time_ms: 1000,
+          start_beat: 0,
+          start_performance_time_ms: 0,
+        },
+      ],
+    },
+    session_id: 'session-1',
     summary_payload: payload,
     summary_status: payload ? 'READY' : 'FAILED',
+  };
+}
+
+function savedArtifact(
+  overrides: Partial<SavedPracticeReplayArtifactRead> = {}
+): SavedPracticeReplayArtifactRead {
+  return {
+    artifact_id: 'artifact-1',
+    byte_size: 128,
+    checksum_sha256: 'checksum',
+    content_type: 'application/vnd.noteverse.replay+json',
+    created_at: '2026-09-01T00:00:00Z',
+    duration_ms: 360,
+    format_version: 1,
+    input_source: 'MIDI',
+    kind: 'MIDI_EVENTS',
     session_id: 'session-1',
+    timebase_version: 1,
+    ...overrides,
+  };
+}
+
+function localReplay(): PlayablePerformanceReplay {
+  return {
+    durationMs: 360,
+    events: [
+      { event_type: 'note_on', note_number: 60, timestamp_ms: 120, velocity: 96 },
+      { event_type: 'note_off', note_number: 60, timestamp_ms: 360, velocity: 0 },
+    ],
+    kind: 'MIDI_EVENTS',
+    timebase: { speedRatio: 1, version: 1 },
   };
 }
 
@@ -325,139 +416,198 @@ function renderPage() {
 describe('PracticeSummaryPage', () => {
   beforeEach(() => {
     navigationMocks.back.mockReset();
-    navigationMocks.push.mockReset();
     navigationMocks.scoreId = 'score-1';
     navigationMocks.sessionId = 'session-1';
-    apiMocks.getPracticeSessionSummary.mockReset();
     apiMocks.getPracticeSession.mockReset();
-    practiceContentMocks.readyContentArgs = [];
-    observabilityMocks.reportUnexpectedClientError.mockReset();
-    apiMocks.getPracticeSession.mockResolvedValue({
+    apiMocks.getPracticeSessionSummary.mockReset();
+    apiMocks.listPracticeReplayArtifacts.mockReset();
+    apiMocks.getPracticeReplayArtifactPlaybackUrl.mockReset();
+    apiMocks.authorizePracticeReplayUpload.mockReset();
+    apiMocks.uploadPracticeReplayObject.mockReset();
+    apiMocks.finalizePracticeReplayArtifact.mockReset();
+    apiMocks.getPracticeSession.mockResolvedValue({ data: session() });
+    apiMocks.getPracticeSessionSummary.mockResolvedValue({
+      data: summaryRead(midiPerformanceSummaryPayload),
+    });
+    apiMocks.listPracticeReplayArtifacts.mockResolvedValue({ data: [] });
+    apiMocks.authorizePracticeReplayUpload.mockResolvedValue({
       data: {
-        session_id: 'session-1',
-        score_id: 'score-1',
-        revision_id: 'revision-from-session',
-        access_origin: 'OWNER',
-        state: 'FINISHED',
-        progression_mode: 'WAIT_FOR_NOTE',
-        realtime_guidance: 'GUIDED',
-        evaluation_profile: 'LEARNING',
-        input_source: 'MIDI',
-        sample_rate: 16000,
-        channels: 1,
-        frame_format: 'pcm_s16le',
-        started_at: null,
-        finished_at: null,
-        last_beat_position: null,
-        last_confidence: null,
-        summary_status: 'READY',
+        artifact_id: 'artifact-1',
+        byte_size: 128,
+        checksum_sha256: 'checksum',
+        content_type: 'application/vnd.noteverse.replay+json',
+        duration_ms: 360,
+        format_version: 1,
+        kind: 'MIDI_EVENTS',
+        timebase_version: 1,
+        upload_headers: {
+          'content-type': 'application/vnd.noteverse.replay+json',
+          'x-amz-meta-sha256': 'checksum',
+        },
+        upload_method: 'PUT',
+        upload_url: 'https://storage.example/replay',
       },
     });
+    apiMocks.uploadPracticeReplayObject.mockResolvedValue(undefined);
+    apiMocks.finalizePracticeReplayArtifact.mockResolvedValue({ data: savedArtifact() });
+    localReplayStoreMocks.readPlayablePerformanceReplay.mockReset();
+    localReplayStoreMocks.readPlayablePerformanceReplay.mockReturnValue(null);
+    playheadMocks.applyPerformanceTime.mockReset();
+    playheadMocks.clear.mockReset();
+    practiceContentMocks.readyContentArgs = [];
+    observabilityMocks.reportUnexpectedClientError.mockReset();
+    toastMocks.toast.mockReset();
+    vi.restoreAllMocks();
   });
 
-  it('renders summary metrics, recommendations, and explicit attempt resolution semantics', async () => {
-    apiMocks.getPracticeSessionSummary.mockResolvedValue({ data: summaryRead(summaryPayload) });
-
+  it('renders the performance report as a single report surface', async () => {
     renderPage();
 
-    expect(screen.getByRole('heading', { name: 'Learning Summary' })).toBeInTheDocument();
-    expect(await screen.findByText('You completed one target and should revisit the ending.')).toBeInTheDocument();
-    expect(screen.getByText('Review the second measure slowly.')).toBeInTheDocument();
-    expect(screen.getByText('Measures to review')).toBeInTheDocument();
-    expect(screen.getByText('Annotated score')).toBeInTheDocument();
-    expect(screen.getByText('Measure 2')).toBeInTheDocument();
-    expect(screen.getByText('Unresolved target in this measure')).toBeInTheDocument();
-    expect(screen.getByText('Focus')).toBeInTheDocument();
-    expect(screen.getAllByText('50%')).toHaveLength(2);
-    expect(screen.getByText('67%')).toBeInTheDocument();
-    expect(screen.getByText('1 of 2 targets completed')).toBeInTheDocument();
-    expect(screen.getByText('2 scorable attempts')).toBeInTheDocument();
-    expect(screen.getByText('1 interrupted attempts')).toBeInTheDocument();
-    expect(screen.getByText('Matched')).toBeInTheDocument();
-    expect(screen.getByText('Mismatch')).toBeInTheDocument();
-    expect(screen.getAllByText('Partial').length).toBeGreaterThan(0);
-    expect(screen.getByText('Interrupted')).toBeInTheDocument();
-    expect(screen.getByText('Connection closed')).toBeInTheDocument();
-    expect(screen.getByText('practice-summary-scoring-v1')).toBeInTheDocument();
-    expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n1"]')).toHaveClass(
-      'practice-summary-note-review'
-    );
-    expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n2"]')).toHaveClass(
-      'practice-summary-note-problem'
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
-    expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n2"]')).toHaveClass(
-      'practice-summary-note-focused'
-    );
-    expect(screen.queryByRole('link', { name: /practice/i })).not.toBeInTheDocument();
-    expect(apiMocks.getPracticeSession).toHaveBeenCalledWith('session-1');
+    expect(screen.getByRole('heading', { name: 'Performance Summary' })).toBeInTheDocument();
+    expect(await screen.findByText('Annotated score')).toBeInTheDocument();
+    expect(screen.getByText('Measures needing attention')).toBeInTheDocument();
+    expect(screen.getByText('Correct strikes')).toBeInTheDocument();
+    expect(screen.getByText('Missing strikes')).toBeInTheDocument();
+    expect(screen.getAllByText('Extra playing')).toHaveLength(2);
+    expect(screen.queryByText('Performance session completed.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Analysis unavailable')).not.toBeInTheDocument();
+    expect(screen.queryByText('Learning Summary')).not.toBeInTheDocument();
+    expect(apiMocks.getPracticeSessionSummary).toHaveBeenCalledWith('session-1');
     expect(practiceContentMocks.readyContentArgs).toContainEqual([
       'score-1',
       'revision-from-session',
     ]);
-    expect(practiceContentMocks.readyContentArgs).not.toContainEqual([
-      'score-1',
-      'revision-from-head',
-    ]);
-    expect(apiMocks.getPracticeSessionSummary).toHaveBeenCalledWith('session-1');
   });
 
-  it('shows a missing-session error without calling the summary APIs', async () => {
-    navigationMocks.sessionId = null;
-
+  it('projects confirmed performance evidence onto score noteheads', async () => {
     renderPage();
 
-    expect(await screen.findByText('This Practice summary is missing a practice session.')).toBeInTheDocument();
-    expect(apiMocks.getPracticeSession).not.toHaveBeenCalled();
-    expect(apiMocks.getPracticeSessionSummary).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n1"]'))
+        .toHaveClass('practice-summary-note-confirmed-correct');
+      expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n2"]'))
+        .toHaveClass('practice-summary-note-confirmed-correct');
+      expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n3"]'))
+        .toHaveClass('practice-summary-note-confirmed-error');
+      expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n4"]'))
+        .not.toHaveClass('practice-summary-note-confirmed-error');
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Focus' }));
+    expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n1"]'))
+      .toHaveClass('practice-summary-note-focused');
   });
 
-  it('rejects a summary session that belongs to a different score route', async () => {
+  it('rejects non-performance sessions instead of rendering a learning report variant', async () => {
     apiMocks.getPracticeSession.mockResolvedValue({
-      data: {
-        session_id: 'session-1',
-        score_id: 'other-score',
-        revision_id: 'revision-from-session',
-        access_origin: 'OWNER',
-        state: 'FINISHED',
+      data: session({
+        evaluation_profile: 'LEARNING',
         progression_mode: 'WAIT_FOR_NOTE',
         realtime_guidance: 'GUIDED',
-        evaluation_profile: 'LEARNING',
-        input_source: 'MIDI',
-        sample_rate: 16000,
-        channels: 1,
-        frame_format: 'pcm_s16le',
-        started_at: null,
-        finished_at: null,
-        last_beat_position: null,
-        last_confidence: null,
-        summary_status: 'READY',
-      },
-    });
-
-    renderPage();
-
-    expect(
-      await screen.findByText('This Practice summary does not belong to the current score.')
-    ).toBeInTheDocument();
-    expect(apiMocks.getPracticeSession).toHaveBeenCalledWith('session-1');
-    expect(apiMocks.getPracticeSessionSummary).not.toHaveBeenCalled();
-  });
-
-  it('renders a stable empty-attempts state', async () => {
-    apiMocks.getPracticeSessionSummary.mockResolvedValue({
-      data: summaryRead({
-        ...summaryPayload,
-        attempts: [],
-        difficult_measures: [],
-        recommendations: [],
       }),
     });
 
     renderPage();
 
-    expect(await screen.findByText('No resolved attempts were recorded for this session.')).toBeInTheDocument();
-    expect(screen.getByText('No difficult learning positions were identified in this summary.')).toBeInTheDocument();
-    expect(screen.getByText('No learning recommendations are available for this summary.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('This practice session does not have a performance report.')
+    ).toBeInTheDocument();
+    expect(apiMocks.getPracticeSessionSummary).not.toHaveBeenCalled();
+    expect(screen.queryByText('Annotated score')).not.toBeInTheDocument();
+  });
+
+  it('shows the immediate local replay and removes save after saving', async () => {
+    localReplayStoreMocks.readPlayablePerformanceReplay.mockReturnValue(localReplay());
+
+    renderPage();
+
+    expect(await screen.findByTestId('performance-replay-player')).toHaveTextContent(
+      'MIDI_EVENTS'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save Replay' }));
+
+    await waitFor(() => expect(apiMocks.finalizePracticeReplayArtifact).toHaveBeenCalledTimes(1));
+    expect(apiMocks.authorizePracticeReplayUpload).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        content_type: 'application/vnd.noteverse.replay+json',
+        duration_ms: 360,
+        format_version: 1,
+        kind: 'MIDI_EVENTS',
+        timebase_version: 1,
+      })
+    );
+    expect(screen.queryByRole('button', { name: 'Save Replay' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+  });
+
+  it('loads saved replay only after the user asks to replay it', async () => {
+    apiMocks.listPracticeReplayArtifacts.mockResolvedValue({ data: [savedArtifact()] });
+    apiMocks.getPracticeReplayArtifactPlaybackUrl.mockResolvedValue({
+      data: {
+        artifact_id: 'artifact-1',
+        content_type: 'application/vnd.noteverse.replay+json',
+        duration_ms: 360,
+        kind: 'MIDI_EVENTS',
+        playback_url: 'https://storage.example/replay.json',
+      },
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      json: async () => ({
+        durationMs: 360,
+        events: [
+          { event_type: 'note_on', note_number: 60, timestamp_ms: 120, velocity: 96 },
+        ],
+        formatVersion: 1,
+        speedRatio: 1,
+        timebaseVersion: 1,
+      }),
+      ok: true,
+    } as Response);
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Replay' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('performance-replay-player')).not.toBeInTheDocument();
+    expect(apiMocks.getPracticeReplayArtifactPlaybackUrl).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Replay' }));
+
+    expect(screen.getByRole('button', { name: 'Replay' })).toBeDisabled();
+
+    expect(await screen.findByTestId('performance-replay-player')).toHaveAttribute(
+      'data-auto-start',
+      'true'
+    );
+    expect(apiMocks.getPracticeReplayArtifactPlaybackUrl).toHaveBeenCalledWith(
+      'session-1',
+      'artifact-1'
+    );
+  });
+
+  it('does not render an empty problem-measures card', async () => {
+    apiMocks.getPracticeSessionSummary.mockResolvedValue({
+      data: summaryRead({
+        ...midiPerformanceSummaryPayload,
+        difficult_measures: [],
+      }),
+    });
+
+    renderPage();
+
+    await screen.findByText('Annotated score');
+    expect(screen.queryByText('Measures needing attention')).not.toBeInTheDocument();
+  });
+
+  it('shows a route error without calling summary APIs when the session is missing', async () => {
+    navigationMocks.sessionId = null;
+
+    renderPage();
+
+    expect(
+      await screen.findByText('This practice summary is missing a practice session.')
+    ).toBeInTheDocument();
+    expect(apiMocks.getPracticeSession).not.toHaveBeenCalled();
+    expect(apiMocks.getPracticeSessionSummary).not.toHaveBeenCalled();
   });
 });

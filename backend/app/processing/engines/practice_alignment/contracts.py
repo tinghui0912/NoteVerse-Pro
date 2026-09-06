@@ -34,7 +34,7 @@ class PracticeConfidenceSummary(TypedDict):
 
 
 class AlignmentDecision(TypedDict):
-    action: Literal["advance", "hold", "relocalize", "wait"]
+    action: Literal["advance", "hold", "wait"]
     reason: Literal[
         "stable_match",
         "partial_match",

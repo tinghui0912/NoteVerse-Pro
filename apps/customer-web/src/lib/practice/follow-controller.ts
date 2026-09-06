@@ -12,8 +12,8 @@ type FollowControllerState = {
   lastResolvedNoteIds: string[];
   lastStablePage: number | null;
   lastUpdateMs: number;
-  lastAcceptedBeat: number | null;
-  lastAcceptedTimelineIndex: number | null;
+  lastDisplayBeat: number | null;
+  lastDisplayTimelineIndex: number | null;
   pendingTimelineIndex: number | null;
   pendingBeat: number | null;
   pendingCount: number;
@@ -57,8 +57,8 @@ export class PracticeFollowController {
     lastResolvedNoteIds: [],
     lastStablePage: null,
     lastUpdateMs: 0,
-    lastAcceptedBeat: null,
-    lastAcceptedTimelineIndex: null,
+    lastDisplayBeat: null,
+    lastDisplayTimelineIndex: null,
     pendingTimelineIndex: null,
     pendingBeat: null,
     pendingCount: 0,
@@ -73,8 +73,8 @@ export class PracticeFollowController {
       lastResolvedNoteIds: [],
       lastStablePage: null,
       lastUpdateMs: 0,
-      lastAcceptedBeat: null,
-      lastAcceptedTimelineIndex: null,
+      lastDisplayBeat: null,
+      lastDisplayTimelineIndex: null,
       pendingTimelineIndex: null,
       pendingBeat: null,
       pendingCount: 0,
@@ -111,25 +111,20 @@ export class PracticeFollowController {
     const previousUpdateMs = this.state.lastUpdateMs;
     this.clearDecorations(container);
 
-    const rawCandidate = this.resolveDisplayAnchor(adapter, alignment);
-    const candidate =
-      alignment.decision.action === 'relocalize'
-        ? rawCandidate
-        : this.clampToSequentialPrompt(rawCandidate, adapter, now);
-    const acceptedCandidate = this.resolveCandidate(candidate, alignment);
-    if (!acceptedCandidate) {
-      this.debug('rejected', alignment, candidate);
+    const rawDisplayCandidate = this.resolveDisplayAnchor(adapter, alignment);
+    const candidate = this.clampToSequentialPrompt(rawDisplayCandidate, adapter, now);
+    const displayCandidate = this.resolveStepByStepCandidate(candidate, alignment);
+    if (!displayCandidate) {
       this.restorePreviousState(previousResolvedNoteIds, previousStablePage, previousUpdateMs);
       this.refreshDecorations(container);
       return;
     }
 
-    this.debug('accepted', alignment, acceptedCandidate);
-    this.state.lastAcceptedBeat = acceptedCandidate.beat;
-    this.state.lastAcceptedTimelineIndex = acceptedCandidate.index;
+    this.state.lastDisplayBeat = displayCandidate.beat;
+    this.state.lastDisplayTimelineIndex = displayCandidate.index;
     this.clearPendingCandidate();
 
-    const eventNoteIds = acceptedCandidate.noteIds;
+    const eventNoteIds = displayCandidate.noteIds;
     const canReusePreviousNotes =
       eventNoteIds.length === 0 &&
       previousResolvedNoteIds.length > 0 &&
@@ -179,7 +174,7 @@ export class PracticeFollowController {
     this.state.lastUpdateMs = now;
   }
 
-  private resolveCandidate(
+  private resolveStepByStepCandidate(
     candidate: PracticeVisualTimelineEntry | null,
     alignment: PracticeAlignmentUpdateMessage['payload']
   ) {
@@ -192,22 +187,17 @@ export class PracticeFollowController {
       alignment.decision.action === 'wait'
     ) {
       this.clearPendingCandidate();
-      return this.state.lastAcceptedBeat === null ? candidate : null;
+      return this.state.lastDisplayBeat === null ? candidate : null;
     }
 
-    if (alignment.decision.action === 'relocalize') {
-      this.clearPendingCandidate();
-      return candidate;
-    }
-
-    if (this.state.lastAcceptedBeat === null || this.state.lastAcceptedTimelineIndex === null) {
+    if (this.state.lastDisplayBeat === null || this.state.lastDisplayTimelineIndex === null) {
       if (!this.isPromptAlignment(alignment) && !this.hasStableCommit(candidate)) {
         return null;
       }
       return candidate;
     }
 
-    if (candidate.index === this.state.lastAcceptedTimelineIndex) {
+    if (candidate.index === this.state.lastDisplayTimelineIndex) {
       this.clearPendingCandidate();
       return candidate;
     }
@@ -282,7 +272,7 @@ export class PracticeFollowController {
       return null;
     }
 
-    const lastIndex = this.state.lastAcceptedTimelineIndex;
+    const lastIndex = this.state.lastDisplayTimelineIndex;
     if (lastIndex === null || candidate.index <= lastIndex + this.maxFollowingJumpEvents) {
       return candidate;
     }
@@ -304,15 +294,5 @@ export class PracticeFollowController {
     this.state.lastUpdateMs = previousUpdateMs;
     this.state.activeNoteIds = [...previousResolvedNoteIds];
     this.state.activePage = previousStablePage;
-  }
-
-  private debug(
-    decision: 'accepted' | 'rejected',
-    alignment: PracticeAlignmentUpdateMessage['payload'],
-    candidate: PracticeVisualTimelineEntry | null
-  ) {
-    void decision;
-    void alignment;
-    void candidate;
   }
 }

@@ -64,9 +64,8 @@ by `scripts/evaluate_practice_replay.py` inside the `practice` container, where
 Matchmaker's real Chroma processor and first-note score validation are available.
 It includes calibration silence before every scenario and validates starts,
 negative non-starts, mixed inputs, the first emitted beat, and pause/resume.
-For positive full-performance scenarios, it can also assert follow-quality
-fields such as reliable-update ratio, time to first reliable alignment,
-following/lost coverage, and lost episode count.
+For current scenarios, it validates the microphone startup and first expected
+event behavior used by step-by-step practice.
 
 `initial_alignment_manifest.json` is the P0 startup robustness baseline. It uses
 the same real engine, but focuses on invariants that should hold before changing
@@ -76,35 +75,11 @@ chunk sizes. It also includes 1/4/8/12 repeated wrong-C4 attempts followed by a
 correct Once Again restart, so restart behavior is checked after the engine is
 already armed.
 
-`continuous_follow_quality_manifest.json` is the dedicated Full performance /
-`CONTINUOUS` tracking-quality baseline. It is intentionally privacy-safe: it uses
-authorized local/public fixtures and synthetic silence rather than downloaded
-browser recordings from a user session. Use it for post-start metrics such as
-reliable update ratio, following/lost coverage, lost episodes, background-noise
-tolerance, phrase-quality windows that ignore natural tail silence, and bounded
-selected-section invariants. Scenarios should declare `practice_scope_by_beat`
-with `start_beat` and `end_beat`; the replay runner resolves those beats through
-the current backend target catalog before passing `start_expected_group_id` and
-`end_expected_group_id` into `MatchmakerLiveEngine`. This keeps replay baselines
-tied to musical fixture intent instead of a previous expected-group hash
-implementation. The runner can assert accepted anchor bounds plus
-selected-section completion after accepted alignment reaches the runtime-resolved
-terminal reference region. The selected-section baseline intentionally includes
-two positive range-completion scenarios from different parts of the Once Again
-excerpt, one early-stop negative scenario, and one outside-range negative
-scenario so endpoint handling cannot drift into false completion or false
-localization.
-
-`once_again_performance_annotation.json` is a small independent timing annotation
-for the local Once Again excerpt. It records human-reviewed
-`performance_seconds -> score_beat` anchors for selected-range boundaries. The
-continuous selected-section tests use it to ensure scope completion does not
-occur before the annotated terminal performance time and does not drift into the
-next phrase. Keep this separate from the replay manifest: the manifest describes
-engine scenarios, while the annotation describes the fixture's musical timing.
-When a replay scenario starts from a later slice of the source recording, tests
-compare completion against the original source time by adding the frame
-`start_seconds` offset.
+Full-performance fixtures should be rebuilt when the fixed-clock Performance
+engine is introduced. Do not add new Matchmaker score-following manifests for
+Continuous practice; the product decision is that visible Continuous progress is
+owned by a clock, while microphone/MIDI events become timed evidence for the
+result summary.
 
 `tests/test_practice_microphone_capability_matrix.py` is the first microphone
 recognition capability baseline. It is not a score-following replay manifest and
@@ -125,8 +100,10 @@ prove that real microphone PCM can produce those pitch sets.
 ## Public Samples
 
 The `public_samples/` directory contains small, converted 16 kHz mono PCM WAV
-fixtures downloaded from public datasets. The manifest uses only the converted
-`*_16k.wav` files so replay tests stay fast.
+fixtures downloaded from public datasets. Public-sample manifest scenarios use
+the converted `*_16k.wav` files so replay tests stay fast. Score-specific
+quality scenarios may use local source recordings directly when the full
+performance is needed.
 
 | Fixture | Source | License note | Manifest role |
 | --- | --- | --- | --- |

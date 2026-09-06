@@ -2,7 +2,7 @@
 
 import time
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, Header, Query, Request, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -10,15 +10,23 @@ from app.core.exceptions import AppException
 from app.core.logger import logger
 from app.core.metrics import realtime_connection_closed, realtime_connection_opened
 from app.db.models import User
+from app.db.models.practice import PracticeSessionCompletionReason
 from app.db.model_utils import require_persisted_id
 from app.modules.practice.dependencies import get_practice_service, get_websocket_current_user
+from app.modules.practice.performance_stream import run_performance_session_loop
 from app.modules.practice.schemas import (
     CreatePracticeSessionRequest,
+    PracticeReplayFinalizeRequest,
+    PracticeReplayUploadAuthorizationRead,
+    PracticeReplayUploadAuthorizationRequest,
     PracticeReadyScoreContentRead,
     PracticeSessionResultSummaryRead,
     PracticeSessionDetailRead,
     PracticeSessionStartRead,
     PracticeTargetCatalogRead,
+    SavedPracticeReplayPlaybackRead,
+    SavedPracticeReplayArtifactRead,
+    SavedPracticePerformanceRead,
 )
 from app.modules.practice.service import PracticeService
 from app.processing.realtime.message_codec import (
@@ -32,7 +40,11 @@ from app.processing.realtime.message_codec import (
     state_changed_message,
 )
 from app.processing.realtime.protocol import ClientInitPayload
-from app.processing.realtime.session_runtime import PracticeSessionRuntime
+from app.processing.realtime.session_runtime import (
+    PerformancePracticeSessionRuntime,
+    PracticeRuntime,
+    PracticeSessionRuntime,
+)
 from app.shared.constants import ErrorCode, SuccessCode
 from app.shared.responses import APIResponse, success_response
 
@@ -68,7 +80,12 @@ async def _send_alignment_and_finish_if_needed(
     if runtime.pending_alignment_updates > 0:
         await practice_service.persist_alignment(db, session_id, alignment)
         runtime.mark_alignment_persisted()
-    detail = await practice_service.finish_session(db, session_id, user_id)
+    detail = await practice_service.finish_session(
+        db,
+        session_id,
+        user_id,
+        completion_reason=PracticeSessionCompletionReason.SCOPE_COMPLETED,
+    )
     state = _practice_session_state_value(detail)
     runtime.state = state
     await websocket.send_json(
@@ -77,12 +94,13 @@ async def _send_alignment_and_finish_if_needed(
             _practice_session_completion_outcome_value(detail),
         )
     )
+    await practice_service.build_summary_for_finished_session(db, session_id, user_id)
     return state
 
 
 def _client_init_policy_mismatch(
     payload: ClientInitPayload,
-    runtime: PracticeSessionRuntime,
+    runtime: PracticeRuntime,
 ) -> dict[str, object] | None:
     for field_name in _CLIENT_INIT_POLICY_FIELDS:
         expected = str(getattr(runtime, field_name))
@@ -120,9 +138,7 @@ async def create_practice_session(
         sample_rate=request.sample_rate,
         channels=request.channels,
         frame_format=request.frame_format,
-        progression_mode=request.progression_mode,
-        realtime_guidance=request.realtime_guidance,
-        evaluation_profile=request.evaluation_profile,
+        preset=request.preset,
         input_source=request.input_source,
         practice_scope=request.practice_scope,
     )
@@ -162,6 +178,27 @@ async def get_practice_ready_score_content(
         score_id,
         user_id,
         revision_id,
+    )
+    return success_response(data=result)
+
+
+@router.get(
+    "/scores/{score_id}/saved-performances",
+    response_model=APIResponse[list[SavedPracticePerformanceRead]],
+)
+async def list_saved_practice_performances(
+    score_id: str,
+    limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.list_saved_performances(
+        db,
+        score_id,
+        user_id,
+        limit=limit,
     )
     return success_response(data=result)
 
@@ -210,7 +247,13 @@ async def finish_practice_session(
     practice_service: PracticeService = Depends(get_practice_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await practice_service.finish_session(db, session_id, user_id)
+    result = await practice_service.finish_session(
+        db,
+        session_id,
+        user_id,
+        completion_reason=PracticeSessionCompletionReason.STOPPED_BY_USER,
+    )
+    result = await practice_service.build_summary_for_finished_session(db, session_id, user_id)
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_FINISHED)
 
 
@@ -225,6 +268,121 @@ async def get_practice_session_summary(
     result = await practice_service.get_summary(db, session_id, user_id)
     return success_response(data=result)
 
+
+@router.post(
+    "/sessions/{session_id}/replay-upload-authorizations",
+    response_model=APIResponse[PracticeReplayUploadAuthorizationRead],
+)
+async def authorize_practice_replay_upload(
+    session_id: str,
+    request: PracticeReplayUploadAuthorizationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.authorize_replay_upload(
+        db,
+        session_id,
+        user_id,
+        request=request,
+    )
+    return success_response(data=result)
+
+
+@router.put("/sessions/{session_id}/replay-uploads/{artifact_id}")
+async def upload_practice_replay_object_for_local_storage(
+    session_id: str,
+    artifact_id: str,
+    request: Request,
+    x_noteverse_content_sha256: str = Header(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    await practice_service.upload_replay_object_for_local_storage(
+        db,
+        session_id,
+        user_id,
+        artifact_id,
+        content=await request.body(),
+        content_type=request.headers.get("content-type", "application/octet-stream"),
+        checksum_sha256=x_noteverse_content_sha256,
+    )
+    return success_response(data={"uploaded": True})
+
+
+@router.post(
+    "/sessions/{session_id}/replay-artifacts",
+    response_model=APIResponse[SavedPracticeReplayArtifactRead],
+)
+async def finalize_practice_replay_artifact(
+    session_id: str,
+    request: PracticeReplayFinalizeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.finalize_replay_artifact(
+        db,
+        session_id,
+        user_id,
+        request=request,
+    )
+    return success_response(data=result, message=SuccessCode.PRACTICE_REPLAY_SAVED)
+
+
+@router.get(
+    "/sessions/{session_id}/replay-artifacts",
+    response_model=APIResponse[list[SavedPracticeReplayArtifactRead]],
+)
+async def list_practice_replay_artifacts(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.list_replay_artifacts(db, session_id, user_id)
+    return success_response(data=result)
+
+
+@router.get(
+    "/sessions/{session_id}/replay-artifacts/{artifact_id}/playback-url",
+    response_model=APIResponse[SavedPracticeReplayPlaybackRead],
+)
+async def get_practice_replay_artifact_playback_url(
+    session_id: str,
+    artifact_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.get_replay_artifact_playback(
+        db,
+        session_id,
+        user_id,
+        artifact_id,
+    )
+    return success_response(data=result)
+
+@router.delete(
+    "/sessions/{session_id}/replay-artifacts/{artifact_id}",
+    response_model=APIResponse[SavedPracticeReplayArtifactRead],
+)
+async def delete_practice_replay_artifact(
+    session_id: str,
+    artifact_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.delete_replay_artifact(db, session_id, user_id, artifact_id)
+    return success_response(data=result, message=SuccessCode.DELETE_SUCCESS)
 
 @router.websocket("/sessions/{session_id}/stream")
 async def stream_practice_session(
@@ -354,17 +512,32 @@ async def stream_practice_session(
                         )
                         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                         break
+                    if isinstance(runtime, PerformancePracticeSessionRuntime):
+                        (
+                            terminal_event,
+                            terminal_reason,
+                            terminal_fields,
+                        ) = await run_performance_session_loop(
+                            websocket=websocket,
+                            db=db,
+                            practice_service=practice_service,
+                            runtime=runtime,
+                            session_id=session_id,
+                            user_id=user_id,
+                        )
+                        break
+                    step_runtime = runtime
                     detail = await practice_service.start_session_stream(db, session_id, user_id)
                     state = _practice_session_state_value(detail)
-                    runtime.state = state
+                    step_runtime.state = state
                     await websocket.send_json(
                         session_ready_message(session_id=session_id, state=state)
                     )
-                    if runtime.consume_ready_notification():
+                    if step_runtime.consume_ready_notification():
                         await websocket.send_json(
                             session_armed_message(
                                 session_id=session_id,
-                                input_health=runtime.input_health,
+                                input_health=step_runtime.input_health,
                             )
                         )
                     phase = "streaming"
@@ -373,59 +546,87 @@ async def stream_practice_session(
                         operation_kind="practice",
                         session_id=session_id,
                         user_id=user_id,
-                        state=runtime.state,
+                        state=step_runtime.state,
                     ).info("practice websocket session.ready sent")
                 elif message_type == "client.pause":
+                    if isinstance(runtime, PerformancePracticeSessionRuntime):
+                        continue
+                    step_runtime = runtime
                     phase = "pausing"
-                    if runtime.last_alignment is not None and runtime.pending_alignment_updates > 0:
+                    if (
+                        step_runtime.last_alignment is not None
+                        and step_runtime.pending_alignment_updates > 0
+                    ):
                         await practice_service.persist_alignment(
                             db,
                             session_id,
-                            runtime.last_alignment,
+                            step_runtime.last_alignment,
                         )
-                        runtime.mark_alignment_persisted()
+                        step_runtime.mark_alignment_persisted()
                     detail = await practice_service.pause_session(db, session_id, user_id)
                     state = _practice_session_state_value(detail)
-                    runtime.state = state
+                    step_runtime.state = state
                     await websocket.send_json(state_changed_message(state))
                     phase = "paused"
                 elif message_type == "client.resume":
+                    if isinstance(runtime, PerformancePracticeSessionRuntime):
+                        continue
+                    step_runtime = runtime
                     phase = "resuming"
                     detail = await practice_service.resume_session(db, session_id, user_id)
                     state = _practice_session_state_value(detail)
-                    runtime.state = state
+                    step_runtime.state = state
                     await websocket.send_json(state_changed_message(state))
                     phase = "streaming"
                 elif message_type == "client.finish":
+                    if isinstance(runtime, PerformancePracticeSessionRuntime):
+                        continue
+                    step_runtime = runtime
                     phase = "finishing"
-                    if runtime.last_alignment is not None and runtime.pending_alignment_updates > 0:
+                    if (
+                        step_runtime.last_alignment is not None
+                        and step_runtime.pending_alignment_updates > 0
+                    ):
                         await practice_service.persist_alignment(
                             db,
                             session_id,
-                            runtime.last_alignment,
+                            step_runtime.last_alignment,
                         )
-                        runtime.mark_alignment_persisted()
-                    detail = await practice_service.finish_session(db, session_id, user_id)
+                        step_runtime.mark_alignment_persisted()
+                    detail = await practice_service.finish_session(
+                        db,
+                        session_id,
+                        user_id,
+                        completion_reason=PracticeSessionCompletionReason.STOPPED_BY_USER,
+                    )
                     state = _practice_session_state_value(detail)
-                    runtime.state = state
+                    step_runtime.state = state
                     await websocket.send_json(
                         session_finished_message(
                             state,
                             _practice_session_completion_outcome_value(detail),
                         )
                     )
+                    await practice_service.build_summary_for_finished_session(
+                        db,
+                        session_id,
+                        user_id,
+                    )
                     terminal_event = "practice.websocket.finished"
                     terminal_reason = "client_finished"
-                    terminal_fields = {"state": runtime.state}
+                    terminal_fields = {"state": step_runtime.state}
                     break
                 elif message_type == "client.heartbeat":
                     continue
                 elif message_type == "client.midi_event":
-                    if runtime.state != "STREAMING":
+                    if isinstance(runtime, PerformancePracticeSessionRuntime):
+                        continue
+                    step_runtime = runtime
+                    if step_runtime.state != "STREAMING":
                         continue
                     phase = "streaming_midi"
                     try:
-                        alignment = runtime.process_midi_event(
+                        alignment = step_runtime.process_midi_event(
                             event_type=control.payload.event_type,
                             note_number=control.payload.note_number,
                             velocity=control.payload.velocity,
@@ -447,7 +648,7 @@ async def stream_practice_session(
                             websocket=websocket,
                             db=db,
                             practice_service=practice_service,
-                            runtime=runtime,
+                            runtime=step_runtime,
                             session_id=session_id,
                             user_id=user_id,
                             alignment=alignment,
@@ -468,11 +669,14 @@ async def stream_practice_session(
                     )
             binary_payload = message.get("bytes")
             if binary_payload is not None:
-                if runtime.state != "STREAMING":
+                if isinstance(runtime, PerformancePracticeSessionRuntime):
+                    continue
+                step_runtime = runtime
+                if step_runtime.state != "STREAMING":
                     continue
                 phase = "streaming_audio"
                 try:
-                    alignment = runtime.process_audio_chunk(binary_payload)
+                    alignment = step_runtime.process_audio_chunk(binary_payload)
                 except RuntimeError:
                     terminal_event = "practice.websocket.failed"
                     terminal_reason = "alignment_failed"
@@ -484,11 +688,11 @@ async def stream_practice_session(
                     )
                     break
 
-                if runtime.consume_ready_notification():
+                if step_runtime.consume_ready_notification():
                     await websocket.send_json(
                         session_armed_message(
                             session_id=session_id,
-                            input_health=runtime.input_health,
+                            input_health=step_runtime.input_health,
                         )
                     )
 
@@ -497,7 +701,7 @@ async def stream_practice_session(
                         websocket=websocket,
                         db=db,
                         practice_service=practice_service,
-                        runtime=runtime,
+                        runtime=step_runtime,
                         session_id=session_id,
                         user_id=user_id,
                         alignment=alignment,

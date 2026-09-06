@@ -5,10 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.processing.engines.practice_alignment.musicxml_stable_ids import (
-    prepared_musicxml_path_for_practice,
-)
-from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
+from app.processing.practice_score.score_loader import practice_score_timeline_from_musicxml
 
 
 @dataclass(frozen=True)
@@ -30,21 +27,7 @@ class PracticeTargetCatalog:
 
 
 def practice_target_catalog_from_musicxml(score_file_path: str | Path) -> PracticeTargetCatalog:
-    try:
-        import partitura
-    except ImportError as exc:
-        missing_module = getattr(exc, "name", None) or "unknown"
-        raise RuntimeError(
-            "Missing practice target dependency "
-            f"'{missing_module}'. Install partitura before building practice targets."
-        ) from exc
-
-    with prepared_musicxml_path_for_practice(score_file_path) as prepared_path:
-        score_part = partitura.load_score_as_part(str(prepared_path))
-        timeline = PracticeScoreTimeline.from_note_array(
-            score_part.note_array(),
-            musicxml_path=prepared_path,
-        )
+    timeline = practice_score_timeline_from_musicxml(score_file_path)
     return PracticeTargetCatalog(
         targets=tuple(
             PracticeTargetCatalogEntry(

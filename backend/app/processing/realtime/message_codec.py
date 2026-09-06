@@ -9,6 +9,15 @@ from app.processing.realtime.protocol import (
     InputHealthPayload,
     PracticeClientMessage,
     PracticeServerMessage,
+    PerformanceClockSyncMessage,
+    PerformanceClockSyncPayload,
+    PerformanceEndedMessage,
+    PerformancePausedMessage,
+    PerformanceResumedMessage,
+    PerformanceStartedMessage,
+    PerformanceTimelineMessage,
+    PerformanceTimelineProjectionPayload,
+    PerformanceTimelineProjectionSegmentPayload,
     SessionArmedMessage,
     SessionArmedPayload,
     SessionErrorMessage,
@@ -26,6 +35,8 @@ from app.processing.realtime.protocol import (
 
 if TYPE_CHECKING:
     from app.processing.engines.practice_alignment.contracts import AlignmentUpdate, InputHealth
+    from app.processing.performance.runtime import PerformanceClockSync
+    from app.processing.performance.timeline import PerformanceTimelineProjection
 
 
 def parse_control_message(raw_message: str) -> PracticeClientMessage:
@@ -88,6 +99,67 @@ def session_error_message(public_code: str, public_message: str | None = None) -
                 public_message=public_message or public_code,
             )
         )
+    )
+
+
+def performance_clock_sync_message(sync: "PerformanceClockSync") -> dict[str, object]:
+    return _message_payload(
+        PerformanceClockSyncMessage(payload=_performance_clock_sync_payload(sync))
+    )
+
+
+def performance_timeline_message(
+    projection: "PerformanceTimelineProjection",
+) -> dict[str, object]:
+    return _message_payload(
+        PerformanceTimelineMessage(
+            payload=PerformanceTimelineProjectionPayload(
+                scope_start_beat=projection.scope_start_beat,
+                scope_terminal_beat=projection.scope_terminal_beat,
+                segments=[
+                    PerformanceTimelineProjectionSegmentPayload(
+                        start_performance_time_ms=segment.start_performance_time_ms,
+                        end_performance_time_ms=segment.end_performance_time_ms,
+                        start_beat=segment.start_beat,
+                        end_beat=segment.end_beat,
+                    )
+                    for segment in projection.segments
+                ],
+            )
+        )
+    )
+
+
+def performance_lifecycle_message(
+    event: str,
+    sync: "PerformanceClockSync",
+) -> dict[str, object]:
+    payload = _performance_clock_sync_payload(sync)
+    if event == "started":
+        return _message_payload(PerformanceStartedMessage(payload=payload))
+    if event == "paused":
+        return _message_payload(PerformancePausedMessage(payload=payload))
+    if event == "resumed":
+        return _message_payload(PerformanceResumedMessage(payload=payload))
+    if event == "ended":
+        return _message_payload(PerformanceEndedMessage(payload=payload))
+    raise ValueError(f"Unsupported performance lifecycle event: {event}")
+
+
+def _performance_clock_sync_payload(sync: "PerformanceClockSync") -> PerformanceClockSyncPayload:
+    return PerformanceClockSyncPayload(
+        state=sync.state.value,
+        musical_beat=sync.musical_beat,
+        performance_time_ms=sync.performance_time_ms,
+        count_in_remaining_ms=sync.count_in_remaining_ms,
+        count_in_remaining_pulses=sync.count_in_remaining_pulses,
+        scope_completed=sync.scope_completed,
+        scope_start_group_id=sync.scope_start_group_id,
+        scope_end_group_id=sync.scope_end_group_id,
+        scope_start_beat=sync.scope_start_beat,
+        scope_terminal_beat=sync.scope_terminal_beat,
+        nominal_scope_duration_ms=sync.nominal_scope_duration_ms,
+        speed_ratio=sync.speed_ratio,
     )
 
 

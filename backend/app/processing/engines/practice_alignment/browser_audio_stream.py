@@ -25,6 +25,16 @@ from app.processing.engines.practice_alignment.stream_state import (
 )
 
 HIGH_CONFIDENCE_START_FEATURE_MATCH = 0.98
+START_FEATURE_MATCH_CONFIDENCE = 0.7
+REQUIRED_START_FEATURE_MATCH_CAP = 2
+START_RMS_CALIBRATION_MARGIN = 1.2
+START_PEAK_CALIBRATION_MARGIN = 1.1
+CLIPPING_PEAK_THRESHOLD = 0.98
+TOO_QUIET_NO_INPUT_FRAMES = 6
+TOO_QUIET_GATE_RATIO = 0.25
+HIGH_NOISE_START_GATE_RATIO = 0.8
+ELEVATED_NOISE_GATE_RATIO = 0.75
+
 
 class BrowserAudioStreamAdapter:
     """Small adapter that feeds browser PCM frames into Matchmaker's queue."""
@@ -477,12 +487,12 @@ class BrowserAudioStreamAdapter:
         matched_candidates = [
             confidence
             for _frame, confidence, _reason in self._start_feature_candidates
-            if confidence is not None and confidence >= 0.7
+            if confidence is not None and confidence >= START_FEATURE_MATCH_CONFIDENCE
         ]
         return len(matched_candidates) >= self._required_start_feature_matches()
 
     def _required_start_feature_matches(self) -> int:
-        return min(2, self.min_active_frames)
+        return min(REQUIRED_START_FEATURE_MATCH_CAP, self.min_active_frames)
 
     def _has_high_confidence_start_feature_match(self) -> bool:
         return any(
@@ -536,8 +546,11 @@ class BrowserAudioStreamAdapter:
 
     def _effective_start_gates(self) -> tuple[float, float]:
         return (
-            max(self.start_rms_gate, self._calibrated_rms_gate * 1.2),
-            max(self.start_peak_gate, self._calibrated_peak_gate * 1.1),
+            max(self.start_rms_gate, self._calibrated_rms_gate * START_RMS_CALIBRATION_MARGIN),
+            max(
+                self.start_peak_gate,
+                self._calibrated_peak_gate * START_PEAK_CALIBRATION_MARGIN,
+            ),
         )
 
     def _record_warmup_signal(self, rms: float, peak: float) -> None:
@@ -549,14 +562,14 @@ class BrowserAudioStreamAdapter:
         rms_p90, peak_p90 = self._warmup_percentiles()
 
         level: InputLevel = "good"
-        if peak_p90 >= 0.98 or self.last_peak >= 0.98:
+        if peak_p90 >= CLIPPING_PEAK_THRESHOLD or self.last_peak >= CLIPPING_PEAK_THRESHOLD:
             level = "clipping"
         elif (
             self.armed
             and self.total_frames > self.warmup_frames
-            and self.no_input_streak >= min(6, self.no_input_frames)
-            and self.last_rms < self.rms_gate * 0.25
-            and self.last_peak < self.peak_gate * 0.25
+            and self.no_input_streak >= min(TOO_QUIET_NO_INPUT_FRAMES, self.no_input_frames)
+            and self.last_rms < self.rms_gate * TOO_QUIET_GATE_RATIO
+            and self.last_peak < self.peak_gate * TOO_QUIET_GATE_RATIO
         ):
             level = "too_quiet"
 
@@ -567,9 +580,15 @@ class BrowserAudioStreamAdapter:
             noise_rms = max(noise_rms, self.last_rms)
             noise_peak = max(noise_peak, self.last_peak)
 
-        if noise_rms >= self.start_rms_gate * 0.8 or noise_peak >= self.start_peak_gate * 0.8:
+        if (
+            noise_rms >= self.start_rms_gate * HIGH_NOISE_START_GATE_RATIO
+            or noise_peak >= self.start_peak_gate * HIGH_NOISE_START_GATE_RATIO
+        ):
             noise = "high"
-        elif noise_rms >= self.rms_gate * 0.75 or noise_peak >= self.peak_gate * 0.75:
+        elif (
+            noise_rms >= self.rms_gate * ELEVATED_NOISE_GATE_RATIO
+            or noise_peak >= self.peak_gate * ELEVATED_NOISE_GATE_RATIO
+        ):
             noise = "elevated"
 
         confidence = min(1.0, len(self._warmup_rms_values) / max(self.warmup_frames, 1))

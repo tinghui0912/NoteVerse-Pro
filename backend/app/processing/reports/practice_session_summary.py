@@ -5,6 +5,14 @@ from collections.abc import Sequence
 from typing import TypedDict
 
 from app.db.models import PracticeAttempt, PracticeAttemptResult, PracticeInputSource, PracticeProgressionMode, PracticeSession
+from app.db.models.practice import PracticeEvaluationProfile
+from app.processing.performance.evidence import (
+    PerformanceExpectedEventOutcome,
+    PerformanceExpectedEventResult,
+    PerformanceExpectedStrikeResult,
+    PerformanceObservation,
+    PerformanceSummaryAccumulator,
+)
 from app.processing.reports.practice_scoring_policy import (
     PRACTICE_SESSION_SUMMARY_SCORING_POLICY_VERSION,
     attempt_scoring_included,
@@ -40,6 +48,10 @@ class PracticeSessionSummaryTargetPayload(TypedDict):
     expected_group_id: str
     measure_numbers: list[str]
     render_note_ids: list[str]
+    confirmed_correct_render_note_ids: list[str]
+    confirmed_error_render_note_ids: list[str]
+    missing_pitches: list[str]
+    unexpected_pitches: list[str]
     attempt_count: int
     scorable_attempt_count: int
     interrupted_attempt_count: int
@@ -82,7 +94,17 @@ class PracticeSessionSummaryBuilder:
         self,
         session: PracticeSession,
         attempts: Sequence[PracticeAttempt] = (),
+        *,
+        performance_observations: Sequence[PerformanceObservation] = (),
+        performance_outcomes: Sequence[PerformanceExpectedEventOutcome] = (),
     ) -> PracticeSessionSummaryPayload:
+        if session.evaluation_profile == PracticeEvaluationProfile.PERFORMANCE:
+            return self._build_performance_summary(
+                session,
+                observations=performance_observations,
+                outcomes=performance_outcomes,
+            )
+
         confidence_label = self._confidence_label(session.last_confidence)
         duration_seconds = self._duration_seconds(session)
         evidence_profile = self._evidence_profile(session)
@@ -113,6 +135,48 @@ class PracticeSessionSummaryBuilder:
             },
             "recommendations": self._build_recommendations(session, confidence_label, attempts),
             "attempts": [self._attempt_payload(attempt) for attempt in attempts],
+            "targets": target_payloads,
+            "difficult_measures": difficult_measures,
+        }
+
+    @staticmethod
+    def _build_performance_summary(
+        session: PracticeSession,
+        *,
+        observations: Sequence[PerformanceObservation],
+        outcomes: Sequence[PerformanceExpectedEventOutcome],
+    ) -> PracticeSessionSummaryPayload:
+        accumulator = PerformanceSummaryAccumulator.from_session(
+            session,
+            observations=observations,
+            outcomes=outcomes,
+        )
+        metrics = accumulator.metrics()
+        completion_reason = metrics["completion_reason"] or "unknown"
+        scope_kind = metrics["scope_kind"] or "UNKNOWN"
+        target_payloads = _performance_target_payloads(outcomes)
+        problem_targets = _performance_targets_with_confirmed_issues(target_payloads)
+        difficult_measures = _difficult_measure_payloads(problem_targets)
+        return {
+            "summary": (
+                "Performance session completed. "
+                f"Completion reason: {completion_reason}. "
+                f"Scope: {scope_kind}."
+            ),
+            "metrics": {
+                "state": session.state.value,
+                "access_origin": session.access_origin.value,
+                "progression_mode": session.progression_mode.value,
+                "realtime_guidance": session.realtime_guidance.value,
+                "evaluation_profile": session.evaluation_profile.value,
+                **metrics,
+                "confirmed_correct_strike_targets": _confirmed_correct_strike_count(outcomes),
+                "missing_strike_targets": _missing_strike_count(outcomes),
+                "extra_pitch_count": _unexpected_pitch_count(outcomes),
+                "problem_measure_count": len(difficult_measures),
+            },
+            "recommendations": accumulator.recommendations(),
+            "attempts": [],
             "targets": target_payloads,
             "difficult_measures": difficult_measures,
         }
@@ -339,6 +403,10 @@ def _target_payloads(attempts: Sequence[PracticeAttempt]) -> list[PracticeSessio
                 "expected_group_id": target_id,
                 "measure_numbers": _unique_attempt_strings(target_attempts, "measure_numbers"),
                 "render_note_ids": _unique_attempt_strings(target_attempts, "render_note_ids"),
+                "confirmed_correct_render_note_ids": [],
+                "confirmed_error_render_note_ids": [],
+                "missing_pitches": [],
+                "unexpected_pitches": [],
                 "attempt_count": len(target_attempts),
                 "scorable_attempt_count": len(scorable_attempts),
                 "interrupted_attempt_count": interrupted_attempt_count,
@@ -380,6 +448,89 @@ def _difficult_measure_payloads(
             _measure_sort_key(measure["measure_number"]),
         ),
     )
+
+
+def _performance_target_payloads(
+    outcomes: Sequence[PerformanceExpectedEventOutcome],
+) -> list[PracticeSessionSummaryTargetPayload]:
+    targets: list[PracticeSessionSummaryTargetPayload] = []
+    for outcome in outcomes:
+        matched = outcome.result == PerformanceExpectedEventResult.MATCH
+        partial = outcome.result == PerformanceExpectedEventResult.PARTIAL
+        mismatch = outcome.result == PerformanceExpectedEventResult.MISMATCH
+        scorable = outcome.result != PerformanceExpectedEventResult.NOT_OBSERVED
+        confirmed_correct_render_note_ids = [
+            render_note_id
+            for strike in outcome.expected_strike_outcomes
+            if strike.result == PerformanceExpectedStrikeResult.MATCHED
+            for render_note_id in strike.render_note_ids
+        ]
+        confirmed_error_render_note_ids = [
+            render_note_id
+            for strike in outcome.expected_strike_outcomes
+            if strike.result == PerformanceExpectedStrikeResult.MISSING
+            for render_note_id in strike.render_note_ids
+        ]
+        missing_pitches = [
+            strike.pitch
+            for strike in outcome.expected_strike_outcomes
+            if strike.result == PerformanceExpectedStrikeResult.MISSING
+        ]
+        targets.append(
+            {
+                "expected_group_id": outcome.expected_group_id,
+                "measure_numbers": list(outcome.measure_numbers),
+                "render_note_ids": list(outcome.render_note_ids),
+                "confirmed_correct_render_note_ids": confirmed_correct_render_note_ids,
+                "confirmed_error_render_note_ids": confirmed_error_render_note_ids,
+                "missing_pitches": missing_pitches,
+                "unexpected_pitches": list(outcome.unexpected_pitches),
+                "attempt_count": 1,
+                "scorable_attempt_count": 1 if scorable else 0,
+                "interrupted_attempt_count": 0,
+                "matched_attempt_count": 1 if matched else 0,
+                "partial_attempt_count": 1 if partial else 0,
+                "mismatch_attempt_count": 1 if mismatch else 0,
+                "completed": matched,
+                "completion_status": "completed" if matched else "incomplete",
+                "last_result": outcome.result.value,
+                "last_confidence": round(outcome.confidence, 3),
+            }
+        )
+    return targets
+
+
+def _performance_targets_with_confirmed_issues(
+    targets: Sequence[PracticeSessionSummaryTargetPayload],
+) -> list[PracticeSessionSummaryTargetPayload]:
+    return [
+        target
+        for target in targets
+        if target["scorable_attempt_count"] > 0
+        and (target["partial_attempt_count"] > 0 or target["mismatch_attempt_count"] > 0)
+    ]
+
+
+def _confirmed_correct_strike_count(outcomes: Sequence[PerformanceExpectedEventOutcome]) -> int:
+    return sum(
+        1
+        for outcome in outcomes
+        for strike in outcome.expected_strike_outcomes
+        if strike.result == PerformanceExpectedStrikeResult.MATCHED
+    )
+
+
+def _missing_strike_count(outcomes: Sequence[PerformanceExpectedEventOutcome]) -> int:
+    return sum(
+        1
+        for outcome in outcomes
+        for strike in outcome.expected_strike_outcomes
+        if strike.result == PerformanceExpectedStrikeResult.MISSING
+    )
+
+
+def _unexpected_pitch_count(outcomes: Sequence[PerformanceExpectedEventOutcome]) -> int:
+    return sum(len(outcome.unexpected_pitches) for outcome in outcomes)
 
 
 def _measure_payload(

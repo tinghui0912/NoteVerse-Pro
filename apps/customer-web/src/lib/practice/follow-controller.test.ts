@@ -62,7 +62,7 @@ function makeAlignment(
     visual_confidence: 0.95,
     timestamp_ms: 20,
     scope_completed: false,
-      completion_reason: null,
+    completion_reason: null,
     audio_active: true,
     input_rms: 0.04,
     input_peak: 0.1,
@@ -110,9 +110,9 @@ function makeAlignment(
 
 describe('PracticeFollowController', () => {
   const entries: PracticeVisualTimelineEntry[] = [
-    { index: 0, beat: 3, noteIds: ['n1'] },
-    { index: 1, beat: 4, noteIds: ['n2'] },
-    { index: 2, beat: 9, noteIds: ['n3'] },
+    { index: 0, beat: 3, endBeat: 4, noteIds: ['n1'] },
+    { index: 1, beat: 4, endBeat: 5, noteIds: ['n2'] },
+    { index: 2, beat: 9, endBeat: 10, noteIds: ['n3'] },
   ];
 
   it('keeps the existing highlight for hold decisions', () => {
@@ -206,38 +206,6 @@ describe('PracticeFollowController', () => {
     expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
   });
 
-  it('allows relocalize decisions to jump to a confirmed distant anchor', () => {
-    const controller = new PracticeFollowController();
-    const container = makeContainer();
-    const adapter = makeAdapter(entries);
-
-    controller.apply(container, adapter, makeAlignment());
-    controller.apply(
-      container,
-      adapter,
-      makeAlignment({
-        beat_position: 9,
-        decision: {
-          action: 'relocalize',
-          reason: 'large_jump',
-          experience_state: 'following',
-          display_anchor: { beat: 9, render_note_ids: ['n3'] },
-          confidence_summary: {
-            visual: 0.9,
-            alignment: 0.9,
-            audio: 0.9,
-            continuity: 0.8,
-            validation: 0.9,
-            input_policy: 1,
-          },
-        },
-      })
-    );
-
-    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass('practice-note-active');
-    expect(container.querySelector('[data-id="n3"]')).toHaveClass('practice-note-active');
-  });
-
   it('uses backend display-anchor render note ids for musical event highlighting', () => {
     const controller = new PracticeFollowController();
     const container = makeContainer();
@@ -267,4 +235,5 @@ describe('PracticeFollowController', () => {
     expect(container.querySelector('[data-id="n1"]')).toHaveClass('practice-note-active');
     expect(container.querySelector('[data-id="n2"]')).toHaveClass('practice-note-active');
   });
+
 });

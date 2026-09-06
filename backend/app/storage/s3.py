@@ -6,7 +6,7 @@ import os
 from collections.abc import Iterator
 
 from app.core.config import settings
-from app.storage.base import StoredFile
+from app.storage.base import DirectUploadTarget, StoredFile, StoredObjectMetadata
 
 
 class S3CompatibleStorage:
@@ -107,6 +107,51 @@ class S3CompatibleStorage:
             if self._is_not_found_error(exc):
                 raise FileNotFoundError(normalized_key) from exc
             raise
+
+    def object_metadata(self, key: str) -> StoredObjectMetadata:
+        normalized_key = self._normalize_key(key)
+        try:
+            response = self.client.head_object(Bucket=self.bucket, Key=normalized_key)
+        except Exception as exc:
+            if self._is_not_found_error(exc):
+                raise FileNotFoundError(normalized_key) from exc
+            raise
+        metadata = response.get("Metadata") or {}
+        checksum_sha256 = metadata.get("sha256")
+        return StoredObjectMetadata(
+            size_bytes=int(response["ContentLength"]),
+            content_type=response.get("ContentType"),
+            checksum_sha256=str(checksum_sha256) if checksum_sha256 else None,
+        )
+
+    def upload_url(
+        self,
+        key: str,
+        *,
+        content_type: str,
+        checksum_sha256: str,
+    ) -> DirectUploadTarget:
+        normalized_key = self._normalize_key(key)
+        headers = {
+            "content-type": content_type,
+            "x-amz-meta-sha256": checksum_sha256,
+        }
+        url = self.client.generate_presigned_url(
+            ClientMethod="put_object",
+            Params={
+                "Bucket": self.bucket,
+                "Key": normalized_key,
+                "ContentType": content_type,
+                "Metadata": {"sha256": checksum_sha256},
+            },
+            ExpiresIn=settings.S3_PRESIGN_EXPIRE_SECONDS,
+            HttpMethod="PUT",
+        )
+        return DirectUploadTarget(
+            upload_url=url,
+            upload_method="PUT",
+            upload_headers=headers,
+        )
 
     def iter_bytes(
         self,

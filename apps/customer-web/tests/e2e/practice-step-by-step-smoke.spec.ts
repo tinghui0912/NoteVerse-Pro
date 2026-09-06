@@ -12,6 +12,7 @@ import type { PracticeAlignmentUpdateMessage } from '../../src/lib/practice/prot
 const scoreId = 'practice-smoke-score';
 const revisionId = 'practice-smoke-revision';
 const sessionId = 'practice-smoke-session';
+type PerformanceClockState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
 const musicXml = readFileSync(
   resolve(process.cwd(), '../../backend/tests/fixtures/musicxml/score-domain-metadata.musicxml'),
   'utf8'
@@ -102,9 +103,59 @@ async function mockPracticeTargets(page: Page, targets = defaultPracticeTargets)
   );
 }
 
+async function mockPracticeScorePage(page: Page, content = selectableMusicXml) {
+  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        title: 'Practice Smoke Score',
+        head_revision_id: revisionId,
+        version: 1,
+        created_at: '2026-08-24T00:00:00Z',
+        updated_at: '2026-08-24T00:00:00Z',
+        in_library: true,
+        input_assets: [],
+        taxonomy_tags: [],
+        metadata: null,
+        publication: null,
+        derived_assets: {
+          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
+          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
+        },
+        capabilities: {
+          can_view: true,
+          can_edit: true,
+          can_delete: true,
+          can_manage_sharing: true,
+          can_download: true,
+          can_practice: true,
+          can_publish: true,
+          can_manage_members: true,
+        },
+      }),
+    })
+  );
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        revision_id: revisionId,
+        mime_type: 'application/vnd.recordare.musicxml+xml',
+        content,
+      }),
+    })
+  );
+  await mockPracticeTargets(page);
+}
+
 function practiceSessionDetail(
   state: 'CREATED' | 'STREAMING' | 'FINISHED' = 'CREATED',
-  inputSource: 'MICROPHONE' | 'MIDI' = 'MICROPHONE'
+  inputSource: 'MICROPHONE' | 'MIDI' = 'MICROPHONE',
+  preset: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY' = 'STEP_BY_STEP'
 ) {
   return {
     session_id: sessionId,
@@ -115,6 +166,7 @@ function practiceSessionDetail(
     frame_format: 'pcm_s16le',
     state,
     access_origin: 'OWNER',
+    preset,
     progression_mode: 'WAIT_FOR_NOTE',
     realtime_guidance: 'GUIDED',
     evaluation_profile: 'LEARNING',
@@ -133,8 +185,49 @@ function selectedSectionCompletionOutcome() {
     kind: 'SELECTED_SECTION',
     scope_kind: 'SELECTED_RANGE',
     summary_artifact_kind: 'SECTION_SUMMARY',
+    completion_reason: 'SCOPE_COMPLETED',
     playback_expected: true,
     summary_available: false,
+  };
+}
+
+function fullPiecePerformanceCompletionOutcome() {
+  return {
+    kind: 'FULL_PIECE_PERFORMANCE',
+    scope_kind: 'FULL_PIECE',
+    summary_artifact_kind: 'PERFORMANCE_SUMMARY',
+    completion_reason: 'SCOPE_COMPLETED',
+    playback_expected: true,
+    summary_available: false,
+  };
+}
+
+function performanceClockPayload(
+  overrides: Partial<{
+    state: PerformanceClockState;
+    musical_beat: number;
+    performance_time_ms: number;
+    scope_completed: boolean;
+    scope_start_group_id: string | null;
+    scope_end_group_id: string | null;
+    scope_start_beat: number;
+    scope_terminal_beat: number;
+    nominal_scope_duration_ms: number;
+    speed_ratio: number;
+  }> = {}
+) {
+  return {
+    state: overrides.state ?? 'RUNNING',
+    musical_beat: overrides.musical_beat ?? 1,
+    performance_time_ms: overrides.performance_time_ms ?? 0,
+    count_in_remaining_ms: 0,
+    scope_completed: overrides.scope_completed ?? false,
+    scope_start_group_id: overrides.scope_start_group_id ?? null,
+    scope_end_group_id: overrides.scope_end_group_id ?? null,
+    scope_start_beat: overrides.scope_start_beat ?? 1,
+    scope_terminal_beat: overrides.scope_terminal_beat ?? 4,
+    nominal_scope_duration_ms: overrides.nominal_scope_duration_ms ?? 3000,
+    speed_ratio: overrides.speed_ratio ?? 1,
   };
 }
 
@@ -399,6 +492,49 @@ async function installRealtimeAudioMock(page: Page) {
   });
 }
 
+async function installDeniedRealtimeAudioMock(page: Page) {
+  await page.addInitScript(() => {
+    class FakeAudioContext {
+      sampleRate = 48000;
+      currentTime = 0;
+      state = 'running';
+      destination = {};
+      audioWorklet = {
+        addModule: async () => undefined,
+      };
+
+      async resume() {
+        this.state = 'running';
+      }
+
+      async close() {
+        this.state = 'closed';
+      }
+    }
+
+    class FakeAudioWorkletNode {
+      port = { onmessage: null };
+      connect() {
+        return undefined;
+      }
+      disconnect() {
+        return undefined;
+      }
+    }
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          throw new DOMException('Microphone permission denied.', 'NotAllowedError');
+        },
+      },
+    });
+    window.AudioContext = FakeAudioContext as unknown as typeof AudioContext;
+    window.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
+  });
+}
+
 async function installMidiMock(page: Page) {
   await page.addInitScript(() => {
     type MidiMessageHandler = ((event: MIDIMessageEvent) => void) | null;
@@ -498,7 +634,7 @@ test('step-by-step practice streams microphone frames and reacts to alignment up
         score_id: scoreId,
         revision_id: revisionId,
         mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: musicXml,
+        content: selectableMusicXml,
       }),
     })
   );
@@ -564,7 +700,7 @@ test('step-by-step practice streams microphone frames and reacts to alignment up
 
   await page.goto(`/zh/score/${scoreId}/practice`);
 
-  const startButton = page.getByRole('button', { name: '开始练习' });
+  const startButton = page.getByRole('button', { name: '开始' });
   await expect(startButton).toBeEnabled();
   await startButton.click();
 
@@ -575,8 +711,108 @@ test('step-by-step practice streams microphone frames and reacts to alignment up
     .poll(() => pcmFrameCount)
     .toBeGreaterThan(0);
   await expect(page.getByRole('status')).toContainText('正在实时跟随');
-  await expect(page.getByRole('button', { name: '暂停练习' })).toBeEnabled();
-  await expect(page.getByRole('button', { name: '结束练习' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '暂停' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '结束' })).toBeEnabled();
+});
+
+test('practice setup does not create a session before start or when input preparation fails', async ({
+  page,
+}) => {
+  let createRequestCount = 0;
+
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
+  await installDeniedRealtimeAudioMock(page);
+
+  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        title: 'Practice Setup Score',
+        head_revision_id: revisionId,
+        version: 1,
+        created_at: '2026-08-24T00:00:00Z',
+        updated_at: '2026-08-24T00:00:00Z',
+        in_library: true,
+        input_assets: [],
+        taxonomy_tags: [],
+        metadata: null,
+        publication: null,
+        derived_assets: {
+          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
+          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
+        },
+        capabilities: {
+          can_view: true,
+          can_edit: true,
+          can_delete: true,
+          can_manage_sharing: true,
+          can_download: true,
+          can_practice: true,
+          can_publish: true,
+          can_manage_members: true,
+        },
+      }),
+    })
+  );
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        revision_id: revisionId,
+        mime_type: 'application/vnd.recordare.musicxml+xml',
+        content: selectableMusicXml,
+      }),
+    })
+  );
+  await mockPracticeTargets(page);
+  await page.route('**/api/v1/practice/sessions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    createRequestCount += 1;
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: false,
+        public_code: 'unexpected_error',
+        public_message: 'Unexpected error',
+      }),
+    });
+  });
+
+  await page.goto(`/zh/score/${scoreId}/practice`);
+  await expect(page.getByRole('button', { name: '开始' })).toBeEnabled();
+  await expect
+    .poll(() => createRequestCount)
+    .toBe(0);
+
+  await page.getByRole('button', { name: '设置' }).click();
+  await page.getByRole('button', { name: /连贯演奏/ }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect
+    .poll(() => createRequestCount)
+    .toBe(0);
+
+  await page.getByRole('button', { name: '分段' }).click();
+  await page.locator('#select-start-note, [data-id="select-start-note"]').first().click();
+  await page.locator('#select-end-note, [data-id="select-end-note"]').first().click();
+  await expect(page.getByText('已选择范围：第 1 小节。点击开始即可练习这个选段。')).toBeVisible();
+  await expect
+    .poll(() => createRequestCount)
+    .toBe(0);
+
+  await page.getByRole('button', { name: '开始' }).click();
+  await expect(page.getByText('麦克风访问失败', { exact: true })).toBeVisible();
+  await expect
+    .poll(() => createRequestCount)
+    .toBe(0);
 });
 
 test('step-by-step practice can use MIDI input events instead of microphone frames', async ({
@@ -711,11 +947,11 @@ test('step-by-step practice can use MIDI input events instead of microphone fram
   });
 
   await page.goto(`/zh/score/${scoreId}/practice`);
-  await page.getByRole('button', { name: '练习设置' }).click();
+  await page.getByRole('button', { name: '设置' }).click();
   await page.getByRole('button', { name: /MIDI 键盘/ }).click();
   await page.getByRole('button', { name: 'Close' }).click();
 
-  const startButton = page.getByRole('button', { name: '开始练习' });
+  const startButton = page.getByRole('button', { name: '开始' });
   await expect(startButton).toBeEnabled();
   await startButton.click();
 
@@ -854,11 +1090,9 @@ test('practice page creates selected-section scope from score note clicks', asyn
   page,
 }) => {
   const createRequests: Array<{
-    practice_scope?: unknown;
-    progression_mode?: string;
-    realtime_guidance?: string;
-    evaluation_profile?: string;
     input_source?: string;
+    practice_scope?: unknown;
+    preset?: string;
   }> = [];
 
   await mockAuthenticatedSession(page);
@@ -988,7 +1222,7 @@ test('practice page creates selected-section scope from score note clicks', asyn
 
   await page.goto(`/zh/score/${scoreId}/practice`);
 
-  const selectSectionButton = page.getByRole('button', { name: '选段' });
+  const selectSectionButton = page.getByRole('button', { name: '分段' });
   await expect(selectSectionButton).toBeEnabled();
   await selectSectionButton.click();
   await expect(page.getByText('点击谱面上的音符，设置选段开始位置。')).toBeVisible();
@@ -1001,7 +1235,7 @@ test('practice page creates selected-section scope from score note clicks', asyn
   );
 
   await page.locator('#select-end-note, [data-id="select-end-note"]').first().click();
-  await expect(page.getByText('已选择范围：第 1 小节。点击开始练习即可练习这个选段。')).toBeVisible();
+  await expect(page.getByText('已选择范围：第 1 小节。点击开始即可练习这个选段。')).toBeVisible();
   await expect(page.locator('[data-practice-range-end-note-ids]')).toHaveAttribute(
     'data-practice-range-end-note-ids',
     'select-end-note'
@@ -1012,28 +1246,36 @@ test('practice page creates selected-section scope from score note clicks', asyn
   );
 
   await expect
-    .poll(() => createRequests.at(-1)?.practice_scope)
-    .toEqual({
-      start_expected_group_id: 'entry-start',
-      end_expected_group_id: 'entry-end',
-      start_measure_number: '1',
-      end_measure_number: '1',
-    });
-  const createRequestCountBeforeStart = createRequests.length;
+    .poll(() => createRequests.length)
+    .toBe(0);
 
-  const startButton = page.getByRole('button', { name: '开始练习' });
+  const startButton = page.getByRole('button', { name: '开始' });
   await expect(startButton).toBeEnabled();
   await startButton.click();
+  await expect
+    .poll(() => createRequests)
+    .toEqual([
+      expect.objectContaining({
+        preset: 'STEP_BY_STEP',
+        input_source: 'MICROPHONE',
+        practice_scope: {
+          start_expected_group_id: 'entry-start',
+          end_expected_group_id: 'entry-end',
+          start_measure_number: '1',
+          end_measure_number: '1',
+        },
+      }),
+    ]);
   await expect(page.getByRole('heading', { name: '选段练习已完成' })).toBeVisible();
   const completionDialog = page.getByRole('dialog');
   await expect(completionDialog.getByRole('button', { name: '重弹一次' })).toBeVisible();
-  await expect(completionDialog.getByRole('button', { name: '调整选段' })).toBeVisible();
+  await expect(completionDialog.getByRole('button', { name: '调整分段' })).toBeVisible();
   await expect(
     completionDialog.getByRole('button', { name: '开始完整演奏' })
   ).toHaveCount(0);
   await expect
     .poll(() => createRequests.length)
-    .toBe(createRequestCountBeforeStart);
+    .toBe(1);
 });
 
 test('selected-section completion recovers from a missed session.finished websocket event', async ({
@@ -1165,31 +1407,37 @@ test('selected-section completion recovers from a missed session.finished websoc
 
   await page.goto(`/zh/score/${scoreId}/practice`);
 
-  await page.getByRole('button', { name: '选段' }).click();
+  await page.getByRole('button', { name: '分段' }).click();
   await page.locator('#select-start-note, [data-id="select-start-note"]').first().click();
   await page.locator('#select-end-note, [data-id="select-end-note"]').first().click();
 
-  await expect(page.getByRole('button', { name: '开始练习' })).toBeEnabled();
-  await page.getByRole('button', { name: '开始练习' }).click();
+  await expect(page.getByRole('button', { name: '开始' })).toBeEnabled();
+  await page.getByRole('button', { name: '开始' }).click();
 
   await expect(page.getByRole('status')).toContainText('正在保存练习结果');
   await expect(page.getByRole('heading', { name: '选段练习已完成' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '调整选段' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '调整分段' })).toBeVisible();
 });
 
-test('selected-section continuous practice creates a bounded microphone session', async ({
+test('selected-section continuous practice creates a bounded session from selected input', async ({
   page,
 }) => {
   let createdScope: unknown = null;
   let createdInputSource: string | null = null;
-  let createdProgressionMode: string | null = null;
-  let createdRealtimeGuidance: string | null = null;
-  let createdEvaluationProfile: string | null = null;
+  let createdPreset: string | null = null;
+  let createdProgressionMode: unknown = undefined;
+  let createdRealtimeGuidance: unknown = undefined;
+  let createdEvaluationProfile: unknown = undefined;
   let clientInitInputSource: string | null = null;
+  const websocketControls: { finishSelectedRange?: () => void } = {};
+  const createRequests: Array<{
+    practice_scope?: unknown;
+  }> = [];
 
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
   await installRealtimeAudioMock(page);
+  await installMidiMock(page);
 
   await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
     route.fulfill({
@@ -1232,7 +1480,7 @@ test('selected-section continuous practice creates a bounded microphone session'
         score_id: scoreId,
         revision_id: revisionId,
         mime_type: 'application/vnd.recordare.musicxml+xml',
-        content: musicXml,
+        content: selectableMusicXml,
       }),
     })
   );
@@ -1245,14 +1493,17 @@ test('selected-section continuous practice creates a bounded microphone session'
       evaluation_profile?: string;
       input_source?: string;
       practice_scope?: unknown;
+      preset?: string;
       progression_mode?: string;
       realtime_guidance?: string;
     };
-    createdEvaluationProfile = body.evaluation_profile ?? null;
+    createdEvaluationProfile = body.evaluation_profile;
     createdInputSource = body.input_source ?? null;
-    createdProgressionMode = body.progression_mode ?? null;
-    createdRealtimeGuidance = body.realtime_guidance ?? null;
+    createdPreset = body.preset ?? null;
+    createdProgressionMode = body.progression_mode;
+    createdRealtimeGuidance = body.realtime_guidance;
     createdScope = body.practice_scope ?? null;
+    createRequests.push(body);
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -1268,16 +1519,11 @@ test('selected-section continuous practice creates a bounded microphone session'
       status: 200,
       contentType: 'application/json',
       body: apiResponse({
-        ...practiceSessionDetail('CREATED', 'MICROPHONE'),
+        ...practiceSessionDetail('CREATED', 'MIDI', 'CONTINUOUS_PLAY'),
         progression_mode: 'CONTINUOUS',
         realtime_guidance: 'STATUS_ONLY',
         evaluation_profile: 'PERFORMANCE',
-        practice_scope: {
-          start_expected_group_id: 'entry-start',
-          end_expected_group_id: 'entry-end',
-          start_measure_number: '2',
-          end_measure_number: '2',
-        },
+        practice_scope: createRequests.at(-1)?.practice_scope ?? null,
       }),
     })
   );
@@ -1296,7 +1542,7 @@ test('selected-section continuous practice creates a bounded microphone session'
         ws.send(JSON.stringify({
           protocol_version: 1,
           type: 'session.ready',
-          payload: { session_id: sessionId, state: 'STREAMING', input_source: 'MICROPHONE' },
+          payload: { session_id: sessionId, state: 'STREAMING', input_source: 'MIDI' },
         }));
         ws.send(JSON.stringify({
           protocol_version: 1,
@@ -1311,16 +1557,66 @@ test('selected-section continuous practice creates a bounded microphone session'
             },
           },
         }));
+        ws.send(JSON.stringify({
+          protocol_version: 1,
+          type: 'performance.timeline',
+          payload: {
+            scope_start_beat: 1,
+            scope_terminal_beat: 4,
+            segments: [
+              {
+                start_performance_time_ms: 0,
+                end_performance_time_ms: 3000,
+                start_beat: 1,
+                end_beat: 4,
+              },
+            ],
+          },
+        }));
+        ws.send(JSON.stringify({
+          protocol_version: 1,
+          type: 'performance.started',
+          payload: performanceClockPayload(),
+        }));
+        websocketControls.finishSelectedRange = () => {
+          ws.send(JSON.stringify({
+            protocol_version: 1,
+            type: 'performance.ended',
+            payload: performanceClockPayload({
+              state: 'ENDED',
+              musical_beat: 4,
+              performance_time_ms: 3000,
+              scope_completed: true,
+            }),
+          }));
+          ws.send(JSON.stringify({
+            protocol_version: 1,
+            type: 'session.finished',
+            payload: {
+              state: 'FINISHED',
+              completion_outcome: selectedSectionCompletionOutcome(),
+            },
+          }));
+        };
       }
     });
   });
 
-  await page.goto(
-    `/zh/score/${scoreId}/practice?practicePreset=CONTINUOUS_PLAY&practiceRevisionId=${revisionId}&practiceStartGroup=entry-start&practiceStartMeasure=2&practiceInputSource=MIDI&practiceEndGroup=entry-end&practiceEndMeasure=2`
-  );
-  await expect(page.getByText('选段练习')).toBeVisible();
+  await page.goto(`/zh/score/${scoreId}/practice`);
+  await page.getByRole('button', { name: '设置' }).click();
+  await page.getByRole('button', { name: /连贯演奏/ }).click();
+  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
 
-  const startButton = page.getByRole('button', { name: '开始练习' });
+  await page.getByRole('button', { name: '分段' }).click();
+  await page.locator('#select-start-note, [data-id="select-start-note"]').first().click();
+  await page.locator('#select-end-note, [data-id="select-end-note"]').first().click();
+  await expect(page.getByText('已选择范围：第 1 小节。点击开始即可练习这个选段。')).toBeVisible();
+  await expect
+    .poll(() => createdPreset)
+    .toBe(null);
+
+  const startButton = page.getByRole('button', { name: '开始' });
   await expect(startButton).toBeEnabled();
   await startButton.click();
 
@@ -1329,22 +1625,521 @@ test('selected-section continuous practice creates a bounded microphone session'
     .toEqual({
       start_expected_group_id: 'entry-start',
       end_expected_group_id: 'entry-end',
-      start_measure_number: '2',
-      end_measure_number: '2',
+      start_measure_number: '1',
+      end_measure_number: '1',
     });
   await expect
-    .poll(() => createdProgressionMode)
-    .toBe('CONTINUOUS');
+    .poll(() => createdPreset)
+    .toBe('CONTINUOUS_PLAY');
   await expect
     .poll(() => createdRealtimeGuidance)
-    .toBe('STATUS_ONLY');
+    .toBeUndefined();
   await expect
     .poll(() => createdEvaluationProfile)
-    .toBe('PERFORMANCE');
+    .toBeUndefined();
+  await expect
+    .poll(() => createdProgressionMode)
+    .toBeUndefined();
   await expect
     .poll(() => createdInputSource)
-    .toBe('MICROPHONE');
+    .toBe('MIDI');
   await expect
     .poll(() => clientInitInputSource)
-    .toBe('MICROPHONE');
+    .toBe('MIDI');
+  websocketControls.finishSelectedRange?.();
+  await expect(page.getByRole('heading', { name: '选段练习已完成' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '调整分段' })).toBeVisible();
+});
+
+test('continuous play completes from the fixed-clock websocket lifecycle without input-driven progression', async ({
+  page,
+}) => {
+  let clientInitInputSource: string | null = null;
+  let createdPreset: string | null = null;
+  let createdInputSource: string | null = null;
+  let midiEventCount = 0;
+  const websocketControls: { finishPerformance?: () => void } = {};
+
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
+  await installMidiMock(page);
+
+  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        title: 'Practice Smoke Score',
+        head_revision_id: revisionId,
+        version: 1,
+        created_at: '2026-08-24T00:00:00Z',
+        updated_at: '2026-08-24T00:00:00Z',
+        in_library: true,
+        input_assets: [],
+        taxonomy_tags: [],
+        metadata: null,
+        publication: null,
+        derived_assets: {
+          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
+          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
+        },
+        capabilities: {
+          can_view: true,
+          can_edit: true,
+          can_delete: true,
+          can_manage_sharing: true,
+          can_download: true,
+          can_practice: true,
+          can_publish: true,
+          can_manage_members: true,
+        },
+      }),
+    })
+  );
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        revision_id: revisionId,
+        mime_type: 'application/vnd.recordare.musicxml+xml',
+        content: selectableMusicXml,
+      }),
+    })
+  );
+  await page.route('**/api/v1/practice/sessions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    const body = route.request().postDataJSON() as {
+      input_source?: string;
+      preset?: string;
+    };
+    createdInputSource = body.input_source ?? null;
+    createdPreset = body.preset ?? null;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        session_id: sessionId,
+        state: 'CREATED',
+        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
+      }),
+    });
+  });
+  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        ...practiceSessionDetail('CREATED', 'MIDI', 'CONTINUOUS_PLAY'),
+        progression_mode: 'CONTINUOUS',
+        realtime_guidance: 'STATUS_ONLY',
+        evaluation_profile: 'PERFORMANCE',
+        completion_outcome: null,
+      }),
+    })
+  );
+  await mockPracticeTargets(page);
+  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
+    const sendServerMessage = (type: string, payload: unknown) => {
+      ws.send(JSON.stringify({
+        protocol_version: 1,
+        type,
+        payload,
+      }));
+    };
+
+    ws.onMessage((message) => {
+      if (typeof message !== 'string') {
+        return;
+      }
+
+      const parsed = JSON.parse(message) as {
+        type?: string;
+        payload?: { input_source?: string };
+      };
+      if (parsed.type === 'client.midi_event') {
+        midiEventCount += 1;
+        return;
+      }
+      if (parsed.type !== 'client.init') {
+        return;
+      }
+
+      clientInitInputSource = parsed.payload?.input_source ?? null;
+      sendServerMessage('session.ready', { session_id: sessionId, state: 'STREAMING' });
+      sendServerMessage('session.armed', {
+        session_id: sessionId,
+        input_health: {
+          available: true,
+          level: 'good',
+          noise: 'good',
+          confidence: 1,
+        },
+      });
+      sendServerMessage('performance.timeline', {
+        scope_start_beat: 1,
+        scope_terminal_beat: 4,
+        segments: [
+          {
+            start_performance_time_ms: 0,
+            end_performance_time_ms: 3000,
+            start_beat: 1,
+            end_beat: 4,
+          },
+        ],
+      });
+      sendServerMessage('performance.started', performanceClockPayload());
+      sendServerMessage('performance.clock_sync', performanceClockPayload({
+        musical_beat: 2,
+        performance_time_ms: 1000,
+      }));
+      websocketControls.finishPerformance = () => {
+        sendServerMessage('performance.ended', performanceClockPayload({
+          state: 'ENDED',
+          musical_beat: 4,
+          performance_time_ms: 3000,
+          scope_completed: true,
+        }));
+        sendServerMessage('session.finished', {
+          state: 'FINISHED',
+          completion_outcome: fullPiecePerformanceCompletionOutcome(),
+        });
+      };
+    });
+  });
+
+  await page.goto(`/zh/score/${scoreId}/practice`);
+  await page.getByRole('button', { name: '设置' }).click();
+  await page.getByRole('button', { name: /连贯演奏/ }).click();
+  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
+
+  await page.getByRole('button', { name: '开始' }).click();
+
+  await expect
+    .poll(() => createdPreset)
+    .toBe('CONTINUOUS_PLAY');
+  await expect
+    .poll(() => createdInputSource)
+    .toBe('MIDI');
+  await expect
+    .poll(() => clientInitInputSource)
+    .toBe('MIDI');
+  await expect(page.getByRole('status')).toContainText('连贯演奏中');
+
+  await page.evaluate(() => {
+    (window as Window & { __emitPracticeMidi?: (data: number[]) => void })
+      .__emitPracticeMidi?.([0x90, 60, 96]);
+  });
+  await expect
+    .poll(() => midiEventCount)
+    .toBe(1);
+  await expect(page.getByRole('heading', { name: '演奏已完成' })).toBeHidden();
+
+  websocketControls.finishPerformance?.();
+
+  await expect(page.getByRole('heading', { name: '演奏已完成' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '重弹一次' })).toBeVisible();
+});
+
+test('continuous play pause and resume controls follow performance clock messages', async ({
+  page,
+}) => {
+  let pauseControlCount = 0;
+  let resumeControlCount = 0;
+  const websocketControls: { startRunning?: () => void } = {};
+
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
+  await installMidiMock(page);
+
+  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        title: 'Practice Smoke Score',
+        head_revision_id: revisionId,
+        version: 1,
+        created_at: '2026-08-24T00:00:00Z',
+        updated_at: '2026-08-24T00:00:00Z',
+        in_library: true,
+        input_assets: [],
+        taxonomy_tags: [],
+        metadata: null,
+        publication: null,
+        derived_assets: {
+          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
+          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
+        },
+        capabilities: {
+          can_view: true,
+          can_edit: true,
+          can_delete: true,
+          can_manage_sharing: true,
+          can_download: true,
+          can_practice: true,
+          can_publish: true,
+          can_manage_members: true,
+        },
+      }),
+    })
+  );
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: scoreId,
+        revision_id: revisionId,
+        mime_type: 'application/vnd.recordare.musicxml+xml',
+        content: selectableMusicXml,
+      }),
+    })
+  );
+  await page.route('**/api/v1/practice/sessions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        session_id: sessionId,
+        state: 'CREATED',
+        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
+      }),
+    });
+  });
+  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        ...practiceSessionDetail('CREATED', 'MIDI', 'CONTINUOUS_PLAY'),
+        progression_mode: 'CONTINUOUS',
+        realtime_guidance: 'STATUS_ONLY',
+        evaluation_profile: 'PERFORMANCE',
+      }),
+    })
+  );
+  await mockPracticeTargets(page);
+  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
+    const sendServerMessage = (type: string, payload: unknown) => {
+      ws.send(JSON.stringify({
+        protocol_version: 1,
+        type,
+        payload,
+      }));
+    };
+
+    ws.onMessage((message) => {
+      if (typeof message !== 'string') {
+        return;
+      }
+
+      const parsed = JSON.parse(message) as { type?: string };
+      if (parsed.type === 'client.pause') {
+        pauseControlCount += 1;
+        sendServerMessage('performance.paused', performanceClockPayload({
+          state: 'PAUSED',
+          musical_beat: 2,
+          performance_time_ms: 1000,
+        }));
+        return;
+      }
+      if (parsed.type === 'client.resume') {
+        resumeControlCount += 1;
+        sendServerMessage('performance.resumed', performanceClockPayload({
+          state: 'RUNNING',
+          musical_beat: 3,
+          performance_time_ms: 2000,
+        }));
+        return;
+      }
+      if (parsed.type !== 'client.init') {
+        return;
+      }
+
+      sendServerMessage('session.ready', { session_id: sessionId, state: 'STREAMING' });
+      sendServerMessage('session.armed', {
+        session_id: sessionId,
+        input_health: {
+          available: true,
+          level: 'good',
+          noise: 'good',
+          confidence: 1,
+        },
+      });
+      sendServerMessage('performance.timeline', {
+        scope_start_beat: 1,
+        scope_terminal_beat: 4,
+        segments: [
+          {
+            start_performance_time_ms: 0,
+            end_performance_time_ms: 3000,
+            start_beat: 1,
+            end_beat: 4,
+          },
+        ],
+      });
+      sendServerMessage('performance.started', performanceClockPayload({
+        state: 'COUNT_IN',
+        musical_beat: 1,
+        performance_time_ms: 0,
+      }));
+      websocketControls.startRunning = () => {
+        sendServerMessage('performance.clock_sync', performanceClockPayload({
+          musical_beat: 2,
+          performance_time_ms: 1000,
+        }));
+      };
+    });
+  });
+
+  await page.goto(`/zh/score/${scoreId}/practice`);
+  await page.getByRole('button', { name: '设置' }).click();
+  await page.getByRole('button', { name: /连贯演奏/ }).click();
+  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
+
+  await page.getByRole('button', { name: '开始' }).click();
+  await expect(page.getByRole('status')).toContainText('准备开始演奏');
+  websocketControls.startRunning?.();
+  await expect(page.getByRole('status')).toContainText('连贯演奏中');
+
+  await page.getByRole('button', { name: '暂停' }).click();
+  await expect
+    .poll(() => pauseControlCount)
+    .toBe(1);
+  await expect(page.getByRole('status')).toContainText('练习已暂停');
+  await page.waitForTimeout(500);
+
+  await page.getByRole('button', { name: '继续' }).click();
+  await expect
+    .poll(() => resumeControlCount)
+    .toBe(1);
+  await expect(page.getByRole('status')).toContainText('连贯演奏中');
+});
+
+test('continuous play user stop finishes with a stopped performance outcome', async ({
+  page,
+}) => {
+  let finishControlCount = 0;
+
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
+  await installMidiMock(page);
+  await mockPracticeScorePage(page);
+
+  await page.route('**/api/v1/practice/sessions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        session_id: sessionId,
+        state: 'CREATED',
+        ws_url: `/api/v1/practice/sessions/${sessionId}/stream`,
+      }),
+    });
+  });
+  await page.route(`**/api/v1/practice/sessions/${sessionId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        ...practiceSessionDetail('CREATED', 'MIDI', 'CONTINUOUS_PLAY'),
+        progression_mode: 'CONTINUOUS',
+        realtime_guidance: 'STATUS_ONLY',
+        evaluation_profile: 'PERFORMANCE',
+      }),
+    })
+  );
+  await page.routeWebSocket(`**/api/v1/practice/sessions/${sessionId}/stream`, (ws) => {
+    const sendServerMessage = (type: string, payload: unknown) => {
+      ws.send(JSON.stringify({
+        protocol_version: 1,
+        type,
+        payload,
+      }));
+    };
+
+    ws.onMessage((message) => {
+      if (typeof message !== 'string') {
+        return;
+      }
+
+      const parsed = JSON.parse(message) as { type?: string };
+      if (parsed.type === 'client.finish') {
+        finishControlCount += 1;
+        sendServerMessage('performance.ended', performanceClockPayload({
+          state: 'ENDED',
+          musical_beat: 2,
+          performance_time_ms: 1000,
+          scope_completed: false,
+        }));
+        sendServerMessage('session.finished', {
+          state: 'FINISHED',
+          completion_outcome: {
+            ...fullPiecePerformanceCompletionOutcome(),
+            completion_reason: 'STOPPED_BY_USER',
+          },
+        });
+        return;
+      }
+      if (parsed.type !== 'client.init') {
+        return;
+      }
+
+      sendServerMessage('session.ready', { session_id: sessionId, state: 'STREAMING' });
+      sendServerMessage('session.armed', {
+        session_id: sessionId,
+        input_health: {
+          available: true,
+          level: 'good',
+          noise: 'good',
+          confidence: 1,
+        },
+      });
+      sendServerMessage('performance.timeline', {
+        scope_start_beat: 1,
+        scope_terminal_beat: 4,
+        segments: [
+          {
+            start_performance_time_ms: 0,
+            end_performance_time_ms: 3000,
+            start_beat: 1,
+            end_beat: 4,
+          },
+        ],
+      });
+      sendServerMessage('performance.started', performanceClockPayload());
+    });
+  });
+
+  await page.goto(`/zh/score/${scoreId}/practice`);
+  await page.getByRole('button', { name: '设置' }).click();
+  await page.getByRole('button', { name: /连贯演奏/ }).click();
+  await page.getByRole('button', { name: /MIDI 键盘/ }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
+
+  await page.getByRole('button', { name: '开始' }).click();
+  await expect(page.getByRole('status')).toContainText('连贯演奏中');
+  await page.getByRole('button', { name: '结束' }).click();
+
+  await expect
+    .poll(() => finishControlCount)
+    .toBe(1);
+  await expect(page.getByRole('heading', { name: '演奏已完成' })).toBeVisible();
 });

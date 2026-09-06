@@ -4,9 +4,18 @@ from pydantic import ValidationError
 import pytest
 
 from app.processing.realtime.message_codec import (
+    performance_clock_sync_message,
+    performance_lifecycle_message,
+    performance_timeline_message,
     parse_control_message,
     session_finished_message,
     session_ready_message,
+)
+from app.processing.performance.clock import PerformanceClockState
+from app.processing.performance.runtime import PerformanceClockSync
+from app.processing.performance.timeline import (
+    PerformanceTimelineProjection,
+    PerformanceTimelineProjectionSegment,
 )
 from app.processing.realtime.protocol import practice_server_message_adapter
 
@@ -26,6 +35,7 @@ def test_session_finished_message_includes_completion_outcome() -> None:
             "kind": "FULL_PIECE_PERFORMANCE",
             "scope_kind": "FULL_PIECE",
             "summary_artifact_kind": "PERFORMANCE_SUMMARY",
+            "completion_reason": "SCOPE_COMPLETED",
             "playback_expected": True,
             "summary_available": True,
         },
@@ -40,11 +50,100 @@ def test_session_finished_message_includes_completion_outcome() -> None:
                 "kind": "FULL_PIECE_PERFORMANCE",
                 "scope_kind": "FULL_PIECE",
                 "summary_artifact_kind": "PERFORMANCE_SUMMARY",
+                "completion_reason": "SCOPE_COMPLETED",
                 "playback_expected": True,
                 "summary_available": True,
             },
         },
     }
+
+
+def test_performance_clock_sync_message_uses_authoritative_clock_payload() -> None:
+    message = performance_clock_sync_message(_performance_clock_sync())
+
+    assert message == {
+        "protocol_version": 1,
+        "type": "performance.clock_sync",
+        "payload": {
+            "state": "RUNNING",
+            "musical_beat": 6.5,
+            "performance_time_ms": 500.0,
+            "count_in_remaining_ms": 0.0,
+            "count_in_remaining_pulses": 0.0,
+            "scope_completed": False,
+            "scope_start_group_id": "entry-6",
+            "scope_end_group_id": "entry-8",
+            "scope_start_beat": 6.0,
+            "scope_terminal_beat": 9.0,
+            "nominal_scope_duration_ms": 1500.0,
+            "speed_ratio": 1.0,
+        },
+    }
+    parsed = practice_server_message_adapter.validate_python(message)
+    assert parsed.type == "performance.clock_sync"
+    assert parsed.payload.state == "RUNNING"
+
+
+def test_performance_lifecycle_messages_share_clock_payload() -> None:
+    paused = performance_lifecycle_message("paused", _performance_clock_sync())
+
+    assert paused["type"] == "performance.paused"
+    parsed = practice_server_message_adapter.validate_python(paused)
+    assert parsed.payload.scope_start_group_id == "entry-6"
+
+    with pytest.raises(ValueError, match="Unsupported performance lifecycle event"):
+        performance_lifecycle_message("unknown", _performance_clock_sync())
+
+    with pytest.raises(ValueError, match="Unsupported performance lifecycle event"):
+        performance_lifecycle_message("running", _performance_clock_sync())
+
+
+def test_performance_timeline_message_uses_scope_projection_payload() -> None:
+    projection = PerformanceTimelineProjection(
+        scope_start_beat=2.0,
+        scope_terminal_beat=6.0,
+        segments=(
+            PerformanceTimelineProjectionSegment(
+                start_performance_time_ms=0.0,
+                end_performance_time_ms=1000.0,
+                start_beat=2.0,
+                end_beat=4.0,
+            ),
+            PerformanceTimelineProjectionSegment(
+                start_performance_time_ms=1000.0,
+                end_performance_time_ms=3000.0,
+                start_beat=4.0,
+                end_beat=6.0,
+            ),
+        ),
+    )
+
+    message = performance_timeline_message(projection)
+
+    assert message == {
+        "protocol_version": 1,
+        "type": "performance.timeline",
+        "payload": {
+            "scope_start_beat": 2.0,
+            "scope_terminal_beat": 6.0,
+            "segments": [
+                {
+                    "start_performance_time_ms": 0.0,
+                    "end_performance_time_ms": 1000.0,
+                    "start_beat": 2.0,
+                    "end_beat": 4.0,
+                },
+                {
+                    "start_performance_time_ms": 1000.0,
+                    "end_performance_time_ms": 3000.0,
+                    "start_beat": 4.0,
+                    "end_beat": 6.0,
+                },
+            ],
+        },
+    }
+    parsed = practice_server_message_adapter.validate_python(message)
+    assert parsed.type == "performance.timeline"
 
 
 def test_practice_websocket_control_frames_require_the_current_version() -> None:
@@ -189,3 +288,20 @@ def test_alignment_update_message_requires_runtime_input_health() -> None:
     del payload["payload"]["input_health"]
     with pytest.raises(ValidationError):
         practice_server_message_adapter.validate_python(payload)
+
+
+def _performance_clock_sync() -> PerformanceClockSync:
+    return PerformanceClockSync(
+        state=PerformanceClockState.RUNNING,
+        musical_beat=6.5,
+        performance_time_ms=500.0,
+        count_in_remaining_ms=0.0,
+        count_in_remaining_pulses=0.0,
+        scope_completed=False,
+        scope_start_group_id="entry-6",
+        scope_end_group_id="entry-8",
+        scope_start_beat=6.0,
+        scope_terminal_beat=9.0,
+        nominal_scope_duration_ms=1500.0,
+        speed_ratio=1.0,
+    )

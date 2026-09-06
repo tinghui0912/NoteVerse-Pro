@@ -7,7 +7,7 @@ import {
   PCM_FRAME_FORMAT,
   PCM_SAMPLE_RATE,
 } from '@/lib/practice/audio-stream';
-import { practicePolicyForPreset, type PracticeSessionPreset } from '@/lib/practice/session-policy';
+import { practiceSessionIntent, type PracticeSessionMode } from '@/lib/practice/session-policy';
 import type {
   PracticeInputSource,
   PracticeSessionCompletionOutcomeRead,
@@ -19,7 +19,7 @@ import type {
 interface UsePracticeSessionOptions {
   scoreId: string;
   revisionId?: string;
-  preset: PracticeSessionPreset;
+  practiceMode: PracticeSessionMode;
   inputSource: PracticeInputSource;
   practiceScope?: PracticeSessionScope | null;
 }
@@ -27,7 +27,7 @@ interface UsePracticeSessionOptions {
 export function usePracticeSession({
   scoreId,
   revisionId,
-  preset,
+  practiceMode,
   inputSource,
   practiceScope,
 }: UsePracticeSessionOptions) {
@@ -56,7 +56,7 @@ export function usePracticeSession({
       channels: PCM_CHANNELS,
       frame_format: PCM_FRAME_FORMAT,
       practice_scope: practiceScope ?? undefined,
-      ...practicePolicyForPreset(preset, inputSource),
+      ...practiceSessionIntent(practiceMode, inputSource),
     });
     if (!response.data?.session_id || !response.data.ws_url) {
       throw new Error('Practice session creation failed.');
@@ -69,7 +69,7 @@ export function usePracticeSession({
       return null;
     }
     return { detail: sync(detailResponse.data), wsUrl: response.data.ws_url };
-  }, [inputSource, practiceScope, preset, revisionId, scoreId, sync]);
+  }, [inputSource, practiceMode, practiceScope, revisionId, scoreId, sync]);
 
   const runRestControl = useCallback(
     async (action: 'pause' | 'resume' | 'finish', sessionId = detailRef.current?.session_id) => {

@@ -13,6 +13,7 @@ function backendOutcome(
     kind: 'FULL_PIECE_LEARNING',
     scope_kind: 'FULL_PIECE',
     summary_artifact_kind: 'LEARNING_SUMMARY',
+    completion_reason: 'SCOPE_COMPLETED',
     playback_expected: false,
     summary_available: false,
     ...overrides,
@@ -31,9 +32,6 @@ describe('resolvePracticeCompletionOutcome', () => {
       })
     ).toEqual({
       kind: 'selected-section',
-      expectsPlayback: false,
-      canViewSummary: false,
-      canStartFullPiecePerformance: false,
     } satisfies PracticeCompletionOutcome);
   });
 
@@ -49,9 +47,6 @@ describe('resolvePracticeCompletionOutcome', () => {
       })
     ).toEqual({
       kind: 'full-piece-performance',
-      expectsPlayback: true,
-      canViewSummary: true,
-      canStartFullPiecePerformance: false,
     } satisfies PracticeCompletionOutcome);
   });
 
@@ -62,9 +57,6 @@ describe('resolvePracticeCompletionOutcome', () => {
       })
     ).toEqual({
       kind: 'full-piece-learning',
-      expectsPlayback: false,
-      canViewSummary: false,
-      canStartFullPiecePerformance: true,
     } satisfies PracticeCompletionOutcome);
   });
 

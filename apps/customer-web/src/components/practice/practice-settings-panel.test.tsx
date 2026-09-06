@@ -8,7 +8,7 @@ import messages from '../../../messages/en/practice.json';
 import { PracticeSettingsPanel } from './practice-settings-panel';
 
 describe('PracticeSettingsPanel', () => {
-  it('keeps microphone selectable while MIDI is locked for continuous performance', () => {
+  it('keeps microphone and MIDI selectable before step-by-step practice starts', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
@@ -18,13 +18,13 @@ describe('PracticeSettingsPanel', () => {
           midiSupported
           hasMidiPermission={null}
           hasMidiInput
-          preset="CONTINUOUS_PLAY"
-          presetLocked={false}
+          practiceMode="STEP_BY_STEP"
+          practiceModeLocked={false}
           inputSource="MICROPHONE"
           microphoneInputLocked={false}
-          midiInputLocked
+          midiInputLocked={false}
           showNextNoteHint
-          onPresetChange={vi.fn()}
+          onPracticeModeChange={vi.fn()}
           onInputSourceChange={vi.fn()}
           onShowNextNoteHintChange={vi.fn()}
         />
@@ -32,6 +32,34 @@ describe('PracticeSettingsPanel', () => {
     );
 
     expect(screen.getByRole('button', { name: /microphone/i })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeEnabled();
+  });
+
+  it('keeps microphone and MIDI selectable before continuous play starts', () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeSettingsPanel
+          connectionStatus="disconnected"
+          hasMicPermission={null}
+          audioWorkletSupported
+          midiSupported
+          hasMidiPermission={null}
+          hasMidiInput
+          practiceMode="CONTINUOUS_PLAY"
+          practiceModeLocked={false}
+          inputSource="MICROPHONE"
+          microphoneInputLocked={false}
+          midiInputLocked={false}
+          showNextNoteHint
+          onPracticeModeChange={vi.fn()}
+          onInputSourceChange={vi.fn()}
+          onShowNextNoteHintChange={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    expect(screen.getByRole('button', { name: /microphone/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeEnabled();
+    expect(screen.queryByRole('switch', { name: /show the next note/i })).not.toBeInTheDocument();
   });
 });

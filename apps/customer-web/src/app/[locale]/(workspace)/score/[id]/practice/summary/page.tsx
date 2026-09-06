@@ -8,15 +8,16 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileText,
-  Gauge,
-  Lightbulb,
-  ListChecks,
+  Loader2,
   Music2,
+  Play,
+  Save,
   Target,
   XCircle,
 } from 'lucide-react';
 
 import { PreviewLoading, ResourceLoading } from '@/components/loading';
+import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,23 +25,33 @@ import { PageHeader } from '@/components/page';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { EmptyState, SectionErrorState } from '@/components/states';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
+import { useToast } from '@/hooks/use-toast';
 import { practiceApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
-import { practiceSummaryArtifactForSession } from '@/lib/practice/summary-artifact';
+import { readPlayablePerformanceReplay } from '@/lib/practice/local-performance-replay-store';
+import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
+import type { PracticePerformanceTimelinePayload } from '@/lib/practice/protocol';
+import {
+  buildSavedPerformanceReplayUpload,
+  checksumSha256Hex,
+  readSavedPerformanceReplay,
+} from '@/lib/practice/saved-performance-replay';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type {
-  PracticeSessionSummaryAttemptRead,
   PracticeSessionSummaryMeasureRead,
   PracticeSessionSummaryPayloadRead,
   PracticeSessionSummaryTargetRead,
   PracticeSessionDetailRead,
+  PracticePerformanceTimelineRead,
+  SavedPracticeReplayArtifactRead,
 } from '@/generated/practice-api';
 
 type MetricValue = PracticeSessionSummaryPayloadRead['metrics'][string];
 
-const SummaryCard = ({
+const EvidenceMetric = ({
   icon,
   title,
   value,
@@ -53,18 +64,14 @@ const SummaryCard = ({
 }) => {
   const Icon = icon;
   return (
-    <Card className="rounded-lg bg-white shadow-sm">
-      <CardHeader className="flex flex-row items-center gap-3 pb-1">
-        <Icon className="h-5 w-5 text-orange-500" />
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-semibold text-foreground">{value}</p>
-        {detail && <p className="mt-1 text-sm text-muted-foreground">{detail}</p>}
-      </CardContent>
-    </Card>
+    <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+        <Icon className="h-4 w-4 text-orange-500" />
+        <span>{title}</span>
+      </div>
+      <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+      {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}
+    </div>
   );
 };
 
@@ -89,19 +96,6 @@ const TextCard = ({
   );
 };
 
-const AttemptStatusIcon = ({ attempt }: { attempt: PracticeSessionSummaryAttemptRead }) => {
-  if (attempt.completion_status === 'INTERRUPTED') {
-    return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-  }
-  if (attempt.result === 'MATCH') {
-    return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
-  }
-  if (attempt.result === 'MISMATCH') {
-    return <XCircle className="h-4 w-4 text-red-500" />;
-  }
-  return <Music2 className="h-4 w-4 text-orange-500" />;
-};
-
 function metric(metrics: PracticeSessionSummaryPayloadRead['metrics'], key: string): MetricValue {
   return metrics[key];
 }
@@ -116,18 +110,19 @@ function formatNumber(value: MetricValue): string {
   return 'n/a';
 }
 
-function formatPercent(value: MetricValue): string {
-  if (typeof value !== 'number') {
-    return 'n/a';
-  }
-  return `${Math.round(value * 100)}%`;
+function numberMetric(
+  metrics: PracticeSessionSummaryPayloadRead['metrics'],
+  key: string
+): number | null {
+  const value = metric(metrics, key);
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function formatAttemptNotes(attempt: PracticeSessionSummaryAttemptRead): string {
-  if (attempt.render_note_ids && attempt.render_note_ids.length > 0) {
-    return attempt.render_note_ids.join(', ');
-  }
-  return attempt.event_id ?? attempt.expected_group_id ?? `#${attempt.attempt_index}`;
+function formatReplayTimeLabel(timeMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(timeMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function formatMeasureLabel(measureNumber: string): string {
@@ -149,44 +144,19 @@ function findSummaryNoteElement(container: HTMLElement, verovioId: string) {
 }
 
 function annotationNoteIds(summary: PracticeSessionSummaryPayloadRead | null): {
-  problemNoteIds: string[];
-  reviewNoteIds: string[];
+  confirmedCorrectNoteIds: string[];
+  confirmedErrorNoteIds: string[];
 } {
-  const problemNoteIds: string[] = [];
-  const reviewNoteIds: string[] = [];
+  const confirmedCorrectNoteIds: string[] = [];
+  const confirmedErrorNoteIds: string[] = [];
   for (const target of summary?.targets ?? []) {
-    const noteIds = target.render_note_ids ?? [];
-    const hasScorableIssue =
-      target.scorable_attempt_count > 0 &&
-      (target.partial_attempt_count > 0 || target.mismatch_attempt_count > 0);
-    if (!hasScorableIssue) {
-      continue;
-    }
-    if (target.completed) {
-      reviewNoteIds.push(...noteIds);
-    } else {
-      problemNoteIds.push(...noteIds);
-    }
+    confirmedCorrectNoteIds.push(...(target.confirmed_correct_render_note_ids ?? []));
+    confirmedErrorNoteIds.push(...(target.confirmed_error_render_note_ids ?? []));
   }
   return {
-    problemNoteIds: Array.from(new Set(problemNoteIds)),
-    reviewNoteIds: Array.from(new Set(reviewNoteIds)),
+    confirmedCorrectNoteIds: Array.from(new Set(confirmedCorrectNoteIds)),
+    confirmedErrorNoteIds: Array.from(new Set(confirmedErrorNoteIds)),
   };
-}
-
-function targetHasScorableIssue(target: PracticeSessionSummaryTargetRead): boolean {
-  return (
-    target.scorable_attempt_count > 0 &&
-    (target.partial_attempt_count > 0 || target.mismatch_attempt_count > 0)
-  );
-}
-
-function targetNeedsProblemAnnotation(target: PracticeSessionSummaryTargetRead): boolean {
-  return targetHasScorableIssue(target) && !target.completed;
-}
-
-function targetNeedsReviewAnnotation(target: PracticeSessionSummaryTargetRead): boolean {
-  return targetHasScorableIssue(target) && target.completed;
 }
 
 function reviewReasonKey(measure: PracticeSessionSummaryMeasureRead): string {
@@ -211,17 +181,94 @@ function targetsForMeasure(
   );
 }
 
+function unexpectedPitchesForMeasure(
+  summary: PracticeSessionSummaryPayloadRead | null,
+  measureNumber: string
+): string[] {
+  return targetsForMeasure(summary, measureNumber).flatMap(
+    (target) => target.unexpected_pitches ?? []
+  );
+}
+
+function missingPitchesForMeasure(
+  summary: PracticeSessionSummaryPayloadRead | null,
+  measureNumber: string
+): string[] {
+  return targetsForMeasure(summary, measureNumber).flatMap(
+    (target) => target.missing_pitches ?? []
+  );
+}
+
+function formatPitchCounts(pitches: string[]): string {
+  const counts = new Map<string, number>();
+  for (const pitch of pitches) {
+    counts.set(pitch, (counts.get(pitch) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([pitch, count]) => (count > 1 ? `${pitch} x${count}` : pitch))
+    .join(', ');
+}
+
+type PerformanceFact = {
+  icon: React.ElementType;
+  titleKey: string;
+  value?: string;
+  detailKey?: string;
+  detailValues?: Record<string, string | number>;
+};
+
+function performanceFacts(summary: PracticeSessionSummaryPayloadRead): PerformanceFact[] {
+  const inputSource = metric(summary.metrics, 'input_source');
+  if (inputSource !== 'MIDI') {
+    return [];
+  }
+
+  const confirmedCorrectStrikes = numberMetric(
+    summary.metrics,
+    'confirmed_correct_strike_targets'
+  );
+  const missingStrikes = numberMetric(summary.metrics, 'missing_strike_targets');
+  const extraPitchCount = numberMetric(summary.metrics, 'extra_pitch_count');
+  const problemMeasureCount = numberMetric(summary.metrics, 'problem_measure_count');
+  const facts: PerformanceFact[] = [];
+
+  if (confirmedCorrectStrikes !== null) {
+    facts.push({
+      icon: CheckCircle2,
+      titleKey: 'confirmedCorrectStrikes',
+      value: formatNumber(confirmedCorrectStrikes),
+    });
+  }
+  if (missingStrikes !== null) {
+    facts.push({
+      icon: XCircle,
+      titleKey: 'missingStrikes',
+      value: formatNumber(missingStrikes),
+    });
+  }
+  if (extraPitchCount !== null) {
+    facts.push({
+      icon: AlertTriangle,
+      titleKey: 'extraPitchCount',
+      value: formatNumber(extraPitchCount),
+      detailKey: problemMeasureCount !== null ? 'problemMeasureCount' : undefined,
+      detailValues:
+        problemMeasureCount !== null
+          ? {
+              count: formatNumber(problemMeasureCount),
+            }
+          : undefined,
+    });
+  }
+
+  return facts;
+}
+
 function selectFocusTarget(
   summary: PracticeSessionSummaryPayloadRead | null,
   measureNumber: string
 ): PracticeSessionSummaryTargetRead | null {
-  const targets = targetsForMeasure(summary, measureNumber).filter(targetHasScorableIssue);
-  return (
-    targets.find(targetNeedsProblemAnnotation) ??
-    targets.find(targetNeedsReviewAnnotation) ??
-    targets[0] ??
-    null
-  );
+  return targetsForMeasure(summary, measureNumber)[0] ?? null;
 }
 
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
@@ -229,10 +276,24 @@ function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   return Array.isArray(id) ? id[0] ?? '' : id ?? '';
 }
 
+function practiceTimelinePayload(
+  timeline: PracticePerformanceTimelineRead | null | undefined
+): PracticePerformanceTimelinePayload | null {
+  if (!timeline) {
+    return null;
+  }
+  return {
+    scope_start_beat: timeline.scope_start_beat,
+    scope_terminal_beat: timeline.scope_terminal_beat,
+    segments: timeline.segments ?? [],
+  };
+}
+
 export default function PracticeSummaryPage() {
   const t = useTranslations('practice');
   const errors = useTranslations('errors');
   const router = useRouter();
+  const { toast } = useToast();
   const params = useParams();
   const routeScoreId = scoreIdFromParams(params);
   const searchParams = useSearchParams();
@@ -249,16 +310,31 @@ export default function PracticeSummaryPage() {
     revisionQuery.isLoading
   );
   const [summary, setSummary] = useState<PracticeSessionSummaryPayloadRead | null>(null);
+  const [performanceTimeline, setPerformanceTimeline] =
+    useState<PracticePerformanceTimelinePayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const summaryArtifact = useMemo(
-    () => practiceSummaryArtifactForSession(session),
-    [session]
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [savedReplayArtifact, setSavedReplayArtifact] =
+    useState<SavedPracticeReplayArtifactRead | null>(null);
+  const [savedPerformanceReplay, setSavedPerformanceReplay] =
+    useState<PlayablePerformanceReplay | null>(null);
+  const [isLoadingSavedReplay, setIsLoadingSavedReplay] = useState(false);
+  const [savedReplayPlaybackFailed, setSavedReplayPlaybackFailed] = useState(false);
+  const [autoStartSavedReplay, setAutoStartSavedReplay] = useState(false);
+  const [isSavingReplay, setIsSavingReplay] = useState(false);
+  const localPerformanceReplay = useMemo(
+    () => readPlayablePerformanceReplay(sessionId),
+    [sessionId]
   );
+  const performanceReplay = localPerformanceReplay ?? savedPerformanceReplay;
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const annotationController = useMemo(
     () => new PracticeSummaryAnnotationController(),
+    []
+  );
+  const performancePlayheadController = useMemo(
+    () => new PerformancePlayheadController(),
     []
   );
   const annotationRenderNoteIds = useMemo(() => annotationNoteIds(summary), [summary]);
@@ -321,33 +397,56 @@ export default function PracticeSummaryPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     const loadSummary = async () => {
       if (!sessionId) {
-        setError(t('summaryMissingSession'));
+        setPerformanceTimeline(null);
+        setPageError(t('summaryMissingSession'));
         setIsLoading(false);
         return;
       }
       if (hasRouteSessionMismatch) {
         setSummary(null);
-        setError(t('summaryInvalidSession'));
+        setPerformanceTimeline(null);
+        setPageError(t('summaryInvalidSession'));
         setIsLoading(false);
         return;
       }
       if (!session && !sessionLoadFailed) {
         return;
       }
+      if (!session && sessionLoadFailed) {
+        setSummary(null);
+        setPerformanceTimeline(null);
+        setPageError(t('analysisFailedDesc'));
+        setIsLoading(false);
+        return;
+      }
+      if (session?.evaluation_profile !== 'PERFORMANCE') {
+        setSummary(null);
+        setPerformanceTimeline(null);
+        setPageError(t('performanceReportUnavailableDesc'));
+        setIsLoading(false);
+        return;
+      }
 
       try {
         setIsLoading(true);
-        setError(null);
+        setPageError(null);
         const response = await practiceApi.getPracticeSessionSummary(sessionId);
         const nextSummary = response.data;
-        if (!nextSummary?.summary_payload) {
-          throw new Error(t('analysisFailedDesc'));
-        }
         if (!cancelled) {
-          setSummary(nextSummary.summary_payload);
+          const nextStatus = nextSummary?.summary_status ?? 'FAILED';
+          setSummary(nextSummary?.summary_payload ?? null);
+          setPerformanceTimeline(
+            practiceTimelinePayload(nextSummary?.performance_timeline ?? null)
+          );
+          if (!nextSummary?.summary_payload) {
+            if (nextStatus === 'PENDING' || nextStatus === 'NOT_REQUESTED') {
+              retryTimer = setTimeout(loadSummary, 1000);
+            }
+          }
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -355,7 +454,9 @@ export default function PracticeSummaryPage() {
             area: 'practice',
             action: 'load_summary',
           });
-          setError(userFacingErrorMessage(errors, loadError, t('analysisFailedDesc')));
+          setSummary(null);
+          setPerformanceTimeline(null);
+          setPageError(userFacingErrorMessage(errors, loadError, t('analysisFailedDesc')));
         }
       } finally {
         if (!cancelled) {
@@ -368,6 +469,9 @@ export default function PracticeSummaryPage() {
 
     return () => {
       cancelled = true;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+      }
     };
   }, [errors, hasRouteSessionMismatch, session, sessionId, sessionLoadFailed, t]);
 
@@ -392,7 +496,7 @@ export default function PracticeSummaryPage() {
       );
     }
 
-      const noteIds = focusedTarget?.render_note_ids ?? [];
+    const noteIds = focusedTarget?.render_note_ids ?? [];
     focusedNoteIdsRef.current = noteIds;
     for (const noteId of noteIds) {
       findSummaryNoteElement(container, noteId)?.classList.add(
@@ -408,6 +512,89 @@ export default function PracticeSummaryPage() {
       }
     };
   }, [focusedTarget, renderRevision]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSavedReplayArtifact = async () => {
+      setSavedPerformanceReplay(null);
+      setSavedReplayArtifact(null);
+      setSavedReplayPlaybackFailed(false);
+      setAutoStartSavedReplay(false);
+      if (
+        !sessionId ||
+        localPerformanceReplay ||
+        session?.state !== 'FINISHED' ||
+        session.evaluation_profile !== 'PERFORMANCE'
+      ) {
+        return;
+      }
+
+      try {
+        const artifactsResponse = await practiceApi.listPracticeReplayArtifacts(sessionId);
+        const artifact =
+          artifactsResponse.data?.find((candidate) => candidate.input_source === session.input_source) ??
+          null;
+        if (!cancelled) {
+          setSavedReplayArtifact(artifact);
+        }
+      } catch (loadSavedReplayError) {
+        reportUnexpectedClientError(loadSavedReplayError, {
+          area: 'practice',
+          action: 'list_saved_performance_replay',
+        });
+        if (!cancelled) {
+          setSavedReplayArtifact(null);
+        }
+      }
+    };
+
+    void loadSavedReplayArtifact();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [localPerformanceReplay, session, sessionId]);
+
+  const handlePlaySavedReplay = useCallback(() => {
+    if (!sessionId || !savedReplayArtifact || isLoadingSavedReplay) {
+      return;
+    }
+
+    const play = async () => {
+      try {
+        setIsLoadingSavedReplay(true);
+        setSavedReplayPlaybackFailed(false);
+        setAutoStartSavedReplay(false);
+        const playbackResponse = await practiceApi.getPracticeReplayArtifactPlaybackUrl(
+          sessionId,
+          savedReplayArtifact.artifact_id
+        );
+        if (!playbackResponse.data) {
+          throw new Error('saved replay playback URL missing');
+        }
+        const replay = await readSavedPerformanceReplay(
+          savedReplayArtifact,
+          playbackResponse.data.playback_url
+        );
+        setSavedPerformanceReplay(replay);
+        setSavedReplayPlaybackFailed(false);
+        setAutoStartSavedReplay(true);
+      } catch (loadSavedReplayError) {
+        reportUnexpectedClientError(loadSavedReplayError, {
+          area: 'practice',
+          action: 'play_saved_performance_replay',
+        });
+        setSavedPerformanceReplay(null);
+        setSavedReplayPlaybackFailed(true);
+        setAutoStartSavedReplay(false);
+      } finally {
+        setIsLoadingSavedReplay(false);
+      }
+    };
+
+    void play();
+  }, [isLoadingSavedReplay, savedReplayArtifact, sessionId]);
 
   const focusMeasureTarget = useCallback(
     (measureNumber: string) => {
@@ -431,15 +618,119 @@ export default function PracticeSummaryPage() {
     [summary]
   );
 
-  const attempts = summary?.attempts ?? [];
+  const handleReplayTimeChange = useCallback(
+    (replayTimeMs: number | null) => {
+      const container = scoreContainerRef.current;
+      if (!container || renderRevision === 0) {
+        return;
+      }
+      if (replayTimeMs === null || !performanceTimeline || !performanceReplay) {
+        performancePlayheadController.clear(container);
+        return;
+      }
+      performancePlayheadController.applyPerformanceTime(
+        container,
+        adapter,
+        replayTimeMs * performanceReplay.timebase.speedRatio,
+        performanceTimeline
+      );
+    },
+    [
+      adapter,
+      performancePlayheadController,
+      performanceReplay,
+      performanceTimeline,
+      renderRevision,
+    ]
+  );
+
+  useEffect(() => {
+    const container = scoreContainerRef.current;
+    return () => {
+      if (container) {
+        performancePlayheadController.clear(container);
+      }
+    };
+  }, [performancePlayheadController, performanceReplay, renderRevision]);
+
+  const handleSaveReplay = useCallback(async () => {
+    if (!sessionId || !localPerformanceReplay) {
+      return;
+    }
+
+    try {
+      setIsSavingReplay(true);
+      const upload = buildSavedPerformanceReplayUpload(localPerformanceReplay);
+      const checksumSha256 = await checksumSha256Hex(upload.file);
+      const authorizationResponse = await practiceApi.authorizePracticeReplayUpload(sessionId, {
+        kind: upload.kind,
+        content_type: upload.contentType,
+        byte_size: upload.file.size,
+        checksum_sha256: checksumSha256,
+        duration_ms: upload.durationMs,
+        timebase_version: upload.timebaseVersion,
+        format_version: upload.formatVersion,
+      });
+      const authorization = authorizationResponse.data;
+      if (!authorization) {
+        throw new Error('practice replay upload authorization missing');
+      }
+      await practiceApi.uploadPracticeReplayObject(
+        authorization.upload_url,
+        upload.file,
+        authorization.upload_headers
+      );
+      const response = await practiceApi.finalizePracticeReplayArtifact(sessionId, {
+        artifact_id: authorization.artifact_id,
+        kind: upload.kind,
+        content_type: upload.contentType,
+        byte_size: upload.file.size,
+        checksum_sha256: checksumSha256,
+        duration_ms: upload.durationMs,
+        timebase_version: upload.timebaseVersion,
+        format_version: upload.formatVersion,
+      });
+      if (response.data) {
+        setSavedReplayArtifact(response.data);
+      }
+      toast({
+        title: t('savePerformanceSuccessTitle'),
+        description: t('savePerformanceSuccessDesc'),
+      });
+    } catch (saveError) {
+      reportUnexpectedClientError(saveError, {
+        area: 'practice',
+        action: 'save_performance_replay',
+      });
+      toast({
+        title: t('savePerformanceFailedTitle'),
+        description: userFacingErrorMessage(errors, saveError, t('savePerformanceFailedDesc')),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingReplay(false);
+    }
+  }, [errors, localPerformanceReplay, sessionId, t, toast]);
+
   const difficultMeasures = summary?.difficult_measures ?? [];
+  const facts = summary ? performanceFacts(summary) : [];
+  const hasReplayCard = Boolean(performanceReplay || savedReplayArtifact);
+  const hasSummaryCard = facts.length > 0;
+  const hasSidebar = hasReplayCard || hasSummaryCard;
+  const contentGridClassName = hasSidebar
+    ? 'grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]'
+    : 'grid grid-cols-1 gap-6';
+  const canSaveReplay =
+    Boolean(localPerformanceReplay) &&
+    session?.evaluation_profile === 'PERFORMANCE' &&
+    session?.state === 'FINISHED';
 
   return (
     <ScoreSurface>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
-          title={t(summaryArtifact.titleKey)}
-          description={t(summaryArtifact.subtitleKey)}
+          title={t('performanceSummaryTitle')}
+          description={t('performanceSummarySubtitle')}
           actions={
             <Button variant="outline" onClick={() => router.back()}>
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -447,84 +738,56 @@ export default function PracticeSummaryPage() {
             </Button>
           }
         />
-        {isLoading && <ResourceLoading label={t('loadingSummary')} minHeight="md" />}
-
-        {!isLoading && error && (
-          <SectionErrorState title={t('analysisFailedTitle')} description={error} />
+        {isLoading && !session && (
+          <ResourceLoading label={t('loadingSummary')} minHeight="md" />
         )}
 
-        {!isLoading && summary && (
+        {!isLoading && pageError && (
+          <SectionErrorState title={t('analysisFailedTitle')} description={pageError} />
+        )}
+
+        {!pageError && session && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <SummaryCard
-                icon={Target}
-                title={t(summaryArtifact.completionLabelKey)}
-                value={formatPercent(metric(summary.metrics, 'target_completion_rate'))}
-                detail={t('summaryTargetCount', {
-                  completed: formatNumber(metric(summary.metrics, 'completed_targets')),
-                  total: formatNumber(metric(summary.metrics, 'target_count')),
-                })}
-              />
-              <SummaryCard
-                icon={Gauge}
-                title={t(summaryArtifact.accuracyLabelKey)}
-                value={formatPercent(metric(summary.metrics, 'match_rate'))}
-                detail={t('summaryScorableAttempts', {
-                  count: formatNumber(metric(summary.metrics, 'scorable_attempt_count')),
-                })}
-              />
-              <SummaryCard
-                icon={ListChecks}
-                title={t(summaryArtifact.coverageLabelKey)}
-                value={formatPercent(metric(summary.metrics, 'scoring_coverage'))}
-                detail={t('summaryInterruptedCount', {
-                  count: formatNumber(metric(summary.metrics, 'interrupted_attempts')),
-                })}
-              />
-            </div>
-
-            <TextCard icon={FileText} title={t('summary')}>
-              <p className="text-sm leading-6 text-muted-foreground">{summary.summary}</p>
-            </TextCard>
-
-            <TextCard icon={Music2} title={t('scoreAnnotations')}>
-              <style jsx global>{`
-                .practice-summary-score-svg .practice-summary-note-problem {
+            <div className={contentGridClassName}>
+              <div className="space-y-6">
+                <TextCard icon={Music2} title={t('scoreAnnotations')}>
+                <style jsx global>{`
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct {
+                  fill: #16a34a !important;
+                  stroke: #15803d !important;
+                  stroke-width: 2px !important;
+                  opacity: 1 !important;
+                  filter: drop-shadow(0 0 5px rgba(22, 163, 74, 0.35));
+                }
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct use,
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct path,
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct ellipse,
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct circle,
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct polygon,
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct rect,
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct line,
+                .practice-summary-score-svg .practice-summary-note-confirmed-correct polyline {
+                  fill: #16a34a !important;
+                  stroke: #15803d !important;
+                  opacity: 1 !important;
+                }
+                .practice-summary-score-svg .practice-summary-note-confirmed-error {
                   fill: #dc2626 !important;
                   stroke: #b91c1c !important;
                   stroke-width: 2px !important;
                   opacity: 1 !important;
                   filter: drop-shadow(0 0 5px rgba(220, 38, 38, 0.45));
                 }
-                .practice-summary-score-svg .practice-summary-note-problem use,
-                .practice-summary-score-svg .practice-summary-note-problem path,
-                .practice-summary-score-svg .practice-summary-note-problem ellipse,
-                .practice-summary-score-svg .practice-summary-note-problem circle,
-                .practice-summary-score-svg .practice-summary-note-problem polygon,
-                .practice-summary-score-svg .practice-summary-note-problem rect,
-                .practice-summary-score-svg .practice-summary-note-problem line,
-                .practice-summary-score-svg .practice-summary-note-problem polyline {
+                .practice-summary-score-svg .practice-summary-note-confirmed-error use,
+                .practice-summary-score-svg .practice-summary-note-confirmed-error path,
+                .practice-summary-score-svg .practice-summary-note-confirmed-error ellipse,
+                .practice-summary-score-svg .practice-summary-note-confirmed-error circle,
+                .practice-summary-score-svg .practice-summary-note-confirmed-error polygon,
+                .practice-summary-score-svg .practice-summary-note-confirmed-error rect,
+                .practice-summary-score-svg .practice-summary-note-confirmed-error line,
+                .practice-summary-score-svg .practice-summary-note-confirmed-error polyline {
                   fill: #dc2626 !important;
                   stroke: #b91c1c !important;
-                  opacity: 1 !important;
-                }
-                .practice-summary-score-svg .practice-summary-note-review {
-                  fill: #f59e0b !important;
-                  stroke: #d97706 !important;
-                  stroke-width: 2px !important;
-                  opacity: 1 !important;
-                  filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.45));
-                }
-                .practice-summary-score-svg .practice-summary-note-review use,
-                .practice-summary-score-svg .practice-summary-note-review path,
-                .practice-summary-score-svg .practice-summary-note-review ellipse,
-                .practice-summary-score-svg .practice-summary-note-review circle,
-                .practice-summary-score-svg .practice-summary-note-review polygon,
-                .practice-summary-score-svg .practice-summary-note-review rect,
-                .practice-summary-score-svg .practice-summary-note-review line,
-                .practice-summary-score-svg .practice-summary-note-review polyline {
-                  fill: #f59e0b !important;
-                  stroke: #d97706 !important;
                   opacity: 1 !important;
                 }
                 .practice-summary-score-svg .practice-summary-note-focused {
@@ -532,179 +795,236 @@ export default function PracticeSummaryPage() {
                   outline-offset: 4px;
                   filter: drop-shadow(0 0 7px rgba(37, 99, 235, 0.5));
                 }
+                .practice-summary-score-svg .practice-note-active {
+                  fill: #f97316 !important;
+                  stroke: #ea580c !important;
+                  stroke-width: 2px !important;
+                  opacity: 1 !important;
+                  filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.65));
+                }
+                .practice-summary-score-svg .practice-note-active use,
+                .practice-summary-score-svg .practice-note-active path,
+                .practice-summary-score-svg .practice-note-active ellipse,
+                .practice-summary-score-svg .practice-note-active circle,
+                .practice-summary-score-svg .practice-note-active polygon,
+                .practice-summary-score-svg .practice-note-active rect,
+                .practice-summary-score-svg .practice-note-active line,
+                .practice-summary-score-svg .practice-note-active polyline {
+                  fill: #f97316 !important;
+                  stroke: #ea580c !important;
+                  opacity: 1 !important;
+                }
                 .practice-summary-score-svg svg {
                   display: block;
                   width: 100% !important;
                   height: auto;
                 }
-              `}</style>
-              <VerovioScoreViewer
-                xmlContent={xmlContent}
-                isLoading={isLoadingScore}
-                adapterFactory={adapterFactory}
-                pageDataAttribute="data-practice-summary-page"
-                onRendered={handleScoreRendered}
-                className="max-h-[38rem] overflow-auto rounded-md border border-border bg-white"
-                pagesClassName="gap-4 p-4"
-                pageClassName="w-full overflow-hidden bg-white"
-                svgClassName="practice-summary-score-svg"
-                loadingContent={
-                  <PreviewLoading label={t('loadingSummaryScore')} className="min-h-80" />
-                }
-                emptyContent={
-                  <EmptyState title={t('scoreAnnotationsUnavailable')} className="min-h-80" />
-                }
-                errorMessage={t('scoreAnnotationsUnavailable')}
-                renderError={(message) => (
-                  <div className="flex min-h-80 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                    {message}
-                  </div>
-                )}
-              />
-              {annotationRenderNoteIds.problemNoteIds.length === 0 &&
-              annotationRenderNoteIds.reviewNoteIds.length === 0 ? (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {t('scoreAnnotationsEmpty')}
-                </p>
-              ) : null}
-            </TextCard>
-
-            <TextCard icon={Target} title={t(summaryArtifact.difficultMeasuresLabelKey)}>
-              {difficultMeasures.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t(summaryArtifact.difficultMeasuresEmptyKey)}
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {difficultMeasures.slice(0, 6).map((measure) => {
-                    return (
-                      <div
-                        key={measure.measure_number}
-                        className="rounded-md border border-border px-4 py-3"
-                      >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold">
-                            {t('measureNumber', {
-                              number: formatMeasureLabel(measure.measure_number),
-                            })}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {t(reviewReasonKey(measure))}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => focusMeasureTarget(measure.measure_number)}
-                          >
-                            <Target className="mr-2 h-3.5 w-3.5" />
-                            {t('focusMeasure')}
-                          </Button>
-                        </div>
-                      </div>
-                      <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                        <div>
-                          <dt className="text-muted-foreground">{t('mismatches')}</dt>
-                          <dd className="mt-1 font-medium">{measure.mismatch_attempt_count}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-muted-foreground">{t('partials')}</dt>
-                          <dd className="mt-1 font-medium">{measure.partial_attempt_count}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-muted-foreground">{t('attempts')}</dt>
-                          <dd className="mt-1 font-medium">{measure.attempt_count}</dd>
-                        </div>
-                      </dl>
+                `}</style>
+                <VerovioScoreViewer
+                  xmlContent={xmlContent}
+                  isLoading={isLoadingScore}
+                  adapterFactory={adapterFactory}
+                  pageDataAttribute="data-practice-summary-page"
+                  onRendered={handleScoreRendered}
+                  className="max-h-[44rem] overflow-auto rounded-md border border-border bg-white"
+                  pagesClassName="gap-4 p-4"
+                  pageClassName="w-full overflow-hidden bg-white"
+                  svgClassName="practice-summary-score-svg"
+                  loadingContent={
+                    <PreviewLoading label={t('loadingSummaryScore')} className="min-h-80" />
+                  }
+                  emptyContent={
+                    <EmptyState title={t('scoreAnnotationsUnavailable')} className="min-h-80" />
+                  }
+                  errorMessage={t('scoreAnnotationsUnavailable')}
+                  renderError={(message) => (
+                    <div className="flex min-h-80 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                      {message}
                     </div>
-                    );
-                  })}
-                </div>
-              )}
-            </TextCard>
+                  )}
+                />
+                </TextCard>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-              <TextCard icon={Music2} title={t('attempts')}>
-                {attempts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t('attemptsEmpty')}</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-sm">
-                      <thead>
-                        <tr className="border-b text-left text-xs font-medium uppercase text-muted-foreground">
-                          <th className="py-2 pr-3">{t('attempt')}</th>
-                          <th className="py-2 pr-3">{t('target')}</th>
-                          <th className="py-2 pr-3">{t('result')}</th>
-                          <th className="py-2 pr-3">{t('completionStatus')}</th>
-                          <th className="py-2 pr-3">{t('resolutionReason')}</th>
-                          <th className="py-2 text-right">{t('confidence')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {attempts.map((attempt) => (
-                          <tr key={attempt.attempt_uid} className="border-b last:border-0">
-                            <td className="py-3 pr-3">
-                              <div className="flex items-center gap-2">
-                                <AttemptStatusIcon attempt={attempt} />
-                                <span>{attempt.attempt_index}</span>
+                {summary && difficultMeasures.length > 0 ? (
+                  <TextCard icon={Target} title={t('performanceProblemMeasures')}>
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                      {difficultMeasures.slice(0, 6).map((measure) => {
+                        const missingPitches = missingPitchesForMeasure(
+                          summary,
+                          measure.measure_number
+                        );
+                        const unexpectedPitches = unexpectedPitchesForMeasure(
+                          summary,
+                          measure.measure_number
+                        );
+                        return (
+                          <div
+                            key={measure.measure_number}
+                            className="rounded-md border border-border px-4 py-3"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold">
+                                  {t('measureNumber', {
+                                    number: formatMeasureLabel(measure.measure_number),
+                                  })}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {t(reviewReasonKey(measure))}
+                                </p>
                               </div>
-                            </td>
-                            <td className="py-3 pr-3 text-muted-foreground">
-                              {formatAttemptNotes(attempt)}
-                            </td>
-                            <td className="py-3 pr-3">{t(`attemptResult.${attempt.result}`)}</td>
-                            <td className="py-3 pr-3">
-                              {t(`attemptCompletion.${attempt.completion_status}`)}
-                            </td>
-                            <td className="py-3 pr-3 text-muted-foreground">
-                              {t(`resolutionReasonValue.${attempt.resolution_reason}`)}
-                            </td>
-                            <td className="py-3 text-right">
-                              {formatPercent(attempt.confidence)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </TextCard>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => focusMeasureTarget(measure.measure_number)}
+                              >
+                                <Target className="mr-2 h-3.5 w-3.5" />
+                                {t('focusMeasure')}
+                              </Button>
+                            </div>
+                            <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                              <div>
+                                <dt className="text-muted-foreground">{t('mismatches')}</dt>
+                                <dd className="mt-1 font-medium">
+                                  {measure.mismatch_attempt_count}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-muted-foreground">{t('partials')}</dt>
+                                <dd className="mt-1 font-medium">
+                                  {measure.partial_attempt_count}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-muted-foreground">{t('attempts')}</dt>
+                                <dd className="mt-1 font-medium">{measure.attempt_count}</dd>
+                              </div>
+                            </dl>
+                            {missingPitches.length > 0 ? (
+                              <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+                                <span className="font-medium text-red-900">
+                                  {t('missingPitchesLabel')}
+                                </span>{' '}
+                                {formatPitchCounts(missingPitches)}
+                              </p>
+                            ) : null}
+                            {unexpectedPitches.length > 0 ? (
+                              <p className="mt-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                                <span className="font-medium text-foreground">
+                                  {t('unexpectedPitchesLabel')}
+                                </span>{' '}
+                                {formatPitchCounts(unexpectedPitches)}
+                              </p>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </TextCard>
+                ) : null}
+              </div>
 
-              <TextCard icon={Lightbulb} title={t('recommendations')}>
-                {summary.recommendations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t(summaryArtifact.recommendationsEmptyKey)}
-                  </p>
-                ) : (
-                  <ul className="space-y-3 text-sm leading-6 text-muted-foreground">
-                    {summary.recommendations.map((recommendation) => (
-                      <li key={recommendation}>{recommendation}</li>
-                    ))}
-                  </ul>
-                )}
-              </TextCard>
+              {hasSidebar ? (
+              <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+                {performanceReplay ? (
+                  <TextCard icon={Music2} title={t('playback')}>
+                    <PerformanceReplayPlayer
+                      replay={performanceReplay}
+                      autoStart={Boolean(savedPerformanceReplay && autoStartSavedReplay)}
+                      onReplayTimeChange={handleReplayTimeChange}
+                      actions={
+                        <div className="flex flex-wrap items-center gap-2">
+                          {!savedReplayArtifact && canSaveReplay ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-10"
+                              onClick={handleSaveReplay}
+                              disabled={isSavingReplay}
+                            >
+                              {isSavingReplay ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="mr-2 h-4 w-4" />
+                              )}
+                              {t('savePerformance')}
+                            </Button>
+                          ) : null}
+                        </div>
+                      }
+                    />
+                  </TextCard>
+                ) : savedReplayArtifact ? (
+                  <TextCard icon={Music2} title={t('playback')}>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-sm tabular-nums text-slate-600">
+                        <span>0:00</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={Math.max(0, Math.round(savedReplayArtifact.duration_ms))}
+                          step={50}
+                          value={0}
+                          readOnly
+                          className="h-2 w-full accent-orange-500"
+                          aria-label={t('replaySeek')}
+                          disabled
+                        />
+                        <span>{formatReplayTimeLabel(savedReplayArtifact.duration_ms)}</span>
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-10 w-24"
+                          onClick={handlePlaySavedReplay}
+                          disabled={isLoadingSavedReplay}
+                        >
+                          {isLoadingSavedReplay ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Play className="mr-2 h-4 w-4" />
+                          )}
+                          {t('playReplay')}
+                        </Button>
+                      </div>
+                      {savedReplayPlaybackFailed ? (
+                        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                          {t('savedReplayPlaybackFailed')}
+                        </p>
+                      ) : null}
+                    </div>
+                  </TextCard>
+                ) : null}
+
+                {hasSummaryCard ? (
+                  <TextCard icon={FileText} title={t('summary')}>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 gap-3">
+                        {facts.map((fact) => (
+                          <EvidenceMetric
+                            key={fact.titleKey}
+                            icon={fact.icon}
+                            title={t(fact.titleKey)}
+                            value={fact.value ?? 'n/a'}
+                            detail={
+                              fact.detailKey
+                                ? t(fact.detailKey, fact.detailValues)
+                                : undefined
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </TextCard>
+                ) : null}
+              </aside>
+              ) : null}
             </div>
 
-            <TextCard icon={ListChecks} title={t('metrics')}>
-              <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  'attempt_count',
-                  'scorable_attempt_count',
-                  'target_count',
-                  'scorable_target_count',
-                  'scorable_target_completion_rate',
-                  'scoring_policy_version',
-                ].map((key) => (
-                  <div key={key} className="rounded-md border border-border px-3 py-2">
-                    <dt className="text-xs text-muted-foreground">{key}</dt>
-                    <dd className="mt-1 font-medium">{formatNumber(metric(summary.metrics, key))}</dd>
-                  </div>
-                ))}
-              </dl>
-            </TextCard>
           </div>
         )}
       </div>

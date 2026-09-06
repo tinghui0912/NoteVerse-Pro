@@ -53,6 +53,7 @@
   "file_read_failed": "The file could not be read. Please try again later.",
   "file_error": "The file operation failed. Please try again.",
   "file_save_failed": "The file could not be saved. Please try again.",
+  "direct_upload_failed": "This performance could not be saved right now. Please try again later.",
   "file_copy_failed": "The file could not be copied. Please try again.",
   "file_delete_failed": "The file could not be deleted. Please try again.",
   "no_file_selected": "Please select a file first.",

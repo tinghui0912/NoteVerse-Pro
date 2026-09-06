@@ -6,10 +6,13 @@ from app.db.models.practice import (
     PracticeEvaluationProfile,
     PracticeInputSource,
     PracticeProgressionMode,
+    PracticeReplayArtifactKind,
     PracticeRealtimeGuidance,
+    PracticeSessionCompletionReason,
     PracticeSessionSummaryStatus,
     PracticeSessionState,
 )
+from app.modules.practice.session_config import PracticeSessionPreset
 from app.db.models.score_access import AccessOrigin
 
 
@@ -48,12 +51,10 @@ class PracticeReadyScoreContentRead(BaseModel):
 class CreatePracticeSessionRequest(BaseModel):
     score_id: str = Field(..., min_length=1)
     revision_id: str | None = None
+    preset: PracticeSessionPreset = PracticeSessionPreset.STEP_BY_STEP
     sample_rate: int = Field(default=16000, ge=1)
     channels: int = Field(default=1, ge=1)
     frame_format: str = Field(default="pcm_s16le", min_length=1)
-    progression_mode: PracticeProgressionMode = PracticeProgressionMode.CONTINUOUS
-    realtime_guidance: PracticeRealtimeGuidance = PracticeRealtimeGuidance.STATUS_ONLY
-    evaluation_profile: PracticeEvaluationProfile = PracticeEvaluationProfile.PERFORMANCE
     input_source: PracticeInputSource = PracticeInputSource.MICROPHONE
     practice_scope: PracticeSessionScope | None = None
 
@@ -81,8 +82,29 @@ class PracticeSessionCompletionOutcomeRead(BaseModel):
     kind: PracticeSessionOutcomeKind
     scope_kind: PracticeSessionScopeKind
     summary_artifact_kind: PracticeSessionSummaryArtifactKind
+    completion_reason: PracticeSessionCompletionReason
     playback_expected: bool
     summary_available: bool
+
+
+class PracticePerformanceReportAvailabilityRead(BaseModel):
+    saved_replay_available: bool
+    evaluation_available: bool
+
+
+class SavedPracticePerformanceRead(BaseModel):
+    session_id: str
+    revision_id: str
+    artifact_id: str
+    kind: PracticeReplayArtifactKind
+    input_source: PracticeInputSource
+    practice_scope: PracticeSessionScope | None = None
+    started_at: str | None
+    finished_at: str
+    completion_reason: PracticeSessionCompletionReason
+    replay_duration_ms: int
+    saved_at: str
+    evaluation_available: bool
 
 
 class PracticeSessionDetailRead(BaseModel):
@@ -91,6 +113,7 @@ class PracticeSessionDetailRead(BaseModel):
     revision_id: str
     access_origin: AccessOrigin
     state: PracticeSessionState
+    preset: PracticeSessionPreset
     progression_mode: PracticeProgressionMode
     realtime_guidance: PracticeRealtimeGuidance
     evaluation_profile: PracticeEvaluationProfile
@@ -105,6 +128,7 @@ class PracticeSessionDetailRead(BaseModel):
     last_confidence: float | None
     summary_status: PracticeSessionSummaryStatus
     completion_outcome: PracticeSessionCompletionOutcomeRead | None
+    performance_report_availability: PracticePerformanceReportAvailabilityRead | None = None
 
 
 class PracticeSessionSummaryAttemptRead(BaseModel):
@@ -134,6 +158,10 @@ class PracticeSessionSummaryTargetRead(BaseModel):
     expected_group_id: str
     measure_numbers: list[str] = Field(default_factory=list)
     render_note_ids: list[str] = Field(default_factory=list)
+    confirmed_correct_render_note_ids: list[str] = Field(default_factory=list)
+    confirmed_error_render_note_ids: list[str] = Field(default_factory=list)
+    missing_pitches: list[str] = Field(default_factory=list)
+    unexpected_pitches: list[str] = Field(default_factory=list)
     attempt_count: int
     scorable_attempt_count: int
     interrupted_attempt_count: int
@@ -169,7 +197,78 @@ class PracticeSessionSummaryPayloadRead(BaseModel):
     difficult_measures: list[PracticeSessionSummaryMeasureRead] = Field(default_factory=list)
 
 
+class PracticePerformanceTimelineSegmentRead(BaseModel):
+    start_performance_time_ms: float = Field(ge=0.0)
+    end_performance_time_ms: float = Field(ge=0.0)
+    start_beat: float
+    end_beat: float
+
+
+class PracticePerformanceTimelineRead(BaseModel):
+    scope_start_beat: float
+    scope_terminal_beat: float
+    segments: list[PracticePerformanceTimelineSegmentRead] = Field(default_factory=list)
+
+
 class PracticeSessionResultSummaryRead(BaseModel):
     session_id: str
     summary_status: PracticeSessionSummaryStatus
     summary_payload: PracticeSessionSummaryPayloadRead | None
+    performance_timeline: PracticePerformanceTimelineRead | None = None
+
+
+class PracticeReplayUploadAuthorizationRequest(BaseModel):
+    kind: PracticeReplayArtifactKind
+    content_type: str
+    byte_size: int
+    checksum_sha256: str
+    duration_ms: int
+    timebase_version: int
+    format_version: int
+
+
+class PracticeReplayUploadAuthorizationRead(BaseModel):
+    artifact_id: str
+    upload_url: str
+    upload_method: str
+    upload_headers: dict[str, str]
+    kind: PracticeReplayArtifactKind
+    content_type: str
+    byte_size: int
+    checksum_sha256: str
+    duration_ms: int
+    timebase_version: int
+    format_version: int
+
+
+class PracticeReplayFinalizeRequest(BaseModel):
+    artifact_id: str
+    kind: PracticeReplayArtifactKind
+    content_type: str
+    byte_size: int
+    checksum_sha256: str
+    duration_ms: int
+    timebase_version: int
+    format_version: int
+
+
+class SavedPracticeReplayArtifactRead(BaseModel):
+    artifact_id: str
+    session_id: str
+    kind: PracticeReplayArtifactKind
+    input_source: PracticeInputSource
+    content_type: str
+    byte_size: int
+    checksum_sha256: str
+    duration_ms: int
+    timebase_version: int
+    format_version: int
+    created_at: str
+
+
+class SavedPracticeReplayPlaybackRead(BaseModel):
+    artifact_id: str
+    playback_url: str
+    kind: PracticeReplayArtifactKind
+    content_type: str
+    duration_ms: int

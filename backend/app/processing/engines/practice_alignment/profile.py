@@ -7,6 +7,8 @@ that a tuning change is reviewed and replay-tested with the code that uses it.
 
 from dataclasses import dataclass
 
+PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID = "practice-alignment-v1"
+
 
 @dataclass(frozen=True)
 class PracticeAudioProfile:

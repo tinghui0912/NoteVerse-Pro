@@ -10,7 +10,7 @@ from app.processing.engines.practice_alignment.score_timeline import ExpectedPra
 
 EvaluationResult = Literal["MATCH", "PARTIAL", "MISMATCH", "UNCERTAIN"]
 ObservationSource = Literal["AUDIO", "MIDI", "SYNTHETIC"]
-ProgressionAction = Literal["ADVANCE", "HOLD", "RELOCALIZE", "WAIT"]
+ProgressionAction = Literal["ADVANCE", "HOLD", "WAIT"]
 
 
 @dataclass(frozen=True)

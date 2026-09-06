@@ -118,21 +118,6 @@ export function PracticeControls({
 
       <TooltipProvider>
         <div className="flex flex-wrap items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-11 w-11 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-950"
-                onClick={onOpenSettings}
-                aria-label={t('settingsTitle')}
-              >
-                <Settings className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('settingsTitle')}</TooltipContent>
-          </Tooltip>
           <PracticeToolPlaceholder icon={Timer} label={t('toolMetronome')} unavailableLabel={t('toolUnavailable')} />
           <Button
             type="button"
@@ -150,6 +135,20 @@ export function PracticeControls({
             {t('rangeSelectionStart')}
           </Button>
           <PracticeToolPlaceholder icon={Hand} label={t('toolHands')} unavailableLabel={t('toolUnavailable')} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 gap-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                onClick={onOpenSettings}
+              >
+                <Settings className="h-4 w-4" aria-hidden="true" />
+                {t('settingsButton')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('settingsTitle')}</TooltipContent>
+          </Tooltip>
         </div>
       </TooltipProvider>
     </div>

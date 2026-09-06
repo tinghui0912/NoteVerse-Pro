@@ -49,6 +49,12 @@ class FakePracticeService:
             "revision_id": "revision-1",
             "access_origin": "OWNER",
             "state": "FINISHED",
+            "preset": "STEP_BY_STEP",
+            "progression_mode": "WAIT_FOR_NOTE",
+            "realtime_guidance": "GUIDED",
+            "evaluation_profile": "LEARNING",
+            "input_source": "MICROPHONE",
+            "practice_scope": None,
             "sample_rate": 16000,
             "channels": 1,
             "frame_format": "pcm_s16le",
@@ -57,6 +63,14 @@ class FakePracticeService:
             "last_beat_position": 15.5,
             "last_confidence": 0.91,
             "summary_status": "READY",
+            "completion_outcome": {
+                "kind": "FULL_PIECE_LEARNING",
+                "scope_kind": "FULL_PIECE",
+                "summary_artifact_kind": "LEARNING_SUMMARY",
+                "completion_reason": "SCOPE_COMPLETED",
+                "playback_expected": True,
+                "summary_available": True,
+            },
         }
 
     async def get_summary(
@@ -92,6 +106,31 @@ class FakePracticeService:
             "mime_type": "application/vnd.recordare.musicxml+xml",
         }
 
+    async def list_saved_performances(
+        self,
+        db,
+        score_uuid: str,
+        user_id: int,
+        *,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        return [
+            {
+                "session_id": "session-1",
+                "revision_id": "revision-1",
+                "artifact_id": "artifact-1",
+                "kind": "AUDIO_RECORDING",
+                "input_source": "MICROPHONE",
+                "practice_scope": None,
+                "started_at": "2026-09-05T10:00:00",
+                "finished_at": "2026-09-05T10:01:00",
+                "completion_reason": "STOPPED_BY_USER",
+                "replay_duration_ms": 60000,
+                "saved_at": "2026-09-05T10:02:00",
+                "evaluation_available": False,
+            }
+        ]
+
 
 @pytest.fixture(autouse=True)
 def clear_dependency_overrides():
@@ -114,6 +153,7 @@ def test_practice_feature_routes_require_authentication(client: TestClient) -> N
         ("post", "/api/v1/practice/sessions/session-1/resume", None),
         ("post", "/api/v1/practice/sessions/session-1/finish", None),
         ("get", "/api/v1/practice/sessions/session-1/summary", None),
+        ("get", "/api/v1/practice/scores/score-1/saved-performances", None),
         ("get", "/api/v1/practice/scores/score-1/revisions/revision-1/content", None),
     ]
 
@@ -169,6 +209,22 @@ def test_get_practice_ready_score_content_returns_prepared_musicxml(client: Test
     assert 'id="nv-p1-m1-note1"' in payload["data"]["content"]
 
 
+def test_list_saved_practice_performances_returns_saved_entries(
+    client: TestClient,
+) -> None:
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
+    app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
+
+    response = client.get("/api/v1/practice/scores/score-1/saved-performances")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"][0]["session_id"] == "session-1"
+    assert payload["data"][0]["artifact_id"] == "artifact-1"
+    assert payload["data"][0]["replay_duration_ms"] == 60000
+
+
 def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
     schema = app.openapi()
     components = schema["components"]["schemas"]
@@ -184,6 +240,9 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
     }
 
     expected_required_fields = {
+        "CreatePracticeSessionRequest": {
+            "score_id",
+        },
         "PracticeSessionStartRead": {"session_id", "state", "ws_url"},
         "PracticeSessionDetailRead": {
             "session_id",
@@ -191,6 +250,7 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
             "revision_id",
             "access_origin",
             "state",
+            "preset",
             "progression_mode",
             "realtime_guidance",
             "evaluation_profile",
@@ -205,7 +265,30 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
             "summary_status",
             "completion_outcome",
         },
+        "SavedPracticePerformanceRead": {
+            "session_id",
+            "revision_id",
+            "artifact_id",
+            "kind",
+            "input_source",
+            "started_at",
+            "finished_at",
+            "completion_reason",
+            "replay_duration_ms",
+            "saved_at",
+            "evaluation_available",
+        },
+        "PracticePerformanceReportAvailabilityRead": {
+            "saved_replay_available",
+            "evaluation_available",
+        },
         "PracticeSessionResultSummaryRead": {"session_id", "summary_status", "summary_payload"},
     }
     for schema_name, fields in expected_required_fields.items():
         assert fields.issubset(components[schema_name]["required"])
+
+    create_properties = components["CreatePracticeSessionRequest"]["properties"]
+    assert "preset" in create_properties
+    assert "progression_mode" not in create_properties
+    assert "realtime_guidance" not in create_properties
+    assert "evaluation_profile" not in create_properties

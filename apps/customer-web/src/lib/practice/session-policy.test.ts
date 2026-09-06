@@ -1,30 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { practicePolicyForPreset } from './session-policy';
+import { practiceSessionIntent } from './session-policy';
 
-describe('practicePolicyForPreset', () => {
-  it('maps step-by-step practice to the Wait For Note learning preset', () => {
-    expect(practicePolicyForPreset('STEP_BY_STEP')).toEqual({
-      progression_mode: 'WAIT_FOR_NOTE',
-      realtime_guidance: 'GUIDED',
-      evaluation_profile: 'LEARNING',
+describe('practiceSessionIntent', () => {
+  it('expresses step-by-step practice as product intent', () => {
+    expect(practiceSessionIntent()).toEqual({
+      preset: 'STEP_BY_STEP',
       input_source: 'MICROPHONE',
     });
   });
 
-  it('maps step-by-step MIDI practice to the Wait For Note learning preset', () => {
-    expect(practicePolicyForPreset('STEP_BY_STEP', 'MIDI')).toEqual({
-      progression_mode: 'WAIT_FOR_NOTE',
-      realtime_guidance: 'GUIDED',
-      evaluation_profile: 'LEARNING',
+  it('keeps input source as the only client-selected runtime axis', () => {
+    expect(practiceSessionIntent('STEP_BY_STEP', 'MIDI')).toEqual({
+      preset: 'STEP_BY_STEP',
       input_source: 'MIDI',
     });
   });
 
-  it('maps continuous performance to continuous status-only performance', () => {
-    expect(practicePolicyForPreset('CONTINUOUS_PLAY')).toEqual({
-      progression_mode: 'CONTINUOUS',
-      realtime_guidance: 'STATUS_ONLY',
-      evaluation_profile: 'PERFORMANCE',
+  it('expresses continuous play without exposing internal runtime axes', () => {
+    expect(practiceSessionIntent('CONTINUOUS_PLAY', 'MICROPHONE')).toEqual({
+      preset: 'CONTINUOUS_PLAY',
       input_source: 'MICROPHONE',
     });
   });

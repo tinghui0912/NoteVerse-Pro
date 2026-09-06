@@ -30,6 +30,7 @@ from app.db.models.practice import (
     PracticeInputSource,
     PracticeProgressionMode,
     PracticeRealtimeGuidance,
+    PracticeSessionCompletionReason,
     PracticeSessionSummaryStatus,
     PracticeSessionState,
 )
@@ -38,6 +39,10 @@ from app.db.models.import_job import ImportJobState
 from app.modules.files.service import FilesService
 from app.modules.practice.read_model import PracticeReadModel
 from app.modules.practice.service import PracticeService
+from app.processing.performance.evidence import (
+    PerformanceObservation,
+    PerformanceObservationSource,
+)
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.profile_service import ProfileService
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
@@ -747,9 +752,9 @@ async def test_practice_service_create_session_pins_share_revision_without_stori
     created_session = repository.create_session.await_args.args[1]
     assert created_session.revision_id == 201
     assert created_session.share_grant_id == 301
-    assert created_session.progression_mode == PracticeProgressionMode.CONTINUOUS
-    assert created_session.realtime_guidance == PracticeRealtimeGuidance.STATUS_ONLY
-    assert created_session.evaluation_profile == PracticeEvaluationProfile.PERFORMANCE
+    assert created_session.progression_mode == PracticeProgressionMode.WAIT_FOR_NOTE
+    assert created_session.realtime_guidance == PracticeRealtimeGuidance.GUIDED
+    assert created_session.evaluation_profile == PracticeEvaluationProfile.LEARNING
     assert created_session.input_source == PracticeInputSource.MICROPHONE
 
 
@@ -763,9 +768,9 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
         revision_id=301,
         access_origin=AccessOrigin.OWNER,
         state=PracticeSessionState.CREATED,
-        progression_mode=PracticeProgressionMode.CONTINUOUS,
-        realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
-        evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
+        progression_mode=PracticeProgressionMode.WAIT_FOR_NOTE,
+        realtime_guidance=PracticeRealtimeGuidance.GUIDED,
+        evaluation_profile=PracticeEvaluationProfile.LEARNING,
         input_source=PracticeInputSource.MICROPHONE,
         sample_rate=16000,
         channels=1,
@@ -778,6 +783,7 @@ async def test_practice_service_pause_resume_and_finish_follow_valid_transitions
         finished_at=None,
         last_beat_position=None,
         last_confidence=None,
+        completion_reason=None,
         summary_status=PracticeSessionSummaryStatus.NOT_REQUESTED,
         summary_payload=None,
     )
@@ -882,6 +888,7 @@ async def test_practice_service_finish_session_persists_structured_summary_paylo
         finished_at=None,
         last_beat_position=18.5,
         last_confidence=0.88,
+        completion_reason=None,
         summary_status=PracticeSessionSummaryStatus.NOT_REQUESTED,
         summary_payload=None,
         error=None,
@@ -964,6 +971,7 @@ async def test_practice_service_finish_session_persists_structured_summary_paylo
     db = AsyncMock()
 
     await service.finish_session(db, "session-1", user_id=1)
+    await service.build_summary_for_finished_session(db, "session-1", user_id=1)
     result = PracticeReadModel().to_session_summary_result(session)
 
     assert result.summary_status == PracticeSessionSummaryStatus.READY
@@ -1042,6 +1050,7 @@ async def test_practice_service_finish_session_marks_midi_as_strict_evidence() -
         finished_at=None,
         last_beat_position=18.5,
         last_confidence=1.0,
+        completion_reason=None,
         summary_status=PracticeSessionSummaryStatus.NOT_REQUESTED,
         summary_payload=None,
         error=None,
@@ -1049,6 +1058,7 @@ async def test_practice_service_finish_session_marks_midi_as_strict_evidence() -
     repository.get_session_by_uuid = AsyncMock(return_value=session)
     repository.save_session = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
     repository.list_attempts_for_session = AsyncMock(return_value=[])
+    repository.has_replay_artifact_for_session = AsyncMock(return_value=False)
     library_service = Mock()
     library_service.mark_practiced = AsyncMock()
     read_model = Mock()
@@ -1061,6 +1071,7 @@ async def test_practice_service_finish_session_marks_midi_as_strict_evidence() -
     db = AsyncMock()
 
     await service.finish_session(db, "session-1", user_id=1)
+    await service.build_summary_for_finished_session(db, "session-1", user_id=1)
     result = PracticeReadModel().to_session_summary_result(session)
 
     assert result.summary_payload is not None
@@ -1071,11 +1082,99 @@ async def test_practice_service_finish_session_marks_midi_as_strict_evidence() -
 
 
 @pytest.mark.asyncio
+async def test_practice_service_finish_performance_session_builds_conservative_summary() -> None:
+    repository = Mock()
+    started_at = utc_now_naive() - timedelta(seconds=1)
+    session = SimpleNamespace(
+        id=1,
+        session_uuid="session-1",
+        user_id=1,
+        score_id=11,
+        state=PracticeSessionState.STREAMING,
+        access_origin=AccessOrigin.OWNER,
+        progression_mode=PracticeProgressionMode.CONTINUOUS,
+        realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
+        evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
+        input_source=PracticeInputSource.MICROPHONE,
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+        scope_start_expected_group_id=None,
+        scope_end_expected_group_id=None,
+        scope_start_measure_number=None,
+        scope_end_measure_number=None,
+        started_at=started_at,
+        finished_at=None,
+        last_beat_position=None,
+        last_confidence=None,
+        completion_reason=None,
+        summary_status=PracticeSessionSummaryStatus.NOT_REQUESTED,
+        summary_payload=None,
+        error=None,
+    )
+    repository.get_session_by_uuid = AsyncMock(return_value=session)
+    repository.save_session = AsyncMock(side_effect=lambda _db, saved_session: saved_session)
+    repository.list_attempts_for_session = AsyncMock(return_value=[])
+    repository.has_replay_artifact_for_session = AsyncMock(return_value=False)
+    library_service = Mock()
+    library_service.mark_practiced = AsyncMock()
+    read_model = Mock()
+    read_model.to_session_detail = AsyncMock(return_value=SimpleNamespace(state=session.state))
+    service = PracticeService(
+        repository=repository,
+        library_service=library_service,
+        read_model=read_model,
+    )
+    db = AsyncMock()
+
+    await service.finish_session(
+        db,
+        "session-1",
+        user_id=1,
+        completion_reason=PracticeSessionCompletionReason.SCOPE_COMPLETED,
+    )
+    await service.build_summary_for_finished_session(
+        db,
+        "session-1",
+        user_id=1,
+        performance_observations=(
+            PerformanceObservation(
+                source=PerformanceObservationSource.MICROPHONE,
+                session_time_ms=0,
+                performance_time_ms=0.0,
+                duration_ms=500,
+                active=True,
+                analyzable=True,
+                confidence=0.9,
+            ),
+        ),
+    )
+    result = PracticeReadModel().to_session_summary_result(session)
+
+    assert result.summary_status == PracticeSessionSummaryStatus.READY
+    assert result.summary_payload is not None
+    assert result.summary_payload.metrics["evaluation_profile"] == "PERFORMANCE"
+    assert result.summary_payload.metrics["completion_reason"] == "SCOPE_COMPLETED"
+    assert result.summary_payload.metrics["scope_kind"] == "FULL_PIECE"
+    assert result.summary_payload.metrics["input_source"] == "MICROPHONE"
+    assert result.summary_payload.metrics["analyzable_coverage"] is not None
+    assert result.summary_payload.metrics["analyzable_coverage"] > 0.0
+    assert result.summary_payload.metrics["confident_coverage"] is not None
+    assert result.summary_payload.metrics["confident_coverage"] > 0.0
+    assert result.summary_payload.attempts == []
+    assert result.summary_payload.targets == []
+    assert result.summary_payload.difficult_measures == []
+    assert any("weak input evidence" in item for item in result.summary_payload.recommendations)
+
+
+@pytest.mark.asyncio
 async def test_practice_service_get_summary_parses_existing_payload() -> None:
     repository = Mock()
     session = SimpleNamespace(
         session_uuid="session-1",
         user_id=1,
+        state=PracticeSessionState.FINISHED,
+        evaluation_profile=PracticeEvaluationProfile.LEARNING,
         summary_status=PracticeSessionSummaryStatus.READY,
         summary_payload='{"summary":"done","metrics":{"state":"FINISHED"},"recommendations":["keep going"]}',
     )

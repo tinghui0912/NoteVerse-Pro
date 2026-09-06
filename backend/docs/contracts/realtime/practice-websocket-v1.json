@@ -318,7 +318,6 @@
             "enum": [
               "advance",
               "hold",
-              "relocalize",
               "wait"
             ],
             "title": "Action",
@@ -746,6 +745,309 @@
         "title": "InputHealthPayload",
         "type": "object"
       },
+      "PerformanceClockSyncMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.clock_sync",
+            "default": "performance.clock_sync",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceClockSyncMessage",
+        "type": "object"
+      },
+      "PerformanceClockSyncPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "count_in_remaining_ms": {
+            "minimum": 0.0,
+            "title": "Count In Remaining Ms",
+            "type": "number"
+          },
+          "count_in_remaining_pulses": {
+            "minimum": 0.0,
+            "title": "Count In Remaining Pulses",
+            "type": "number"
+          },
+          "musical_beat": {
+            "title": "Musical Beat",
+            "type": "number"
+          },
+          "nominal_scope_duration_ms": {
+            "minimum": 0.0,
+            "title": "Nominal Scope Duration Ms",
+            "type": "number"
+          },
+          "performance_time_ms": {
+            "minimum": 0.0,
+            "title": "Performance Time Ms",
+            "type": "number"
+          },
+          "scope_completed": {
+            "title": "Scope Completed",
+            "type": "boolean"
+          },
+          "scope_end_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope End Group Id"
+          },
+          "scope_start_beat": {
+            "title": "Scope Start Beat",
+            "type": "number"
+          },
+          "scope_start_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope Start Group Id"
+          },
+          "scope_terminal_beat": {
+            "title": "Scope Terminal Beat",
+            "type": "number"
+          },
+          "speed_ratio": {
+            "exclusiveMinimum": 0.0,
+            "title": "Speed Ratio",
+            "type": "number"
+          },
+          "state": {
+            "enum": [
+              "READY",
+              "COUNT_IN",
+              "RUNNING",
+              "PAUSED",
+              "ENDED"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "musical_beat",
+          "performance_time_ms",
+          "count_in_remaining_ms",
+          "count_in_remaining_pulses",
+          "scope_completed",
+          "scope_start_beat",
+          "scope_terminal_beat",
+          "nominal_scope_duration_ms",
+          "speed_ratio"
+        ],
+        "title": "PerformanceClockSyncPayload",
+        "type": "object"
+      },
+      "PerformanceEndedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.ended",
+            "default": "performance.ended",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceEndedMessage",
+        "type": "object"
+      },
+      "PerformancePausedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.paused",
+            "default": "performance.paused",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformancePausedMessage",
+        "type": "object"
+      },
+      "PerformanceResumedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.resumed",
+            "default": "performance.resumed",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceResumedMessage",
+        "type": "object"
+      },
+      "PerformanceStartedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.started",
+            "default": "performance.started",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceStartedMessage",
+        "type": "object"
+      },
+      "PerformanceTimelineMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceTimelineProjectionPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.timeline",
+            "default": "performance.timeline",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceTimelineMessage",
+        "type": "object"
+      },
+      "PerformanceTimelineProjectionPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "scope_start_beat": {
+            "title": "Scope Start Beat",
+            "type": "number"
+          },
+          "scope_terminal_beat": {
+            "title": "Scope Terminal Beat",
+            "type": "number"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/$defs/PerformanceTimelineProjectionSegmentPayload"
+            },
+            "title": "Segments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scope_start_beat",
+          "scope_terminal_beat",
+          "segments"
+        ],
+        "title": "PerformanceTimelineProjectionPayload",
+        "type": "object"
+      },
+      "PerformanceTimelineProjectionSegmentPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "end_beat": {
+            "title": "End Beat",
+            "type": "number"
+          },
+          "end_performance_time_ms": {
+            "minimum": 0.0,
+            "title": "End Performance Time Ms",
+            "type": "number"
+          },
+          "start_beat": {
+            "title": "Start Beat",
+            "type": "number"
+          },
+          "start_performance_time_ms": {
+            "minimum": 0.0,
+            "title": "Start Performance Time Ms",
+            "type": "number"
+          }
+        },
+        "required": [
+          "start_performance_time_ms",
+          "end_performance_time_ms",
+          "start_beat",
+          "end_beat"
+        ],
+        "title": "PerformanceTimelineProjectionSegmentPayload",
+        "type": "object"
+      },
       "PracticeConfidenceSummaryPayload": {
         "additionalProperties": false,
         "properties": {
@@ -877,6 +1179,14 @@
       "SessionCompletionOutcomePayload": {
         "additionalProperties": false,
         "properties": {
+          "completion_reason": {
+            "enum": [
+              "SCOPE_COMPLETED",
+              "STOPPED_BY_USER"
+            ],
+            "title": "Completion Reason",
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "FULL_PIECE_LEARNING",
@@ -916,6 +1226,7 @@
           "kind",
           "scope_kind",
           "summary_artifact_kind",
+          "completion_reason",
           "playback_expected",
           "summary_available"
         ],
@@ -1142,6 +1453,12 @@
     "discriminator": {
       "mapping": {
         "alignment.update": "#/$defs/AlignmentUpdateMessage",
+        "performance.clock_sync": "#/$defs/PerformanceClockSyncMessage",
+        "performance.ended": "#/$defs/PerformanceEndedMessage",
+        "performance.paused": "#/$defs/PerformancePausedMessage",
+        "performance.resumed": "#/$defs/PerformanceResumedMessage",
+        "performance.started": "#/$defs/PerformanceStartedMessage",
+        "performance.timeline": "#/$defs/PerformanceTimelineMessage",
         "session.armed": "#/$defs/SessionArmedMessage",
         "session.connecting": "#/$defs/SessionConnectingMessage",
         "session.error": "#/$defs/SessionErrorMessage",
@@ -1172,6 +1489,24 @@
       },
       {
         "$ref": "#/$defs/AlignmentUpdateMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceTimelineMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceClockSyncMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceStartedMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformancePausedMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceResumedMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceEndedMessage"
       }
     ]
   },

@@ -9,11 +9,12 @@ const completionOutcome = z.object({
   kind: z.enum(['FULL_PIECE_LEARNING', 'FULL_PIECE_PERFORMANCE', 'SELECTED_SECTION']),
   scope_kind: z.enum(['FULL_PIECE', 'SELECTED_RANGE']),
   summary_artifact_kind: z.enum(['LEARNING_SUMMARY', 'PERFORMANCE_SUMMARY', 'SECTION_SUMMARY']),
+  completion_reason: z.enum(['SCOPE_COMPLETED', 'STOPPED_BY_USER']),
   playback_expected: z.boolean(),
   summary_available: z.boolean(),
 }).strict();
 const alignmentDecision = z.object({
-  action: z.enum(['advance', 'hold', 'relocalize', 'wait']),
+  action: z.enum(['advance', 'hold', 'wait']),
   reason: z.enum([
     'stable_match',
     'partial_match',
@@ -68,6 +69,32 @@ const inputHealth = z.object({
   confidence: z.number().min(0).max(1),
 }).strict();
 
+const performanceClockSync = z.object({
+  state: z.enum(['READY', 'COUNT_IN', 'RUNNING', 'PAUSED', 'ENDED']),
+  musical_beat: z.number(),
+  performance_time_ms: z.number().nonnegative(),
+  count_in_remaining_ms: z.number().nonnegative(),
+  count_in_remaining_pulses: z.number().nonnegative(),
+  scope_completed: z.boolean(),
+  scope_start_group_id: z.string().min(1).nullable(),
+  scope_end_group_id: z.string().min(1).nullable(),
+  scope_start_beat: z.number(),
+  scope_terminal_beat: z.number(),
+  nominal_scope_duration_ms: z.number().nonnegative(),
+  speed_ratio: z.number().positive(),
+}).strict();
+
+const performanceTimelineProjection = z.object({
+  scope_start_beat: z.number(),
+  scope_terminal_beat: z.number(),
+  segments: z.array(z.object({
+    start_performance_time_ms: z.number().nonnegative(),
+    end_performance_time_ms: z.number().nonnegative(),
+    start_beat: z.number(),
+    end_beat: z.number(),
+  }).strict()),
+}).strict();
+
 export const practiceServerMessageSchema = z.discriminatedUnion('type', [
   envelope.extend({ type: z.literal('session.connecting'), payload: z.object({ session_id: z.string().min(1) }).strict() }),
   envelope.extend({ type: z.literal('session.ready'), payload: z.object({ session_id: z.string().min(1), state: practiceSessionState }).strict() }),
@@ -103,10 +130,20 @@ export const practiceServerMessageSchema = z.discriminatedUnion('type', [
       input_weight: z.number(), input_policy_confidence: z.number(), decision: alignmentDecision,
     }).strict(),
   }),
+  envelope.extend({ type: z.literal('performance.timeline'), payload: performanceTimelineProjection }),
+  envelope.extend({ type: z.literal('performance.clock_sync'), payload: performanceClockSync }),
+  envelope.extend({ type: z.literal('performance.started'), payload: performanceClockSync }),
+  envelope.extend({ type: z.literal('performance.paused'), payload: performanceClockSync }),
+  envelope.extend({ type: z.literal('performance.resumed'), payload: performanceClockSync }),
+  envelope.extend({ type: z.literal('performance.ended'), payload: performanceClockSync }),
 ]);
 
 export type PracticeServerMessage = z.infer<typeof practiceServerMessageSchema>;
 export type PracticeAlignmentUpdateMessage = Extract<PracticeServerMessage, { type: 'alignment.update' }>;
+export type PracticePerformanceClockSyncMessage = Extract<PracticeServerMessage, { type: 'performance.clock_sync' }>;
+export type PracticePerformanceClockPayload = PracticePerformanceClockSyncMessage['payload'];
+export type PracticePerformanceTimelineMessage = Extract<PracticeServerMessage, { type: 'performance.timeline' }>;
+export type PracticePerformanceTimelinePayload = PracticePerformanceTimelineMessage['payload'];
 
 export function parsePracticeServerMessage(value: unknown): PracticeServerMessage {
   return practiceServerMessageSchema.parse(value);

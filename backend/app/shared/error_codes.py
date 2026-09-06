@@ -89,6 +89,7 @@ class NotificationErrorCode:
 
 class PracticeErrorCode:
     PRACTICE_SESSION_NOT_FOUND = "practice_session_not_found"
+    PRACTICE_REPLAY_ARTIFACT_NOT_FOUND = "practice_replay_artifact_not_found"
     PRACTICE_SESSION_INVALID_STATE = "practice_session_invalid_state"
     PRACTICE_STREAM_NOT_READY = "practice_stream_not_ready"
     PRACTICE_STREAM_CLOSED = "practice_stream_closed"

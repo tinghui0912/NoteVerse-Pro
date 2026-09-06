@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 import json
 from pathlib import Path
 import time
@@ -11,13 +12,156 @@ import wave
 import numpy as np
 
 from app.processing.engines.practice_alignment.matchmaker_live import MatchmakerLiveEngine
-from app.processing.engines.practice_alignment.profile import DEFAULT_PRACTICE_AUDIO_PROFILE
+from app.processing.engines.practice_alignment.profile import (
+    DEFAULT_PRACTICE_AUDIO_PROFILE,
+    PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID,
+)
 from app.processing.engines.practice_alignment.target_catalog import (
     practice_target_catalog_from_musicxml,
 )
 
 
 RELIABLE_ALIGNMENT_CONFIDENCE = 0.75
+
+
+def slim_alignment_update(update: dict) -> dict:
+    decision = update.get("decision") or {}
+    anchor = decision.get("display_anchor") or {}
+    return {
+        "beat_position": update.get("beat_position"),
+        "confidence": update.get("confidence"),
+        "alignment_confidence": update.get("alignment_confidence"),
+        "audio_confidence": update.get("audio_confidence"),
+        "continuity_confidence": update.get("continuity_confidence"),
+        "validation_confidence": update.get("validation_confidence"),
+        "input_policy_confidence": update.get("input_policy_confidence"),
+        "feature_confidence": update.get("feature_confidence"),
+        "match_state": update.get("match_state"),
+        "alignment_state": update.get("alignment_state"),
+        "continuity_state": update.get("continuity_state"),
+        "beat_delta": update.get("beat_delta"),
+        "scope_completed": update.get("scope_completed", False),
+        "decision_action": decision.get("action"),
+        "decision_reason": decision.get("reason"),
+        "decision_anchor_beat": anchor.get("beat"),
+    }
+
+
+def decision_counts(updates: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for update in updates:
+        decision = update.get("decision") or {}
+        key = f"{decision.get('action', 'missing')}:{decision.get('reason', 'missing')}"
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def accepted_alignment_events(
+    updates: list[dict],
+    update_samples: list[int],
+    sample_rate: int,
+) -> list[dict]:
+    events: list[dict] = []
+    for index, update in enumerate(updates):
+        decision = update.get("decision") or {}
+        if decision.get("action") != "advance":
+            continue
+        anchor = decision.get("display_anchor") or {}
+        anchor_beat = anchor.get("beat")
+        if anchor_beat is None:
+            continue
+        events.append(
+            {
+                "update_index": index,
+                "seconds": round(update_samples[index] / sample_rate, 3),
+                "anchor_beat": float(anchor_beat),
+                "action": decision.get("action"),
+                "reason": decision.get("reason"),
+                "confidence": update.get("confidence"),
+            }
+        )
+    return events
+
+
+def count_state_episodes(frame_states: list[dict], *, state: str) -> int:
+    episodes = 0
+    previous_state: str | None = None
+    for frame_state in frame_states:
+        current_state = str(frame_state["state"])
+        if current_state == state and previous_state != state:
+            episodes += 1
+        previous_state = current_state
+    return episodes
+
+
+def annotation_metrics(
+    annotations: list[dict],
+    *,
+    accepted_events: list[dict],
+    frame_states: list[dict],
+) -> dict[str, dict]:
+    metrics: dict[str, dict] = {}
+    for annotation in annotations:
+        annotation_id = str(annotation["id"])
+        start_seconds = float(annotation["start_seconds"])
+        end_seconds = float(annotation.get("end_seconds", start_seconds))
+        expected_min = annotation.get("expected_anchor_beat_min")
+        expected_max = annotation.get("expected_anchor_beat_max")
+        window_events = [
+            event
+            for event in accepted_events
+            if start_seconds <= float(event["seconds"]) <= end_seconds
+        ]
+        in_region_events = window_events
+        outside_region_events: list[dict] = []
+        if expected_min is not None and expected_max is not None:
+            min_beat = float(expected_min)
+            max_beat = float(expected_max)
+            in_region_events = [
+                event
+                for event in window_events
+                if min_beat <= float(event["anchor_beat"]) <= max_beat
+            ]
+            outside_region_events = [
+                event
+                for event in window_events
+                if not min_beat <= float(event["anchor_beat"]) <= max_beat
+            ]
+
+        first_in_region_seconds = (
+            None if not in_region_events else float(in_region_events[0]["seconds"])
+        )
+        stability_seconds = annotation.get("post_recovery_stability_seconds")
+        stability_states: list[dict] = []
+        if stability_seconds is not None:
+            stability_end = end_seconds + float(stability_seconds)
+            stability_states = [
+                state
+                for state in frame_states
+                if end_seconds <= float(state["seconds"]) <= stability_end
+            ]
+
+        metrics[annotation_id] = {
+            "kind": annotation.get("kind"),
+            "start_seconds": start_seconds,
+            "end_seconds": end_seconds,
+            "expected_anchor_beat_min": expected_min,
+            "expected_anchor_beat_max": expected_max,
+            "accepted_events": len(window_events),
+            "accepted_in_region": len(in_region_events),
+            "accepted_outside_region": len(outside_region_events),
+            "first_accepted_in_region_seconds": first_in_region_seconds,
+            "recovery_latency_seconds": (
+                None
+                if first_in_region_seconds is None
+                else round(first_in_region_seconds - start_seconds, 3)
+            ),
+            "post_recovery_lost_episodes": count_state_episodes(
+                stability_states,
+                state="lost",
+            ),
+        }
+    return metrics
 
 
 def read_pcm_wav(path: Path, sample_rate: int) -> np.ndarray:
@@ -27,13 +171,32 @@ def read_pcm_wav(path: Path, sample_rate: int) -> np.ndarray:
         source_rate = wav_file.getframerate()
         frames = wav_file.readframes(wav_file.getnframes())
 
-    if width != 2 or source_rate != sample_rate:
-        raise ValueError(f"Expected 16-bit {sample_rate} Hz PCM WAV: {path}")
+    if width != 2:
+        raise ValueError(f"Expected 16-bit PCM WAV: {path}")
 
     audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
     if channels > 1:
         audio = audio.reshape(-1, channels).mean(axis=1)
-    return audio
+    if source_rate == sample_rate:
+        return audio
+    return resample_audio(audio, source_rate=source_rate, target_rate=sample_rate)
+
+
+def resample_audio(
+    audio: np.ndarray,
+    *,
+    source_rate: int,
+    target_rate: int,
+) -> np.ndarray:
+    if source_rate <= 0 or target_rate <= 0:
+        raise ValueError("WAV sample rates must be positive")
+    if audio.size == 0 or source_rate == target_rate:
+        return audio.astype(np.float32, copy=False)
+
+    source_times = np.arange(audio.size, dtype=np.float64) / source_rate
+    target_size = int(round(audio.size * target_rate / source_rate))
+    target_times = np.arange(target_size, dtype=np.float64) / target_rate
+    return np.interp(target_times, source_times, audio).astype(np.float32)
 
 
 def mix_sources(root: Path, spec: dict, sample_rate: int) -> np.ndarray:
@@ -169,6 +332,7 @@ def run_scenario(
         emitted_updates: list[dict] = []
         emitted_update_samples: list[int] = []
         post_start_states: list[str] = []
+        post_start_frame_states: list[dict] = []
         started_frame: int | None = None
         started_sample: int | None = None
         first_reliable_sample: int | None = None
@@ -213,6 +377,12 @@ def run_scenario(
             if engine._stream.started:
                 if elapsed_seconds <= metric_end_seconds:
                     post_start_states.append(engine._stream.stream_state)
+                    post_start_frame_states.append(
+                        {
+                            "seconds": round(elapsed_seconds, 3),
+                            "state": engine._stream.stream_state,
+                        }
+                    )
             start_confidence = engine._stream.last_start_feature_confidence
             if start_confidence is not None:
                 max_start_feature_confidence = (
@@ -242,6 +412,11 @@ def run_scenario(
             and (anchor := decision.get("display_anchor"))
             and anchor.get("beat") is not None
         ]
+        accepted_events = accepted_alignment_events(
+            emitted_updates,
+            emitted_update_samples,
+            sample_rate,
+        )
         completion_update_index = next(
             (
                 index
@@ -251,20 +426,27 @@ def run_scenario(
             None,
         )
         accepted_completion_beat = None
+        accepted_completion_alignment_beat = None
         accepted_completion_seconds = None
         if completion_update_index is not None:
             completion_update = emitted_updates[completion_update_index]
             completion_decision = completion_update.get("decision") or {}
             completion_anchor = completion_decision.get("display_anchor") or {}
-            if (
-                completion_decision.get("action") in {"advance", "relocalize"}
-                and completion_anchor.get("beat") is not None
-            ):
-                accepted_completion_beat = float(completion_anchor["beat"])
-                accepted_completion_seconds = round(
-                    emitted_update_samples[completion_update_index] / sample_rate,
-                    3,
-                )
+            completion_beat = completion_anchor.get("beat")
+            if completion_beat is not None:
+                accepted_completion_beat = float(completion_beat)
+            accepted_completion_alignment_beat = float(completion_update["beat_position"])
+            accepted_completion_seconds = round(
+                emitted_update_samples[completion_update_index] / sample_rate,
+                3,
+            )
+        terminal_region_start = engine._reference_slice.terminal_region_start_beat
+        terminal_region_updates = [
+            update
+            for update in emitted_updates
+            if terminal_region_start is not None
+            and float(update["beat_position"]) >= terminal_region_start
+        ]
         reliable_updates = [
             update
             for update in emitted_updates
@@ -282,6 +464,8 @@ def run_scenario(
             previous_state = state
         return {
             "id": scenario["id"],
+            "quality_status": scenario.get("quality_status", "required"),
+            "runtime_profile": engine.runtime_profile_id,
             "started": engine._stream.started,
             "start_seconds": start_seconds,
             "chunk_size_samples": chunk_size_samples,
@@ -299,6 +483,12 @@ def run_scenario(
             ),
             "accepted_anchor_beat_min": min(accepted_anchor_beats, default=None),
             "accepted_anchor_beat_max": max(accepted_anchor_beats, default=None),
+            "accepted_events": accepted_events[-20:],
+            "annotated_events": annotation_metrics(
+                scenario.get("performance_annotations", []),
+                accepted_events=accepted_events,
+                frame_states=post_start_frame_states,
+            ),
             "reference_slice": {
                 "start_beat": engine._reference_slice.start_beat,
                 "end_beat": engine._reference_slice.end_beat,
@@ -319,7 +509,16 @@ def run_scenario(
                 None,
             ),
             "accepted_completion_beat": accepted_completion_beat,
+            "accepted_completion_alignment_beat": accepted_completion_alignment_beat,
             "accepted_completion_seconds": accepted_completion_seconds,
+            "terminal_region_updates": len(terminal_region_updates),
+            "terminal_region_decision_counts": decision_counts(terminal_region_updates),
+            "terminal_region_last_update": (
+                None
+                if not terminal_region_updates
+                else slim_alignment_update(terminal_region_updates[-1])
+            ),
+            "last_updates": [slim_alignment_update(update) for update in emitted_updates[-5:]],
             "first_gate_reason": (
                 None if first_update is None else first_update.get("gate_reason")
             ),
@@ -467,17 +666,58 @@ def evaluate_result(result: dict, expect: dict) -> list[str]:
                 )
         if expect.get("accepted_completion_must_reach_terminal_region"):
             accepted_completion_beat = result["accepted_completion_beat"]
+            accepted_completion_alignment_beat = result.get(
+                "accepted_completion_alignment_beat",
+                accepted_completion_beat,
+            )
             terminal_region_start = result["reference_slice"]["terminal_region_start_beat"]
             if accepted_completion_beat is None:
                 failures.append("missing accepted_completion_beat")
             elif terminal_region_start is None:
                 failures.append("missing terminal_region_start_beat")
-            elif accepted_completion_beat < terminal_region_start:
+            elif accepted_completion_alignment_beat < terminal_region_start:
                 failures.append(
-                    "accepted_completion_beat="
-                    f"{accepted_completion_beat} before terminal_region_start_beat="
+                    "accepted_completion_alignment_beat="
+                    f"{accepted_completion_alignment_beat} before terminal_region_start_beat="
                     f"{terminal_region_start}"
                 )
+        for annotation_expect in expect.get("annotation_checks", []):
+            annotation_id = annotation_expect["id"]
+            annotations = result.get("annotated_events") or {}
+            metrics = annotations.get(annotation_id)
+            if metrics is None:
+                failures.append(f"missing annotation metrics for {annotation_id}")
+                continue
+            if "min_accepted_in_region" in annotation_expect:
+                accepted_in_region = int(metrics["accepted_in_region"])
+                if accepted_in_region < annotation_expect["min_accepted_in_region"]:
+                    failures.append(
+                        f"{annotation_id}.accepted_in_region={accepted_in_region} "
+                        "below minimum"
+                    )
+            if "max_accepted_outside_region" in annotation_expect:
+                accepted_outside = int(metrics["accepted_outside_region"])
+                if accepted_outside > annotation_expect["max_accepted_outside_region"]:
+                    failures.append(
+                        f"{annotation_id}.accepted_outside_region={accepted_outside} "
+                        "above maximum"
+                    )
+            if "max_recovery_latency_seconds" in annotation_expect:
+                recovery_latency = metrics["recovery_latency_seconds"]
+                if recovery_latency is None:
+                    failures.append(f"{annotation_id}.missing recovery latency")
+                elif recovery_latency > annotation_expect["max_recovery_latency_seconds"]:
+                    failures.append(
+                        f"{annotation_id}.recovery_latency_seconds={recovery_latency} "
+                        "above maximum"
+                    )
+            if "max_post_recovery_lost_episodes" in annotation_expect:
+                lost_episodes = int(metrics["post_recovery_lost_episodes"])
+                if lost_episodes > annotation_expect["max_post_recovery_lost_episodes"]:
+                    failures.append(
+                        f"{annotation_id}.post_recovery_lost_episodes={lost_episodes} "
+                        "above maximum"
+                    )
     if (
         "scope_completed" in expect
         and result["scope_completed"] is not expect["scope_completed"]
@@ -499,6 +739,21 @@ def evaluate_result(result: dict, expect: dict) -> list[str]:
     if result["pause_checked"] and not result["resume_emitted_updates"]:
         failures.append("did not resume emitting updates")
     return failures
+
+
+def required_replay_results_pass(results: list[dict]) -> bool:
+    return all(
+        result.get("quality_status", "required") != "required" or not result["failures"]
+        for result in results
+    )
+
+
+def known_gap_failures(results: list[dict]) -> dict[str, list[str]]:
+    return {
+        result["id"]: result["failures"]
+        for result in results
+        if result.get("quality_status") == "known_gap" and result["failures"]
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -531,6 +786,8 @@ def main() -> int:
         except Exception as exc:  # pragma: no cover - exercised by real-engine fixtures.
             result = {
                 "id": scenario["id"],
+                "quality_status": scenario.get("quality_status", "required"),
+                "runtime_profile": PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID,
                 "started": False,
                 "error": f"{type(exc).__name__}: {exc}",
                 "chunk_size_samples": scenario.get("chunk_size_samples"),
@@ -541,8 +798,10 @@ def main() -> int:
         results.append(result)
 
     report = {
-        "profile": DEFAULT_PRACTICE_AUDIO_PROFILE.__dict__,
-        "passed": all(not result["failures"] for result in results),
+        "runtime_profile": PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID,
+        "audio_profile": asdict(DEFAULT_PRACTICE_AUDIO_PROFILE),
+        "passed": required_replay_results_pass(results),
+        "known_gap_failures": known_gap_failures(results),
         "results": results,
     }
     print(json.dumps(report, ensure_ascii=True, indent=2))

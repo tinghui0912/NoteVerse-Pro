@@ -129,6 +129,62 @@ def test_practice_score_timeline_preserves_events_and_exact_onset_groups(tmp_pat
     assert near_onset_group.render_note_ids == ("n5",)
 
 
+def test_practice_score_timeline_preserves_meter_for_count_in_duration_and_pulses(tmp_path) -> None:
+    import numpy as np
+
+    dtype = [
+        ("onset_beat", "f4"),
+        ("duration_beat", "f4"),
+        ("pitch", "i4"),
+        ("voice", "i4"),
+        ("id", "U16"),
+    ]
+    notes = np.array(
+        [
+            (0.0, 1.0, 60, 1, "n1"),
+            (3.0, 1.0, 62, 1, "n2"),
+        ],
+        dtype=dtype,
+    )
+    path = tmp_path / "meter.musicxml"
+    path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <time><beats>3</beats><beat-type>4</beat-type></time>
+      </attributes>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice><staff>1</staff></note>
+    </measure>
+    <measure number="2">
+      <attributes>
+        <time><beats>6</beats><beat-type>8</beat-type></time>
+      </attributes>
+      <note id="n2"><pitch><step>D</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>
+""",
+        encoding="utf-8",
+    )
+
+    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=path)
+
+    first_meter = timeline.meter_at(0.0)
+    second_meter = timeline.meter_at(3.0)
+    assert (first_meter.numerator, first_meter.denominator, first_meter.source) == (3, 4, "MUSICXML")
+    assert (second_meter.numerator, second_meter.denominator, second_meter.source) == (6, 8, "MUSICXML")
+    assert timeline.count_in_duration_beats_at(0.0) == 3.0
+    assert timeline.count_in_duration_beats_at(3.0) == 3.0
+    assert timeline.count_in_pulses_at(0.0) == 3
+    assert timeline.count_in_pulses_at(3.0) == 6
+
+
 def test_practice_score_timeline_uses_revision_stable_expected_group_ids(tmp_path) -> None:
     import numpy as np
 
@@ -177,7 +233,7 @@ def test_practice_score_timeline_group_identity_does_not_depend_on_render_note_i
     )
 
 
-def test_practice_score_timeline_does_not_prompt_pure_tie_continuations(tmp_path) -> None:
+def test_practice_score_timeline_does_not_prompt_tie_continuations(tmp_path) -> None:
     import numpy as np
 
     dtype = [
@@ -221,3 +277,98 @@ def test_practice_score_timeline_does_not_prompt_pure_tie_continuations(tmp_path
     tied_continuation = next(event for event in timeline.events if event.render_note_ids == ("n2",))
     assert tied_continuation.tie_types == ("stop",)
     assert tied_continuation.entry_candidate is False
+    group = timeline.expected_practice_groups[0]
+    assert timeline.entry_group_end_beat(group.group_id) == 5.0
+
+
+def test_practice_score_timeline_follows_multi_fragment_tie_chain_end(tmp_path) -> None:
+    import numpy as np
+
+    dtype = [
+        ("onset_beat", "f4"),
+        ("duration_beat", "f4"),
+        ("pitch", "i4"),
+        ("voice", "i4"),
+        ("id", "U16"),
+    ]
+    notes = np.array(
+        [
+            (3.0, 1.0, 60, 1, "n1"),
+            (4.0, 1.0, 60, 1, "n2"),
+            (5.0, 1.5, 60, 1, "n3"),
+        ],
+        dtype=dtype,
+    )
+    musicxml_path = tmp_path / "tied-chain.musicxml"
+    musicxml_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="start"/></note>
+    </measure>
+    <measure number="2">
+      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/><tie type="start"/></note>
+    </measure>
+    <measure number="3">
+      <note id="n3"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/></note>
+    </measure>
+  </part>
+</score-partwise>
+""",
+        encoding="utf-8",
+    )
+
+    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+
+    assert tuple(group.onset_beat for group in timeline.expected_practice_groups) == (3.0,)
+    group = timeline.expected_practice_groups[0]
+    assert timeline.entry_group_end_beat(group.group_id) == 6.5
+
+
+def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord(tmp_path) -> None:
+    import numpy as np
+
+    dtype = [
+        ("onset_beat", "f4"),
+        ("duration_beat", "f4"),
+        ("pitch", "i4"),
+        ("voice", "i4"),
+        ("id", "U16"),
+    ]
+    notes = np.array(
+        [
+            (4.0, 1.0, 60, 1, "n1"),
+            (4.0, 1.0, 64, 1, "n2"),
+            (4.0, 1.0, 67, 1, "n3"),
+        ],
+        dtype=dtype,
+    )
+    musicxml_path = tmp_path / "mixed-tied-chord.musicxml"
+    musicxml_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="2">
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff><tie type="stop"/></note>
+      <note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <note id="n3"><chord/><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>
+""",
+        encoding="utf-8",
+    )
+
+    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+
+    assert tuple(group.onset_beat for group in timeline.expected_practice_groups) == (4.0,)
+    group = timeline.expected_practice_groups[0]
+    assert group.pitches == ("E4", "G4")
+    assert group.render_note_ids == ("n2", "n3")

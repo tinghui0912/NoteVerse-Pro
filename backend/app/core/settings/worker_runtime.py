@@ -8,11 +8,18 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .playback import PlaybackSettings
+from .practice_replay_deletion import PracticeReplayDeletionSettings
 from .task_reliability import TaskReliabilitySettings
 from .worker_model_engine import WorkerModelEngineSettings
 
 
-class WorkerRuntimeSettings(PlaybackSettings, WorkerModelEngineSettings, TaskReliabilitySettings, BaseSettings):
+class WorkerRuntimeSettings(
+    PlaybackSettings,
+    PracticeReplayDeletionSettings,
+    WorkerModelEngineSettings,
+    TaskReliabilitySettings,
+    BaseSettings,
+):
     """Strict Worker-only model and engine environment contract."""
 
     @model_validator(mode="after")

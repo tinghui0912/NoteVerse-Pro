@@ -6,6 +6,8 @@ import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import {
   PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
   type PracticeAlignmentUpdateMessage,
+  type PracticePerformanceClockPayload,
+  type PracticePerformanceTimelinePayload,
   type PracticeServerMessage,
 } from '@/lib/practice/protocol';
 import type {
@@ -43,6 +45,18 @@ import type {
 } from '@/lib/practice/practice-types';
 import { resolvePracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
 import {
+  buildMidiPerformanceReplay,
+  createPerformanceReplayTimebase,
+  type PlayablePerformanceReplay,
+} from '@/lib/practice/performance-replay';
+import {
+  completedReportHandoffSessionId,
+  shouldWaitForLocalReplayHandoff,
+  type LocalReplayFinalizationState,
+} from '@/lib/practice/report-handoff';
+import { savePlayablePerformanceReplay } from '@/lib/practice/local-performance-replay-store';
+import type { PracticeSessionMode } from '@/lib/practice/session-policy';
+import {
   fullPiecePracticeRangeSelection,
   practiceTargetsInRangeSelection,
   practiceScopeFromRangeSelection,
@@ -52,7 +66,6 @@ import {
   targetForRenderNoteId,
   type PracticeRangeSelection,
 } from '@/lib/practice/range-selection';
-import type { PracticeSessionPreset } from '@/lib/practice/session-policy';
 
 type PracticeInputHealth = Extract<
   PracticeServerMessage,
@@ -178,10 +191,6 @@ function practiceInputSourceFromQuery(value: string | null): PracticeInputSource
   return value === 'MIDI' ? 'MIDI' : 'MICROPHONE';
 }
 
-function practicePresetFromQuery(value: string | null): PracticeSessionPreset {
-  return value === 'CONTINUOUS_PLAY' ? 'CONTINUOUS_PLAY' : 'STEP_BY_STEP';
-}
-
 function practiceScopeSelectionFromSearchParams(
   searchParams: ReturnType<typeof useSearchParams>
 ): PracticeScopeSelection {
@@ -228,22 +237,33 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [practiceTime, setPracticeTime] = useState(0);
   const [practiceClockStarted, setPracticeClockStarted] = useState(false);
   const [alignment, setAlignment] = useState<PracticeAlignmentUpdateMessage['payload'] | null>(null);
+  const [performanceClockSync, setPerformanceClockSync] =
+    useState<PracticePerformanceClockPayload | null>(null);
+  const [performanceClockSyncReceivedAtMs, setPerformanceClockSyncReceivedAtMs] =
+    useState<number | null>(null);
+  const [performanceTimeline, setPerformanceTimeline] =
+    useState<PracticePerformanceTimelinePayload | null>(null);
+  const [selectedPracticeMode, setSelectedPracticeMode] =
+    useState<PracticeSessionMode>('STEP_BY_STEP');
+  const [activeSessionMode, setActiveSessionMode] = useState<PracticeSessionMode>('STEP_BY_STEP');
+  const activeSessionModeRef = useRef<PracticeSessionMode>('STEP_BY_STEP');
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
   const [completedOutcome, setCompletedOutcome] =
     useState<PracticeSessionCompletionOutcomeRead | null>(null);
+  const [completedLocalMidiReplay, setCompletedLocalMidiReplay] =
+    useState<PlayablePerformanceReplay | null>(null);
+  const [localReplayFinalizationState, setLocalReplayFinalizationState] =
+    useState<LocalReplayFinalizationState>({ status: 'not_expected' });
+  const [pendingReportHandoffSessionId, setPendingReportHandoffSessionId] =
+    useState<string | null>(null);
   const [showNextNoteHint, setShowNextNoteHint] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [rangeSelection, setRangeSelection] = useState<PracticeRangeSelection>(
     fullPiecePracticeRangeSelection
   );
-  const [practicePreset, setPracticePreset] = useState<PracticeSessionPreset>(
-    practicePresetFromQuery(searchParams.get('practicePreset'))
-  );
   const [practiceInputSource, setPracticeInputSource] = useState<PracticeInputSource>(
-    practicePresetFromQuery(searchParams.get('practicePreset')) === 'CONTINUOUS_PLAY'
-      ? 'MICROPHONE'
-      : selectedRangePractice?.inputSource ?? 'MICROPHONE'
+    selectedRangePractice?.inputSource ?? 'MICROPHONE'
   );
   const scoreQuery = useScoreDetail(id);
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
@@ -271,7 +291,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     [practiceTargets, rangeSelection]
   );
   const activePracticeScope = selectedRangePractice?.scope ?? selectedRangeScope;
-  const hasActiveSelectedRange = Boolean(selectedRangePractice || selectedRangeScope);
   const hasManualRangeSelection =
     !selectedRangePractice && rangeSelection.kind === 'SELECTED_RANGE';
   const isManualRangeSelectionPending =
@@ -299,12 +318,23 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     selectedRangePractice?.inputSource ?? 'MICROPHONE'
   );
   const runningPracticeScopeRef = useRef<PracticeSessionScope | null>(null);
-  const preconnectStartedRef = useRef(false);
-  const preparePracticeSessionRef = useRef<() => Promise<void>>(async () => {});
   const finishRecoveryTimerRef = useRef<number | null>(null);
+  const localMidiReplayEventsRef = useRef<PracticeMidiEvent[]>([]);
+  const localReplayCaptureActiveRef = useRef(false);
+  const performanceClockSyncRef = useRef<PracticePerformanceClockPayload | null>(null);
+  const performanceSpeedRatioRef = useRef(1);
   const socket = usePracticeSocket({ onMessage: handleSocketMessage, onClose: handleSocketClose });
   const audioStream = usePracticeAudioStream(socket.sendBinary);
   const sendMidiEvent = useCallback((event: PracticeMidiEvent) => {
+    if (
+      activeSessionModeRef.current === 'CONTINUOUS_PLAY' &&
+      activeInputSourceRef.current === 'MIDI' &&
+      localReplayCaptureActiveRef.current &&
+      (practiceStatusRef.current === 'listening' ||
+        practiceStatusRef.current === 'practicing')
+    ) {
+      localMidiReplayEventsRef.current.push(event);
+    }
     socket.sendJson({
       protocol_version: PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
       type: 'client.midi_event',
@@ -341,11 +371,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const practiceSession = usePracticeSession({
     scoreId: id,
     revisionId,
-    preset: practicePreset,
+    practiceMode: selectedPracticeMode,
     inputSource: practiceInputSource,
     practiceScope: activePracticeScope,
   });
-  const { audioUrl: audioURL } = recording;
+  const performanceReplay = recording.audioReplay ?? completedLocalMidiReplay;
   const completionOutcome = completedOutcome
     ? resolvePracticeCompletionOutcome({
         completionOutcome: completedOutcome,
@@ -398,6 +428,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     };
   }, [activePracticeScope, practiceTargets]);
   const displayAlignment = useMemo<PracticeAlignmentUpdateMessage['payload'] | null>(() => {
+    if (activeSessionMode !== 'STEP_BY_STEP') {
+      return null;
+    }
     if (alignment) {
       return alignment;
     }
@@ -461,7 +494,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         },
       },
     };
-  }, [alignment, practiceStatus, promptDisplayAnchor, showNextNoteHint]);
+  }, [activeSessionMode, alignment, practiceStatus, promptDisplayAnchor, showNextNoteHint]);
 
   const clearFinishRecoveryTimer = useCallback(() => {
     if (finishRecoveryTimerRef.current) {
@@ -470,21 +503,47 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
   }, []);
 
-  const resetPreparedPracticeConnection = useCallback(() => {
+  const updateActiveSessionMode = useCallback((mode: PracticeSessionMode) => {
+    activeSessionModeRef.current = mode;
+    setActiveSessionMode(mode);
+  }, []);
+
+  const clearPerformanceClockSync = useCallback(() => {
+    performanceClockSyncRef.current = null;
+    setPerformanceClockSync(null);
+    setPerformanceClockSyncReceivedAtMs(null);
+  }, []);
+
+  const updatePerformanceClockSync = useCallback((sync: PracticePerformanceClockPayload) => {
+    performanceClockSyncRef.current = sync;
+    setPerformanceClockSync(sync);
+    setPerformanceClockSyncReceivedAtMs(performance.now());
+  }, []);
+
+  const resetPracticeSessionDraft = useCallback(() => {
     clearFinishRecoveryTimer();
     practiceSession.clear();
     socket.close();
-    preconnectStartedRef.current = false;
     setAlignment(null);
+    clearPerformanceClockSync();
+    setPerformanceTimeline(null);
+    updateActiveSessionMode(selectedPracticeMode);
     setConnectionStatus('disconnected');
-  }, [clearFinishRecoveryTimer, practiceSession, socket]);
+  }, [
+    clearPerformanceClockSync,
+    clearFinishRecoveryTimer,
+    practiceSession,
+    selectedPracticeMode,
+    socket,
+    updateActiveSessionMode,
+  ]);
 
   const handleToggleRangeSelection = () => {
     if (selectedRangePractice || practiceStatusRef.current !== 'idle') {
       return;
     }
     if (hasManualRangeSelection) {
-      resetPreparedPracticeConnection();
+      resetPracticeSessionDraft();
       setRangeSelection(fullPiecePracticeRangeSelection);
       return;
     }
@@ -494,7 +553,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       });
       return;
     }
-    resetPreparedPracticeConnection();
+    resetPracticeSessionDraft();
     setRangeSelection(selectedPracticeRangeSelection());
   };
 
@@ -506,7 +565,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     if (!target) {
       return;
     }
-    resetPreparedPracticeConnection();
+    resetPracticeSessionDraft();
     const next = selectPracticeRangeTarget(rangeSelection, practiceTargets, target.group_id);
     setRangeSelection(next);
   };
@@ -526,9 +585,90 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     setPracticeStatus(status);
   };
 
-  const preparePracticeSession = useCallback(() => preparePracticeSessionRef.current(), []);
+  const startLocalPerformanceCapture = useCallback(() => {
+    if (
+      activeSessionModeRef.current !== 'CONTINUOUS_PLAY' ||
+      localReplayCaptureActiveRef.current
+    ) {
+      return;
+    }
+    localReplayCaptureActiveRef.current = true;
+    const timebase = createPerformanceReplayTimebase(performanceSpeedRatioRef.current);
+    if (activeInputSourceRef.current === 'MICROPHONE') {
+      audioStream.setStreaming(true);
+      recording.start(timebase);
+      recording.resume();
+      return;
+    }
+    if (activeInputSourceRef.current === 'MIDI') {
+      midiStream.setStreaming(true);
+    }
+  }, [audioStream, midiStream, recording]);
+
+  const pauseLocalPerformanceCapture = useCallback(() => {
+    if (
+      activeSessionModeRef.current !== 'CONTINUOUS_PLAY' ||
+      !localReplayCaptureActiveRef.current
+    ) {
+      return;
+    }
+    localReplayCaptureActiveRef.current = false;
+    if (activeInputSourceRef.current === 'MICROPHONE') {
+      audioStream.setStreaming(false);
+      recording.pause();
+      return;
+    }
+    if (activeInputSourceRef.current === 'MIDI') {
+      midiStream.setStreaming(false);
+    }
+  }, [audioStream, midiStream, recording]);
+
+  const finishLocalPerformanceCapture = useCallback(() => {
+    if (activeSessionModeRef.current !== 'CONTINUOUS_PLAY') {
+      return;
+    }
+    localReplayCaptureActiveRef.current = false;
+    if (activeInputSourceRef.current === 'MICROPHONE') {
+      audioStream.setStreaming(false);
+      recording.stop();
+      return;
+    }
+    if (activeInputSourceRef.current === 'MIDI') {
+      midiStream.setStreaming(false);
+      setCompletedLocalMidiReplay(
+        buildMidiPerformanceReplay(
+          localMidiReplayEventsRef.current,
+          createPerformanceReplayTimebase(performanceSpeedRatioRef.current)
+        )
+      );
+    }
+  }, [audioStream, midiStream, recording]);
 
   useEffect(() => clearFinishRecoveryTimer, [clearFinishRecoveryTimer]);
+
+  useEffect(() => {
+    if (!completedSessionId || !completedOutcome?.playback_expected) {
+      return;
+    }
+    if (recording.finalizationStatus === 'failed') {
+      setLocalReplayFinalizationState({ status: 'failed', sessionId: completedSessionId });
+      return;
+    }
+    if (!performanceReplay) {
+      return;
+    }
+    if (performanceReplay.kind === 'AUDIO_RECORDING' && performanceReplay.byteSize === 0) {
+      setLocalReplayFinalizationState({ status: 'failed', sessionId: completedSessionId });
+      return;
+    }
+    savePlayablePerformanceReplay(completedSessionId, performanceReplay);
+    setLocalReplayFinalizationState({ status: 'ready', sessionId: completedSessionId });
+  }, [
+    completedOutcome?.playback_expected,
+    completedSessionId,
+    performanceReplay,
+    recording.finalizationStatus,
+  ]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout | undefined;
@@ -596,17 +736,24 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     sessionId: string | null,
     completionOutcome: PracticeSessionCompletionOutcomeRead
   ) => {
+    finishLocalPerformanceCapture();
     clearFinishRecoveryTimer();
     audioStream.setStreaming(false);
     midiStream.setStreaming(false);
     setPracticeClockStarted(false);
-    recording.stop();
+    clearPerformanceClockSync();
     audioStream.teardown();
     midiStream.teardown();
+    localMidiReplayEventsRef.current = [];
     setConnectionStatus('disconnected');
     updatePracticeStatus('finished');
     setCompletedSessionId(sessionId);
     setCompletedOutcome(completionOutcome);
+    if (!sessionId || !completionOutcome.playback_expected) {
+      setLocalReplayFinalizationState({ status: 'not_expected' });
+    } else {
+      setLocalReplayFinalizationState({ status: 'finalizing', sessionId });
+    }
     setIsCompletionDialogOpen(true);
   };
 
@@ -626,11 +773,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           practiceSession.sync(detail);
           finishLocalPractice(sessionId, detail.completion_outcome);
           socket.close();
-          if (!hasActiveSelectedRange) {
-            window.setTimeout(() => {
-              prepareNextPracticeSession();
-            }, 300);
-          }
         })
         .catch((error) => {
           reportUnexpectedClientError(error, {
@@ -641,14 +783,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         });
     }, 1500);
   };
-
-  function prepareNextPracticeSession() {
-    practiceSession.clear();
-    preconnectStartedRef.current = false;
-    window.setTimeout(() => {
-      void preparePracticeSession();
-    }, 0);
-  }
 
   const showInputHealthToast = (inputHealth: PracticeInputHealth) => {
     if (!inputHealth.available) {
@@ -685,9 +819,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   function handleSocketMessage(message: PracticeServerMessage) {
     if (message.type === 'session.ready') {
       setConnectionStatus('ready');
-      if (activeInputSourceRef.current === 'MIDI') {
+      if (
+        activeInputSourceRef.current === 'MIDI' &&
+        activeSessionModeRef.current === 'STEP_BY_STEP'
+      ) {
         midiStream.setStreaming(true);
-      } else {
+      } else if (activeInputSourceRef.current === 'MICROPHONE') {
         audioStream.setStreaming(true);
       }
       updatePracticeStatus('arming');
@@ -697,8 +834,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
     if (message.type === 'session.armed') {
       if (practiceStatusRef.current !== 'finished') {
-        recording.start();
-        setPracticeClockStarted(true);
+        setPracticeClockStarted(activeSessionModeRef.current === 'STEP_BY_STEP');
         updatePracticeStatus('listening');
         showInputHealthToast(message.payload.input_health);
       }
@@ -706,6 +842,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
 
     if (message.type === 'alignment.update') {
+      if (activeSessionModeRef.current !== 'STEP_BY_STEP') {
+        return;
+      }
       if (
         practiceStatusRef.current === 'arming' ||
         practiceStatusRef.current === 'listening'
@@ -713,6 +852,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         updatePracticeStatus('practicing');
       }
       setAlignment(message.payload);
+      clearPerformanceClockSync();
+      setPerformanceTimeline(null);
       if (message.payload.scope_completed && practiceStatusRef.current !== 'finished') {
         audioStream.setStreaming(false);
         midiStream.setStreaming(false);
@@ -723,18 +864,82 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       return;
     }
 
+    if (message.type === 'performance.timeline') {
+      if (activeSessionModeRef.current !== 'CONTINUOUS_PLAY') {
+        return;
+      }
+      setPerformanceTimeline(message.payload);
+      return;
+    }
+
+    if (
+      message.type === 'performance.clock_sync' ||
+      message.type === 'performance.started' ||
+      message.type === 'performance.paused' ||
+      message.type === 'performance.resumed' ||
+      message.type === 'performance.ended'
+    ) {
+      if (activeSessionModeRef.current !== 'CONTINUOUS_PLAY') {
+        return;
+      }
+      performanceSpeedRatioRef.current = message.payload.speed_ratio;
+      updatePerformanceClockSync(message.payload);
+      setAlignment(null);
+      if (practiceStatusRef.current !== 'finished') {
+        if (message.type === 'performance.started') {
+          if (message.payload.state === 'RUNNING') {
+            startLocalPerformanceCapture();
+          }
+          setPracticeClockStarted(message.payload.state === 'RUNNING');
+          updatePracticeStatus(
+            message.payload.state === 'COUNT_IN' ? 'listening' : 'practicing'
+          );
+        } else if (message.type === 'performance.paused') {
+          pauseLocalPerformanceCapture();
+          setPracticeClockStarted(false);
+          updatePracticeStatus('paused');
+        } else if (message.type === 'performance.resumed') {
+          if (message.payload.state === 'RUNNING') {
+            startLocalPerformanceCapture();
+          }
+          setPracticeClockStarted(message.payload.state === 'RUNNING');
+          updatePracticeStatus(
+            message.payload.state === 'COUNT_IN' ? 'listening' : 'practicing'
+          );
+        } else if (message.type === 'performance.ended') {
+          finishLocalPerformanceCapture();
+          setPracticeClockStarted(false);
+          updatePracticeStatus('finishing');
+        } else if (message.payload.state === 'RUNNING') {
+          startLocalPerformanceCapture();
+          setPracticeClockStarted(true);
+          updatePracticeStatus('practicing');
+        } else if (message.payload.state === 'COUNT_IN') {
+          setPracticeClockStarted(false);
+          updatePracticeStatus('listening');
+        }
+      }
+      return;
+    }
+
     if (message.type === 'session.state_changed') {
       if (practiceStatusRef.current === 'finished') {
         return;
       }
 
-      updatePracticeStatus(
+      const isPerformanceResumeCountIn =
+        activeSessionModeRef.current === 'CONTINUOUS_PLAY' &&
+        message.payload.state === 'STREAMING' &&
+        performanceClockSyncRef.current?.state === 'COUNT_IN';
+      const nextStatus =
         message.payload.state === 'PAUSED'
           ? 'paused'
-          : practiceStatusRef.current === 'paused'
-            ? pausedPracticeStatusRef.current
-            : 'practicing'
-      );
+          : isPerformanceResumeCountIn
+            ? 'listening'
+            : practiceStatusRef.current === 'paused'
+              ? pausedPracticeStatusRef.current
+              : 'practicing';
+      updatePracticeStatus(nextStatus);
       practiceSession.updateState(message.payload.state);
       return;
     }
@@ -750,11 +955,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         message.payload.completion_outcome
       );
       socket.close();
-      if (!hasActiveSelectedRange) {
-        window.setTimeout(() => {
-          prepareNextPracticeSession();
-        }, 300);
-      }
       return;
     }
 
@@ -763,7 +963,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       audioStream.setStreaming(false);
       midiStream.setStreaming(false);
       setIsPreparingSession(false);
-      preconnectStartedRef.current = false;
+      clearPerformanceClockSync();
+      setPerformanceTimeline(null);
+      setCompletedLocalMidiReplay(null);
+      localReplayCaptureActiveRef.current = false;
+      localMidiReplayEventsRef.current = [];
+      recording.reset();
       practiceSession.clear();
       if (practiceStatusRef.current === 'connecting' || practiceStatusRef.current === 'arming') {
         updatePracticeStatus('idle');
@@ -795,114 +1000,47 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       return;
     }
     if (wasActive && !wasIntentional) {
+      localReplayCaptureActiveRef.current = false;
+      localMidiReplayEventsRef.current = [];
+      recording.reset();
       updatePracticeStatus('idle');
       setIsPreparingSession(false);
-      preconnectStartedRef.current = false;
       toast({
         variant: 'destructive',
         title: t('prepareFailedTitle'),
         description: t('connectionClosedDesc'),
       });
     } else if (!wasIntentional && !wasActive) {
-      preconnectStartedRef.current = false;
       setIsPreparingSession(false);
       setConnectionStatus('error');
     }
   }
 
-  preparePracticeSessionRef.current = async () => {
-    if (preconnectStartedRef.current || !selectedInputSupported || !canPreparePractice) {
-      return;
-    }
-
-    preconnectStartedRef.current = true;
-    setIsPreparingSession(true);
-    setConnectionStatus('connecting');
-
-    try {
-      const createdSession = await practiceSession.create();
-      if (!createdSession) {
-        return;
-      }
-      const { wsUrl } = createdSession;
-      await socket.open(wsUrl);
-      setConnectionStatus('ready');
-    } catch (error) {
-      reportUnexpectedClientError(error, {
-        area: 'practice',
-        action: 'prepare_session',
-        score_id: id,
-      });
-      preconnectStartedRef.current = false;
-      setConnectionStatus('error');
-      socket.close();
-      toast({
-        variant: 'destructive',
-        title: t('prepareFailedTitle'),
-        description: t('prepareFailedDesc'),
-      });
-    } finally {
-      setIsPreparingSession(false);
-    }
-  };
-
-  useEffect(() => {
-    void preparePracticeSession();
-  }, [canPreparePractice, id, preparePracticeSession, selectedInputSupported]);
-
-  useEffect(() => {
-    if (selectedRangePractice || practiceStatusRef.current !== 'idle') {
-      return;
-    }
-    const requestedPreset = practicePresetFromQuery(searchParams.get('practicePreset'));
-    if (requestedPreset === practicePreset) {
+  const handlePracticeModeChange = (practiceMode: PracticeSessionMode) => {
+    if (
+      practiceMode === selectedPracticeMode ||
+      practiceStatusRef.current !== 'idle'
+    ) {
       return;
     }
     clearFinishRecoveryTimer();
     practiceSession.clear();
     socket.close();
-    preconnectStartedRef.current = false;
     setAlignment(null);
+    clearPerformanceClockSync();
+    setPerformanceTimeline(null);
+    setCompletedLocalMidiReplay(null);
+    localReplayCaptureActiveRef.current = false;
+    localMidiReplayEventsRef.current = [];
+    recording.reset();
     setConnectionStatus('disconnected');
-    if (requestedPreset === 'CONTINUOUS_PLAY') {
-      activeInputSourceRef.current = 'MICROPHONE';
-      setPracticeInputSource('MICROPHONE');
-    }
-    setPracticePreset(requestedPreset);
-  }, [
-    clearFinishRecoveryTimer,
-    practicePreset,
-    practiceSession,
-    searchParams,
-    selectedRangePractice,
-    socket,
-  ]);
-
-  const handlePracticePresetChange = (preset: PracticeSessionPreset) => {
-    if (
-      selectedRangePractice ||
-      preset === practicePreset ||
-      practiceStatusRef.current !== 'idle'
-    ) {
-      return;
-    }
-    const nextSearchParams = new URLSearchParams(searchParams.toString());
-    if (preset === 'STEP_BY_STEP') {
-      nextSearchParams.delete('practicePreset');
-    } else {
-      nextSearchParams.set('practicePreset', preset);
-    }
-    const queryString = nextSearchParams.toString();
-    router.replace(
-      `/${locale}/score/${id}/practice${queryString ? `?${queryString}` : ''}`,
-      { scroll: false }
-    );
+    setSelectedPracticeMode(practiceMode);
+    updateActiveSessionMode(practiceMode);
   };
 
   const handlePracticeInputSourceChange = (inputSource: PracticeInputSource) => {
     if (
       inputSource === practiceInputSource ||
-      practicePreset !== 'STEP_BY_STEP' ||
       practiceStatusRef.current !== 'idle'
     ) {
       return;
@@ -910,8 +1048,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     clearFinishRecoveryTimer();
     practiceSession.clear();
     socket.close();
-    preconnectStartedRef.current = false;
     setAlignment(null);
+    clearPerformanceClockSync();
+    setPerformanceTimeline(null);
+    setCompletedLocalMidiReplay(null);
+    localReplayCaptureActiveRef.current = false;
+    localMidiReplayEventsRef.current = [];
+    recording.reset();
     setConnectionStatus('disconnected');
     activeInputSourceRef.current = inputSource;
     setPracticeInputSource(inputSource);
@@ -942,36 +1085,46 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     setIsCompletionDialogOpen(false);
     setCompletedSessionId(null);
     setCompletedOutcome(null);
+    setCompletedLocalMidiReplay(null);
+    setLocalReplayFinalizationState({ status: 'not_expected' });
+    setPendingReportHandoffSessionId(null);
+    localReplayCaptureActiveRef.current = false;
+    localMidiReplayEventsRef.current = [];
     runningPracticeScopeRef.current = null;
     recording.reset();
     setAlignment(null);
+    clearPerformanceClockSync();
+    setPerformanceTimeline(null);
     setPracticeTime(0);
     setPracticeClockStarted(false);
+    updatePracticeStatus('connecting');
+    setIsPreparingSession(true);
+    setConnectionStatus('connecting');
+    practiceSession.clear();
+    socket.close();
 
     try {
-      if (!practiceSession.session || !socket.isOpen()) {
-        preconnectStartedRef.current = false;
-        await preparePracticeSession();
-      }
-
-      const detail = practiceSession.getDetail();
-      if (!detail || !socket.isOpen()) {
-        throw new Error('Practice session is not ready.');
-      }
-
-      updatePracticeStatus('arming');
-      activeInputSourceRef.current = detail.input_source;
-      runningPracticeScopeRef.current = detail.practice_scope ?? activePracticeScope ?? null;
-      if (detail.input_source === 'MIDI') {
+      activeInputSourceRef.current = practiceInputSource;
+      if (practiceInputSource === 'MIDI') {
         await midiStream.setup();
       } else {
         const stream = await audioStream.setup();
         recording.attach(stream);
       }
-      sendPracticeInit(detail);
-      if (detail.input_source === 'MIDI') {
-        midiStream.setStreaming(true);
+      const createdSession = await practiceSession.create();
+      if (!createdSession) {
+        throw new Error('Practice session creation was superseded.');
       }
+
+      const { detail, wsUrl } = createdSession;
+      await socket.open(wsUrl);
+      setConnectionStatus('ready');
+
+      updatePracticeStatus('arming');
+      updateActiveSessionMode(detail.preset);
+      activeInputSourceRef.current = detail.input_source;
+      runningPracticeScopeRef.current = detail.practice_scope ?? activePracticeScope ?? null;
+      sendPracticeInit(detail);
     } catch (error) {
       reportUnexpectedClientError(error, {
         area: 'practice',
@@ -993,7 +1146,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         error instanceof DOMException &&
         (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
       updatePracticeStatus('idle');
+      updateActiveSessionMode(selectedPracticeMode);
       setPracticeClockStarted(false);
+      setConnectionStatus('disconnected');
+      practiceSession.clear();
       audioStream.teardown();
       midiStream.teardown();
       if (isMicrophoneAccessDenied) {
@@ -1035,6 +1191,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       }
     } finally {
       setIsLoading(false);
+      setIsPreparingSession(false);
     }
   };
 
@@ -1048,7 +1205,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       pausedPracticeStatusRef.current = practiceStatus;
       audioStream.setStreaming(false);
       midiStream.setStreaming(false);
-      recording.pause();
+      pauseLocalPerformanceCapture();
       updatePracticeStatus('paused');
 
       if (!sendPracticeControl('client.pause')) {
@@ -1060,10 +1217,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
 
     if (practiceStatus === 'paused') {
-      audioStream.setStreaming(true);
-      midiStream.setStreaming(true);
-      recording.resume();
-      updatePracticeStatus(pausedPracticeStatusRef.current);
+      if (activeSessionModeRef.current === 'STEP_BY_STEP') {
+        audioStream.setStreaming(true);
+        midiStream.setStreaming(true);
+        updatePracticeStatus(pausedPracticeStatusRef.current);
+      }
 
       if (!sendPracticeControl('client.resume')) {
         void practiceSession
@@ -1080,8 +1238,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
 
     if (sendPracticeControl('client.finish')) {
+      finishLocalPerformanceCapture();
       return;
     }
+
+    finishLocalPerformanceCapture();
 
     void practiceSession
       .runRestControl('finish', currentSessionId)
@@ -1094,9 +1255,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       .catch(() => undefined)
       .finally(() => {
         socket.close();
-        if (!hasActiveSelectedRange) {
-          prepareNextPracticeSession();
-        }
       });
   };
 
@@ -1107,8 +1265,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     setIsCompletionDialogOpen(false);
     setCompletedSessionId(null);
     setCompletedOutcome(null);
+    setCompletedLocalMidiReplay(null);
+    setLocalReplayFinalizationState({ status: 'not_expected' });
+    setPendingReportHandoffSessionId(null);
+    localReplayCaptureActiveRef.current = false;
+    localMidiReplayEventsRef.current = [];
     runningPracticeScopeRef.current = null;
     setAlignment(null);
+    clearPerformanceClockSync();
+    setPerformanceTimeline(null);
+    updateActiveSessionMode(selectedPracticeMode);
     setPracticeTime(0);
     setPracticeClockStarted(false);
   };
@@ -1118,49 +1284,69 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     clearFinishRecoveryTimer();
     practiceSession.clear();
     socket.close();
-    preconnectStartedRef.current = false;
     updatePracticeStatus('idle');
     setConnectionStatus('disconnected');
     setIsCompletionDialogOpen(false);
     setCompletedSessionId(null);
     setCompletedOutcome(null);
+    setCompletedLocalMidiReplay(null);
+    setLocalReplayFinalizationState({ status: 'not_expected' });
+    setPendingReportHandoffSessionId(null);
+    localReplayCaptureActiveRef.current = false;
+    localMidiReplayEventsRef.current = [];
     runningPracticeScopeRef.current = null;
     setAlignment(null);
+    clearPerformanceClockSync();
+    setPerformanceTimeline(null);
+    updateActiveSessionMode(selectedPracticeMode);
     setPracticeTime(0);
     setPracticeClockStarted(false);
     setRangeSelection(selectedPracticeRangeSelection());
-    router.push(`/${locale}/score/${id}/practice?practicePreset=${practicePreset}`);
+    router.push(`/${locale}/score/${id}/practice`);
   };
+
+  const navigateToSummary = useCallback(
+    (summarySessionId: string) => {
+      router.push(
+        `/${locale}/score/${id}/practice/summary?sessionId=${encodeURIComponent(summarySessionId)}`
+      );
+    },
+    [id, locale, router]
+  );
+
+  useEffect(() => {
+    const completedHandoffSessionId = completedReportHandoffSessionId(
+      pendingReportHandoffSessionId,
+      localReplayFinalizationState
+    );
+    if (!completedHandoffSessionId) {
+      return;
+    }
+    setPendingReportHandoffSessionId(null);
+    navigateToSummary(completedHandoffSessionId);
+  }, [
+    localReplayFinalizationState,
+    navigateToSummary,
+    pendingReportHandoffSessionId,
+  ]);
 
   const handleViewSummary = () => {
     const summarySessionId = completedSessionId ?? practiceSession.getSessionId();
     if (!summarySessionId) {
       return;
     }
-    router.push(`/${locale}/score/${id}/practice/summary?sessionId=${encodeURIComponent(summarySessionId)}`);
+    if (
+      shouldWaitForLocalReplayHandoff(summarySessionId, localReplayFinalizationState)
+    ) {
+      setPendingReportHandoffSessionId(summarySessionId);
+      return;
+    }
+    navigateToSummary(summarySessionId);
   };
 
-  const handleStartFullPiecePerformance = () => {
-    recording.reset();
-    audioStream.teardown();
-    midiStream.teardown();
-    clearFinishRecoveryTimer();
-    practiceSession.clear();
-    socket.close();
-    preconnectStartedRef.current = false;
-    activeInputSourceRef.current = 'MICROPHONE';
-    setPracticeInputSource('MICROPHONE');
-    setConnectionStatus('disconnected');
-    updatePracticeStatus('idle');
-    setIsCompletionDialogOpen(false);
-    setCompletedSessionId(null);
-    setCompletedOutcome(null);
-    runningPracticeScopeRef.current = null;
-    setAlignment(null);
-    setPracticeTime(0);
-    setPracticeClockStarted(false);
-    router.push(`/${locale}/score/${id}/practice?practicePreset=CONTINUOUS_PLAY`);
-  };
+  const isCompletionSummaryActionLoading =
+    isLoading ||
+    Boolean(pendingReportHandoffSessionId);
 
   const practiceControls = (
     <PracticeControls
@@ -1189,9 +1375,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       isPreparingSession={isPreparingSession}
       canPrepareSession={canPreparePractice}
       audioWorkletSupported={selectedInputSupported}
+      sessionMode={activeSessionMode}
       practiceClockStarted={practiceClockStarted}
       practiceTime={practiceTime}
       alignment={alignment}
+      performanceClockSync={performanceClockSync}
+      performanceClockSyncReceivedAtMs={performanceClockSyncReceivedAtMs}
     />
   );
 
@@ -1240,7 +1429,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       <div className="min-h-[calc(100vh-4rem)] xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-[38rem] xl:flex-col">
         <div className="min-h-0 xl:flex xl:flex-1">
           <main className="min-w-0 xl:flex xl:h-full xl:min-h-0 xl:flex-1 xl:flex-col">
-            <div className="relative flex min-h-[38rem] flex-col pb-3 xl:h-full xl:min-h-0 xl:flex-1">
+            <div className="relative flex min-h-[38rem] flex-col pb-28 xl:h-full xl:min-h-0 xl:flex-1">
               <ClientOnly>
                 <PracticeScoreViewer
                   className="rounded-none border-0 shadow-none xl:min-h-0 xl:flex-1"
@@ -1249,6 +1438,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   isLoadingXml={isLoadingXml}
                   practiceStatus={practiceStatus}
                   alignment={displayAlignment}
+                  performanceClockSync={performanceClockSync}
+                  performanceTimeline={performanceTimeline}
+                  sessionMode={activeSessionMode}
                   selectedRangeRenderNoteIds={activeRangeSelectionVisual.renderNoteIds}
                   selectedRangeStartRenderNoteIds={activeRangeSelectionVisual.startRenderNoteIds}
                   selectedRangeEndRenderNoteIds={activeRangeSelectionVisual.endRenderNoteIds}
@@ -1257,11 +1449,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   }
                 />
               </ClientOnly>
-              <div className="relative z-20 mt-3 w-fit max-w-[calc(100%-1.5rem)] self-center rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-lg">
-                {practiceControls}
-              </div>
             </div>
           </main>
+        </div>
+      </div>
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-3 px-3">
+        <div className="pointer-events-auto w-fit max-w-full rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-lg">
+          {practiceControls}
         </div>
       </div>
       <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -1276,13 +1470,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             midiSupported={midiStream.isSupported}
             hasMidiPermission={midiStream.hasMidiPermission}
             hasMidiInput={midiStream.hasConnectedInput}
-            preset={practicePreset}
-            presetLocked={Boolean(selectedRangePractice) || practiceStatus !== 'idle'}
+            practiceMode={selectedPracticeMode}
+            practiceModeLocked={practiceStatus !== 'idle'}
             inputSource={practiceInputSource}
             microphoneInputLocked={practiceStatus !== 'idle'}
-            midiInputLocked={practiceStatus !== 'idle' || practicePreset !== 'STEP_BY_STEP'}
+            midiInputLocked={practiceStatus !== 'idle'}
             showNextNoteHint={showNextNoteHint}
-            onPresetChange={handlePracticePresetChange}
+            onPracticeModeChange={handlePracticeModeChange}
             onInputSourceChange={handlePracticeInputSourceChange}
             onShowNextNoteHintChange={setShowNextNoteHint}
           />
@@ -1293,18 +1487,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       {completionOutcome ? (
         <PracticeCompletionDialog
           open={isCompletionDialogOpen}
-          audioUrl={audioURL}
           outcome={completionOutcome}
-          isLoading={isLoading}
+          sessionMode={activeSessionMode}
+          isLoading={isCompletionSummaryActionLoading}
           onOpenChange={setIsCompletionDialogOpen}
           onRestart={handleRestart}
           onAdjustSection={handleAdjustSelectedSection}
           onViewSummary={handleViewSummary}
-          onStartFullPiecePerformance={
-            completionOutcome.canStartFullPiecePerformance
-              ? handleStartFullPiecePerformance
-              : undefined
-          }
         />
       ) : null}
     </>

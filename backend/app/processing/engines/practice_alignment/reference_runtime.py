@@ -6,6 +6,8 @@ from pathlib import Path
 
 from app.core.settings.practice_runtime import get_practice_runtime_settings
 
+SCORE_AUDIO_TAIL_PADDING_SECONDS = 0.1
+
 
 def build_audio_processor(*, sample_rate: int, hop_length: int, chroma_processor):
     """Create Matchmaker's chroma extractor with the negotiated audio format."""
@@ -28,7 +30,10 @@ def generate_score_audio(*, score, bpm, sample_rate, np, partitura, generate_sco
     padding = int(score.inv_beat_map(first) / score.quarter_duration_map(score.inv_beat_map(first)) * (60 / bpm) * sample_rate)
     score_audio = np.pad(score_audio, (padding, 0))
     last = np.floor(note_array["onset_div"].max())
-    duration = last / score.quarter_duration_map(score.inv_beat_map(last)) * (60 / bpm) + 0.1
+    duration = (
+        last / score.quarter_duration_map(score.inv_beat_map(last)) * (60 / bpm)
+        + SCORE_AUDIO_TAIL_PADDING_SECONDS
+    )
     return score_audio[: int(duration * sample_rate)]
 
 

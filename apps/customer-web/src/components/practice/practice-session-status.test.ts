@@ -9,7 +9,10 @@ import {
   PracticeSessionStatus,
   resolvePracticeSessionStatusView,
 } from './practice-session-status';
-import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
+import type {
+  PracticeAlignmentUpdateMessage,
+  PracticePerformanceClockPayload,
+} from '@/lib/practice/protocol';
 import practiceMessages from '../../../messages/en/practice.json';
 
 type AlignmentPayload = PracticeAlignmentUpdateMessage['payload'];
@@ -21,6 +24,7 @@ const baseProps = {
   isPreparingSession: false,
   canPrepareSession: true,
   audioWorkletSupported: true,
+  sessionMode: 'STEP_BY_STEP' as const,
   practiceClockStarted: true,
   practiceTime: 12,
 };
@@ -125,6 +129,26 @@ function makePossibleWrongNoteAlignment() {
       },
     },
   });
+}
+
+function makePerformanceClockSync(
+  overrides: Partial<PracticePerformanceClockPayload> = {}
+): PracticePerformanceClockPayload {
+  return {
+    state: 'RUNNING',
+    musical_beat: 1,
+    performance_time_ms: 0,
+    count_in_remaining_ms: 0,
+    count_in_remaining_pulses: 0,
+    scope_completed: false,
+    scope_start_group_id: null,
+    scope_end_group_id: null,
+    scope_start_beat: 1,
+    scope_terminal_beat: 4,
+    nominal_scope_duration_ms: 3000,
+    speed_ratio: 1,
+    ...overrides,
+  };
 }
 
 afterEach(() => {
@@ -238,6 +262,114 @@ describe('resolvePracticeSessionStatusView', () => {
     });
   });
 
+  it('shows fixed-clock performance progress without requiring alignment evidence', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        ...baseProps,
+        sessionMode: 'CONTINUOUS_PLAY',
+        alignment: null,
+      })
+    ).toMatchObject({
+      messageKey: 'performanceRunning',
+      inputHintKey: null,
+      uncertain: false,
+    });
+  });
+
+  it('shows fixed-clock count-in without step-by-step first-note guidance', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        ...baseProps,
+        status: 'listening',
+        sessionMode: 'CONTINUOUS_PLAY',
+        alignment: null,
+        performanceClockSync: makePerformanceClockSync({
+          state: 'COUNT_IN',
+          count_in_remaining_ms: 1000,
+          count_in_remaining_pulses: 2,
+        }),
+      })
+    ).toMatchObject({
+      messageKey: 'performanceCountIn',
+      uncertain: false,
+    });
+  });
+
+  it('renders visible fixed-clock count-in pulses', () => {
+    const status = createElement(PracticeSessionStatus, {
+      ...baseProps,
+      status: 'listening',
+      sessionMode: 'CONTINUOUS_PLAY',
+      alignment: null,
+      performanceClockSync: makePerformanceClockSync({
+        state: 'COUNT_IN',
+        count_in_remaining_ms: 1800,
+        count_in_remaining_pulses: 4,
+      }),
+      performanceClockSyncReceivedAtMs: 0,
+    });
+    const { rerender } = render(
+      createElement(
+        IntlProvider,
+        {
+          locale: 'en',
+          messages: { practice: practiceMessages },
+        },
+        status
+      )
+    );
+
+    expect(screen.getByText('Count-in 4')).toBeTruthy();
+
+    rerender(
+      createElement(
+        IntlProvider,
+        {
+          locale: 'en',
+          messages: { practice: practiceMessages },
+        },
+        createElement(PracticeSessionStatus, {
+          ...baseProps,
+          status: 'listening',
+          sessionMode: 'CONTINUOUS_PLAY',
+          alignment: null,
+          performanceClockSync: makePerformanceClockSync({
+            state: 'COUNT_IN',
+            count_in_remaining_ms: 1800,
+            count_in_remaining_pulses: 4,
+          }),
+          performanceClockSyncReceivedAtMs: -450,
+        })
+      )
+    );
+
+    expect(screen.getByText('Count-in 3')).toBeTruthy();
+
+    rerender(
+      createElement(
+        IntlProvider,
+        {
+          locale: 'en',
+          messages: { practice: practiceMessages },
+        },
+        createElement(PracticeSessionStatus, {
+          ...baseProps,
+          status: 'listening',
+          sessionMode: 'CONTINUOUS_PLAY',
+          alignment: null,
+          performanceClockSync: makePerformanceClockSync({
+            state: 'COUNT_IN',
+            count_in_remaining_ms: 1800,
+            count_in_remaining_pulses: 4,
+          }),
+          performanceClockSyncReceivedAtMs: -1800,
+        })
+      )
+    );
+
+    expect(screen.getByText('Starting')).toBeTruthy();
+  });
+
   it('does not show a pending connection state after an idle setup failure', () => {
     expect(
       resolvePracticeSessionStatusView({
@@ -247,6 +379,7 @@ describe('resolvePracticeSessionStatusView', () => {
         isPreparingSession: false,
         canPrepareSession: true,
         audioWorkletSupported: true,
+        sessionMode: 'STEP_BY_STEP',
         alignment: null,
       })
     ).toMatchObject({

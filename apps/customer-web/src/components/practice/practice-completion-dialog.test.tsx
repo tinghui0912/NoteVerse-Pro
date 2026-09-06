@@ -7,49 +7,85 @@ import { describe, expect, it, vi } from 'vitest';
 import practiceMessages from '../../../messages/en/practice.json';
 import { PracticeCompletionDialog } from './practice-completion-dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
+import type { PracticeSessionMode } from '@/lib/practice/session-policy';
 
-function renderDialog(outcome: PracticeCompletionOutcome) {
+function renderDialog(
+  outcome: PracticeCompletionOutcome,
+  sessionMode: PracticeSessionMode = 'STEP_BY_STEP'
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>
       <PracticeCompletionDialog
         open
-        audioUrl={null}
         outcome={outcome}
+        sessionMode={sessionMode}
         isLoading={false}
         onOpenChange={vi.fn()}
         onRestart={vi.fn()}
         onAdjustSection={vi.fn()}
         onViewSummary={vi.fn()}
-        onStartFullPiecePerformance={vi.fn()}
       />
     </NextIntlClientProvider>
   );
 }
 
 describe('PracticeCompletionDialog', () => {
-  it('does not show a full-performance CTA after selected-section completion', () => {
+  it('shows retry and section practice after selected-section completion', () => {
     renderDialog({
       kind: 'selected-section',
-      expectsPlayback: false,
-      canViewSummary: false,
-      canStartFullPiecePerformance: false,
     });
 
     expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Adjust Range' })).toBeEnabled();
-    expect(
-      screen.queryByRole('button', { name: 'Start Full Performance' })
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Adjust Section' })).toBeEnabled();
+    expect(screen.queryByText('Preparing playback...')).not.toBeInTheDocument();
   });
 
-  it('keeps the full-performance CTA for full-piece learning completion', () => {
+  it('shows retry and section practice after full-piece step-by-step completion', () => {
     renderDialog({
       kind: 'full-piece-learning',
-      expectsPlayback: false,
-      canViewSummary: false,
-      canStartFullPiecePerformance: true,
     });
 
-    expect(screen.getByRole('button', { name: 'Start Full Performance' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Section Practice' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'View Report' })).not.toBeInTheDocument();
+  });
+
+  it('shows retry and report after full-piece performance completion', () => {
+    renderDialog({
+      kind: 'full-piece-performance',
+    }, 'CONTINUOUS_PLAY');
+
+    expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'View Report' })).toBeEnabled();
+    expect(screen.queryByText('Preparing playback...')).not.toBeInTheDocument();
+  });
+
+  it('uses performance actions for selected continuous ranges', () => {
+    renderDialog({
+      kind: 'selected-section',
+    }, 'CONTINUOUS_PLAY');
+
+    expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'View Report' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Section Practice' })).not.toBeInTheDocument();
+  });
+
+  it('shows the report action loading state while opening the report', () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>
+        <PracticeCompletionDialog
+          open
+          outcome={{ kind: 'full-piece-performance' }}
+          sessionMode="CONTINUOUS_PLAY"
+          isLoading
+          onOpenChange={vi.fn()}
+          onRestart={vi.fn()}
+          onAdjustSection={vi.fn()}
+          onViewSummary={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    expect(screen.getByRole('button', { name: 'View Report' })).toBeDisabled();
   });
 });

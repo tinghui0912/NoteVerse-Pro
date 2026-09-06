@@ -35,6 +35,7 @@ describe('usePracticeSession', () => {
         revision_id: 'revision-1',
         access_origin: 'OWNER',
         state: 'CREATED',
+        preset: 'STEP_BY_STEP',
         progression_mode: 'WAIT_FOR_NOTE',
         realtime_guidance: 'GUIDED',
         evaluation_profile: 'LEARNING',
@@ -62,7 +63,7 @@ describe('usePracticeSession', () => {
       usePracticeSession({
         scoreId: 'score-1',
         revisionId: 'revision-1',
-        preset: 'STEP_BY_STEP',
+        practiceMode: 'STEP_BY_STEP',
         inputSource: 'MIDI',
         practiceScope: {
           start_expected_group_id: 'entry-4',
@@ -83,9 +84,7 @@ describe('usePracticeSession', () => {
       sample_rate: 16000,
       channels: 1,
       frame_format: 'pcm_s16le',
-      progression_mode: 'WAIT_FOR_NOTE',
-      realtime_guidance: 'GUIDED',
-      evaluation_profile: 'LEARNING',
+      preset: 'STEP_BY_STEP',
       input_source: 'MIDI',
       practice_scope: {
         start_expected_group_id: 'entry-4',
@@ -94,5 +93,28 @@ describe('usePracticeSession', () => {
         end_measure_number: '12',
       },
     });
+  });
+
+  it('creates continuous play sessions from the selected product mode', async () => {
+    const { result } = renderHook(() =>
+      usePracticeSession({
+        scoreId: 'score-1',
+        revisionId: 'revision-1',
+        practiceMode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        practiceScope: null,
+      })
+    );
+
+    await act(async () => {
+      await result.current.create();
+    });
+
+    expect(apiMocks.createPracticeSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preset: 'CONTINUOUS_PLAY',
+        input_source: 'MICROPHONE',
+      })
+    );
   });
 });

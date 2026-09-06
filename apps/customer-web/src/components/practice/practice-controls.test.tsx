@@ -33,14 +33,14 @@ describe('PracticeControls', () => {
   it('keeps the section button label stable while active', () => {
     renderControls(true);
 
-    const button = screen.getByRole('button', { name: /select section/i });
-    expect(button).toHaveTextContent('Select section');
+    const button = screen.getByRole('button', { name: /section/i });
+    expect(button).toHaveTextContent('Section');
     expect(button).toHaveClass('bg-slate-200');
   });
 
   it('renders settings inside the bottom controls', () => {
     renderControls(false);
 
-    expect(screen.getByRole('button', { name: /practice settings/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /settings/i })).toBeEnabled();
   });
 });

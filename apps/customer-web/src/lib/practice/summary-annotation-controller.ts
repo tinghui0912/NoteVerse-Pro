@@ -14,8 +14,8 @@ function findElementByVerovioId(container: HTMLElement, verovioId: string) {
 
 export class PracticeSummaryAnnotationController {
   private readonly annotationClasses = [
-    'practice-summary-note-problem',
-    'practice-summary-note-review',
+    'practice-summary-note-confirmed-correct',
+    'practice-summary-note-confirmed-error',
   ];
   private annotatedNoteIds: string[] = [];
 
@@ -29,13 +29,21 @@ export class PracticeSummaryAnnotationController {
   apply(
     container: HTMLElement,
     annotations: {
-      problemNoteIds: string[];
-      reviewNoteIds: string[];
+      confirmedCorrectNoteIds: string[];
+      confirmedErrorNoteIds: string[];
     }
   ) {
     this.clear(container);
-    this.applyClass(container, annotations.reviewNoteIds, 'practice-summary-note-review');
-    this.applyClass(container, annotations.problemNoteIds, 'practice-summary-note-problem');
+    this.applyClass(
+      container,
+      annotations.confirmedCorrectNoteIds,
+      'practice-summary-note-confirmed-correct'
+    );
+    this.applyClass(
+      container,
+      annotations.confirmedErrorNoteIds,
+      'practice-summary-note-confirmed-error'
+    );
   }
 
   private applyClass(container: HTMLElement, noteIds: string[], className: string) {

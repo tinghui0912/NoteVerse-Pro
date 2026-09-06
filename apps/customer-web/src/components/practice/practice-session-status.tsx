@@ -5,12 +5,19 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
 import { cn } from '@/lib/utils';
+import type { PracticeSessionMode } from '@/lib/practice/session-policy';
 import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/practice-types';
-import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
+import type {
+  PracticeAlignmentUpdateMessage,
+  PracticePerformanceClockPayload,
+} from '@/lib/practice/protocol';
 
 type PracticeStatusMessageKey =
   | 'preparingPractice'
   | 'preparingToPlay'
+  | 'performanceCountIn'
+  | 'performanceStarting'
+  | 'performanceRunning'
   | 'finishingPractice'
   | 'waitingForFirstNote'
   | 'settingStatusFollowing'
@@ -36,6 +43,7 @@ type PracticeSessionStatusView = {
 };
 
 const UNCERTAIN_STATUS_DELAY_MS = 350;
+const COUNT_IN_STATUS_TICK_MS = 100;
 
 type PracticeSessionStatusProps = {
   className?: string;
@@ -45,9 +53,12 @@ type PracticeSessionStatusProps = {
   isPreparingSession: boolean;
   canPrepareSession: boolean;
   audioWorkletSupported: boolean;
+  sessionMode: PracticeSessionMode;
   practiceClockStarted: boolean;
   practiceTime: number;
   alignment?: PracticeAlignmentUpdateMessage['payload'] | null;
+  performanceClockSync?: PracticePerformanceClockPayload | null;
+  performanceClockSyncReceivedAtMs?: number | null;
 };
 
 function formatTime(seconds: number) {
@@ -63,7 +74,9 @@ export function resolvePracticeSessionStatusView({
   isPreparingSession,
   canPrepareSession,
   audioWorkletSupported,
+  sessionMode,
   alignment,
+  performanceClockSync,
 }: Pick<
   PracticeSessionStatusProps,
   | 'status'
@@ -72,7 +85,9 @@ export function resolvePracticeSessionStatusView({
   | 'isPreparingSession'
   | 'canPrepareSession'
   | 'audioWorkletSupported'
+  | 'sessionMode'
   | 'alignment'
+  | 'performanceClockSync'
 >): PracticeSessionStatusView {
   const isPreparing = status === 'connecting' || status === 'arming';
   const isPreparingConnection =
@@ -121,6 +136,24 @@ export function resolvePracticeSessionStatusView({
   if (status !== 'listening' && status !== 'practicing') {
     return {
       messageKey: 'settingStatusReady',
+      inputHintKey: null,
+      pending: false,
+      uncertain: false,
+    };
+  }
+
+  if (sessionMode === 'CONTINUOUS_PLAY' && performanceClockSync?.state === 'COUNT_IN') {
+    return {
+      messageKey: 'performanceCountIn',
+      inputHintKey: null,
+      pending: false,
+      uncertain: false,
+    };
+  }
+
+  if (sessionMode === 'CONTINUOUS_PLAY' && status === 'practicing') {
+    return {
+      messageKey: 'performanceRunning',
       inputHintKey: null,
       pending: false,
       uncertain: false,
@@ -233,9 +266,12 @@ export function PracticeSessionStatus({
   isPreparingSession,
   canPrepareSession,
   audioWorkletSupported,
+  sessionMode,
   practiceClockStarted,
   practiceTime,
   alignment,
+  performanceClockSync,
+  performanceClockSyncReceivedAtMs = null,
 }: PracticeSessionStatusProps) {
   const t = useTranslations('practice');
   const resolvedView = useMemo(
@@ -247,7 +283,9 @@ export function PracticeSessionStatus({
         isPreparingSession,
         canPrepareSession,
         audioWorkletSupported,
+        sessionMode,
         alignment,
+        performanceClockSync,
       }),
     [
       alignment,
@@ -256,11 +294,14 @@ export function PracticeSessionStatus({
       connectionStatus,
       isLoading,
       isPreparingSession,
+      performanceClockSync,
+      sessionMode,
       status,
     ]
   );
   const [delayedUncertainView, setDelayedUncertainView] =
     useState<PracticeSessionStatusView | null>(null);
+  const [countInNowMs, setCountInNowMs] = useState(0);
   const isRecording =
     practiceClockStarted &&
     (status === 'listening' || status === 'practicing' || status === 'paused');
@@ -278,13 +319,53 @@ export function PracticeSessionStatus({
     resolvedView,
   ]);
 
+  useEffect(() => {
+    if (performanceClockSync?.state !== 'COUNT_IN') {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCountInNowMs(performance.now());
+    }, COUNT_IN_STATUS_TICK_MS);
+    return () => window.clearInterval(intervalId);
+  }, [performanceClockSync]);
+
   const displayView =
     resolvedView.uncertain && isSameStatusView(delayedUncertainView, resolvedView)
       ? delayedUncertainView
       : resolvedView.uncertain
         ? fallbackViewBeforeUncertainState(status)
         : resolvedView;
-  const message = t(displayView.messageKey);
+  const projectedCountInRemainingMs =
+    displayView.messageKey === 'performanceCountIn' &&
+    performanceClockSync?.state === 'COUNT_IN' &&
+    performanceClockSyncReceivedAtMs !== null
+      ? Math.max(
+          0,
+          performanceClockSync.count_in_remaining_ms -
+            Math.max(0, countInNowMs - performanceClockSyncReceivedAtMs)
+        )
+      : null;
+  const projectedCountInRemainingPulses =
+    projectedCountInRemainingMs !== null &&
+    performanceClockSync?.state === 'COUNT_IN' &&
+    performanceClockSync.count_in_remaining_ms > 0
+      ? Math.max(
+          0,
+          performanceClockSync.count_in_remaining_pulses *
+            (projectedCountInRemainingMs / performanceClockSync.count_in_remaining_ms)
+        )
+      : null;
+  const countInPulse =
+    projectedCountInRemainingPulses !== null && projectedCountInRemainingPulses > 0
+      ? Math.max(1, Math.ceil(projectedCountInRemainingPulses))
+      : null;
+  const message =
+    displayView.messageKey === 'performanceCountIn' && countInPulse === null
+      ? t('performanceStarting')
+      : countInPulse === null
+      ? t(displayView.messageKey)
+      : t(displayView.messageKey, { pulse: countInPulse });
 
   return (
     <div
