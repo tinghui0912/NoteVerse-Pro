@@ -111,6 +111,32 @@ def test_target_conditioned_observer_is_quiet_for_silence() -> None:
     assert observation.confidence == 0.0
 
 
+def test_target_conditioned_observer_exposes_single_pitch_relative_normalization_risk() -> None:
+    group = expected_group("C4")
+    audio = _mix(0.02 * _sine(261.625565), _sine(277.182631))
+
+    observation = TargetConditionedPianoObserver().observe_expected_group(
+        audio,
+        expected_group=group,
+        sample_rate=SAMPLE_RATE,
+        np_module=np,
+        onset_beat=group.onset_beat,
+    )
+
+    assert len(observation.activations) == 1
+    activation = observation.activations[0]
+    assert activation.pitch == "C4"
+    assert 0.0 < activation.spectral_score < 0.45
+    assert activation.confidence == 1.0
+    assert observation.observed_pitches == ("C4",)
+
+    evaluation = ExpectedEventEvaluator().evaluate(
+        group,
+        EvaluatorEvidence.from_audio(observation.to_audio_observation()),
+    )
+    assert evaluation.result == "MATCH"
+
+
 def _sine(frequency_hz: float) -> np.ndarray:
     t = np.arange(int(SAMPLE_RATE * 0.5), dtype=np.float32) / SAMPLE_RATE
     return (0.25 * np.sin(2 * np.pi * frequency_hz * t)).astype(np.float32)
