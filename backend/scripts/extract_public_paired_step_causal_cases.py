@@ -34,7 +34,8 @@ CASE_ORDER = (
     "correct_strike",
     "wrong_semitone",
     "wrong_octave",
-    "sustain_tail_without_retrigger",
+    "long_held_note_without_retrigger",
+    "pedal_sustain_tail_without_retrigger",
     "same_note_retrigger",
     "correct_chord",
     "missing_chord_tone",
@@ -84,7 +85,12 @@ def main() -> int:
     notes = parse_midi_note_ons(args.midi)
     groups = group_note_ons(notes, chord_window_seconds=args.chord_window_seconds)
     spans, pedal_events = parse_midi_note_spans_and_pedal(args.midi)
-    plans = select_case_plans(groups, spans, max_cases_per_kind=args.max_cases_per_kind)
+    plans = select_case_plans(
+        groups,
+        spans,
+        pedal_events,
+        max_cases_per_kind=args.max_cases_per_kind,
+    )
     cases = export_cases(
         plans,
         audio=audio,
@@ -117,6 +123,11 @@ def main() -> int:
             "pre_context_seconds": args.pre_context_seconds,
             "post_context_seconds": args.post_context_seconds,
             "case_count": len(cases),
+            "requested_case_kinds": CASE_ORDER,
+            "selected_case_counts": {
+                kind: sum(1 for case in cases if case.case_kind == kind)
+                for kind in CASE_ORDER
+            },
         },
         "cases": [asdict(case) for case in cases],
     }
@@ -144,12 +155,13 @@ def parse_args() -> argparse.Namespace:
 def select_case_plans(
     groups: tuple[MidiStrikeGroup, ...],
     spans: tuple[MidiNoteSpan, ...],
+    pedal_events: tuple[PedalEvent, ...],
     *,
     max_cases_per_kind: int,
 ) -> tuple[dict[str, object], ...]:
     plans: list[dict[str, object]] = []
     for kind in CASE_ORDER:
-        candidates = _candidate_plans_for_kind(kind, groups, spans)
+        candidates = _candidate_plans_for_kind(kind, groups, spans, pedal_events)
         plans.extend(candidates[:max_cases_per_kind])
     return tuple(plans)
 
@@ -158,6 +170,7 @@ def _candidate_plans_for_kind(
     kind: str,
     groups: tuple[MidiStrikeGroup, ...],
     spans: tuple[MidiNoteSpan, ...],
+    pedal_events: tuple[PedalEvent, ...],
 ) -> list[dict[str, object]]:
     plans: list[dict[str, object]] = []
     for index, group in enumerate(groups):
@@ -205,7 +218,7 @@ def _candidate_plans_for_kind(
                     "Real audio contains one strike; expected chord adds a missing tone.",
                 )
             )
-        elif kind == "sustain_tail_without_retrigger":
+        elif kind == "long_held_note_without_retrigger":
             tail_pitch = _long_sounding_pitch_without_retrigger(group, groups, spans)
             if tail_pitch is not None:
                 plans.append(
@@ -216,6 +229,24 @@ def _candidate_plans_for_kind(
                         (group.pitches, (tail_pitch,)),
                         1,
                         "Second expected target is presented over a real strike tail with no same-pitch MIDI retrigger.",
+                    )
+                )
+        elif kind == "pedal_sustain_tail_without_retrigger":
+            tail_pitch = _pedal_sustained_pitch_without_retrigger(
+                group,
+                groups,
+                spans,
+                pedal_events,
+            )
+            if tail_pitch is not None:
+                plans.append(
+                    _plan(
+                        kind,
+                        index,
+                        (group,),
+                        (group.pitches, (tail_pitch,)),
+                        1,
+                        "Second expected target is presented after note release while CC64 sustain is down.",
                     )
                 )
         elif kind == "same_note_retrigger" and len(group.midi_notes) == 1:
@@ -279,6 +310,59 @@ def _long_sounding_pitch_without_retrigger(
                 and span.end_seconds - span.start_seconds >= 0.6
             ):
                 return span.pitch
+    return None
+
+
+def _pedal_sustained_pitch_without_retrigger(
+    group: MidiStrikeGroup,
+    groups: tuple[MidiStrikeGroup, ...],
+    spans: tuple[MidiNoteSpan, ...],
+    pedal_events: tuple[PedalEvent, ...],
+) -> str | None:
+    start = group.seconds
+    for note in group.midi_notes:
+        span = next(
+            (
+                candidate
+                for candidate in spans
+                if candidate.midi_note == note
+                and abs(candidate.start_seconds - start) <= 0.04
+                and candidate.end_seconds is not None
+            ),
+            None,
+        )
+        if span is None or span.end_seconds is None:
+            continue
+        if not _pedal_down_at(pedal_events, span.end_seconds):
+            continue
+        pedal_up = _next_pedal_up_after(pedal_events, span.end_seconds)
+        if pedal_up is None or pedal_up - span.end_seconds < 0.3:
+            continue
+        same_pitch_retrigger = any(
+            later.seconds > start + 0.08
+            and later.seconds <= min(pedal_up, start + 1.2)
+            and note in later.midi_notes
+            for later in groups
+        )
+        if same_pitch_retrigger:
+            continue
+        return span.pitch
+    return None
+
+
+def _pedal_down_at(pedal_events: tuple[PedalEvent, ...], seconds: float) -> bool:
+    state = False
+    for event in pedal_events:
+        if event.seconds > seconds:
+            break
+        state = event.down
+    return state
+
+
+def _next_pedal_up_after(pedal_events: tuple[PedalEvent, ...], seconds: float) -> float | None:
+    for event in pedal_events:
+        if event.seconds > seconds and not event.down:
+            return event.seconds
     return None
 
 

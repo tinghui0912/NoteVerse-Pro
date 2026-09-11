@@ -63,6 +63,8 @@ FailureCode = Literal[
     "NONE",
     "MISSING_REQUIRED_FIXTURE",
     "FALSE_ATTACK_OPEN",
+    "INTERVENING_PHYSICAL_STRIKE",
+    "EARLY_FALSE_ADVANCE",
     "ATTACK_MISSED",
     "ATTEMPT_BOUNDARY_ERROR",
     "PITCH_FALSE_POSITIVE",
@@ -74,6 +76,7 @@ FailureCode = Literal[
     "RETRIGGER_MISSED",
     "NOISE_FALSE_COMPLETION",
 ]
+PHYSICAL_STRIKE_ATTEMPT_TOLERANCE_MS = 120
 FixtureStatus = Literal[
     "real_fixture",
     "derived_from_real_fixture",
@@ -161,6 +164,10 @@ class AttemptTrace:
     decision_reason: str
     advanced: bool
     decision_latency_ms: int | None
+    physical_strike_alignment: str = "NO_GROUND_TRUTH"
+    nearest_physical_strike_ms: int | None = None
+    nearest_physical_strike_delta_ms: int | None = None
+    nearest_physical_strike_pitches: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -186,6 +193,9 @@ class CaseResult:
     diagnostic_note: str
     boundary_note: str
     source_metadata: dict[str, object] | None = None
+    physical_attempt_summary: dict[str, int] | None = None
+    retrigger_audit: dict[str, object] | None = None
+    timeline: tuple[dict[str, object], ...] = ()
     missing_fixture_request: str | None = None
 
 
@@ -332,6 +342,9 @@ def _run_case(case: CaseSpec) -> CaseResult:
             diagnostic_note=case.diagnostic_note,
             boundary_note="",
             source_metadata=case.source_metadata,
+            physical_attempt_summary=None,
+            retrigger_audit=None,
+            timeline=(),
             missing_fixture_request=case.missing_fixture_request,
         )
 
@@ -409,6 +422,8 @@ def _run_case(case: CaseSpec) -> CaseResult:
         )
         accumulator.reset()
         previous_open = False
+
+    attempts = tuple(_attach_physical_strike_alignment(case, attempts))
 
     return _classify_case(
         case=case,
@@ -500,6 +515,50 @@ def _attempt_trace(
     )
 
 
+def _attach_physical_strike_alignment(
+    case: CaseSpec,
+    attempts: list[AttemptTrace],
+) -> tuple[AttemptTrace, ...]:
+    note_ons = _physical_note_on_events(case)
+    if not note_ons:
+        return tuple(attempts)
+    enriched: list[AttemptTrace] = []
+    for attempt in attempts:
+        nearest = min(
+            note_ons,
+            key=lambda note_on: abs(int(note_on["relative_ms"]) - attempt.started_at_ms),
+        )
+        delta_ms = attempt.started_at_ms - int(nearest["relative_ms"])
+        aligned = abs(delta_ms) <= PHYSICAL_STRIKE_ATTEMPT_TOLERANCE_MS
+        enriched.append(
+            AttemptTrace(
+                sequence=attempt.sequence,
+                expected_group_id=attempt.expected_group_id,
+                started_at_ms=attempt.started_at_ms,
+                resolved_at_ms=attempt.resolved_at_ms,
+                observed_pitches=attempt.observed_pitches,
+                observer_confidence=attempt.observer_confidence,
+                evaluation_result=attempt.evaluation_result,
+                matched_pitches=attempt.matched_pitches,
+                missing_pitches=attempt.missing_pitches,
+                extra_pitches=attempt.extra_pitches,
+                decision_action=attempt.decision_action,
+                decision_reason=attempt.decision_reason,
+                advanced=attempt.advanced,
+                decision_latency_ms=attempt.decision_latency_ms,
+                physical_strike_alignment=(
+                    "TRUE_PHYSICAL_STRIKE_ATTEMPT"
+                    if aligned
+                    else "FALSE_ATTEMPT_WITHOUT_STRIKE"
+                ),
+                nearest_physical_strike_ms=int(nearest["relative_ms"]),
+                nearest_physical_strike_delta_ms=delta_ms,
+                nearest_physical_strike_pitches=tuple(str(pitch) for pitch in nearest["pitches"]),
+            )
+        )
+    return tuple(enriched)
+
+
 def _classify_case(
     *,
     case: CaseSpec,
@@ -514,7 +573,7 @@ def _classify_case(
     case_kind = _case_kind(case)
     expected_any_attack = case.case_id not in {"noise_desk_knock_for_c4"}
     attack_correct = (attempt_open_count > 0) == expected_any_attack
-    if case_kind == "sustain_tail_without_retrigger":
+    if case_kind in {"sustain_tail_without_retrigger", "long_held_note_without_retrigger", "pedal_sustain_tail_without_retrigger"}:
         attempt_correct = attempt_open_count == 1
     elif case_kind == "same_note_retrigger":
         second_start_ms = _second_target_relative_ms(case)
@@ -529,6 +588,8 @@ def _classify_case(
         attempt_correct = attempt_open_count == expected_attempt_count
     pitch_correct = _pitch_correct(case, attempts)
     failure = _primary_failure(case, actual_advances, attempts, attempt_open_count, first_start_gate_ms)
+    physical_summary = _physical_attempt_summary(attempts)
+    retrigger_audit = _retrigger_audit(case, attempts)
     return CaseResult(
         case_id=case.case_id,
         fixture_status=case.fixture_status,
@@ -551,6 +612,9 @@ def _classify_case(
         diagnostic_note=case.diagnostic_note,
         boundary_note=_boundary_note(case, attempts),
         source_metadata=case.source_metadata,
+        physical_attempt_summary=physical_summary,
+        retrigger_audit=retrigger_audit,
+        timeline=_timeline(case, attempts),
         missing_fixture_request=case.missing_fixture_request,
     )
 
@@ -605,7 +669,7 @@ def _pitch_correct(case: CaseSpec, attempts: tuple[AttemptTrace, ...]) -> bool |
         return all(not attempt.observed_pitches for attempt in attempts)
     if case_kind == "missing_chord_tone":
         return all(attempt.evaluation_result != "MATCH" for attempt in attempts)
-    if case_kind == "sustain_tail_without_retrigger":
+    if case_kind in {"sustain_tail_without_retrigger", "long_held_note_without_retrigger", "pedal_sustain_tail_without_retrigger"}:
         return len(attempts) <= 1
     expected_flat = tuple(pitch for group in case.expected_groups for pitch in group)
     observed_flat = tuple(pitch for attempt in attempts for pitch in attempt.observed_pitches)
@@ -638,20 +702,30 @@ def _primary_failure(
         if actual_advances > 0:
             return "MISSING_NOTE_FALSE_COMPLETION"
         return "NONE"
-    if case_kind == "sustain_tail_without_retrigger":
+    if case_kind in {"sustain_tail_without_retrigger", "long_held_note_without_retrigger", "pedal_sustain_tail_without_retrigger"}:
         if actual_advances > 1:
             return "PEDAL_TAIL_FALSE_COMPLETION"
         if attempt_open_count > 1:
-            return "FALSE_ATTACK_OPEN"
+            return (
+                "FALSE_ATTACK_OPEN"
+                if _has_false_attempt_without_physical_strike(attempts)
+                else "INTERVENING_PHYSICAL_STRIKE"
+            )
         return "NONE"
     if case_kind == "same_note_retrigger":
         second_start_ms = _second_target_relative_ms(case)
+        if _has_early_false_advance(attempts, second_start_ms):
+            return "EARLY_FALSE_ADVANCE"
         if (
             second_start_ms is not None
             and len(attempts) >= 2
             and attempts[1].started_at_ms < second_start_ms - 50
         ):
-            return "PEDAL_TAIL_FALSE_COMPLETION" if attempts[1].advanced else "ATTEMPT_BOUNDARY_ERROR"
+            return (
+                "FALSE_ATTACK_OPEN"
+                if _has_false_attempt_without_physical_strike((attempts[1],))
+                else "INTERVENING_PHYSICAL_STRIKE"
+            )
         if actual_advances < case.expected_advances:
             return "RETRIGGER_MISSED" if attempt_open_count < case.expected_advances else "PITCH_FALSE_NEGATIVE"
         return "NONE"
@@ -662,16 +736,53 @@ def _primary_failure(
     return "NONE"
 
 
+def _has_false_attempt_without_physical_strike(attempts: tuple[AttemptTrace, ...]) -> bool:
+    return any(
+        attempt.physical_strike_alignment == "FALSE_ATTEMPT_WITHOUT_STRIKE"
+        for attempt in attempts
+    )
+
+
+def _has_early_false_advance(
+    attempts: tuple[AttemptTrace, ...],
+    second_start_ms: int | None,
+) -> bool:
+    if second_start_ms is None:
+        return False
+    return any(
+        attempt.expected_group_id == "entry-2"
+        and attempt.advanced
+        and attempt.resolved_at_ms is not None
+        and attempt.resolved_at_ms < second_start_ms - 50
+        for attempt in attempts
+    )
+
+
 def _boundary_note(case: CaseSpec, attempts: tuple[AttemptTrace, ...]) -> str:
     if _case_kind(case) != "same_note_retrigger" or len(attempts) < 2:
         return ""
     second_start_ms = _second_target_relative_ms(case)
     if second_start_ms is None:
         return ""
+    early_advances = [
+        attempt
+        for attempt in attempts
+        if attempt.expected_group_id == "entry-2"
+        and attempt.advanced
+        and attempt.resolved_at_ms is not None
+        and attempt.resolved_at_ms < second_start_ms - 50
+    ]
+    if early_advances:
+        first = early_advances[0]
+        return (
+            "Second expected target advanced before the second same-pitch source "
+            f"strike began at approximately {second_start_ms} ms "
+            f"(advance resolved at {first.resolved_at_ms} ms)."
+        )
     if attempts[1].started_at_ms < second_start_ms - 50:
         return (
-            "Second expected target was resolved before the second source strike "
-            f"began at approximately {second_start_ms} ms."
+            "An attempt for the second expected target opened before the second "
+            f"same-pitch source strike began at approximately {second_start_ms} ms."
         )
     return ""
 
@@ -688,6 +799,114 @@ def _second_target_relative_ms(case: CaseSpec) -> int | None:
             case.inter_strike_silence_seconds * 1000
         )
     return None
+
+
+def _physical_note_on_events(case: CaseSpec) -> tuple[dict[str, object], ...]:
+    metadata = case.source_metadata or {}
+    time_range = metadata.get("source_time_range_seconds")
+    events = metadata.get("ground_truth_note_events")
+    if not isinstance(time_range, list) or len(time_range) < 2 or not isinstance(events, list):
+        return ()
+    range_start = float(time_range[0])
+    range_end = float(time_range[1])
+    grouped: dict[int, list[str]] = {}
+    for event in events:
+        if not isinstance(event, dict) or "start_seconds" not in event:
+            continue
+        start_seconds = float(event["start_seconds"])
+        if start_seconds < range_start or start_seconds > range_end:
+            continue
+        relative_ms = int(round((start_seconds - range_start) * 1000))
+        grouped.setdefault(relative_ms, []).append(str(event.get("pitch", "unknown")))
+    return tuple(
+        {"relative_ms": relative_ms, "pitches": tuple(dict.fromkeys(pitches))}
+        for relative_ms, pitches in sorted(grouped.items())
+    )
+
+
+def _physical_attempt_summary(attempts: tuple[AttemptTrace, ...]) -> dict[str, int]:
+    return dict(Counter(attempt.physical_strike_alignment for attempt in attempts))
+
+
+def _retrigger_audit(
+    case: CaseSpec,
+    attempts: tuple[AttemptTrace, ...],
+) -> dict[str, object] | None:
+    if _case_kind(case) != "same_note_retrigger":
+        return None
+    metadata = case.source_metadata or {}
+    target_seconds = metadata.get("target_group_seconds")
+    time_range = metadata.get("source_time_range_seconds")
+    if not isinstance(target_seconds, list) or len(target_seconds) < 2 or not isinstance(time_range, list):
+        return None
+    first_ms = int(round((float(target_seconds[0]) - float(time_range[0])) * 1000))
+    second_ms = int(round((float(target_seconds[1]) - float(time_range[0])) * 1000))
+    intervening = tuple(
+        event
+        for event in _physical_note_on_events(case)
+        if first_ms < int(event["relative_ms"]) < second_ms
+    )
+    early_attempts = tuple(
+        attempt
+        for attempt in attempts
+        if attempt.expected_group_id == "entry-2" and attempt.started_at_ms < second_ms - 50
+    )
+    early_advances = tuple(
+        attempt
+        for attempt in attempts
+        if attempt.expected_group_id == "entry-2"
+        and attempt.advanced
+        and attempt.resolved_at_ms is not None
+        and attempt.resolved_at_ms < second_ms - 50
+    )
+    second_or_later_advances = tuple(
+        attempt
+        for attempt in attempts
+        if attempt.expected_group_id == "entry-2"
+        and attempt.advanced
+        and attempt.resolved_at_ms is not None
+        and attempt.resolved_at_ms >= second_ms - 50
+    )
+    return {
+        "first_expected_strike_ms": first_ms,
+        "second_expected_strike_ms": second_ms,
+        "intervening_physical_strikes": intervening,
+        "early_attempt_count": len(early_attempts),
+        "early_false_advance_count": len(early_advances),
+        "retrigger_matched_after_actual_retrigger": bool(second_or_later_advances),
+        "retrigger_missed_after_actual_retrigger": not bool(second_or_later_advances),
+    }
+
+
+def _timeline(
+    case: CaseSpec,
+    attempts: tuple[AttemptTrace, ...],
+) -> tuple[dict[str, object], ...]:
+    note_on_items = [
+        {
+            "relative_ms": int(event["relative_ms"]),
+            "midi_truth": "note_on",
+            "pitch": tuple(event["pitches"]),
+        }
+        for event in _physical_note_on_events(case)
+    ]
+    attempt_items = [
+        {
+            "relative_ms": attempt.started_at_ms,
+            "attempt_open": True,
+            "expected_group_id": attempt.expected_group_id,
+            "observed_pitch": attempt.observed_pitches,
+            "evaluation": attempt.evaluation_result,
+            "advance": attempt.advanced,
+            "resolved_at_ms": attempt.resolved_at_ms,
+            "physical_strike_alignment": attempt.physical_strike_alignment,
+            "nearest_physical_strike_ms": attempt.nearest_physical_strike_ms,
+            "nearest_physical_strike_delta_ms": attempt.nearest_physical_strike_delta_ms,
+            "nearest_physical_strike_pitches": attempt.nearest_physical_strike_pitches,
+        }
+        for attempt in attempts
+    ]
+    return tuple(sorted((*note_on_items, *attempt_items), key=lambda item: int(item["relative_ms"])))
 
 
 def _case_kind(case: CaseSpec) -> str:
@@ -813,6 +1032,22 @@ def _summary(results: tuple[CaseResult, ...]) -> dict[str, object]:
         )
         for result in results
     )
+    physical_alignment = Counter()
+    retrigger = Counter()
+    for result in results:
+        physical_alignment.update(result.physical_attempt_summary or {})
+        audit = result.retrigger_audit
+        if audit is not None:
+            if int(audit["early_false_advance_count"]) > 0:
+                retrigger["false_advance_before_next_expected_physical_strike"] += 1
+            elif bool(audit["retrigger_matched_after_actual_retrigger"]):
+                retrigger["correct_retrigger"] += 1
+            else:
+                retrigger["retrigger_missed_after_actual_retrigger"] += 1
+            if int(audit["early_attempt_count"]) > 0 and audit["intervening_physical_strikes"]:
+                retrigger["early_attempt_with_intervening_physical_strike"] += 1
+            elif int(audit["early_attempt_count"]) > 0:
+                retrigger["early_attempt_without_physical_strike"] += 1
     return {
         "case_count": len(results),
         "by_primary_failure": dict(sorted(by_failure.items())),
@@ -820,6 +1055,8 @@ def _summary(results: tuple[CaseResult, ...]) -> dict[str, object]:
             f"{kind}:{failure}": count
             for (kind, failure), count in sorted(by_kind_failure.items())
         },
+        "by_attempt_physical_alignment": dict(sorted(physical_alignment.items())),
+        "same_note_retrigger": dict(sorted(retrigger.items())),
     }
 
 
