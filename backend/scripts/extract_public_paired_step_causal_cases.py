@@ -90,6 +90,8 @@ def main() -> int:
         spans,
         pedal_events,
         max_cases_per_kind=args.max_cases_per_kind,
+        pre_context_seconds=args.pre_context_seconds,
+        post_context_seconds=args.post_context_seconds,
     )
     cases = export_cases(
         plans,
@@ -103,6 +105,7 @@ def main() -> int:
         pre_context_seconds=args.pre_context_seconds,
         post_context_seconds=args.post_context_seconds,
         sample_rate=args.sample_rate,
+        max_cases_per_kind=args.max_cases_per_kind,
     )
     manifest = {
         "benchmark_scope": "public_paired_midi_step_causal_case_selection",
@@ -158,11 +161,20 @@ def select_case_plans(
     pedal_events: tuple[PedalEvent, ...],
     *,
     max_cases_per_kind: int,
+    pre_context_seconds: float,
+    post_context_seconds: float,
 ) -> tuple[dict[str, object], ...]:
     plans: list[dict[str, object]] = []
     for kind in CASE_ORDER:
-        candidates = _candidate_plans_for_kind(kind, groups, spans, pedal_events)
-        plans.extend(candidates[:max_cases_per_kind])
+        candidates = _candidate_plans_for_kind(
+            kind,
+            groups,
+            spans,
+            pedal_events,
+            pre_context_seconds=pre_context_seconds,
+            post_context_seconds=post_context_seconds,
+        )
+        plans.extend(candidates)
     return tuple(plans)
 
 
@@ -171,6 +183,9 @@ def _candidate_plans_for_kind(
     groups: tuple[MidiStrikeGroup, ...],
     spans: tuple[MidiNoteSpan, ...],
     pedal_events: tuple[PedalEvent, ...],
+    *,
+    pre_context_seconds: float,
+    post_context_seconds: float,
 ) -> list[dict[str, object]]:
     plans: list[dict[str, object]] = []
     for index, group in enumerate(groups):
@@ -252,6 +267,20 @@ def _candidate_plans_for_kind(
         elif kind == "same_note_retrigger" and len(group.midi_notes) == 1:
             next_index = _next_same_pitch_group_index(index, groups)
             if next_index is not None:
+                _validate_same_pitch_retrigger_targets(index, next_index, groups)
+                if _same_pitch_in_pre_context(
+                    index,
+                    groups,
+                    pre_context_seconds=pre_context_seconds,
+                ):
+                    continue
+                if _same_pitch_in_post_context(
+                    index,
+                    next_index,
+                    groups,
+                    post_context_seconds=post_context_seconds,
+                ):
+                    continue
                 next_group = groups[next_index]
                 plans.append(
                     _plan(
@@ -374,9 +403,62 @@ def _next_same_pitch_group_index(index: int, groups: tuple[MidiStrikeGroup, ...]
         delta = later.seconds - group.seconds
         if delta > 1.5:
             return None
-        if delta >= 0.25 and len(later.midi_notes) == 1 and later.midi_notes[0] == note:
-            return next_index
+        if note in later.midi_notes:
+            return next_index if delta >= 0.25 else None
     return None
+
+
+def _validate_same_pitch_retrigger_targets(
+    first_index: int,
+    second_index: int,
+    groups: tuple[MidiStrikeGroup, ...],
+) -> None:
+    note = groups[first_index].midi_notes[0]
+    skipped = [
+        index
+        for index in range(first_index + 1, second_index)
+        if note in groups[index].midi_notes
+    ]
+    if skipped:
+        raise AssertionError(
+            "same_note_retrigger target construction skipped same-pitch physical strikes: "
+            f"first={first_index}, second={second_index}, skipped={skipped}, note={note}"
+        )
+
+
+def _same_pitch_in_pre_context(
+    index: int,
+    groups: tuple[MidiStrikeGroup, ...],
+    *,
+    pre_context_seconds: float,
+) -> bool:
+    group = groups[index]
+    note = group.midi_notes[0]
+    context_start = group.seconds - pre_context_seconds - 0.05
+    return any(
+        earlier.seconds >= context_start
+        and earlier.seconds < group.seconds
+        and note in earlier.midi_notes
+        for earlier in groups[:index]
+    )
+
+
+def _same_pitch_in_post_context(
+    first_index: int,
+    second_index: int,
+    groups: tuple[MidiStrikeGroup, ...],
+    *,
+    post_context_seconds: float,
+) -> bool:
+    note = groups[first_index].midi_notes[0]
+    second = groups[second_index]
+    context_end = second.seconds + post_context_seconds + 0.05
+    return any(
+        later.seconds > second.seconds
+        and later.seconds <= context_end
+        and note in later.midi_notes
+        for later in groups[second_index + 1 :]
+    )
 
 
 def export_cases(
@@ -392,6 +474,7 @@ def export_cases(
     pre_context_seconds: float,
     post_context_seconds: float,
     sample_rate: int,
+    max_cases_per_kind: int,
 ) -> tuple[ExtractedCase, ...]:
     output_dir.mkdir(parents=True, exist_ok=True)
     clips_dir = output_dir / "clips"
@@ -401,11 +484,21 @@ def export_cases(
     duration_seconds = audio.size / sample_rate
     for plan in plans:
         kind = str(plan["kind"])
-        kind_counts[kind] = kind_counts.get(kind, 0) + 1
+        if kind_counts.get(kind, 0) >= max_cases_per_kind:
+            continue
         actual_groups = tuple(plan["actual_groups"])
         target_indices = tuple(int(index) for index in plan["target_indices"])
         start_seconds = max(0.0, min(group.seconds for group in actual_groups) - pre_context_seconds)
         end_seconds = min(duration_seconds, max(group.seconds for group in actual_groups) + post_context_seconds)
+        if kind == "same_note_retrigger" and _has_uncounted_same_pitch_note_in_export_range(
+            expected_pitch=str(tuple(plan["expected_groups"])[0][0]),
+            target_seconds=tuple(group.seconds for group in actual_groups),
+            spans=spans,
+            start_seconds=start_seconds,
+            end_seconds=end_seconds,
+        ):
+            continue
+        kind_counts[kind] = kind_counts.get(kind, 0) + 1
         start_sample = int(round(start_seconds * sample_rate))
         end_sample = int(round(end_seconds * sample_rate))
         clip = audio[start_sample:end_sample]
@@ -442,6 +535,26 @@ def export_cases(
             )
         )
     return tuple(cases)
+
+
+def _has_uncounted_same_pitch_note_in_export_range(
+    *,
+    expected_pitch: str,
+    target_seconds: tuple[float, ...],
+    spans: tuple[MidiNoteSpan, ...],
+    start_seconds: float,
+    end_seconds: float,
+) -> bool:
+    target_tolerance_seconds = 0.08
+    for span in spans:
+        if span.pitch != expected_pitch:
+            continue
+        if span.start_seconds < start_seconds or span.start_seconds > end_seconds:
+            continue
+        if any(abs(span.start_seconds - target) <= target_tolerance_seconds for target in target_seconds):
+            continue
+        return True
+    return False
 
 
 def parse_midi_note_spans_and_pedal(path: Path) -> tuple[tuple[MidiNoteSpan, ...], tuple[PedalEvent, ...]]:

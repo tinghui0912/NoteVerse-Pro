@@ -1981,6 +1981,7 @@ def make_wait_for_note_engine(np):
         last_rms=0.2,
         last_peak=0.4,
         input_health=GOOD_INPUT_HEALTH,
+        started=True,
         last_onset_signal=True,
         stream_state="following",
         last_frame_class="tonal",
@@ -2192,37 +2193,145 @@ def test_wait_for_note_engine_does_not_readvance_without_new_onset() -> None:
     assert engine._follow_policy.current_expected_group.pitches == ("E4",)
 
 
-def test_wait_for_note_engine_evaluates_armed_microphone_audio_before_continuous_start() -> None:
+def test_wait_for_note_engine_does_not_advance_from_pre_start_candidate() -> None:
     import numpy as np
 
     engine = make_wait_for_note_engine(np)
     engine._stream.started = False
     engine._stream.armed = True
-    engine._stream.ready_to_start = False
     engine._stream.rms_gate = 0.015
     engine._stream.peak_gate = 0.06
     engine._stream.start_rms_gate = 0.025
     engine._stream.start_peak_gate = 0.06
 
-    def reject_start(_audio_frame):
+    def pre_start_candidate(_audio_frame):
         engine._stream.last_audio_active = False
         engine._stream.last_rms = 0.2
         engine._stream.last_peak = 0.4
         engine._stream.last_onset_signal = False
-        engine._stream.last_gate_reason = "not_tonal"
+        engine._stream.last_gate_reason = "waiting_for_start"
         engine._stream.last_queue_decision = "waiting_for_start"
+        engine._stream.last_frame_class = "tonal"
+        engine._stream.last_tonal_signal = True
         return False
 
-    engine._stream.ingest = reject_start
+    engine._stream.ingest = pre_start_candidate
 
     updates = feed_wait_for_note_event(
         engine,
         [sine_frame(np, 261.625565, sample_rate=16000) for _ in range(3)],
     )
 
-    assert len(updates) == 1
-    assert updates[0]["decision"]["action"] == "advance"
-    assert updates[0]["decision"]["display_anchor"]["beat"] == 4.0
+    assert updates == []
+    assert engine._follow_policy.current_expected_group is not None
+    assert engine._follow_policy.current_expected_group.pitches == ("C4",)
+
+
+def test_wait_for_note_engine_discards_rejected_start_candidate() -> None:
+    import numpy as np
+
+    engine = make_wait_for_note_engine(np)
+    engine._stream.started = False
+    engine._stream.armed = True
+    engine._stream.rms_gate = 0.015
+    engine._stream.peak_gate = 0.06
+    engine._stream.start_rms_gate = 0.025
+    engine._stream.start_peak_gate = 0.06
+
+    def rejected_start_candidate(_audio_frame):
+        engine._stream.last_audio_active = False
+        engine._stream.last_rms = 0.2
+        engine._stream.last_peak = 0.4
+        engine._stream.last_onset_signal = False
+        engine._stream.last_gate_reason = "start_feature_mismatch"
+        engine._stream.last_queue_decision = "start_rejected"
+        engine._stream.last_frame_class = "tonal"
+        engine._stream.last_tonal_signal = True
+        return False
+
+    engine._stream.ingest = rejected_start_candidate
+
+    updates = feed_wait_for_note_event(
+        engine,
+        [sine_frame(np, 261.625565, sample_rate=16000) for _ in range(3)],
+    )
+
+    assert updates == []
+    assert engine._wait_for_note_attempt.open is False
+    assert engine._wait_for_note_attempt.last_resolved_attempt is None
+
+
+def test_wait_for_note_engine_first_valid_strike_can_start_and_match() -> None:
+    import numpy as np
+
+    engine = make_wait_for_note_engine(np)
+    engine._stream.started = False
+    engine._stream.armed = True
+    frame_count = 0
+
+    def valid_start_candidate(_audio_frame):
+        nonlocal frame_count
+        frame_count += 1
+        engine._stream.started = True
+        engine._stream.last_audio_active = True
+        engine._stream.last_rms = 0.2
+        engine._stream.last_peak = 0.4
+        engine._stream.last_onset_signal = frame_count == 1
+        engine._stream.last_gate_reason = "start_confirmed" if frame_count == 1 else "tonal_runtime_energy"
+        engine._stream.last_queue_decision = "queued"
+        engine._stream.last_frame_class = "tonal"
+        engine._stream.last_tonal_signal = True
+        return True
+
+    engine._stream.ingest = valid_start_candidate
+
+    updates = feed_wait_for_note_event(
+        engine,
+        [sine_frame(np, 261.625565, sample_rate=16000) for _ in range(3)],
+    )
+
+    advances = [update for update in updates if update["decision"]["action"] == "advance"]
+    assert len(advances) == 1
+    assert advances[0]["decision"]["display_anchor"]["beat"] == 4.0
+
+
+def test_wait_for_note_engine_after_start_requires_new_onset_for_next_attempt() -> None:
+    import numpy as np
+
+    engine = make_wait_for_note_engine(np)
+    engine._stream.started = False
+    engine._stream.armed = True
+    frame_count = 0
+
+    def first_onset_then_sustain(_audio_frame):
+        nonlocal frame_count
+        frame_count += 1
+        engine._stream.started = True
+        engine._stream.last_audio_active = True
+        engine._stream.last_rms = 0.2
+        engine._stream.last_peak = 0.4
+        engine._stream.last_onset_signal = frame_count == 1
+        engine._stream.last_gate_reason = "start_confirmed" if frame_count == 1 else "tonal_runtime_energy"
+        engine._stream.last_queue_decision = "queued"
+        engine._stream.last_frame_class = "tonal"
+        engine._stream.last_tonal_signal = True
+        return True
+
+    engine._stream.ingest = first_onset_then_sustain
+
+    first_updates = feed_wait_for_note_event(
+        engine,
+        [sine_frame(np, 261.625565, sample_rate=16000) for _ in range(3)],
+    )
+    second_updates = feed_wait_for_note_event(
+        engine,
+        [sine_frame(np, 329.627557, sample_rate=16000) for _ in range(4)],
+    )
+
+    assert [update["decision"]["action"] for update in first_updates] == ["advance"]
+    assert all(update["decision"]["action"] == "wait" for update in second_updates)
+    assert engine._follow_policy.current_expected_group is not None
+    assert engine._follow_policy.current_expected_group.pitches == ("E4",)
 
 
 def test_wait_for_note_engine_emits_one_decision_for_sustained_correct_event() -> None:
