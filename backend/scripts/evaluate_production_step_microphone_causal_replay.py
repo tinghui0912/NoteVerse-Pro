@@ -171,6 +171,58 @@ class AttemptTrace:
 
 
 @dataclass(frozen=True)
+class FrameTrace:
+    relative_ms: int
+    midi_note_on_truth: tuple[str, ...]
+    midi_note_off_truth: tuple[str, ...]
+    cc64_pedal_state: str | None
+    rms: float
+    peak: float
+    spectral_flatness: float
+    peak_prominence: float
+    spectral_flux: float
+    calibrated_flux_gate: float
+    tonal_signal: bool
+    onset_signal: bool
+    frame_class: str
+    stream_started: bool
+    runtime_activity_reason: str
+    gate_reason: str
+    candidate_signal: bool
+    start_candidate_signal: bool
+    attempt_open: bool
+    attempt_sequence: int | None
+    attempt_frame_count: int
+    release_frames: int
+    observer_observed_pitches: tuple[str, ...]
+    observer_confidence: float | None
+    evaluation: str | None
+    advance: bool
+
+
+@dataclass(frozen=True)
+class FailureDetail:
+    root_cause: str
+    anchor_ms: int | None
+    physical_strike_near_failure: bool | None
+    nearest_physical_strike_ms: int | None
+    nearest_physical_strike_delta_ms: int | None
+    physical_pitches: tuple[str, ...]
+    expected_pitches: tuple[str, ...]
+    observed_pitches: tuple[str, ...]
+    matched_pitches: tuple[str, ...]
+    evaluation: str | None
+    advance: bool
+    onset_false: bool | None
+    attempt_behavior: str
+    spectral_flux: float | None
+    calibrated_flux_gate: float | None
+    start_candidate_signal: bool | None
+    onset_signal: bool | None
+    note: str
+
+
+@dataclass(frozen=True)
 class CaseResult:
     case_id: str
     fixture_status: FixtureStatus
@@ -196,6 +248,8 @@ class CaseResult:
     physical_attempt_summary: dict[str, int] | None = None
     retrigger_audit: dict[str, object] | None = None
     timeline: tuple[dict[str, object], ...] = ()
+    failure_detail: FailureDetail | None = None
+    failure_frame_trace: tuple[FrameTrace, ...] = ()
     missing_fixture_request: str | None = None
 
 
@@ -345,6 +399,8 @@ def _run_case(case: CaseSpec) -> CaseResult:
             physical_attempt_summary=None,
             retrigger_audit=None,
             timeline=(),
+            failure_detail=None,
+            failure_frame_trace=(),
             missing_fixture_request=case.missing_fixture_request,
         )
 
@@ -377,6 +433,7 @@ def _run_case(case: CaseSpec) -> CaseResult:
     first_start_gate_ms: int | None = None
     attempt_open_count = 0
     previous_open = False
+    frame_traces: list[FrameTrace] = []
 
     for frame_index, frame in enumerate(frames, start=1):
         timestamp_ms = int((frame_index * frame_length / SAMPLE_RATE) * 1000)
@@ -385,20 +442,56 @@ def _run_case(case: CaseSpec) -> CaseResult:
             first_start_gate_ms = timestamp_ms
         current_group = follow_policy.current_expected_group
         if current_group is None:
+            frame_traces.append(
+                _frame_trace(
+                    case=case,
+                    stream=stream,
+                    accumulator=accumulator,
+                    timestamp_ms=timestamp_ms,
+                    frame_length=frame_length,
+                    candidate_signal=False,
+                    start_candidate_signal=False,
+                    attempt_open=False,
+                    observer_observed_pitches=(),
+                    observer_confidence=None,
+                    evaluation=None,
+                    advance=False,
+                )
+            )
             continue
 
+        candidate_signal = _wait_for_note_candidate_signal(stream)
+        start_candidate_signal = _wait_for_note_start_candidate_signal(stream)
+        before_open = accumulator.open
         observation = accumulator.observe_frame(
             frame,
-            candidate_signal=_wait_for_note_candidate_signal(stream),
-            start_candidate_signal=_wait_for_note_start_candidate_signal(stream),
+            candidate_signal=candidate_signal,
+            start_candidate_signal=start_candidate_signal,
             onset_beat=current_group.onset_beat,
             expected_group_id=current_group.group_id,
             timestamp_ms=timestamp_ms,
         )
         if accumulator.open and not previous_open:
             attempt_open_count += 1
+        opened_this_frame = accumulator.open and not before_open
         previous_open = accumulator.open
         if observation is None:
+            frame_traces.append(
+                _frame_trace(
+                    case=case,
+                    stream=stream,
+                    accumulator=accumulator,
+                    timestamp_ms=timestamp_ms,
+                    frame_length=frame_length,
+                    candidate_signal=candidate_signal,
+                    start_candidate_signal=start_candidate_signal,
+                    attempt_open=opened_this_frame,
+                    observer_observed_pitches=(),
+                    observer_confidence=None,
+                    evaluation=None,
+                    advance=False,
+                )
+            )
             continue
 
         evaluation = follow_policy.evaluate_evidence(EvaluatorEvidence.from_audio(observation))
@@ -409,6 +502,22 @@ def _run_case(case: CaseSpec) -> CaseResult:
         advanced = decision["action"] == "advance"
         if advanced:
             actual_advances += 1
+        frame_traces.append(
+            _frame_trace(
+                case=case,
+                stream=stream,
+                accumulator=accumulator,
+                timestamp_ms=timestamp_ms,
+                frame_length=frame_length,
+                candidate_signal=candidate_signal,
+                start_candidate_signal=start_candidate_signal,
+                attempt_open=opened_this_frame,
+                observer_observed_pitches=observation.observed_pitches,
+                observer_confidence=observation.confidence,
+                evaluation=evaluation.result,
+                advance=advanced,
+            )
+        )
         snapshot = accumulator.last_resolved_attempt
         attempts.append(
             _attempt_trace(
@@ -432,6 +541,7 @@ def _run_case(case: CaseSpec) -> CaseResult:
         attempt_open_count=attempt_open_count,
         actual_advances=actual_advances,
         attempts=tuple(attempts),
+        frame_traces=tuple(frame_traces),
     )
 
 
@@ -567,6 +677,7 @@ def _classify_case(
     attempt_open_count: int,
     actual_advances: int,
     attempts: tuple[AttemptTrace, ...],
+    frame_traces: tuple[FrameTrace, ...],
 ) -> CaseResult:
     advance = actual_advances > 0
     latest_evaluation = attempts[-1].evaluation_result if attempts else "NO_ATTEMPT"
@@ -590,6 +701,8 @@ def _classify_case(
     failure = _primary_failure(case, actual_advances, attempts, attempt_open_count, first_start_gate_ms)
     physical_summary = _physical_attempt_summary(attempts)
     retrigger_audit = _retrigger_audit(case, attempts)
+    failure_detail = _failure_detail(case, failure, attempts, frame_traces)
+    failure_trace = _failure_frame_trace(failure_detail, frame_traces)
     return CaseResult(
         case_id=case.case_id,
         fixture_status=case.fixture_status,
@@ -615,8 +728,76 @@ def _classify_case(
         physical_attempt_summary=physical_summary,
         retrigger_audit=retrigger_audit,
         timeline=_timeline(case, attempts),
+        failure_detail=failure_detail,
+        failure_frame_trace=failure_trace,
         missing_fixture_request=case.missing_fixture_request,
     )
+
+
+def _frame_trace(
+    *,
+    case: CaseSpec,
+    stream: BrowserAudioStreamAdapter,
+    accumulator: ExpectedGroupAttemptAccumulator,
+    timestamp_ms: int,
+    frame_length: int,
+    candidate_signal: bool,
+    start_candidate_signal: bool,
+    attempt_open: bool,
+    observer_observed_pitches: tuple[str, ...],
+    observer_confidence: float | None,
+    evaluation: str | None,
+    advance: bool,
+) -> FrameTrace:
+    frame_start_ms = timestamp_ms - int((frame_length / SAMPLE_RATE) * 1000)
+    return FrameTrace(
+        relative_ms=timestamp_ms,
+        midi_note_on_truth=_truth_pitches_in_window(
+            _physical_note_on_events(case),
+            frame_start_ms,
+            timestamp_ms,
+        ),
+        midi_note_off_truth=_truth_pitches_in_window(
+            _physical_note_off_events(case),
+            frame_start_ms,
+            timestamp_ms,
+        ),
+        cc64_pedal_state=_pedal_state_at_ms(case, timestamp_ms),
+        rms=round(float(getattr(stream, "last_rms", 0.0)), 6),
+        peak=round(float(getattr(stream, "last_peak", 0.0)), 6),
+        spectral_flatness=round(float(getattr(stream, "last_spectral_flatness", 1.0)), 6),
+        peak_prominence=round(float(getattr(stream, "last_peak_prominence", 0.0)), 6),
+        spectral_flux=round(float(getattr(stream, "last_spectral_flux", 0.0)), 6),
+        calibrated_flux_gate=round(float(getattr(stream, "_calibrated_flux_gate", 0.0)), 6),
+        tonal_signal=bool(getattr(stream, "last_tonal_signal", False)),
+        onset_signal=bool(getattr(stream, "last_onset_signal", False)),
+        frame_class=str(getattr(stream, "last_frame_class", "unknown")),
+        stream_started=bool(getattr(stream, "started", False)),
+        runtime_activity_reason=str(getattr(stream, "last_runtime_activity_reason", "unknown")),
+        gate_reason=str(getattr(stream, "last_gate_reason", "unknown")),
+        candidate_signal=candidate_signal,
+        start_candidate_signal=start_candidate_signal,
+        attempt_open=attempt_open,
+        attempt_sequence=_current_attempt_sequence(accumulator),
+        attempt_frame_count=int(getattr(accumulator, "frame_count", 0)),
+        release_frames=int(getattr(accumulator, "release_frames", 0)),
+        observer_observed_pitches=tuple(observer_observed_pitches),
+        observer_confidence=(
+            None if observer_confidence is None else round(float(observer_confidence), 4)
+        ),
+        evaluation=evaluation,
+        advance=advance,
+    )
+
+
+def _current_attempt_sequence(accumulator: ExpectedGroupAttemptAccumulator) -> int | None:
+    current = accumulator.lifecycle.current
+    if current is not None:
+        return int(current.attempt_sequence)
+    resolved = accumulator.last_resolved_attempt
+    if resolved is not None:
+        return int(resolved.attempt_sequence)
+    return None
 
 
 def _case_specs_from_manifest(path: Path) -> tuple[CaseSpec, ...]:
@@ -824,6 +1005,61 @@ def _physical_note_on_events(case: CaseSpec) -> tuple[dict[str, object], ...]:
     )
 
 
+def _physical_note_off_events(case: CaseSpec) -> tuple[dict[str, object], ...]:
+    metadata = case.source_metadata or {}
+    time_range = metadata.get("source_time_range_seconds")
+    events = metadata.get("ground_truth_note_events")
+    if not isinstance(time_range, list) or len(time_range) < 2 or not isinstance(events, list):
+        return ()
+    range_start = float(time_range[0])
+    range_end = float(time_range[1])
+    grouped: dict[int, list[str]] = {}
+    for event in events:
+        if not isinstance(event, dict) or "end_seconds" not in event:
+            continue
+        end_seconds = float(event["end_seconds"])
+        if end_seconds < range_start or end_seconds > range_end:
+            continue
+        relative_ms = int(round((end_seconds - range_start) * 1000))
+        grouped.setdefault(relative_ms, []).append(str(event.get("pitch", "unknown")))
+    return tuple(
+        {"relative_ms": relative_ms, "pitches": tuple(dict.fromkeys(pitches))}
+        for relative_ms, pitches in sorted(grouped.items())
+    )
+
+
+def _truth_pitches_in_window(
+    events: tuple[dict[str, object], ...],
+    start_ms: int,
+    end_ms: int,
+) -> tuple[str, ...]:
+    pitches: list[str] = []
+    for event in events:
+        relative_ms = int(event["relative_ms"])
+        if start_ms < relative_ms <= end_ms:
+            pitches.extend(str(pitch) for pitch in event["pitches"])
+    return tuple(dict.fromkeys(pitches))
+
+
+def _pedal_state_at_ms(case: CaseSpec, relative_ms: int) -> str | None:
+    metadata = case.source_metadata or {}
+    time_range = metadata.get("source_time_range_seconds")
+    events = metadata.get("ground_truth_pedal_events")
+    if not isinstance(time_range, list) or len(time_range) < 2 or not isinstance(events, list):
+        return None
+    range_start = float(time_range[0])
+    state = "up"
+    for event in events:
+        if not isinstance(event, dict) or "time_seconds" not in event:
+            continue
+        event_ms = int(round((float(event["time_seconds"]) - range_start) * 1000))
+        if event_ms > relative_ms:
+            break
+        value = float(event.get("value", 0.0))
+        state = "down" if value >= 64 else "up"
+    return state
+
+
 def _physical_attempt_summary(attempts: tuple[AttemptTrace, ...]) -> dict[str, int]:
     return dict(Counter(attempt.physical_strike_alignment for attempt in attempts))
 
@@ -907,6 +1143,192 @@ def _timeline(
         for attempt in attempts
     ]
     return tuple(sorted((*note_on_items, *attempt_items), key=lambda item: int(item["relative_ms"])))
+
+
+def _failure_detail(
+    case: CaseSpec,
+    failure: FailureCode,
+    attempts: tuple[AttemptTrace, ...],
+    frame_traces: tuple[FrameTrace, ...],
+) -> FailureDetail | None:
+    if failure == "EARLY_FALSE_ADVANCE":
+        return _early_false_advance_detail(case, attempts, frame_traces)
+    if _case_kind(case) == "pedal_sustain_tail_without_retrigger" and failure == "FALSE_ATTACK_OPEN":
+        return _pedal_false_attempt_detail(case, attempts, frame_traces)
+    return None
+
+
+def _early_false_advance_detail(
+    case: CaseSpec,
+    attempts: tuple[AttemptTrace, ...],
+    frame_traces: tuple[FrameTrace, ...],
+) -> FailureDetail | None:
+    second_start_ms = _second_target_relative_ms(case)
+    if second_start_ms is None:
+        return None
+    attempt = next(
+        (
+            candidate
+            for candidate in attempts
+            if candidate.expected_group_id == "entry-2"
+            and candidate.advanced
+            and candidate.resolved_at_ms is not None
+            and candidate.resolved_at_ms < second_start_ms - 50
+        ),
+        None,
+    )
+    if attempt is None:
+        return None
+    frame = _frame_at_or_before(frame_traces, attempt.started_at_ms)
+    expected = _expected_pitches_for_group(case, attempt.expected_group_id)
+    has_physical_strike = attempt.physical_strike_alignment == "TRUE_PHYSICAL_STRIKE_ATTEMPT"
+    physical_pitches = attempt.nearest_physical_strike_pitches if has_physical_strike else ()
+    observed = attempt.observed_pitches
+    if not has_physical_strike:
+        root_cause = "FALSE_ONSET_TO_FALSE_ADVANCE"
+        note = "No MIDI note-on was within tolerance of the attempt that advanced early."
+    elif set(physical_pitches).intersection(expected):
+        root_cause = "BENCHMARK_TARGET_ASSIGNMENT_ISSUE"
+        note = (
+            "The early advancing attempt is aligned to a real physical strike that includes "
+            "the expected pitch, before the benchmark's declared second target timestamp."
+        )
+    elif set(observed).intersection(expected):
+        root_cause = "WRONG_STRIKE_PITCH_FALSE_POSITIVE"
+        note = (
+            "A real wrong physical strike opened a legitimate attempt, but the observer "
+            "reported the expected pitch and the evaluator advanced."
+        )
+    else:
+        root_cause = "BENCHMARK_TIMING_OR_ALIGNMENT_ISSUE"
+        note = "The attempt advanced early, but the pitch evidence does not fit a simple false-positive explanation."
+    return _detail_from_attempt(
+        root_cause=root_cause,
+        attempt=attempt,
+        frame=frame,
+        expected_pitches=expected,
+        onset_false=(not has_physical_strike and bool(frame.onset_signal) if frame else None),
+        attempt_behavior=(
+            "attempt opened from upstream start candidate and advanced before declared second target"
+        ),
+        note=note,
+    )
+
+
+def _pedal_false_attempt_detail(
+    case: CaseSpec,
+    attempts: tuple[AttemptTrace, ...],
+    frame_traces: tuple[FrameTrace, ...],
+) -> FailureDetail | None:
+    attempt = next(
+        (
+            candidate
+            for candidate in attempts
+            if candidate.physical_strike_alignment == "FALSE_ATTEMPT_WITHOUT_STRIKE"
+        ),
+        None,
+    )
+    if attempt is None:
+        return None
+    frame = _frame_at_or_before(frame_traces, attempt.started_at_ms)
+    expected = _expected_pitches_for_group(case, attempt.expected_group_id)
+    if frame is not None and frame.attempt_open and not frame.start_candidate_signal:
+        root_cause = "ACCUMULATOR_OPENED_WITHOUT_START_CANDIDATE"
+        note = "The attempt opened even though the diagnostic frame says start_candidate_signal=false."
+    elif frame is not None and frame.start_candidate_signal and frame.onset_signal:
+        root_cause = "FALSE_ONSET_TRIGGER"
+        note = "No MIDI note-on was near the attempt; upstream onset_signal/start_candidate_signal opened it."
+    elif frame is not None and frame.start_candidate_signal:
+        root_cause = "NON_ONSET_START_CANDIDATE_TRIGGER"
+        note = "No MIDI note-on was near the attempt; start_candidate_signal opened it without onset_signal on that frame."
+    else:
+        root_cause = "UNATTRIBUTED_FALSE_ATTEMPT"
+        note = "No MIDI note-on was near the attempt, but no clear start-candidate trigger was captured."
+    return _detail_from_attempt(
+        root_cause=root_cause,
+        attempt=attempt,
+        frame=frame,
+        expected_pitches=expected,
+        onset_false=(bool(frame.onset_signal) if frame else None),
+        attempt_behavior="attempt opened without any physical MIDI note-on within tolerance",
+        note=note,
+    )
+
+
+def _detail_from_attempt(
+    *,
+    root_cause: str,
+    attempt: AttemptTrace,
+    frame: FrameTrace | None,
+    expected_pitches: tuple[str, ...],
+    onset_false: bool | None,
+    attempt_behavior: str,
+    note: str,
+) -> FailureDetail:
+    return FailureDetail(
+        root_cause=root_cause,
+        anchor_ms=attempt.started_at_ms,
+        physical_strike_near_failure=(
+            attempt.physical_strike_alignment == "TRUE_PHYSICAL_STRIKE_ATTEMPT"
+        ),
+        nearest_physical_strike_ms=attempt.nearest_physical_strike_ms,
+        nearest_physical_strike_delta_ms=attempt.nearest_physical_strike_delta_ms,
+        physical_pitches=(
+            attempt.nearest_physical_strike_pitches
+            if attempt.physical_strike_alignment == "TRUE_PHYSICAL_STRIKE_ATTEMPT"
+            else ()
+        ),
+        expected_pitches=expected_pitches,
+        observed_pitches=attempt.observed_pitches,
+        matched_pitches=attempt.matched_pitches,
+        evaluation=attempt.evaluation_result,
+        advance=attempt.advanced,
+        onset_false=onset_false,
+        attempt_behavior=attempt_behavior,
+        spectral_flux=None if frame is None else frame.spectral_flux,
+        calibrated_flux_gate=None if frame is None else frame.calibrated_flux_gate,
+        start_candidate_signal=None if frame is None else frame.start_candidate_signal,
+        onset_signal=None if frame is None else frame.onset_signal,
+        note=note,
+    )
+
+
+def _failure_frame_trace(
+    failure_detail: FailureDetail | None,
+    frame_traces: tuple[FrameTrace, ...],
+) -> tuple[FrameTrace, ...]:
+    if failure_detail is None or failure_detail.anchor_ms is None:
+        return ()
+    start_ms = failure_detail.anchor_ms - 500
+    end_ms = failure_detail.anchor_ms + 500
+    return tuple(
+        frame
+        for frame in frame_traces
+        if start_ms <= frame.relative_ms <= end_ms
+    )
+
+
+def _frame_at_or_before(
+    frame_traces: tuple[FrameTrace, ...],
+    timestamp_ms: int,
+) -> FrameTrace | None:
+    prior = [frame for frame in frame_traces if frame.relative_ms <= timestamp_ms]
+    if prior:
+        return prior[-1]
+    return frame_traces[0] if frame_traces else None
+
+
+def _expected_pitches_for_group(case: CaseSpec, group_id: str) -> tuple[str, ...]:
+    prefix = "entry-"
+    if not group_id.startswith(prefix):
+        return ()
+    try:
+        index = int(group_id[len(prefix) :]) - 1
+    except ValueError:
+        return ()
+    if 0 <= index < len(case.expected_groups):
+        return case.expected_groups[index]
+    return ()
 
 
 def _case_kind(case: CaseSpec) -> str:
