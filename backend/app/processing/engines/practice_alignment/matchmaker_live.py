@@ -24,7 +24,10 @@ from app.processing.engines.practice_alignment.contracts import (
     AlignmentUpdate,
     InputHealth,
 )
-from app.processing.engines.practice_alignment.expected_event_evaluator import EvaluatorEvidence
+from app.processing.engines.practice_alignment.expected_event_evaluator import (
+    EvaluatorEvidence,
+    PracticeEventEvaluation,
+)
 from app.processing.engines.practice_alignment.expected_group_attempt_accumulator import (
     ExpectedGroupAttemptAccumulator,
 )
@@ -202,7 +205,7 @@ class MatchmakerLiveEngine:
             start_rms_gate=profile.start_rms_gate,
             start_peak_gate=profile.start_peak_gate,
             min_active_frames=profile.min_active_frames,
-            warmup_frames=profile.warmup_frames,
+            calibration_sample_count=profile.calibration_sample_count(sample_rate),
             rms_noise_multiplier=profile.rms_noise_multiplier,
             peak_noise_multiplier=profile.peak_noise_multiplier,
             diagnostics_enabled=settings.PRACTICE_AUDIO_DIAGNOSTICS,
@@ -290,6 +293,62 @@ class MatchmakerLiveEngine:
         if attempt is not None:
             attempt.reset()
 
+    def skip_current_expected_group(self) -> AlignmentUpdate | None:
+        follow_policy = getattr(self, "_follow_policy", None)
+        current_group = follow_policy.current_expected_group if follow_policy else None
+        if current_group is None:
+            return None
+
+        self.reset_input_buffer()
+        timestamp_ms = self._timestamp_ms()
+        self._wait_for_note_attempt_assembler.begin(
+            expected_group_id=current_group.group_id,
+            timestamp_ms=timestamp_ms,
+        )
+        evaluation = PracticeEventEvaluation(
+            expected_group_id=current_group.group_id,
+            result="SKIPPED",
+            matched_pitches=(),
+            missing_pitches=tuple(current_group.pitches),
+            extra_pitches=(),
+            confidence=1.0,
+            evaluator_version="user-skip-v1",
+        )
+        outcome = self._wait_for_note_attempt_assembler.resolve(
+            evaluation,
+            timestamp_ms=timestamp_ms,
+        )
+        decision = follow_policy.skip_current_group()
+        attach_attempt_outcome(decision, outcome)
+        display_anchor = decision["display_anchor"]
+        beat_position = current_group.onset_beat if display_anchor is None else float(display_anchor["beat"])
+        update = self._wait_for_note_alignment_update(
+            beat_position=beat_position,
+            confidence=1.0,
+            scope_completed=follow_policy.current_expected_group is None,
+            decision=decision,
+        )
+        update["audio_active"] = False
+        update["match_state"] = "matched"
+        update["stream_state"] = "skipped"
+        update["gate_reason"] = "user_skipped"
+        update["queue_decision"] = "user_skipped"
+        update["tonal_signal"] = False
+        update["onset_signal"] = False
+        update["alignment_state"] = "skipped"
+        self._resolved_practice_attempts.append_for_expected_group(
+            outcome=outcome,
+            action=decision["action"],
+            resolution_reason=decision["reason"],
+            experience_state=decision["experience_state"],
+            expected_group=current_group,
+            update_confidence=update["confidence"],
+            update_timestamp_ms=update["timestamp_ms"],
+            validation_confidence=update.get("validation_confidence"),
+            input_policy_confidence=update.get("input_policy_confidence"),
+        )
+        return update
+
     def _ingest_audio_frame(self, audio_frame) -> AlignmentUpdate | None:
         if self.progression_mode == "WAIT_FOR_NOTE":
             self._stream.ingest(audio_frame)
@@ -326,6 +385,7 @@ class MatchmakerLiveEngine:
         observation = self._wait_for_note_attempt.observe_frame(
             audio_frame,
             candidate_signal=self._wait_for_note_candidate_signal(),
+            start_candidate_signal=self._wait_for_note_start_candidate_signal(),
             onset_beat=current_group.onset_beat,
             expected_group_id=current_group.group_id,
             timestamp_ms=self._timestamp_ms(),
@@ -368,6 +428,8 @@ class MatchmakerLiveEngine:
             validation_confidence=update.get("validation_confidence"),
             input_policy_confidence=update.get("input_policy_confidence"),
         )
+        if _resolved_attempt_closes_current_input(outcome):
+            self._reset_wait_for_note_event()
         return update
 
     def drain_resolved_practice_attempts(self) -> list[ResolvedPracticeAttempt]:
@@ -446,6 +508,11 @@ class MatchmakerLiveEngine:
             getattr(self._stream, "last_rms", 0.0) >= rms_gate
             or getattr(self._stream, "last_peak", 0.0) >= peak_gate
         )
+
+    def _wait_for_note_start_candidate_signal(self) -> bool:
+        if not self._stream.started:
+            return self._wait_for_note_candidate_signal()
+        return getattr(self._stream, "last_onset_signal", False)
 
     def _wait_for_note_base_update(self, beat_position: float) -> AlignmentUpdate:
         return {
@@ -679,6 +746,10 @@ class MatchmakerLiveEngine:
         frame_width = max(self.channels * bytes_per_sample, 1)
         total_samples = self.total_bytes / frame_width
         return int((total_samples / max(self.sample_rate, 1)) * 1000)
+
+
+def _resolved_attempt_closes_current_input(outcome: object | None) -> bool:
+    return outcome is not None
 
 
 def build_alignment_engine(

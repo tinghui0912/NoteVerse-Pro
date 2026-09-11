@@ -614,7 +614,7 @@ class PracticeService:
             )
         except Exception as exc:
             session.summary_status = PracticeSessionSummaryStatus.FAILED
-            session.summary_payload = json.dumps({"summary": "Practice summary generation failed."})
+            session.summary_payload = None
             session.error = str(exc)
         else:
             session.summary_status = PracticeSessionSummaryStatus.READY
@@ -1299,6 +1299,8 @@ def _attempt_result_for_evaluation(result: str) -> PracticeAttemptResult:
         return PracticeAttemptResult.MISMATCH
     if result == "UNCERTAIN":
         return PracticeAttemptResult.UNCERTAIN
+    if result == "SKIPPED":
+        return PracticeAttemptResult.SKIPPED
     return PracticeAttemptResult.OTHER
 
 

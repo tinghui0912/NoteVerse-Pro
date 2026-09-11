@@ -1012,10 +1012,6 @@
             ],
             "title": "Summary Artifact Kind",
             "type": "string"
-          },
-          "summary_available": {
-            "title": "Summary Available",
-            "type": "boolean"
           }
         },
         "required": [
@@ -1023,8 +1019,7 @@
           "scope_kind",
           "summary_artifact_kind",
           "completion_reason",
-          "playback_expected",
-          "summary_available"
+          "playback_expected"
         ],
         "title": "PracticeSessionCompletionOutcomeRead",
         "type": "object"
@@ -1311,155 +1306,7 @@
         "title": "PracticeSessionState",
         "type": "string"
       },
-      "PracticeSessionSummaryAttemptRead": {
-        "properties": {
-          "action": {
-            "title": "Action",
-            "type": "string"
-          },
-          "attempt_index": {
-            "title": "Attempt Index",
-            "type": "integer"
-          },
-          "attempt_uid": {
-            "title": "Attempt Uid",
-            "type": "string"
-          },
-          "beat_position": {
-            "title": "Beat Position",
-            "type": "number"
-          },
-          "completion_status": {
-            "title": "Completion Status",
-            "type": "string"
-          },
-          "confidence": {
-            "title": "Confidence",
-            "type": "number"
-          },
-          "correctness_scope": {
-            "title": "Correctness Scope",
-            "type": "string"
-          },
-          "evaluator_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Evaluator Version"
-          },
-          "event_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Event Id"
-          },
-          "evidence_profile": {
-            "title": "Evidence Profile",
-            "type": "string"
-          },
-          "expected_group_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected Group Id"
-          },
-          "input_source": {
-            "title": "Input Source",
-            "type": "string"
-          },
-          "measure_numbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measure Numbers",
-            "type": "array"
-          },
-          "policy_profile_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Policy Profile Version"
-          },
-          "render_note_ids": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Render Note Ids",
-            "type": "array"
-          },
-          "resolution_reason": {
-            "title": "Resolution Reason",
-            "type": "string"
-          },
-          "resolved_at_ms": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Resolved At Ms"
-          },
-          "result": {
-            "title": "Result",
-            "type": "string"
-          },
-          "scoring_included": {
-            "title": "Scoring Included",
-            "type": "boolean"
-          },
-          "started_at_ms": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Started At Ms"
-          }
-        },
-        "required": [
-          "attempt_index",
-          "attempt_uid",
-          "beat_position",
-          "result",
-          "action",
-          "completion_status",
-          "scoring_included",
-          "resolution_reason",
-          "input_source",
-          "evidence_profile",
-          "correctness_scope",
-          "confidence"
-        ],
-        "title": "PracticeSessionSummaryAttemptRead",
-        "type": "object"
-      },
-      "PracticeSessionSummaryMeasureRead": {
+      "PracticeSessionSummaryProblemMeasureRead": {
         "properties": {
           "attempt_count": {
             "title": "Attempt Count",
@@ -1479,10 +1326,6 @@
           "completed_target_count": {
             "title": "Completed Target Count",
             "type": "integer"
-          },
-          "difficulty_score": {
-            "title": "Difficulty Score",
-            "type": "number"
           },
           "incomplete_target_count": {
             "title": "Incomplete Target Count",
@@ -1508,6 +1351,10 @@
             "title": "Scorable Attempt Count",
             "type": "integer"
           },
+          "skipped_attempt_count": {
+            "title": "Skipped Attempt Count",
+            "type": "integer"
+          },
           "target_count": {
             "title": "Target Count",
             "type": "integer"
@@ -1521,27 +1368,20 @@
           "attempt_count",
           "scorable_attempt_count",
           "interrupted_attempt_count",
+          "skipped_attempt_count",
           "partial_attempt_count",
-          "mismatch_attempt_count",
-          "difficulty_score"
+          "mismatch_attempt_count"
         ],
-        "title": "PracticeSessionSummaryMeasureRead",
+        "title": "PracticeSessionSummaryProblemMeasureRead",
         "type": "object"
       },
       "PracticeSessionSummaryPayloadRead": {
         "properties": {
-          "attempts": {
+          "problem_measures": {
             "items": {
-              "$ref": "#/components/schemas/PracticeSessionSummaryAttemptRead"
+              "$ref": "#/components/schemas/PracticeSessionSummaryProblemMeasureRead"
             },
-            "title": "Attempts",
-            "type": "array"
-          },
-          "difficult_measures": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeSessionSummaryMeasureRead"
-            },
-            "title": "Difficult Measures",
+            "title": "Problem Measures",
             "type": "array"
           },
           "metrics": {
@@ -1564,17 +1404,6 @@
             "title": "Metrics",
             "type": "object"
           },
-          "recommendations": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Recommendations",
-            "type": "array"
-          },
-          "summary": {
-            "title": "Summary",
-            "type": "string"
-          },
           "targets": {
             "items": {
               "$ref": "#/components/schemas/PracticeSessionSummaryTargetRead"
@@ -1584,9 +1413,7 @@
           }
         },
         "required": [
-          "summary",
-          "metrics",
-          "recommendations"
+          "metrics"
         ],
         "title": "PracticeSessionSummaryPayloadRead",
         "type": "object"
@@ -1682,6 +1509,10 @@
             "title": "Scorable Attempt Count",
             "type": "integer"
           },
+          "skipped_attempt_count": {
+            "title": "Skipped Attempt Count",
+            "type": "integer"
+          },
           "unexpected_pitches": {
             "items": {
               "type": "string"
@@ -1695,6 +1526,7 @@
           "attempt_count",
           "scorable_attempt_count",
           "interrupted_attempt_count",
+          "skipped_attempt_count",
           "matched_attempt_count",
           "partial_attempt_count",
           "mismatch_attempt_count",

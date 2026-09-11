@@ -84,7 +84,6 @@ class PracticeSessionCompletionOutcomeRead(BaseModel):
     summary_artifact_kind: PracticeSessionSummaryArtifactKind
     completion_reason: PracticeSessionCompletionReason
     playback_expected: bool
-    summary_available: bool
 
 
 class PracticePerformanceReportAvailabilityRead(BaseModel):
@@ -131,29 +130,6 @@ class PracticeSessionDetailRead(BaseModel):
     performance_report_availability: PracticePerformanceReportAvailabilityRead | None = None
 
 
-class PracticeSessionSummaryAttemptRead(BaseModel):
-    attempt_index: int
-    attempt_uid: str
-    started_at_ms: int | None = None
-    resolved_at_ms: int | None = None
-    expected_group_id: str | None = None
-    event_id: str | None = None
-    beat_position: float
-    render_note_ids: list[str] = Field(default_factory=list)
-    measure_numbers: list[str] = Field(default_factory=list)
-    result: str
-    action: str
-    completion_status: str
-    scoring_included: bool
-    resolution_reason: str
-    input_source: str
-    evidence_profile: str
-    correctness_scope: str
-    evaluator_version: str | None = None
-    policy_profile_version: str | None = None
-    confidence: float
-
-
 class PracticeSessionSummaryTargetRead(BaseModel):
     expected_group_id: str
     measure_numbers: list[str] = Field(default_factory=list)
@@ -165,6 +141,7 @@ class PracticeSessionSummaryTargetRead(BaseModel):
     attempt_count: int
     scorable_attempt_count: int
     interrupted_attempt_count: int
+    skipped_attempt_count: int
     matched_attempt_count: int
     partial_attempt_count: int
     mismatch_attempt_count: int
@@ -174,7 +151,7 @@ class PracticeSessionSummaryTargetRead(BaseModel):
     last_confidence: float
 
 
-class PracticeSessionSummaryMeasureRead(BaseModel):
+class PracticeSessionSummaryProblemMeasureRead(BaseModel):
     measure_number: str
     target_count: int
     completed_target_count: int
@@ -182,19 +159,16 @@ class PracticeSessionSummaryMeasureRead(BaseModel):
     attempt_count: int
     scorable_attempt_count: int
     interrupted_attempt_count: int
+    skipped_attempt_count: int
     partial_attempt_count: int
     mismatch_attempt_count: int
     average_confidence: float | None = None
-    difficulty_score: float
 
 
 class PracticeSessionSummaryPayloadRead(BaseModel):
-    summary: str
     metrics: dict[str, int | float | str | None]
-    recommendations: list[str]
-    attempts: list[PracticeSessionSummaryAttemptRead] = Field(default_factory=list)
     targets: list[PracticeSessionSummaryTargetRead] = Field(default_factory=list)
-    difficult_measures: list[PracticeSessionSummaryMeasureRead] = Field(default_factory=list)
+    problem_measures: list[PracticeSessionSummaryProblemMeasureRead] = Field(default_factory=list)
 
 
 class PracticePerformanceTimelineSegmentRead(BaseModel):

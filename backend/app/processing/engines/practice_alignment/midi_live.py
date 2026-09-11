@@ -14,6 +14,7 @@ from app.processing.engines.practice_alignment.attempt_assembler import (
 from app.processing.engines.practice_alignment.expected_event_evaluator import (
     EvaluatorEvidence,
     MidiObservation,
+    PracticeEventEvaluation,
 )
 from app.processing.engines.practice_alignment.follow_policy import (
     AlignmentDecision,
@@ -209,6 +210,85 @@ class MidiPracticeEngine:
         self._attempt_assembler.clear_current()
         self._pending_attempt_outcome = None
         self._pending_attempt_update = None
+
+    def skip_current_expected_group(self) -> AlignmentUpdate | None:
+        if self._closed:
+            raise RuntimeError("MIDI practice engine is closed.")
+        current_group = self._follow_policy.current_expected_group
+        if current_group is None:
+            return self._completed_update()
+
+        self.reset_input_buffer()
+        timestamp_ms = self._last_timestamp_ms
+        self._attempt_assembler.begin(
+            expected_group_id=current_group.group_id,
+            timestamp_ms=timestamp_ms,
+        )
+        evaluation = PracticeEventEvaluation(
+            expected_group_id=current_group.group_id,
+            result="SKIPPED",
+            matched_pitches=(),
+            missing_pitches=tuple(current_group.pitches),
+            extra_pitches=(),
+            confidence=1.0,
+            evaluator_version="user-skip-v1",
+        )
+        outcome = self._attempt_assembler.resolve(evaluation, timestamp_ms=timestamp_ms)
+        decision = self._follow_policy.skip_current_group()
+        attach_attempt_outcome(decision, outcome)
+        display_anchor = decision["display_anchor"]
+        beat_position = current_group.onset_beat if display_anchor is None else float(display_anchor["beat"])
+        update: AlignmentUpdate = {
+            "beat_position": round(beat_position, 3),
+            "confidence": 1.0,
+            "alignment_confidence": 1.0,
+            "audio_confidence": 1.0,
+            "continuity_confidence": 1.0,
+            "visual_confidence": 1.0,
+            "timestamp_ms": timestamp_ms,
+            "scope_completed": self._follow_policy.current_expected_group is None,
+            "completion_reason": (
+                "FINAL_EXPECTED_GROUP_MATCHED"
+                if self._follow_policy.current_expected_group is None
+                else None
+            ),
+            "audio_active": False,
+            "input_rms": 0.0,
+            "input_peak": 0.0,
+            "input_health": _GOOD_MIDI_INPUT_HEALTH,
+            "match_state": "matched",
+            "feature_confidence": 1.0,
+            "beat_delta": None,
+            "stream_state": "skipped",
+            "frame_class": "unknown",
+            "gate_reason": "user_skipped",
+            "queue_decision": "user_skipped",
+            "tonal_signal": False,
+            "onset_signal": False,
+            "spectral_flatness": 0.0,
+            "peak_prominence": 0.0,
+            "spectral_flux": 0.0,
+            "alignment_state": "skipped",
+            "continuity_state": "stable",
+            "beat_velocity": None,
+            "validation_confidence": 1.0,
+            "input_weight": 0.0,
+            "input_policy_confidence": 1.0,
+            "decision": decision,
+        }
+        self._resolved_practice_attempts.append_for_expected_group(
+            outcome=outcome,
+            action=decision["action"],
+            resolution_reason=decision["reason"],
+            experience_state=decision["experience_state"],
+            expected_group=current_group,
+            update_confidence=update["confidence"],
+            update_timestamp_ms=update["timestamp_ms"],
+            validation_confidence=update.get("validation_confidence"),
+            input_policy_confidence=update.get("input_policy_confidence"),
+        )
+        self._last_alignment = update
+        return update
 
     def drain_resolved_practice_attempts(self) -> list[ResolvedPracticeAttempt]:
         return self._resolved_practice_attempts.drain()

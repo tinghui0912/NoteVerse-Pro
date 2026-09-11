@@ -59,6 +59,11 @@ class ClientFinishMessage(_ProtocolEnvelope):
     payload: ClientTimestampPayload
 
 
+class ClientSkipMessage(_ProtocolEnvelope):
+    type: Literal["client.skip"]
+    payload: ClientTimestampPayload
+
+
 class ClientHeartbeatMessage(_ProtocolEnvelope):
     type: Literal["client.heartbeat"]
     payload: ClientTimestampPayload
@@ -74,6 +79,7 @@ PracticeClientMessage = Annotated[
     | ClientPauseMessage
     | ClientResumeMessage
     | ClientFinishMessage
+    | ClientSkipMessage
     | ClientHeartbeatMessage
     | ClientMidiEventMessage,
     Field(discriminator="type"),
@@ -120,7 +126,6 @@ class SessionCompletionOutcomePayload(_StrictModel):
     ]
     completion_reason: Literal["SCOPE_COMPLETED", "STOPPED_BY_USER"]
     playback_expected: bool
-    summary_available: bool
 
 
 class SessionFinishedPayload(_StrictModel):
@@ -150,7 +155,7 @@ class PracticeConfidenceSummaryPayload(_StrictModel):
 
 
 class AlignmentDecisionPayload(_StrictModel):
-    action: Literal["advance", "hold", "wait"]
+    action: Literal["advance", "hold", "wait", "skip"]
     reason: Literal[
         "stable_match",
         "partial_match",
@@ -160,6 +165,10 @@ class AlignmentDecisionPayload(_StrictModel):
         "holding_position",
         "reacquiring",
         "large_jump",
+        "practice_paused",
+        "practice_finished",
+        "connection_closed",
+        "user_skipped",
     ]
     experience_state: Literal[
         "waiting_for_input",
@@ -171,6 +180,7 @@ class AlignmentDecisionPayload(_StrictModel):
         "recovering",
         "lost",
         "paused",
+        "skipped",
     ]
     display_anchor: PracticeDisplayAnchorPayload | None
     confidence_summary: PracticeConfidenceSummaryPayload

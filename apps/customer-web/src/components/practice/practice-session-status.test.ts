@@ -262,6 +262,40 @@ describe('resolvePracticeSessionStatusView', () => {
     });
   });
 
+  it('keeps uncertain input and noisy environment as separate status facts', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        ...baseProps,
+        alignment: makeAlignment({
+          input_health: {
+            available: true,
+            level: 'good',
+            noise: 'high',
+            confidence: 1,
+          },
+          decision: {
+            action: 'hold',
+            reason: 'low_alignment_confidence',
+            experience_state: 'heard_but_uncertain',
+            display_anchor: { beat: 3, render_note_ids: ['n1'] },
+            confidence_summary: {
+              visual: 0.2,
+              alignment: 0.2,
+              audio: 0.8,
+              continuity: 1,
+              validation: 0.2,
+              input_policy: 1,
+            },
+          },
+        }),
+      })
+    ).toMatchObject({
+      messageKey: 'practiceStateHeardUncertain',
+      inputHintKey: 'practiceInputNoiseHigh',
+      uncertain: true,
+    });
+  });
+
   it('shows fixed-clock performance progress without requiring alignment evidence', () => {
     expect(
       resolvePracticeSessionStatusView({
@@ -292,6 +326,19 @@ describe('resolvePracticeSessionStatusView', () => {
     ).toMatchObject({
       messageKey: 'performanceCountIn',
       uncertain: false,
+    });
+  });
+
+  it('shows only connection setup as a user-visible preparation state', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        ...baseProps,
+        status: 'connecting',
+        alignment: null,
+      })
+    ).toMatchObject({
+      messageKey: 'preparingPractice',
+      pending: true,
     });
   });
 
@@ -433,7 +480,7 @@ describe('PracticeSessionStatus', () => {
       vi.advanceTimersByTime(350);
     });
 
-    expect(screen.getByText('Waiting for the correct note')).toBeTruthy();
+    expect(screen.getByText('Play the current note')).toBeTruthy();
 
     rerender(statusElement(makeAlignment()));
 

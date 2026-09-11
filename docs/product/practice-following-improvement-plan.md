@@ -1,6 +1,6 @@
 # Practice Following Improvement Plan
 
-Last updated: 2026-08-31
+Last updated: 2026-09-10
 
 ## Current Decision
 
@@ -109,9 +109,15 @@ Current Performance Report
 = may use browser-local transient replay
 
 Saved Performance
-= user explicitly saved replay
+= user explicitly saved this performance
 = durable user-facing archive entry
 ```
+
+`ReplayArtifact` is still the durable playback payload for that saved
+performance. The user-facing concept is "save performance"; the implementation
+does not copy a report snapshot. The saved archive entry is composed from the
+finished `PracticeSession`, its immutable score revision, the saved replay
+artifact, and optional evaluation facts.
 
 Historical saved-performance entry eligibility is therefore concrete and
 artifact-driven:
@@ -135,10 +141,29 @@ it. The `/practice/summary` route guard still protects direct URLs and enforces
 that the page is Performance-only, but Score Detail should link only to saved
 performances. Until a formal `EvaluationArtifact` table exists,
 `evaluation_available` is computed by one central predicate over the finished
-Performance summary payload. The predicate must distinguish `0` from missing
-data: `missing = 0` and `extra = 0` are valid facts when there is explicit
-evaluated target evidence, while an all-zero or empty payload must not imply
-that analysis facts exist.
+Performance summary payload. V1 public evaluation projection is MIDI-only:
+symbolic MIDI evidence may drive green/red annotations, key facts, and
+problem-measure details; microphone Performance remains replay/session-fact only
+until fixture-backed polyphonic evidence quality is proven. The predicate must
+distinguish `0` from missing data: `missing = 0` and `extra = 0` are valid facts
+when there is explicit evaluated MIDI target evidence, while an all-zero or
+empty payload must not imply that analysis facts exist.
+
+`summary_payload` is a compact fact payload, not a report artifact and not a
+coaching script. It should contain durable evidence-derived facts such as
+`metrics`, `targets`, and `problem_measures`. It must not carry presentation
+prose such as `summary` sentences or `recommendations`, and it must not duplicate
+the `PracticeAttempt` table as a second per-attempt source of truth. Per-target
+and per-measure aggregate counts are valid read-projection facts; full attempt
+history belongs to durable evidence tables or an explicit internal diagnostic
+surface. User-facing copy belongs to the frontend presentation layer, and future
+coaching workflows must use their own explicit product surface instead of hiding
+guidance inside a report read model.
+
+Summary build failures are lifecycle/operation facts. The durable session may
+store internal failure details for observability, but public customer-facing read
+models should expose only stable status/codes and must not leak raw tracebacks,
+storage keys, SQL errors, or exception text into the Performance Report UI.
 
 Public clients should express product intent through a practice preset, not by
 assembling internal policy enums. The backend owns the canonical projection from
@@ -192,10 +217,11 @@ state, or URL parameter.
   the tied continuation is excluded from the expected target but the newly
   struck notes still form an expected practice group.
 - Wrong, uncertain, or partial input may record evidence, but it must not advance
-  the current expected group unless the step-by-step evaluator accepts it.
-- Microphone chord detection is best-effort. A partial microphone chord may be
-  accepted as learning evidence only under the explicit microphone policy; MIDI
-  chord matching remains strict.
+  the current expected group. `STEP_BY_STEP` progression advances only on an
+  accepted `MATCH` or on explicit user `SKIP`.
+- Microphone chord detection is best-effort evidence, not a progression
+  shortcut. A partial microphone chord may be recorded for diagnostics and
+  future analysis, but it must keep the user on the current expected group.
 - Summary surfaces locate and explain problems. They must not create a local
   practice range from a single problem target. A target is a point; a
   `PracticeScope` is a user-selected range.
@@ -532,6 +558,13 @@ Done:
   neutral `processing.practice_score` namespace rather than under the alignment
   engine package. Performance depends on the shared practice score projection,
   not on the Matchmaker/alignment engine.
+- MusicXML-to-`PracticeScoreTimeline` is a pure score-semantics boundary. It
+  must not require a SoundFont, synthesize audio, initialize playback resources,
+  or perform network access. SoundFont preparation belongs to playback/reference
+  audio adapters, not to score timeline loading. The Partitura score parser
+  adapter may block Partitura's optional FluidSynth import when no real
+  SoundFont is configured, but it must not create a fake or empty SoundFont
+  resource.
 - Runtime dispatch now uses a canonical runtime kind reconstructed from
   persisted execution facts, rather than branching directly on
   `progression_mode`. Invalid free-axis combinations fail before a runtime is
@@ -674,20 +707,83 @@ Done:
   been removed.
 - Completion outcomes no longer infer a Performance Summary from
   `progression_mode=CONTINUOUS`.
+- `STEP_BY_STEP` skip is implemented end to end. Customer Web sends an explicit
+  `client.skip` control frame only for active step-by-step sessions. The backend
+  advances exactly one current expected group, persists a resolved
+  `SKIPPED/user_skipped` attempt, and exposes skipped counts as neutral summary
+  facts. Skipped attempts are not scorable, do not count as matches or errors,
+  and do not inflate learning accuracy. They are also not treated as interrupted
+  attempts; interruption remains a lifecycle state for unfinished attempts.
+- A skip-generated alignment is a first-class alignment update. The runtime must
+  update `last_alignment` and pending persistence counters exactly as it does
+  for microphone or MIDI alignment, otherwise the final skip can advance the
+  policy past the last expected group without letting the session lifecycle see
+  `scope_completed=true`.
+- Terminal `STEP_BY_STEP` alignment must not be exposed as completed until the
+  backend has persisted the terminal alignment and committed
+  `PracticeSession.state=FINISHED`. The websocket then sends the final
+  `alignment.update` followed immediately by `session.finished`. Frontend
+  completion UI is driven by `session.finished`, not by guessing from a local
+  skip count or from score position.
+- `STEP_BY_STEP` completion must preserve the last backend display anchor on
+  the score. `PracticeStatus=finished` closes the active input lifecycle, but it
+  must not clear the final prompt/highlight while the completion dialog is open;
+  otherwise the user can perceive the session as ending before the final target.
+- Step-by-step active-target decoration should follow Verovio's rendered chord
+  structure. If a highlighted note belongs to a chord container, the chord
+  container is decorated with it so stems and noteheads read as one visible
+  target. The backend still owns the target ids; this is only a render-layer
+  projection of the same display anchor.
+- `STEP_BY_STEP` committed anchors render immediately. `advance`, `skip`, and
+  initial/current-target prompts are backend-owned progression facts, not
+  provisional frontend localization candidates. Customer Web must not apply
+  multi-frame stability gates or sequential jump clamping to these anchors; any
+  evidence aggregation, confidence policy, or anti-flicker decision belongs in
+  the evaluator/runtime before progression is committed.
+- `STEP_BY_STEP` microphone attempt lifecycle now separates "can continue
+  collecting an already-open attempt" from "can start a new attempt". A
+  sustained tail from the previously accepted note must not open the next
+  expected group and create an immediate false mismatch. Once the accumulator
+  resolves an attempt, the runtime closes that input-collection cycle and waits
+  for a fresh onset before opening the next attempt. This reset is tied to
+  attempt lifecycle, not to UI/runtime action strings such as `hold`, `wait`, or
+  `advance`. It preserves rolled-chord collection inside one attempt while
+  preventing stale resolved attempts from blocking later input.
+- Real-recording diagnostics now expose resolved attempt events with evaluator
+  result, matched/missing/extra pitch sets, decision reason, gate reason, and
+  confidence. This makes the current Once Again gap stage-specific: startup is
+  accepted and the stream is not lost, but microphone pitch evidence stalls on
+  early expected groups because the acoustic observer produces partial or wrong
+  pitch candidates.
+- The current dominant-peak acoustic observer remains the default product path.
+  A conservative multi-peak FFT candidate mode exists only as fixture-backed
+  experimentation; synthetic chord detection alone is not enough to enable it by
+  default because real piano recordings can expose harmonics/noisy peaks as
+  false extra notes.
+- Skip is a step-by-step auxiliary control, not a core session lifecycle
+  control. It should not sit inside the primary bottom control row where it
+  changes row width between `STEP_BY_STEP` and `CONTINUOUS_PLAY`. The current UI
+  renders it as a separate viewport-right floating control above the primary
+  controls during active step-by-step practice. Rapid repeated skip clicks can
+  arrive faster than React paints every intermediate websocket update, so the
+  backend display anchor is the only authoritative visual position for
+  `user_skipped` updates.
+- `completion_outcome` describes the terminal completion event only. It no
+  longer carries `summary_available`; summary readiness, saved replay
+  availability, and evaluation availability are independent lifecycles exposed
+  through their own read-model fields or endpoints.
 
 Still needed:
 
-- Add explicit `STEP_BY_STEP` skip support from UI to backend runtime. It should
-  advance only the current expected group and record a neutral skipped fact.
 - Keep `STEP_BY_STEP` completion lightweight: no user-visible formal report or
   score. The existing session summary path can remain as an internal/terminal
   snapshot, but UI copy must not overstate it.
-- Remove automatic durable replay creation from `CONTINUOUS_PLAY` finish. Current
-  recording support should become an explicit browser-local immediate replay
-  surface; durable saved replay requires user action.
-- Add synchronized replay UI for `CONTINUOUS_PLAY` before stricter score claims.
-- Separate local replay availability, saved replay availability, and optional
-  `EvaluationArtifact` availability in read models and frontend result routing.
+- Keep Performance result availability explicit at the read-model and UI
+  boundary:
+  - browser-local just-finished replay is an immediate current-report capability;
+  - saved replay is the durable historical archive capability;
+  - summary availability is a session artifact lifecycle;
+  - evaluation availability is an evidence capability, not replay availability.
 - Add evidence-quality gates before showing Performance accuracy/problem claims,
   especially for microphone input.
 
@@ -699,11 +795,13 @@ Goal: make the only exposed runtime reliable before adding Performance mode.
 
 Tasks:
 
-1. Add explicit skip support:
+1. Done: add explicit skip support:
    - UI control appears only for active `STEP_BY_STEP` sessions;
    - backend command advances exactly one current expected group;
    - persisted attempt/summary fact is neutral skipped, not match/wrong;
    - skipped groups do not inflate learning accuracy.
+   - final skipped group completes through the normal backend
+     `PracticeSession FINISHED -> session.finished` lifecycle.
 2. Keep `STEP_BY_STEP` completion lightweight:
    - show completion/selected range/duration/skipped count;
    - avoid score-like report language;
@@ -776,6 +874,35 @@ Required behavior:
 9. `PerformanceTimeline` and `ResolvedPerformanceScope` must exist before
    `PerformanceClock`; the clock should not parse MusicXML or infer scope.
 
+Microphone activity gates have different authority in each product mode:
+
+```text
+STEP_BY_STEP + MICROPHONE
+-> input-ready immediately enters the current-target listening state
+-> background noise estimation warms opportunistically from eligible non-musical audio
+-> startup gate waits for a credible musical start
+-> runtime evidence gate rejects obviously unusable input
+-> evaluator decides MATCH / PARTIAL / MISMATCH / UNCERTAIN
+-> runtime advances only on MATCH or explicit user SKIP
+
+CONTINUOUS_PLAY + MICROPHONE
+-> PerformanceClock owns progression
+-> microphone input is recording/evaluation evidence only
+-> calibration/capture health may affect evidence eligibility
+-> calibration/capture health must never start, stop, pause, or advance the clock
+```
+
+The initial calibration window is a duration-level tuning parameter, not a
+product rule expressed as a fixed frame count and must not be a user-visible
+practice-readiness gate. The engine should warm its noise estimate from
+accumulated valid audio samples/time in the background, so changing browser chunk
+size or audio frame cadence must not silently change the intended estimator
+maturity target. Credible tonal/onset activity must not be learned as background
+noise and must not advance noise-estimate maturity. The UI must not show a
+blocking "calibrating" state before step-by-step practice; once microphone input
+is connected, the user-facing state is "ready, play the current note" while
+noise estimation remains an evidence-preprocessing concern.
+
 ### P2 - Build Performance Replay And Evidence
 
 Goal: make fixed-clock Performance useful before promising detailed scoring.
@@ -829,10 +956,18 @@ Priority order:
    - sufficient analyzable coverage;
    - input-source-specific confidence;
    - MIDI and microphone thresholds kept separate.
-10. Improve MIDI pitch/content evaluator detail:
-   - explicit extra-note attribution;
-   - chord simultaneity windows;
-   - consumed-observation assignment so one input event is not double-counted.
+10. Done: improve MIDI pitch/content evaluator V1 detail:
+   - MIDI observations are assigned to at most one nearest expected event inside
+     an explicit assignment window;
+   - chord notes are evaluated from the first same-event physical gesture inside
+     an explicit simultaneity window;
+  - a late expected pitch outside that gesture is retained as unconfirmed timing
+    evidence. It is not exposed as public extra-note evidence and is not
+    projected as a public missing/red note until a deliberate timing-evaluation
+    policy exists;
+   - same-onset same-pitch duplicate notation remains one physical strike target;
+   - repeated same-pitch attacks after the first consumed expected strike are
+     reported as extra/repeated input.
 11. Add timing distribution only after timebase and latency semantics are proven:
    - timeline offset and user-visible performance offset are named separately;
    - median/percentile and early/late tendency are preferred over only averages;
@@ -932,6 +1067,17 @@ Implementation status:
   every notehead in the group was wrong. Same-pitch duplicate notation in one
   expected group is treated as one physical strike target with multiple render
   ids, so one piano/MIDI key attack can satisfy all corresponding noteheads.
+- MIDI Performance evaluation now has explicit V1 boundaries for dense adjacent
+  events: each observation is assigned to at most one nearest expected event
+  inside the assignment window; chord matching uses the first same-event
+  physical gesture inside the simultaneity window; late expected pitches outside
+  that gesture do not silently repair the chord and are projected as
+  `UNCONFIRMED`, so they remain neutral in public missing/error annotations
+  until timing evaluation has a deliberate policy. Late pitches that belong to
+  another nearest event are still evaluated only against that event. Dense
+  fixture tests cover late chord notes, adjacent single-note assignment,
+  repeated same-pitch targets, duplicate notation, public neutral projection for
+  unconfirmed strikes, and out-of-window notes.
 - The fixed-clock Performance WebSocket loop now records microphone chunks and
   MIDI events as evidence, evaluates MIDI expected-event outcomes at finish, and
   leaves progression, pause/resume, and completion under backend clock ownership.
@@ -1065,29 +1211,1634 @@ Implementation status:
 
 Remaining P2 work:
 
-1. Browser-validate lazy saved replay playback-url for historical microphone
-   and MIDI Performance sessions after leaving and re-entering the report page.
-2. Split the user-facing Performance result model into local replay availability,
-   saved replay availability, and
-   optional evaluation availability. Do not treat the current conservative
-   `summary_payload` as a finished FormalReport.
-3. Add evidence-quality gates for creating/showing `EvaluationArtifact`.
-4. Improve MIDI evaluator detail: explicit extra-note attribution, chord
-   simultaneity windows, and consumed-observation assignment.
-5. Add timing distribution only after the shared timebase and latency semantics
+1. Split the user-facing Performance result model into local replay availability,
+   saved replay availability, summary availability, and optional evaluation
+   availability. Do not treat the current conservative `summary_payload` as a
+   finished FormalReport. Implementation is mostly in place; keep hardening the
+   central read-model predicate and frontend presentation boundaries so missing
+   analysis never masquerades as zero-error analysis.
+2. Add evidence-quality gates for creating/showing `EvaluationArtifact`.
+3. Harden MIDI evaluator V1 with more fixture coverage and tuning after browser
+   evidence grows. The core V1 assignment/simultaneity/repeated-extra contract is
+   in place and includes dense adjacent-event regression coverage; remaining work
+   is to validate constants against real MIDI recordings and add broader musical
+   fixtures such as fast repeated-note passages, arpeggiated chords, and
+   expressive early/late playing.
+4. Add timing distribution only after the shared timebase and latency semantics
    are proven by tests.
    The current timebase is good enough to preserve MIDI event order and drive
    Replay V1, but not enough to support millisecond-precision timing verdicts.
-6. Improve microphone observation quality beyond activity coverage: analyzable
+5. Improve microphone observation quality beyond activity coverage: analyzable
    regions, confident regions, uncertain regions, and later polyphonic evidence.
-7. Add result UI fields for coverage/evidence quality without presenting weak
+   Current real-engine fixture status against the revised Once Again score:
+   public negative samples still guard false starts, but the local Once Again
+   excerpt and the first 20 seconds of the complete `Once Again.wav` are marked
+   `known_gap` for stable follow progress. The attempt-lifecycle reset bug that
+   previously allowed only the first accepted update has been fixed, but these
+   fixtures still advance only through the opening region and do not yet produce
+   enough accepted alignment advance to claim robust step-by-step microphone
+   following.
+6. Add result UI fields for coverage/evidence quality without presenting weak
    microphone evidence as exact accuracy.
-8. Decide which raw observations and expected-event outcomes need durable
+7. Decide which raw observations and expected-event outcomes need durable
    storage only after replay diagnostics and result requirements prove the need.
+
+Recently completed P2 validation:
+
+- Browser validation confirmed lazy historical saved replay playback for saved
+  microphone/MIDI Performance sessions after leaving and re-entering the report
+  page. Historical playback requests a fresh click-time playback URL and uses the
+  same score cursor projection as immediate local replay.
 
 ### P3 - Improve Microphone Recognition
 
 Goal: reduce false negatives and false positives, especially for chords.
+
+Current P3 direction is benchmark-first. Do not continue tuning generic acoustic
+thresholds one fixture at a time. The next microphone work must use a shared
+fixture matrix and one benchmark vocabulary before any production observer is
+changed.
+
+P3.1 benchmark contract:
+
+```text
+dominant-peak observer
+= current baseline
+
+generic multi-peak FFT
+= experimental candidate only
+= not the default production direction
+
+STEP_BY_STEP microphone recognition
+= target-conditioned evidence verification
+= the system already knows the current ExpectedPracticeStrikeTargets
+
+not:
+blind full transcription -> guessed score relation
+```
+
+Primary product risk ordering for STEP microphone:
+
+```text
+1. false match / false advance
+2. expected strike recall
+3. chord complete detection
+4. median / P95 time-to-match
+5. false discovery / extra evidence pressure
+6. uncertain rate
+```
+
+False advance is more dangerous than a false negative. A missed recognition can
+leave the user on the same target or be escaped with Skip; an incorrect advance
+tells the user the target was accepted when the evidence did not justify it. For
+candidate observer experiments, use the more general term `false_match_count`
+unless the benchmark candidate actually owns progression decisions.
+
+Benchmark metrics should keep evidence quality separate from product behavior:
+
+```text
+Evidence quality:
+- score expected strike coverage when ground truth is only the score
+- expected strike recall only when paired physical ground truth exists
+- expected strike precision only when paired physical ground truth exists
+- chord complete detection rate
+- false_discovery_rate = extra predicted pitches / all predicted pitches
+
+Product behavior:
+- false advance rate / guard count
+- median and P95 time-to-match
+- uncertain rate
+```
+
+Every benchmark output must declare its `benchmark_scope`:
+
+```text
+baseline_runtime_replay
+= current production replay/runtime owns startup, attempt lifecycle, and
+  progression decisions
+= false_match_count can be read as false-advance guard evidence
+
+observer_window_replay
+= an experimental observer is replayed inside windows created by the baseline
+  runtime
+= useful for pitch-evidence comparison
+= must not be read as end-to-end false-advance or time-to-match quality
+
+causal_shadow_runtime_replay
+= an experimental candidate owns startup, attempt lifecycle, and progression in
+  a separate shadow run
+= only this scope can make end-to-end product-behavior claims for a new observer
+
+offline_score_aligned_oracle
+= a complete external transcript is aligned back to known score targets after
+  the fact
+= useful as an accuracy-ceiling and error-diagnosis oracle
+= must not be read as causal following, false-advance safety, or time-to-match
+  quality
+```
+
+Every benchmark summary must also declare evidence applicability:
+
+```text
+ground_truth_source:
+  score_expectation
+  paired_midi
+  synthetic
+  none
+
+score_expected_strike_coverage
+= matched score-expected strikes / score-expected strikes
+= valid when the only available truth is MusicXML expectation
+
+expected_strike_recall / expected_strike_precision
+= physical performance accuracy metrics
+= only valid for paired MIDI or synthetic fixtures
+= null for real microphone recordings without physical-strike ground truth
+
+paired_midi
+= synchronized physical-strike truth from the same acoustic performance
+= not a MusicXML-derived MIDI file
+= not MIDI captured from a different take
+
+synthetic
+= generator-owned physical-strike truth
+```
+
+Every benchmark summary must declare causal semantics explicitly:
+
+```text
+causal: true | false
+uses_future_context: true | false
+evidence_horizon_ms: number | null
+```
+
+Do not infer these from the scope name in UI, docs, or future scripts.
+
+Benchmark input identity should describe the canonical audio actually replayed
+by the diagnostic script, not merely the source filename:
+
+```text
+audio_input:
+  sha256
+  sample_rate_hz
+  channels
+  sample_format
+  sample_count
+```
+
+If a fixture starts as 48 kHz stereo and is resampled to 16 kHz mono float32,
+the benchmark identity belongs to the 16 kHz mono float32 replay PCM. The
+canonical bytes are contiguous little-endian float32 PCM samples at the declared
+sample rate and channel count.
+
+The fixture matrix should include:
+
+- real `Once Again.wav` and the derived excerpt;
+- synthetic single notes;
+- synthetic simultaneous chords;
+- rolled chords;
+- repeated same-pitch attacks;
+- octave-confusion cases such as A4/A5 and C4/C5;
+- non-tonal input such as desk taps, keyboard typing, coughs, and speech;
+- mixed piano plus background noise.
+
+Benchmark diagnostics may include a small internal reason taxonomy such as:
+
+```text
+accepted_match
+false_advance_guard
+startup_pitch_mismatch
+low_alignment_confidence
+low_expected_activation
+extra_candidate
+no_expected_activation
+uncertain_evidence
+no_onset
+```
+
+These diagnostic reasons are for scripts, fixture reports, logs, and future
+developer tooling. They must not become user-facing Performance Report copy and
+must not automatically expand the public realtime WebSocket contract.
+
+The next production candidate should be score-informed / target-conditioned
+acoustic evidence: for the current expected strike targets, estimate onset and
+spectral activation per expected pitch over the gesture window. This avoids
+pretending that the realtime observer can or should transcribe every audible
+pitch before using the score. Existing Basic Pitch, Transkun, and Aria-AMT
+benchmarks are enough for the current full-transcript reference layer. Do not add
+more acoustic frontends until bounded STEP evaluation exposes a concrete failure
+that the current references cannot explain.
+The first `TargetConditionedPianoObserver` implementation is an experimental
+benchmark candidate only. It estimates per-expected-pitch spectral activation
+from PCM and can project matched expected pitches into the existing
+`AudioObservation` evaluator contract, but it is not wired into the production
+Matchmaker runtime and does not claim robust real microphone polyphonic support.
+
+P3 provider direction is now:
+
+```text
+AcousticEvidenceProvider
+= produces expected-pitch evidence for a known ExpectedPracticeGroup
+= never returns MATCH / PARTIAL / MISMATCH
+= never owns product progression in production
+
+Expected evidence
+↓
+ExpectedEventEvaluator
+↓
+STEP policy / shadow runtime
+```
+
+Do not keep inventing handcrafted DSP versions before benchmarking mature
+open-source acoustic frontends. Accuracy-ceiling systems are benchmark inputs,
+not production runtime dependencies. Verified Transkun V2/V2 Aug checkpoints
+should be treated as the first offline piano-AMT oracle candidate because public
+MIREX/MAESTRO evidence currently makes it the strongest open accuracy-ceiling
+reference. The initial P3 comparison now covers Basic Pitch, Transkun V2 Aug,
+and Aria-AMT; do not add more full-AMT providers by default unless a bounded
+STEP benchmark exposes a specific failure that these references cannot explain.
+
+Offline AMT providers must enter as explicit benchmark-only evidence providers:
+
+```text
+external transcription artifact
+-> aligned to expected strike targets as an offline oracle
+-> ExpectedEventEvaluator
+-> offline_score_aligned_oracle benchmark metrics
+```
+
+They must not:
+
+```text
+drive production STEP progression
+replace PracticeScoreTimeline identity
+become a saved replay/report artifact
+silently run when no explicit benchmark artifact is provided
+```
+
+The initial Transkun integration consumes an exported MIDI transcription from an
+explicitly-run Transkun job. The benchmark script may load that MIDI as a named
+oracle provider and align it back to expected score targets. Running Transkun
+itself remains an external research step until dependency, model, latency, and
+deployment constraints are intentionally reviewed.
+
+Docker smoke test status:
+
+- `transkun==2.0.1` can run inside the practice quality container as a temporary
+  research venv with CPU PyTorch. It currently needs `setuptools<81` because the
+  CLI imports deprecated `pkg_resources`; this is another reason not to add it
+  to production/runtime requirements.
+- The PyPI package includes the `transkun` CLI and bundled `pretrained/2.0.pt`,
+  so a smoke transcription can run without a separate model download.
+  This has not been verified as the public Transkun V2 Aug checkpoint; benchmark
+  output must therefore label it as the PyPI 2.0.1 default checkpoint, not as
+  V2 Aug.
+- CPU transcription succeeded for:
+  - `once_again_excerpt_16k.wav` -> 82 note-on events;
+  - `Once Again.wav` -> 291 note-on events.
+- Feeding the generated full-recording MIDI directly into the existing attempt
+  windows produced many extra pitches, proving that raw AMT note-on output
+  cannot be interpreted as a STEP progression oracle by simply dropping it into
+  current gesture windows.
+- A first benchmark-only transcript-to-score/time alignment layer now greedily
+  anchors Transkun note-on clusters to `ExpectedPracticeGroup` identities and
+  narrows each provider projection to the aligned gesture window. With that
+  alignment on `Once Again.wav`:
+
+  ```text
+  observer_window_replay:
+  - baseline score_expected_strike_coverage = 0.24
+  - target_conditioned_dsp_v1 score_expected_strike_coverage = 0.28
+
+  offline_score_aligned_oracle:
+  - ground_truth_source = score_expectation
+  - transkun_pypi_2_0_1_default_midi_oracle score_expected_strike_coverage = 0.7448
+  - transkun expected_strike_recall = null
+  - transkun expected_strike_precision = null
+  - transkun chord_complete_detection_rate = 0.6818
+  - transkun per_pitch_extra_rate = 0.042
+  - transkun uncertain_rate = 0.2095
+  - false_match_count / false_advance_guard_count / time-to-match are not
+    emitted for this scope, because whole-file transcript alignment is not
+    causal following.
+  ```
+
+  The alignment layer makes the oracle comparison much cleaner, especially for
+  extra-note pressure, but this remains score-expected coverage, not physical
+  recognition recall. It is a benchmark/reference path, not a production STEP
+  recognizer.
+
+The current priority is:
+
+1. Add paired MIDI + microphone ground-truth fixtures. The local fixture
+   contract now lives in
+   `backend/tests/fixtures/practice_audio/paired_ground_truth_manifest.json`.
+   Start the product-specific capture matrix with C-E-G omissions so false chord
+   completion is measured before another model is integrated. In parallel, use
+   public paired datasets as raw acoustic observer smoke tests when they contain
+   synchronized audio and same-performance MIDI truth.
+2. Keep `TargetConditionedPianoObserver` as the handcrafted DSP benchmark
+   baseline and proof of the score-conditioned provider contract.
+3. Keep the exported-MIDI AMT oracle provider as an
+   `offline_score_aligned_oracle` only. It establishes an offline accuracy
+   ceiling without changing production runtime behavior or making causal
+   progression claims.
+4. Run selected-window offline transcription shootouts for public paired data
+   before changing production observer behavior. The first P3 v1 shootout is now
+   complete for Basic Pitch, Transkun, and Aria-AMT; do not add hFT, MT3, Kong,
+   Essentia, or other full-AMT providers until bounded STEP evidence creates a
+   specific need.
+5. Then run score-conditioned comparisons with the same evaluator and
+   ExpectedPracticeStrikeTargets, so model quality and score-prior benefit stay
+   separable.
+6. Reopen additional acoustic-provider comparisons only after bounded STEP
+   evaluation exposes a specific failure that the current references and
+   handcrafted baseline cannot explain.
+
+Public paired-dataset smoke status:
+
+```text
+MAESTRO v3.0.0
+sample:
+2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--3
+
+source:
+- official archive is ~108 GB
+- Google Cloud Storage supports byte-range access
+- one 46.16s WAV + matching MIDI pair was extracted without downloading the full archive
+- formal P3 shootouts must use official `test` split recordings only
+
+benchmark:
+- script: backend/scripts/evaluate_public_paired_midi_dataset.py
+- downloader: backend/scripts/download_maestro_pair.py
+- ground_truth_source = paired_midi
+- benchmark_scope = paired_midi_oracle_onset_window
+- onset_source = paired_midi
+- this measures pitch observation inside oracle note-on windows, not onset
+  detection, score-following, or product progression quality
+- selection-mode = prefix or balanced
+- frozen selection manifests are required for cross-provider shootouts
+```
+
+Reproducible commands:
+
+```bash
+python scripts/download_maestro_pair.py \
+  --dataset-dir data/work/datasets/maestro-v3.0.0
+
+python scripts/evaluate_public_paired_midi_dataset.py \
+  --audio data/work/datasets/maestro-v3.0.0/2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--3.wav \
+  --midi data/work/datasets/maestro-v3.0.0/2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--3.midi \
+  --output data/work/datasets/maestro-v3.0.0/maestro_baseline_observer_report.json \
+  --max-groups 120
+
+python scripts/evaluate_public_paired_midi_dataset.py \
+  --audio data/work/datasets/maestro-v3.0.0/2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--3.wav \
+  --midi data/work/datasets/maestro-v3.0.0/2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--3.midi \
+  --output data/work/datasets/maestro-v3.0.0/maestro_balanced_baseline_observer_report.json \
+  --selection-mode balanced \
+  --groups-per-bucket 20 \
+  --max-groups 120
+
+python scripts/evaluate_public_paired_midi_dataset.py \
+  --audio data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav \
+  --midi data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.midi \
+  --dataset-id MAESTRO \
+  --dataset-version v3.0.0 \
+  --official-split test \
+  --recording-id 2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2 \
+  --selection-mode balanced \
+  --groups-per-bucket 20 \
+  --max-groups 120 \
+  --write-selection-manifest data/work/datasets/maestro-v3.0.0/maestro_test_p3_v1_selection.json \
+  --output data/work/datasets/maestro-v3.0.0/maestro_test_p3_v1_baseline_observer_report.json
+
+python scripts/evaluate_public_paired_midi_dataset.py \
+  --audio data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav \
+  --midi data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.midi \
+  --dataset-id MAESTRO \
+  --dataset-version v3.0.0 \
+  --official-split test \
+  --recording-id 2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2 \
+  --selection-manifest data/work/datasets/maestro-v3.0.0/maestro_test_p3_v1_selection.json \
+  --max-frequency-candidates 4 \
+  --output data/work/datasets/maestro-v3.0.0/maestro_test_p3_v1_fft_top4_observer_report.json
+```
+
+The script also emits `metrics_by_bucket` so smoke results can be inspected by
+musical difficulty instead of relying on one aggregate score. Current buckets:
+
+```text
+single_note
+dyad
+triad
+four_plus_note_chord
+octave
+repeated_pitch_context
+dense_passage
+```
+
+Balanced selection is multi-label, not mutually exclusive. A single MIDI strike
+group may count as both `dyad` and `octave`, or as `four_plus_note_chord`,
+`octave`, and `dense_passage`. This is intentional: the benchmark reports
+musical stress conditions, not a single taxonomy. Balanced mode selects up to
+`groups_per_bucket` unique examples per bucket and restores score order before
+evaluation. Cross-provider comparisons must read the frozen manifest generated
+from this selection instead of recalculating selection per provider.
+
+Current MAESTRO smoke metrics over the first 120 MIDI strike groups:
+
+```text
+dominant_fft_baseline:
+- expected_strike_recall = 0.0492
+- expected_strike_precision = 0.0918
+- false_discovery_rate = 0.9082
+- exact_group_match_rate = 0.05
+- chord_complete_detection_rate = 0.0
+- uncertain_rate = 0.1833
+
+fft_top_4_candidates:
+- expected_strike_recall = 0.1585
+- expected_strike_precision = 0.1234
+- false_discovery_rate = 0.8766
+- exact_group_match_rate = 0.0
+- chord_complete_detection_rate = 0.0
+- uncertain_rate = 0.1917
+```
+
+Selected bucket results:
+
+```text
+dominant_fft_baseline:
+- single_note recall = 0.0857, precision = 0.1017
+- dyad recall = 0.0395, chord_complete_detection_rate = 0.0
+- triad recall = 0.0, chord_complete_detection_rate = 0.0
+- octave recall = 0.0
+
+fft_top_4_candidates:
+- single_note recall = 0.2286, precision = 0.1096
+- dyad recall = 0.1184, chord_complete_detection_rate = 0.0
+- triad recall = 0.1212, chord_complete_detection_rate = 0.0
+- octave recall = 0.0909, uncertain_rate = 0.8
+```
+
+Current MAESTRO balanced metrics over 120 selected strike groups from 375
+available groups:
+
+```text
+dominant_fft_baseline:
+- expected_strike_recall = 0.0932
+- expected_strike_precision = 0.2752
+- false_discovery_rate = 0.7248
+- exact_group_match_rate = 0.0417
+- chord_complete_detection_rate = 0.0
+- uncertain_rate = 0.0917
+
+fft_top_4_candidates:
+- expected_strike_recall = 0.2143
+- expected_strike_precision = 0.2509
+- false_discovery_rate = 0.7491
+- exact_group_match_rate = 0.0
+- chord_complete_detection_rate = 0.0
+- uncertain_rate = 0.1833
+```
+
+Current MAESTRO P3 v1 official test selection:
+
+```text
+recording:
+2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2
+
+metadata:
+- official_split = test
+- canonical_composer = Domenico Scarlatti
+- canonical_title = Sonata K. 525
+- duration = 65.95s
+- source_group_count = 424
+- selection_manifest = data/work/datasets/maestro-v3.0.0/maestro_test_p3_v1_selection.json
+- selected_group_count = 120
+- bucket_membership = multi_label
+
+dominant_fft_baseline:
+- expected_strike_recall = 0.1168
+- expected_strike_precision = 0.4051
+- false_discovery_rate = 0.5949
+- exact_group_match_rate = 0.025
+- chord_complete_detection_rate = 0.0
+- uncertain_rate = 0.3417
+
+fft_top_4_candidates:
+- selection_mode = manifest
+- expected_strike_recall = 0.2628
+- expected_strike_precision = 0.4045
+- false_discovery_rate = 0.5955
+- exact_group_match_rate = 0.075
+- chord_complete_detection_rate = 0.0706
+- uncertain_rate = 0.175
+```
+
+Interpretation:
+
+- Current dominant FFT is a baseline only; it is not close to reliable
+  real-piano polyphonic recognition.
+- Generic top-N FFT improves recall slightly but still produces overwhelming
+  extra/false-discovery pressure and no chord-complete detection in this smoke
+  sample.
+- Bucket metrics make the failure clearer: the current FFT family is weak even
+  under oracle onset windows, and chord-complete detection remains zero for
+  dyads/triads in this smoke sample.
+- This reinforces the benchmark-first direction: do not promote another DSP
+  tweak into production without paired-truth comparison and false-match safety.
+- Public paired data is useful for raw observer quality, but it should not be
+  forced into `MatchmakerLiveEngine` unless the same score timeline exists.
+
+```text
+PianoVAM v1.0
+sample:
+Audio/2024-02-14_19-10-09.wav
+MIDI/2024-02-14_19-10-09.mid
+
+source:
+- public Hugging Face dataset with paired amateur piano practice audio and MIDI
+- one 745.49s mono WAV + matching MIDI pair was downloaded with temporary
+  token-based HTTP authorization
+- the token is not persisted by the downloader
+
+benchmark:
+- script: backend/scripts/evaluate_public_paired_midi_dataset.py
+- downloader: backend/scripts/download_pianovam_pair.py
+- ground_truth_source = paired_midi
+- benchmark_scope = paired_midi_oracle_onset_window
+- onset_source = paired_midi
+- this measures pitch observation inside oracle MIDI onset windows, not onset
+  detection, score-following, or product progression quality
+- selection-mode = prefix or balanced
+- frozen selection manifests are required for cross-provider shootouts
+```
+
+Reproducible commands:
+
+```bash
+HF_TOKEN=... python scripts/download_pianovam_pair.py \
+  --dataset-dir data/work/datasets/pianovam-v1.0 \
+  --basename 2024-02-14_19-10-09
+
+python scripts/evaluate_public_paired_midi_dataset.py \
+  --audio data/work/datasets/pianovam-v1.0/Audio/2024-02-14_19-10-09.wav \
+  --midi data/work/datasets/pianovam-v1.0/MIDI/2024-02-14_19-10-09.mid \
+  --output data/work/datasets/pianovam-v1.0/pianovam_baseline_observer_report.json \
+  --max-groups 120
+
+python scripts/evaluate_public_paired_midi_dataset.py \
+  --audio data/work/datasets/pianovam-v1.0/Audio/2024-02-14_19-10-09.wav \
+  --midi data/work/datasets/pianovam-v1.0/MIDI/2024-02-14_19-10-09.mid \
+  --output data/work/datasets/pianovam-v1.0/pianovam_balanced_baseline_observer_report.json \
+  --selection-mode balanced \
+  --groups-per-bucket 20 \
+  --max-groups 120
+
+python scripts/evaluate_public_paired_midi_dataset.py \
+  --audio data/work/datasets/pianovam-v1.0/Audio/2024-02-14_19-10-09.wav \
+  --midi data/work/datasets/pianovam-v1.0/MIDI/2024-02-14_19-10-09.mid \
+  --dataset-id PianoVAM \
+  --dataset-version v1.0 \
+  --recording-id 2024-02-14_19-10-09 \
+  --selection-mode balanced \
+  --groups-per-bucket 20 \
+  --max-groups 120 \
+  --write-selection-manifest data/work/datasets/pianovam-v1.0/pianovam_p3_v1_selection.json \
+  --output data/work/datasets/pianovam-v1.0/pianovam_p3_v1_baseline_observer_report.json
+
+python scripts/evaluate_public_paired_midi_dataset.py \
+  --audio data/work/datasets/pianovam-v1.0/Audio/2024-02-14_19-10-09.wav \
+  --midi data/work/datasets/pianovam-v1.0/MIDI/2024-02-14_19-10-09.mid \
+  --dataset-id PianoVAM \
+  --dataset-version v1.0 \
+  --recording-id 2024-02-14_19-10-09 \
+  --selection-manifest data/work/datasets/pianovam-v1.0/pianovam_p3_v1_selection.json \
+  --max-frequency-candidates 4 \
+  --output data/work/datasets/pianovam-v1.0/pianovam_p3_v1_fft_top4_observer_report.json
+```
+
+Current PianoVAM smoke metrics over the first 120 MIDI strike groups:
+
+```text
+dominant_fft_baseline:
+- expected_strike_recall = 0.1488
+- expected_strike_precision = 0.463
+- false_discovery_rate = 0.537
+- exact_group_match_rate = 0.075
+- chord_complete_detection_rate = 0.0
+- uncertain_rate = 0.1
+
+fft_top_4_candidates:
+- expected_strike_recall = 0.3244
+- expected_strike_precision = 0.4208
+- false_discovery_rate = 0.5792
+- exact_group_match_rate = 0.0167
+- chord_complete_detection_rate = 0.0169
+- uncertain_rate = 0.075
+```
+
+Selected PianoVAM bucket results:
+
+```text
+dominant_fft_baseline:
+- single_note recall = 0.1475, precision = 0.1667
+- dyad recall = 0.1786, chord_complete_detection_rate = 0.0
+- triad recall = 0.3333, chord_complete_detection_rate = 0.0
+- octave recall = 0.1474
+
+fft_top_4_candidates:
+- single_note recall = 0.4098, precision = 0.1773
+- dyad recall = 0.2857, chord_complete_detection_rate = 0.0714
+- triad recall = 0.3333, chord_complete_detection_rate = 0.0
+- octave recall = 0.3028
+```
+
+Current PianoVAM balanced metrics over 120 selected strike groups from 3464
+available groups. This same selection is frozen as
+`data/work/datasets/pianovam-v1.0/pianovam_p3_v1_selection.json` and should be
+reused by every provider shootout:
+
+```text
+dominant_fft_baseline:
+- expected_strike_recall = 0.1676
+- expected_strike_precision = 0.5688
+- false_discovery_rate = 0.4312
+- exact_group_match_rate = 0.0667
+- chord_complete_detection_rate = 0.0
+- uncertain_rate = 0.0917
+
+fft_top_4_candidates:
+- selection_mode = manifest
+- expected_strike_recall = 0.327
+- expected_strike_precision = 0.4859
+- false_discovery_rate = 0.5141
+- exact_group_match_rate = 0.0167
+- chord_complete_detection_rate = 0.013
+- uncertain_rate = 0.0583
+```
+
+PianoVAM interpretation:
+
+- The Hugging Face token-based download path works without requiring persistent
+  local login.
+- This sample is much denser than the intended first product fixture; the first
+  120 groups contain many four-plus-note chords, octave stacks, repeated-pitch
+  contexts, and dense passages.
+- The current FFT observers still fail the product safety bar. Top-N FFT raises
+  recall, but also keeps false-discovery pressure high and does not reliably
+  complete chords.
+- PianoVAM should be kept as a public real-recording stress benchmark. It should
+  not replace the smaller local fixture matrix that isolates omissions, extras,
+  repeated attacks, and octave confusion.
+
+P3 benchmark governance:
+
+```text
+DEV selections
+-> may be inspected manually
+-> may guide feature design, thresholds, grouping, and diagnostic taxonomy
+
+HELD-OUT TEST selections
+-> frozen selection manifest
+-> no provider-specific resampling
+-> no repeated threshold tuning against the same result table
+-> used only for final before/after comparisons
+```
+
+MAESTRO formal results must record `official_split=test`. PianoVAM should be
+treated as cross-domain amateur-practice holdout; do not tune a candidate on a
+PianoVAM manifest and then report that same manifest as independent evidence.
+The current P3 v1 manifests are first benchmark artifacts, not the final full
+test suite.
+
+P1 mature AMT shootout scopes:
+
+```text
+paired_midi_oracle_onset_window
+-> paired MIDI tells the benchmark where each selected strike happened
+-> provider only supplies pitch evidence inside that oracle window
+-> suitable for FFT/CQT/activation frontends
+
+selected_truth_window_transcription
+-> provider receives only WAV and outputs MIDI
+-> provider owns onset detection and pitch transcription
+-> selected truth groups come from the frozen manifest
+-> no score, no score alignment, no STEP runtime
+-> precision and false-discovery metrics are scoped to selected truth windows,
+   not to the full recording
+-> suitable for full-transcript providers such as Transkun, Basic Pitch full
+   decoder, and Aria-AMT
+
+score_conditioned_step_evaluation
+-> future product-behavior benchmark
+-> uses ExpectedPracticeStrikeTargets and STEP acceptance policy
+-> measures false advance, first-attempt acceptance, retry burden
+```
+
+`selected_truth_window_transcription` is implemented by
+`backend/scripts/evaluate_selected_truth_window_transcription.py`. It compares a
+provider-generated MIDI file against the frozen paired-MIDI selection manifest.
+The evaluator assigns provider-owned predicted onset groups to selected truth
+groups within an explicit onset tolerance. It also counts unassigned predicted
+groups inside selected truth windows so local false-discovery pressure is not
+hidden. It intentionally does not count predictions outside those selected
+windows, so its `predicted_strike_precision` and `false_discovery_rate` must not
+be interpreted as full-recording AMT precision/F1.
+
+`score_conditioned_step_evaluation` is the next product-semantic benchmark
+scope. Its job is not to find more full-AMT models; it asks whether known
+`ExpectedPracticeStrikeTargets` can be accepted safely:
+
+```text
+Audio/model output
+       ↓
+Provider adapter
+       ↓
+ExpectedStrikeEvidence
+       ↓
+ExpectedGroupEvaluator
+       ↓
+MATCH / PARTIAL / MISMATCH / UNCERTAIN
+       ↓
+STEP gate
+```
+
+The first implementation is
+`backend/scripts/evaluate_score_conditioned_step_cases.py`. It consumes the
+same frozen paired-MIDI selection manifest and a provider MIDI transcript, then
+generates:
+
+```text
+positive:
+actual C-E-G
+expected C-E-G
+→ should MATCH
+
+missing_added_pitch_negative:
+actual C-E
+expected C-E-G
+→ must NOT MATCH
+
+semitone_confusion_negative:
+actual C-E-G
+expected C-F-G
+→ must NOT MATCH
+
+octave_confusion_negative:
+actual C4-E4-G4
+expected C5-E4-G4
+→ must NOT MATCH
+```
+
+This first script is deliberately labelled:
+
+```text
+benchmark_scope = score_conditioned_step_evaluation
+evaluation_mode = offline_full_transcript
+causal = false
+uses_future_context = true
+product_false_advance_eligible = false
+product_false_advance_rate = null
+```
+
+It may consume full Transkun/Aria transcripts that benefited from future audio,
+so it is an offline score-conditioned oracle only. It may report
+`single_pass_correct_acceptance_rate`, `false_completion_rate`,
+`missing_added_pitch_false_match_rate`, `semitone_confusion_false_match_rate`,
+and `octave_confusion_false_match_rate`; it must not claim real STEP false
+advance until a bounded-context provider is evaluated.
+
+The bounded-context follow-up evaluates first-gesture evidence horizons such as:
+
+```text
+current onset + 500ms
+current onset + 1000ms
+current onset + 1500ms
+```
+
+The first bounded implementation still consumes offline provider transcripts, so
+it is not product-false-advance eligible. It reports
+`bounded_correct_acceptance_rate` and `bounded_false_completion_rate` only. A
+future truly causal provider/runtime benchmark may report
+`product_false_advance_rate` after it proves that evidence was produced without
+future transcript context.
+
+The second transcript-derived bounded view is `transcript_shadow_runtime`. It
+uses the same offline transcript artifact, but runs a causal loop over transcript
+groups inside each horizon: a non-MATCH attempt keeps waiting until MATCH or
+timeout. This is closer to STEP "wrong input does not advance" behavior than
+first-gesture evaluation, but it is still not product-false-advance eligible
+because the transcript itself was produced offline.
+
+The first true audio-window provider view is `causal_audio_window_provider` with
+`target-conditioned-dsp-v1`. It reads only the bounded WAV window for the current
+expected target and does not consume provider MIDI transcripts. It is a causal
+provider benchmark, but not a full product runtime benchmark: it does not model
+startup gating, attempt lifecycle, user retries, or end-to-end websocket
+progression. Therefore it still must not publish `product_false_advance_rate`.
+
+The next provider benchmark is `transkun_bounded_clip_provider`, implemented by
+`backend/scripts/evaluate_transkun_bounded_clips.py`. It exports one bounded WAV
+clip per selected source group and horizon, runs Transkun on that clip, then
+projects the resulting MIDI transcript onto the same positive and
+counterfactual-negative STEP cases. Its metadata must remain explicit:
+
+```text
+onset_source = paired_midi
+window_anchor_source = paired_midi
+bounded_context = true
+future_beyond_decision_time = false
+streaming_causal = false
+causal_attempt_detection = false
+causal_runtime_loop = false
+product_false_advance_eligible = false
+```
+
+This benchmark is more product-relevant than full-recording AMT because the
+provider cannot see audio after the decision horizon. It is still not final STEP
+runtime evidence because paired MIDI supplies the clip anchor and no independent
+attempt detector is evaluated.
+
+The metadata intentionally avoids calling Transkun a `causal_provider`.
+Transkun does not see audio after the bounded decision horizon, but the model is
+not a streaming causal architecture inside the clip. Clip cache identity is
+bound to source audio SHA, clip start/end, pre-roll, horizon, sample rate,
+chord-window grouping, Transkun version, checkpoint SHA, model config SHA, and
+`clip_pipeline_version`. Changing any of those inputs must invalidate the cached
+MIDI sidecar.
+
+Because MAESTRO and PianoVAM fixtures are continuous performances, bounded
+provider reports must separate raw false completion from continuous-performance
+contamination. If a counterfactual expected pitch is physically played later in
+the same bounded decision horizon, that negative case is marked contaminated and
+excluded from the contamination-aware safety rate. Raw `false_completion_rate`
+is retained for debugging, but
+`false_completion_rate_excluding_contaminated_negatives` is the cleaner safety
+diagnostic for continuous recordings.
+
+Current offline full-transcript score-conditioned oracle results:
+
+```text
+MAESTRO official test / P3 v1 manifest:
+- Transkun V2 Aug:
+  single_pass_correct_acceptance_rate = 0.925
+  false_completion_rate = 0.0
+  missing_added_pitch_false_match_rate = 0.0
+  semitone_confusion_false_match_rate = 0.0
+  octave_confusion_false_match_rate = 0.0
+  product_false_advance_rate = null
+- Aria-AMT medium-double:
+  single_pass_correct_acceptance_rate = 0.8667
+  false_completion_rate = 0.0
+  missing_added_pitch_false_match_rate = 0.0
+  semitone_confusion_false_match_rate = 0.0
+  octave_confusion_false_match_rate = 0.0
+  product_false_advance_rate = null
+
+PianoVAM / P3 v1 manifest:
+- Transkun V2 Aug:
+  single_pass_correct_acceptance_rate = 0.7333
+  false_completion_rate = 0.0028
+  missing_added_pitch_false_match_rate = 0.0
+  semitone_confusion_false_match_rate = 0.0
+  octave_confusion_false_match_rate = 0.0083
+  product_false_advance_rate = null
+- Aria-AMT medium-double:
+  single_pass_correct_acceptance_rate = 0.725
+  false_completion_rate = 0.0028
+  missing_added_pitch_false_match_rate = 0.0
+  semitone_confusion_false_match_rate = 0.0
+  octave_confusion_false_match_rate = 0.0083
+  product_false_advance_rate = null
+```
+
+Current bounded first-gesture score-conditioned results:
+
+```text
+MAESTRO official test / P3 v1 manifest:
+- Transkun V2 Aug:
+  500ms  bounded_correct_acceptance_rate = 0.8917
+         bounded_false_completion_rate = 0.0
+         octave_confusion_false_match_rate = 0.0
+  1000ms bounded_correct_acceptance_rate = 0.8917
+         bounded_false_completion_rate = 0.0
+         octave_confusion_false_match_rate = 0.0
+  1500ms bounded_correct_acceptance_rate = 0.8917
+         bounded_false_completion_rate = 0.0
+         octave_confusion_false_match_rate = 0.0
+- Aria-AMT medium-double:
+  500ms  bounded_correct_acceptance_rate = 0.85
+         bounded_false_completion_rate = 0.0
+         octave_confusion_false_match_rate = 0.0
+  1000ms bounded_correct_acceptance_rate = 0.85
+         bounded_false_completion_rate = 0.0
+         octave_confusion_false_match_rate = 0.0
+  1500ms bounded_correct_acceptance_rate = 0.85
+         bounded_false_completion_rate = 0.0
+         octave_confusion_false_match_rate = 0.0
+
+PianoVAM / P3 v1 manifest:
+- Transkun V2 Aug:
+  500ms  bounded_correct_acceptance_rate = 0.6833
+         bounded_false_completion_rate = 0.0028
+         octave_confusion_false_match_rate = 0.0083
+  1000ms bounded_correct_acceptance_rate = 0.6833
+         bounded_false_completion_rate = 0.0056
+         octave_confusion_false_match_rate = 0.0167
+  1500ms bounded_correct_acceptance_rate = 0.6833
+         bounded_false_completion_rate = 0.0056
+         octave_confusion_false_match_rate = 0.0167
+- Aria-AMT medium-double:
+  500ms  bounded_correct_acceptance_rate = 0.675
+         bounded_false_completion_rate = 0.0028
+         octave_confusion_false_match_rate = 0.0083
+  1000ms bounded_correct_acceptance_rate = 0.675
+         bounded_false_completion_rate = 0.0028
+         octave_confusion_false_match_rate = 0.0083
+  1500ms bounded_correct_acceptance_rate = 0.675
+         bounded_false_completion_rate = 0.0028
+         octave_confusion_false_match_rate = 0.0083
+```
+
+Current transcript shadow-runtime score-conditioned results:
+
+```text
+MAESTRO official test / P3 v1 manifest:
+- Transkun V2 Aug:
+  500ms  shadow_correct_acceptance_rate = 0.925
+         shadow_false_completion_rate = 0.0111
+         octave_confusion_false_match_rate = 0.0167
+  1000ms shadow_correct_acceptance_rate = 0.9333
+         shadow_false_completion_rate = 0.0361
+         octave_confusion_false_match_rate = 0.0917
+  1500ms shadow_correct_acceptance_rate = 0.9333
+         shadow_false_completion_rate = 0.0417
+         octave_confusion_false_match_rate = 0.1083
+- Aria-AMT medium-double:
+  500ms  shadow_correct_acceptance_rate = 0.8667
+         shadow_false_completion_rate = 0.0111
+         octave_confusion_false_match_rate = 0.0167
+  1000ms shadow_correct_acceptance_rate = 0.875
+         shadow_false_completion_rate = 0.0389
+         octave_confusion_false_match_rate = 0.1
+  1500ms shadow_correct_acceptance_rate = 0.875
+         shadow_false_completion_rate = 0.0444
+         octave_confusion_false_match_rate = 0.1083
+
+PianoVAM / P3 v1 manifest:
+- Transkun V2 Aug:
+  500ms  shadow_correct_acceptance_rate = 0.7333
+         shadow_false_completion_rate = 0.0444
+         octave_confusion_false_match_rate = 0.1333
+  1000ms shadow_correct_acceptance_rate = 0.7333
+         shadow_false_completion_rate = 0.075
+         octave_confusion_false_match_rate = 0.225
+  1500ms shadow_correct_acceptance_rate = 0.7333
+         shadow_false_completion_rate = 0.0778
+         octave_confusion_false_match_rate = 0.2333
+- Aria-AMT medium-double:
+  500ms  shadow_correct_acceptance_rate = 0.725
+         shadow_false_completion_rate = 0.0444
+         octave_confusion_false_match_rate = 0.1333
+  1000ms shadow_correct_acceptance_rate = 0.725
+         shadow_false_completion_rate = 0.0694
+         octave_confusion_false_match_rate = 0.2083
+  1500ms shadow_correct_acceptance_rate = 0.725
+         shadow_false_completion_rate = 0.0722
+         octave_confusion_false_match_rate = 0.2167
+```
+
+Current causal audio-window provider results for `target-conditioned-dsp-v1`:
+
+```text
+MAESTRO official test / P3 v1 manifest:
+- 500ms:
+  correct_acceptance_rate = 0.7833
+  false_completion_rate = 0.3417
+  octave_confusion_false_match_rate = 0.5667
+- 1000ms:
+  correct_acceptance_rate = 0.75
+  false_completion_rate = 0.4083
+  octave_confusion_false_match_rate = 0.5167
+- 1500ms:
+  correct_acceptance_rate = 0.6917
+  false_completion_rate = 0.4
+  octave_confusion_false_match_rate = 0.5333
+
+PianoVAM / P3 v1 manifest:
+- 500ms:
+  correct_acceptance_rate = 0.5417
+  false_completion_rate = 0.3472
+  octave_confusion_false_match_rate = 0.4917
+- 1000ms:
+  correct_acceptance_rate = 0.4917
+  false_completion_rate = 0.3528
+  octave_confusion_false_match_rate = 0.4833
+- 1500ms:
+  correct_acceptance_rate = 0.475
+  false_completion_rate = 0.3417
+  octave_confusion_false_match_rate = 0.475
+```
+
+Current Transkun bounded-clip smoke result:
+
+```text
+MAESTRO official test / first 4 P3 v1 source groups:
+- provider = transkun_v2_aug_bounded_clip
+- checkpoint = /opt/noteverse/models/checkpointMSimplerAug/checkpoint.pt
+- pre_roll_seconds = 0.25
+- selected_source_group_count = 4
+
+500ms:
+- correct_acceptance_rate = 1.0
+- false_completion_rate = 0.0833
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.25
+- octave_confusion_false_match_rate = 0.0
+
+1000ms:
+- correct_acceptance_rate = 1.0
+- false_completion_rate = 0.0833
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.25
+- octave_confusion_false_match_rate = 0.0
+```
+
+This smoke result proves the bounded-clip pipeline, not provider quality. The
+sample is intentionally tiny and skewed toward early single-note MAESTRO events.
+It should be expanded to the frozen balanced selection and PianoVAM before any
+provider decision is made. The early semitone false match is already enough to
+keep counterfactual negatives as hard gates instead of aggregate-only metrics.
+
+Expanded cached bounded-clip result:
+
+```text
+MAESTRO official test / first 12 P3 v1 source groups:
+- provider = transkun_v2_aug_bounded_clip
+- checkpoint = /opt/noteverse/models/checkpointMSimplerAug/checkpoint.pt
+- pre_roll_seconds = 0.25
+- selected_source_group_count = 12
+- case_count = 192
+
+500ms:
+- correct_acceptance_rate = 0.9167
+- false_completion_rate = 0.0556
+- false_completion_rate_excluding_contaminated_negatives = 0.0286
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.1667
+- octave_confusion_false_match_rate = 0.0
+
+1000ms:
+- correct_acceptance_rate = 1.0
+- false_completion_rate = 0.0556
+- false_completion_rate_excluding_contaminated_negatives = 0.0286
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.1667
+- octave_confusion_false_match_rate = 0.0
+
+1500ms:
+- correct_acceptance_rate = 1.0
+- false_completion_rate = 0.0833
+- false_completion_rate_excluding_contaminated_negatives = 0.0
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.1667
+- octave_confusion_false_match_rate = 0.0833
+
+2000ms:
+- correct_acceptance_rate = 1.0
+- false_completion_rate = 0.1944
+- false_completion_rate_excluding_contaminated_negatives = 0.0
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.1667
+- octave_confusion_false_match_rate = 0.4167
+```
+
+Interpretation: bounded Transkun improves the realism of the provider benchmark,
+but it still is not a product false-advance metric because the clip is anchored
+by paired-MIDI truth and the runtime does not detect the attempt start itself.
+The 12-group run shows that raw false completion increases as the decision
+window grows, but the contamination-aware rate drops to zero at 1500ms/2000ms in
+this small MAESTRO slice because those raw false matches are explained by later
+physical truth inside the continuous performance. This reinforces that STEP
+microphone matching needs both a bounded wait policy and contamination-aware
+fixtures before safety claims are made.
+
+PianoVAM bounded-clip first result:
+
+```text
+PianoVAM / first 12 P3 v1 source groups:
+- provider = transkun_v2_aug_bounded_clip
+- checkpoint = /opt/noteverse/models/checkpointMSimplerAug/checkpoint.pt
+- pre_roll_seconds = 0.25
+- selected_source_group_count = 12
+- case_count = 96
+
+500ms:
+- correct_acceptance_rate = 0.4167
+- false_completion_rate = 0.0
+- false_completion_rate_excluding_contaminated_negatives = 0.0
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.0
+- octave_confusion_false_match_rate = 0.0
+
+1000ms:
+- correct_acceptance_rate = 0.3333
+- false_completion_rate = 0.0
+- false_completion_rate_excluding_contaminated_negatives = 0.0
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.0
+- octave_confusion_false_match_rate = 0.0
+```
+
+Interpretation: this is the first bounded PianoVAM check over amateur/practice
+recording conditions. It is intentionally limited to 500ms and 1000ms windows
+because CPU Transkun inference is slow in the current long-lived container. The
+low positive acceptance shows that bounded full-AMT evidence is much less
+reliable on PianoVAM clips than the selected-window full-transcript oracle
+suggests. The absence of false completion in this tiny first slice is useful,
+but it is not enough to promote Transkun bounded clips to product behavior. Next
+PianoVAM work should broaden the selection and inspect false negatives before
+optimizing production observer behavior.
+
+Second PianoVAM bounded shard:
+
+```text
+PianoVAM / P3 v1 source groups 12-23:
+- provider = transkun_v2_aug_bounded_clip
+- checkpoint = /opt/noteverse/models/checkpointMSimplerAug/checkpoint.pt
+- pre_roll_seconds = 0.25
+- source_group_offset = 12
+- selected_source_group_count = 12
+- case_count = 48
+
+500ms:
+- correct_acceptance_rate = 0.25
+- false_completion_rate = 0.0
+- false_completion_rate_excluding_contaminated_negatives = 0.0
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.0
+- octave_confusion_false_match_rate = 0.0
+```
+
+Interpretation: the second PianoVAM shard confirms that low bounded acceptance
+is not limited to the opening selection. Positive misses include both missing
+expected tones and extra predicted tones around an otherwise present expected
+pitch. Under strict STEP semantics, an expected pitch plus extra pitches is not a
+safe match. This makes bounded PianoVAM useful as a stress test for both recall
+and precision, and supports inspecting positive miss diagnostics before tuning a
+production observer.
+
+PianoVAM STEP-like isolated gesture first result:
+
+```text
+PianoVAM / P3 v1 isolated source groups, 500ms horizon:
+- provider = transkun_v2_aug_bounded_clip
+- source_selection_mode = no_subsequent_strike_within_horizon
+- pre_roll_seconds = 0.25
+- selected_source_group_count = 12
+
+500ms:
+- correct_acceptance_rate = 0.5833
+- false_completion_rate = 0.0278
+- false_completion_rate_excluding_contaminated_negatives = 0.0278
+- contaminated_negative_false_match_count = 0
+```
+
+Interpretation: the isolated subset improves PianoVAM correct acceptance over
+the naive first 12 continuous groups, which confirms that continuous-performance
+pollution was a real benchmark-validity issue. It does not solve the product
+problem: positive misses still include missing high chord tones and extra
+octave-related predictions, so Transkun bounded clips remain benchmark evidence,
+not a production STEP recognizer.
+
+PianoVAM fixed-source pre-roll ablation:
+
+```text
+PianoVAM / same P3 v1 source groups:
+- source_group_indices = [0, 4, 27, 28, 29, 30, 56, 57, 60, 61, 63, 64]
+- horizon_seconds = 0.5
+- source_selection_mode = explicit_source_group_indices
+- provider = transkun_v2_aug_bounded_clip
+
+pre_roll = 250ms:
+- correct_acceptance_rate = 0.5833
+- false_completion_rate = 0.0278
+- false_completion_rate_excluding_contaminated_negatives = 0.0278
+- contaminated_negative_false_match_count = 0
+
+pre_roll = 1000ms:
+- correct_acceptance_rate = 0.5833
+- false_completion_rate = 0.0278
+- false_completion_rate_excluding_contaminated_negatives = 0.0278
+- contaminated_negative_false_match_count = 0
+
+pre_roll = 2000ms:
+- correct_acceptance_rate = 0.5
+- false_completion_rate = 0.0278
+- false_completion_rate_excluding_contaminated_negatives = 0.0278
+- contaminated_negative_false_match_count = 0
+```
+
+Interpretation: increasing past context from 250ms to 1000ms did not improve
+acceptance on the fixed PianoVAM source set, and 2000ms reduced acceptance. The
+remaining bounded Transkun misses are therefore not explained by a simple
+250ms-context cold-start problem. Longer pre-roll can also reintroduce previous
+notes, pedal tails, and octave-related extra predictions, so Transkun bounded
+exploration should stop here for P3 v1. The next high-information benchmark is a
+deployable frontend direction such as Basic Pitch raw onset/frame activation
+conditioned by ExpectedPracticeStrikeTargets, using the same positive and
+counterfactual STEP cases.
+
+Frozen Transkun bounded reference:
+
+```text
+TranskunBoundedReferenceV1
+- provider = transkun_v2_aug_bounded_clip
+- checkpoint = checkpointMSimplerAug/checkpoint.pt
+- model_config = checkpointMSimplerAug/model.conf
+- decision_horizon_seconds = 0.5
+- pre_roll_seconds = 0.25
+- source_selection_mode = no_subsequent_strike_within_horizon
+- contamination_policy = case_specific_later_truth_pitch
+- clip_pipeline_version = 1
+- product_false_advance_eligible = false
+```
+
+Do not continue tuning Transkun bounded pre-roll/horizon parameters for P3 v1.
+Keep this configuration as an accuracy/reference provider and possible future
+teacher. Future recordings may rerun the frozen configuration, but should not
+retroactively tune it against the same held-out selections.
+
+Basic Pitch raw activation first result:
+
+```text
+PianoVAM / same fixed source groups as the Transkun pre-roll ablation:
+- provider = basic_pitch_raw_activation
+- provider_version = 0.4.0-onnx-raw-activation
+- model = basic_pitch/saved_models/icassp_2022/nmp.onnx
+- horizon_seconds = 0.5
+- pre_roll_seconds = 0.25
+- onset_activation_threshold = 0.5
+- note_activation_threshold = 0.3
+- unexpected_pitch_policy = all_activated
+
+500ms:
+- correct_acceptance_rate = 0.0
+- false_completion_rate = 0.0
+- false_completion_rate_excluding_contaminated_negatives = 0.0
+- missing_added_pitch_false_match_rate = 0.0
+- semitone_confusion_false_match_rate = 0.0
+- octave_confusion_false_match_rate = 0.0
+```
+
+Interpretation: the first Basic Pitch raw-activation pass proves the desired
+provider boundary, not product quality. It bypasses MIDI decoding and projects
+raw `onset`/`note` activations onto expected pitches; NoteVerse still owns
+MATCH/PARTIAL/MISMATCH evaluation. However, treating every activated non-target
+pitch as an observed extra note made the benchmark answer the wrong first
+question: generic raw activations include harmonics and neighboring notes that
+can turn a target-positive attempt into a false MISMATCH. For this provider line,
+`unexpected_evidence` should remain diagnostic by default; STEP target
+progression experiments should first measure expected-pitch evidence only.
+
+Basic Pitch raw activation DEV selection and held-out check:
+
+```text
+DEV selection:
+- dataset = PianoVAM v1.0 / 2024-02-14_19-10-09
+- manifest = data/work/datasets/pianovam-v1.0/pianovam_basic_pitch_activation_dev_selection.json
+- selected_source_group_count = 24
+- excluded_source_group_count = 120 from pianovam_p3_v1_selection.json
+- require_no_subsequent_strike = true
+- horizon_seconds = 0.5
+
+DEV threshold scan, expected_only policy:
+- strict onset/note = 0.5 / 0.3:
+  correct_acceptance_rate = 0.5
+  false_completion_rate = 0.0417
+  false_completion_rate_excluding_contaminated_negatives = 0.0417
+  octave_confusion_false_match_rate = 0.0833
+- mid onset/note = 0.35 / 0.25:
+  correct_acceptance_rate = 0.5
+  false_completion_rate = 0.0694
+  false_completion_rate_excluding_contaminated_negatives = 0.0694
+  octave_confusion_false_match_rate = 0.0833
+- loose onset/note = 0.25 / 0.2:
+  correct_acceptance_rate = 0.5417
+  false_completion_rate = 0.0972
+  false_completion_rate_excluding_contaminated_negatives = 0.0972
+  octave_confusion_false_match_rate = 0.1667
+
+Held-out frozen P3 check, strict expected_only policy:
+- MAESTRO official test / P3 v1 manifest:
+  selected_source_group_count = 120
+  correct_acceptance_rate = 0.5083
+  false_completion_rate = 0.0694
+  false_completion_rate_excluding_contaminated_negatives = 0.0262
+  missing_added_pitch_false_match_rate = 0.025
+  semitone_confusion_false_match_rate = 0.05
+  octave_confusion_false_match_rate = 0.1333
+- PianoVAM / P3 v1 manifest:
+  selected_source_group_count = 120
+  correct_acceptance_rate = 0.3667
+  false_completion_rate = 0.0667
+  false_completion_rate_excluding_contaminated_negatives = 0.0289
+  missing_added_pitch_false_match_rate = 0.025
+  semitone_confusion_false_match_rate = 0.0083
+  octave_confusion_false_match_rate = 0.1667
+```
+
+Interpretation: Basic Pitch raw activation is a useful deployable evidence
+frontend candidate, but it is not yet safe enough for STEP progression. The DEV
+scan shows that lowering thresholds mostly trades a small recall gain for higher
+counterfactual completion risk; the strict expected-only candidate is the best
+current point on the false-advance-first curve. The held-out results confirm a
+real octave-confusion problem, especially on PianoVAM. Do not wire this provider
+into production progression until octave rejection and chord-tone evidence are
+improved and revalidated on separate DEV/TEST selections.
+
+Interpretation:
+
+- The first score-conditioned oracles and bounded providers support the
+  benchmark direction but do not yet prove STEP product safety. They use
+  paired-MIDI anchors and therefore cannot claim `product_false_advance_rate`.
+- The PianoVAM octave counterfactual false matches are the first concrete signal
+  that octave confusion needs to remain a first-class safety fixture in bounded
+  STEP evaluation.
+- Bounded first-gesture acceptance is slightly lower than full-transcript oracle
+  acceptance, which is expected because late or missing first gestures no longer
+  get repaired by global assignment.
+- Transcript shadow-runtime acceptance is closer to the full-transcript oracle,
+  but its false-completion rate grows as the wait horizon grows. This shows why
+  STEP microphone policy must treat waiting-window length as a safety parameter:
+  a longer window can recover more correct attempts, but it also gives later
+  unrelated gestures more chances to falsely complete a wrong expected target.
+- `target-conditioned-dsp-v1` is useful as a benchmark boundary but is not a
+  viable production recognizer. Its causal audio-window false completion rate is
+  far above the STEP safety bar, and octave counterfactuals are especially weak.
+  Do not wire this provider into production progression without a substantially
+  stronger expected-pitch evidence model and fixture-proven octave rejection.
+- The next benchmark direction is a deployable raw-activation frontend plus
+  ExpectedPracticeStrikeTargets, with DEV/TEST separation for any threshold or
+  aggregation tuning. Basic Pitch raw activation is the first candidate in that
+  direction.
+
+Transkun V2 Aug benchmark status:
+
+```text
+environment:
+- executed inside the long-lived practice-quality container
+- transkun package = 2.0.1
+- model checkpoint = models/checkpointMSimplerAug/checkpoint.pt
+- model config = models/checkpointMSimplerAug/model.conf
+- device = cpu in the current container
+- setuptools is pinned below 81 in that container because Transkun 2.0.1 imports
+  pkg_resources
+
+MAESTRO official test / P3 v1 manifest:
+- provider = transkun_v2_aug
+- benchmark_scope = selected_truth_window_transcription
+- selected_truth_group_count = 120
+- predicted_group_count = 419
+- unassigned_predicted_group_count_in_selected_windows = 1
+- onset_group_recall = 0.975
+- expected_strike_recall = 0.9635
+- predicted_strike_precision = 0.9888
+- false_discovery_rate = 0.0112
+- exact_group_match_rate = 0.9167
+- chord_complete_detection_rate = 0.9176
+- median_abs_onset_error_seconds = 0.003125
+
+PianoVAM / P3 v1 manifest:
+- provider = transkun_v2_aug
+- benchmark_scope = selected_truth_window_transcription
+- selected_truth_group_count = 120
+- predicted_group_count = 3313
+- unassigned_predicted_group_count_in_selected_windows = 3
+- onset_group_recall = 0.9
+- expected_strike_recall = 0.9054
+- predicted_strike_precision = 0.9795
+- false_discovery_rate = 0.0205
+- exact_group_match_rate = 0.7333
+- chord_complete_detection_rate = 0.7662
+- median_abs_onset_error_seconds = 0.003646
+```
+
+Interpretation:
+
+- Transkun V2 Aug is a credible high-accuracy offline AMT reference on both the
+  MAESTRO official test sample and the PianoVAM amateur-practice sample.
+- PianoVAM is meaningfully harder than MAESTRO for exact group and chord
+  completion, which supports keeping it as a cross-domain holdout.
+- These numbers are not directly comparable to FFT oracle-onset metrics because
+  Transkun owns full transcription while FFT is given paired-MIDI onset windows.
+- Transkun should remain a benchmark/reference provider for now. It is not a
+  production STEP runtime dependency until deployment, latency, and license
+  constraints are separately evaluated.
+
+Basic Pitch ONNX benchmark status:
+
+```text
+environment:
+- executed inside the same long-lived practice-quality container
+- basic-pitch package = 0.4.0
+- model serialization = onnx
+- model path = bundled ICASSP 2022 ONNX model from the basic-pitch package
+- onnxruntime package = 1.29.0
+- resampy package = 0.4.2
+- device = cpu in the current container
+- installed with explicit lightweight dependencies because the normal
+  basic-pitch dependency resolver path is not clean on the current Python 3.12
+  container
+
+MAESTRO official test / P3 v1 manifest:
+- provider = basic_pitch
+- provider_version = 0.4.0-onnx-resampy0.4.2
+- benchmark_scope = selected_truth_window_transcription
+- selected_truth_group_count = 120
+- predicted_group_count = 344
+- unassigned_predicted_group_count_in_selected_windows = 3
+- onset_group_recall = 0.8833
+- expected_strike_recall = 0.5839
+- predicted_strike_precision = 0.7843
+- false_discovery_rate = 0.2157
+- exact_group_match_rate = 0.2583
+- chord_complete_detection_rate = 0.2941
+- median_abs_onset_error_seconds = 0.005777
+
+PianoVAM / P3 v1 manifest:
+- provider = basic_pitch
+- provider_version = 0.4.0-onnx-resampy0.4.2
+- benchmark_scope = selected_truth_window_transcription
+- selected_truth_group_count = 120
+- predicted_group_count = 3104
+- unassigned_predicted_group_count_in_selected_windows = 5
+- onset_group_recall = 0.8417
+- expected_strike_recall = 0.627
+- predicted_strike_precision = 0.8406
+- false_discovery_rate = 0.1594
+- exact_group_match_rate = 0.25
+- chord_complete_detection_rate = 0.2857
+- median_abs_onset_error_seconds = 0.005872
+```
+
+Interpretation:
+
+- Basic Pitch ONNX is usable as a reproducible offline selected-window
+  benchmark provider in the current container, but it is not the strongest
+  observed candidate on the current P3 v1 frozen selections.
+- Its onset timing is reasonably close once a truth group is matched, but the
+  current default thresholds miss many expected strikes and produce much weaker
+  chord completion than Transkun V2 Aug.
+- These results should not be used to tune Basic Pitch thresholds against the
+  same P3 v1 manifests and then claim held-out improvement. If Basic Pitch is
+  revisited, tune on a separate dev selection and reserve held-out manifests for
+  final comparison.
+- Basic Pitch should remain a comparison provider, not a production STEP
+  dependency, unless later score-conditioned benchmarks show a clear product
+  advantage under the false-advance-first safety bar.
+
+Aria-AMT benchmark status:
+
+```text
+environment:
+- executed inside the long-lived `noteverse-aria-amt-gpu-bench-shm` container
+- python = 3.11.16
+- torch package = 2.5.0+cu124
+- torchaudio package = 2.5.0+cu124
+- device = NVIDIA GeForce RTX 4080 Laptop GPU
+- aria-amt commit = a1ab73fc901d1759ec3bc173c146b3c6a3040261
+- aria-utils commit = 4ed0749d2d70918610f03a5316bf283479ff9d09
+- model = piano-medium-double-1.0.safetensors
+- container-local compatibility patch =
+  `backend/scripts/patch_aria_amt_soundfile_reader.py`
+```
+
+The compatibility patch is required in the current benchmark container because
+Aria-AMT 0.0.1 reads WAV segments through `torchaudio.io.StreamReader`, while
+the Debian trixie image exposes FFmpeg 7 and torchaudio 2.5 searches for older
+FFmpeg extension variants. The patch changes only the WAV segmentation adapter
+to a `soundfile` reader. It does not change model weights, inference, decoding,
+or MIDI post-processing, so Aria-AMT results remain benchmark-provider results
+rather than a NoteVerse algorithm variant.
+
+MAESTRO official test / P3 v1 manifest:
+
+```text
+- provider = aria_amt
+- provider_version = a1ab73fc-medium-double-piano-medium-double-1.0
+- benchmark_scope = selected_truth_window_transcription
+- selected_truth_group_count = 120
+- predicted_group_count = 423
+- unassigned_predicted_group_count_in_selected_windows = 2
+- onset_group_recall = 0.975
+- expected_strike_recall = 0.9526
+- predicted_strike_precision = 0.9775
+- false_discovery_rate = 0.0225
+- exact_group_match_rate = 0.8667
+- chord_complete_detection_rate = 0.8824
+- median_abs_onset_error_seconds = 0.004375
+```
+
+PianoVAM / P3 v1 manifest:
+
+```text
+- provider = aria_amt
+- provider_version = a1ab73fc-medium-double-piano-medium-double-1.0
+- benchmark_scope = selected_truth_window_transcription
+- selected_truth_group_count = 120
+- predicted_group_count = 3386
+- unassigned_predicted_group_count_in_selected_windows = 5
+- onset_group_recall = 0.9333
+- expected_strike_recall = 0.9081
+- predicted_strike_precision = 0.9655
+- false_discovery_rate = 0.0345
+- exact_group_match_rate = 0.75
+- chord_complete_detection_rate = 0.7273
+- median_abs_onset_error_seconds = 0.005312
+```
+
+Interpretation:
+
+- Aria-AMT is a credible high-accuracy offline AMT reference in the current
+  selected-window benchmark. It substantially outperforms Basic Pitch ONNX and
+  lands close to Transkun V2 Aug on expected-strike recall.
+- Transkun V2 Aug remains the stronger current reference on MAESTRO chord
+  completion and selected-window false-discovery rate. Aria-AMT is slightly
+  ahead on PianoVAM onset-group recall but behind on chord completion and
+  false-discovery rate.
+- Aria-AMT should remain a benchmark/reference provider until license,
+  deployment, latency, memory, streaming, and score-conditioned behavior are
+  separately evaluated.
+
+Current selected-window provider comparison on the same P3 v1 frozen
+manifests:
+
+```text
+MAESTRO official test:
+- Transkun V2 Aug: expected_strike_recall 0.9635,
+  predicted_strike_precision 0.9888, false_discovery_rate 0.0112,
+  chord_complete_detection_rate 0.9176
+- Basic Pitch ONNX: expected_strike_recall 0.5839,
+  predicted_strike_precision 0.7843, false_discovery_rate 0.2157,
+  chord_complete_detection_rate 0.2941
+- Aria-AMT medium-double: expected_strike_recall 0.9526,
+  predicted_strike_precision 0.9775, false_discovery_rate 0.0225,
+  chord_complete_detection_rate 0.8824
+
+PianoVAM:
+- Transkun V2 Aug: expected_strike_recall 0.9054,
+  predicted_strike_precision 0.9795, false_discovery_rate 0.0205,
+  chord_complete_detection_rate 0.7662
+- Basic Pitch ONNX: expected_strike_recall 0.627,
+  predicted_strike_precision 0.8406, false_discovery_rate 0.1594,
+  chord_complete_detection_rate 0.2857
+- Aria-AMT medium-double: expected_strike_recall 0.9081,
+  predicted_strike_precision 0.9655, false_discovery_rate 0.0345,
+  chord_complete_detection_rate 0.7273
+```
+
+This comparison supports keeping Transkun V2 Aug as the current offline
+accuracy-reference provider, Aria-AMT as a strong secondary reference, and Basic
+Pitch as a reproducible lower-cost comparison provider. None of these results
+change the production runtime boundary:
+`STEP_BY_STEP + MICROPHONE` still needs score-conditioned, false-advance-first
+benchmarks before any acoustic provider is promoted.
+
+Full-AMT survey is now frozen for P3 v1. Do not add hFT, MT3, Kong, or Essentia
+unless a later score-conditioned product benchmark exposes a specific failure
+that Transkun V2 Aug and Aria-AMT cannot explain. The next work belongs to
+positive/negative STEP fixtures and bounded-context safety evaluation.
+
+The previous local product-specific paired fixture priority remains:
+
+1. Add the first paired MIDI + microphone ground-truth fixture matrix. The
+   fixture contract now lives in
+   `backend/tests/fixtures/practice_audio/paired_ground_truth_manifest.json`.
+   Start with the C-E-G omission matrix so false chord completion is measured
+   before another model is integrated.
+2. Keep `TargetConditionedPianoObserver` as the handcrafted DSP benchmark
+   baseline and proof of the score-conditioned provider contract.
+3. Keep the exported-MIDI AMT oracle provider as an
+   `offline_score_aligned_oracle` only. It establishes an offline accuracy
+   ceiling without changing production runtime behavior or making causal
+   progression claims.
+4. After paired ground truth exists, do not keep expanding the full-AMT shootout
+   list by default. Basic Pitch, Transkun, and Aria-AMT now have first P3 v1
+   selected-window reference results; additional providers require a bounded
+   STEP benchmark failure that the current references cannot explain.
+5. Run score-conditioned positive/counterfactual-negative comparisons with the
+   same evaluator and ExpectedPracticeStrikeTargets, so model quality and
+   score-prior benefit stay separable. The first offline full-transcript oracle
+   and bounded first-gesture transcript benchmark are implemented; causal
+   bounded provider/runtime evaluation is still required before reporting
+   product false advance.
+6. Reopen additional acoustic-provider comparisons only after bounded STEP
+   evaluation exposes a specific failure that the current references and
+   handcrafted baseline cannot explain.
 
 Tasks:
 
@@ -1096,6 +2847,10 @@ Tasks:
 3. Evaluate whether chroma, multi-peak FFT, or a lightweight onset/pitch stack
    can improve chord evidence without pretending to be full AMT.
 4. Keep MIDI as the high-confidence path for strict chord correctness.
+5. Restore real-recording step-by-step follow progress against the revised Once
+   Again score before increasing microphone user-facing claims. The current
+   complete-recording fixture should move from `known_gap` to `required` only
+   after it advances through a meaningful score region, not merely after startup.
 
 ### P4 - Product Polish
 
@@ -1135,13 +2890,9 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
 4. Keep problem details factual and non-directive. Show measure, missing strike
    pitches, and extra/repeated pitches. Do not add "practice here", "play from
    here", "next problem", or problem-queue CTAs.
-5. Browser-validate lazy historical playback URL loading for saved microphone
-   and MIDI replay after leaving and re-entering the report page.
-6. Implement `STEP_BY_STEP` skip end to end after the Performance Report
-   surface is no longer carrying misleading or unsupported metrics.
-7. Add evidence-quality gates and improve MIDI evaluator detail before showing
+5. Add evidence-quality gates and improve MIDI evaluator detail before showing
    stricter timing or accuracy claims.
-8. Improve microphone recognition after more fixtures exist; keep microphone
+6. Improve microphone recognition after more fixtures exist; keep microphone
    claims conservative until chord/polyphonic evidence is proven by tests.
 
 ## Current Prioritized Todo
@@ -1182,21 +2933,94 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    Implementation status: problem rows show missing pitches, extra/repeated
    pitches, and a location focus action only. Recommendations remain absent
    from the report UI.
-4. **P1: Browser-validate historical saved replay playback.**
-   Verify microphone and MIDI Performance reports can load saved replay metadata
-   after leaving the page, request a click-time playback URL, and replay with the
-   same score cursor projection as immediate local replay.
-5. **P2: Split Performance result availability.**
+4. **Done: Browser-validate historical saved replay playback.**
+   Browser validation confirmed that microphone and MIDI Performance reports can
+   load saved replay metadata after leaving the page, request a click-time
+   playback URL, and replay with the same score cursor projection as immediate
+   local replay.
+5. **P1: Split Performance result availability.**
    Read models and UI should distinguish local replay available now, saved
    replay available historically, summary available, and optional evaluation
-   available.
-6. **P2: Implement `STEP_BY_STEP` skip.**
-   Add the explicit skip command and UI after report semantics are clean. Skip
-   advances exactly one current expected group and records a neutral skipped
-   fact.
-7. **P3: Improve evaluation only after report facts are trustworthy.**
-   Add evidence-quality gates, improve MIDI evaluator details, and delay exact
-   timing/microphone accuracy claims until timebase, latency, and fixture
-   evidence are strong enough. Do not present millisecond-level timing verdicts
-   until browser input origin and backend clock origin are explicitly
-   synchronized or calibrated.
+   available. Current status: backend exposes `saved_replay_available` and
+   `evaluation_available` separately for Performance reports, Saved Performance
+   history is artifact-driven, and Customer Web keeps local replay and historical
+   saved replay as separate playback sources. Continue hardening the central
+   evaluation predicate and UI presentation so missing evidence is not rendered
+   as zero-error analysis.
+6. **Done: Implement `STEP_BY_STEP` skip.**
+   Customer Web now exposes skip only during active step-by-step sessions. The
+   backend owns the command, advances exactly one current expected group, and
+   persists a neutral skipped attempt that is excluded from scoring while
+   remaining available as a skipped-count fact.
+7. **P2: Improve evaluation only after report facts are trustworthy.**
+   Evidence availability is now gated as a public capability and MIDI evaluator
+   V1 has explicit assignment, simultaneity, and repeated-extra semantics.
+   Dense adjacent-event regression coverage is now in place. Continue with
+   fixture-backed MIDI tuning against real recordings and microphone evidence
+   work. The next microphone priority is to make the revised Once Again
+   real-recording fixtures advance reliably, then promote those scenarios from
+   `known_gap` to `required`. Delay exact timing/microphone accuracy claims until
+   timebase, latency, and fixture evidence are strong enough. Do not present
+   millisecond-level timing verdicts until browser input origin and backend
+   clock origin are explicitly synchronized or calibrated.
+8. **P3.1: Freeze microphone benchmark before changing the production observer.**
+   The replay diagnostic script now emits a benchmark summary with the P3 metric
+   priority, evidence-quality metrics, product-behavior metrics, and internal
+   diagnostic reason counts. Continue by adding the remaining octave-confusion,
+   rolled-chord, and repeated-attack fixtures, then compare any
+   target-conditioned observer against the same manifest before promoting it.
+   Current status: the microphone capability matrix now covers real single-note
+   matching, synthetic rolled-chord accumulation, conservative simultaneous
+   chord and octave-mixture non-support, and repeated same-pitch attempts after a
+   release boundary. Attempt diagnostics now distinguish `display_target` from
+   `evaluated_target`: after an accepted match, the displayed anchor may already
+   be the next target, while the evaluated target is the group that was just
+   accepted. `AcousticEvidenceProvider` is now the benchmark contract for
+   score-conditioned acoustic candidates: providers emit expected-pitch evidence
+   and never own `MATCH` semantics. An experimental
+   `TargetConditionedPianoObserver` implements this contract as a benchmark-only
+   DSP baseline for per-expected-pitch spectral activation; it is intentionally
+   not the production observer yet. The replay diagnostic script can now replay
+   the same resolved attempt windows through that candidate and emit a separate
+   `candidate_benchmarks.target_conditioned_dsp_v1` summary next to the current
+   baseline summary.
+
+   Current `Once Again.wav` benchmark result:
+
+   ```text
+   baseline dominant observer:
+   - starts successfully;
+   - advances through the opening four sixteenth-note targets;
+   - remains a known gap for stable follow progress;
+   - full-recording alignment_advance is still 0.75 beat against the current
+     min_alignment_advance 8.0 expectation;
+   - reports false extra pitches around the second-measure first-beat chord.
+
+   target_conditioned_dsp_v1:
+   - does not produce false matches in the current observer-window fixture run;
+   - reduces false extra-pitch evidence in the measured attempt windows;
+   - slightly improves expected-strike recall on some mixed scenarios;
+   - still fails to fully confirm the A5/D4/A4 chord at measure 2 beat 1;
+   - increases UNCERTAIN/PARTIAL outcomes rather than solving progression.
+
+   causal_shadow_runtime_replay:
+   - runs as an independent benchmark-only progression experiment;
+   - current full-recording run produced 29 resolved attempts;
+   - expected-strike recall is 0.3766;
+   - chord-complete detection is 0.0833;
+   - false-advance guard count is 0 in the current run;
+   - still does not meet production quality for STEP microphone chord following.
+   ```
+
+   Therefore `target_conditioned_dsp_v1` remains a useful benchmark candidate,
+   not a production replacement. The next recognition work should improve
+   expected-pitch activation quality for real piano chords, especially upper
+   chord tones and octave-confusion cases, before considering runtime wiring.
+   The diagnostic script now labels benchmark summaries with `benchmark_scope`.
+   The candidate summary is `observer_window_replay`, so its metrics describe
+   per-window evidence quality only. A separate `causal_shadow_runtime_replay`
+   experiment now scans audio with candidate-owned fixed windows, starts and
+   resolves its own attempts, and advances only on candidate MATCH decisions.
+   This makes end-to-end comparison possible without wiring the candidate into
+   production. It is still benchmark-only: its fixed window/hop/timeout
+   parameters are diagnostic scaffolding, not user-facing runtime policy.

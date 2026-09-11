@@ -311,7 +311,7 @@ function practiceSessionSummaryPayload() {
           last_confidence: 0.94,
         },
       ],
-      difficult_measures: [
+      problem_measures: [
         {
           measure_number: '2',
           target_count: 2,
@@ -323,7 +323,6 @@ function practiceSessionSummaryPayload() {
           partial_attempt_count: 0,
           mismatch_attempt_count: 1,
           average_confidence: 0.65,
-          difficulty_score: 7.5,
         },
       ],
     },
@@ -955,7 +954,7 @@ test('step-by-step practice can use MIDI input events instead of microphone fram
   await expect(startButton).toBeEnabled();
   await startButton.click();
 
-  await expect(page.getByRole('status')).toContainText('可以开始，请弹奏第一个音符');
+  await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
   await expect
     .poll(() => createdInputSource)
     .toBe('MIDI');

@@ -1,9 +1,8 @@
 'use client';
 
-import { Cable, Headphones, ListChecks, Mic, Music2, Sparkles } from 'lucide-react';
+import { Cable, ListChecks, Mic, Music2, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { PracticeConnectionStatus } from '@/lib/practice/practice-types';
 import type { PracticeInputSource } from '@/generated/practice-api';
@@ -22,10 +21,8 @@ type PracticeSettingsPanelProps = {
   inputSource: PracticeInputSource;
   microphoneInputLocked: boolean;
   midiInputLocked: boolean;
-  showNextNoteHint: boolean;
   onPracticeModeChange: (practiceMode: PracticeSessionMode) => void;
   onInputSourceChange: (inputSource: PracticeInputSource) => void;
-  onShowNextNoteHintChange: (checked: boolean) => void;
 };
 
 export function PracticeSettingsPanel({
@@ -41,10 +38,8 @@ export function PracticeSettingsPanel({
   inputSource,
   microphoneInputLocked,
   midiInputLocked,
-  showNextNoteHint,
   onPracticeModeChange,
   onInputSourceChange,
-  onShowNextNoteHintChange,
 }: PracticeSettingsPanelProps) {
   const t = useTranslations('practice');
   const microphoneState = !audioWorkletSupported
@@ -170,34 +165,6 @@ export function PracticeSettingsPanel({
             </button>
           </div>
         </section>
-
-        {practiceMode === 'STEP_BY_STEP' ? (
-          <section className="px-5 py-5" aria-labelledby="practice-follow-heading">
-            <h3 id="practice-follow-heading" className="text-sm font-semibold text-slate-900">
-              {t('settingsFollow')}
-            </h3>
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
-                  <Headphones className="h-4 w-4" aria-hidden="true" />
-                </span>
-                <div>
-                  <label htmlFor="practice-next-note-hint" className="text-sm font-medium text-slate-900">
-                    {t('settingNextNoteHint')}
-                  </label>
-                  <p className="mt-0.5 text-xs leading-5 text-slate-500">{t('settingNextNoteHintDesc')}</p>
-                </div>
-              </div>
-              <Switch
-                id="practice-next-note-hint"
-                checked={showNextNoteHint}
-                onCheckedChange={onShowNextNoteHintChange}
-                aria-label={t('settingNextNoteHint')}
-              />
-            </div>
-          </section>
-        ) : null}
-
       </div>
     </aside>
   );

@@ -31,6 +31,7 @@ import { PracticeControls } from '@/components/practice/practice-controls';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { PracticeSettingsPanel } from '@/components/practice/practice-settings-panel';
 import { PracticeSessionStatus } from '@/components/practice/practice-session-status';
+import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
 import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
 import { ScoreSurface } from '@/components/score/score-surface';
@@ -257,7 +258,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     useState<LocalReplayFinalizationState>({ status: 'not_expected' });
   const [pendingReportHandoffSessionId, setPendingReportHandoffSessionId] =
     useState<string | null>(null);
-  const [showNextNoteHint, setShowNextNoteHint] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [rangeSelection, setRangeSelection] = useState<PracticeRangeSelection>(
     fullPiecePracticeRangeSelection
@@ -345,7 +345,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     if (
       activeInputSourceRef.current !== 'MIDI' ||
       !(
-        practiceStatusRef.current === 'arming' ||
         practiceStatusRef.current === 'listening' ||
         practiceStatusRef.current === 'practicing' ||
         practiceStatusRef.current === 'paused'
@@ -434,10 +433,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     if (alignment) {
       return alignment;
     }
-    if (!showNextNoteHint) {
-      return null;
-    }
-    if (practiceStatus !== 'arming' && practiceStatus !== 'listening') {
+    if (practiceStatus !== 'listening') {
       if (practiceStatus !== 'practicing' && practiceStatus !== 'paused') {
         return null;
       }
@@ -494,7 +490,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         },
       },
     };
-  }, [activeSessionMode, alignment, practiceStatus, promptDisplayAnchor, showNextNoteHint]);
+  }, [activeSessionMode, alignment, practiceStatus, promptDisplayAnchor]);
 
   const clearFinishRecoveryTimer = useCallback(() => {
     if (finishRecoveryTimerRef.current) {
@@ -575,7 +571,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   }, [practiceStatus]);
 
   useEffect(() => {
-    if (practiceStatus === 'arming' || practiceStatus === 'practicing') {
+    if (practiceStatus === 'practicing') {
       setIsSettingsOpen(false);
     }
   }, [practiceStatus]);
@@ -691,8 +687,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   useEffect(() => {
     const canHeartbeat =
       socket.isOpen() &&
-      (practiceStatus === 'arming' ||
-        practiceStatus === 'listening' ||
+      (practiceStatus === 'listening' ||
         practiceStatus === 'practicing' ||
         practiceStatus === 'paused');
 
@@ -704,7 +699,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     return socket.stopHeartbeat;
   }, [connectionStatus, practiceStatus, socket]);
 
-  const sendPracticeControl = (type: 'client.pause' | 'client.resume' | 'client.finish') => {
+  const sendPracticeControl = (type: 'client.pause' | 'client.resume' | 'client.finish' | 'client.skip') => {
     return socket.sendJson({
       protocol_version: PRACTICE_WEBSOCKET_PROTOCOL_VERSION,
       type,
@@ -827,7 +822,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       } else if (activeInputSourceRef.current === 'MICROPHONE') {
         audioStream.setStreaming(true);
       }
-      updatePracticeStatus('arming');
       practiceSession.updateState(message.payload.state);
       return;
     }
@@ -845,10 +839,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       if (activeSessionModeRef.current !== 'STEP_BY_STEP') {
         return;
       }
-      if (
-        practiceStatusRef.current === 'arming' ||
-        practiceStatusRef.current === 'listening'
-      ) {
+      if (practiceStatusRef.current === 'listening') {
         updatePracticeStatus('practicing');
       }
       setAlignment(message.payload);
@@ -970,7 +961,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       localMidiReplayEventsRef.current = [];
       recording.reset();
       practiceSession.clear();
-      if (practiceStatusRef.current === 'connecting' || practiceStatusRef.current === 'arming') {
+      if (practiceStatusRef.current === 'connecting') {
         updatePracticeStatus('idle');
       }
       socket.close();
@@ -989,7 +980,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   function handleSocketClose(wasIntentional: boolean) {
     const wasActive =
       practiceStatusRef.current === 'connecting' ||
-      practiceStatusRef.current === 'arming' ||
       practiceStatusRef.current === 'listening' ||
       practiceStatusRef.current === 'practicing' ||
       practiceStatusRef.current === 'paused';
@@ -1120,7 +1110,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       await socket.open(wsUrl);
       setConnectionStatus('ready');
 
-      updatePracticeStatus('arming');
       updateActiveSessionMode(detail.preset);
       activeInputSourceRef.current = detail.input_source;
       runningPracticeScopeRef.current = detail.practice_scope ?? activePracticeScope ?? null;
@@ -1279,6 +1268,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     setPracticeClockStarted(false);
   };
 
+  const handleSkip = () => {
+    if (
+      activeSessionModeRef.current !== 'STEP_BY_STEP' ||
+      (practiceStatusRef.current !== 'listening' && practiceStatusRef.current !== 'practicing')
+    ) {
+      return;
+    }
+    sendPracticeControl('client.skip');
+  };
+
   const handleAdjustSelectedSection = () => {
     recording.reset();
     clearFinishRecoveryTimer();
@@ -1347,6 +1346,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const isCompletionSummaryActionLoading =
     isLoading ||
     Boolean(pendingReportHandoffSessionId);
+  const isStepByStepSessionActive =
+    activeSessionMode === 'STEP_BY_STEP' &&
+    (practiceStatus === 'listening' ||
+      practiceStatus === 'practicing' ||
+      practiceStatus === 'paused');
+  const canSkipCurrentStep =
+    activeSessionMode === 'STEP_BY_STEP' &&
+    (practiceStatus === 'listening' || practiceStatus === 'practicing');
 
   const practiceControls = (
     <PracticeControls
@@ -1454,6 +1461,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
       <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-3 px-3">
+        <div className="pointer-events-auto flex w-full justify-end">
+          <PracticeSkipControl
+            visible={isStepByStepSessionActive}
+            disabled={!canSkipCurrentStep}
+            onSkip={handleSkip}
+          />
+        </div>
         <div className="pointer-events-auto w-fit max-w-full rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-lg">
           {practiceControls}
         </div>
@@ -1475,10 +1489,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             inputSource={practiceInputSource}
             microphoneInputLocked={practiceStatus !== 'idle'}
             midiInputLocked={practiceStatus !== 'idle'}
-            showNextNoteHint={showNextNoteHint}
             onPracticeModeChange={handlePracticeModeChange}
             onInputSourceChange={handlePracticeInputSourceChange}
-            onShowNextNoteHintChange={setShowNextNoteHint}
           />
         </SheetContent>
       </Sheet>

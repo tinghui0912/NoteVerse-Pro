@@ -68,13 +68,14 @@ async def _send_alignment_and_finish_if_needed(
     user_id: int,
     alignment,
 ) -> str | None:
-    await websocket.send_json(alignment_update_message(alignment))
     for resolved_attempt in runtime.drain_resolved_practice_attempts():
         await practice_service.persist_practice_attempt(db, session_id, resolved_attempt)
-    if runtime.should_persist_alignment():
-        await practice_service.persist_alignment(db, session_id, alignment)
-        runtime.mark_alignment_persisted()
+
     if not runtime.is_scope_completed():
+        await websocket.send_json(alignment_update_message(alignment))
+        if runtime.should_persist_alignment():
+            await practice_service.persist_alignment(db, session_id, alignment)
+            runtime.mark_alignment_persisted()
         return None
 
     if runtime.pending_alignment_updates > 0:
@@ -88,13 +89,23 @@ async def _send_alignment_and_finish_if_needed(
     )
     state = _practice_session_state_value(detail)
     runtime.state = state
+    await websocket.send_json(alignment_update_message(alignment))
     await websocket.send_json(
         session_finished_message(
             state,
             _practice_session_completion_outcome_value(detail),
         )
     )
-    await practice_service.build_summary_for_finished_session(db, session_id, user_id)
+    try:
+        await practice_service.build_summary_for_finished_session(db, session_id, user_id)
+    except Exception as exc:
+        logger.bind(
+            event="practice.websocket.summary_build_failed",
+            operation_kind="practice",
+            session_id=session_id,
+            user_id=user_id,
+            exception_type=type(exc).__name__,
+        ).opt(exception=exc).warning("practice websocket summary build failed after session finished")
     return state
 
 
@@ -616,6 +627,41 @@ async def stream_practice_session(
                     terminal_reason = "client_finished"
                     terminal_fields = {"state": step_runtime.state}
                     break
+                elif message_type == "client.skip":
+                    if isinstance(runtime, PerformancePracticeSessionRuntime):
+                        continue
+                    step_runtime = runtime
+                    if step_runtime.state != "STREAMING":
+                        continue
+                    phase = "streaming_skip"
+                    try:
+                        alignment = step_runtime.skip_current_expected_group()
+                    except RuntimeError:
+                        terminal_event = "practice.websocket.failed"
+                        terminal_reason = "skip_processing_failed"
+                        terminal_fields = {"public_code": ErrorCode.PRACTICE_ALIGNMENT_FAILED}
+                        await websocket.send_json(
+                            session_error_message(
+                                public_code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+                            )
+                        )
+                        break
+
+                    if alignment is not None:
+                        finished_state = await _send_alignment_and_finish_if_needed(
+                            websocket=websocket,
+                            db=db,
+                            practice_service=practice_service,
+                            runtime=step_runtime,
+                            session_id=session_id,
+                            user_id=user_id,
+                            alignment=alignment,
+                        )
+                        if finished_state is not None:
+                            terminal_event = "practice.websocket.finished"
+                            terminal_reason = "scope_completed"
+                            terminal_fields = {"state": finished_state}
+                            break
                 elif message_type == "client.heartbeat":
                     continue
                 elif message_type == "client.midi_event":

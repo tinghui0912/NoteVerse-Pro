@@ -8,7 +8,7 @@ from typing import Literal
 from app.processing.engines.practice_alignment.score_timeline import ExpectedPracticeGroup, ScoreBeat
 
 
-EvaluationResult = Literal["MATCH", "PARTIAL", "MISMATCH", "UNCERTAIN"]
+EvaluationResult = Literal["MATCH", "PARTIAL", "MISMATCH", "UNCERTAIN", "SKIPPED"]
 ObservationSource = Literal["AUDIO", "MIDI", "SYNTHETIC"]
 ProgressionAction = Literal["ADVANCE", "HOLD", "WAIT"]
 

@@ -15,7 +15,6 @@ function backendOutcome(
     summary_artifact_kind: 'LEARNING_SUMMARY',
     completion_reason: 'SCOPE_COMPLETED',
     playback_expected: false,
-    summary_available: false,
     ...overrides,
   };
 }
@@ -42,7 +41,6 @@ describe('resolvePracticeCompletionOutcome', () => {
           kind: 'FULL_PIECE_PERFORMANCE',
           summary_artifact_kind: 'PERFORMANCE_SUMMARY',
           playback_expected: true,
-          summary_available: true,
         }),
       })
     ).toEqual({

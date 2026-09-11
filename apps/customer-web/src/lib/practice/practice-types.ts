@@ -1,7 +1,6 @@
 export type PracticeStatus =
   | 'idle'
   | 'connecting'
-  | 'arming'
   | 'listening'
   | 'practicing'
   | 'paused'

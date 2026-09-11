@@ -242,14 +242,17 @@ class AdaptiveNoiseCalibrator:
         self.calibrated_peak_gate = peak_gate
         self.calibrated_flux_gate = onset_flux_gate
 
-    def collect_noise_floor(self, features: AudioFrameFeatures) -> None:
+    def collect_noise_floor(self, features: AudioFrameFeatures) -> bool:
+        if features.tonal_signal or features.onset_signal:
+            return False
         if not self.is_noise_floor_candidate(features.rms, features.peak):
-            return
+            return False
 
         self.noise_rms_values.append(features.rms)
         self.noise_peak_values.append(features.peak)
         self.update_noise_floor(features, alpha=INITIAL_NOISE_ALPHA)
         self.refresh_gates()
+        return True
 
     def maybe_update_runtime_noise_floor(self, features: AudioFrameFeatures) -> None:
         if (
@@ -507,13 +510,14 @@ class ActivityConfidenceEstimator:
 class PracticeActivityStateMachine:
     """Own practice stream state and activity counters."""
 
-    def __init__(self, warmup_frames: int, no_input_frames: int) -> None:
-        self.warmup_frames = warmup_frames
+    def __init__(self, calibration_sample_count: int, no_input_frames: int) -> None:
+        self.calibration_sample_count = max(calibration_sample_count, 0)
+        self.calibration_samples = 0
         self.no_input_frames = max(no_input_frames, 1)
-        self.armed = warmup_frames <= 0
+        self.armed = True
         self.started = False
         self.performance_active = False
-        self.stream_state = "armed" if self.armed else "calibrating"
+        self.stream_state = "armed"
         self.total_frames = 0
         self.accepted_frames = 0
         self.rejected_frames = 0
@@ -532,6 +536,13 @@ class PracticeActivityStateMachine:
         self.total_frames += 1
         self.last_audio_active = False
 
+    def record_calibration_samples(self, sample_count: int) -> None:
+        self.calibration_samples += max(sample_count, 0)
+
+    @property
+    def calibration_complete(self) -> bool:
+        return self.calibration_samples >= self.calibration_sample_count
+
     def reject(self, state: str | None = None) -> None:
         if state is not None:
             self.stream_state = state
@@ -541,10 +552,6 @@ class PracticeActivityStateMachine:
     def accept(self) -> None:
         self.accepted_frames += 1
         self.active_streak += 1
-
-    def mark_armed(self) -> None:
-        self.armed = True
-        self.stream_state = "armed"
 
     def mark_start_signal(self, onset_signal: bool) -> None:
         self.start_streak += 1

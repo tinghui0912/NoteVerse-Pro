@@ -75,8 +75,11 @@ def diagnose_recording(
     )
     try:
         silence = np.zeros(engine.hop_length, dtype=np.float32)
-        for _ in range(DEFAULT_PRACTICE_AUDIO_PROFILE.warmup_frames):
+        calibration_sample_count = DEFAULT_PRACTICE_AUDIO_PROFILE.calibration_sample_count(sample_rate)
+        calibrated_samples = 0
+        while calibrated_samples < calibration_sample_count:
             engine.ingest_audio(pcm_s16le(silence))
+            calibrated_samples += engine.hop_length
 
         frame_count = 0
         updates: list[dict[str, object]] = []
@@ -179,7 +182,8 @@ def diagnose_recording(
             "sample_rate": sample_rate,
             "chunk_size_samples": chunk_size_samples,
             "duration_seconds": round(audio.size / sample_rate, 3),
-            "warmup_frames": DEFAULT_PRACTICE_AUDIO_PROFILE.warmup_frames,
+            "calibration_duration_seconds": DEFAULT_PRACTICE_AUDIO_PROFILE.calibration_duration_seconds,
+            "calibration_sample_count": DEFAULT_PRACTICE_AUDIO_PROFILE.calibration_sample_count(sample_rate),
             "hop_length": engine.hop_length,
             "input_rms": round(float(np.sqrt(np.mean(np.square(audio)))), 5) if audio.size else 0.0,
             "input_peak": round(float(np.max(np.abs(audio))), 5) if audio.size else 0.0,

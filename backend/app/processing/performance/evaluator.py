@@ -18,6 +18,10 @@ from app.processing.performance.evidence import (
 from app.processing.performance.timeline import PerformanceTimeline, ResolvedPerformanceScope
 
 
+DEFAULT_MIDI_EVENT_ASSIGNMENT_WINDOW_MS = 250.0
+DEFAULT_MIDI_CHORD_SIMULTANEITY_WINDOW_MS = 120.0
+
+
 @dataclass(frozen=True)
 class ExpectedPerformanceEvent:
     expected_group: ExpectedPracticeGroup
@@ -31,12 +35,20 @@ class PerformanceExpectedEventEvaluator:
         score_timeline: PracticeScoreTimeline,
         timeline: PerformanceTimeline,
         scope: ResolvedPerformanceScope,
+        midi_event_assignment_window_ms: float = DEFAULT_MIDI_EVENT_ASSIGNMENT_WINDOW_MS,
+        midi_chord_simultaneity_window_ms: float = DEFAULT_MIDI_CHORD_SIMULTANEITY_WINDOW_MS,
     ) -> None:
+        if midi_event_assignment_window_ms <= 0:
+            raise ValueError("MIDI event assignment window must be positive.")
+        if midi_chord_simultaneity_window_ms <= 0:
+            raise ValueError("MIDI chord simultaneity window must be positive.")
         self._events = _expected_events_for_scope(
             score_timeline=score_timeline,
             timeline=timeline,
             scope=scope,
         )
+        self._midi_event_assignment_window_ms = midi_event_assignment_window_ms
+        self._midi_chord_simultaneity_window_ms = midi_chord_simultaneity_window_ms
 
     def evaluate_midi(
         self,
@@ -53,16 +65,24 @@ class PerformanceExpectedEventEvaluator:
                 raise ValueError("MIDI Performance evaluation requires MIDI observations.")
             if not observation.active or not observation.analyzable or not observation.observed_pitches:
                 continue
-            nearest = min(
+            nearest = _nearest_event_within_assignment_window(
                 self._events,
-                key=lambda event: abs(event.performance_time_ms - observation.performance_time_ms),
+                observation,
+                assignment_window_ms=self._midi_event_assignment_window_ms,
             )
-            assignments[nearest.expected_group.group_id].append(observation)
+            if nearest is not None:
+                assignments[nearest.expected_group.group_id].append(observation)
 
         outcomes: list[PerformanceExpectedEventOutcome] = []
         for event in self._events:
             group_observations = assignments[event.expected_group.group_id]
-            outcomes.append(_outcome_for_event(event, group_observations))
+            outcomes.append(
+                _outcome_for_event(
+                    event,
+                    group_observations,
+                    chord_simultaneity_window_ms=self._midi_chord_simultaneity_window_ms,
+                )
+            )
         return tuple(outcomes)
 
 
@@ -90,6 +110,8 @@ def _expected_events_for_scope(
 def _outcome_for_event(
     event: ExpectedPerformanceEvent,
     observations: Sequence[PerformanceObservation],
+    *,
+    chord_simultaneity_window_ms: float,
 ) -> PerformanceExpectedEventOutcome:
     if not observations:
         return PerformanceExpectedEventOutcome(
@@ -111,18 +133,27 @@ def _outcome_for_event(
             measure_numbers=event.expected_group.measure_numbers,
         )
 
-    observed_pitches = tuple(
-        pitch for observation in observations for pitch in observation.observed_pitches
+    gesture_observations, non_gesture_observations = _split_chord_gesture_observations(
+        observations,
+        chord_simultaneity_window_ms=chord_simultaneity_window_ms,
+    )
+    observed_pitches = _observed_pitches(gesture_observations)
+    non_gesture = _classify_non_gesture_pitches(
+        event,
+        _observed_pitches(non_gesture_observations),
+        matched_gesture_pitches=observed_pitches,
     )
     expected_strike_outcomes = _expected_strike_outcomes(
         event,
         observed_pitches=observed_pitches,
+        unconfirmed_expected_pitches=non_gesture.unconfirmed_expected_pitches,
     )
-    unexpected_pitches = _unexpected_pitches(event, observed_pitches)
+    unexpected_pitches = _unexpected_pitches(event, observed_pitches) + non_gesture.unexpected_pitches
     timing_offset_ms = _average(
-        observation.performance_time_ms - event.performance_time_ms for observation in observations
+        observation.performance_time_ms - event.performance_time_ms
+        for observation in gesture_observations
     )
-    confidence = _average(observation.confidence for observation in observations)
+    confidence = _average(observation.confidence for observation in gesture_observations)
     all_expected_strikes_matched = all(
         strike.result == PerformanceExpectedStrikeResult.MATCHED
         for strike in expected_strike_outcomes
@@ -152,16 +183,61 @@ def _outcome_for_event(
     )
 
 
+def _nearest_event_within_assignment_window(
+    events: Sequence[ExpectedPerformanceEvent],
+    observation: PerformanceObservation,
+    *,
+    assignment_window_ms: float,
+) -> ExpectedPerformanceEvent | None:
+    nearest = min(
+        events,
+        key=lambda event: abs(event.performance_time_ms - observation.performance_time_ms),
+    )
+    if abs(nearest.performance_time_ms - observation.performance_time_ms) > assignment_window_ms:
+        return None
+    return nearest
+
+
+def _split_chord_gesture_observations(
+    observations: Sequence[PerformanceObservation],
+    *,
+    chord_simultaneity_window_ms: float,
+) -> tuple[tuple[PerformanceObservation, ...], tuple[PerformanceObservation, ...]]:
+    ordered = tuple(sorted(observations, key=lambda observation: observation.performance_time_ms))
+    if not ordered:
+        return (), ()
+
+    gesture_start_ms = ordered[0].performance_time_ms
+    gesture: list[PerformanceObservation] = []
+    non_gesture: list[PerformanceObservation] = []
+    for observation in ordered:
+        if observation.performance_time_ms - gesture_start_ms <= chord_simultaneity_window_ms:
+            gesture.append(observation)
+        else:
+            non_gesture.append(observation)
+    return tuple(gesture), tuple(non_gesture)
+
+
+def _observed_pitches(
+    observations: Sequence[PerformanceObservation],
+) -> tuple[str, ...]:
+    return tuple(pitch for observation in observations for pitch in observation.observed_pitches)
+
+
 def _expected_strike_outcomes(
     event: ExpectedPerformanceEvent,
     *,
     observed_pitches: tuple[str, ...],
+    unconfirmed_expected_pitches: tuple[str, ...] = (),
 ) -> tuple[PerformanceExpectedStrikeOutcome, ...]:
     observed_pitch_set = set(observed_pitches)
+    unconfirmed_pitch_set = set(unconfirmed_expected_pitches)
     strike_outcomes: list[PerformanceExpectedStrikeOutcome] = []
     for strike in event.expected_group.strike_targets:
         if strike.pitch in observed_pitch_set:
             result = PerformanceExpectedStrikeResult.MATCHED
+        elif strike.pitch in unconfirmed_pitch_set:
+            result = PerformanceExpectedStrikeResult.UNCONFIRMED
         else:
             result = PerformanceExpectedStrikeResult.MISSING
         strike_outcomes.append(
@@ -191,6 +267,37 @@ def _unexpected_pitches(
             continue
         seen_expected_pitches.add(pitch)
     return tuple(unexpected)
+
+
+@dataclass(frozen=True)
+class NonGesturePitchClassification:
+    unconfirmed_expected_pitches: tuple[str, ...]
+    unexpected_pitches: tuple[str, ...]
+
+
+def _classify_non_gesture_pitches(
+    event: ExpectedPerformanceEvent,
+    observed_pitches: tuple[str, ...],
+    *,
+    matched_gesture_pitches: tuple[str, ...],
+) -> NonGesturePitchClassification:
+    expected_pitch_set = {strike.pitch for strike in event.expected_group.strike_targets}
+    matched_pitch_set = set(matched_gesture_pitches)
+    unconfirmed: list[str] = []
+    unexpected: list[str] = []
+    for pitch in observed_pitches:
+        if pitch not in expected_pitch_set:
+            unexpected.append(pitch)
+            continue
+        if pitch in matched_pitch_set:
+            unexpected.append(pitch)
+            continue
+        if pitch not in unconfirmed:
+            unconfirmed.append(pitch)
+    return NonGesturePitchClassification(
+        unconfirmed_expected_pitches=tuple(unconfirmed),
+        unexpected_pitches=tuple(unexpected),
+    )
 
 
 def _group_index(groups: Sequence[ExpectedPracticeGroup], group_id: str) -> int:

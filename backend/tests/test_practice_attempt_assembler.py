@@ -11,7 +11,42 @@ from app.processing.engines.practice_alignment.attempt_assembler import (
 )
 from app.processing.engines.practice_alignment.expected_event_evaluator import PracticeEventEvaluation
 from app.processing.engines.practice_alignment.follow_policy import AlignmentDecision
-from app.processing.engines.practice_alignment.score_timeline import ExpectedPracticeGroup
+from app.processing.engines.practice_alignment.score_timeline import (
+    ExpectedPracticeGroup,
+    ExpectedPracticeNote,
+    ExpectedPracticeStrikeTarget,
+)
+
+
+def expected_group() -> ExpectedPracticeGroup:
+    expected_note = ExpectedPracticeNote(
+        expected_note_id="event-1:n1",
+        event_id="event-1",
+        pitch="C4",
+        render_note_id="n1",
+        measure_numbers=("1",),
+    )
+    return ExpectedPracticeGroup(
+        group_id="entry-1",
+        onset_beat=4.0,
+        event_ids=("event-1",),
+        expected_notes=(expected_note,),
+        strike_targets=(
+            ExpectedPracticeStrikeTarget(
+                strike_id="entry-1:strike:C4",
+                pitch="C4",
+                expected_notes=(expected_note,),
+                event_ids=("event-1",),
+                render_note_ids=("n1",),
+                measure_numbers=("1",),
+            ),
+        ),
+        render_note_ids=("n1",),
+        pitches=("C4",),
+        measure_numbers=("1",),
+        staff_ids=("1",),
+        voice_ids=("1",),
+    )
 
 
 def test_attempt_assembler_resolves_evaluation_with_stable_identity() -> None:
@@ -79,6 +114,10 @@ def test_attach_attempt_outcome_adds_resolved_decision_metadata() -> None:
     assert decision["attempt_resolved_at_ms"] == 120
     assert decision["evaluator_version"] == "expected-event-v1"
     assert decision["policy_profile_version"] == "wait-for-note-v1"
+    assert decision["evaluation_result"] == "MATCH"
+    assert decision["matched_pitches"] == ["C4"]
+    assert decision["missing_pitches"] == []
+    assert decision["extra_pitches"] == []
 
 
 def test_resolved_attempt_uses_expected_group_anchor_not_ui_decision_anchor() -> None:
@@ -95,16 +134,7 @@ def test_resolved_attempt_uses_expected_group_anchor_not_ui_decision_anchor() ->
     )
     outcome = assembler.resolve(evaluation, timestamp_ms=120)
     expected_anchor = display_anchor_for_expected_group(
-        ExpectedPracticeGroup(
-            group_id="entry-1",
-            onset_beat=4.0,
-            event_ids=("event-1",),
-            render_note_ids=("n1",),
-            pitches=("C4",),
-            measure_numbers=("1",),
-            staff_ids=("1",),
-            voice_ids=("1",),
-        )
+        expected_group()
     )
 
     resolved_attempt = resolved_attempt_from_outcome(
@@ -128,16 +158,7 @@ def test_resolved_attempt_uses_expected_group_anchor_not_ui_decision_anchor() ->
 def test_resolved_attempt_buffer_collects_only_resolved_expected_group_attempts() -> None:
     assembler = PracticeAttemptAssembler()
     buffer = ResolvedPracticeAttemptBuffer()
-    expected_group = ExpectedPracticeGroup(
-        group_id="entry-1",
-        onset_beat=4.0,
-        event_ids=("event-1",),
-        render_note_ids=("n1",),
-        pitches=("C4",),
-        measure_numbers=("1",),
-        staff_ids=("1",),
-        voice_ids=("1",),
-    )
+    group = expected_group()
     evaluation = PracticeEventEvaluation(
         expected_group_id="entry-1",
         result="MATCH",
@@ -156,7 +177,7 @@ def test_resolved_attempt_buffer_collects_only_resolved_expected_group_attempts(
         action="wait",
         resolution_reason="partial_match",
         experience_state="partially_matched",
-        expected_group=expected_group,
+        expected_group=group,
         update_confidence=0.5,
         update_timestamp_ms=100,
     )
@@ -165,7 +186,7 @@ def test_resolved_attempt_buffer_collects_only_resolved_expected_group_attempts(
         action="advance",
         resolution_reason="stable_match",
         experience_state="following",
-        expected_group=expected_group,
+        expected_group=group,
         update_confidence=1.0,
         update_timestamp_ms=120,
         validation_confidence=1.0,

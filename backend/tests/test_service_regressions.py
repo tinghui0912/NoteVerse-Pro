@@ -957,6 +957,26 @@ async def test_practice_service_finish_session_persists_structured_summary_paylo
                 confidence=0.4,
                 timestamp_ms=300,
             ),
+            PracticeAttempt(
+                session_id=1,
+                attempt_index=4,
+                attempt_uid="attempt-4",
+                expected_group_id="entry-3",
+                event_id="event-3",
+                beat_position=6.0,
+                render_note_ids='["n4"]',
+                measure_numbers='["3"]',
+                result=PracticeAttemptResult.SKIPPED,
+                action="skip",
+                completion_status=PracticeAttemptCompletionStatus.COMPLETED,
+                resolution_reason=PracticeAttemptResolutionReason.USER_SKIPPED,
+                experience_state="skipped",
+                input_source=PracticeInputSource.MICROPHONE,
+                evidence_profile="MICROPHONE_BEST_EFFORT",
+                correctness_scope="acoustic_single_note_strict_chord_best_effort",
+                confidence=1.0,
+                timestamp_ms=400,
+            ),
         ]
     )
     library_service = Mock()
@@ -976,35 +996,30 @@ async def test_practice_service_finish_session_persists_structured_summary_paylo
 
     assert result.summary_status == PracticeSessionSummaryStatus.READY
     assert result.summary_payload is not None
-    assert result.summary_payload.metrics["confidence_label"] == "Strong"
     assert result.summary_payload.metrics["input_source"] == "MICROPHONE"
     assert result.summary_payload.metrics["evidence_profile"] == "MICROPHONE_BEST_EFFORT"
     assert (
         result.summary_payload.metrics["correctness_scope"]
         == "acoustic_single_note_strict_chord_best_effort"
     )
-    assert result.summary_payload.metrics["attempt_count"] == 3
+    assert result.summary_payload.metrics["attempt_count"] == 4
     assert result.summary_payload.metrics["scorable_attempt_count"] == 2
     assert result.summary_payload.metrics["interrupted_attempts"] == 1
-    assert result.summary_payload.metrics["scoring_coverage"] == 0.667
-    assert result.summary_payload.metrics["target_count"] == 2
+    assert result.summary_payload.metrics["skipped_attempts"] == 1
+    assert result.summary_payload.metrics["scoring_coverage"] == 0.5
+    assert result.summary_payload.metrics["target_count"] == 3
     assert result.summary_payload.metrics["scorable_target_count"] == 1
     assert result.summary_payload.metrics["completed_targets"] == 1
     assert result.summary_payload.metrics["scorable_completed_targets"] == 1
     assert result.summary_payload.metrics["interrupted_target_count"] == 1
     assert result.summary_payload.metrics["targets_with_partial"] == 1
     assert result.summary_payload.metrics["targets_with_mismatch"] == 0
-    assert result.summary_payload.metrics["target_completion_rate"] == 0.5
+    assert result.summary_payload.metrics["target_completion_rate"] == 0.333
     assert result.summary_payload.metrics["scorable_target_completion_rate"] == 1.0
-    assert len(result.summary_payload.attempts) == 3
-    interrupted_attempt = result.summary_payload.attempts[2]
-    assert interrupted_attempt.completion_status == "INTERRUPTED"
-    assert interrupted_attempt.scoring_included is False
-    assert interrupted_attempt.resolution_reason == "connection_closed"
-    assert interrupted_attempt.measure_numbers == ["2"]
     assert [target.expected_group_id for target in result.summary_payload.targets] == [
         "entry-1",
         "entry-2",
+        "entry-3",
     ]
     first_target = result.summary_payload.targets[0]
     assert first_target.measure_numbers == ["1"]
@@ -1015,18 +1030,24 @@ async def test_practice_service_finish_session_persists_structured_summary_paylo
     assert second_target.measure_numbers == ["2"]
     assert second_target.interrupted_attempt_count == 1
     assert second_target.completed is False
-    assert [measure.measure_number for measure in result.summary_payload.difficult_measures] == [
+    third_target = result.summary_payload.targets[2]
+    assert third_target.measure_numbers == ["3"]
+    assert third_target.skipped_attempt_count == 1
+    assert third_target.completed is False
+    assert [measure.measure_number for measure in result.summary_payload.problem_measures] == [
         "1",
         "2",
+        "3",
     ]
-    hardest_measure = result.summary_payload.difficult_measures[0]
+    hardest_measure = result.summary_payload.problem_measures[0]
     assert hardest_measure.incomplete_target_count == 0
     assert hardest_measure.interrupted_attempt_count == 0
-    assert hardest_measure.difficulty_score == 1.5
-    interrupted_only_measure = result.summary_payload.difficult_measures[1]
+    interrupted_only_measure = result.summary_payload.problem_measures[1]
     assert interrupted_only_measure.incomplete_target_count == 1
     assert interrupted_only_measure.interrupted_attempt_count == 1
-    assert interrupted_only_measure.difficulty_score == 0.0
+    skipped_measure = result.summary_payload.problem_measures[2]
+    assert skipped_measure.incomplete_target_count == 1
+    assert skipped_measure.skipped_attempt_count == 1
     assert session.summary_status == PracticeSessionSummaryStatus.READY
     assert session.summary_payload is not None
     assert repository.save_session.await_count == 2
@@ -1078,7 +1099,6 @@ async def test_practice_service_finish_session_marks_midi_as_strict_evidence() -
     assert result.summary_payload.metrics["input_source"] == "MIDI"
     assert result.summary_payload.metrics["evidence_profile"] == "MIDI_STRICT"
     assert result.summary_payload.metrics["correctness_scope"] == "symbolic_exact_notes"
-    assert any("strictest note evidence" in item for item in result.summary_payload.recommendations)
 
 
 @pytest.mark.asyncio
@@ -1161,10 +1181,8 @@ async def test_practice_service_finish_performance_session_builds_conservative_s
     assert result.summary_payload.metrics["analyzable_coverage"] > 0.0
     assert result.summary_payload.metrics["confident_coverage"] is not None
     assert result.summary_payload.metrics["confident_coverage"] > 0.0
-    assert result.summary_payload.attempts == []
     assert result.summary_payload.targets == []
-    assert result.summary_payload.difficult_measures == []
-    assert any("weak input evidence" in item for item in result.summary_payload.recommendations)
+    assert result.summary_payload.problem_measures == []
 
 
 @pytest.mark.asyncio
@@ -1176,7 +1194,7 @@ async def test_practice_service_get_summary_parses_existing_payload() -> None:
         state=PracticeSessionState.FINISHED,
         evaluation_profile=PracticeEvaluationProfile.LEARNING,
         summary_status=PracticeSessionSummaryStatus.READY,
-        summary_payload='{"summary":"done","metrics":{"state":"FINISHED"},"recommendations":["keep going"]}',
+        summary_payload='{"metrics":{"state":"FINISHED"},"targets":[],"problem_measures":[]}',
     )
     repository.get_session_by_uuid = AsyncMock(return_value=session)
     service = PracticeService(repository=repository)
@@ -1186,6 +1204,4 @@ async def test_practice_service_get_summary_parses_existing_payload() -> None:
     assert result.session_id == "session-1"
     assert result.summary_status == PracticeSessionSummaryStatus.READY
     assert result.summary_payload is not None
-    assert result.summary_payload.summary == "done"
     assert result.summary_payload.metrics == {"state": "FINISHED"}
-    assert result.summary_payload.recommendations == ["keep going"]

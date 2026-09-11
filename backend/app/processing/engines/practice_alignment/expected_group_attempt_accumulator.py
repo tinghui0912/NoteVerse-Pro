@@ -78,10 +78,12 @@ class ExpectedGroupAttemptAccumulator:
         audio_frame: Any,
         *,
         candidate_signal: bool,
+        start_candidate_signal: bool | None = None,
         onset_beat: ScoreBeat,
         expected_group_id: str = "unknown",
         timestamp_ms: int = 0,
     ) -> AudioObservation | None:
+        can_start_attempt = candidate_signal if start_candidate_signal is None else start_candidate_signal
         if not candidate_signal:
             if self.open:
                 self.release_frames += 1
@@ -92,6 +94,9 @@ class ExpectedGroupAttemptAccumulator:
             return None
 
         if not self.open:
+            if not can_start_attempt:
+                self.clear_audio()
+                return None
             self.lifecycle.begin(expected_group_id=expected_group_id, timestamp_ms=timestamp_ms)
             self.open = True
             self.evaluated = False

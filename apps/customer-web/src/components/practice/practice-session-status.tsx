@@ -14,7 +14,6 @@ import type {
 
 type PracticeStatusMessageKey =
   | 'preparingPractice'
-  | 'preparingToPlay'
   | 'performanceCountIn'
   | 'performanceStarting'
   | 'performanceRunning'
@@ -89,7 +88,7 @@ export function resolvePracticeSessionStatusView({
   | 'alignment'
   | 'performanceClockSync'
 >): PracticeSessionStatusView {
-  const isPreparing = status === 'connecting' || status === 'arming';
+  const isConnecting = status === 'connecting';
   const isPreparingConnection =
     (status === 'idle' || status === 'finished') &&
     canPrepareSession &&
@@ -106,9 +105,9 @@ export function resolvePracticeSessionStatusView({
     };
   }
 
-  if (isPreparing) {
+  if (isConnecting) {
     return {
-      messageKey: 'preparingToPlay',
+      messageKey: 'preparingPractice',
       inputHintKey: null,
       pending: true,
       uncertain: false,

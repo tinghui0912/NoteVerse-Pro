@@ -13,7 +13,11 @@ from app.processing.engines.practice_alignment.expected_event_evaluator import (
 from app.processing.engines.practice_alignment.expected_group_attempt_accumulator import (
     ExpectedGroupAttemptAccumulator,
 )
-from app.processing.engines.practice_alignment.score_timeline import ExpectedPracticeGroup
+from app.processing.engines.practice_alignment.score_timeline import (
+    ExpectedPracticeGroup,
+    ExpectedPracticeNote,
+    ExpectedPracticeStrikeTarget,
+)
 
 
 FIXTURE_ROOT = Path("tests/fixtures/practice_audio")
@@ -21,11 +25,36 @@ SAMPLE_RATE = 16000
 
 
 def expected_group(*pitches: str) -> ExpectedPracticeGroup:
+    expected_notes = tuple(
+        ExpectedPracticeNote(
+            expected_note_id=f"event-1:n{index}",
+            event_id="event-1",
+            pitch=pitch,
+            render_note_id=f"n{index}",
+            measure_numbers=("1",),
+        )
+        for index, pitch in enumerate(pitches, start=1)
+    )
+    strike_targets = tuple(
+        ExpectedPracticeStrikeTarget(
+            strike_id=f"entry-1:strike:{pitch}",
+            pitch=pitch,
+            expected_notes=tuple(note for note in expected_notes if note.pitch == pitch),
+            event_ids=("event-1",),
+            render_note_ids=tuple(
+                note.render_note_id for note in expected_notes if note.pitch == pitch
+            ),
+            measure_numbers=("1",),
+        )
+        for pitch in dict.fromkeys(pitches)
+    )
     return ExpectedPracticeGroup(
         group_id="entry-1",
         onset_beat=4.0,
         event_ids=("event-1",),
-        render_note_ids=("n1",),
+        expected_notes=expected_notes,
+        strike_targets=strike_targets,
+        render_note_ids=tuple(note.render_note_id for note in expected_notes),
         pitches=pitches,
         measure_numbers=("1",),
         staff_ids=("1",),
@@ -85,6 +114,47 @@ def test_microphone_capability_matrix_accumulator_handles_synthetic_rolled_chord
         EvaluatorEvidence.from_audio(final),
     )
     assert evaluation.result == "MATCH"
+
+
+def test_microphone_capability_matrix_repeated_same_pitch_requires_release() -> None:
+    accumulator = ExpectedGroupAttemptAccumulator(
+        observer=AcousticEventObserver(),
+        sample_rate=SAMPLE_RATE,
+        np_module=np,
+        window_samples=8000,
+        collection_frames=3,
+        release_frame_threshold=2,
+    )
+    c4 = sine_frame(261.625565)
+    silence = np.zeros_like(c4)
+
+    first_attempt = [
+        accumulator.observe_frame(c4, candidate_signal=True, onset_beat=4.0),
+        accumulator.observe_frame(c4, candidate_signal=True, onset_beat=4.0),
+        accumulator.observe_frame(c4, candidate_signal=True, onset_beat=4.0),
+    ]
+    held_frames = [
+        accumulator.observe_frame(c4, candidate_signal=True, onset_beat=4.0),
+        accumulator.observe_frame(c4, candidate_signal=True, onset_beat=4.0),
+    ]
+    release_frames = [
+        accumulator.observe_frame(silence, candidate_signal=False, onset_beat=4.0),
+        accumulator.observe_frame(silence, candidate_signal=False, onset_beat=4.0),
+    ]
+    second_attempt = [
+        accumulator.observe_frame(c4, candidate_signal=True, onset_beat=4.0),
+        accumulator.observe_frame(c4, candidate_signal=True, onset_beat=4.0),
+        accumulator.observe_frame(c4, candidate_signal=True, onset_beat=4.0),
+    ]
+
+    assert [observation is not None for observation in first_attempt] == [False, False, True]
+    assert held_frames == [None, None]
+    assert release_frames == [None, None]
+    assert [observation is not None for observation in second_attempt] == [False, False, True]
+    assert first_attempt[-1] is not None
+    assert first_attempt[-1].observed_pitches == ("C4",)
+    assert second_attempt[-1] is not None
+    assert second_attempt[-1].observed_pitches == ("C4",)
 
 
 def test_microphone_capability_matrix_simultaneous_chord_is_not_strictly_supported() -> None:

@@ -66,6 +66,12 @@ It includes calibration silence before every scenario and validates starts,
 negative non-starts, mixed inputs, the first emitted beat, and pause/resume.
 For current scenarios, it validates the microphone startup and first expected
 event behavior used by step-by-step practice.
+The revised Once Again score currently exposes a follow-progress gap: the local
+excerpt and the first 20 seconds of the complete `Once Again.wav` can start, but
+do not yet advance through a meaningful score region. Those real-recording
+scenarios are marked `known_gap`; promote them to `required` only after the
+microphone follow engine produces stable accepted alignment advance, not merely
+after startup succeeds.
 
 `initial_alignment_manifest.json` is the P0 startup robustness baseline. It uses
 the same real engine, but focuses on invariants that should hold before changing
@@ -89,6 +95,8 @@ observer's actual boundary:
 - real public C4/C5 piano single notes should match;
 - synthetic rolled C/E/G observations can be accumulated into one expected-group
   match;
+- repeated same-pitch attacks require a release boundary before they become a
+  second attempt, so sustained energy is not double-counted as another strike;
 - simultaneous synthetic C/E/G and real C4+C5 octave mixtures are not treated as
   strict microphone chord support, because the live PCM observer still emits at
   most one dominant pitch.
@@ -96,6 +104,47 @@ observer's actual boundary:
 Keep this matrix separate from evaluator unit tests. Evaluator tests that pass
 known pitch sets such as `("C4", "E4")` prove business logic only; they do not
 prove that real microphone PCM can produce those pitch sets.
+
+## Paired MIDI + Microphone Ground Truth
+
+`paired_ground_truth_manifest.json` defines the next recognition benchmark
+source of truth. These scenarios are allowed to produce physical accuracy
+metrics such as `expected_strike_recall` and `expected_strike_precision` only
+after their status becomes `recorded`.
+
+A recorded paired fixture must contain:
+
+- microphone audio from the same take;
+- physical MIDI NoteOn/NoteOff truth from the same take;
+- synchronization metadata, preferably a shared capture clock or a clear
+  alignment impulse;
+- canonical replay audio identity for the resampled 16 kHz mono float32 PCM;
+- MIDI artifact identity.
+
+Do not mark a fixture as `paired_midi` when the MIDI was exported from
+MusicXML, synthesized from the score, or captured from a different take. Those
+fixtures can validate score expectation or synthesis behavior, but they are not
+physical ground truth for an acoustic performance.
+
+The first planned matrix intentionally focuses on one chord:
+
+```text
+Expected C-E-G
+
+Actual:
+C
+E
+G
+C-E
+C-G
+E-G
+C-E-G
+```
+
+The first six cases must not MATCH; the full chord should MATCH with high
+first-attempt acceptance once the microphone recognizer is good enough. This
+small matrix is more useful than another long song recording because it directly
+measures false chord completion.
 
 ## Public Samples
 

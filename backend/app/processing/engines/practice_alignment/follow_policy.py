@@ -14,7 +14,7 @@ from app.processing.engines.practice_alignment.expected_event_evaluator import (
     ExpectedEventEvaluator,
     PracticeEventEvaluation,
 )
-AlignmentAction = Literal["advance", "hold", "wait"]
+AlignmentAction = Literal["advance", "hold", "wait", "skip"]
 AlignmentReason = Literal[
     "stable_match",
     "partial_match",
@@ -27,6 +27,7 @@ AlignmentReason = Literal[
     "practice_paused",
     "practice_finished",
     "connection_closed",
+    "user_skipped",
 ]
 PracticeExperienceState = Literal[
     "waiting_for_input",
@@ -38,6 +39,7 @@ PracticeExperienceState = Literal[
     "recovering",
     "lost",
     "paused",
+    "skipped",
 ]
 
 
@@ -70,6 +72,10 @@ class AlignmentDecision(TypedDict):
     attempt_resolved_at_ms: NotRequired[int]
     evaluator_version: NotRequired[str]
     policy_profile_version: NotRequired[str]
+    evaluation_result: NotRequired[str]
+    matched_pitches: NotRequired[list[str]]
+    missing_pitches: NotRequired[list[str]]
+    extra_pitches: NotRequired[list[str]]
 
 
 @dataclass(frozen=True)
@@ -285,17 +291,6 @@ class WaitForNoteFollowPolicy:
             )
 
         if evaluation.result == "PARTIAL":
-            if self._should_advance_best_effort_partial(current_group, evidence):
-                matched_anchor = _anchor_from_expected_group(current_group)
-                self._current_index += 1
-                next_group = self.current_expected_group
-                return self._decision(
-                    action="advance",
-                    reason="partial_match",
-                    experience_state="following",
-                    display_anchor=_anchor_from_expected_group(next_group) if next_group else matched_anchor,
-                    confidence_summary=summary,
-                )
             return self._decision(
                 action="wait",
                 reason="partial_match",
@@ -315,16 +310,26 @@ class WaitForNoteFollowPolicy:
     def reset(self) -> None:
         self._current_index = self._start_index_value
 
-    def _should_advance_best_effort_partial(
-        self,
-        current_group: ExpectedPracticeGroup,
-        evidence: EvaluatorEvidence,
-    ) -> bool:
-        return (
-            self.input_source == "MICROPHONE"
-            and evidence.source == "AUDIO"
-            and len(current_group.pitches) > 1
-            and bool(evidence.observed_pitches)
+    def skip_current_group(self) -> AlignmentDecision:
+        current_group = self.current_expected_group
+        if current_group is None:
+            raise ValueError("Wait For Note policy has no remaining expected groups.")
+        skipped_anchor = _anchor_from_expected_group(current_group)
+        self._current_index += 1
+        next_group = self.current_expected_group
+        return self._decision(
+            action="skip",
+            reason="user_skipped",
+            experience_state="skipped",
+            display_anchor=_anchor_from_expected_group(next_group) if next_group else skipped_anchor,
+            confidence_summary={
+                "visual": 1.0,
+                "alignment": 1.0,
+                "audio": 1.0,
+                "continuity": 1.0,
+                "validation": 1.0,
+                "input_policy": 1.0,
+            },
         )
 
     def _decision(

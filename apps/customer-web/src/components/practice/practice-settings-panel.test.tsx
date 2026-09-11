@@ -23,16 +23,15 @@ describe('PracticeSettingsPanel', () => {
           inputSource="MICROPHONE"
           microphoneInputLocked={false}
           midiInputLocked={false}
-          showNextNoteHint
           onPracticeModeChange={vi.fn()}
           onInputSourceChange={vi.fn()}
-          onShowNextNoteHintChange={vi.fn()}
         />
       </NextIntlClientProvider>
     );
 
     expect(screen.getByRole('button', { name: /microphone/i })).toBeEnabled();
     expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeEnabled();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   it('keeps microphone and MIDI selectable before continuous play starts', () => {
@@ -50,16 +49,14 @@ describe('PracticeSettingsPanel', () => {
           inputSource="MICROPHONE"
           microphoneInputLocked={false}
           midiInputLocked={false}
-          showNextNoteHint
           onPracticeModeChange={vi.fn()}
           onInputSourceChange={vi.fn()}
-          onShowNextNoteHintChange={vi.fn()}
         />
       </NextIntlClientProvider>
     );
 
     expect(screen.getByRole('button', { name: /microphone/i })).toBeEnabled();
     expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeEnabled();
-    expect(screen.queryByRole('switch', { name: /show the next note/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 });

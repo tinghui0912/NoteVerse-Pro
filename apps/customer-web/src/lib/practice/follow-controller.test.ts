@@ -40,9 +40,13 @@ function makeContainer() {
   container.scrollTo = vi.fn();
   container.innerHTML = `
     <div data-practice-page="1">
-      <g data-id="n1"></g>
+      <g data-class="chord" data-testid="chord-1">
+        <g data-class="stem" data-testid="stem-1"></g>
+        <g data-id="n1"></g>
+      </g>
       <g data-id="n2"></g>
       <g data-id="n3"></g>
+      <g data-id="n4"></g>
     </div>
   `;
   document.body.appendChild(container);
@@ -144,6 +148,8 @@ describe('PracticeFollowController', () => {
     );
 
     expect(container.querySelector('[data-id="n1"]')).toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-testid="chord-1"]')).toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-testid="stem-1"]')).not.toHaveClass('practice-note-active');
     expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
   });
 
@@ -234,6 +240,113 @@ describe('PracticeFollowController', () => {
 
     expect(container.querySelector('[data-id="n1"]')).toHaveClass('practice-note-active');
     expect(container.querySelector('[data-id="n2"]')).toHaveClass('practice-note-active');
+  });
+
+  it('commits backend advance anchors immediately without repeated stable frames', () => {
+    const controller = new PracticeFollowController();
+    const container = makeContainer();
+    const adapter = makeAdapter(entries);
+
+    controller.apply(container, adapter, makeAlignment());
+    controller.apply(
+      container,
+      adapter,
+      makeAlignment({
+        beat_position: 9,
+        decision: {
+          action: 'advance',
+          reason: 'stable_match',
+          experience_state: 'following',
+          display_anchor: { beat: 9, render_note_ids: ['n3'] },
+          confidence_summary: {
+            visual: 0.95,
+            alignment: 0.95,
+            audio: 0.95,
+            continuity: 0.95,
+            validation: 0.95,
+            input_policy: 1,
+          },
+        },
+      })
+    );
+
+    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-id="n3"]')).toHaveClass('practice-note-active');
+  });
+
+  it('commits explicit user skip updates immediately', () => {
+    const controller = new PracticeFollowController();
+    const container = makeContainer();
+    const adapter = makeAdapter(entries);
+
+    controller.apply(container, adapter, makeAlignment());
+    controller.apply(
+      container,
+      adapter,
+      makeAlignment({
+        beat_position: 4,
+        decision: {
+          action: 'skip',
+          reason: 'user_skipped',
+          experience_state: 'skipped',
+          display_anchor: { beat: 4, render_note_ids: ['n2'] },
+          confidence_summary: {
+            visual: 1,
+            alignment: 1,
+            audio: 1,
+            continuity: 1,
+            validation: 1,
+            input_policy: 1,
+          },
+        },
+      })
+    );
+
+    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-testid="chord-1"]')).not.toHaveClass(
+      'practice-note-active'
+    );
+    expect(container.querySelector('[data-id="n2"]')).toHaveClass('practice-note-active');
+  });
+
+  it('uses explicit user skip anchors even when websocket updates are batched', () => {
+    const controller = new PracticeFollowController();
+    const container = makeContainer();
+    const adapter = makeAdapter([
+      { index: 0, beat: 3, endBeat: 4, noteIds: ['n1'] },
+      { index: 1, beat: 4, endBeat: 5, noteIds: ['n2'] },
+      { index: 2, beat: 9, endBeat: 10, noteIds: ['n3'] },
+      { index: 3, beat: 12, endBeat: 13, noteIds: ['n4'] },
+    ]);
+
+    controller.apply(container, adapter, makeAlignment());
+    controller.apply(
+      container,
+      adapter,
+      makeAlignment({
+        beat_position: 12,
+        decision: {
+          action: 'skip',
+          reason: 'user_skipped',
+          experience_state: 'skipped',
+          display_anchor: { beat: 12, render_note_ids: ['n4'] },
+          confidence_summary: {
+            visual: 1,
+            alignment: 1,
+            audio: 1,
+            continuity: 1,
+            validation: 1,
+            input_policy: 1,
+          },
+        },
+      })
+    );
+
+    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-id="n3"]')).not.toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-id="n4"]')).toHaveClass('practice-note-active');
   });
 
 });

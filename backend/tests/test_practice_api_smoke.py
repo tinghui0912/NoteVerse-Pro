@@ -69,7 +69,6 @@ class FakePracticeService:
                 "summary_artifact_kind": "LEARNING_SUMMARY",
                 "completion_reason": "SCOPE_COMPLETED",
                 "playback_expected": True,
-                "summary_available": True,
             },
         }
 
@@ -83,12 +82,11 @@ class FakePracticeService:
             "session_id": session_uuid,
             "summary_status": "READY",
             "summary_payload": {
-                "summary": "Practice session completed with strong alignment confidence.",
                 "metrics": {
                     "state": "FINISHED",
-                    "confidence_label": "Strong",
                 },
-                "recommendations": ["Keep the same pacing and focus on phrasing while timing remains stable."],
+                "targets": [],
+                "problem_measures": [],
             },
         }
 
@@ -192,7 +190,7 @@ def test_get_practice_session_summary_returns_structured_payload(client: TestCli
     payload = response.json()
     assert payload["success"] is True
     assert payload["data"]["summary_status"] == "READY"
-    assert payload["data"]["summary_payload"]["metrics"]["confidence_label"] == "Strong"
+    assert payload["data"]["summary_payload"]["metrics"]["state"] == "FINISHED"
 
 
 def test_get_practice_ready_score_content_returns_prepared_musicxml(client: TestClient) -> None:

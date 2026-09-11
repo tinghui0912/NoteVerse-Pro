@@ -19,7 +19,8 @@
     },
     {
       "id": "once_again_loudspeaker_recording_starts",
-      "description": "The real local loudspeaker recording starts after its natural leading silence.",
+      "quality_status": "known_gap",
+      "description": "The real local loudspeaker excerpt starts after its natural leading silence; stable follow progress is still a known gap against the revised score.",
       "frames": [{ "type": "wav", "path": "local_recordings/once_again_excerpt_16k.wav" }],
       "pause_after_seconds": 2,
       "expect": {
@@ -27,6 +28,33 @@
         "start_seconds_min": 0.3,
         "start_seconds_max": 1.5,
         "first_alignment_beat": 3.0,
+        "min_alignment_advance": 8.0,
+        "max_lost_frames": 0,
+        "max_lost_episodes": 0,
+        "max_lost_frame_ratio": 0,
+        "min_following_frame_ratio": 0.95,
+        "min_reliable_update_ratio": 0.3,
+        "max_time_to_first_reliable_alignment": 0.12
+      }
+    },
+    {
+      "id": "once_again_full_recording_start_and_progress",
+      "quality_status": "known_gap",
+      "description": "The complete real local Once Again recording should eventually validate startup and stable follow progress against the revised score.",
+      "frames": [
+        {
+          "type": "wav",
+          "path": "local_recordings/Once Again.wav",
+          "duration_seconds": 20
+        }
+      ],
+      "tail_ignore_seconds": 0.5,
+      "expect": {
+        "starts": true,
+        "start_seconds_min": 0.3,
+        "start_seconds_max": 1.8,
+        "first_alignment_beat_min": 3.0,
+        "first_alignment_beat_max": 3.5,
         "min_alignment_advance": 8.0,
         "max_lost_frames": 0,
         "max_lost_episodes": 0,
@@ -91,7 +119,8 @@
     },
     {
       "id": "speaker_piano_with_speech_starts",
-      "description": "The real piano recording with repeating background speech starts and remains in session.",
+      "quality_status": "known_gap",
+      "description": "The real piano excerpt with repeating background speech starts; stable follow progress is still a known gap against the revised score.",
       "frames": [
         {
           "type": "mix_wav",
@@ -122,7 +151,8 @@
     },
     {
       "id": "speaker_piano_with_keyboard_starts",
-      "description": "The real piano recording with keyboard typing starts and remains in session.",
+      "quality_status": "known_gap",
+      "description": "The real piano excerpt with keyboard typing starts; stable follow progress is still a known gap against the revised score.",
       "frames": [
         {
           "type": "mix_wav",
@@ -153,7 +183,8 @@
     },
     {
       "id": "speaker_piano_with_desk_knocks_starts",
-      "description": "Short desk knocks during the real piano recording do not end the session.",
+      "quality_status": "known_gap",
+      "description": "Short desk knocks during the real piano excerpt do not block startup; stable follow progress is still a known gap against the revised score.",
       "frames": [
         {
           "type": "mix_wav",

@@ -18,7 +18,7 @@ class PracticeAudioProfile:
     start_rms_gate: float = 0.025
     start_peak_gate: float = 0.06
     min_active_frames: int = 3
-    warmup_frames: int = 30
+    calibration_duration_seconds: float = 1.0
     rms_noise_multiplier: float = 4.0
     peak_noise_multiplier: float = 2.5
     no_input_frames: int = 24
@@ -31,6 +31,9 @@ class PracticeAudioProfile:
     onset_hold_frames: int = 45
     startup_feature_window_frames: int = 4
     startup_entry_region_beats: float = 1.25
+
+    def calibration_sample_count(self, sample_rate: int) -> int:
+        return max(round(self.calibration_duration_seconds * sample_rate), 0)
 
 
 DEFAULT_PRACTICE_AUDIO_PROFILE = PracticeAudioProfile()

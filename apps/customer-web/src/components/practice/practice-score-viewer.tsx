@@ -28,7 +28,6 @@ type PracticeScoreViewerProps = {
   practiceStatus:
     | 'idle'
     | 'connecting'
-    | 'arming'
     | 'listening'
     | 'practicing'
     | 'paused'
@@ -88,8 +87,7 @@ export function PracticeScoreViewer({
       !alignment ||
       !xmlContent ||
       renderRevision === 0 ||
-      practiceStatus === 'idle' ||
-      practiceStatus === 'finished';
+      practiceStatus === 'idle';
 
     if (shouldClearFollowState) {
       followController.clear(container);

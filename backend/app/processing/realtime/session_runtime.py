@@ -166,6 +166,14 @@ class PracticeSessionRuntime:
     ) -> list["ResolvedPracticeAttempt"]:
         return self.engine.finalize_pending_practice_attempt(reason=reason)
 
+    def skip_current_expected_group(self) -> AlignmentUpdate | None:
+        alignment = self.engine.skip_current_expected_group()
+        if alignment is None:
+            return None
+        self.last_alignment = alignment
+        self.pending_alignment_updates += 1
+        return alignment
+
     def reset_input_buffer(self) -> None:
         self.audio_buffer.clear()
         self.engine.reset_input_buffer()
@@ -437,8 +445,8 @@ class PracticeSessionRuntimeRegistry:
                 start_expected_group_id=start_expected_group_id,
                 end_expected_group_id=end_expected_group_id,
             ),
-            is_ready_for_performance=input_source == "MIDI",
-            pending_ready_notification=input_source == "MIDI",
+            is_ready_for_performance=True,
+            pending_ready_notification=True,
         )
         self._runtimes[session_id] = runtime
         return runtime

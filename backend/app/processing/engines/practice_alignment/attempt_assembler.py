@@ -151,6 +151,10 @@ def attach_attempt_outcome(
         decision.pop("attempt_resolved_at_ms", None)
     decision["evaluator_version"] = outcome.evaluation.evaluator_version
     decision["policy_profile_version"] = outcome.policy_profile_version
+    decision["evaluation_result"] = outcome.evaluation.result
+    decision["matched_pitches"] = list(outcome.evaluation.matched_pitches)
+    decision["missing_pitches"] = list(outcome.evaluation.missing_pitches)
+    decision["extra_pitches"] = list(outcome.evaluation.extra_pitches)
 
 
 def resolved_attempt_from_outcome(

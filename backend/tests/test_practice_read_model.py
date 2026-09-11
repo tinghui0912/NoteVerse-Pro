@@ -66,11 +66,9 @@ def _performance_session(**overrides: object) -> SimpleNamespace:
 
 def _summary_payload(**overrides: object) -> str:
     payload: dict[str, object] = {
-        "summary": "Performance session completed.",
         "metrics": {},
-        "recommendations": [],
         "targets": [],
-        "difficult_measures": [],
+        "problem_measures": [],
     }
     payload.update(overrides)
     return json.dumps(payload)
@@ -150,8 +148,8 @@ def test_practice_read_model_parses_summary_payload() -> None:
         _session(
             summary_status=PracticeSessionSummaryStatus.READY,
             summary_payload=(
-                '{"summary":"done","metrics":{"confidence":0.91},'
-                '"recommendations":["keep going"]}'
+                '{"metrics":{"confidence":0.91},'
+                '"targets":[],"problem_measures":[]}'
             ),
         )
     )
@@ -159,9 +157,21 @@ def test_practice_read_model_parses_summary_payload() -> None:
     assert summary.session_id == "session-1"
     assert summary.summary_status == PracticeSessionSummaryStatus.READY
     assert summary.summary_payload is not None
-    assert summary.summary_payload.summary == "done"
     assert summary.summary_payload.metrics == {"confidence": 0.91}
-    assert summary.summary_payload.recommendations == ["keep going"]
+
+
+def test_practice_read_model_keeps_internal_summary_error_private() -> None:
+    summary = PracticeReadModel().to_session_summary_result(
+        _session(
+            summary_status=PracticeSessionSummaryStatus.FAILED,
+            summary_payload=None,
+            error="internal traceback with storage key and SQL detail",
+        )
+    )
+
+    assert summary.summary_status == PracticeSessionSummaryStatus.FAILED
+    assert summary.summary_payload is None
+    assert "error" not in summary.model_dump()
 
 
 @pytest.mark.asyncio
@@ -189,7 +199,6 @@ async def test_practice_read_model_exposes_full_piece_learning_outcome() -> None
     assert detail.completion_outcome.summary_artifact_kind == "LEARNING_SUMMARY"
     assert detail.completion_outcome.completion_reason == PracticeSessionCompletionReason.SCOPE_COMPLETED
     assert detail.completion_outcome.playback_expected is False
-    assert detail.completion_outcome.summary_available is False
 
 
 @pytest.mark.asyncio
@@ -218,7 +227,6 @@ async def test_practice_read_model_exposes_selected_section_outcome() -> None:
     assert detail.completion_outcome.scope_kind == "SELECTED_RANGE"
     assert detail.completion_outcome.summary_artifact_kind == "SECTION_SUMMARY"
     assert detail.completion_outcome.completion_reason == PracticeSessionCompletionReason.STOPPED_BY_USER
-    assert detail.completion_outcome.summary_available is False
 
 
 @pytest.mark.asyncio
@@ -249,7 +257,6 @@ async def test_practice_read_model_exposes_full_piece_learning_outcome_for_midi(
     assert detail.completion_outcome.scope_kind == "FULL_PIECE"
     assert detail.completion_outcome.summary_artifact_kind == "LEARNING_SUMMARY"
     assert detail.completion_outcome.playback_expected is False
-    assert detail.completion_outcome.summary_available is False
 
 
 @pytest.mark.asyncio
@@ -348,6 +355,7 @@ async def test_practice_read_model_exposes_evaluation_without_saved_performance_
         database,
         _performance_session(
             finished_at=SimpleNamespace(isoformat=lambda: "2026-09-05T10:30:00"),
+            input_source=PracticeInputSource.MIDI,
             summary_status=PracticeSessionSummaryStatus.READY,
             summary_payload=_summary_payload(
                 targets=[
@@ -379,6 +387,7 @@ async def test_practice_read_model_does_not_treat_empty_payload_as_report_evalua
     detail = await PracticeReadModel().to_session_detail(
         database,
         _performance_session(
+            input_source=PracticeInputSource.MIDI,
             summary_status=PracticeSessionSummaryStatus.READY,
             summary_payload=_summary_payload(
                 metrics={
@@ -408,6 +417,7 @@ async def test_practice_read_model_treats_zero_error_counts_as_known_evaluation(
     detail = await PracticeReadModel().to_session_detail(
         database,
         _performance_session(
+            input_source=PracticeInputSource.MIDI,
             summary_status=PracticeSessionSummaryStatus.READY,
             summary_payload=_summary_payload(
                 metrics={
@@ -422,6 +432,43 @@ async def test_practice_read_model_treats_zero_error_counts_as_known_evaluation(
 
     assert detail.performance_report_availability is not None
     assert detail.performance_report_availability.evaluation_available is True
+
+
+@pytest.mark.asyncio
+async def test_practice_read_model_keeps_microphone_performance_evaluation_unavailable() -> None:
+    database = AsyncMock()
+    database.get = AsyncMock(
+        side_effect=lambda model, _identity: (
+            SimpleNamespace(score_uuid="score-1")
+            if model is Score
+            else SimpleNamespace(revision_uuid="revision-1")
+        )
+    )
+
+    detail = await PracticeReadModel().to_session_detail(
+        database,
+        _performance_session(
+            input_source=PracticeInputSource.MICROPHONE,
+            summary_status=PracticeSessionSummaryStatus.READY,
+            summary_payload=_summary_payload(
+                metrics={
+                    "expected_outcome_count": 12,
+                    "matched_expected_groups": 12,
+                    "missing_strike_targets": 0,
+                    "extra_pitch_count": 0,
+                },
+                targets=[
+                    {
+                        "expected_group_id": "entry-1",
+                        "confirmed_correct_render_note_ids": ["n1"],
+                    }
+                ],
+            ),
+        ),
+    )
+
+    assert detail.performance_report_availability is not None
+    assert detail.performance_report_availability.evaluation_available is False
 
 
 @pytest.mark.asyncio
@@ -486,6 +533,7 @@ def test_practice_read_model_marks_saved_performance_evaluation_availability() -
     item = PracticeReadModel().to_saved_performance(
         _performance_session(
             finished_at=SimpleNamespace(isoformat=lambda: "2026-09-05T10:30:00"),
+            input_source=PracticeInputSource.MIDI,
             summary_status=PracticeSessionSummaryStatus.READY,
             summary_payload=_summary_payload(
                 metrics={

@@ -254,6 +254,31 @@
         "title": "ClientResumeMessage",
         "type": "object"
       },
+      "ClientSkipMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ClientTimestampPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "client.skip",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "payload"
+        ],
+        "title": "ClientSkipMessage",
+        "type": "object"
+      },
       "ClientTimestampPayload": {
         "additionalProperties": false,
         "properties": {
@@ -277,7 +302,8 @@
         "client.init": "#/$defs/ClientInitMessage",
         "client.midi_event": "#/$defs/ClientMidiEventMessage",
         "client.pause": "#/$defs/ClientPauseMessage",
-        "client.resume": "#/$defs/ClientResumeMessage"
+        "client.resume": "#/$defs/ClientResumeMessage",
+        "client.skip": "#/$defs/ClientSkipMessage"
       },
       "propertyName": "type"
     },
@@ -293,6 +319,9 @@
       },
       {
         "$ref": "#/$defs/ClientFinishMessage"
+      },
+      {
+        "$ref": "#/$defs/ClientSkipMessage"
       },
       {
         "$ref": "#/$defs/ClientHeartbeatMessage"
@@ -318,7 +347,8 @@
             "enum": [
               "advance",
               "hold",
-              "wait"
+              "wait",
+              "skip"
             ],
             "title": "Action",
             "type": "string"
@@ -425,7 +455,8 @@
               "possible_wrong_note",
               "recovering",
               "lost",
-              "paused"
+              "paused",
+              "skipped"
             ],
             "title": "Experience State",
             "type": "string"
@@ -451,7 +482,11 @@
               "low_alignment_confidence",
               "holding_position",
               "reacquiring",
-              "large_jump"
+              "large_jump",
+              "practice_paused",
+              "practice_finished",
+              "connection_closed",
+              "user_skipped"
             ],
             "title": "Reason",
             "type": "string"
@@ -1216,10 +1251,6 @@
             ],
             "title": "Summary Artifact Kind",
             "type": "string"
-          },
-          "summary_available": {
-            "title": "Summary Available",
-            "type": "boolean"
           }
         },
         "required": [
@@ -1227,8 +1258,7 @@
           "scope_kind",
           "summary_artifact_kind",
           "completion_reason",
-          "playback_expected",
-          "summary_available"
+          "playback_expected"
         ],
         "title": "SessionCompletionOutcomePayload",
         "type": "object"

@@ -38,10 +38,10 @@ vi.mock('next-intl', () => ({
       savedPerformancesSingleMeasure: '第 {measure} 小节',
       savedPerformancesMeasureRange: '第 {start}-{end} 小节',
       viewSavedPerformance: '查看',
-      deleteSavedPerformance: '删除回放',
-      deleteSavedPerformanceTitle: '删除回放？',
+      deleteSavedPerformance: '删除已保存演奏',
+      deleteSavedPerformanceTitle: '删除已保存演奏？',
       deleteSavedPerformanceDesc: '删除后，这次演奏将从“已保存演奏”中移除。',
-      savedPerformanceDeleted: '已删除回放',
+      savedPerformanceDeleted: '已删除已保存演奏',
       savedPerformanceDeletedDesc: '这次保存的演奏已从列表中移除。',
       savedPerformanceDeleteFailed: '删除失败',
       savedPerformanceDeleteFailedDesc: '暂时无法删除这次回放，请稍后重试。',
@@ -149,8 +149,8 @@ describe('ScoreSavedPerformancesPanel', () => {
     renderPanel();
 
     await waitFor(() => expect(screen.getByText('全曲')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /删除回放/ }));
-    fireEvent.click(screen.getByRole('button', { name: '删除回放' }));
+    fireEvent.click(screen.getByRole('button', { name: /删除已保存演奏/ }));
+    fireEvent.click(screen.getByRole('button', { name: '删除已保存演奏' }));
 
     await waitFor(() =>
       expect(mocks.deletePracticeReplayArtifact).toHaveBeenCalledWith('session-1', 'artifact-1')

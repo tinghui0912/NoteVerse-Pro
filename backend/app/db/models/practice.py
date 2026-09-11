@@ -70,6 +70,7 @@ class PracticeAttemptResult(str, enum.Enum):
     PARTIAL = "PARTIAL"
     MISMATCH = "MISMATCH"
     UNCERTAIN = "UNCERTAIN"
+    SKIPPED = "SKIPPED"
     OTHER = "OTHER"
 
 
@@ -90,6 +91,7 @@ class PracticeAttemptResolutionReason(str, enum.Enum):
     PRACTICE_PAUSED = "practice_paused"
     PRACTICE_FINISHED = "practice_finished"
     CONNECTION_CLOSED = "connection_closed"
+    USER_SKIPPED = "user_skipped"
 
 
 def _enum_values(enum_class: type[enum.Enum]) -> list[str]:

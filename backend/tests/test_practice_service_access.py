@@ -124,11 +124,9 @@ async def test_list_saved_performances_returns_saved_replay_entries() -> None:
     saved_session.summary_status = PracticeSessionSummaryStatus.READY
     saved_session.summary_payload = json.dumps(
         {
-            "summary": "No durable evaluation.",
             "metrics": {"expected_outcome_count": 0},
-            "recommendations": [],
             "targets": [],
-            "difficult_measures": [],
+            "problem_measures": [],
         }
     )
 
@@ -368,7 +366,7 @@ async def test_finish_marks_practice_and_releases_its_runtime() -> None:
     session = _session(state=PracticeSessionState.PAUSED)
     service, repository, runtime_registry, library_service = _service_with_session(session)
     service.summary_builder = Mock()
-    service.summary_builder.build.return_value = {"summary": "Finished"}
+    service.summary_builder.build.return_value = {"metrics": {}, "targets": [], "problem_measures": []}
     database = Mock()
     database.commit = AsyncMock()
 
@@ -387,7 +385,7 @@ async def test_scope_completion_finish_records_completion_reason() -> None:
     session = _session(state=PracticeSessionState.STREAMING)
     service, _repository, _runtime, _library = _service_with_session(session)
     service.summary_builder = Mock()
-    service.summary_builder.build.return_value = {"summary": "Complete"}
+    service.summary_builder.build.return_value = {"metrics": {}, "targets": [], "problem_measures": []}
     database = Mock()
     database.commit = AsyncMock()
 
@@ -448,7 +446,11 @@ async def test_build_summary_persists_a_ready_summary_payload() -> None:
     session.completion_reason = PracticeSessionCompletionReason.STOPPED_BY_USER
     service, repository, _runtime, _library = _service_with_session(session)
     summary_builder = Mock()
-    summary_builder.build.return_value = {"summary": "Strong timing"}
+    summary_builder.build.return_value = {
+        "metrics": {"confidence": 0.91},
+        "targets": [],
+        "problem_measures": [],
+    }
     service.summary_builder = summary_builder
     database = Mock()
     database.commit = AsyncMock()
@@ -456,7 +458,11 @@ async def test_build_summary_persists_a_ready_summary_payload() -> None:
     await service.build_summary_for_finished_session(database, "session-1", 7)
 
     assert session.summary_status == PracticeSessionSummaryStatus.READY
-    assert json.loads(session.summary_payload) == {"summary": "Strong timing"}
+    assert json.loads(session.summary_payload) == {
+        "metrics": {"confidence": 0.91},
+        "targets": [],
+        "problem_measures": [],
+    }
     assert session.error is None
     repository.list_attempts_for_session.assert_awaited_once_with(database, 1)
     repository.save_session.assert_awaited_once_with(database, session)
@@ -477,9 +483,7 @@ async def test_build_summary_records_failure_without_reopening_finished_session(
     assert result == {"state": PracticeSessionState.FINISHED}
     assert session.state == PracticeSessionState.FINISHED
     assert session.summary_status == PracticeSessionSummaryStatus.FAILED
-    assert json.loads(session.summary_payload) == {
-        "summary": "Practice summary generation failed."
-    }
+    assert session.summary_payload is None
     assert session.error == "internal summary builder error"
     repository.save_session.assert_awaited_once_with(database, session)
 

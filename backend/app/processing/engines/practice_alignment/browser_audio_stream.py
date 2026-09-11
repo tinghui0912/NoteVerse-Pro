@@ -21,7 +21,6 @@ from app.processing.engines.practice_alignment.audio_features import feature_mat
 from app.processing.engines.practice_alignment.contracts import InputHealth, InputLevel, InputNoise
 from app.processing.engines.practice_alignment.stream_state import (
     STREAM_STATE_ARMED,
-    STREAM_STATE_CALIBRATING,
 )
 
 HIGH_CONFIDENCE_START_FEATURE_MATCH = 0.98
@@ -50,7 +49,7 @@ class BrowserAudioStreamAdapter:
         start_rms_gate: float,
         start_peak_gate: float,
         min_active_frames: int,
-        warmup_frames: int,
+        calibration_sample_count: int,
         rms_noise_multiplier: float,
         peak_noise_multiplier: float,
         diagnostics_enabled: bool,
@@ -72,7 +71,7 @@ class BrowserAudioStreamAdapter:
         self.start_rms_gate = start_rms_gate
         self.start_peak_gate = start_peak_gate
         self.min_active_frames = min_active_frames
-        self.warmup_frames = warmup_frames
+        self.calibration_sample_count = max(calibration_sample_count, 0)
         self.tonal_gate_enabled = tonal_gate_enabled
         self.max_spectral_flatness = max_spectral_flatness
         self.min_peak_prominence = min_peak_prominence
@@ -107,7 +106,7 @@ class BrowserAudioStreamAdapter:
             peak_noise_multiplier=peak_noise_multiplier,
         )
         self.activity_state = PracticeActivityStateMachine(
-            warmup_frames=warmup_frames,
+            calibration_sample_count=self.calibration_sample_count,
             no_input_frames=no_input_frames,
         )
         self.last_chunk = None
@@ -132,8 +131,8 @@ class BrowserAudioStreamAdapter:
         window_frames = start_feature_window_frames or self.min_active_frames + 1
         self.start_feature_window_frames = max(window_frames, self.min_active_frames)
         self._start_feature_candidates: list[tuple[int, float | None, str]] = []
-        self._warmup_rms_values: list[float] = []
-        self._warmup_peak_values: list[float] = []
+        self._calibration_rms_values: list[float] = []
+        self._calibration_peak_values: list[float] = []
 
     @property
     def session_keepalive_frames(self) -> int:
@@ -166,20 +165,12 @@ class BrowserAudioStreamAdapter:
             rms,
             peak,
         )
-        if self.total_frames <= self.warmup_frames:
-            self._record_warmup_signal(rms, peak)
-            self._collect_noise_floor(rms, peak)
-            self.activity_state.reject(STREAM_STATE_CALIBRATING)
-            if self.total_frames == self.warmup_frames:
-                self.activity_state.mark_armed()
-            self.last_gate_reason = "warmup_calibration"
-            self.last_queue_decision = "warmup"
-            self._log_diagnostics("warmup", rms, peak)
-            return False
+        collected_noise_sample = self._collect_initial_noise_estimate(rms, peak, audio_frame.size)
 
         if not self.started:
             self.stream_state = STREAM_STATE_ARMED
-            self._maybe_update_runtime_noise_floor(rms, peak)
+            if not collected_noise_sample:
+                self._maybe_update_runtime_noise_floor(rms, peak)
             if audio_frame.size == 0 or not has_start_signal:
                 self.activity_state.clear_start_signal()
                 self.activity_state.reject()
@@ -376,6 +367,10 @@ class BrowserAudioStreamAdapter:
         self.calibrator.calibrated_flux_gate = value
 
     @property
+    def noise_estimate_warming(self) -> bool:
+        return not self.activity_state.calibration_complete
+
+    @property
     def _noise_rms_values(self) -> list[float]:
         return self.calibrator.noise_rms_values
 
@@ -535,8 +530,17 @@ class BrowserAudioStreamAdapter:
         )
         self.activity_state.update_runtime_activity(is_active)
 
-    def _collect_noise_floor(self, rms: float, peak: float) -> None:
-        self.calibrator.collect_noise_floor(self._last_features(rms, peak))
+    def _collect_noise_floor(self, rms: float, peak: float) -> bool:
+        return self.calibrator.collect_noise_floor(self._last_features(rms, peak))
+
+    def _collect_initial_noise_estimate(self, rms: float, peak: float, sample_count: int) -> bool:
+        if not self.noise_estimate_warming:
+            return False
+        if not self._collect_noise_floor(rms, peak):
+            return False
+        self.activity_state.record_calibration_samples(sample_count)
+        self._record_calibration_signal(rms, peak)
+        return True
 
     def _maybe_update_runtime_noise_floor(self, rms: float, peak: float) -> None:
         self.calibrator.maybe_update_runtime_noise_floor(self._last_features(rms, peak))
@@ -553,20 +557,20 @@ class BrowserAudioStreamAdapter:
             ),
         )
 
-    def _record_warmup_signal(self, rms: float, peak: float) -> None:
-        self._warmup_rms_values.append(rms)
-        self._warmup_peak_values.append(peak)
+    def _record_calibration_signal(self, rms: float, peak: float) -> None:
+        self._calibration_rms_values.append(rms)
+        self._calibration_peak_values.append(peak)
 
     @property
     def input_health(self) -> InputHealth:
-        rms_p90, peak_p90 = self._warmup_percentiles()
+        rms_p90, peak_p90 = self._calibration_percentiles()
 
         level: InputLevel = "good"
         if peak_p90 >= CLIPPING_PEAK_THRESHOLD or self.last_peak >= CLIPPING_PEAK_THRESHOLD:
             level = "clipping"
         elif (
             self.armed
-            and self.total_frames > self.warmup_frames
+            and self.activity_state.calibration_complete
             and self.no_input_streak >= min(TOO_QUIET_NO_INPUT_FRAMES, self.no_input_frames)
             and self.last_rms < self.rms_gate * TOO_QUIET_GATE_RATIO
             and self.last_peak < self.peak_gate * TOO_QUIET_GATE_RATIO
@@ -591,7 +595,14 @@ class BrowserAudioStreamAdapter:
         ):
             noise = "elevated"
 
-        confidence = min(1.0, len(self._warmup_rms_values) / max(self.warmup_frames, 1))
+        confidence = (
+            1.0
+            if self.calibration_sample_count <= 0
+            else min(
+                1.0,
+                self.activity_state.calibration_samples / self.calibration_sample_count,
+            )
+        )
         return {
             "available": True,
             "level": level,
@@ -599,17 +610,17 @@ class BrowserAudioStreamAdapter:
             "confidence": round(confidence, 3),
         }
 
-    def _warmup_percentiles(self) -> tuple[float, float]:
-        if not self._warmup_rms_values or not self._warmup_peak_values:
+    def _calibration_percentiles(self) -> tuple[float, float]:
+        if not self._calibration_rms_values or not self._calibration_peak_values:
             return 0.0, 0.0
         return (
-            float(self.np.percentile(self._warmup_rms_values, 90)),
-            float(self.np.percentile(self._warmup_peak_values, 90)),
+            float(self.np.percentile(self._calibration_rms_values, 90)),
+            float(self.np.percentile(self._calibration_peak_values, 90)),
         )
 
     def _current_frame_can_update_noise_health(self) -> bool:
         return (
-            self.armed
+            (self.armed or self.noise_estimate_warming)
             and not self.last_tonal_signal
             and not self.last_onset_signal
             and self.last_frame_class != "tonal"

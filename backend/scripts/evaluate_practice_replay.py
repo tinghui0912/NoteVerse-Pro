@@ -4,14 +4,23 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict
+import hashlib
 import json
 from pathlib import Path
 import time
 import wave
+import xml.etree.ElementTree as ET
 
 import numpy as np
 
+from app.processing.engines.practice_alignment.acoustic_evidence_provider import (
+    AcousticEvidenceProvider,
+)
 from app.processing.engines.practice_alignment.matchmaker_live import MatchmakerLiveEngine
+from app.processing.engines.practice_alignment.expected_event_evaluator import (
+    EvaluatorEvidence,
+    ExpectedEventEvaluator,
+)
 from app.processing.engines.practice_alignment.profile import (
     DEFAULT_PRACTICE_AUDIO_PROFILE,
     PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID,
@@ -19,9 +28,41 @@ from app.processing.engines.practice_alignment.profile import (
 from app.processing.engines.practice_alignment.target_catalog import (
     practice_target_catalog_from_musicxml,
 )
+from app.processing.engines.practice_alignment.target_conditioned_acoustic_observation import (
+    TargetConditionedPianoObserver,
+)
+from app.processing.engines.practice_alignment.transcription_midi_evidence_provider import (
+    DEFAULT_TRANSCRIPTION_MIDI_PROVIDER_ID,
+    TranscriptionMidiEvidenceProvider,
+)
+from app.processing.practice_score.score_loader import practice_score_timeline_from_musicxml
 
 
 RELIABLE_ALIGNMENT_CONFIDENCE = 0.75
+SHADOW_RUNTIME_WINDOW_SECONDS = 0.5
+SHADOW_RUNTIME_HOP_SECONDS = 0.1
+SHADOW_RUNTIME_MAX_ATTEMPT_SECONDS = 1.2
+BENCHMARK_SCOPE_BASELINE_RUNTIME = "baseline_runtime_replay"
+BENCHMARK_SCOPE_OBSERVER_WINDOW = "observer_window_replay"
+BENCHMARK_SCOPE_CAUSAL_SHADOW_RUNTIME = "causal_shadow_runtime_replay"
+BENCHMARK_SCOPE_OFFLINE_SCORE_ALIGNED_ORACLE = "offline_score_aligned_oracle"
+
+BENCHMARK_METRIC_PRIORITY = (
+    "false_match_count",
+    "score_expected_strike_coverage",
+    "expected_strike_recall",
+    "expected_strike_precision",
+    "chord_complete_detection_rate",
+    "median_time_to_match_ms",
+    "p95_time_to_match_ms",
+    "per_pitch_extra_rate",
+    "uncertain_rate",
+)
+PROGRESSION_AUTHORITY_BENCHMARK_SCOPES = {
+    BENCHMARK_SCOPE_BASELINE_RUNTIME,
+    BENCHMARK_SCOPE_CAUSAL_SHADOW_RUNTIME,
+}
+PHYSICAL_GROUND_TRUTH_SOURCES = {"paired_midi", "synthetic"}
 
 
 def slim_alignment_update(update: dict) -> dict:
@@ -44,6 +85,15 @@ def slim_alignment_update(update: dict) -> dict:
         "decision_action": decision.get("action"),
         "decision_reason": decision.get("reason"),
         "decision_anchor_beat": anchor.get("beat"),
+        "attempt_state": decision.get("attempt_state"),
+        "attempt_sequence": decision.get("attempt_sequence"),
+        "attempt_started_at_ms": decision.get("attempt_started_at_ms"),
+        "attempt_resolved_at_ms": decision.get("attempt_resolved_at_ms"),
+        "evaluator_version": decision.get("evaluator_version"),
+        "evaluation_result": decision.get("evaluation_result"),
+        "matched_pitches": decision.get("matched_pitches"),
+        "missing_pitches": decision.get("missing_pitches"),
+        "extra_pitches": decision.get("extra_pitches"),
     }
 
 
@@ -81,6 +131,946 @@ def accepted_alignment_events(
             }
         )
     return events
+
+
+def attempt_events(
+    updates: list[dict],
+    update_samples: list[int],
+    sample_rate: int,
+    target_contexts: dict[str, dict] | None = None,
+) -> list[dict]:
+    events: list[dict] = []
+    for index, update in enumerate(updates):
+        decision = update.get("decision") or {}
+        attempt_sequence = decision.get("attempt_sequence")
+        if attempt_sequence is None:
+            continue
+        anchor = decision.get("display_anchor") or {}
+        event = {
+            "update_index": index,
+            "seconds": round(update_samples[index] / sample_rate, 3),
+            "beat_position": update.get("beat_position"),
+            "anchor_beat": anchor.get("beat"),
+            "attempt_state": decision.get("attempt_state"),
+            "attempt_sequence": attempt_sequence,
+            "attempt_started_at_ms": decision.get("attempt_started_at_ms"),
+            "attempt_resolved_at_ms": decision.get("attempt_resolved_at_ms"),
+            "decision_action": decision.get("action"),
+            "decision_reason": decision.get("reason"),
+            "experience_state": decision.get("experience_state"),
+            "evaluator_version": decision.get("evaluator_version"),
+            "evaluation_result": decision.get("evaluation_result"),
+            "matched_pitches": decision.get("matched_pitches"),
+            "missing_pitches": decision.get("missing_pitches"),
+            "extra_pitches": decision.get("extra_pitches"),
+            "scope_completed": update.get("scope_completed", False),
+            "confidence": update.get("confidence"),
+            "validation_confidence": update.get("validation_confidence"),
+            "input_policy_confidence": update.get("input_policy_confidence"),
+            "gate_reason": update.get("gate_reason"),
+            "queue_decision": update.get("queue_decision"),
+            "tonal_signal": update.get("tonal_signal"),
+            "onset_signal": update.get("onset_signal"),
+            "alignment_state": update.get("alignment_state"),
+        }
+        if target_contexts is not None:
+            event.update(_attempt_target_context(event, anchor, target_contexts))
+        events.append(event)
+    return events
+
+
+def target_contexts_from_score(score_path: Path) -> dict[str, dict]:
+    measure_start_beats = _measure_start_beats(score_path)
+    catalog = practice_target_catalog_from_musicxml(score_path)
+    contexts: dict[str, dict] = {}
+    for target in catalog.targets:
+        measure_number = target.measure_numbers[0] if target.measure_numbers else None
+        measure_start = (
+            None if measure_number is None else measure_start_beats.get(measure_number)
+        )
+        contexts[target.group_id] = {
+            "index": target.index,
+            "group_id": target.group_id,
+            "onset_beat": target.onset_beat,
+            "measure_number": measure_number,
+            "beat_in_measure": (
+                None
+                if measure_start is None
+                else round(float(target.onset_beat) - measure_start + 1.0, 3)
+            ),
+            "expected_pitches": list(target.pitches),
+            "render_note_ids": list(target.render_note_ids),
+        }
+    return contexts
+
+
+def _attempt_target_context(
+    event: dict,
+    anchor: dict,
+    contexts_by_group_id: dict[str, dict],
+) -> dict:
+    display_group_id = anchor.get("group_id")
+    display_context = _context_for_group_id(display_group_id, contexts_by_group_id)
+    evaluated_context = display_context
+    if (
+        event.get("decision_action") == "advance"
+        and event.get("evaluation_result") == "MATCH"
+        and not event.get("scope_completed")
+        and display_context is not None
+    ):
+        evaluated_context = _context_by_index(
+            int(display_context["index"]) - 1,
+            contexts_by_group_id,
+        )
+    return {
+        "display_target": display_context,
+        "evaluated_target": evaluated_context,
+    }
+
+
+def _context_for_group_id(group_id: str | None, contexts_by_group_id: dict[str, dict]) -> dict | None:
+    if group_id is None:
+        return None
+    return contexts_by_group_id.get(group_id)
+
+
+def _context_by_index(index: int, contexts_by_group_id: dict[str, dict]) -> dict | None:
+    return next(
+        (
+            context
+            for context in contexts_by_group_id.values()
+            if int(context["index"]) == index
+        ),
+        None,
+    )
+
+
+def benchmark_summary(
+    attempts: list[dict],
+    annotated_events: dict | None = None,
+    *,
+    benchmark_scope: str = BENCHMARK_SCOPE_BASELINE_RUNTIME,
+    ground_truth_source: str = "score_expectation",
+) -> dict:
+    resolved_attempts = [
+        attempt
+        for attempt in attempts
+        if attempt.get("attempt_state") == "resolved"
+        and attempt.get("evaluation_result") is not None
+    ]
+    expected_strikes = sum(_expected_strike_count(attempt) for attempt in resolved_attempts)
+    matched_strikes = sum(len(attempt.get("matched_pitches") or []) for attempt in resolved_attempts)
+    extra_pitches = sum(len(attempt.get("extra_pitches") or []) for attempt in resolved_attempts)
+    chord_attempts = [
+        attempt for attempt in resolved_attempts if _expected_strike_count(attempt) > 1
+    ]
+    complete_chord_attempts = [
+        attempt
+        for attempt in chord_attempts
+        if attempt.get("evaluation_result") == "MATCH"
+        and len(attempt.get("missing_pitches") or []) == 0
+    ]
+    match_latencies = [
+        resolved_at - started_at
+        for attempt in resolved_attempts
+        if attempt.get("evaluation_result") == "MATCH"
+        and (started_at := attempt.get("attempt_started_at_ms")) is not None
+        and (resolved_at := attempt.get("attempt_resolved_at_ms")) is not None
+        and resolved_at >= started_at
+    ]
+    progression_authority = benchmark_scope in PROGRESSION_AUTHORITY_BENCHMARK_SCOPES
+    offline_score_aligned = benchmark_scope == BENCHMARK_SCOPE_OFFLINE_SCORE_ALIGNED_ORACLE
+    has_physical_ground_truth = ground_truth_source in PHYSICAL_GROUND_TRUTH_SOURCES
+    false_match_count = sum(
+        1
+        for attempt in attempts
+        if attempt.get("decision_action") == "advance"
+        and attempt.get("evaluation_result") not in {None, "MATCH"}
+    )
+    annotated_false_advance_count = sum(
+        int(metrics.get("accepted_outside_region", 0))
+        for metrics in (annotated_events or {}).values()
+    )
+    uncertain_attempts = sum(
+        1 for attempt in resolved_attempts if attempt.get("evaluation_result") == "UNCERTAIN"
+    )
+
+    scope_metadata = _benchmark_scope_metadata(benchmark_scope)
+    return {
+        "benchmark_scope": benchmark_scope,
+        **scope_metadata,
+        "ground_truth_source": ground_truth_source,
+        "progression_authority": progression_authority,
+        "metric_priority": list(BENCHMARK_METRIC_PRIORITY),
+        "attempt_count": len(resolved_attempts),
+        "expected_strike_count": expected_strikes,
+        "matched_strike_count": matched_strikes,
+        "extra_pitch_count": extra_pitches,
+        "false_match_count": None if offline_score_aligned else false_match_count,
+        "false_advance_guard_count": false_match_count if progression_authority else None,
+        "annotated_false_advance_count": annotated_false_advance_count,
+        "score_expected_strike_coverage": _ratio(matched_strikes, expected_strikes),
+        "expected_strike_recall": _ratio(matched_strikes, expected_strikes)
+        if has_physical_ground_truth
+        else None,
+        "expected_strike_precision": _ratio(matched_strikes, matched_strikes + extra_pitches)
+        if has_physical_ground_truth
+        else None,
+        "chord_attempt_count": len(chord_attempts),
+        "chord_complete_detection_rate": _ratio(
+            len(complete_chord_attempts),
+            len(chord_attempts),
+        ),
+        "per_pitch_extra_rate": _ratio(extra_pitches, expected_strikes),
+        "median_time_to_match_ms": None
+        if offline_score_aligned
+        else _percentile(match_latencies, 50),
+        "p95_time_to_match_ms": None
+        if offline_score_aligned
+        else _percentile(match_latencies, 95),
+        "uncertain_rate": _ratio(uncertain_attempts, len(resolved_attempts)),
+        "diagnostic_reason_counts": diagnostic_reason_counts(attempts),
+    }
+
+
+def _benchmark_scope_metadata(benchmark_scope: str) -> dict[str, object]:
+    if benchmark_scope == BENCHMARK_SCOPE_BASELINE_RUNTIME:
+        return {
+            "causal": True,
+            "uses_future_context": False,
+            "evidence_horizon_ms": 0,
+        }
+    if benchmark_scope == BENCHMARK_SCOPE_CAUSAL_SHADOW_RUNTIME:
+        return {
+            "causal": True,
+            "uses_future_context": False,
+            "evidence_horizon_ms": int(round(SHADOW_RUNTIME_WINDOW_SECONDS * 1000)),
+        }
+    if benchmark_scope == BENCHMARK_SCOPE_OBSERVER_WINDOW:
+        return {
+            "causal": False,
+            "uses_future_context": True,
+            "evidence_horizon_ms": None,
+        }
+    if benchmark_scope == BENCHMARK_SCOPE_OFFLINE_SCORE_ALIGNED_ORACLE:
+        return {
+            "causal": False,
+            "uses_future_context": True,
+            "evidence_horizon_ms": None,
+        }
+    return {
+        "causal": None,
+        "uses_future_context": None,
+        "evidence_horizon_ms": None,
+    }
+
+
+def target_conditioned_shadow_runtime_benchmark(
+    *,
+    audio: np.ndarray,
+    sample_rate: int,
+    score_path: Path,
+    practice_scope: dict[str, str | None],
+    target_contexts: dict[str, dict] | None = None,
+    provider: AcousticEvidenceProvider | None = None,
+) -> dict:
+    evidence_provider = provider or TargetConditionedPianoObserver()
+    attempts = target_conditioned_shadow_runtime_attempts(
+        audio=audio,
+        sample_rate=sample_rate,
+        score_path=score_path,
+        practice_scope=practice_scope,
+        target_contexts=target_contexts,
+        provider=evidence_provider,
+    )
+    return {
+        "benchmark_scope": BENCHMARK_SCOPE_CAUSAL_SHADOW_RUNTIME,
+        "progression_authority": True,
+        "candidate": evidence_provider.descriptor.provider_id,
+        "provider": asdict(evidence_provider.descriptor),
+        "status": "experimental",
+        "attempt_events": attempts[-40:],
+        "benchmark_summary": benchmark_summary(
+            attempts,
+            benchmark_scope=BENCHMARK_SCOPE_CAUSAL_SHADOW_RUNTIME,
+        ),
+        "runtime_parameters": {
+            "window_seconds": SHADOW_RUNTIME_WINDOW_SECONDS,
+            "hop_seconds": SHADOW_RUNTIME_HOP_SECONDS,
+            "max_attempt_seconds": SHADOW_RUNTIME_MAX_ATTEMPT_SECONDS,
+        },
+    }
+
+
+def target_conditioned_shadow_runtime_attempts(
+    *,
+    audio: np.ndarray,
+    sample_rate: int,
+    score_path: Path,
+    practice_scope: dict[str, str | None],
+    target_contexts: dict[str, dict] | None = None,
+    provider: AcousticEvidenceProvider | None = None,
+) -> list[dict]:
+    groups = _scoped_expected_groups(
+        practice_score_timeline_from_musicxml(score_path).expected_practice_groups,
+        start_group_id=practice_scope.get("start_expected_group_id"),
+        end_group_id=practice_scope.get("end_expected_group_id"),
+    )
+    if not groups or sample_rate <= 0:
+        return []
+
+    evidence_provider = provider or TargetConditionedPianoObserver()
+    evaluator = ExpectedEventEvaluator()
+    window_samples = max(1, int(round(SHADOW_RUNTIME_WINDOW_SECONDS * sample_rate)))
+    hop_samples = max(1, int(round(SHADOW_RUNTIME_HOP_SECONDS * sample_rate)))
+    max_attempt_ms = int(round(SHADOW_RUNTIME_MAX_ATTEMPT_SECONDS * 1000))
+
+    attempts: list[dict] = []
+    group_index = 0
+    attempt_sequence = 0
+    attempt_started_at_ms: int | None = None
+    last_evaluation = None
+    last_observation = None
+    end_start = max(0, audio.size - window_samples)
+    for start_sample in range(0, end_start + 1, hop_samples):
+        if group_index >= len(groups):
+            break
+        end_sample = start_sample + window_samples
+        window = audio[start_sample:end_sample]
+        if not _audio_window_active(window):
+            continue
+
+        now_ms = int(round(end_sample * 1000 / sample_rate))
+        expected_group = groups[group_index]
+        if attempt_started_at_ms is None:
+            attempt_sequence += 1
+            attempt_started_at_ms = int(round(start_sample * 1000 / sample_rate))
+
+        observation = evidence_provider.observe_expected_group(
+            window,
+            expected_group=expected_group,
+            sample_rate=sample_rate,
+            np_module=np,
+            onset_beat=expected_group.onset_beat,
+            window_start_seconds=round(start_sample / sample_rate, 6),
+            window_end_seconds=round(end_sample / sample_rate, 6),
+        )
+        evaluation = evaluator.evaluate(
+            expected_group,
+            EvaluatorEvidence.from_audio(observation.to_audio_observation()),
+        )
+        last_evaluation = evaluation
+        last_observation = observation
+
+        if evaluation.result == "MATCH":
+            next_group = groups[group_index + 1] if group_index + 1 < len(groups) else expected_group
+            attempts.append(
+                _shadow_runtime_attempt_event(
+                    update_index=len(attempts),
+                    seconds=round(end_sample / sample_rate, 3),
+                    expected_group=expected_group,
+                    display_group=next_group,
+                    attempt_sequence=attempt_sequence,
+                    attempt_started_at_ms=attempt_started_at_ms,
+                    attempt_resolved_at_ms=now_ms,
+                    evaluation=evaluation,
+                    observation=observation,
+                    provider_id=evidence_provider.descriptor.provider_id,
+                    action="advance",
+                    reason="stable_match",
+                    scope_completed=group_index + 1 >= len(groups),
+                    target_contexts=target_contexts,
+                )
+            )
+            group_index += 1
+            attempt_started_at_ms = None
+            last_evaluation = None
+            last_observation = None
+            continue
+
+        if now_ms - attempt_started_at_ms >= max_attempt_ms:
+            attempts.append(
+                _shadow_runtime_attempt_event(
+                    update_index=len(attempts),
+                    seconds=round(end_sample / sample_rate, 3),
+                    expected_group=expected_group,
+                    display_group=expected_group,
+                    attempt_sequence=attempt_sequence,
+                    attempt_started_at_ms=attempt_started_at_ms,
+                    attempt_resolved_at_ms=now_ms,
+                    evaluation=evaluation,
+                    observation=observation,
+                    provider_id=evidence_provider.descriptor.provider_id,
+                    action="wait",
+                    reason="candidate_attempt_timeout",
+                    scope_completed=False,
+                    target_contexts=target_contexts,
+                )
+            )
+            attempt_started_at_ms = None
+
+    if attempt_started_at_ms is not None and last_evaluation is not None and last_observation is not None:
+        expected_group = groups[group_index]
+        attempts.append(
+            _shadow_runtime_attempt_event(
+                update_index=len(attempts),
+                seconds=round(audio.size / sample_rate, 3),
+                expected_group=expected_group,
+                display_group=expected_group,
+                attempt_sequence=attempt_sequence,
+                attempt_started_at_ms=attempt_started_at_ms,
+                attempt_resolved_at_ms=int(round(audio.size * 1000 / sample_rate)),
+                evaluation=last_evaluation,
+                observation=last_observation,
+                provider_id=evidence_provider.descriptor.provider_id,
+                action="wait",
+                reason="candidate_stream_end",
+                scope_completed=False,
+                target_contexts=target_contexts,
+            )
+        )
+    return attempts
+
+
+def offline_score_aligned_oracle_benchmark(
+    *,
+    score_path: Path,
+    practice_scope: dict[str, str | None],
+    target_contexts: dict[str, dict] | None = None,
+    provider: AcousticEvidenceProvider,
+) -> dict:
+    attempts = offline_score_aligned_oracle_attempts(
+        score_path=score_path,
+        practice_scope=practice_scope,
+        target_contexts=target_contexts,
+        provider=provider,
+    )
+    return {
+        "benchmark_scope": BENCHMARK_SCOPE_OFFLINE_SCORE_ALIGNED_ORACLE,
+        "progression_authority": False,
+        "candidate": provider.descriptor.provider_id,
+        "provider": asdict(provider.descriptor),
+        "status": "offline_oracle",
+        "attempt_events": attempts[-40:],
+        "benchmark_summary": benchmark_summary(
+            attempts,
+            benchmark_scope=BENCHMARK_SCOPE_OFFLINE_SCORE_ALIGNED_ORACLE,
+        ),
+    }
+
+
+def offline_score_aligned_oracle_attempts(
+    *,
+    score_path: Path,
+    practice_scope: dict[str, str | None],
+    target_contexts: dict[str, dict] | None = None,
+    provider: AcousticEvidenceProvider,
+) -> list[dict]:
+    groups = _scoped_expected_groups(
+        practice_score_timeline_from_musicxml(score_path).expected_practice_groups,
+        start_group_id=practice_scope.get("start_expected_group_id"),
+        end_group_id=practice_scope.get("end_expected_group_id"),
+    )
+    if not groups:
+        return []
+
+    evaluator = ExpectedEventEvaluator()
+    attempts: list[dict] = []
+    alignment = getattr(provider, "alignment", None)
+    tolerance_seconds = float(getattr(alignment, "tolerance_seconds", 0.12) or 0.12)
+    group_times = getattr(alignment, "group_time_seconds_by_id", {}) or {}
+    for index, expected_group in enumerate(groups):
+        aligned_seconds = group_times.get(expected_group.group_id)
+        window_start_seconds = (
+            max(0.0, aligned_seconds - tolerance_seconds)
+            if aligned_seconds is not None
+            else 0.0
+        )
+        window_end_seconds = (
+            aligned_seconds + tolerance_seconds
+            if aligned_seconds is not None
+            else 0.0
+        )
+        observation = provider.observe_expected_group(
+            (),
+            expected_group=expected_group,
+            sample_rate=0,
+            np_module=np,
+            onset_beat=expected_group.onset_beat,
+            window_start_seconds=window_start_seconds,
+            window_end_seconds=window_end_seconds,
+        )
+        evaluation = evaluator.evaluate(
+            expected_group,
+            EvaluatorEvidence.from_audio(observation.to_audio_observation()),
+        )
+        attempts.append(
+            {
+                "update_index": index,
+                "seconds": None if aligned_seconds is None else round(aligned_seconds, 3),
+                "beat_position": expected_group.onset_beat,
+                "anchor_beat": expected_group.onset_beat,
+                "attempt_state": "resolved",
+                "attempt_sequence": index + 1,
+                "attempt_started_at_ms": None,
+                "attempt_resolved_at_ms": None,
+                "decision_action": "project",
+                "decision_reason": "offline_score_aligned_projection",
+                "experience_state": "offline_projection",
+                "evaluator_version": provider.descriptor.provider_id,
+                "evaluation_result": evaluation.result,
+                "matched_pitches": list(evaluation.matched_pitches),
+                "missing_pitches": list(evaluation.missing_pitches),
+                "extra_pitches": list(evaluation.extra_pitches),
+                "scope_completed": index + 1 >= len(groups),
+                "confidence": observation.confidence,
+                "validation_confidence": observation.confidence,
+                "input_policy_confidence": observation.confidence,
+                "gate_reason": "offline_score_alignment",
+                "queue_decision": "offline_projected",
+                "tonal_signal": True,
+                "onset_signal": True,
+                "alignment_state": "offline_score_aligned_oracle",
+                "pitch_activations": [
+                    {
+                        "pitch": activation.pitch,
+                        "spectral_score": activation.spectral_score,
+                        "confidence": activation.confidence,
+                        "matched": activation.matched,
+                    }
+                    for activation in observation.activations
+                ],
+                "display_target": _context_for_group_id(
+                    expected_group.group_id,
+                    target_contexts or {},
+                ),
+                "evaluated_target": _context_for_group_id(
+                    expected_group.group_id,
+                    target_contexts or {},
+                ),
+            }
+        )
+    return attempts
+
+
+def _scoped_expected_groups(
+    groups: tuple,
+    *,
+    start_group_id: str | None,
+    end_group_id: str | None,
+) -> tuple:
+    start_index = 0
+    end_index = len(groups) - 1
+    if start_group_id is not None:
+        start_index = next(
+            (index for index, group in enumerate(groups) if group.group_id == start_group_id),
+            start_index,
+        )
+    if end_group_id is not None:
+        end_index = next(
+            (index for index, group in enumerate(groups) if group.group_id == end_group_id),
+            end_index,
+        )
+    if end_index < start_index:
+        return ()
+    return tuple(groups[start_index : end_index + 1])
+
+
+def _shadow_runtime_attempt_event(
+    *,
+    update_index: int,
+    seconds: float,
+    expected_group,
+    display_group,
+    attempt_sequence: int,
+    attempt_started_at_ms: int,
+    attempt_resolved_at_ms: int,
+    evaluation,
+    observation,
+    provider_id: str,
+    action: str,
+    reason: str,
+    scope_completed: bool,
+    target_contexts: dict[str, dict] | None,
+) -> dict:
+    event = {
+        "update_index": update_index,
+        "seconds": seconds,
+        "beat_position": expected_group.onset_beat,
+        "anchor_beat": display_group.onset_beat,
+        "attempt_state": "resolved",
+        "attempt_sequence": attempt_sequence,
+        "attempt_started_at_ms": attempt_started_at_ms,
+        "attempt_resolved_at_ms": attempt_resolved_at_ms,
+        "decision_action": action,
+        "decision_reason": reason,
+        "experience_state": "following" if action == "advance" else "heard_but_uncertain",
+        "evaluator_version": provider_id,
+        "evaluation_result": evaluation.result,
+        "matched_pitches": list(evaluation.matched_pitches),
+        "missing_pitches": list(evaluation.missing_pitches),
+        "extra_pitches": list(evaluation.extra_pitches),
+        "scope_completed": scope_completed,
+        "confidence": observation.confidence,
+        "validation_confidence": observation.confidence,
+        "input_policy_confidence": observation.confidence,
+        "gate_reason": "shadow_activity",
+        "queue_decision": "shadow_evaluated",
+        "tonal_signal": True,
+        "onset_signal": True,
+        "alignment_state": "target_conditioned_shadow_runtime",
+        "pitch_activations": [
+            {
+                "pitch": activation.pitch,
+                "spectral_score": activation.spectral_score,
+                "confidence": activation.confidence,
+                "matched": activation.matched,
+            }
+            for activation in observation.activations
+        ],
+    }
+    if target_contexts is not None:
+        event["display_target"] = _context_for_group_id(display_group.group_id, target_contexts)
+        event["evaluated_target"] = _context_for_group_id(expected_group.group_id, target_contexts)
+    return event
+
+
+def _audio_window_active(samples: np.ndarray) -> bool:
+    if samples.size == 0 or not np.isfinite(samples).all():
+        return False
+    rms = float(np.sqrt(np.mean(np.square(samples))))
+    return rms > TargetConditionedPianoObserver().profile.min_rms
+
+
+def target_conditioned_candidate_attempts(
+    *,
+    baseline_attempts: list[dict],
+    audio: np.ndarray,
+    sample_rate: int,
+    score_path: Path,
+    provider: AcousticEvidenceProvider | None = None,
+) -> list[dict]:
+    expected_groups = {
+        group.group_id: group
+        for group in practice_score_timeline_from_musicxml(score_path).expected_practice_groups
+    }
+    evidence_provider = provider or TargetConditionedPianoObserver()
+    evaluator = ExpectedEventEvaluator()
+    candidate_attempts: list[dict] = []
+    for baseline_attempt in baseline_attempts:
+        evaluated_target = baseline_attempt.get("evaluated_target") or {}
+        group_id = evaluated_target.get("group_id")
+        expected_group = expected_groups.get(str(group_id)) if group_id is not None else None
+        if expected_group is None:
+            continue
+        audio_window = _attempt_audio_window(
+            baseline_attempt=baseline_attempt,
+            audio=audio,
+            sample_rate=sample_rate,
+        )
+        observation = evidence_provider.observe_expected_group(
+            audio_window,
+            expected_group=expected_group,
+            sample_rate=sample_rate,
+            np_module=np,
+            onset_beat=expected_group.onset_beat,
+            window_start_seconds=audio_window_start_seconds(
+                baseline_attempt=baseline_attempt,
+                audio=audio,
+                sample_rate=sample_rate,
+            ),
+            window_end_seconds=audio_window_end_seconds(
+                baseline_attempt=baseline_attempt,
+                audio=audio,
+                sample_rate=sample_rate,
+            ),
+        )
+        evaluation = evaluator.evaluate(
+            expected_group,
+            EvaluatorEvidence.from_audio(observation.to_audio_observation()),
+        )
+        candidate_attempts.append(
+            {
+                "update_index": baseline_attempt.get("update_index"),
+                "seconds": baseline_attempt.get("seconds"),
+                "beat_position": baseline_attempt.get("beat_position"),
+                "anchor_beat": baseline_attempt.get("anchor_beat"),
+                "attempt_state": baseline_attempt.get("attempt_state"),
+                "attempt_sequence": baseline_attempt.get("attempt_sequence"),
+                "attempt_started_at_ms": baseline_attempt.get("attempt_started_at_ms"),
+                "attempt_resolved_at_ms": baseline_attempt.get("attempt_resolved_at_ms"),
+                "decision_action": "advance" if evaluation.result == "MATCH" else "wait",
+                "decision_reason": (
+                    "stable_match" if evaluation.result == "MATCH" else "candidate_evaluation"
+                ),
+                "experience_state": baseline_attempt.get("experience_state"),
+                "evaluator_version": evidence_provider.descriptor.provider_id,
+                "evaluation_result": evaluation.result,
+                "matched_pitches": list(evaluation.matched_pitches),
+                "missing_pitches": list(evaluation.missing_pitches),
+                "extra_pitches": list(evaluation.extra_pitches),
+                "scope_completed": baseline_attempt.get("scope_completed", False),
+                "confidence": observation.confidence,
+                "validation_confidence": observation.confidence,
+                "input_policy_confidence": observation.confidence,
+                "gate_reason": baseline_attempt.get("gate_reason"),
+                "queue_decision": baseline_attempt.get("queue_decision"),
+                "tonal_signal": baseline_attempt.get("tonal_signal"),
+                "onset_signal": baseline_attempt.get("onset_signal"),
+                "alignment_state": "target_conditioned_candidate",
+                "display_target": baseline_attempt.get("display_target"),
+                "evaluated_target": baseline_attempt.get("evaluated_target"),
+                "pitch_activations": [
+                    {
+                        "pitch": activation.pitch,
+                        "spectral_score": activation.spectral_score,
+                        "confidence": activation.confidence,
+                        "matched": activation.matched,
+                    }
+                    for activation in observation.activations
+                ],
+            }
+        )
+    return candidate_attempts
+
+
+def candidate_benchmarks(
+    *,
+    providers: tuple[AcousticEvidenceProvider, ...],
+    baseline_attempts: list[dict],
+    audio: np.ndarray,
+    sample_rate: int,
+    score_path: Path,
+    practice_scope: dict[str, str | None],
+    target_contexts: dict[str, dict] | None,
+) -> dict[str, dict]:
+    benchmarks: dict[str, dict] = {}
+    for provider in providers:
+        benchmark_key = provider.descriptor.provider_id.replace("-", "_")
+        if getattr(provider, "uses_offline_score_alignment", False):
+            benchmarks[benchmark_key] = {
+                "provider": asdict(provider.descriptor),
+                "score_aligned_oracle_benchmark": offline_score_aligned_oracle_benchmark(
+                    score_path=score_path,
+                    practice_scope=practice_scope,
+                    target_contexts=target_contexts,
+                    provider=provider,
+                ),
+            }
+            continue
+
+        attempts = target_conditioned_candidate_attempts(
+            baseline_attempts=baseline_attempts,
+            audio=audio,
+            sample_rate=sample_rate,
+            score_path=score_path,
+            provider=provider,
+        )
+        benchmarks[benchmark_key] = {
+            "provider": asdict(provider.descriptor),
+            "attempt_events": attempts[-40:],
+            "benchmark_summary": benchmark_summary(
+                attempts,
+                benchmark_scope=BENCHMARK_SCOPE_OBSERVER_WINDOW,
+            ),
+            "shadow_runtime_benchmark": target_conditioned_shadow_runtime_benchmark(
+                audio=audio,
+                sample_rate=sample_rate,
+                score_path=score_path,
+                practice_scope=practice_scope,
+                target_contexts=target_contexts,
+                provider=provider,
+            ),
+        }
+    return benchmarks
+
+
+def _attempt_audio_window(
+    *,
+    baseline_attempt: dict,
+    audio: np.ndarray,
+    sample_rate: int,
+) -> np.ndarray:
+    start_sample, end_sample = _attempt_audio_window_sample_range(
+        baseline_attempt=baseline_attempt,
+        audio=audio,
+        sample_rate=sample_rate,
+    )
+    return audio[start_sample:end_sample]
+
+
+def audio_window_start_seconds(
+    *,
+    baseline_attempt: dict,
+    audio: np.ndarray,
+    sample_rate: int,
+) -> float:
+    start_sample, _ = _attempt_audio_window_sample_range(
+        baseline_attempt=baseline_attempt,
+        audio=audio,
+        sample_rate=sample_rate,
+    )
+    return round(start_sample / sample_rate, 6)
+
+
+def audio_window_end_seconds(
+    *,
+    baseline_attempt: dict,
+    audio: np.ndarray,
+    sample_rate: int,
+) -> float:
+    _, end_sample = _attempt_audio_window_sample_range(
+        baseline_attempt=baseline_attempt,
+        audio=audio,
+        sample_rate=sample_rate,
+    )
+    return round(end_sample / sample_rate, 6)
+
+
+def _attempt_audio_window_sample_range(
+    *,
+    baseline_attempt: dict,
+    audio: np.ndarray,
+    sample_rate: int,
+) -> tuple[int, int]:
+    resolved_seconds = float(baseline_attempt.get("seconds") or 0.0)
+    started_at_ms = baseline_attempt.get("attempt_started_at_ms")
+    resolved_at_ms = baseline_attempt.get("attempt_resolved_at_ms")
+    duration_seconds = 0.5
+    if (
+        isinstance(started_at_ms, int | float)
+        and isinstance(resolved_at_ms, int | float)
+        and resolved_at_ms > started_at_ms
+    ):
+        duration_seconds = max(duration_seconds, float(resolved_at_ms - started_at_ms) / 1000.0)
+    end_sample = min(audio.size, max(0, int(round(resolved_seconds * sample_rate))))
+    window_samples = max(1, int(round(duration_seconds * sample_rate)))
+    start_sample = max(0, end_sample - window_samples)
+    return start_sample, end_sample
+
+
+def diagnostic_reason_counts(attempts: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for attempt in attempts:
+        reason = diagnostic_reason(attempt)
+        counts[reason] = counts.get(reason, 0) + 1
+    return counts
+
+
+def diagnostic_reason(attempt: dict) -> str:
+    evaluation_result = attempt.get("evaluation_result")
+    action = attempt.get("decision_action")
+    if action == "advance" and evaluation_result == "MATCH":
+        return "accepted_match"
+    if action == "advance":
+        return "false_advance_guard"
+    if attempt.get("gate_reason") == "start_feature_mismatch":
+        return "startup_pitch_mismatch"
+    if attempt.get("decision_reason") == "low_alignment_confidence":
+        return "low_alignment_confidence"
+    if evaluation_result == "PARTIAL":
+        return "low_expected_activation"
+    if evaluation_result == "MISMATCH" and attempt.get("extra_pitches"):
+        return "extra_candidate"
+    if evaluation_result == "MISMATCH":
+        return "no_expected_activation"
+    if evaluation_result == "UNCERTAIN":
+        return "uncertain_evidence"
+    if attempt.get("onset_signal") is False:
+        return "no_onset"
+    return "unclassified"
+
+
+def _expected_strike_count(attempt: dict) -> int:
+    matched = attempt.get("matched_pitches") or []
+    missing = attempt.get("missing_pitches") or []
+    return len(set((*matched, *missing)))
+
+
+def _ratio(numerator: int, denominator: int) -> float | None:
+    if denominator <= 0:
+        return None
+    return round(numerator / denominator, 4)
+
+
+def _percentile(values: list[int | float], percentile: int) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(float(value) for value in values)
+    index = round((len(ordered) - 1) * percentile / 100)
+    return round(ordered[index], 3)
+
+
+def _measure_start_beats(score_path: Path) -> dict[str, float]:
+    try:
+        root = ET.parse(score_path).getroot()
+    except (OSError, ET.ParseError):
+        return {}
+
+    first_part = next(iter(root.findall("{*}part")), None)
+    if first_part is None:
+        return {}
+
+    measure_starts: dict[str, float] = {}
+    divisions = 1.0
+    measure_start_beat = 0.0
+    current_measure_duration_beats = 4.0
+    for measure in first_part.findall("{*}measure"):
+        measure_number = measure.get("number")
+        if measure_number:
+            measure_starts[measure_number] = round(measure_start_beat, 6)
+        cursor = 0.0
+        measure_extent = 0.0
+        for element in list(measure):
+            tag = _local_name(element.tag)
+            if tag == "attributes":
+                if divisions_text := _child_text(element, "divisions"):
+                    divisions = _positive_float_or_default(divisions_text, divisions)
+                time = element.find("{*}time")
+                if time is not None:
+                    numerator = _positive_float_or_default(_child_text(time, "beats"), 0.0)
+                    denominator = _positive_float_or_default(_child_text(time, "beat-type"), 0.0)
+                    if numerator > 0 and denominator > 0:
+                        current_measure_duration_beats = numerator * 4.0 / denominator
+                continue
+            if tag == "note" and element.find("{*}chord") is not None:
+                measure_extent = max(measure_extent, cursor)
+                continue
+            if tag in {"note", "forward"}:
+                cursor += _duration_beats(element, divisions)
+                measure_extent = max(measure_extent, cursor)
+            elif tag == "backup":
+                cursor = max(0.0, cursor - _duration_beats(element, divisions))
+        measure_start_beat += (
+            measure_extent if measure_extent > 0 else current_measure_duration_beats
+        )
+    return measure_starts
+
+
+def _duration_beats(element: ET.Element, divisions: float) -> float:
+    duration = _positive_float_or_default(_child_text(element, "duration"), 0.0)
+    if duration <= 0.0 or divisions <= 0.0:
+        return 0.0
+    return duration / divisions
+
+
+def _child_text(element: ET.Element, child_name: str) -> str:
+    child = element.find(f"{{*}}{child_name}")
+    if child is None or child.text is None:
+        return ""
+    return child.text.strip()
+
+
+def _positive_float_or_default(value: str, default: float) -> float:
+    try:
+        parsed = float(value)
+    except ValueError:
+        return default
+    return parsed if parsed > 0.0 else default
+
+
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
 
 
 def count_state_episodes(frame_states: list[dict], *, state: str) -> int:
@@ -272,6 +1262,20 @@ def pcm_s16le(frame: np.ndarray) -> bytes:
     return (clipped * 32767).astype("<i2").tobytes()
 
 
+def pcm_float32_sha256(audio: np.ndarray) -> str:
+    return hashlib.sha256(np.ascontiguousarray(audio, dtype=np.float32).tobytes()).hexdigest()
+
+
+def audio_input_identity(audio: np.ndarray, sample_rate: int) -> dict[str, object]:
+    return {
+        "sha256": pcm_float32_sha256(audio),
+        "sample_rate_hz": sample_rate,
+        "channels": 1,
+        "sample_format": "float32_mono",
+        "sample_count": int(audio.size),
+    }
+
+
 def resolve_practice_scope(score_path: Path, scenario: dict) -> dict[str, str | None]:
     explicit_scope = scenario.get("practice_scope")
     beat_scope = scenario.get("practice_scope_by_beat")
@@ -309,6 +1313,7 @@ def run_scenario(
     fixture_root: Path,
     scenario: dict,
     sample_rate: int,
+    acoustic_candidate_providers: tuple[AcousticEvidenceProvider, ...] = (),
 ) -> dict:
     practice_scope = resolve_practice_scope(score_path, scenario)
     engine = MatchmakerLiveEngine(
@@ -320,10 +1325,14 @@ def run_scenario(
         end_expected_group_id=practice_scope.get("end_expected_group_id"),
     )
     try:
+        target_contexts = target_contexts_from_score(score_path)
         hop_length = engine.hop_length
         silence = np.zeros(hop_length, dtype=np.float32)
-        for _ in range(DEFAULT_PRACTICE_AUDIO_PROFILE.warmup_frames):
+        calibration_sample_count = DEFAULT_PRACTICE_AUDIO_PROFILE.calibration_sample_count(sample_rate)
+        calibrated_samples = 0
+        while calibrated_samples < calibration_sample_count:
             engine.ingest_audio(pcm_s16le(silence))
+            calibrated_samples += hop_length
 
         audio = scenario_audio(fixture_root, scenario, sample_rate)
         chunk_size_samples = int(scenario.get("chunk_size_samples", hop_length))
@@ -417,6 +1426,12 @@ def run_scenario(
             emitted_update_samples,
             sample_rate,
         )
+        emitted_attempt_events = attempt_events(
+            emitted_updates,
+            emitted_update_samples,
+            sample_rate,
+            target_contexts,
+        )
         completion_update_index = next(
             (
                 index
@@ -462,6 +1477,13 @@ def run_scenario(
             if state == "lost" and previous_state != "lost":
                 lost_episode_count += 1
             previous_state = state
+        annotated_events = annotation_metrics(
+            scenario.get("performance_annotations", []),
+            accepted_events=accepted_events,
+            frame_states=post_start_frame_states,
+        )
+        default_candidate_provider = TargetConditionedPianoObserver()
+        candidate_providers = (default_candidate_provider, *acoustic_candidate_providers)
         return {
             "id": scenario["id"],
             "quality_status": scenario.get("quality_status", "required"),
@@ -471,6 +1493,7 @@ def run_scenario(
             "chunk_size_samples": chunk_size_samples,
             "leading_sample_offset": int(scenario.get("leading_sample_offset", 0)),
             "armed_delay_seconds": float(scenario.get("armed_delay_seconds", 0.0)),
+            "audio_input": audio_input_identity(audio, sample_rate),
             "start_feature_confidence": start_feature_confidence,
             "max_start_feature_confidence": max_start_feature_confidence,
             "start_feature_mismatch_frames": start_feature_mismatch_frames,
@@ -484,11 +1507,25 @@ def run_scenario(
             "accepted_anchor_beat_min": min(accepted_anchor_beats, default=None),
             "accepted_anchor_beat_max": max(accepted_anchor_beats, default=None),
             "accepted_events": accepted_events[-20:],
-            "annotated_events": annotation_metrics(
-                scenario.get("performance_annotations", []),
-                accepted_events=accepted_events,
-                frame_states=post_start_frame_states,
+            "attempt_events": emitted_attempt_events[-40:],
+            "attempt_event_counts": decision_counts(
+                [update for update in emitted_updates if (update.get("decision") or {}).get("attempt_sequence")]
             ),
+            "benchmark_summary": benchmark_summary(
+                emitted_attempt_events,
+                annotated_events,
+                benchmark_scope=BENCHMARK_SCOPE_BASELINE_RUNTIME,
+            ),
+            "candidate_benchmarks": candidate_benchmarks(
+                providers=candidate_providers,
+                baseline_attempts=emitted_attempt_events,
+                audio=audio,
+                sample_rate=sample_rate,
+                score_path=score_path,
+                practice_scope=practice_scope,
+                target_contexts=target_contexts,
+            ),
+            "annotated_events": annotated_events,
             "reference_slice": {
                 "start_beat": engine._reference_slice.start_beat,
                 "end_beat": engine._reference_slice.end_beat,
@@ -765,6 +1802,35 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=fixture_root / "profile_manifest.json",
     )
+    parser.add_argument(
+        "--transkun-midi",
+        type=Path,
+        default=None,
+        help=(
+            "Optional external AMT MIDI transcription for benchmark-only "
+            "offline score-aligned oracle comparison."
+        ),
+    )
+    parser.add_argument(
+        "--transkun-provider-id",
+        default=DEFAULT_TRANSCRIPTION_MIDI_PROVIDER_ID,
+        help="Provider id to label the external Transkun MIDI benchmark.",
+    )
+    parser.add_argument(
+        "--transkun-package-version",
+        default="2.0.1",
+        help="Transkun package version used to create --transkun-midi.",
+    )
+    parser.add_argument(
+        "--transkun-checkpoint-id",
+        default="pretrained/2.0.pt",
+        help="Transkun checkpoint identifier used to create --transkun-midi.",
+    )
+    parser.add_argument(
+        "--transkun-checkpoint-sha256",
+        default=None,
+        help="Optional SHA-256 digest of the checkpoint used to create --transkun-midi.",
+    )
     return parser.parse_args()
 
 
@@ -773,6 +1839,22 @@ def main() -> int:
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     fixture_root = args.manifest.parent
     sample_rate = int(manifest["sample_rate"])
+    acoustic_candidate_providers: tuple[AcousticEvidenceProvider, ...] = ()
+    if args.transkun_midi is not None:
+        expected_groups = practice_score_timeline_from_musicxml(args.score).expected_practice_groups
+        acoustic_candidate_providers = (
+            TranscriptionMidiEvidenceProvider.from_midi_file(
+                args.transkun_midi,
+                provider_id=args.transkun_provider_id,
+                expected_groups=expected_groups,
+                provider_metadata={
+                    "package": "transkun",
+                    "package_version": args.transkun_package_version,
+                    "checkpoint_id": args.transkun_checkpoint_id,
+                    "checkpoint_sha256": args.transkun_checkpoint_sha256,
+                },
+            ),
+        )
     results = []
 
     for scenario in manifest["scenarios"]:
@@ -782,6 +1864,7 @@ def main() -> int:
                 fixture_root=fixture_root,
                 scenario=scenario,
                 sample_rate=sample_rate,
+                acoustic_candidate_providers=acoustic_candidate_providers,
             )
         except Exception as exc:  # pragma: no cover - exercised by real-engine fixtures.
             result = {

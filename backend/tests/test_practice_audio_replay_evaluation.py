@@ -3,8 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import wave
 
+from app.processing.engines.practice_alignment.score_timeline import (
+    ExpectedPracticeGroup,
+    ExpectedPracticeNote,
+    ExpectedPracticeStrikeTarget,
+)
 from app.processing.engines.practice_alignment.browser_audio_stream import BrowserAudioStreamAdapter
 
 
@@ -47,6 +53,49 @@ class ReplayResult:
 def voiced_frame(np, amplitude: float, length: int = 128):
     samples = np.arange(length, dtype=np.float32)
     return (amplitude * np.sin(2 * np.pi * 8 * samples / length)).astype(np.float32)
+
+
+def sine_audio(np, frequency_hz: float, *, seconds: float, sample_rate: int = 16000):
+    samples = np.arange(int(sample_rate * seconds), dtype=np.float32) / sample_rate
+    return (0.25 * np.sin(2 * np.pi * frequency_hz * samples)).astype(np.float32)
+
+
+def expected_practice_group(*pitches: str) -> ExpectedPracticeGroup:
+    expected_notes = tuple(
+        ExpectedPracticeNote(
+            expected_note_id=f"event-1:n{index}",
+            event_id="event-1",
+            pitch=pitch,
+            render_note_id=f"n{index}",
+            measure_numbers=("1",),
+        )
+        for index, pitch in enumerate(pitches, start=1)
+    )
+    strike_targets = tuple(
+        ExpectedPracticeStrikeTarget(
+            strike_id=f"entry-1:strike:{pitch}",
+            pitch=pitch,
+            expected_notes=tuple(note for note in expected_notes if note.pitch == pitch),
+            event_ids=("event-1",),
+            render_note_ids=tuple(
+                note.render_note_id for note in expected_notes if note.pitch == pitch
+            ),
+            measure_numbers=("1",),
+        )
+        for pitch in dict.fromkeys(pitches)
+    )
+    return ExpectedPracticeGroup(
+        group_id="entry-1",
+        onset_beat=4.0,
+        event_ids=("event-1",),
+        expected_notes=expected_notes,
+        strike_targets=strike_targets,
+        render_note_ids=tuple(note.render_note_id for note in expected_notes),
+        pitches=tuple(dict.fromkeys(pitches)),
+        measure_numbers=("1",),
+        staff_ids=("1",),
+        voice_ids=("1",),
+    )
 
 
 def impulse_noise_frame(np, amplitude: float = 0.5, length: int = 128):
@@ -159,7 +208,12 @@ def load_initial_alignment_replay_manifest() -> tuple[dict, Path]:
 
 
 def test_replay_diagnostics_summarize_terminal_region_decisions() -> None:
-    from scripts.evaluate_practice_replay import decision_counts, slim_alignment_update
+    from scripts.evaluate_practice_replay import (
+        attempt_events,
+        benchmark_summary,
+        decision_counts,
+        slim_alignment_update,
+    )
 
     updates = [
         {
@@ -178,8 +232,22 @@ def test_replay_diagnostics_summarize_terminal_region_decisions() -> None:
             "decision": {
                 "action": "hold",
                 "reason": "low_alignment_confidence",
+                "experience_state": "heard_but_uncertain",
                 "display_anchor": {"beat": 24.0},
+                "attempt_state": "resolved",
+                "attempt_sequence": 7,
+                "attempt_started_at_ms": 1200,
+                "attempt_resolved_at_ms": 1320,
+                "evaluator_version": "expected-event-v1",
+                "evaluation_result": "UNCERTAIN",
+                "matched_pitches": [],
+                "missing_pitches": ["C4"],
+                "extra_pitches": [],
             },
+            "gate_reason": "runtime_activity",
+            "queue_decision": "queued",
+            "tonal_signal": True,
+            "onset_signal": False,
         }
     ]
 
@@ -201,7 +269,379 @@ def test_replay_diagnostics_summarize_terminal_region_decisions() -> None:
         "decision_action": "hold",
         "decision_reason": "low_alignment_confidence",
         "decision_anchor_beat": 24.0,
+        "attempt_state": "resolved",
+        "attempt_sequence": 7,
+        "attempt_started_at_ms": 1200,
+        "attempt_resolved_at_ms": 1320,
+        "evaluator_version": "expected-event-v1",
+        "evaluation_result": "UNCERTAIN",
+        "matched_pitches": [],
+        "missing_pitches": ["C4"],
+        "extra_pitches": [],
     }
+    assert attempt_events(updates, [16000], 16000) == [
+        {
+            "update_index": 0,
+            "seconds": 1.0,
+            "beat_position": 24.73,
+            "anchor_beat": 24.0,
+            "attempt_state": "resolved",
+            "attempt_sequence": 7,
+            "attempt_started_at_ms": 1200,
+            "attempt_resolved_at_ms": 1320,
+            "decision_action": "hold",
+            "decision_reason": "low_alignment_confidence",
+            "experience_state": "heard_but_uncertain",
+            "evaluator_version": "expected-event-v1",
+            "evaluation_result": "UNCERTAIN",
+            "matched_pitches": [],
+            "missing_pitches": ["C4"],
+            "extra_pitches": [],
+            "scope_completed": False,
+            "confidence": 0.0,
+            "validation_confidence": 0.0,
+            "input_policy_confidence": 1.0,
+            "gate_reason": "runtime_activity",
+            "queue_decision": "queued",
+            "tonal_signal": True,
+            "onset_signal": False,
+            "alignment_state": "feature_mismatch",
+        }
+    ]
+    assert benchmark_summary(attempt_events(updates, [16000], 16000)) == {
+        "benchmark_scope": "baseline_runtime_replay",
+        "causal": True,
+        "uses_future_context": False,
+        "evidence_horizon_ms": 0,
+        "ground_truth_source": "score_expectation",
+        "progression_authority": True,
+        "metric_priority": [
+            "false_match_count",
+            "score_expected_strike_coverage",
+            "expected_strike_recall",
+            "expected_strike_precision",
+            "chord_complete_detection_rate",
+            "median_time_to_match_ms",
+            "p95_time_to_match_ms",
+            "per_pitch_extra_rate",
+            "uncertain_rate",
+        ],
+        "attempt_count": 1,
+        "expected_strike_count": 1,
+        "matched_strike_count": 0,
+        "extra_pitch_count": 0,
+        "false_match_count": 0,
+        "false_advance_guard_count": 0,
+        "annotated_false_advance_count": 0,
+        "score_expected_strike_coverage": 0.0,
+        "expected_strike_recall": None,
+        "expected_strike_precision": None,
+        "chord_attempt_count": 0,
+        "chord_complete_detection_rate": None,
+        "per_pitch_extra_rate": 0.0,
+        "median_time_to_match_ms": None,
+        "p95_time_to_match_ms": None,
+        "uncertain_rate": 1.0,
+        "diagnostic_reason_counts": {"low_alignment_confidence": 1},
+    }
+
+
+def test_replay_attempt_events_separate_evaluated_target_from_display_target() -> None:
+    from scripts.evaluate_practice_replay import attempt_events
+
+    updates = [
+        {
+            "beat_position": 4.0,
+            "confidence": 0.95,
+            "validation_confidence": 0.95,
+            "input_policy_confidence": 0.95,
+            "alignment_state": "matched",
+            "decision": {
+                "action": "advance",
+                "reason": "stable_match",
+                "experience_state": "following",
+                "display_anchor": {"beat": 5.0, "group_id": "entry-2"},
+                "attempt_state": "resolved",
+                "attempt_sequence": 1,
+                "attempt_started_at_ms": 100,
+                "attempt_resolved_at_ms": 160,
+                "evaluation_result": "MATCH",
+                "matched_pitches": ["C4"],
+                "missing_pitches": [],
+                "extra_pitches": [],
+            },
+        }
+    ]
+    target_contexts = {
+        "entry-1": {
+            "index": 0,
+            "group_id": "entry-1",
+            "onset_beat": 4.0,
+            "measure_number": "2",
+            "beat_in_measure": 1.0,
+            "expected_pitches": ["C4"],
+            "render_note_ids": ["n1"],
+        },
+        "entry-2": {
+            "index": 1,
+            "group_id": "entry-2",
+            "onset_beat": 5.0,
+            "measure_number": "2",
+            "beat_in_measure": 2.0,
+            "expected_pitches": ["D4"],
+            "render_note_ids": ["n2"],
+        },
+    }
+
+    event = attempt_events(updates, [3200], 16000, target_contexts)[0]
+
+    assert event["display_target"] == target_contexts["entry-2"]
+    assert event["evaluated_target"] == target_contexts["entry-1"]
+
+
+def test_replay_benchmark_summary_prioritizes_false_advance_and_chord_recall() -> None:
+    from scripts.evaluate_practice_replay import benchmark_summary
+
+    attempts = [
+        {
+            "attempt_state": "resolved",
+            "attempt_started_at_ms": 100,
+            "attempt_resolved_at_ms": 220,
+            "decision_action": "advance",
+            "decision_reason": "stable_match",
+            "evaluation_result": "MATCH",
+            "matched_pitches": ["C4", "E4"],
+            "missing_pitches": [],
+            "extra_pitches": [],
+        },
+        {
+            "attempt_state": "resolved",
+            "attempt_started_at_ms": 300,
+            "attempt_resolved_at_ms": 420,
+            "decision_action": "wait",
+            "decision_reason": "partial_match",
+            "evaluation_result": "PARTIAL",
+            "matched_pitches": ["G4"],
+            "missing_pitches": ["B4"],
+            "extra_pitches": [],
+        },
+        {
+            "attempt_state": "resolved",
+            "attempt_started_at_ms": 500,
+            "attempt_resolved_at_ms": 580,
+            "decision_action": "advance",
+            "decision_reason": "stable_match",
+            "evaluation_result": "MISMATCH",
+            "matched_pitches": [],
+            "missing_pitches": ["D4"],
+            "extra_pitches": ["F4"],
+        },
+    ]
+
+    summary = benchmark_summary(
+        attempts,
+        {"resume": {"accepted_outside_region": 2}},
+    )
+
+    assert summary == {
+        "benchmark_scope": "baseline_runtime_replay",
+        "causal": True,
+        "uses_future_context": False,
+        "evidence_horizon_ms": 0,
+        "ground_truth_source": "score_expectation",
+        "progression_authority": True,
+        "metric_priority": [
+            "false_match_count",
+            "score_expected_strike_coverage",
+            "expected_strike_recall",
+            "expected_strike_precision",
+            "chord_complete_detection_rate",
+            "median_time_to_match_ms",
+            "p95_time_to_match_ms",
+            "per_pitch_extra_rate",
+            "uncertain_rate",
+        ],
+        "attempt_count": 3,
+        "expected_strike_count": 5,
+        "matched_strike_count": 3,
+        "extra_pitch_count": 1,
+        "false_match_count": 1,
+        "false_advance_guard_count": 1,
+        "annotated_false_advance_count": 2,
+        "score_expected_strike_coverage": 0.6,
+        "expected_strike_recall": None,
+        "expected_strike_precision": None,
+        "chord_attempt_count": 2,
+        "chord_complete_detection_rate": 0.5,
+        "per_pitch_extra_rate": 0.2,
+        "median_time_to_match_ms": 120.0,
+        "p95_time_to_match_ms": 120.0,
+        "uncertain_rate": 0.0,
+        "diagnostic_reason_counts": {
+            "accepted_match": 1,
+            "low_expected_activation": 1,
+            "false_advance_guard": 1,
+        },
+    }
+
+
+def test_observer_window_benchmark_scope_does_not_claim_progression_authority() -> None:
+    from scripts.evaluate_practice_replay import benchmark_summary
+
+    summary = benchmark_summary(
+        [
+            {
+                "attempt_state": "resolved",
+                "decision_action": "advance",
+                "decision_reason": "stable_match",
+                "evaluation_result": "MISMATCH",
+                "matched_pitches": [],
+                "missing_pitches": ["C4"],
+                "extra_pitches": ["D4"],
+            }
+        ],
+        benchmark_scope="observer_window_replay",
+    )
+
+    assert summary["benchmark_scope"] == "observer_window_replay"
+    assert summary["progression_authority"] is False
+    assert summary["false_match_count"] == 1
+    assert summary["false_advance_guard_count"] is None
+
+
+def test_offline_score_aligned_oracle_does_not_emit_progression_metrics() -> None:
+    from scripts.evaluate_practice_replay import benchmark_summary
+
+    summary = benchmark_summary(
+        [
+            {
+                "attempt_state": "resolved",
+                "decision_action": "project",
+                "decision_reason": "offline_score_aligned_projection",
+                "attempt_started_at_ms": 0,
+                "attempt_resolved_at_ms": 120,
+                "evaluation_result": "MATCH",
+                "matched_pitches": ["C4"],
+                "missing_pitches": [],
+                "extra_pitches": [],
+            }
+        ],
+        benchmark_scope="offline_score_aligned_oracle",
+    )
+
+    assert summary["benchmark_scope"] == "offline_score_aligned_oracle"
+    assert summary["causal"] is False
+    assert summary["uses_future_context"] is True
+    assert summary["ground_truth_source"] == "score_expectation"
+    assert summary["progression_authority"] is False
+    assert summary["score_expected_strike_coverage"] == 1.0
+    assert summary["expected_strike_recall"] is None
+    assert summary["expected_strike_precision"] is None
+    assert summary["false_match_count"] is None
+    assert summary["false_advance_guard_count"] is None
+    assert summary["median_time_to_match_ms"] is None
+    assert summary["p95_time_to_match_ms"] is None
+
+
+def test_physical_ground_truth_enables_recall_and_precision_metrics() -> None:
+    from scripts.evaluate_practice_replay import benchmark_summary
+
+    summary = benchmark_summary(
+        [
+            {
+                "attempt_state": "resolved",
+                "decision_action": "advance",
+                "decision_reason": "stable_match",
+                "evaluation_result": "MATCH",
+                "matched_pitches": ["C4"],
+                "missing_pitches": ["E4"],
+                "extra_pitches": ["G4"],
+            }
+        ],
+        ground_truth_source="paired_midi",
+    )
+
+    assert summary["ground_truth_source"] == "paired_midi"
+    assert summary["score_expected_strike_coverage"] == 0.5
+    assert summary["expected_strike_recall"] == 0.5
+    assert summary["expected_strike_precision"] == 0.5
+
+
+def test_target_conditioned_shadow_runtime_benchmark_runs_independent_attempts(monkeypatch) -> None:
+    import numpy as np
+
+    import scripts.evaluate_practice_replay as replay_script
+    from scripts.evaluate_practice_replay import target_conditioned_shadow_runtime_benchmark
+
+    group = expected_practice_group("C4")
+    monkeypatch.setattr(
+        replay_script,
+        "practice_score_timeline_from_musicxml",
+        lambda _score_path: SimpleNamespace(expected_practice_groups=(group,)),
+    )
+    audio = np.concatenate(
+        (
+            np.zeros(1600, dtype=np.float32),
+            sine_audio(np, 261.625565, seconds=0.5),
+        )
+    )
+
+    benchmark = target_conditioned_shadow_runtime_benchmark(
+        audio=audio,
+        sample_rate=16000,
+        score_path=Path("dummy.musicxml"),
+        practice_scope={"start_expected_group_id": None, "end_expected_group_id": None},
+    )
+
+    assert benchmark["benchmark_scope"] == "causal_shadow_runtime_replay"
+    assert benchmark["progression_authority"] is True
+    assert benchmark["status"] == "experimental"
+    assert benchmark["attempt_events"][0]["decision_action"] == "advance"
+    assert benchmark["attempt_events"][0]["evaluation_result"] == "MATCH"
+    assert benchmark["benchmark_summary"]["benchmark_scope"] == "causal_shadow_runtime_replay"
+    assert benchmark["benchmark_summary"]["progression_authority"] is True
+
+
+def test_target_conditioned_candidate_benchmark_replays_same_attempt_window(monkeypatch) -> None:
+    import numpy as np
+
+    import scripts.evaluate_practice_replay as replay_script
+
+    group = expected_practice_group("C4")
+    monkeypatch.setattr(
+        replay_script,
+        "practice_score_timeline_from_musicxml",
+        lambda _score_path: SimpleNamespace(expected_practice_groups=(group,)),
+    )
+    baseline_attempts = [
+        {
+            "update_index": 0,
+            "seconds": 0.5,
+            "beat_position": 4.0,
+            "anchor_beat": 4.0,
+            "attempt_state": "resolved",
+            "attempt_sequence": 1,
+            "attempt_started_at_ms": 0,
+            "attempt_resolved_at_ms": 500,
+            "experience_state": "following",
+            "evaluated_target": {"group_id": "entry-1"},
+            "display_target": {"group_id": "entry-1"},
+        }
+    ]
+
+    attempts = replay_script.target_conditioned_candidate_attempts(
+        baseline_attempts=baseline_attempts,
+        audio=sine_audio(np, 261.625565, seconds=0.5),
+        sample_rate=16000,
+        score_path=Path("dummy.musicxml"),
+    )
+
+    assert attempts[0]["evaluator_version"] == "target-conditioned-dsp-v1"
+    assert attempts[0]["evaluation_result"] == "MATCH"
+    assert attempts[0]["matched_pitches"] == ["C4"]
+    assert attempts[0]["pitch_activations"][0]["pitch"] == "C4"
+    assert attempts[0]["pitch_activations"][0]["confidence"] == 1.0
+    assert attempts[0]["pitch_activations"][0]["matched"] is True
 
 
 def test_replay_annotation_metrics_describe_external_recovery_facts() -> None:
@@ -290,7 +730,7 @@ def make_adapter(np, **overrides):
         "start_rms_gate": 0.01,
         "start_peak_gate": 0.04,
         "min_active_frames": 2,
-        "warmup_frames": 0,
+        "calibration_sample_count": 0,
         "rms_noise_multiplier": 4.0,
         "peak_noise_multiplier": 2.5,
         "diagnostics_enabled": False,
@@ -410,6 +850,24 @@ def test_profile_replay_manifest_builds_finite_audio_frames() -> None:
             assert frames, scenario["id"]
             assert all(frame.size == frame_length for frame in frames), scenario["id"]
             assert all(np.isfinite(frame).all() for frame in frames), scenario["id"]
+
+
+def test_profile_replay_manifest_includes_complete_once_again_recording() -> None:
+    manifest, _manifest_path = load_profile_replay_manifest()
+    scenarios = {scenario["id"]: scenario for scenario in manifest["scenarios"]}
+
+    scenario = scenarios["once_again_full_recording_start_and_progress"]
+
+    assert scenario["quality_status"] == "known_gap"
+    assert scenario["frames"] == [
+        {
+            "type": "wav",
+            "path": "local_recordings/Once Again.wav",
+            "duration_seconds": 20,
+        }
+    ]
+    assert scenario["expect"]["starts"] is True
+    assert scenario["expect"]["min_alignment_advance"] == 8.0
 
 
 def test_initial_alignment_manifest_declares_phase_and_chunking_matrix() -> None:

@@ -201,6 +201,33 @@ def test_midi_engine_allows_replaying_incomplete_chord_before_advancing() -> Non
     assert engine.drain_resolved_practice_attempts() == []
 
 
+def test_midi_engine_skip_advances_one_current_expected_group_neutrally() -> None:
+    engine = make_midi_engine()
+    engine.ingest_midi_event(event_type="note_on", note_number=60, velocity=96, timestamp_ms=10)
+    engine.drain_resolved_practice_attempts()
+
+    update = engine.skip_current_expected_group()
+
+    assert update is not None
+    assert update["decision"]["action"] == "skip"
+    assert update["decision"]["reason"] == "user_skipped"
+    assert update["decision"]["experience_state"] == "skipped"
+    assert update["decision"]["attempt_state"] == "resolved"
+    assert update["scope_completed"] is True
+    assert update["completion_reason"] == "FINAL_EXPECTED_GROUP_MATCHED"
+    assert update["decision"]["display_anchor"] is not None
+    assert update["decision"]["display_anchor"]["group_id"] == "entry-1"
+    attempts = engine.drain_resolved_practice_attempts()
+    assert len(attempts) == 1
+    skipped = attempts[0]
+    assert skipped.outcome.snapshot.expected_group_id == "entry-1"
+    assert skipped.action == "skip"
+    assert skipped.resolution_reason == "user_skipped"
+    assert skipped.experience_state == "skipped"
+    assert skipped.outcome.evaluation.result == "SKIPPED"
+    assert skipped.outcome.evaluation.missing_pitches == ("E4", "G4", "B4")
+
+
 def test_midi_engine_records_extra_note_mismatch_before_recovery() -> None:
     engine = make_midi_engine()
     engine.ingest_midi_event(event_type="note_on", note_number=60, velocity=96, timestamp_ms=10)

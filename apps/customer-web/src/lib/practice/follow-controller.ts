@@ -13,10 +13,6 @@ type FollowControllerState = {
   lastStablePage: number | null;
   lastUpdateMs: number;
   lastDisplayBeat: number | null;
-  lastDisplayTimelineIndex: number | null;
-  pendingTimelineIndex: number | null;
-  pendingBeat: number | null;
-  pendingCount: number;
 };
 
 function escapeCssId(id: string) {
@@ -44,12 +40,13 @@ function findElementByVerovioId(container: HTMLElement, verovioId: string) {
   );
 }
 
+function applyActiveNoteDecoration(node: HTMLElement) {
+  node.classList.add('practice-note-active');
+  node.closest<HTMLElement>('[data-class="chord"], .chord')?.classList.add('practice-note-active');
+}
+
 export class PracticeFollowController {
   private readonly noteGraceWindowMs = 450;
-  private readonly maxFollowingJumpEvents = 1;
-  private readonly minSequentialPromptAdvanceMs = 220;
-  private readonly commitFrames = 3;
-  private readonly commitBeatTolerance = 0.35;
 
   private state: FollowControllerState = {
     activeNoteIds: [],
@@ -58,10 +55,6 @@ export class PracticeFollowController {
     lastStablePage: null,
     lastUpdateMs: 0,
     lastDisplayBeat: null,
-    lastDisplayTimelineIndex: null,
-    pendingTimelineIndex: null,
-    pendingBeat: null,
-    pendingCount: 0,
   };
 
   clear(container: HTMLElement) {
@@ -74,17 +67,13 @@ export class PracticeFollowController {
       lastStablePage: null,
       lastUpdateMs: 0,
       lastDisplayBeat: null,
-      lastDisplayTimelineIndex: null,
-      pendingTimelineIndex: null,
-      pendingBeat: null,
-      pendingCount: 0,
     };
   }
 
   private clearDecorations(container: HTMLElement) {
-    for (const noteId of this.state.activeNoteIds) {
-      findElementByVerovioId(container, noteId)?.classList.remove('practice-note-active');
-    }
+    container
+      .querySelectorAll('.practice-note-active')
+      .forEach((node) => node.classList.remove('practice-note-active'));
     this.state.activeNoteIds = [];
     this.state.activePage = null;
   }
@@ -95,7 +84,7 @@ export class PracticeFollowController {
       if (!node) {
         continue;
       }
-      node.classList.add('practice-note-active');
+      applyActiveNoteDecoration(node);
     }
   }
 
@@ -111,9 +100,10 @@ export class PracticeFollowController {
     const previousUpdateMs = this.state.lastUpdateMs;
     this.clearDecorations(container);
 
-    const rawDisplayCandidate = this.resolveDisplayAnchor(adapter, alignment);
-    const candidate = this.clampToSequentialPrompt(rawDisplayCandidate, adapter, now);
-    const displayCandidate = this.resolveStepByStepCandidate(candidate, alignment);
+    const displayCandidate = this.resolveStepByStepCandidate(
+      this.resolveDisplayAnchor(adapter, alignment),
+      alignment
+    );
     if (!displayCandidate) {
       this.restorePreviousState(previousResolvedNoteIds, previousStablePage, previousUpdateMs);
       this.refreshDecorations(container);
@@ -121,8 +111,6 @@ export class PracticeFollowController {
     }
 
     this.state.lastDisplayBeat = displayCandidate.beat;
-    this.state.lastDisplayTimelineIndex = displayCandidate.index;
-    this.clearPendingCandidate();
 
     const eventNoteIds = displayCandidate.noteIds;
     const canReusePreviousNotes =
@@ -142,7 +130,7 @@ export class PracticeFollowController {
       if (!node) {
         continue;
       }
-      node.classList.add('practice-note-active');
+      applyActiveNoteDecoration(node);
       noteElements.push(node);
       this.state.activeNoteIds.push(noteId);
     }
@@ -186,44 +174,10 @@ export class PracticeFollowController {
       alignment.decision.action === 'hold' ||
       alignment.decision.action === 'wait'
     ) {
-      this.clearPendingCandidate();
       return this.state.lastDisplayBeat === null ? candidate : null;
     }
 
-    if (this.state.lastDisplayBeat === null || this.state.lastDisplayTimelineIndex === null) {
-      if (!this.isPromptAlignment(alignment) && !this.hasStableCommit(candidate)) {
-        return null;
-      }
-      return candidate;
-    }
-
-    if (candidate.index === this.state.lastDisplayTimelineIndex) {
-      this.clearPendingCandidate();
-      return candidate;
-    }
-
-    if (!this.hasStableCommit(candidate)) {
-      return null;
-    }
-
     return candidate;
-  }
-
-  private hasStableCommit(candidate: PracticeVisualTimelineEntry) {
-    const samePendingCandidate =
-      this.state.pendingTimelineIndex === candidate.index &&
-      this.state.pendingBeat !== null &&
-      Math.abs(this.state.pendingBeat - candidate.beat) <= this.commitBeatTolerance;
-
-    if (samePendingCandidate) {
-      this.state.pendingCount += 1;
-    } else {
-      this.state.pendingTimelineIndex = candidate.index;
-      this.state.pendingBeat = candidate.beat;
-      this.state.pendingCount = 1;
-    }
-
-    return this.state.pendingCount >= this.commitFrames;
   }
 
   private resolveDisplayAnchor(
@@ -247,41 +201,6 @@ export class PracticeFollowController {
       adapter.getTimelineEntryForBeat(anchorBeat) ??
       adapter.getNextTimelineEntryAfterBeat(anchorBeat)
     );
-  }
-
-  private clearPendingCandidate() {
-    this.state.pendingTimelineIndex = null;
-    this.state.pendingBeat = null;
-    this.state.pendingCount = 0;
-  }
-
-  private isPromptAlignment(alignment: PracticeAlignmentUpdateMessage['payload']) {
-    return (
-      alignment.gate_reason === 'first_note_prompt' ||
-      alignment.gate_reason === 'start_confirmed' ||
-      alignment.timestamp_ms === 0
-    );
-  }
-
-  private clampToSequentialPrompt(
-    candidate: PracticeVisualTimelineEntry | null,
-    adapter: PracticeVerovioAdapter,
-    now: number
-  ) {
-    if (!candidate) {
-      return null;
-    }
-
-    const lastIndex = this.state.lastDisplayTimelineIndex;
-    if (lastIndex === null || candidate.index <= lastIndex + this.maxFollowingJumpEvents) {
-      return candidate;
-    }
-
-    if (now - this.state.lastUpdateMs < this.minSequentialPromptAdvanceMs) {
-      return null;
-    }
-
-    return adapter.getTimelineEntryByIndex(lastIndex + 1) ?? candidate;
   }
 
   private restorePreviousState(

@@ -41,7 +41,7 @@ import {
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type {
-  PracticeSessionSummaryMeasureRead,
+  PracticeSessionSummaryProblemMeasureRead,
   PracticeSessionSummaryPayloadRead,
   PracticeSessionSummaryTargetRead,
   PracticeSessionDetailRead,
@@ -159,7 +159,7 @@ function annotationNoteIds(summary: PracticeSessionSummaryPayloadRead | null): {
   };
 }
 
-function reviewReasonKey(measure: PracticeSessionSummaryMeasureRead): string {
+function reviewReasonKey(measure: PracticeSessionSummaryProblemMeasureRead): string {
   if (measure.incomplete_target_count > 0) {
     return 'reviewReasonIncomplete';
   }
@@ -337,7 +337,12 @@ export default function PracticeSummaryPage() {
     () => new PerformancePlayheadController(),
     []
   );
-  const annotationRenderNoteIds = useMemo(() => annotationNoteIds(summary), [summary]);
+  const evaluationAvailable =
+    session?.performance_report_availability?.evaluation_available === true;
+  const annotationRenderNoteIds = useMemo(
+    () => annotationNoteIds(evaluationAvailable ? summary : null),
+    [evaluationAvailable, summary]
+  );
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const focusedNoteIdsRef = useRef<string[]>([]);
   const [renderRevision, setRenderRevision] = useState(0);
@@ -712,8 +717,8 @@ export default function PracticeSummaryPage() {
     }
   }, [errors, localPerformanceReplay, sessionId, t, toast]);
 
-  const difficultMeasures = summary?.difficult_measures ?? [];
-  const facts = summary ? performanceFacts(summary) : [];
+  const problemMeasures = evaluationAvailable ? summary?.problem_measures ?? [] : [];
+  const facts = evaluationAvailable && summary ? performanceFacts(summary) : [];
   const hasReplayCard = Boolean(performanceReplay || savedReplayArtifact);
   const hasSummaryCard = facts.length > 0;
   const hasSidebar = hasReplayCard || hasSummaryCard;
@@ -845,10 +850,10 @@ export default function PracticeSummaryPage() {
                 />
                 </TextCard>
 
-                {summary && difficultMeasures.length > 0 ? (
+                {summary && problemMeasures.length > 0 ? (
                   <TextCard icon={Target} title={t('performanceProblemMeasures')}>
                     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                      {difficultMeasures.slice(0, 6).map((measure) => {
+                      {problemMeasures.slice(0, 6).map((measure) => {
                         const missingPitches = missingPitchesForMeasure(
                           summary,
                           measure.measure_number

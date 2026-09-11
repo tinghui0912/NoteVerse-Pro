@@ -49,7 +49,6 @@ def _session_detail(
             "summary_artifact_kind": "LEARNING_SUMMARY",
             "completion_reason": completion_reason,
             "playback_expected": True,
-            "summary_available": False,
         }
         if state == PracticeSessionState.FINISHED
         else None
@@ -89,7 +88,6 @@ def _performance_session_detail(
             "summary_artifact_kind": "PERFORMANCE_SUMMARY",
             "completion_reason": completion_reason,
             "playback_expected": True,
-            "summary_available": False,
         }
         if state == PracticeSessionState.FINISHED
         else None
@@ -307,6 +305,10 @@ class FailingEngine:
     def is_ready_for_performance(self) -> bool:
         return False
 
+    @property
+    def input_health(self):
+        return GOOD_INPUT_HEALTH
+
     def close(self) -> None:
         pass
 
@@ -345,6 +347,55 @@ class StreamingEngine:
             },
         }
 
+    def skip_current_expected_group(self):
+        return {
+            "beat_position": 1.0,
+            "confidence": 1.0,
+            "alignment_confidence": 1.0,
+            "audio_confidence": 1.0,
+            "continuity_confidence": 1.0,
+            "visual_confidence": 1.0,
+            "timestamp_ms": 30,
+            "scope_completed": False,
+            "completion_reason": None,
+            "audio_active": False,
+            "input_rms": 0.0,
+            "input_peak": 0.0,
+            "input_health": GOOD_INPUT_HEALTH,
+            "match_state": "matched",
+            "feature_confidence": 1.0,
+            "beat_delta": None,
+            "stream_state": "skipped",
+            "frame_class": "unknown",
+            "gate_reason": "user_skipped",
+            "queue_decision": "user_skipped",
+            "tonal_signal": False,
+            "onset_signal": False,
+            "spectral_flatness": 0.0,
+            "peak_prominence": 0.0,
+            "spectral_flux": 0.0,
+            "alignment_state": "skipped",
+            "continuity_state": "stable",
+            "beat_velocity": None,
+            "validation_confidence": 1.0,
+            "input_weight": 0.0,
+            "input_policy_confidence": 1.0,
+            "decision": {
+                "action": "skip",
+                "reason": "user_skipped",
+                "experience_state": "skipped",
+                "display_anchor": {"beat": 1.0, "render_note_ids": []},
+                "confidence_summary": {
+                    "visual": 1.0,
+                    "alignment": 1.0,
+                    "audio": 1.0,
+                    "continuity": 1.0,
+                    "validation": 1.0,
+                    "input_policy": 1.0,
+                },
+            },
+        }
+
     def reset_input_buffer(self) -> None:
         pass
 
@@ -365,6 +416,14 @@ class StreamingEngine:
 
     def close(self) -> None:
         pass
+
+
+class CompletingSkipEngine(StreamingEngine):
+    def skip_current_expected_group(self):
+        update = super().skip_current_expected_group()
+        update["scope_completed"] = True
+        update["completion_reason"] = "FINAL_EXPECTED_GROUP_MATCHED"
+        return update
 
 
 @pytest.fixture
@@ -430,6 +489,15 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                         "state": "STREAMING",
                     },
                 }
+                armed = websocket.receive_json()
+                assert armed == {
+                    "protocol_version": 1,
+                    "type": "session.armed",
+                    "payload": {
+                        "session_id": "session-1",
+                        "input_health": GOOD_INPUT_HEALTH,
+                    },
+                }
                 assert runtime.state == "STREAMING"
 
                 websocket.send_bytes(b"\x01\x02\x03\x04")
@@ -484,10 +552,137 @@ def test_practice_websocket_flow_handles_control_messages_and_binary_audio(
                             "summary_artifact_kind": "LEARNING_SUMMARY",
                             "completion_reason": "STOPPED_BY_USER",
                             "playback_expected": True,
-                            "summary_available": False,
                         },
                     },
                 }
+    finally:
+        app.dependency_overrides.pop(get_practice_service, None)
+        practice_runtime_registry.clear()
+
+
+def test_step_by_step_websocket_skip_advances_current_expected_group(
+    client: TestClient,
+) -> None:
+    practice_runtime_registry.clear()
+    with patch(
+        "app.processing.realtime.session_runtime.build_alignment_engine",
+        return_value=StreamingEngine(),
+    ):
+        runtime = cast(
+            PracticeSessionRuntime,
+            practice_runtime_registry.register(
+                session_id="session-1",
+                task_id="task-1",
+                state="CREATED",
+                score_file_path="score.xml",
+            ),
+        )
+
+    app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
+
+    async def fake_current_user(websocket, db):
+        _ = (websocket, db)
+        return SimpleNamespace(id=1, is_active=True)
+
+    try:
+        with patch("app.modules.practice.router.get_websocket_current_user", fake_current_user):
+            with client.websocket_connect("/api/v1/practice/sessions/session-1/stream") as websocket:
+                websocket.send_json(
+                    {
+                        "protocol_version": 1,
+                        "type": "client.init",
+                        "payload": {
+                            "sample_rate": 16000,
+                            "channels": 1,
+                            "frame_samples": 640,
+                            "progression_mode": "WAIT_FOR_NOTE",
+                            "realtime_guidance": "GUIDED",
+                            "evaluation_profile": "LEARNING",
+                            "input_source": "MICROPHONE",
+                        },
+                    }
+                )
+                websocket.receive_json()
+                websocket.receive_json()
+                websocket.receive_json()
+
+                websocket.send_json(
+                    {"protocol_version": 1, "type": "client.skip", "payload": {"t": 1}}
+                )
+                update = websocket.receive_json()
+
+                assert runtime.state == "STREAMING"
+                assert update["type"] == "alignment.update"
+                assert update["payload"]["decision"]["action"] == "skip"
+                assert update["payload"]["decision"]["reason"] == "user_skipped"
+                assert update["payload"]["decision"]["experience_state"] == "skipped"
+                assert update["payload"]["scope_completed"] is False
+    finally:
+        app.dependency_overrides.pop(get_practice_service, None)
+        practice_runtime_registry.clear()
+
+
+def test_step_by_step_websocket_skip_finishes_when_scope_is_completed(
+    client: TestClient,
+) -> None:
+    practice_runtime_registry.clear()
+    with patch(
+        "app.processing.realtime.session_runtime.build_alignment_engine",
+        return_value=CompletingSkipEngine(),
+    ):
+        runtime = cast(
+            PracticeSessionRuntime,
+            practice_runtime_registry.register(
+                session_id="session-1",
+                task_id="task-1",
+                state="CREATED",
+                score_file_path="score.xml",
+            ),
+        )
+
+    app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
+
+    async def fake_current_user(websocket, db):
+        _ = (websocket, db)
+        return SimpleNamespace(id=1, is_active=True)
+
+    try:
+        with patch("app.modules.practice.router.get_websocket_current_user", fake_current_user):
+            with client.websocket_connect("/api/v1/practice/sessions/session-1/stream") as websocket:
+                websocket.send_json(
+                    {
+                        "protocol_version": 1,
+                        "type": "client.init",
+                        "payload": {
+                            "sample_rate": 16000,
+                            "channels": 1,
+                            "frame_samples": 640,
+                            "progression_mode": "WAIT_FOR_NOTE",
+                            "realtime_guidance": "GUIDED",
+                            "evaluation_profile": "LEARNING",
+                            "input_source": "MICROPHONE",
+                        },
+                    }
+                )
+                websocket.receive_json()
+                websocket.receive_json()
+                websocket.receive_json()
+
+                websocket.send_json(
+                    {"protocol_version": 1, "type": "client.skip", "payload": {"t": 1}}
+                )
+                update = websocket.receive_json()
+                finished = websocket.receive_json()
+
+                assert runtime.state == "FINISHED"
+                assert update["type"] == "alignment.update"
+                assert update["payload"]["decision"]["action"] == "skip"
+                assert update["payload"]["scope_completed"] is True
+                assert finished["type"] == "session.finished"
+                assert finished["payload"]["state"] == "FINISHED"
+                assert finished["payload"]["completion_outcome"]["completion_reason"] == (
+                    "SCOPE_COMPLETED"
+                )
     finally:
         app.dependency_overrides.pop(get_practice_service, None)
         practice_runtime_registry.clear()
@@ -837,6 +1032,7 @@ def test_practice_websocket_flow_returns_stable_alignment_error(
                 )
                 connecting = websocket.receive_json()
                 assert connecting["type"] == "session.connecting"
+                websocket.receive_json()
                 websocket.receive_json()
 
                 websocket.send_bytes(b"\x01\x02")

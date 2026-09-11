@@ -15,7 +15,10 @@ PRACTICE_SESSION_SUMMARY_SCORING_POLICY_VERSION = "practice-session-summary-scor
 
 
 def is_scorable_attempt(attempt: PracticeAttempt) -> bool:
-    return attempt.completion_status == PracticeAttemptCompletionStatus.COMPLETED
+    return (
+        attempt.completion_status == PracticeAttemptCompletionStatus.COMPLETED
+        and attempt.result != PracticeAttemptResult.SKIPPED
+    )
 
 
 def attempt_scoring_included(attempt: PracticeAttempt) -> bool:

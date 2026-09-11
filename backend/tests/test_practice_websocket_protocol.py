@@ -37,7 +37,6 @@ def test_session_finished_message_includes_completion_outcome() -> None:
             "summary_artifact_kind": "PERFORMANCE_SUMMARY",
             "completion_reason": "SCOPE_COMPLETED",
             "playback_expected": True,
-            "summary_available": True,
         },
     )
 
@@ -52,7 +51,6 @@ def test_session_finished_message_includes_completion_outcome() -> None:
                 "summary_artifact_kind": "PERFORMANCE_SUMMARY",
                 "completion_reason": "SCOPE_COMPLETED",
                 "playback_expected": True,
-                "summary_available": True,
             },
         },
     }
@@ -192,6 +190,15 @@ def test_practice_websocket_accepts_strict_midi_event_control_frames() -> None:
         )
 
 
+def test_practice_websocket_accepts_skip_control_frames() -> None:
+    message = parse_control_message(
+        '{"protocol_version": 1, "type": "client.skip", "payload": {"t": 1234}}'
+    )
+
+    assert message.type == "client.skip"
+    assert message.payload.t == 1234
+
+
 def test_session_armed_message_requires_structured_input_health() -> None:
     message = practice_server_message_adapter.validate_python(
         {
@@ -237,7 +244,7 @@ def test_alignment_update_message_requires_runtime_input_health() -> None:
                 "visual_confidence": 0.9,
                 "timestamp_ms": 10,
                 "scope_completed": False,
-            "completion_reason": None,
+                "completion_reason": None,
                 "audio_active": True,
                 "input_rms": 0.04,
                 "input_peak": 0.1,
@@ -266,9 +273,9 @@ def test_alignment_update_message_requires_runtime_input_health() -> None:
                 "input_weight": 1,
                 "input_policy_confidence": 1,
                 "decision": {
-                    "action": "advance",
-                    "reason": "stable_match",
-                    "experience_state": "following",
+                    "action": "skip",
+                    "reason": "user_skipped",
+                    "experience_state": "skipped",
                     "display_anchor": {"beat": 3.0, "render_note_ids": []},
                     "confidence_summary": {
                         "visual": 0.9,

@@ -406,7 +406,7 @@ def test_wait_for_note_policy_waits_on_midi_partial_chord() -> None:
     assert policy.current_expected_group.pitches == ("E4", "G4")
 
 
-def test_wait_for_note_policy_best_effort_advances_microphone_partial_chord() -> None:
+def test_wait_for_note_policy_waits_on_microphone_partial_chord() -> None:
     policy = WaitForNoteFollowPolicy(make_wait_for_note_timeline())
     initial_evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
     initial_evaluation = policy.evaluate_evidence(initial_evidence)
@@ -417,10 +417,11 @@ def test_wait_for_note_policy_best_effort_advances_microphone_partial_chord() ->
     decision = policy.decide_evaluation(evidence=evidence, evaluation=evaluation)
 
     assert evaluation.result == "PARTIAL"
-    assert decision["action"] == "advance"
+    assert decision["action"] == "wait"
     assert decision["reason"] == "partial_match"
-    assert decision["experience_state"] == "following"
-    assert policy.current_expected_group is None
+    assert decision["experience_state"] == "partially_matched"
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("E4", "G4")
 
 
 def test_wait_for_note_policy_waits_on_uncertain_audio() -> None:

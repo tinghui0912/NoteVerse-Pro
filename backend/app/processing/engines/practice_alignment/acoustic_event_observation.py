@@ -64,6 +64,8 @@ class AcousticEventObservationProfile:
     min_pitch_confidence: float = 0.80
     ambiguity_confidence: float = 0.65
     max_simple_chord_pitches: int = 4
+    min_relative_peak: float = 0.25
+    max_frequency_candidates: int = 1
 
 
 @dataclass(frozen=True)
@@ -128,10 +130,16 @@ class AcousticEventObserver:
         np_module,
         onset_beat: ScoreBeat | None = None,
     ) -> AudioObservation:
-        frequency_hz = _dominant_frequency(samples, sample_rate=sample_rate, np_module=np_module)
-        if frequency_hz is None:
+        frequencies_hz = _candidate_frequencies(
+            samples,
+            sample_rate=sample_rate,
+            np_module=np_module,
+            min_relative_peak=self.profile.min_relative_peak,
+            max_candidates=self.profile.max_frequency_candidates,
+        )
+        if not frequencies_hz:
             return _uncertain_observation(onset_beat)
-        return self.observe_frequencies((frequency_hz,), onset_beat=onset_beat)
+        return self.observe_frequencies(frequencies_hz, onset_beat=onset_beat)
 
 
 def _normalize_candidate(candidate: AcousticPitchCandidate) -> AcousticPitchCandidate | None:
@@ -195,18 +203,31 @@ def _uncertain_observation(onset_beat: ScoreBeat | None) -> AudioObservation:
     return AudioObservation(observed_pitches=(), confidence=0.0, onset_beat=onset_beat)
 
 
-def _dominant_frequency(samples, *, sample_rate: int, np_module) -> float | None:
+@dataclass(frozen=True)
+class _SpectralPeak:
+    frequency_hz: float
+    amplitude: float
+
+
+def _candidate_frequencies(
+    samples,
+    *,
+    sample_rate: int,
+    np_module,
+    min_relative_peak: float,
+    max_candidates: int,
+) -> tuple[float, ...]:
     if sample_rate <= 0:
-        return None
+        return ()
 
     audio = np_module.asarray(samples, dtype=np_module.float32)
     if audio.size < 256 or not np_module.isfinite(audio).all():
-        return None
+        return ()
 
     audio = audio - float(np_module.mean(audio))
     rms = float(np_module.sqrt(np_module.mean(np_module.square(audio))))
     if rms <= 1e-4:
-        return None
+        return ()
 
     windowed = audio * np_module.hanning(audio.size)
     fft_size = max(4096, 1 << int(np_module.ceil(np_module.log2(max(windowed.size * 4, 1)))))
@@ -215,23 +236,64 @@ def _dominant_frequency(samples, *, sample_rate: int, np_module) -> float | None
     low_index = int(np_module.searchsorted(frequencies, 80.0))
     high_index = int(np_module.searchsorted(frequencies, 1200.0))
     if high_index <= low_index:
-        return None
+        return ()
 
     search_spectrum = spectrum[low_index:high_index]
     if search_spectrum.size == 0:
-        return None
+        return ()
 
-    peak_index = low_index + int(np_module.argmax(search_spectrum))
-    peak_value = float(spectrum[peak_index])
+    peak_value = float(np_module.max(search_spectrum))
     local_floor = float(np_module.median(search_spectrum))
-    if peak_value <= max(local_floor * 8.0, 1e-6):
-        return None
+    threshold = max(local_floor * 8.0, peak_value * min_relative_peak, 1e-6)
+    if peak_value < threshold:
+        return ()
 
-    refined_index = _parabolic_peak_index(spectrum, peak_index)
-    frequency_hz = refined_index * sample_rate / fft_size
-    if not math.isfinite(frequency_hz):
-        return None
-    return float(frequency_hz)
+    peaks: list[_SpectralPeak] = []
+    for index in range(max(low_index + 1, 1), min(high_index, len(spectrum) - 1)):
+        amplitude = float(spectrum[index])
+        if amplitude < threshold:
+            continue
+        if amplitude < float(spectrum[index - 1]) or amplitude < float(spectrum[index + 1]):
+            continue
+        refined_index = _parabolic_peak_index(spectrum, index)
+        frequency_hz = refined_index * sample_rate / fft_size
+        if math.isfinite(frequency_hz):
+            peaks.append(_SpectralPeak(frequency_hz=float(frequency_hz), amplitude=amplitude))
+
+    non_harmonic = _suppress_harmonic_peaks(sorted(peaks, key=lambda peak: peak.frequency_hz))
+    strongest = sorted(non_harmonic, key=lambda peak: peak.amplitude, reverse=True)[:max_candidates]
+    return tuple(peak.frequency_hz for peak in sorted(strongest, key=lambda peak: peak.frequency_hz))
+
+
+def _dominant_frequency(samples, *, sample_rate: int, np_module) -> float | None:
+    candidates = _candidate_frequencies(
+        samples,
+        sample_rate=sample_rate,
+        np_module=np_module,
+        min_relative_peak=1.0,
+        max_candidates=1,
+    )
+    return candidates[0] if candidates else None
+
+
+def _suppress_harmonic_peaks(peaks: list[_SpectralPeak]) -> list[_SpectralPeak]:
+    accepted: list[_SpectralPeak] = []
+    for peak in peaks:
+        if any(_is_harmonic_of(peak.frequency_hz, lower.frequency_hz) for lower in accepted):
+            continue
+        accepted.append(peak)
+    return accepted
+
+
+def _is_harmonic_of(frequency_hz: float, lower_frequency_hz: float) -> bool:
+    if lower_frequency_hz <= 0 or frequency_hz <= lower_frequency_hz:
+        return False
+    ratio = frequency_hz / lower_frequency_hz
+    nearest = round(ratio)
+    if nearest < 2 or nearest > 5:
+        return False
+    cents_error = abs(1200.0 * math.log2(ratio / nearest))
+    return cents_error <= 35.0
 
 
 def _parabolic_peak_index(spectrum, peak_index: int) -> float:

@@ -569,10 +569,6 @@ export type PracticeSessionCompletionOutcomeRead = {
      * Summary Artifact Kind
      */
     summary_artifact_kind: 'LEARNING_SUMMARY' | 'PERFORMANCE_SUMMARY' | 'SECTION_SUMMARY';
-    /**
-     * Summary Available
-     */
-    summary_available: boolean;
 };
 
 /**
@@ -698,95 +694,9 @@ export type PracticeSessionStartRead = {
 export type PracticeSessionState = 'CREATED' | 'STREAMING' | 'PAUSED' | 'FINISHED' | 'FAILED';
 
 /**
- * PracticeSessionSummaryAttemptRead
+ * PracticeSessionSummaryProblemMeasureRead
  */
-export type PracticeSessionSummaryAttemptRead = {
-    /**
-     * Action
-     */
-    action: string;
-    /**
-     * Attempt Index
-     */
-    attempt_index: number;
-    /**
-     * Attempt Uid
-     */
-    attempt_uid: string;
-    /**
-     * Beat Position
-     */
-    beat_position: number;
-    /**
-     * Completion Status
-     */
-    completion_status: string;
-    /**
-     * Confidence
-     */
-    confidence: number;
-    /**
-     * Correctness Scope
-     */
-    correctness_scope: string;
-    /**
-     * Evaluator Version
-     */
-    evaluator_version?: string | null;
-    /**
-     * Event Id
-     */
-    event_id?: string | null;
-    /**
-     * Evidence Profile
-     */
-    evidence_profile: string;
-    /**
-     * Expected Group Id
-     */
-    expected_group_id?: string | null;
-    /**
-     * Input Source
-     */
-    input_source: string;
-    /**
-     * Measure Numbers
-     */
-    measure_numbers?: Array<string>;
-    /**
-     * Policy Profile Version
-     */
-    policy_profile_version?: string | null;
-    /**
-     * Render Note Ids
-     */
-    render_note_ids?: Array<string>;
-    /**
-     * Resolution Reason
-     */
-    resolution_reason: string;
-    /**
-     * Resolved At Ms
-     */
-    resolved_at_ms?: number | null;
-    /**
-     * Result
-     */
-    result: string;
-    /**
-     * Scoring Included
-     */
-    scoring_included: boolean;
-    /**
-     * Started At Ms
-     */
-    started_at_ms?: number | null;
-};
-
-/**
- * PracticeSessionSummaryMeasureRead
- */
-export type PracticeSessionSummaryMeasureRead = {
+export type PracticeSessionSummaryProblemMeasureRead = {
     /**
      * Attempt Count
      */
@@ -799,10 +709,6 @@ export type PracticeSessionSummaryMeasureRead = {
      * Completed Target Count
      */
     completed_target_count: number;
-    /**
-     * Difficulty Score
-     */
-    difficulty_score: number;
     /**
      * Incomplete Target Count
      */
@@ -828,6 +734,10 @@ export type PracticeSessionSummaryMeasureRead = {
      */
     scorable_attempt_count: number;
     /**
+     * Skipped Attempt Count
+     */
+    skipped_attempt_count: number;
+    /**
      * Target Count
      */
     target_count: number;
@@ -838,27 +748,15 @@ export type PracticeSessionSummaryMeasureRead = {
  */
 export type PracticeSessionSummaryPayloadRead = {
     /**
-     * Attempts
+     * Problem Measures
      */
-    attempts?: Array<PracticeSessionSummaryAttemptRead>;
-    /**
-     * Difficult Measures
-     */
-    difficult_measures?: Array<PracticeSessionSummaryMeasureRead>;
+    problem_measures?: Array<PracticeSessionSummaryProblemMeasureRead>;
     /**
      * Metrics
      */
     metrics: {
         [key: string]: number | number | string | null;
     };
-    /**
-     * Recommendations
-     */
-    recommendations: Array<string>;
-    /**
-     * Summary
-     */
-    summary: string;
     /**
      * Targets
      */
@@ -938,6 +836,10 @@ export type PracticeSessionSummaryTargetRead = {
      * Scorable Attempt Count
      */
     scorable_attempt_count: number;
+    /**
+     * Skipped Attempt Count
+     */
+    skipped_attempt_count: number;
     /**
      * Unexpected Pitches
      */

@@ -5,7 +5,13 @@ import json
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ResourceNotFoundException
-from app.db.models import PracticeReplayArtifact, PracticeSession, Score, ScoreRevision
+from app.db.models import (
+    PracticeInputSource,
+    PracticeReplayArtifact,
+    PracticeSession,
+    Score,
+    ScoreRevision,
+)
 from app.db.models.practice import (
     PracticeEvaluationProfile,
     PracticeSessionSummaryStatus,
@@ -197,7 +203,6 @@ def _completion_outcome_for_session(
             summary_artifact_kind="SECTION_SUMMARY",
             completion_reason=session.completion_reason,
             playback_expected=playback_expected,
-            summary_available=False,
         )
 
     is_performance = session.evaluation_profile == PracticeEvaluationProfile.PERFORMANCE
@@ -207,7 +212,6 @@ def _completion_outcome_for_session(
         summary_artifact_kind="PERFORMANCE_SUMMARY" if is_performance else "LEARNING_SUMMARY",
         completion_reason=session.completion_reason,
         playback_expected=playback_expected,
-        summary_available=False,
     )
 
 
@@ -233,6 +237,7 @@ def has_durable_performance_evaluation(session: PracticeSession) -> bool:
     if (
         session.evaluation_profile != PracticeEvaluationProfile.PERFORMANCE
         or session.state != PracticeSessionState.FINISHED
+        or session.input_source != PracticeInputSource.MIDI
         or session.summary_status != PracticeSessionSummaryStatus.READY
         or not session.summary_payload
     ):
@@ -246,8 +251,8 @@ def has_durable_performance_evaluation(session: PracticeSession) -> bool:
     if not isinstance(payload, dict):
         return False
 
-    difficult_measures = payload.get("difficult_measures")
-    if isinstance(difficult_measures, list) and len(difficult_measures) > 0:
+    problem_measures = payload.get("problem_measures")
+    if isinstance(problem_measures, list) and len(problem_measures) > 0:
         return True
 
     targets = payload.get("targets")

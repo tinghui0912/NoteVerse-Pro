@@ -77,7 +77,7 @@ const translationMocks = vi.hoisted(() => {
     reviewReasonPartialNotes: 'Partial notes were recorded here',
     reviewReasonWrongNotes: 'Wrong notes were recorded here',
     replaySeek: 'Replay position',
-    savePerformance: 'Save Replay',
+    savePerformance: 'Save Performance',
     savePerformanceFailedDesc: 'This performance could not be saved.',
     savePerformanceFailedTitle: 'Save failed',
     savePerformanceSuccessDesc: 'You can replay this performance from the report later.',
@@ -251,8 +251,12 @@ function session(
     input_source: 'MIDI',
     last_beat_position: null,
     last_confidence: null,
+    performance_report_availability: {
+      evaluation_available: true,
+      saved_replay_available: false,
+    },
     progression_mode: 'CONTINUOUS',
-    realtime_guidance: 'SILENT',
+    realtime_guidance: 'STATUS_ONLY',
     revision_id: 'revision-from-session',
     sample_rate: 16000,
     score_id: 'score-1',
@@ -265,19 +269,18 @@ function session(
 }
 
 const midiPerformanceSummaryPayload: PracticeSessionSummaryPayloadRead = {
-  attempts: [],
-  difficult_measures: [
+  problem_measures: [
     {
       attempt_count: 1,
       average_confidence: 1,
       completed_target_count: 0,
-      difficulty_score: 5,
       incomplete_target_count: 1,
       interrupted_attempt_count: 0,
       measure_number: '1',
       mismatch_attempt_count: 1,
       partial_attempt_count: 0,
       scorable_attempt_count: 1,
+      skipped_attempt_count: 0,
       target_count: 1,
     },
   ],
@@ -293,8 +296,6 @@ const midiPerformanceSummaryPayload: PracticeSessionSummaryPayloadRead = {
     not_observed_expected_groups: 1,
     problem_measure_count: 1,
   },
-  recommendations: ['Review the confirmed issue slowly.'],
-  summary: 'Performance session completed.',
   targets: [
     {
       attempt_count: 1,
@@ -313,6 +314,7 @@ const midiPerformanceSummaryPayload: PracticeSessionSummaryPayloadRead = {
       partial_attempt_count: 0,
       render_note_ids: ['n1'],
       scorable_attempt_count: 1,
+      skipped_attempt_count: 0,
       unexpected_pitches: [],
     },
     {
@@ -332,6 +334,7 @@ const midiPerformanceSummaryPayload: PracticeSessionSummaryPayloadRead = {
       partial_attempt_count: 0,
       render_note_ids: ['n2', 'n3'],
       scorable_attempt_count: 1,
+      skipped_attempt_count: 0,
       unexpected_pitches: ['F4'],
     },
     {
@@ -351,6 +354,7 @@ const midiPerformanceSummaryPayload: PracticeSessionSummaryPayloadRead = {
       partial_attempt_count: 0,
       render_note_ids: ['n4'],
       scorable_attempt_count: 0,
+      skipped_attempt_count: 0,
       unexpected_pitches: [],
     },
   ],
@@ -465,8 +469,8 @@ describe('PracticeSummaryPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Performance Summary' })).toBeInTheDocument();
     expect(await screen.findByText('Annotated score')).toBeInTheDocument();
-    expect(screen.getByText('Measures needing attention')).toBeInTheDocument();
-    expect(screen.getByText('Correct strikes')).toBeInTheDocument();
+    expect(await screen.findByText('Measures needing attention')).toBeInTheDocument();
+    expect(await screen.findByText('Correct strikes')).toBeInTheDocument();
     expect(screen.getByText('Missing strikes')).toBeInTheDocument();
     expect(screen.getAllByText('Extra playing')).toHaveLength(2);
     expect(screen.queryByText('Performance session completed.')).not.toBeInTheDocument();
@@ -497,6 +501,29 @@ describe('PracticeSummaryPage', () => {
       .toHaveClass('practice-summary-note-focused');
   });
 
+  it('does not project evaluation UI when report evaluation is unavailable', async () => {
+    apiMocks.getPracticeSession.mockResolvedValue({
+      data: session({
+        performance_report_availability: {
+          evaluation_available: false,
+          saved_replay_available: false,
+        },
+      }),
+    });
+
+    renderPage();
+
+    await screen.findByText('Annotated score');
+    expect(screen.queryByText('Measures needing attention')).not.toBeInTheDocument();
+    expect(screen.queryByText('Correct strikes')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n1"]'))
+        .not.toHaveClass('practice-summary-note-confirmed-correct');
+      expect(screen.getByTestId('summary-score-viewer').querySelector('[data-id="n3"]'))
+        .not.toHaveClass('practice-summary-note-confirmed-error');
+    });
+  });
+
   it('rejects non-performance sessions instead of rendering a learning report variant', async () => {
     apiMocks.getPracticeSession.mockResolvedValue({
       data: session({
@@ -523,7 +550,7 @@ describe('PracticeSummaryPage', () => {
     expect(await screen.findByTestId('performance-replay-player')).toHaveTextContent(
       'MIDI_EVENTS'
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Save Replay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Performance' }));
 
     await waitFor(() => expect(apiMocks.finalizePracticeReplayArtifact).toHaveBeenCalledTimes(1));
     expect(apiMocks.authorizePracticeReplayUpload).toHaveBeenCalledWith(
@@ -536,7 +563,7 @@ describe('PracticeSummaryPage', () => {
         timebase_version: 1,
       })
     );
-    expect(screen.queryByRole('button', { name: 'Save Replay' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save Performance' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
@@ -589,7 +616,7 @@ describe('PracticeSummaryPage', () => {
     apiMocks.getPracticeSessionSummary.mockResolvedValue({
       data: summaryRead({
         ...midiPerformanceSummaryPayload,
-        difficult_measures: [],
+        problem_measures: [],
       }),
     });
 

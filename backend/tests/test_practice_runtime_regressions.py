@@ -422,7 +422,7 @@ def test_browser_audio_stream_adapter_rejects_quiet_frames() -> None:
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -449,7 +449,7 @@ def test_browser_audio_stream_adapter_accepts_voiced_frames() -> None:
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -479,7 +479,7 @@ def test_browser_audio_stream_adapter_queues_features_with_timestamp() -> None:
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -507,7 +507,7 @@ def test_browser_audio_stream_adapter_starts_from_moderate_recorded_playback() -
         start_rms_gate=0.035,
         start_peak_gate=0.065,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -533,7 +533,7 @@ def test_browser_audio_stream_adapter_rejects_broad_non_tonal_start_transient() 
         start_rms_gate=0.025,
         start_peak_gate=0.06,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -558,7 +558,7 @@ def test_browser_audio_stream_adapter_rejects_low_prominence_start_transient() -
         start_rms_gate=0.025,
         start_peak_gate=0.06,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -584,7 +584,7 @@ def test_browser_audio_stream_adapter_allows_focused_musical_start_candidate() -
         start_rms_gate=0.025,
         start_peak_gate=0.06,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -609,7 +609,7 @@ def test_browser_audio_stream_adapter_allows_focused_musical_start_candidate() -
     assert adapter.last_gate_reason == "start_confirmed"
 
 
-def test_browser_audio_stream_adapter_requires_strong_musical_start_after_warmup() -> None:
+def test_browser_audio_stream_adapter_requires_strong_musical_start_after_calibration() -> None:
     import numpy as np
 
     feature_queue = DummyQueue()
@@ -623,14 +623,16 @@ def test_browser_audio_stream_adapter_requires_strong_musical_start_after_warmup
         start_rms_gate=0.025,
         start_peak_gate=0.06,
         min_active_frames=2,
-        warmup_frames=3,
+        calibration_sample_count=384,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
     )
 
+    rng = np.random.default_rng(1)
     for _ in range(3):
-        assert adapter.ingest(np.full(128, 0.008, dtype=np.float32)) is False
+        frame = rng.uniform(-0.016, 0.016, 128).astype(np.float32)
+        assert adapter.ingest(frame) is False
 
     assert adapter._calibrated_rms_gate > 0.025
     assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
@@ -660,7 +662,7 @@ def test_browser_audio_stream_adapter_exposes_clear_state_transitions() -> None:
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=2,
+        calibration_sample_count=256,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -668,11 +670,14 @@ def test_browser_audio_stream_adapter_exposes_clear_state_transitions() -> None:
         onset_hold_frames=2,
     )
 
-    assert adapter.stream_state == "calibrating"
-    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
-    assert adapter.stream_state == "calibrating"
+    assert adapter.stream_state == "armed"
+    assert adapter.noise_estimate_warming is True
     assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
     assert adapter.stream_state == "armed"
+    assert adapter.noise_estimate_warming is True
+    assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
+    assert adapter.stream_state == "armed"
+    assert adapter.noise_estimate_warming is False
     assert adapter.ingest(np.zeros(128, dtype=np.float32)) is False
     assert adapter.stream_state == "armed"
 
@@ -703,7 +708,7 @@ def test_browser_audio_stream_adapter_updates_runtime_noise_floor_slowly() -> No
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -729,7 +734,7 @@ def test_browser_audio_stream_adapter_detects_spectral_flux_onset() -> None:
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -757,7 +762,7 @@ def test_browser_audio_stream_adapter_does_not_retrigger_on_steady_tone() -> Non
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -786,7 +791,7 @@ def test_browser_audio_stream_adapter_onset_hold_keeps_decay_active() -> None:
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -821,7 +826,7 @@ def test_browser_audio_stream_adapter_tracks_weak_tonal_tails_after_start() -> N
         start_rms_gate=0.035,
         start_peak_gate=0.065,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -851,7 +856,7 @@ def test_browser_audio_stream_adapter_streams_short_quiet_tail_after_start() -> 
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -881,7 +886,7 @@ def test_browser_audio_stream_adapter_marks_no_input_after_sustained_quiet() -> 
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1126,7 +1131,7 @@ def test_browser_audio_stream_adapter_rejects_start_when_feature_validator_fails
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1166,7 +1171,7 @@ def test_browser_audio_stream_adapter_can_start_from_recent_start_feature_window
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=3,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1198,7 +1203,7 @@ def test_browser_audio_stream_adapter_does_not_start_from_single_tonal_feature_m
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=3,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1225,7 +1230,7 @@ def test_browser_audio_stream_adapter_requires_sustained_signal() -> None:
         start_rms_gate=0.2,
         start_peak_gate=0.2,
         min_active_frames=2,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1251,7 +1256,7 @@ def test_browser_audio_stream_adapter_rejects_peak_only_spikes() -> None:
         start_rms_gate=0.2,
         start_peak_gate=0.2,
         min_active_frames=1,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1280,7 +1285,7 @@ def test_browser_audio_stream_adapter_ignores_startup_transients() -> None:
         start_rms_gate=0.2,
         start_peak_gate=0.2,
         min_active_frames=2,
-        warmup_frames=3,
+        calibration_sample_count=48,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1293,7 +1298,9 @@ def test_browser_audio_stream_adapter_ignores_startup_transients() -> None:
     assert adapter.accepted_frames == 0
     assert feature_queue.items == []
 
-    assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
+    for _ in range(3):
+        assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
+
     assert adapter.ingest(voiced_frame(np, 0.35)) is True
     assert adapter.ready_to_start is False
     assert adapter.ingest(voiced_frame(np, 0.35)) is True
@@ -1314,14 +1321,16 @@ def test_browser_audio_stream_adapter_calibrates_against_noise_floor() -> None:
         start_rms_gate=0.01,
         start_peak_gate=0.04,
         min_active_frames=2,
-        warmup_frames=3,
+        calibration_sample_count=48,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
     )
 
+    rng = np.random.default_rng(1)
     for _ in range(3):
-        assert adapter.ingest(np.full(16, 0.009, dtype=np.float32)) is False
+        frame = rng.uniform(-0.012, 0.012, 16).astype(np.float32)
+        assert adapter.ingest(frame) is False
 
     assert adapter.ingest(np.full(16, 0.02, dtype=np.float32)) is False
     assert adapter.ready_to_start is False
@@ -1332,7 +1341,7 @@ def test_browser_audio_stream_adapter_calibrates_against_noise_floor() -> None:
     assert adapter.ready_to_start is True
 
 
-def test_browser_audio_stream_adapter_does_not_calibrate_from_warmup_performance() -> None:
+def test_browser_audio_stream_adapter_does_not_calibrate_from_early_performance() -> None:
     import numpy as np
 
     feature_queue = DummyQueue()
@@ -1346,7 +1355,7 @@ def test_browser_audio_stream_adapter_does_not_calibrate_from_warmup_performance
         start_rms_gate=0.2,
         start_peak_gate=0.2,
         min_active_frames=2,
-        warmup_frames=3,
+        calibration_sample_count=48,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1355,7 +1364,14 @@ def test_browser_audio_stream_adapter_does_not_calibrate_from_warmup_performance
     for _ in range(3):
         assert adapter.ingest(np.full(16, 0.08, dtype=np.float32)) is False
 
-    assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
+    assert adapter.armed is True
+    assert adapter.noise_estimate_warming is True
+
+    for _ in range(3):
+        assert adapter.ingest(np.full(16, 0.001, dtype=np.float32)) is False
+
+    assert adapter.noise_estimate_warming is False
+
     assert adapter.ingest(voiced_frame(np, 0.35)) is True
     assert adapter.ingest(voiced_frame(np, 0.35)) is True
     assert adapter.ready_to_start is True
@@ -1375,7 +1391,7 @@ def test_browser_audio_stream_adapter_requires_strong_start_signal() -> None:
         start_rms_gate=0.08,
         start_peak_gate=0.18,
         min_active_frames=1,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1406,7 +1422,7 @@ def test_browser_audio_stream_adapter_uses_adaptive_start_gate() -> None:
         start_rms_gate=0.08,
         start_peak_gate=0.18,
         min_active_frames=1,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1433,7 +1449,7 @@ def test_browser_audio_stream_adapter_raises_start_gate_for_calibrated_noise() -
         start_rms_gate=0.025,
         start_peak_gate=0.06,
         min_active_frames=1,
-        warmup_frames=0,
+        calibration_sample_count=0,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1444,7 +1460,7 @@ def test_browser_audio_stream_adapter_raises_start_gate_for_calibrated_noise() -
     assert adapter._effective_start_gates() == pytest.approx((0.048, 0.088))
 
 
-def test_browser_audio_stream_adapter_reports_warmup_input_health() -> None:
+def test_browser_audio_stream_adapter_reports_calibration_input_health() -> None:
     import numpy as np
 
     def build_adapter() -> BrowserAudioStreamAdapter:
@@ -1458,7 +1474,7 @@ def test_browser_audio_stream_adapter_reports_warmup_input_health() -> None:
             start_rms_gate=0.08,
             start_peak_gate=0.18,
             min_active_frames=1,
-            warmup_frames=3,
+            calibration_sample_count=384,
             rms_noise_multiplier=4.0,
             peak_noise_multiplier=2.5,
             diagnostics_enabled=False,
@@ -1468,11 +1484,14 @@ def test_browser_audio_stream_adapter_reports_warmup_input_health() -> None:
     noisy = build_adapter()
     high_noise = build_adapter()
     clipping = build_adapter()
+    noisy_rng = np.random.default_rng(1)
+    high_noise_rng = np.random.default_rng(2)
+    clipping_rng = np.random.default_rng(3)
     for _ in range(3):
         quiet.ingest(np.zeros(128, dtype=np.float32))
-        noisy.ingest(np.full(128, 0.012, dtype=np.float32))
-        high_noise.ingest(np.full(128, 0.07, dtype=np.float32))
-        clipping.ingest(np.full(128, 1.0, dtype=np.float32))
+        noisy.ingest(noisy_rng.normal(0, 0.012, 128).astype(np.float32))
+        high_noise.ingest(high_noise_rng.normal(0, 0.07, 128).astype(np.float32))
+        clipping.ingest(clipping_rng.uniform(-1, 1, 128).astype(np.float32))
 
     assert quiet.input_health == {
         "available": True,
@@ -1484,19 +1503,19 @@ def test_browser_audio_stream_adapter_reports_warmup_input_health() -> None:
         "available": True,
         "level": "good",
         "noise": "elevated",
-        "confidence": 1.0,
+        "confidence": 0.0,
     }
     assert high_noise.input_health == {
         "available": True,
         "level": "good",
         "noise": "high",
-        "confidence": 1.0,
+        "confidence": 0.0,
     }
     assert clipping.input_health == {
         "available": True,
         "level": "clipping",
         "noise": "high",
-        "confidence": 1.0,
+        "confidence": 0.0,
     }
 
 
@@ -1513,7 +1532,7 @@ def test_browser_audio_stream_adapter_reports_runtime_input_health() -> None:
         start_rms_gate=0.08,
         start_peak_gate=0.18,
         min_active_frames=1,
-        warmup_frames=1,
+        calibration_sample_count=1,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1563,7 +1582,7 @@ def test_session_armed_message_carries_input_health() -> None:
     }
 
 
-def test_browser_audio_stream_adapter_ignores_near_gate_warmup_transients() -> None:
+def test_browser_audio_stream_adapter_ignores_near_gate_calibration_transients() -> None:
     import numpy as np
 
     feature_queue = DummyQueue()
@@ -1577,7 +1596,7 @@ def test_browser_audio_stream_adapter_ignores_near_gate_warmup_transients() -> N
         start_rms_gate=0.08,
         start_peak_gate=0.18,
         min_active_frames=1,
-        warmup_frames=3,
+        calibration_sample_count=48,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1590,7 +1609,7 @@ def test_browser_audio_stream_adapter_ignores_near_gate_warmup_transients() -> N
     assert adapter._calibrated_peak_gate == 0.06
 
 
-def test_browser_audio_stream_adapter_arms_after_warmup_without_waiting_for_silence() -> None:
+def test_browser_audio_stream_adapter_does_not_learn_early_performance_as_noise() -> None:
     import numpy as np
 
     feature_queue = DummyQueue()
@@ -1604,7 +1623,7 @@ def test_browser_audio_stream_adapter_arms_after_warmup_without_waiting_for_sile
         start_rms_gate=0.08,
         start_peak_gate=0.18,
         min_active_frames=1,
-        warmup_frames=3,
+        calibration_sample_count=48,
         rms_noise_multiplier=4.0,
         peak_noise_multiplier=2.5,
         diagnostics_enabled=False,
@@ -1612,15 +1631,24 @@ def test_browser_audio_stream_adapter_arms_after_warmup_without_waiting_for_sile
 
     assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is False
     assert adapter.ready_to_start is False
-    assert adapter.armed is False
-
-    assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is False
-    assert adapter.ready_to_start is False
-    assert adapter.armed is False
+    assert adapter.armed is True
+    assert adapter.noise_estimate_warming is True
 
     assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is False
     assert adapter.ready_to_start is False
     assert adapter.armed is True
+    assert adapter.noise_estimate_warming is True
+
+    assert adapter.ingest(np.full(16, 0.2, dtype=np.float32)) is False
+    assert adapter.ready_to_start is False
+    assert adapter.armed is True
+    assert adapter.noise_estimate_warming is True
+
+    for _ in range(3):
+        assert adapter.ingest(np.zeros(16, dtype=np.float32)) is False
+
+    assert adapter.armed is True
+    assert adapter.noise_estimate_warming is False
 
     assert adapter.ingest(voiced_frame(np, 0.25)) is True
     assert adapter.ready_to_start is True

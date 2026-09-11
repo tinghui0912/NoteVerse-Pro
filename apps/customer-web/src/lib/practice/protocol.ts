@@ -11,10 +11,9 @@ const completionOutcome = z.object({
   summary_artifact_kind: z.enum(['LEARNING_SUMMARY', 'PERFORMANCE_SUMMARY', 'SECTION_SUMMARY']),
   completion_reason: z.enum(['SCOPE_COMPLETED', 'STOPPED_BY_USER']),
   playback_expected: z.boolean(),
-  summary_available: z.boolean(),
 }).strict();
 const alignmentDecision = z.object({
-  action: z.enum(['advance', 'hold', 'wait']),
+  action: z.enum(['advance', 'hold', 'wait', 'skip']),
   reason: z.enum([
     'stable_match',
     'partial_match',
@@ -27,6 +26,7 @@ const alignmentDecision = z.object({
     'practice_paused',
     'practice_finished',
     'connection_closed',
+    'user_skipped',
   ]),
   experience_state: z.enum([
     'waiting_for_input',
@@ -38,6 +38,7 @@ const alignmentDecision = z.object({
     'recovering',
     'lost',
     'paused',
+    'skipped',
   ]),
   display_anchor: z.object({
     beat: z.number(),

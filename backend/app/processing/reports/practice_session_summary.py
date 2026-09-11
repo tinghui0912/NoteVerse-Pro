@@ -4,7 +4,14 @@ import json
 from collections.abc import Sequence
 from typing import TypedDict
 
-from app.db.models import PracticeAttempt, PracticeAttemptResult, PracticeInputSource, PracticeProgressionMode, PracticeSession
+from app.db.models import (
+    PracticeAttempt,
+    PracticeAttemptCompletionStatus,
+    PracticeAttemptResult,
+    PracticeInputSource,
+    PracticeProgressionMode,
+    PracticeSession,
+)
 from app.db.models.practice import PracticeEvaluationProfile
 from app.processing.performance.evidence import (
     PerformanceExpectedEventOutcome,
@@ -15,33 +22,9 @@ from app.processing.performance.evidence import (
 )
 from app.processing.reports.practice_scoring_policy import (
     PRACTICE_SESSION_SUMMARY_SCORING_POLICY_VERSION,
-    attempt_scoring_included,
     completed_target_count,
     is_scorable_attempt,
 )
-
-
-class PracticeSessionSummaryAttemptPayload(TypedDict):
-    attempt_index: int
-    attempt_uid: str | None
-    started_at_ms: int | None
-    resolved_at_ms: int | None
-    expected_group_id: str | None
-    event_id: str | None
-    beat_position: float
-    render_note_ids: list[str]
-    measure_numbers: list[str]
-    result: str
-    action: str
-    completion_status: str
-    scoring_included: bool
-    resolution_reason: str
-    input_source: str
-    evidence_profile: str
-    correctness_scope: str
-    evaluator_version: str | None
-    policy_profile_version: str | None
-    confidence: float
 
 
 class PracticeSessionSummaryTargetPayload(TypedDict):
@@ -55,6 +38,7 @@ class PracticeSessionSummaryTargetPayload(TypedDict):
     attempt_count: int
     scorable_attempt_count: int
     interrupted_attempt_count: int
+    skipped_attempt_count: int
     matched_attempt_count: int
     partial_attempt_count: int
     mismatch_attempt_count: int
@@ -64,7 +48,7 @@ class PracticeSessionSummaryTargetPayload(TypedDict):
     last_confidence: float
 
 
-class PracticeSessionSummaryMeasurePayload(TypedDict):
+class PracticeSessionSummaryProblemMeasurePayload(TypedDict):
     measure_number: str
     target_count: int
     completed_target_count: int
@@ -72,19 +56,16 @@ class PracticeSessionSummaryMeasurePayload(TypedDict):
     attempt_count: int
     scorable_attempt_count: int
     interrupted_attempt_count: int
+    skipped_attempt_count: int
     partial_attempt_count: int
     mismatch_attempt_count: int
     average_confidence: float | None
-    difficulty_score: float
 
 
 class PracticeSessionSummaryPayload(TypedDict):
-    summary: str
     metrics: dict[str, int | float | str | None]
-    recommendations: list[str]
-    attempts: list[PracticeSessionSummaryAttemptPayload]
     targets: list[PracticeSessionSummaryTargetPayload]
-    difficult_measures: list[PracticeSessionSummaryMeasurePayload]
+    problem_measures: list[PracticeSessionSummaryProblemMeasurePayload]
 
 
 class PracticeSessionSummaryBuilder:
@@ -105,19 +86,13 @@ class PracticeSessionSummaryBuilder:
                 outcomes=performance_outcomes,
             )
 
-        confidence_label = self._confidence_label(session.last_confidence)
         duration_seconds = self._duration_seconds(session)
         evidence_profile = self._evidence_profile(session)
         attempt_metrics = self._attempt_metrics(attempts)
         target_payloads = _target_payloads(attempts)
-        difficult_measures = _difficult_measure_payloads(target_payloads)
+        problem_measures = _problem_measure_payloads(target_payloads)
 
         return {
-            "summary": (
-                "Practice session completed with "
-                f"{confidence_label.lower()} alignment confidence. "
-                f"Evidence profile: {evidence_profile}."
-            ),
             "metrics": {
                 "state": session.state.value,
                 "access_origin": session.access_origin.value,
@@ -130,13 +105,10 @@ class PracticeSessionSummaryBuilder:
                 "duration_seconds": duration_seconds,
                 "last_beat_position": session.last_beat_position,
                 "last_confidence": session.last_confidence,
-                "confidence_label": confidence_label,
                 **attempt_metrics,
             },
-            "recommendations": self._build_recommendations(session, confidence_label, attempts),
-            "attempts": [self._attempt_payload(attempt) for attempt in attempts],
             "targets": target_payloads,
-            "difficult_measures": difficult_measures,
+            "problem_measures": problem_measures,
         }
 
     @staticmethod
@@ -152,17 +124,10 @@ class PracticeSessionSummaryBuilder:
             outcomes=outcomes,
         )
         metrics = accumulator.metrics()
-        completion_reason = metrics["completion_reason"] or "unknown"
-        scope_kind = metrics["scope_kind"] or "UNKNOWN"
         target_payloads = _performance_target_payloads(outcomes)
         problem_targets = _performance_targets_with_confirmed_issues(target_payloads)
-        difficult_measures = _difficult_measure_payloads(problem_targets)
+        problem_measures = _problem_measure_payloads(problem_targets)
         return {
-            "summary": (
-                "Performance session completed. "
-                f"Completion reason: {completion_reason}. "
-                f"Scope: {scope_kind}."
-            ),
             "metrics": {
                 "state": session.state.value,
                 "access_origin": session.access_origin.value,
@@ -173,12 +138,10 @@ class PracticeSessionSummaryBuilder:
                 "confirmed_correct_strike_targets": _confirmed_correct_strike_count(outcomes),
                 "missing_strike_targets": _missing_strike_count(outcomes),
                 "extra_pitch_count": _unexpected_pitch_count(outcomes),
-                "problem_measure_count": len(difficult_measures),
+                "problem_measure_count": len(problem_measures),
             },
-            "recommendations": accumulator.recommendations(),
-            "attempts": [],
             "targets": target_payloads,
-            "difficult_measures": difficult_measures,
+            "problem_measures": problem_measures,
         }
 
     @staticmethod
@@ -187,16 +150,6 @@ class PracticeSessionSummaryBuilder:
             return None
         duration = (session.finished_at - session.started_at).total_seconds()
         return round(max(duration, 0.0), 2)
-
-    @staticmethod
-    def _confidence_label(confidence: float | None) -> str:
-        if confidence is None:
-            return "Unknown"
-        if confidence >= 0.85:
-            return "Strong"
-        if confidence >= 0.6:
-            return "Stable"
-        return "Needs Review"
 
     @staticmethod
     def _evidence_profile(session: PracticeSession) -> str:
@@ -217,12 +170,17 @@ class PracticeSessionSummaryBuilder:
     @staticmethod
     def _attempt_metrics(attempts: Sequence[PracticeAttempt]) -> dict[str, int | float | str | None]:
         attempt_count = len(attempts)
-        interrupted_attempts = [attempt for attempt in attempts if not is_scorable_attempt(attempt)]
+        interrupted_attempts = [
+            attempt
+            for attempt in attempts
+            if attempt.completion_status != PracticeAttemptCompletionStatus.COMPLETED
+        ]
         scorable_attempts = [attempt for attempt in attempts if is_scorable_attempt(attempt)]
         match_count = sum(1 for attempt in scorable_attempts if attempt.result == PracticeAttemptResult.MATCH)
         partial_count = sum(1 for attempt in scorable_attempts if attempt.result == PracticeAttemptResult.PARTIAL)
         mismatch_count = sum(1 for attempt in scorable_attempts if attempt.result == PracticeAttemptResult.MISMATCH)
         uncertain_count = sum(1 for attempt in scorable_attempts if attempt.result == PracticeAttemptResult.UNCERTAIN)
+        skipped_attempts = [attempt for attempt in attempts if attempt.result == PracticeAttemptResult.SKIPPED]
         attempts_by_target = _attempts_by_target(attempts)
         scorable_attempts_by_target = _attempts_by_target(scorable_attempts)
         target_count = len(attempts_by_target)
@@ -243,13 +201,17 @@ class PracticeSessionSummaryBuilder:
         interrupted_target_count = sum(
             1
             for target_attempts in attempts_by_target.values()
-            if any(not is_scorable_attempt(attempt) for attempt in target_attempts)
+            if any(
+                attempt.completion_status != PracticeAttemptCompletionStatus.COMPLETED
+                for attempt in target_attempts
+            )
         )
         return {
             "scoring_policy_version": PRACTICE_SESSION_SUMMARY_SCORING_POLICY_VERSION,
             "attempt_count": attempt_count,
             "scorable_attempt_count": scorable_attempt_count,
             "interrupted_attempts": len(interrupted_attempts),
+            "skipped_attempts": len(skipped_attempts),
             "matched_attempts": match_count,
             "partial_attempts": partial_count,
             "mismatch_attempts": mismatch_count,
@@ -278,89 +240,6 @@ class PracticeSessionSummaryBuilder:
                 else None
             ),
         }
-
-    @staticmethod
-    def _attempt_payload(attempt: PracticeAttempt) -> PracticeSessionSummaryAttemptPayload:
-        return {
-            "attempt_index": attempt.attempt_index,
-            "attempt_uid": attempt.attempt_uid,
-            "started_at_ms": attempt.started_at_ms,
-            "resolved_at_ms": attempt.resolved_at_ms,
-            "expected_group_id": attempt.expected_group_id,
-            "event_id": attempt.event_id,
-            "beat_position": round(attempt.beat_position, 3),
-            "render_note_ids": _json_string_list(attempt.render_note_ids),
-            "measure_numbers": _json_string_list(attempt.measure_numbers),
-            "result": attempt.result.value,
-            "action": attempt.action,
-            "completion_status": attempt.completion_status.value,
-            "scoring_included": attempt_scoring_included(attempt),
-            "resolution_reason": attempt.resolution_reason.value,
-            "input_source": attempt.input_source.value,
-            "evidence_profile": attempt.evidence_profile,
-            "correctness_scope": attempt.correctness_scope,
-            "evaluator_version": attempt.evaluator_version,
-            "policy_profile_version": attempt.policy_profile_version,
-            "confidence": round(attempt.confidence, 3),
-        }
-
-    def _build_recommendations(
-        self,
-        session: PracticeSession,
-        confidence_label: str,
-        attempts: Sequence[PracticeAttempt],
-    ) -> list[str]:
-        recommendations: list[str] = []
-        if session.last_confidence is None:
-            recommendations.append(
-                "Record another full run so the practice engine can build a clearer alignment trail."
-            )
-        elif session.last_confidence < 0.6:
-            recommendations.append(
-                "Slow the tempo slightly and keep the pulse steadier to improve alignment stability."
-            )
-        else:
-            recommendations.append(
-                "Keep the same pacing and focus on phrasing while timing remains stable."
-            )
-
-        if session.last_beat_position is not None and session.last_beat_position <= 4:
-            recommendations.append(
-                "Try to play further into the score so the summary can cover more of the piece."
-            )
-
-        if confidence_label == "Strong":
-            recommendations.append(
-                "Use the next pass to target articulation and dynamics instead of raw note accuracy."
-            )
-
-        if session.input_source == PracticeInputSource.MIDI:
-            recommendations.append(
-                "MIDI input gives the strictest note evidence; review missed notes as note-entry issues rather than microphone recognition issues."
-            )
-        elif session.progression_mode == PracticeProgressionMode.WAIT_FOR_NOTE:
-            recommendations.append(
-                "Microphone step-by-step chord results are best-effort; use MIDI input when exact chord verification matters."
-            )
-
-        scorable_attempts = [attempt for attempt in attempts if is_scorable_attempt(attempt)]
-        interrupted_count = len(attempts) - len(scorable_attempts)
-        if interrupted_count:
-            recommendations.append(
-                "Some attempts ended because practice was paused, finished, or disconnected; they are shown for context but excluded from learning accuracy."
-            )
-
-        if any(attempt.result == PracticeAttemptResult.PARTIAL for attempt in scorable_attempts):
-            recommendations.append(
-                "Several attempts only matched part of the expected note group; isolate those chords slowly before playing through."
-            )
-        if any(attempt.result == PracticeAttemptResult.MISMATCH for attempt in scorable_attempts):
-            recommendations.append(
-                "Review the targets marked as mismatched before increasing tempo."
-            )
-
-        return recommendations
-
 
 practice_session_summary_builder = PracticeSessionSummaryBuilder()
 
@@ -397,7 +276,14 @@ def _target_payloads(attempts: Sequence[PracticeAttempt]) -> list[PracticeSessio
             attempt.result == PracticeAttemptResult.MATCH
             for attempt in scorable_attempts
         )
-        interrupted_attempt_count = len(target_attempts) - len(scorable_attempts)
+        interrupted_attempt_count = sum(
+            1
+            for attempt in target_attempts
+            if attempt.completion_status != PracticeAttemptCompletionStatus.COMPLETED
+        )
+        skipped_attempt_count = sum(
+            1 for attempt in target_attempts if attempt.result == PracticeAttemptResult.SKIPPED
+        )
         targets.append(
             {
                 "expected_group_id": target_id,
@@ -410,6 +296,7 @@ def _target_payloads(attempts: Sequence[PracticeAttempt]) -> list[PracticeSessio
                 "attempt_count": len(target_attempts),
                 "scorable_attempt_count": len(scorable_attempts),
                 "interrupted_attempt_count": interrupted_attempt_count,
+                "skipped_attempt_count": skipped_attempt_count,
                 "matched_attempt_count": sum(
                     1 for attempt in scorable_attempts if attempt.result == PracticeAttemptResult.MATCH
                 ),
@@ -428,9 +315,9 @@ def _target_payloads(attempts: Sequence[PracticeAttempt]) -> list[PracticeSessio
     return targets
 
 
-def _difficult_measure_payloads(
+def _problem_measure_payloads(
     targets: Sequence[PracticeSessionSummaryTargetPayload],
-) -> list[PracticeSessionSummaryMeasurePayload]:
+) -> list[PracticeSessionSummaryProblemMeasurePayload]:
     grouped: dict[str, list[PracticeSessionSummaryTargetPayload]] = {}
     for target in targets:
         measure_numbers = target["measure_numbers"] or ["unknown"]
@@ -441,13 +328,7 @@ def _difficult_measure_payloads(
         _measure_payload(measure_number, measure_targets)
         for measure_number, measure_targets in grouped.items()
     ]
-    return sorted(
-        measures,
-        key=lambda measure: (
-            -measure["difficulty_score"],
-            _measure_sort_key(measure["measure_number"]),
-        ),
-    )
+    return sorted(measures, key=lambda measure: _measure_sort_key(measure["measure_number"]))
 
 
 def _performance_target_payloads(
@@ -488,6 +369,7 @@ def _performance_target_payloads(
                 "attempt_count": 1,
                 "scorable_attempt_count": 1 if scorable else 0,
                 "interrupted_attempt_count": 0,
+                "skipped_attempt_count": 0,
                 "matched_attempt_count": 1 if matched else 0,
                 "partial_attempt_count": 1 if partial else 0,
                 "mismatch_attempt_count": 1 if mismatch else 0,
@@ -536,28 +418,19 @@ def _unexpected_pitch_count(outcomes: Sequence[PerformanceExpectedEventOutcome])
 def _measure_payload(
     measure_number: str,
     targets: Sequence[PracticeSessionSummaryTargetPayload],
-) -> PracticeSessionSummaryMeasurePayload:
+) -> PracticeSessionSummaryProblemMeasurePayload:
     target_count = len(targets)
     completed_target_count = sum(1 for target in targets if target["completed"])
     incomplete_target_count = target_count - completed_target_count
     attempt_count = sum(target["attempt_count"] for target in targets)
     scorable_attempt_count = sum(target["scorable_attempt_count"] for target in targets)
     interrupted_attempt_count = sum(target["interrupted_attempt_count"] for target in targets)
+    skipped_attempt_count = sum(target["skipped_attempt_count"] for target in targets)
     partial_attempt_count = sum(target["partial_attempt_count"] for target in targets)
     mismatch_attempt_count = sum(target["mismatch_attempt_count"] for target in targets)
     scorable_targets = [
         target for target in targets if target["scorable_attempt_count"] > 0
     ]
-    scorable_target_count = len(scorable_targets)
-    scorable_incomplete_target_count = sum(
-        1 for target in scorable_targets if not target["completed"]
-    )
-    mismatch_target_count = sum(
-        1 for target in scorable_targets if target["mismatch_attempt_count"] > 0
-    )
-    partial_target_count = sum(
-        1 for target in scorable_targets if target["partial_attempt_count"] > 0
-    )
     confidences = [
         target["last_confidence"]
         for target in scorable_targets
@@ -567,13 +440,6 @@ def _measure_payload(
         if confidences
         else None
     )
-    difficulty_score = _normalized_musical_difficulty_score(
-        scorable_target_count=scorable_target_count,
-        scorable_incomplete_target_count=scorable_incomplete_target_count,
-        mismatch_target_count=mismatch_target_count,
-        partial_target_count=partial_target_count,
-        scorable_attempt_count=scorable_attempt_count,
-    )
     return {
         "measure_number": measure_number,
         "target_count": target_count,
@@ -582,34 +448,11 @@ def _measure_payload(
         "attempt_count": attempt_count,
         "scorable_attempt_count": scorable_attempt_count,
         "interrupted_attempt_count": interrupted_attempt_count,
+        "skipped_attempt_count": skipped_attempt_count,
         "partial_attempt_count": partial_attempt_count,
         "mismatch_attempt_count": mismatch_attempt_count,
         "average_confidence": average_confidence,
-        "difficulty_score": difficulty_score,
     }
-
-
-def _normalized_musical_difficulty_score(
-    *,
-    scorable_target_count: int,
-    scorable_incomplete_target_count: int,
-    mismatch_target_count: int,
-    partial_target_count: int,
-    scorable_attempt_count: int,
-) -> float:
-    if scorable_target_count == 0:
-        return 0.0
-    incomplete_rate = scorable_incomplete_target_count / scorable_target_count
-    mismatch_rate = mismatch_target_count / scorable_target_count
-    partial_rate = partial_target_count / scorable_target_count
-    retry_density = max(0, scorable_attempt_count - scorable_target_count) / scorable_target_count
-    return round(
-        incomplete_rate * 3
-        + mismatch_rate * 2
-        + partial_rate
-        + retry_density * 0.5,
-        3,
-    )
 
 
 def _unique_attempt_strings(

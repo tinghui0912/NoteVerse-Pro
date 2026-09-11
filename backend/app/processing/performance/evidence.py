@@ -188,33 +188,6 @@ class PerformanceSummaryAccumulator:
             "average_absolute_timing_offset_ms": _average(abs(item) for item in timing_offsets),
         }
 
-    def recommendations(self) -> list[str]:
-        metrics = self.metrics()
-        recommendations: list[str] = []
-        if metrics["analyzable_coverage"] == 0.0:
-            recommendations.append(
-                "This performance was completed, but there is not enough analyzable input evidence to score it reliably."
-            )
-        elif isinstance(metrics["analyzable_coverage"], float) and metrics["analyzable_coverage"] < 0.6:
-            recommendations.append(
-                "A large part of this take had weak input evidence; use the summary as coverage feedback rather than exact note scoring."
-            )
-        else:
-            recommendations.append(
-                "Use the reliable portions of this take to review timing and continuity before increasing tempo."
-            )
-
-        if self.input_source == PracticeInputSource.MICROPHONE:
-            recommendations.append(
-                "Microphone performance evidence is conservative; unclear regions should not be treated as definite wrong notes."
-            )
-        else:
-            recommendations.append(
-                "MIDI performance evidence supports stricter note, chord, and timing review."
-            )
-        return recommendations
-
-
 class PerformanceEvidenceRecorder:
     def __init__(
         self,

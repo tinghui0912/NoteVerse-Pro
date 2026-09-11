@@ -2,12 +2,16 @@
 
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
+import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import messages from '../../../messages/en/practice.json';
 import { PracticeControls } from './practice-controls';
 
-function renderControls(rangeSelectionActive: boolean) {
+function renderControls(
+  rangeSelectionActive: boolean,
+  overrides: Partial<ComponentProps<typeof PracticeControls>> = {}
+) {
   render(
     <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
       <PracticeControls
@@ -24,6 +28,7 @@ function renderControls(rangeSelectionActive: boolean) {
         onFinish={vi.fn()}
         onOpenSettings={vi.fn()}
         onToggleRangeSelection={vi.fn()}
+        {...overrides}
       />
     </NextIntlClientProvider>
   );

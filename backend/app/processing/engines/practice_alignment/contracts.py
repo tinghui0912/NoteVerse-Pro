@@ -34,7 +34,7 @@ class PracticeConfidenceSummary(TypedDict):
 
 
 class AlignmentDecision(TypedDict):
-    action: Literal["advance", "hold", "wait"]
+    action: Literal["advance", "hold", "wait", "skip"]
     reason: Literal[
         "stable_match",
         "partial_match",
@@ -47,6 +47,7 @@ class AlignmentDecision(TypedDict):
         "practice_paused",
         "practice_finished",
         "connection_closed",
+        "user_skipped",
     ]
     experience_state: Literal[
         "waiting_for_input",
@@ -58,6 +59,7 @@ class AlignmentDecision(TypedDict):
         "recovering",
         "lost",
         "paused",
+        "skipped",
     ]
     display_anchor: PracticeDisplayAnchor | None
     confidence_summary: PracticeConfidenceSummary
@@ -68,6 +70,10 @@ class AlignmentDecision(TypedDict):
     attempt_resolved_at_ms: NotRequired[int]
     evaluator_version: NotRequired[str]
     policy_profile_version: NotRequired[str]
+    evaluation_result: NotRequired[str]
+    matched_pitches: NotRequired[list[str]]
+    missing_pitches: NotRequired[list[str]]
+    extra_pitches: NotRequired[list[str]]
 
 
 class InputHealth(TypedDict):
@@ -136,6 +142,8 @@ class AlignmentEngine(Protocol):
         *,
         reason: Literal["practice_paused", "practice_finished", "connection_closed"],
     ) -> list["ResolvedPracticeAttempt"]: ...
+
+    def skip_current_expected_group(self) -> AlignmentUpdate | None: ...
 
     @property
     def is_ready_for_performance(self) -> bool: ...

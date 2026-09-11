@@ -10,15 +10,44 @@ from app.processing.engines.practice_alignment.expected_event_evaluator import (
 from app.processing.engines.practice_alignment.expected_group_attempt_accumulator import (
     ExpectedGroupAttemptAccumulator,
 )
-from app.processing.engines.practice_alignment.score_timeline import ExpectedPracticeGroup
+from app.processing.engines.practice_alignment.score_timeline import (
+    ExpectedPracticeGroup,
+    ExpectedPracticeNote,
+    ExpectedPracticeStrikeTarget,
+)
 
 
 def expected_group(*pitches: str) -> ExpectedPracticeGroup:
+    expected_notes = tuple(
+        ExpectedPracticeNote(
+            expected_note_id=f"event-1:n{index}",
+            event_id="event-1",
+            pitch=pitch,
+            render_note_id=f"n{index}",
+            measure_numbers=("1",),
+        )
+        for index, pitch in enumerate(pitches, start=1)
+    )
+    strike_targets = tuple(
+        ExpectedPracticeStrikeTarget(
+            strike_id=f"entry-1:strike:{pitch}",
+            pitch=pitch,
+            expected_notes=tuple(note for note in expected_notes if note.pitch == pitch),
+            event_ids=("event-1",),
+            render_note_ids=tuple(
+                note.render_note_id for note in expected_notes if note.pitch == pitch
+            ),
+            measure_numbers=("1",),
+        )
+        for pitch in dict.fromkeys(pitches)
+    )
     return ExpectedPracticeGroup(
         group_id="entry-1",
         onset_beat=4.0,
         event_ids=("event-1",),
-        render_note_ids=("n1",),
+        expected_notes=expected_notes,
+        strike_targets=strike_targets,
+        render_note_ids=tuple(note.render_note_id for note in expected_notes),
         pitches=pitches,
         measure_numbers=("1",),
         staff_ids=("1",),
@@ -94,6 +123,53 @@ def test_attempt_accumulator_emits_no_repeated_observation_until_release() -> No
     assert accumulator.open is True
     assert accumulator.observe_frame(silence, candidate_signal=False, onset_beat=4.0) is None
     assert accumulator.open is False
+
+
+def test_attempt_accumulator_requires_start_candidate_before_opening_new_attempt() -> None:
+    accumulator = make_accumulator()
+
+    assert (
+        accumulator.observe_frame(
+            _sine_frame(261.625565),
+            candidate_signal=True,
+            start_candidate_signal=False,
+            onset_beat=4.0,
+            expected_group_id="entry-1",
+            timestamp_ms=100,
+        )
+        is None
+    )
+    assert accumulator.open is False
+
+    first = accumulator.observe_frame(
+        _sine_frame(261.625565),
+        candidate_signal=True,
+        start_candidate_signal=True,
+        onset_beat=4.0,
+        expected_group_id="entry-1",
+        timestamp_ms=120,
+    )
+    second = accumulator.observe_frame(
+        _sine_frame(329.627557),
+        candidate_signal=True,
+        start_candidate_signal=False,
+        onset_beat=4.0,
+        expected_group_id="entry-1",
+        timestamp_ms=140,
+    )
+    final = accumulator.observe_frame(
+        _sine_frame(391.995436),
+        candidate_signal=True,
+        start_candidate_signal=False,
+        onset_beat=4.0,
+        expected_group_id="entry-1",
+        timestamp_ms=160,
+    )
+
+    assert first is None
+    assert second is None
+    assert final is not None
+    assert final.observed_pitches == ("C4", "E4", "G4")
 
 
 def test_attempt_accumulator_reset_preserves_session_sequence() -> None:
