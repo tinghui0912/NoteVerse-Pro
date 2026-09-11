@@ -440,6 +440,28 @@ def _run_case(case: CaseSpec) -> CaseResult:
         stream.ingest(frame)
         if stream.started and first_start_gate_ms is None:
             first_start_gate_ms = timestamp_ms
+        candidate_signal = _wait_for_note_candidate_signal(stream)
+        start_candidate_signal = _wait_for_note_start_candidate_signal(stream)
+        if not stream.armed or not stream.started:
+            accumulator.reset()
+            previous_open = False
+            frame_traces.append(
+                _frame_trace(
+                    case=case,
+                    stream=stream,
+                    accumulator=accumulator,
+                    timestamp_ms=timestamp_ms,
+                    frame_length=frame_length,
+                    candidate_signal=candidate_signal,
+                    start_candidate_signal=start_candidate_signal,
+                    attempt_open=False,
+                    observer_observed_pitches=(),
+                    observer_confidence=None,
+                    evaluation=None,
+                    advance=False,
+                )
+            )
+            continue
         current_group = follow_policy.current_expected_group
         if current_group is None:
             frame_traces.append(
@@ -460,8 +482,6 @@ def _run_case(case: CaseSpec) -> CaseResult:
             )
             continue
 
-        candidate_signal = _wait_for_note_candidate_signal(stream)
-        start_candidate_signal = _wait_for_note_start_candidate_signal(stream)
         before_open = accumulator.open
         observation = accumulator.observe_frame(
             frame,

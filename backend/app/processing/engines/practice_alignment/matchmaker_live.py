@@ -354,6 +354,9 @@ class MatchmakerLiveEngine:
             self._stream.ingest(audio_frame)
             if not self._stream.armed:
                 return None
+            if not self._stream.started:
+                self._reset_wait_for_note_event()
+                return None
             update = self._wait_for_note_update(audio_frame)
             if update is None or update["decision"]["reason"] == "insufficient_input":
                 return None

@@ -2014,11 +2014,15 @@ def feed_wait_for_note_event(engine, frames):
 
 
 def configure_wait_for_note_candidate_stream(engine, *, rms: float = 0.2, peak: float = 0.4):
+    frame_count = 0
+
     def ingest(_audio_frame):
+        nonlocal frame_count
+        frame_count += 1
         engine._stream.last_audio_active = True
         engine._stream.last_rms = rms
         engine._stream.last_peak = peak
-        engine._stream.last_onset_signal = False
+        engine._stream.last_onset_signal = frame_count == 1
         engine._stream.last_gate_reason = "wait_for_note_candidate"
         engine._stream.last_queue_decision = "wait_for_note_candidate"
         engine._stream.last_frame_class = "tonal"
@@ -2223,6 +2227,8 @@ def test_wait_for_note_engine_does_not_advance_from_pre_start_candidate() -> Non
     )
 
     assert updates == []
+    assert engine._wait_for_note_attempt.open is False
+    assert engine._wait_for_note_attempt.last_resolved_attempt is None
     assert engine._follow_policy.current_expected_group is not None
     assert engine._follow_policy.current_expected_group.pitches == ("C4",)
 
