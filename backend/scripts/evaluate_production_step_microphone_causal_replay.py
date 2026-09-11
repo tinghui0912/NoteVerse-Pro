@@ -14,6 +14,7 @@ synthetic audio.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
@@ -73,7 +74,12 @@ FailureCode = Literal[
     "RETRIGGER_MISSED",
     "NOISE_FALSE_COMPLETION",
 ]
-FixtureStatus = Literal["real_fixture", "derived_from_real_fixture", "missing_required_fixture"]
+FixtureStatus = Literal[
+    "real_fixture",
+    "derived_from_real_fixture",
+    "missing_required_fixture",
+    "public_dataset_case",
+]
 
 
 class FeaturePassthroughProcessor:
@@ -136,6 +142,7 @@ class CaseSpec:
     padding_before_seconds: float = 1.1
     inter_strike_silence_seconds: float = 0.35
     diagnostic_note: str = ""
+    source_metadata: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -178,6 +185,7 @@ class CaseResult:
     primary_failure: FailureCode
     diagnostic_note: str
     boundary_note: str
+    source_metadata: dict[str, object] | None = None
     missing_fixture_request: str | None = None
 
 
@@ -188,9 +196,15 @@ def main() -> None:
         type=Path,
         default=Path("data/work/datasets/production_step_microphone_causal_replay_report.json"),
     )
+    parser.add_argument(
+        "--case-manifest",
+        type=Path,
+        default=None,
+        help="Optional public-dataset causal case manifest produced by the extractor.",
+    )
     args = parser.parse_args()
 
-    cases = _case_specs()
+    cases = _case_specs_from_manifest(args.case_manifest) if args.case_manifest else _case_specs()
     results = tuple(_run_case(case) for case in cases)
     payload = {
         "benchmark_scope": "production_step_microphone_causal_replay",
@@ -213,6 +227,8 @@ def main() -> None:
             "startup validation. Cases marked derived_from_real_fixture are diagnostics, not "
             "a substitute for same-take product validation recordings."
         ),
+        "case_manifest": str(args.case_manifest) if args.case_manifest else None,
+        "summary": _summary(results),
         "results": [asdict(result) for result in results],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -315,6 +331,7 @@ def _run_case(case: CaseSpec) -> CaseResult:
             primary_failure="MISSING_REQUIRED_FIXTURE",
             diagnostic_note=case.diagnostic_note,
             boundary_note="",
+            source_metadata=case.source_metadata,
             missing_fixture_request=case.missing_fixture_request,
         )
 
@@ -494,12 +511,13 @@ def _classify_case(
 ) -> CaseResult:
     advance = actual_advances > 0
     latest_evaluation = attempts[-1].evaluation_result if attempts else "NO_ATTEMPT"
+    case_kind = _case_kind(case)
     expected_any_attack = case.case_id not in {"noise_desk_knock_for_c4"}
     attack_correct = (attempt_open_count > 0) == expected_any_attack
-    if case.case_id == "sustain_tail_without_new_strike":
+    if case_kind == "sustain_tail_without_retrigger":
         attempt_correct = attempt_open_count == 1
-    elif case.case_id == "same_note_retrigger_c4":
-        second_start_ms = _second_source_start_ms(case)
+    elif case_kind == "same_note_retrigger":
+        second_start_ms = _second_target_relative_ms(case)
         attempt_correct = (
             attempt_open_count >= 2
             and len(attempts) >= 2
@@ -532,20 +550,62 @@ def _classify_case(
         primary_failure=failure,
         diagnostic_note=case.diagnostic_note,
         boundary_note=_boundary_note(case, attempts),
+        source_metadata=case.source_metadata,
         missing_fixture_request=case.missing_fixture_request,
     )
+
+
+def _case_specs_from_manifest(path: Path) -> tuple[CaseSpec, ...]:
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    cases = []
+    for item in manifest.get("cases", []):
+        audio_path = Path(str(item["audio_path"]))
+        if not audio_path.is_absolute():
+            audio_path = (path.parent / audio_path).resolve()
+        cases.append(
+            CaseSpec(
+                case_id=str(item["case_id"]),
+                expected_groups=tuple(
+                    tuple(str(pitch) for pitch in group)
+                    for group in item["expected_groups"]
+                ),
+                expected_advances=int(item["expected_advances"]),
+                fixture_status="public_dataset_case",
+                source_paths=(str(audio_path),),
+                padding_before_seconds=0.0,
+                diagnostic_note=str(item.get("diagnostic_note", "")),
+                source_metadata={
+                    key: value
+                    for key, value in item.items()
+                    if key
+                    not in {
+                        "case_id",
+                        "expected_groups",
+                        "expected_advances",
+                        "audio_path",
+                        "diagnostic_note",
+                    }
+                },
+            )
+        )
+    return tuple(cases)
 
 
 def _pitch_correct(case: CaseSpec, attempts: tuple[AttemptTrace, ...]) -> bool | None:
     if not attempts:
         return None
-    if case.case_id == "wrong_octave_c5_for_c4":
-        return all("C4" not in attempt.observed_pitches for attempt in attempts)
+    case_kind = _case_kind(case)
+    if case_kind == "wrong_octave":
+        expected = set(case.expected_groups[0])
+        return all(expected.isdisjoint(attempt.observed_pitches) for attempt in attempts)
+    if case_kind == "wrong_semitone":
+        expected = set(case.expected_groups[0])
+        return all(expected.isdisjoint(attempt.observed_pitches) for attempt in attempts)
     if case.case_id == "noise_desk_knock_for_c4":
         return all(not attempt.observed_pitches for attempt in attempts)
-    if case.case_id == "missing_chord_note_c4_for_c4_c5":
+    if case_kind == "missing_chord_tone":
         return all(attempt.evaluation_result != "MATCH" for attempt in attempts)
-    if case.case_id == "sustain_tail_without_new_strike":
+    if case_kind == "sustain_tail_without_retrigger":
         return len(attempts) <= 1
     expected_flat = tuple(pitch for group in case.expected_groups for pitch in group)
     observed_flat = tuple(pitch for attempt in attempts for pitch in attempt.observed_pitches)
@@ -559,6 +619,7 @@ def _primary_failure(
     attempt_open_count: int,
     first_start_gate_ms: int | None,
 ) -> FailureCode:
+    case_kind = _case_kind(case)
     if case.fixture_status == "missing_required_fixture":
         return "MISSING_REQUIRED_FIXTURE"
     if case.case_id == "noise_desk_knock_for_c4":
@@ -567,24 +628,24 @@ def _primary_failure(
         if first_start_gate_ms is not None or attempt_open_count > 0:
             return "FALSE_ATTACK_OPEN"
         return "NONE"
-    if case.case_id == "wrong_octave_c5_for_c4":
+    if case_kind == "wrong_octave":
         if actual_advances > 0:
             return "OCTAVE_CONFUSION"
         return "ATTACK_MISSED" if not attempts else "NONE"
-    if case.case_id == "wrong_semitone_for_c4":
+    if case_kind == "wrong_semitone":
         return "SEMITONE_CONFUSION" if actual_advances > 0 else "NONE"
-    if case.case_id == "missing_chord_note_c4_for_c4_c5":
+    if case_kind == "missing_chord_tone":
         if actual_advances > 0:
             return "MISSING_NOTE_FALSE_COMPLETION"
         return "NONE"
-    if case.case_id == "sustain_tail_without_new_strike":
+    if case_kind == "sustain_tail_without_retrigger":
         if actual_advances > 1:
             return "PEDAL_TAIL_FALSE_COMPLETION"
         if attempt_open_count > 1:
             return "FALSE_ATTACK_OPEN"
         return "NONE"
-    if case.case_id == "same_note_retrigger_c4":
-        second_start_ms = _second_source_start_ms(case)
+    if case_kind == "same_note_retrigger":
+        second_start_ms = _second_target_relative_ms(case)
         if (
             second_start_ms is not None
             and len(attempts) >= 2
@@ -602,9 +663,9 @@ def _primary_failure(
 
 
 def _boundary_note(case: CaseSpec, attempts: tuple[AttemptTrace, ...]) -> str:
-    if case.case_id != "same_note_retrigger_c4" or len(attempts) < 2:
+    if _case_kind(case) != "same_note_retrigger" or len(attempts) < 2:
         return ""
-    second_start_ms = _second_source_start_ms(case)
+    second_start_ms = _second_target_relative_ms(case)
     if second_start_ms is None:
         return ""
     if attempts[1].started_at_ms < second_start_ms - 50:
@@ -615,13 +676,35 @@ def _boundary_note(case: CaseSpec, attempts: tuple[AttemptTrace, ...]) -> str:
     return ""
 
 
-def _second_source_start_ms(case: CaseSpec) -> int | None:
-    if case.case_id != "same_note_retrigger_c4" or len(case.source_paths) < 2:
-        return None
-    first_duration_ms = int((_read_fixture(case.source_paths[0]).size / SAMPLE_RATE) * 1000)
-    return int(case.padding_before_seconds * 1000) + first_duration_ms + int(
-        case.inter_strike_silence_seconds * 1000
-    )
+def _second_target_relative_ms(case: CaseSpec) -> int | None:
+    metadata = case.source_metadata or {}
+    target_seconds = metadata.get("target_group_seconds")
+    time_range = metadata.get("source_time_range_seconds")
+    if isinstance(target_seconds, list) and len(target_seconds) >= 2 and isinstance(time_range, list):
+        return int(round((float(target_seconds[1]) - float(time_range[0])) * 1000))
+    if case.case_id == "same_note_retrigger_c4" and len(case.source_paths) >= 2:
+        first_duration_ms = int((_read_fixture(case.source_paths[0]).size / SAMPLE_RATE) * 1000)
+        return int(case.padding_before_seconds * 1000) + first_duration_ms + int(
+            case.inter_strike_silence_seconds * 1000
+        )
+    return None
+
+
+def _case_kind(case: CaseSpec) -> str:
+    metadata = case.source_metadata or {}
+    if "case_kind" in metadata:
+        return str(metadata["case_kind"])
+    if case.case_id == "wrong_octave_c5_for_c4":
+        return "wrong_octave"
+    if case.case_id == "wrong_semitone_for_c4":
+        return "wrong_semitone"
+    if case.case_id == "missing_chord_note_c4_for_c4_c5":
+        return "missing_chord_tone"
+    if case.case_id == "sustain_tail_without_new_strike":
+        return "sustain_tail_without_retrigger"
+    if case.case_id == "same_note_retrigger_c4":
+        return "same_note_retrigger"
+    return case.case_id
 
 
 def _audio_for_case(case: CaseSpec) -> np.ndarray:
@@ -637,7 +720,8 @@ def _audio_for_case(case: CaseSpec) -> np.ndarray:
 
 
 def _read_fixture(relative_path: str) -> np.ndarray:
-    path = FIXTURE_ROOT / relative_path
+    candidate = Path(relative_path)
+    path = candidate if candidate.exists() else FIXTURE_ROOT / relative_path
     with wave.open(str(path), "rb") as recording:
         sample_rate = recording.getframerate()
         channels = recording.getnchannels()
@@ -718,6 +802,25 @@ def _markdown_table(results: tuple[CaseResult, ...]) -> str:
             + " |"
         )
     return "\n".join(lines)
+
+
+def _summary(results: tuple[CaseResult, ...]) -> dict[str, object]:
+    by_failure = Counter(result.primary_failure for result in results)
+    by_kind_failure = Counter(
+        (
+            str((result.source_metadata or {}).get("case_kind", result.case_id)),
+            result.primary_failure,
+        )
+        for result in results
+    )
+    return {
+        "case_count": len(results),
+        "by_primary_failure": dict(sorted(by_failure.items())),
+        "by_case_kind_and_failure": {
+            f"{kind}:{failure}": count
+            for (kind, failure), count in sorted(by_kind_failure.items())
+        },
+    }
 
 
 def _bool_cell(value: bool | None) -> str:
