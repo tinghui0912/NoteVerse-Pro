@@ -3153,3 +3153,54 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    calibration/evaluation split. Future calibration work must group by source
    performance/recording so derived positive and counterfactual cases from the
    same physical strike never cross split boundaries.
+
+   Multi-source expansion status:
+
+   ```text
+   source performances = 8 MAESTRO test recordings
+   total cases = 128
+   cases per source = 16
+   source identity = source_audio_sha256
+   startup_mode = warm
+   local window = target - 50ms -> target + 120ms
+   decision horizon = 350ms
+   thresholds = unchanged
+   ```
+
+   Aggregate results:
+
+   ```text
+   Basic Pitch raw activation:
+   - correct single acceptance = 16/16
+   - correct chord complete acceptance = 10/16
+   - wrong semitone false completion = 3/16
+   - wrong semitone false completion, clean = 0/10
+   - wrong octave false completion = 1/16
+   - wrong octave false completion, clean = 1/15
+   - missing-note false completion = 2/16
+   - missing-note false completion, clean = 0/13
+   - same-note retrigger acceptance = 9/16
+   - no local model-frame cases = 0/128
+
+   ByteDance/Kong high-resolution piano transcription raw activation:
+   - correct single acceptance = 16/16
+   - correct chord complete acceptance = 15/16
+   - wrong semitone false completion = 3/16
+   - wrong semitone false completion, clean = 0/10
+   - wrong octave false completion = 0/16
+   - wrong octave false completion, clean = 0/15
+   - missing-note false completion = 2/16
+   - missing-note false completion, clean = 0/13
+   - same-note retrigger acceptance = 13/16
+   - no local model-frame cases = 0/128
+   ```
+
+   Interpretation: ByteDance/Kong's chord advantage persists across multiple
+   independent performances (`15/16` vs Basic Pitch `10/16`) and its per-source
+   chord rate is more stable (min `1/2`, median `2/2`, max `2/2`) than Basic
+   Pitch (min `0/2`, median `1/2`, max `2/2`). Clean semitone and clean
+   missing-note safety hold for both pretrained frontends, but Basic Pitch now
+   shows one clean octave false completion (`1/15`) while ByteDance/Kong remains
+   at `0/15`. The 8 independent source audio SHAs are enough to create a
+   source-level calibration/evaluation split, but thresholds must still not be
+   tuned on this same aggregate result and reported as held-out performance.

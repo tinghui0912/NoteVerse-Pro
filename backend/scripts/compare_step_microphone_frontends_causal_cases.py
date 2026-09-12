@@ -862,11 +862,17 @@ def _activation_evidence_summary(evaluations: list[dict[str, object]]) -> dict[s
     chord_frame_mins: list[float] = []
     chord_frame_spreads: list[float] = []
     positive_kinds = {"correct_strike", "correct_chord", "same_note_retrigger"}
+    timing_left_boundary_ms = None
+    timing_right_boundary_ms = None
     for evaluation in evaluations:
         for group in evaluation["group_results"]:
             neighborhood = group.get("analysis_neighborhood") or {}
             left_boundary_ms = -float(neighborhood.get("pre_seconds", DEFAULT_LOCAL_PRE_SECONDS)) * 1000.0
             right_boundary_ms = float(neighborhood.get("post_seconds", DEFAULT_LOCAL_POST_SECONDS)) * 1000.0
+            if timing_left_boundary_ms is None:
+                timing_left_boundary_ms = left_boundary_ms
+            if timing_right_boundary_ms is None:
+                timing_right_boundary_ms = right_boundary_ms
             boundary_band_ms = LOCAL_WINDOW_BOUNDARY_BAND_SECONDS * 1000.0
             for evidence in group["expected_evidence"].values():
                 _append_number(target_onsets, evidence.get("onset_activation"))
@@ -963,8 +969,8 @@ def _activation_evidence_summary(evaluations: list[dict[str, object]]) -> dict[s
             "relative_ms": _number_summary(positive_onset_peak_times),
             "near_left_boundary_count": positive_near_left_boundary_count,
             "near_right_boundary_count": positive_near_right_boundary_count,
-            "left_boundary_ms": round(-DEFAULT_LOCAL_PRE_SECONDS * 1000.0),
-            "right_boundary_ms": round(DEFAULT_LOCAL_POST_SECONDS * 1000.0),
+            "left_boundary_ms": _round_or_none(timing_left_boundary_ms),
+            "right_boundary_ms": _round_or_none(timing_right_boundary_ms),
             "boundary_band_ms": round(LOCAL_WINDOW_BOUNDARY_BAND_SECONDS * 1000.0),
         },
     }
