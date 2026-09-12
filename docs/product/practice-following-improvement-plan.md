@@ -3278,3 +3278,76 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    This is a research candidate, not a production policy. If the policy is
    frozen after calibration review, run the frozen evaluation set once and do
    not tune parameters from its result.
+
+   Robustness audit on the 12 non-frozen sources (`development_set +
+   calibration_set`) keeps the same policy grid and does not run frozen
+   evaluation:
+
+   ```text
+   leave-one-source-out:
+   - folds = 12
+   - selected policy unique count = 2
+   - 11/12 folds select:
+     frame_key = frame_activation
+     target_onset_min = 0.1
+     target_frame_min = 0.05
+     semitone_onset_margin_min = -0.2
+     octave_onset_margin_min = -0.2
+     chord_onset_time_spread_max_ms = 80
+   - 1/12 folds selects the same policy except semitone margin = 0.0
+
+   best balanced objective on all non-frozen sources:
+   - positive recall = 55/72
+   - balanced positive recall = min(single, chord, retrigger) = 17/24
+   - clean negative false completion = 0/61
+   ```
+
+   Ablation of the current best ByteDance/Kong rule:
+
+   ```text
+   full rule:
+   - single = 20/24
+   - chord = 18/24
+   - retrigger = 17/24
+   - clean semitone/octave/missing false = 0/18, 0/23, 0/20
+
+   without semitone margin:
+   - single = 20/24
+   - chord = 19/24
+   - retrigger = 17/24
+   - clean semitone/octave/missing false = 0/18, 0/23, 0/20
+
+   without octave margin:
+   - single = 20/24
+   - chord = 18/24
+   - retrigger = 18/24
+   - clean semitone/octave/missing false = 0/18, 0/23, 0/20
+
+   without both competitor margins:
+   - single = 20/24
+   - chord = 19/24
+   - retrigger = 18/24
+   - clean semitone/octave/missing false = 0/18, 0/23, 0/20
+
+   without chord timing spread:
+   - same as full rule on this data
+   ```
+
+   Interpretation: the current `-0.2` semitone/octave competitor margins are
+   not providing useful discrimination on the 12-source research data. Removing
+   them does not increase clean negative false completion and slightly improves
+   positive recall. Chord timing spread is also not active for the current
+   selected policy because disabling it produces the same result. This means the
+   evidence supports a simpler candidate than the original margin-based rule.
+
+   Policy plateau:
+
+   ```text
+   zero-clean-negative policies within <= 2 positive cases of best = 630
+   ```
+
+   This is a broad plateau, not a narrow single-point optimum. Do not freeze
+   the original full rule just because it appears first in the grid. Prefer a
+   simpler policy from the plateau, likely based on target onset/frame evidence
+   only, then run frozen evaluation exactly once after that policy is explicitly
+   frozen.
