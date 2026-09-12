@@ -3659,3 +3659,94 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
      NoteVerse can call the note model directly on bounded prefixes or extract a
      lighter equivalent. The official `transcribe()` wrapper itself should not
      be wired into production STEP.
+
+   Direct note-model actual-prefix frontend validation, full development +
+   calibration benchmark:
+
+   ```text
+   report =
+   data/work/datasets/maestro-v3.0.0/bytedance_direct_note_frontend_validation.gpu.json
+
+   cases = 192
+   source performances = 12
+   target-group inferences = 264
+
+   input = bounded prefix through target +350ms
+   model = ByteDance note_model only
+   no 10s padding
+   no pedal_model
+   no RegressionPostProcessor
+   no MIDI decoding
+
+   verifier:
+   onset >= 0.2
+   frame >= 0.2
+   local evidence = target -50ms -> target +120ms
+   ```
+
+   This validation reuses the full case semantics:
+
+   ```text
+   all expected_groups
+   all target_group_seconds
+   actual_groups
+   expected_advances
+   future counterfactual contamination
+   source identity
+   case-level MATCH / acceptance
+   ```
+
+   The official-wrapper reference was not rerun. Existing development and
+   calibration `frontend_comparison_report.json` files were read and rescored
+   with the frozen `0.2 / 0.2` verifier.
+
+   Aggregate result:
+
+   ```text
+   decision agreement with official +350ms frozen verifier = 192/192
+
+   correct single = 20/24
+   correct chord = 19/24
+   retrigger = 18/24
+
+   clean semitone false = 0/18
+   clean octave false = 0/23
+   clean missing false = 0/20
+   clean negative false = 0/61
+
+   NO_LOCAL_MODEL_FRAMES = 0/192
+   disagreements = 0
+   ```
+
+   GPU latency:
+
+   ```text
+   note_model forward latency:
+     mean = 119.999 ms
+     median = 115.828 ms
+     p95 = 155.951 ms
+
+   target-evidence end-to-end latency:
+     mean = 121.409 ms
+     median = 117.205 ms
+     p95 = 157.257 ms
+   ```
+
+   Per-source positives remain uneven for the same source recordings that were
+   already weak under the official wrapper, but direct note-model does not add
+   new clean false completions and does not introduce case-level disagreements.
+
+   Updated conclusion:
+
+   - Direct `note_model` actual-prefix inference preserves the official-wrapper
+     frozen verifier decisions on the full non-frozen benchmark.
+   - Positive recall does not drop relative to the official-wrapper frozen
+     verifier.
+   - No new clean false completions appear.
+   - Runtime feasibility is materially better than the official wrapper:
+     direct note-model target-evidence end-to-end GPU latency is roughly
+     `120ms` mean / `157ms` p95 in this benchmark setup.
+   - This is strong enough to enter the next bounded-prefix context experiment.
+     Still do not connect it to production until streaming/chunking behavior,
+     batching, memory behavior, and failure cases are tested under a runtime-like
+     adapter.
