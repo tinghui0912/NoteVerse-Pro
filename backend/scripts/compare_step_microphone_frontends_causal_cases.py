@@ -12,24 +12,19 @@ from collections import defaultdict
 import json
 from pathlib import Path
 import statistics
+from typing import Callable
 import wave
 
 import numpy as np
-
-from evaluate_basic_pitch_activation_step_cases import (
-    BasicPitchActivationProvider,
-    MIDI_OFFSET,
-)
-from evaluate_score_conditioned_step_cases import (
-    _evaluate_expected,
-    _midi_note_name,
-    _pitch_to_midi_note,
-)
 
 
 DEFAULT_HORIZON_SECONDS = 0.35
 DEFAULT_ONSET_THRESHOLD = 0.5
 DEFAULT_FRAME_THRESHOLD = 0.3
+DEFAULT_BYTEDANCE_ONSET_THRESHOLD = 0.3
+DEFAULT_BYTEDANCE_FRAME_THRESHOLD = 0.1
+MIDI_OFFSET = 21
+_PITCH_CLASSES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 
 
 def main() -> int:
@@ -48,6 +43,16 @@ def main() -> int:
         frame_threshold=args.frame_threshold,
         model_path=args.basic_pitch_model_path,
     )
+    bytedance_summary = _bytedance_frontend_summary(
+        cases,
+        manifest_path=args.case_manifest,
+        work_dir=args.work_dir,
+        horizon_seconds=args.horizon_seconds,
+        onset_threshold=args.bytedance_onset_threshold,
+        frame_threshold=args.bytedance_frame_threshold,
+        checkpoint_path=args.bytedance_checkpoint_path,
+        device=args.bytedance_device,
+    )
 
     report = {
         "benchmark_scope": "step_microphone_frontend_causal_case_comparison",
@@ -57,7 +62,9 @@ def main() -> int:
             "matchmaker_startup_optimized": False,
             "full_transcription_f1": False,
             "basic_pitch_uses_raw_onset_frame_activation": True,
-            "piano_specific_frontend_status": "not_integrated_in_repository",
+            "bytedance_uses_raw_reg_onset_frame_velocity": True,
+            "bounded_causal_prefix": True,
+            "true_streaming_causal": False,
         },
         "case_manifest": str(args.case_manifest),
         "production_report": str(args.production_report),
@@ -65,17 +72,9 @@ def main() -> int:
         "frontends": {
             "production_fft_observer_warm": production_summary,
             "basic_pitch_raw_activation": basic_pitch_summary,
-            "piano_specific_pretrained_onset_frame": {
-                "status": "not_evaluated",
-                "reason": (
-                    "No repository script currently exposes a piano-specific "
-                    "pretrained onset/frame frontend on the causal case manifest. "
-                    "Do not compare it until the provider is integrated into this "
-                    "same benchmark contract."
-                ),
-            },
+            "bytedance_high_resolution_piano_transcription": bytedance_summary,
         },
-        "decision": _decision(production_summary, basic_pitch_summary),
+        "decision": _decision(production_summary, basic_pitch_summary, bytedance_summary),
     }
 
     text = json.dumps(report, ensure_ascii=False, indent=2)
@@ -96,6 +95,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--onset-threshold", type=float, default=DEFAULT_ONSET_THRESHOLD)
     parser.add_argument("--frame-threshold", type=float, default=DEFAULT_FRAME_THRESHOLD)
     parser.add_argument("--basic-pitch-model-path", type=Path, default=None)
+    parser.add_argument(
+        "--bytedance-onset-threshold",
+        type=float,
+        default=DEFAULT_BYTEDANCE_ONSET_THRESHOLD,
+    )
+    parser.add_argument(
+        "--bytedance-frame-threshold",
+        type=float,
+        default=DEFAULT_BYTEDANCE_FRAME_THRESHOLD,
+    )
+    parser.add_argument("--bytedance-checkpoint-path", type=Path, default=None)
+    parser.add_argument("--bytedance-device", default="cuda")
     return parser.parse_args()
 
 
@@ -170,7 +181,7 @@ def _basic_pitch_frontend_summary(
     frame_threshold: float,
     model_path: Path | None,
 ) -> dict[str, object]:
-    provider = BasicPitchActivationProvider(model_path=model_path)
+    provider = BasicPitchRawActivationProvider(model_path=model_path)
     work_dir.mkdir(parents=True, exist_ok=True)
     evaluations = [
         _evaluate_basic_pitch_case(
@@ -184,42 +195,144 @@ def _basic_pitch_frontend_summary(
         )
         for case in cases
     ]
-    by_kind: dict[str, list[dict[str, object]]] = defaultdict(list)
-    for evaluation in evaluations:
-        by_kind[str(evaluation["case_kind"])].append(evaluation)
-
-    metrics = {
-        "correct_single_acceptance": _rate(
-            bool(evaluation["accepted"]) for evaluation in by_kind["correct_strike"]
-        ),
-        "correct_chord_complete_acceptance": _rate(
-            bool(evaluation["accepted"]) for evaluation in by_kind["correct_chord"]
-        ),
-        "wrong_semitone_false_completion": _rate(
-            bool(evaluation["accepted"]) for evaluation in by_kind["wrong_semitone"]
-        ),
-        "wrong_octave_false_completion": _rate(
-            bool(evaluation["accepted"]) for evaluation in by_kind["wrong_octave"]
-        ),
-        "missing_note_false_completion": _rate(
-            bool(evaluation["accepted"]) for evaluation in by_kind["missing_chord_tone"]
-        ),
-        "retrigger_acceptance": _rate(
-            bool(evaluation["accepted"]) for evaluation in by_kind["same_note_retrigger"]
-        ),
-    }
-    return {
-        "provider_id": "basic_pitch_raw_activation",
-        "model_path": str(provider.model_path),
-        "thresholds": {
+    return _raw_activation_frontend_report(
+        provider_id="basic_pitch_raw_activation",
+        model_path=str(provider.model_path),
+        thresholds={
             "onset": onset_threshold,
             "frame": frame_threshold,
             "horizon_seconds": horizon_seconds,
         },
-        "metrics": metrics,
-        "evidence_summary": _basic_pitch_evidence_summary(evaluations),
-        "evaluations": evaluations,
-    }
+        extra_metadata={
+            "raw_outputs": ("onset", "note"),
+            "bounded_causal_prefix": True,
+            "true_streaming_causal": False,
+        },
+        evaluations=evaluations,
+    )
+
+
+class BasicPitchRawActivationProvider:
+    def __init__(self, *, model_path: Path | None = None) -> None:
+        from basic_pitch import FilenameSuffix, build_icassp_2022_model_path
+        from basic_pitch.inference import Model, run_inference
+
+        self.model_path = (
+            Path(build_icassp_2022_model_path(FilenameSuffix.tf))
+            if model_path is None
+            else model_path
+        )
+        self._model = Model(self.model_path)
+        self._run_inference = run_inference
+
+    def predict(self, clip_path: Path) -> dict[str, np.ndarray]:
+        return self._run_inference(clip_path, self._model)
+
+
+def _bytedance_frontend_summary(
+    cases: tuple[dict[str, object], ...],
+    *,
+    manifest_path: Path,
+    work_dir: Path,
+    horizon_seconds: float,
+    onset_threshold: float,
+    frame_threshold: float,
+    checkpoint_path: Path | None,
+    device: str,
+) -> dict[str, object]:
+    try:
+        provider = ByteDancePianoTranscriptionProvider(
+            checkpoint_path=checkpoint_path,
+            device=device,
+        )
+    except Exception as exc:  # pragma: no cover - research environment dependent
+        return {
+            "provider_id": "bytedance_high_resolution_piano_transcription",
+            "status": "not_evaluated",
+            "reason": f"{type(exc).__name__}: {exc}",
+        }
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+    evaluations = [
+        _evaluate_raw_activation_case(
+            case,
+            manifest_path=manifest_path,
+            work_dir=work_dir,
+            horizon_seconds=horizon_seconds,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            provider_id="bytedance_high_resolution_piano_transcription",
+            provider=provider,
+        )
+        for case in cases
+    ]
+    return _raw_activation_frontend_report(
+        provider_id="bytedance_high_resolution_piano_transcription",
+        model_path=provider.checkpoint_path,
+        thresholds={
+            "reg_onset": onset_threshold,
+            "frame": frame_threshold,
+            "horizon_seconds": horizon_seconds,
+        },
+        extra_metadata={
+            "raw_outputs": (
+                "reg_onset_output",
+                "frame_output",
+                "velocity_output",
+                "reg_offset_output",
+            ),
+            "velocity_is_diagnostic_only": True,
+            "offset_and_pedal_not_used_for_match": True,
+            "bounded_causal_prefix": True,
+            "true_streaming_causal": False,
+            "architecture_note": (
+                "The model is piano-specific and uses non-streaming sequence "
+                "context. The benchmark clips stop at target + horizon, so it "
+                "does not read future real audio beyond the decision horizon, "
+                "but this is not a deployable streaming runtime claim."
+            ),
+        },
+        evaluations=evaluations,
+    )
+
+
+class ByteDancePianoTranscriptionProvider:
+    def __init__(self, *, checkpoint_path: Path | None, device: str) -> None:
+        import torch
+        from piano_transcription_inference import PianoTranscription
+
+        resolved_device = torch.device(device if device == "cpu" or torch.cuda.is_available() else "cpu")
+        self._transcriber = PianoTranscription(
+            checkpoint_path=None if checkpoint_path is None else str(checkpoint_path),
+            device=resolved_device,
+        )
+        self.checkpoint_path = (
+            str(checkpoint_path)
+            if checkpoint_path is not None
+            else str(Path.home() / "piano_transcription_inference_data" / "note_F1=0.9677_pedal_F1=0.9186.pth")
+        )
+
+    def predict(self, clip_audio: np.ndarray, *, sample_rate: int) -> dict[str, np.ndarray]:
+        if sample_rate != 16000:
+            raise ValueError(f"ByteDance provider expects 16 kHz audio, got {sample_rate}")
+        audio = np.asarray(clip_audio, dtype=np.float32)
+        result = self._transcriber.transcribe(audio, midi_path=None)
+        output = result["output_dict"]
+        return {
+            "onset": output["reg_onset_output"],
+            "frame": output["frame_output"],
+            "velocity": output["velocity_output"],
+            "offset": output.get("reg_offset_output"),
+        }
+
+    def __call__(
+        self,
+        clip_audio: np.ndarray,
+        sample_rate: int,
+        clip_path: Path,
+    ) -> dict[str, np.ndarray]:
+        del clip_path
+        return self.predict(clip_audio, sample_rate=sample_rate)
 
 
 def _evaluate_basic_pitch_case(
@@ -230,7 +343,35 @@ def _evaluate_basic_pitch_case(
     horizon_seconds: float,
     onset_threshold: float,
     frame_threshold: float,
-    provider: BasicPitchActivationProvider,
+    provider: BasicPitchRawActivationProvider,
+) -> dict[str, object]:
+    return _evaluate_raw_activation_case(
+        case,
+        manifest_path=manifest_path,
+        work_dir=work_dir,
+        horizon_seconds=horizon_seconds,
+        onset_threshold=onset_threshold,
+        frame_threshold=frame_threshold,
+        provider_id="basic_pitch_raw_activation",
+        provider=lambda clip_audio, sample_rate, clip_path: _predict_basic_pitch(
+            provider,
+            clip_audio,
+            sample_rate=sample_rate,
+            clip_path=clip_path,
+        ),
+    )
+
+
+def _evaluate_raw_activation_case(
+    case: dict[str, object],
+    *,
+    manifest_path: Path,
+    work_dir: Path,
+    horizon_seconds: float,
+    onset_threshold: float,
+    frame_threshold: float,
+    provider_id: str,
+    provider: Callable[[np.ndarray, int, Path], dict[str, np.ndarray]],
 ) -> dict[str, object]:
     audio_path = _case_audio_path(case, manifest_path=manifest_path)
     audio, sample_rate = _read_wav(audio_path)
@@ -249,11 +390,11 @@ def _evaluate_basic_pitch_case(
         clip_audio = audio[: int(round(clip_end_seconds * sample_rate))]
         clip_path = (
             work_dir
-            / "basic_pitch_causal_clips"
+            / f"{provider_id}_causal_clips"
             / f"{case['case_id']}_g{index + 1:02d}_h{_safe_float(horizon_seconds)}.wav"
         )
         _write_wav(clip_path, clip_audio, sample_rate=sample_rate)
-        raw_output = provider.predict(clip_path)
+        raw_output = provider(clip_audio, sample_rate, clip_path)
         prediction = _activation_prediction(
             raw_output,
             expected_pitches=expected_pitches,
@@ -267,6 +408,12 @@ def _evaluate_basic_pitch_case(
             pitch for pitch, evidence in prediction["expected_evidence"].items() if evidence["accepted"]
         )
         result, matched, missing, extra = _evaluate_expected(expected_pitches, observed)
+        contamination = _future_target_contamination(
+            case,
+            expected_pitches=expected_pitches,
+            target_second=target_second,
+            decision_end_seconds=target_second + horizon_seconds,
+        )
         group_results.append(
             {
                 "group_index": index,
@@ -280,6 +427,7 @@ def _evaluate_basic_pitch_case(
                 "expected_evidence": prediction["expected_evidence"],
                 "competitor_evidence": prediction["competitor_evidence"],
                 "chord_summary": prediction["chord_summary"],
+                "future_target_contamination": contamination,
             }
         )
         observed_groups.append(observed)
@@ -296,8 +444,29 @@ def _evaluate_basic_pitch_case(
         "expected_advances": expected_advances,
         "matched_groups": matched_groups,
         "accepted": accepted,
+        "future_target_contaminated": any(
+            group["future_target_contamination"]["contaminated"]
+            for group in group_results
+        ),
         "group_results": group_results,
         "observed_groups": observed_groups,
+    }
+
+
+def _predict_basic_pitch(
+    provider: BasicPitchRawActivationProvider,
+    clip_audio: np.ndarray,
+    *,
+    sample_rate: int,
+    clip_path: Path,
+) -> dict[str, np.ndarray]:
+    del clip_audio, sample_rate
+    raw = provider.predict(clip_path)
+    return {
+        "onset": raw["onset"],
+        "frame": raw["note"],
+        "velocity": None,
+        "offset": None,
     }
 
 
@@ -311,11 +480,10 @@ def _activation_prediction(
     onset_threshold: float,
     frame_threshold: float,
 ) -> dict[str, object]:
-    from basic_pitch.note_creation import model_frames_to_time
-
     onsets = raw_output["onset"]
-    notes = raw_output["note"]
-    frame_times = model_frames_to_time(onsets.shape[0]) + clip_start_seconds
+    notes = raw_output["frame"]
+    velocity = raw_output.get("velocity")
+    frame_times = _raw_activation_frame_times(raw_output, frame_count=onsets.shape[0]) + clip_start_seconds
     frame_mask = (frame_times >= decision_start_seconds) & (
         frame_times <= decision_end_seconds
     )
@@ -326,6 +494,7 @@ def _activation_prediction(
         pitch: _pitch_evidence(
             onsets,
             notes,
+            velocity,
             frame_mask=frame_mask,
             pitch=pitch,
             onset_threshold=onset_threshold,
@@ -338,6 +507,7 @@ def _activation_prediction(
             "-12": _pitch_evidence(
                 onsets,
                 notes,
+                velocity,
                 frame_mask=frame_mask,
                 pitch=_transpose_pitch(pitch, -12),
                 onset_threshold=onset_threshold,
@@ -346,6 +516,7 @@ def _activation_prediction(
             "-1": _pitch_evidence(
                 onsets,
                 notes,
+                velocity,
                 frame_mask=frame_mask,
                 pitch=_transpose_pitch(pitch, -1),
                 onset_threshold=onset_threshold,
@@ -354,6 +525,7 @@ def _activation_prediction(
             "+1": _pitch_evidence(
                 onsets,
                 notes,
+                velocity,
                 frame_mask=frame_mask,
                 pitch=_transpose_pitch(pitch, 1),
                 onset_threshold=onset_threshold,
@@ -362,6 +534,7 @@ def _activation_prediction(
             "+12": _pitch_evidence(
                 onsets,
                 notes,
+                velocity,
                 frame_mask=frame_mask,
                 pitch=_transpose_pitch(pitch, 12),
                 onset_threshold=onset_threshold,
@@ -397,6 +570,7 @@ def _activation_prediction(
 def _pitch_evidence(
     onsets: np.ndarray,
     notes: np.ndarray,
+    velocity: np.ndarray | None,
     *,
     frame_mask: np.ndarray,
     pitch: str | None,
@@ -408,6 +582,7 @@ def _pitch_evidence(
             "pitch": None,
             "onset_activation": None,
             "frame_activation": None,
+            "velocity_evidence": None,
             "accepted": False,
         }
     midi_note = _pitch_to_midi_note(pitch)
@@ -417,27 +592,107 @@ def _pitch_evidence(
             "pitch": pitch,
             "onset_activation": None,
             "frame_activation": None,
+            "velocity_evidence": None,
             "accepted": False,
         }
     onset_max = float(np.max(onsets[frame_mask, pitch_index]))
     frame_max = float(np.max(notes[frame_mask, pitch_index]))
+    velocity_max = None
+    if velocity is not None:
+        velocity_max = float(np.max(velocity[frame_mask, pitch_index]))
     return {
         "pitch": pitch,
         "onset_activation": round(onset_max, 6),
         "frame_activation": round(frame_max, 6),
+        "velocity_evidence": _round_or_none(velocity_max),
         "accepted": onset_max >= onset_threshold and frame_max >= frame_threshold,
     }
 
 
+def _raw_activation_frame_times(raw_output: dict[str, np.ndarray], *, frame_count: int) -> np.ndarray:
+    if "velocity" in raw_output and raw_output.get("velocity") is not None:
+        return np.arange(frame_count, dtype=np.float32) / 100.0
+    from basic_pitch.note_creation import model_frames_to_time
+
+    return model_frames_to_time(frame_count)
+
+
+def _raw_activation_frontend_report(
+    *,
+    provider_id: str,
+    model_path: str,
+    thresholds: dict[str, object],
+    extra_metadata: dict[str, object] | None = None,
+    evaluations: list[dict[str, object]],
+) -> dict[str, object]:
+    by_kind: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for evaluation in evaluations:
+        by_kind[str(evaluation["case_kind"])].append(evaluation)
+    report = {
+        "provider_id": provider_id,
+        "model_path": model_path,
+        "thresholds": thresholds,
+        "metrics": {
+            "correct_single_acceptance": _rate(
+                bool(evaluation["accepted"]) for evaluation in by_kind["correct_strike"]
+            ),
+            "correct_chord_complete_acceptance": _rate(
+                bool(evaluation["accepted"]) for evaluation in by_kind["correct_chord"]
+            ),
+            "wrong_semitone_false_completion": _rate(
+                bool(evaluation["accepted"]) for evaluation in by_kind["wrong_semitone"]
+            ),
+            "wrong_semitone_false_completion_uncontaminated": _rate(
+                bool(evaluation["accepted"])
+                for evaluation in by_kind["wrong_semitone"]
+                if not bool(evaluation["future_target_contaminated"])
+            ),
+            "wrong_octave_false_completion": _rate(
+                bool(evaluation["accepted"]) for evaluation in by_kind["wrong_octave"]
+            ),
+            "wrong_octave_false_completion_uncontaminated": _rate(
+                bool(evaluation["accepted"])
+                for evaluation in by_kind["wrong_octave"]
+                if not bool(evaluation["future_target_contaminated"])
+            ),
+            "missing_note_false_completion": _rate(
+                bool(evaluation["accepted"]) for evaluation in by_kind["missing_chord_tone"]
+            ),
+            "missing_note_false_completion_uncontaminated": _rate(
+                bool(evaluation["accepted"])
+                for evaluation in by_kind["missing_chord_tone"]
+                if not bool(evaluation["future_target_contaminated"])
+            ),
+            "retrigger_acceptance": _rate(
+                bool(evaluation["accepted"]) for evaluation in by_kind["same_note_retrigger"]
+            ),
+        },
+        "evidence_summary": _activation_evidence_summary(evaluations),
+        "evaluations": evaluations,
+    }
+    if extra_metadata:
+        report.update(extra_metadata)
+    return report
+
+
 def _basic_pitch_evidence_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
+    return _activation_evidence_summary(evaluations)
+
+
+def _activation_evidence_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
     target_onsets: list[float] = []
     target_frames: list[float] = []
+    target_velocities: list[float] = []
     competitor_values: dict[str, dict[str, list[float]]] = {
-        "-12": {"onset": [], "frame": []},
-        "-1": {"onset": [], "frame": []},
-        "+1": {"onset": [], "frame": []},
-        "+12": {"onset": [], "frame": []},
+        "-12": {"onset": [], "frame": [], "velocity": []},
+        "-1": {"onset": [], "frame": [], "velocity": []},
+        "+1": {"onset": [], "frame": [], "velocity": []},
+        "+12": {"onset": [], "frame": [], "velocity": []},
     }
+    semitone_onset_contrast: list[float] = []
+    semitone_frame_contrast: list[float] = []
+    octave_onset_contrast: list[float] = []
+    octave_frame_contrast: list[float] = []
     chord_onset_mins: list[float] = []
     chord_onset_spreads: list[float] = []
     chord_frame_mins: list[float] = []
@@ -447,10 +702,43 @@ def _basic_pitch_evidence_summary(evaluations: list[dict[str, object]]) -> dict[
             for evidence in group["expected_evidence"].values():
                 _append_number(target_onsets, evidence.get("onset_activation"))
                 _append_number(target_frames, evidence.get("frame_activation"))
+                _append_number(target_velocities, evidence.get("velocity_evidence"))
             for by_pitch in group["competitor_evidence"].values():
                 for offset, evidence in by_pitch.items():
                     _append_number(competitor_values[offset]["onset"], evidence.get("onset_activation"))
                     _append_number(competitor_values[offset]["frame"], evidence.get("frame_activation"))
+                    _append_number(
+                        competitor_values[offset]["velocity"],
+                        evidence.get("velocity_evidence"),
+                    )
+                _append_contrast(
+                    semitone_onset_contrast,
+                    group["expected_evidence"],
+                    by_pitch,
+                    evidence_key="onset_activation",
+                    offsets=("-1", "+1"),
+                )
+                _append_contrast(
+                    semitone_frame_contrast,
+                    group["expected_evidence"],
+                    by_pitch,
+                    evidence_key="frame_activation",
+                    offsets=("-1", "+1"),
+                )
+                _append_contrast(
+                    octave_onset_contrast,
+                    group["expected_evidence"],
+                    by_pitch,
+                    evidence_key="onset_activation",
+                    offsets=("-12", "+12"),
+                )
+                _append_contrast(
+                    octave_frame_contrast,
+                    group["expected_evidence"],
+                    by_pitch,
+                    evidence_key="frame_activation",
+                    offsets=("-12", "+12"),
+                )
             expected_count = len(group["expected_pitches"])
             if expected_count > 1:
                 summary = group["chord_summary"]
@@ -461,12 +749,30 @@ def _basic_pitch_evidence_summary(evaluations: list[dict[str, object]]) -> dict[
     return {
         "target_onset": _number_summary(target_onsets),
         "target_frame": _number_summary(target_frames),
+        "target_velocity": _number_summary(target_velocities),
         "competitors": {
             offset: {
                 "onset": _number_summary(values["onset"]),
                 "frame": _number_summary(values["frame"]),
+                "velocity": _number_summary(values["velocity"]),
             }
             for offset, values in competitor_values.items()
+        },
+        "semitone_contrast": {
+            "target_minus_strongest_competitor_onset": _number_summary(
+                semitone_onset_contrast
+            ),
+            "target_minus_strongest_competitor_frame": _number_summary(
+                semitone_frame_contrast
+            ),
+        },
+        "octave_contrast": {
+            "target_minus_strongest_competitor_onset": _number_summary(
+                octave_onset_contrast
+            ),
+            "target_minus_strongest_competitor_frame": _number_summary(
+                octave_frame_contrast
+            ),
         },
         "chord": {
             "target_onset_min": _number_summary(chord_onset_mins),
@@ -480,9 +786,11 @@ def _basic_pitch_evidence_summary(evaluations: list[dict[str, object]]) -> dict[
 def _decision(
     production_summary: dict[str, object],
     basic_pitch_summary: dict[str, object],
+    bytedance_summary: dict[str, object],
 ) -> dict[str, object]:
     production_metrics = production_summary["metrics"]
     basic_metrics = basic_pitch_summary["metrics"]
+    bytedance_metrics = bytedance_summary.get("metrics")
     return {
         "correct_chord_failure_mainly_fft_observer": (
             production_metrics["correct_chord_complete_acceptance"]["accepted"] == 0
@@ -503,13 +811,49 @@ def _decision(
                 "missing_note_false_completion",
             )
         ),
-        "piano_specific_frontend_comparison_ready": False,
+        "bytedance_comparison_ready": bytedance_metrics is not None,
+        "bytedance_improves_basic_pitch_semitone_safety": (
+            False
+            if bytedance_metrics is None
+            else bytedance_metrics["wrong_semitone_false_completion"]["accepted"]
+            < basic_metrics["wrong_semitone_false_completion"]["accepted"]
+        ),
+        "bytedance_preserves_basic_pitch_chord_recall": (
+            False
+            if bytedance_metrics is None
+            else bytedance_metrics["correct_chord_complete_acceptance"]["accepted"]
+            >= basic_metrics["correct_chord_complete_acceptance"]["accepted"]
+        ),
         "recommended_next_step": (
-            "Run this same causal-case contract against a piano-specific "
-            "pretrained onset/frame provider before choosing calibration or a "
+            "If ByteDance raw evidence has lower semitone false completion while "
+            "preserving chord recall, test a single global calibration policy. "
+            "If not, inspect raw contrast distributions before considering a "
             "tiny target-conditioned strike verifier."
         ),
     }
+
+
+def _append_contrast(
+    values: list[float],
+    expected_evidence: dict[str, dict[str, object]],
+    competitor_evidence: dict[str, dict[str, object]],
+    *,
+    evidence_key: str,
+    offsets: tuple[str, ...],
+) -> None:
+    if len(expected_evidence) != 1:
+        return
+    target = next(iter(expected_evidence.values())).get(evidence_key)
+    if not isinstance(target, (int, float)):
+        return
+    competitor_numbers = [
+        float(competitor_evidence[offset][evidence_key])
+        for offset in offsets
+        if offset in competitor_evidence
+        and isinstance(competitor_evidence[offset].get(evidence_key), (int, float))
+    ]
+    if competitor_numbers:
+        values.append(float(target) - max(competitor_numbers))
 
 
 def _case_counts(cases: tuple[dict[str, object], ...]) -> dict[str, int]:
@@ -517,6 +861,36 @@ def _case_counts(cases: tuple[dict[str, object], ...]) -> dict[str, int]:
     for case in cases:
         counts[str(case.get("case_kind"))] += 1
     return counts
+
+
+def _future_target_contamination(
+    case: dict[str, object],
+    *,
+    expected_pitches: tuple[str, ...],
+    target_second: float,
+    decision_end_seconds: float,
+) -> dict[str, object]:
+    matches = []
+    expected = set(expected_pitches)
+    for event in case.get("ground_truth_note_events", ()) or ():
+        pitch = event.get("pitch")
+        start = event.get("start_seconds")
+        if not isinstance(pitch, str) or not isinstance(start, (int, float)):
+            continue
+        start = float(start)
+        if start <= target_second + 1e-6:
+            continue
+        if start > decision_end_seconds + 1e-6:
+            continue
+        if pitch in expected:
+            matches.append(
+                {
+                    "pitch": pitch,
+                    "start_seconds": round(start, 6),
+                    "delta_ms": round((start - target_second) * 1000.0),
+                }
+            )
+    return {"contaminated": bool(matches), "events": matches}
 
 
 def _result_kind(result: dict[str, object]) -> str:
@@ -565,6 +939,40 @@ def _transpose_pitch(pitch: str, semitones: int) -> str | None:
     if midi_note < MIDI_OFFSET or midi_note >= MIDI_OFFSET + 88:
         return None
     return _midi_note_name(midi_note)
+
+
+def _evaluate_expected(
+    expected_pitches: tuple[str, ...],
+    observed_pitches: tuple[str, ...],
+) -> tuple[str, tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    expected = tuple(dict.fromkeys(expected_pitches))
+    observed = tuple(dict.fromkeys(observed_pitches))
+    expected_set = set(expected)
+    observed_set = set(observed)
+    matched = tuple(pitch for pitch in expected if pitch in observed_set)
+    missing = tuple(pitch for pitch in expected if pitch not in observed_set)
+    extra = tuple(pitch for pitch in observed if pitch not in expected_set)
+    if matched and not missing and not extra:
+        result = "MATCH"
+    elif matched:
+        result = "PARTIAL"
+    elif observed:
+        result = "MISMATCH"
+    else:
+        result = "UNCERTAIN"
+    return result, matched, missing, extra
+
+
+def _pitch_to_midi_note(pitch: str) -> int:
+    pitch_class = pitch[:2] if len(pitch) > 1 and pitch[1] == "#" else pitch[:1]
+    octave_text = pitch[len(pitch_class) :]
+    if pitch_class not in _PITCH_CLASSES:
+        raise ValueError(f"Unsupported pitch: {pitch}")
+    return (int(octave_text) + 1) * 12 + _PITCH_CLASSES.index(pitch_class)
+
+
+def _midi_note_name(note_number: int) -> str:
+    return f"{_PITCH_CLASSES[note_number % 12]}{note_number // 12 - 1}"
 
 
 def _rate(values: object) -> dict[str, object]:

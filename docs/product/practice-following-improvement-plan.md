@@ -3076,15 +3076,27 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    - correct single acceptance = 8/8
    - correct chord complete acceptance = 6/8
    - wrong semitone false completion = 3/8
+   - wrong semitone false completion, excluding future-target contamination = 0/5
+   - wrong octave false completion = 0/8
+   - missing-note false completion = 0/8
+   - same-note retrigger acceptance = 3/3
+
+   ByteDance/Kong high-resolution piano transcription raw activation:
+   - correct single acceptance = 8/8
+   - correct chord complete acceptance = 7/8
+   - wrong semitone false completion = 3/8
+   - wrong semitone false completion, excluding future-target contamination = 0/5
    - wrong octave false completion = 0/8
    - missing-note false completion = 0/8
    - same-note retrigger acceptance = 3/3
    ```
 
-   This means the production FFT observer is the likely first bottleneck for
-   chord recall and retrigger recognition, but Basic Pitch raw thresholds are
-   not yet safe enough because semitone false completion appears in the frozen
-   negative cases. The next experiment should run this exact benchmark contract
-   against a piano-specific pretrained onset/frame frontend before choosing
-   between simple target-conditioned calibration and a small target-conditioned
-   strike verifier.
+   The 3/8 semitone completions for both pretrained frontends are the same
+   contaminated cases: the counterfactual expected pitch appears later inside
+   the 350ms decision horizon. Therefore this benchmark should report both raw
+   and uncontaminated negative rates. The current evidence says production FFT
+   is the first bottleneck for chord recall and retrigger recognition, while
+   pretrained raw activation is promising enough for a fixed global calibration
+   experiment. It is not yet a deployment claim: ByteDance/Kong is
+   piano-specific and bidirectional, so this benchmark is bounded causal-prefix,
+   not true streaming causal runtime.
