@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
+import hashlib
 import json
 from pathlib import Path
 
@@ -22,15 +23,20 @@ from compare_step_microphone_frontends_causal_cases import (
 def main() -> int:
     args = parse_args()
     policy_artifact = json.loads(args.policy.read_text(encoding="utf-8"))
-    if policy_artifact.get("status") != "frozen_before_evaluation":
-        raise ValueError("policy artifact must be frozen_before_evaluation")
+    _validate_supported_policy_artifact(policy_artifact)
     frontend = policy_artifact["frontend"]
     policy = policy_artifact["policy"]
     window = policy_artifact["benchmark_window"]
 
     manifest = json.loads(args.case_manifest.read_text(encoding="utf-8"))
     cases = tuple(manifest.get("cases", ()))
-    checkpoint_path = Path(str(frontend["checkpoint_path"]))
+    checkpoint_path = _checkpoint_path(frontend)
+    checkpoint_sha256 = _sha256(checkpoint_path)
+    if checkpoint_sha256 != frontend["checkpoint_sha256"]:
+        raise ValueError(
+            "checkpoint SHA256 mismatch: "
+            f"expected {frontend['checkpoint_sha256']}, got {checkpoint_sha256}"
+        )
     provider = ByteDancePianoTranscriptionProvider(
         checkpoint_path=checkpoint_path,
         device=args.device,
@@ -75,7 +81,7 @@ def main() -> int:
             },
             extra_metadata={
                 "raw_outputs": frontend.get("raw_outputs_used"),
-                "checkpoint_sha256": frontend.get("checkpoint_sha256"),
+                "checkpoint_sha256": checkpoint_sha256,
                 "bounded_causal_prefix": True,
                 "true_streaming_causal": False,
                 "per_source_metrics": _per_source_metrics(evaluations),
@@ -89,6 +95,45 @@ def main() -> int:
         args.output.write_text(text + "\n", encoding="utf-8")
     print(text)
     return 0
+
+
+def _validate_supported_policy_artifact(policy_artifact: dict[str, object]) -> None:
+    if policy_artifact.get("status") != "frozen_before_evaluation":
+        raise ValueError("policy artifact must be frozen_before_evaluation")
+    frontend = policy_artifact.get("frontend") or {}
+    if frontend.get("provider_id") != "bytedance_high_resolution_piano_transcription":
+        raise ValueError("only the ByteDance/Kong piano frontend is supported")
+    policy = policy_artifact.get("policy") or {}
+    if policy.get("frame_key") != "frame_activation":
+        raise ValueError("only frame_key=frame_activation is supported")
+    if policy.get("competitor_margins_enabled") is not False:
+        raise ValueError("competitor margins must be disabled")
+    if policy.get("chord_timing_spread_enabled") is not False:
+        raise ValueError("chord timing spread must be disabled")
+    if policy.get("semitone_onset_margin_min") is not None:
+        raise ValueError("semitone margin must be null")
+    if policy.get("octave_onset_margin_min") is not None:
+        raise ValueError("octave margin must be null")
+    if policy.get("chord_onset_time_spread_max_ms") is not None:
+        raise ValueError("chord timing spread must be null")
+
+
+def _checkpoint_path(frontend: dict[str, object]) -> Path:
+    configured = frontend.get("checkpoint_path")
+    if configured:
+        return Path(str(configured))
+    model_id = frontend.get("model_id")
+    if model_id == "CRNN_note_F1_0.9677_pedal_F1_0.9186":
+        return Path("/app/models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth")
+    raise ValueError("policy artifact must provide a supported checkpoint identity")
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def parse_args() -> argparse.Namespace:

@@ -3462,3 +3462,106 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    runtime constraints; if streaming feasibility fails, return to new
    calibration data or tiny target-conditioned verifier research rather than
    retuning on this frozen set.
+
+   Research provenance hardening:
+
+   ```text
+   tracked policy copy =
+   backend/research/policies/step_microphone_bytedance_v1.json
+
+   copied_after_frozen_evaluation_for_reproducibility = true
+   not_pre_evaluation_git_registration = true
+   ```
+
+   The tracked copy is intentionally not described as preregistration. Policy
+   identity is provider/model id, checkpoint SHA256, frame key, thresholds,
+   local window, and decision horizon, not the machine-local checkpoint path.
+   The frozen evaluator now checks the actual checkpoint SHA256 and fails if the
+   artifact asks for unsupported semantics. Current supported semantics are:
+
+   ```text
+   frame_key = frame_activation
+   competitor margins = disabled
+   chord timing spread = disabled
+   ```
+
+   First runtime-feasibility experiment, future-context dependency on
+   development + calibration only:
+
+   ```text
+   report =
+   data/work/datasets/maestro-v3.0.0/bytedance_future_context_dependency.gpu.json
+
+   policy = frozen ByteDance/Kong v1
+   thresholds = unchanged
+   prefixes = target + 80, 120, 160, 220, 350 ms
+   reference = target + 350 ms
+   local evidence window = target - 50 ms -> target + 120 ms
+   case_count = 192
+   inference_count per prefix = 264
+   ```
+
+   GPU full dev+cal result:
+
+   ```text
+   +80ms:
+     decision agreement vs +350ms = 185/192
+     correct single/chord/retrigger = 20/24, 16/24, 18/24
+     clean negative false = 1/61
+     mean inference wall time = 1479.894 ms
+
+   +120ms:
+     decision agreement vs +350ms = 188/192
+     correct single/chord/retrigger = 20/24, 18/24, 18/24
+     clean negative false = 1/61
+     mean inference wall time = 1530.267 ms
+
+   +160ms:
+     decision agreement vs +350ms = 191/192
+     correct single/chord/retrigger = 20/24, 18/24, 18/24
+     clean negative false = 0/61
+     mean inference wall time = 1571.249 ms
+
+   +220ms:
+     decision agreement vs +350ms = 191/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean negative false = 0/61
+     mean inference wall time = 1575.625 ms
+
+   +350ms:
+     decision agreement vs +350ms = 192/192
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean negative false = 0/61
+     mean inference wall time = 1608.663 ms
+   ```
+
+   CPU latency was measured only on a deterministic 12-case feasibility sample,
+   not as a full metric replacement:
+
+   ```text
+   report =
+   data/work/datasets/maestro-v3.0.0/bytedance_future_context_dependency.cpu_sample.json
+
+   mean inference wall time:
+   +80ms = 4523.994 ms
+   +120ms = 4547.991 ms
+   +160ms = 4731.885 ms
+   +220ms = 4712.776 ms
+   +350ms = 4691.287 ms
+   ```
+
+   Interpretation:
+
+   - Frozen decisions are mostly stable by `+160ms`; `+120ms` is close but still
+     has one clean false and lower agreement.
+   - BiGRU future context is not the only blocker for decision stability because
+     short prefixes already approach the +350ms reference, but some future
+     context still matters.
+   - Inference latency is the major runtime blocker: even GPU bounded-prefix
+     inference is about `1.5s` per target-group call in this research setup, and
+     CPU is far outside interactive STEP requirements.
+   - ByteDance/Kong should remain a strong representation teacher/reference for
+     target-conditioned evidence, not a direct production runtime candidate yet.
+   - Next research should focus on whether the useful onset/frame representation
+     can be distilled, cached, streamed, or replaced by a lightweight verifier.
+     Do not connect this model directly to production STEP progression.
