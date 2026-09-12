@@ -19,6 +19,8 @@ import numpy as np
 
 
 DEFAULT_HORIZON_SECONDS = 0.35
+DEFAULT_LOCAL_PRE_SECONDS = 0.05
+DEFAULT_LOCAL_POST_SECONDS = 0.12
 DEFAULT_ONSET_THRESHOLD = 0.5
 DEFAULT_FRAME_THRESHOLD = 0.3
 DEFAULT_BYTEDANCE_ONSET_THRESHOLD = 0.3
@@ -39,6 +41,8 @@ def main() -> int:
         manifest_path=args.case_manifest,
         work_dir=args.work_dir,
         horizon_seconds=args.horizon_seconds,
+        local_pre_seconds=args.local_pre_seconds,
+        local_post_seconds=args.local_post_seconds,
         onset_threshold=args.onset_threshold,
         frame_threshold=args.frame_threshold,
         model_path=args.basic_pitch_model_path,
@@ -48,6 +52,8 @@ def main() -> int:
         manifest_path=args.case_manifest,
         work_dir=args.work_dir,
         horizon_seconds=args.horizon_seconds,
+        local_pre_seconds=args.local_pre_seconds,
+        local_post_seconds=args.local_post_seconds,
         onset_threshold=args.bytedance_onset_threshold,
         frame_threshold=args.bytedance_frame_threshold,
         checkpoint_path=args.bytedance_checkpoint_path,
@@ -65,10 +71,15 @@ def main() -> int:
             "bytedance_uses_raw_reg_onset_frame_velocity": True,
             "bounded_causal_prefix": True,
             "true_streaming_causal": False,
+            "activation_pooling": "strike_local_neighborhood",
+            "local_pre_seconds": args.local_pre_seconds,
+            "local_post_seconds": args.local_post_seconds,
+            "decision_horizon_seconds": args.horizon_seconds,
         },
         "case_manifest": str(args.case_manifest),
         "production_report": str(args.production_report),
         "case_counts": dict(sorted(_case_counts(cases).items())),
+        "source_split_readiness": _source_split_readiness(cases),
         "frontends": {
             "production_fft_observer_warm": production_summary,
             "basic_pitch_raw_activation": basic_pitch_summary,
@@ -92,6 +103,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--horizon-seconds", type=float, default=DEFAULT_HORIZON_SECONDS)
+    parser.add_argument("--local-pre-seconds", type=float, default=DEFAULT_LOCAL_PRE_SECONDS)
+    parser.add_argument("--local-post-seconds", type=float, default=DEFAULT_LOCAL_POST_SECONDS)
     parser.add_argument("--onset-threshold", type=float, default=DEFAULT_ONSET_THRESHOLD)
     parser.add_argument("--frame-threshold", type=float, default=DEFAULT_FRAME_THRESHOLD)
     parser.add_argument("--basic-pitch-model-path", type=Path, default=None)
@@ -177,6 +190,8 @@ def _basic_pitch_frontend_summary(
     manifest_path: Path,
     work_dir: Path,
     horizon_seconds: float,
+    local_pre_seconds: float,
+    local_post_seconds: float,
     onset_threshold: float,
     frame_threshold: float,
     model_path: Path | None,
@@ -189,6 +204,8 @@ def _basic_pitch_frontend_summary(
             manifest_path=manifest_path,
             work_dir=work_dir,
             horizon_seconds=horizon_seconds,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
             onset_threshold=onset_threshold,
             frame_threshold=frame_threshold,
             provider=provider,
@@ -202,6 +219,8 @@ def _basic_pitch_frontend_summary(
             "onset": onset_threshold,
             "frame": frame_threshold,
             "horizon_seconds": horizon_seconds,
+            "local_pre_seconds": local_pre_seconds,
+            "local_post_seconds": local_post_seconds,
         },
         extra_metadata={
             "raw_outputs": ("onset", "note"),
@@ -235,6 +254,8 @@ def _bytedance_frontend_summary(
     manifest_path: Path,
     work_dir: Path,
     horizon_seconds: float,
+    local_pre_seconds: float,
+    local_post_seconds: float,
     onset_threshold: float,
     frame_threshold: float,
     checkpoint_path: Path | None,
@@ -259,6 +280,8 @@ def _bytedance_frontend_summary(
             manifest_path=manifest_path,
             work_dir=work_dir,
             horizon_seconds=horizon_seconds,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
             onset_threshold=onset_threshold,
             frame_threshold=frame_threshold,
             provider_id="bytedance_high_resolution_piano_transcription",
@@ -273,6 +296,8 @@ def _bytedance_frontend_summary(
             "reg_onset": onset_threshold,
             "frame": frame_threshold,
             "horizon_seconds": horizon_seconds,
+            "local_pre_seconds": local_pre_seconds,
+            "local_post_seconds": local_post_seconds,
         },
         extra_metadata={
             "raw_outputs": (
@@ -341,6 +366,8 @@ def _evaluate_basic_pitch_case(
     manifest_path: Path,
     work_dir: Path,
     horizon_seconds: float,
+    local_pre_seconds: float,
+    local_post_seconds: float,
     onset_threshold: float,
     frame_threshold: float,
     provider: BasicPitchRawActivationProvider,
@@ -350,6 +377,8 @@ def _evaluate_basic_pitch_case(
         manifest_path=manifest_path,
         work_dir=work_dir,
         horizon_seconds=horizon_seconds,
+        local_pre_seconds=local_pre_seconds,
+        local_post_seconds=local_post_seconds,
         onset_threshold=onset_threshold,
         frame_threshold=frame_threshold,
         provider_id="basic_pitch_raw_activation",
@@ -368,6 +397,8 @@ def _evaluate_raw_activation_case(
     manifest_path: Path,
     work_dir: Path,
     horizon_seconds: float,
+    local_pre_seconds: float,
+    local_post_seconds: float,
     onset_threshold: float,
     frame_threshold: float,
     provider_id: str,
@@ -391,7 +422,11 @@ def _evaluate_raw_activation_case(
         clip_path = (
             work_dir
             / f"{provider_id}_causal_clips"
-            / f"{case['case_id']}_g{index + 1:02d}_h{_safe_float(horizon_seconds)}.wav"
+            / (
+                f"{case['case_id']}_g{index + 1:02d}"
+                f"_h{_safe_float(horizon_seconds)}"
+                f"_local{_safe_float(local_pre_seconds)}-{_safe_float(local_post_seconds)}.wav"
+            )
         )
         _write_wav(clip_path, clip_audio, sample_rate=sample_rate)
         raw_output = provider(clip_audio, sample_rate, clip_path)
@@ -399,8 +434,9 @@ def _evaluate_raw_activation_case(
             raw_output,
             expected_pitches=expected_pitches,
             clip_start_seconds=source_start,
-            decision_start_seconds=target_second,
-            decision_end_seconds=target_second + horizon_seconds,
+            analysis_start_seconds=target_second - local_pre_seconds,
+            analysis_end_seconds=target_second + local_post_seconds,
+            target_second=target_second,
             onset_threshold=onset_threshold,
             frame_threshold=frame_threshold,
         )
@@ -427,6 +463,12 @@ def _evaluate_raw_activation_case(
                 "expected_evidence": prediction["expected_evidence"],
                 "competitor_evidence": prediction["competitor_evidence"],
                 "chord_summary": prediction["chord_summary"],
+                "analysis_neighborhood": {
+                    "start_seconds": round(target_second - local_pre_seconds, 6),
+                    "end_seconds": round(target_second + local_post_seconds, 6),
+                    "pre_seconds": local_pre_seconds,
+                    "post_seconds": local_post_seconds,
+                },
                 "future_target_contamination": contamination,
             }
         )
@@ -448,6 +490,7 @@ def _evaluate_raw_activation_case(
             group["future_target_contamination"]["contaminated"]
             for group in group_results
         ),
+        "source_identity": _case_source_identity(case),
         "group_results": group_results,
         "observed_groups": observed_groups,
     }
@@ -475,8 +518,9 @@ def _activation_prediction(
     *,
     expected_pitches: tuple[str, ...],
     clip_start_seconds: float,
-    decision_start_seconds: float,
-    decision_end_seconds: float,
+    analysis_start_seconds: float,
+    analysis_end_seconds: float,
+    target_second: float,
     onset_threshold: float,
     frame_threshold: float,
 ) -> dict[str, object]:
@@ -484,8 +528,8 @@ def _activation_prediction(
     notes = raw_output["frame"]
     velocity = raw_output.get("velocity")
     frame_times = _raw_activation_frame_times(raw_output, frame_count=onsets.shape[0]) + clip_start_seconds
-    frame_mask = (frame_times >= decision_start_seconds) & (
-        frame_times <= decision_end_seconds
+    frame_mask = (frame_times >= analysis_start_seconds) & (
+        frame_times <= analysis_end_seconds
     )
     if not np.any(frame_mask):
         frame_mask = np.ones_like(frame_times, dtype=bool)
@@ -499,6 +543,8 @@ def _activation_prediction(
             pitch=pitch,
             onset_threshold=onset_threshold,
             frame_threshold=frame_threshold,
+            frame_times=frame_times,
+            target_second=target_second,
         )
         for pitch in expected_pitches
     }
@@ -512,6 +558,8 @@ def _activation_prediction(
                 pitch=_transpose_pitch(pitch, -12),
                 onset_threshold=onset_threshold,
                 frame_threshold=frame_threshold,
+                frame_times=frame_times,
+                target_second=target_second,
             ),
             "-1": _pitch_evidence(
                 onsets,
@@ -521,6 +569,8 @@ def _activation_prediction(
                 pitch=_transpose_pitch(pitch, -1),
                 onset_threshold=onset_threshold,
                 frame_threshold=frame_threshold,
+                frame_times=frame_times,
+                target_second=target_second,
             ),
             "+1": _pitch_evidence(
                 onsets,
@@ -530,6 +580,8 @@ def _activation_prediction(
                 pitch=_transpose_pitch(pitch, 1),
                 onset_threshold=onset_threshold,
                 frame_threshold=frame_threshold,
+                frame_times=frame_times,
+                target_second=target_second,
             ),
             "+12": _pitch_evidence(
                 onsets,
@@ -539,12 +591,19 @@ def _activation_prediction(
                 pitch=_transpose_pitch(pitch, 12),
                 onset_threshold=onset_threshold,
                 frame_threshold=frame_threshold,
+                frame_times=frame_times,
+                target_second=target_second,
             ),
         }
         for pitch in expected_pitches
     }
     onset_values = [float(evidence["onset_activation"]) for evidence in expected_evidence.values()]
     frame_values = [float(evidence["frame_activation"]) for evidence in expected_evidence.values()]
+    onset_peak_times = [
+        float(evidence["onset_peak_time_relative_ms"])
+        for evidence in expected_evidence.values()
+        if isinstance(evidence["onset_peak_time_relative_ms"], (int, float))
+    ]
     return {
         "expected_evidence": expected_evidence,
         "competitor_evidence": competitor_evidence,
@@ -563,6 +622,14 @@ def _activation_prediction(
             "target_frame_spread": _round_or_none(
                 max(frame_values) - min(frame_values) if frame_values else None
             ),
+            "max_onset_time_spread_ms": _round_or_none(
+                max(onset_peak_times) - min(onset_peak_times)
+                if len(onset_peak_times) >= 2
+                else 0.0
+                if len(onset_peak_times) == 1
+                else None
+            ),
+            "weakest_expected_tone": _weakest_expected_tone(expected_evidence),
         },
     }
 
@@ -576,6 +643,8 @@ def _pitch_evidence(
     pitch: str | None,
     onset_threshold: float,
     frame_threshold: float,
+    frame_times: np.ndarray,
+    target_second: float,
 ) -> dict[str, object]:
     if pitch is None:
         return {
@@ -583,6 +652,7 @@ def _pitch_evidence(
             "onset_activation": None,
             "frame_activation": None,
             "velocity_evidence": None,
+            "onset_peak_time_relative_ms": None,
             "accepted": False,
         }
     midi_note = _pitch_to_midi_note(pitch)
@@ -593,9 +663,14 @@ def _pitch_evidence(
             "onset_activation": None,
             "frame_activation": None,
             "velocity_evidence": None,
+            "onset_peak_time_relative_ms": None,
             "accepted": False,
         }
-    onset_max = float(np.max(onsets[frame_mask, pitch_index]))
+    onset_values = onsets[frame_mask, pitch_index]
+    onset_argmax = int(np.argmax(onset_values))
+    masked_frame_times = frame_times[frame_mask]
+    onset_max = float(onset_values[onset_argmax])
+    onset_peak_time = float(masked_frame_times[onset_argmax])
     frame_max = float(np.max(notes[frame_mask, pitch_index]))
     velocity_max = None
     if velocity is not None:
@@ -603,6 +678,7 @@ def _pitch_evidence(
     return {
         "pitch": pitch,
         "onset_activation": round(onset_max, 6),
+        "onset_peak_time_relative_ms": round((onset_peak_time - target_second) * 1000.0),
         "frame_activation": round(frame_max, 6),
         "velocity_evidence": _round_or_none(velocity_max),
         "accepted": onset_max >= onset_threshold and frame_max >= frame_threshold,
@@ -863,6 +939,38 @@ def _case_counts(cases: tuple[dict[str, object], ...]) -> dict[str, int]:
     return counts
 
 
+def _source_split_readiness(cases: tuple[dict[str, object], ...]) -> dict[str, object]:
+    source_groups: dict[str, set[str]] = defaultdict(set)
+    for case in cases:
+        identity = _case_source_identity(case)
+        source_groups[identity["source_recording_id"]].add(str(case.get("case_id")))
+    return {
+        "source_recording_count": len(source_groups),
+        "case_count_by_source_recording": {
+            source: len(case_ids) for source, case_ids in sorted(source_groups.items())
+        },
+        "can_create_disjoint_calibration_evaluation_split": len(source_groups) >= 2,
+        "split_rule": (
+            "Group by source_recording_id. All derived cases from the same "
+            "source performance must stay on the same side of calibration vs "
+            "evaluation."
+        ),
+    }
+
+
+def _case_source_identity(case: dict[str, object]) -> dict[str, object]:
+    source_recording = str(case.get("source_file") or case.get("source_dataset") or "unknown")
+    return {
+        "source_recording_id": source_recording,
+        "source_dataset": case.get("source_dataset"),
+        "source_file": case.get("source_file"),
+        "source_midi": case.get("source_midi"),
+        "target_group_indices": tuple(case.get("target_group_indices", ())),
+        "target_group_seconds": tuple(case.get("target_group_seconds", ())),
+        "source_time_range_seconds": tuple(case.get("source_time_range_seconds", ())),
+    }
+
+
 def _future_target_contamination(
     case: dict[str, object],
     *,
@@ -891,6 +999,31 @@ def _future_target_contamination(
                 }
             )
     return {"contaminated": bool(matches), "events": matches}
+
+
+def _weakest_expected_tone(
+    expected_evidence: dict[str, dict[str, object]]
+) -> dict[str, object] | None:
+    weakest_pitch = None
+    weakest_value = None
+    for pitch, evidence in expected_evidence.items():
+        value = evidence.get("onset_activation")
+        if not isinstance(value, (int, float)):
+            continue
+        if weakest_value is None or float(value) < weakest_value:
+            weakest_pitch = pitch
+            weakest_value = float(value)
+    if weakest_pitch is None:
+        return None
+    evidence = expected_evidence[weakest_pitch]
+    return {
+        "pitch": weakest_pitch,
+        "onset_activation": evidence.get("onset_activation"),
+        "frame_activation": evidence.get("frame_activation"),
+        "velocity_evidence": evidence.get("velocity_evidence"),
+        "onset_peak_time_relative_ms": evidence.get("onset_peak_time_relative_ms"),
+    }
+
 
 
 def _result_kind(result: dict[str, object]) -> str:

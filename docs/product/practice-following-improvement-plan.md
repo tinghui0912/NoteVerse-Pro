@@ -3061,7 +3061,22 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    backend/scripts/compare_step_microphone_frontends_causal_cases.py
    ```
 
-   Current 59-case MAESTRO warm-start comparison:
+   Initial 59-case MAESTRO warm-start comparison used 350ms horizon max pooling
+   and was then corrected to strike-local evidence. Raw activation benchmark
+   semantics are now:
+
+   ```text
+   bounded causal prefix:
+   case start -> target + 350ms
+
+   evidence pooling:
+   target - 50ms -> target + 120ms
+   ```
+
+   MIDI target onset is used only as an offline benchmark anchor. It is not
+   visible to production runtime or recognizer decisions.
+
+   Current temporal-local 59-case MAESTRO warm-start comparison:
 
    ```text
    production FFT observer:
@@ -3074,8 +3089,8 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
 
    Basic Pitch raw onset/frame activation:
    - correct single acceptance = 8/8
-   - correct chord complete acceptance = 6/8
-   - wrong semitone false completion = 3/8
+   - correct chord complete acceptance = 5/8
+   - wrong semitone false completion = 0/8
    - wrong semitone false completion, excluding future-target contamination = 0/5
    - wrong octave false completion = 0/8
    - missing-note false completion = 0/8
@@ -3084,19 +3099,28 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    ByteDance/Kong high-resolution piano transcription raw activation:
    - correct single acceptance = 8/8
    - correct chord complete acceptance = 7/8
-   - wrong semitone false completion = 3/8
+   - wrong semitone false completion = 0/8
    - wrong semitone false completion, excluding future-target contamination = 0/5
    - wrong octave false completion = 0/8
    - missing-note false completion = 0/8
    - same-note retrigger acceptance = 3/3
    ```
 
-   The 3/8 semitone completions for both pretrained frontends are the same
-   contaminated cases: the counterfactual expected pitch appears later inside
-   the 350ms decision horizon. Therefore this benchmark should report both raw
-   and uncontaminated negative rates. The current evidence says production FFT
-   is the first bottleneck for chord recall and retrigger recognition, while
-   pretrained raw activation is promising enough for a fixed global calibration
-   experiment. It is not yet a deployment claim: ByteDance/Kong is
-   piano-specific and bidirectional, so this benchmark is bounded causal-prefix,
-   not true streaming causal runtime.
+   The earlier 3/8 semitone completions for both pretrained frontends came from
+   temporal pooling across the full 350ms horizon: the counterfactual expected
+   pitch appeared later inside the horizon. Under strike-local pooling those
+   false completions disappear. Therefore this benchmark must keep both the
+   bounded prefix and the local evidence window explicit.
+
+   The current evidence says production FFT is the first bottleneck for chord
+   recall and retrigger recognition. Basic Pitch retains strong single/retrigger
+   recall but drops to 5/8 chord completion under local evidence. ByteDance/Kong
+   keeps stronger chord evidence at 7/8, but it is piano-specific and
+   bidirectional, so this benchmark is bounded causal-prefix, not true streaming
+   causal runtime.
+
+   Calibration/evaluation split status: the current 59 cases all come from one
+   MAESTRO source recording, so they are not sufficient for a disjoint
+   calibration/evaluation split. Future calibration work must group by source
+   performance/recording so derived positive and counterfactual cases from the
+   same physical strike never cross split boundaries.
