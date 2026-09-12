@@ -3204,3 +3204,77 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    at `0/15`. The 8 independent source audio SHAs are enough to create a
    source-level calibration/evaluation split, but thresholds must still not be
    tuned on this same aggregate result and reported as held-out performance.
+
+   The accepted 8-source / 128-case set is now frozen as:
+
+   ```text
+   data/work/datasets/maestro-v3.0.0/production_step_development_set
+   role = development_set
+   ```
+
+   It must not be used as held-out evaluation because its results have already
+   been inspected and used for frontend selection.
+
+   Source-disjoint research sets:
+
+   ```text
+   calibration_set
+   path = data/work/datasets/maestro-v3.0.0/production_step_calibration_set
+   source_count = 4
+   case_count = 64
+   selection = seeded_diverse
+   seed = 20260912
+
+   frozen_evaluation_set
+   path = data/work/datasets/maestro-v3.0.0/production_step_frozen_evaluation_set
+   source_count = 4
+   case_count = 62
+   selection = seeded_diverse
+   seed = 20260913
+   ```
+
+   Source identity is `source_audio_sha256`. The three sets are mutually
+   disjoint:
+
+   ```text
+   development_set ∩ calibration_set = 0
+   development_set ∩ frozen_evaluation_set = 0
+   calibration_set ∩ frozen_evaluation_set = 0
+   ```
+
+   The frozen evaluation set has only provenance and case counts recorded. No
+   Basic Pitch, ByteDance/Kong, threshold, or policy result has been run or
+   inspected for that set.
+
+   First simple global calibration grid, using only development + calibration:
+
+   ```text
+   Basic Pitch best zero-clean-negative rule:
+   - positive recall = 41/72
+   - clean negative false completion = 0/61
+   - correct chord = 7/24
+   - correct single = 20/24
+   - retrigger = 14/24
+
+   ByteDance/Kong best zero-clean-negative rule:
+   - positive recall = 55/72
+   - clean negative false completion = 0/61
+   - correct chord = 18/24
+   - correct single = 20/24
+   - retrigger = 17/24
+   ```
+
+   The current best ByteDance/Kong rule uses:
+
+   ```text
+   frame_key = frame_activation
+   target_onset_min = 0.1
+   target_frame_min = 0.05
+   semitone_onset_margin_min = -0.2
+   octave_onset_margin_min = -0.2
+   chord_onset_time_spread_max_ms = 80
+   ```
+
+   This is a research candidate, not a production policy. If the policy is
+   frozen after calibration review, run the frozen evaluation set once and do
+   not tune parameters from its result.

@@ -12,6 +12,7 @@ import csv
 from dataclasses import asdict
 import json
 from pathlib import Path
+import random
 import shutil
 import zipfile
 
@@ -50,6 +51,13 @@ def main() -> int:
         metadata_path,
         split=args.split,
         source_count=args.source_count,
+        seed=args.seed,
+        selection_mode=args.selection_mode,
+        exclude_audio_filenames=_excluded_audio_filenames(args.exclude_manifest),
+        min_duration_seconds=args.min_duration_seconds,
+        max_duration_seconds=args.max_duration_seconds,
+        dataset_dir=args.dataset_dir,
+        existing_only=args.existing_only,
     )
     source_manifests = []
     combined_cases = []
@@ -57,6 +65,14 @@ def main() -> int:
     clips_dir.mkdir(parents=True, exist_ok=True)
 
     for source_index, row in enumerate(rows, start=1):
+        print(
+            (
+                f"[{args.set_role}] source {source_index}/{len(rows)} "
+                f"{row['split']} {row['year']} {row['canonical_composer']} - "
+                f"{row['canonical_title']} ({float(row['duration']):.1f}s)"
+            ),
+            flush=True,
+        )
         audio_path, midi_path = _ensure_pair(
             row,
             dataset_dir=args.dataset_dir,
@@ -113,7 +129,10 @@ def main() -> int:
             "source_dataset": "MAESTRO v3.0.0",
             "public_dataset_case_is_product_validation": False,
             "source_count": len(source_manifests),
-            "source_selection": "greedy_duration_sorted_distinct_composer_year_title",
+            "set_role": args.set_role,
+            "source_selection": args.selection_mode,
+            "selection_seed": args.seed,
+            "excluded_manifest_count": len(args.exclude_manifest),
         },
         "selection_contract": {
             "case_selection_source": "paired_midi_ground_truth_only",
@@ -147,13 +166,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset-dir", type=Path, default=DEFAULT_DATASET_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--zip-url", default=DEFAULT_ZIP_URL)
-    parser.add_argument("--split", choices=("train", "validation", "test"), default="test")
+    parser.add_argument("--split", choices=("train", "validation", "test", "all"), default="test")
+    parser.add_argument("--set-role", default="development_set")
+    parser.add_argument(
+        "--selection-mode",
+        choices=("duration_sorted", "seeded_diverse"),
+        default="duration_sorted",
+    )
+    parser.add_argument("--seed", type=int, default=20260912)
+    parser.add_argument("--exclude-manifest", type=Path, action="append", default=[])
     parser.add_argument("--source-count", type=int, default=10)
     parser.add_argument("--max-cases-per-kind", type=int, default=2)
+    parser.add_argument("--min-duration-seconds", type=float, default=None)
+    parser.add_argument("--max-duration-seconds", type=float, default=None)
     parser.add_argument("--sample-rate", type=int, default=16000)
     parser.add_argument("--pre-context-seconds", type=float, default=1.0)
     parser.add_argument("--post-context-seconds", type=float, default=1.5)
     parser.add_argument("--force-download", action="store_true")
+    parser.add_argument(
+        "--existing-only",
+        action="store_true",
+        help="Select only source rows whose audio and MIDI files already exist locally.",
+    )
     return parser.parse_args()
 
 
@@ -162,10 +196,44 @@ def _select_rows(
     *,
     split: str,
     source_count: int,
+    seed: int,
+    selection_mode: str,
+    exclude_audio_filenames: set[str],
+    min_duration_seconds: float | None,
+    max_duration_seconds: float | None,
+    dataset_dir: Path,
+    existing_only: bool,
 ) -> list[dict[str, str]]:
     with metadata_path.open("r", encoding="utf-8", newline="") as file:
-        rows = [row for row in csv.DictReader(file) if row["split"] == split]
-    rows.sort(key=lambda row: float(row["duration"]))
+        rows = [
+            row
+            for row in csv.DictReader(file)
+            if split == "all" or row["split"] == split
+        ]
+    rows = [
+        row
+        for row in rows
+        if row["audio_filename"] not in exclude_audio_filenames
+        and (
+            min_duration_seconds is None
+            or float(row["duration"]) >= min_duration_seconds
+        )
+        and (
+            max_duration_seconds is None
+            or float(row["duration"]) <= max_duration_seconds
+        )
+        and (
+            not existing_only
+            or (
+                (dataset_dir / row["audio_filename"]).exists()
+                and (dataset_dir / row["midi_filename"]).exists()
+            )
+        )
+    ]
+    if selection_mode == "duration_sorted":
+        rows.sort(key=lambda row: float(row["duration"]))
+    else:
+        rows = _seeded_diverse_rows(rows, seed=seed)
     selected = []
     seen_keys = set()
     for row in rows:
@@ -179,6 +247,61 @@ def _select_rows(
     if len(selected) < source_count:
         raise RuntimeError(f"Only selected {len(selected)} MAESTRO {split} rows")
     return selected
+
+
+def _seeded_diverse_rows(rows: list[dict[str, str]], *, seed: int) -> list[dict[str, str]]:
+    rng = random.Random(seed)
+    shuffled = list(rows)
+    rng.shuffle(shuffled)
+    durations = sorted(float(row["duration"]) for row in shuffled)
+    if not durations:
+        return []
+    cut_1 = durations[len(durations) // 3]
+    cut_2 = durations[(len(durations) * 2) // 3]
+
+    def duration_bucket(row: dict[str, str]) -> int:
+        duration = float(row["duration"])
+        if duration <= cut_1:
+            return 0
+        if duration <= cut_2:
+            return 1
+        return 2
+
+    shuffled.sort(
+        key=lambda row: (
+            duration_bucket(row),
+            row["canonical_composer"],
+            row["canonical_title"],
+            rng.random(),
+        )
+    )
+    buckets: dict[int, list[dict[str, str]]] = {0: [], 1: [], 2: []}
+    for row in shuffled:
+        buckets[duration_bucket(row)].append(row)
+    ordered = []
+    while any(buckets.values()):
+        for bucket in (0, 1, 2):
+            if buckets[bucket]:
+                ordered.append(buckets[bucket].pop(0))
+    return ordered
+
+
+def _excluded_audio_filenames(manifest_paths: list[Path]) -> set[str]:
+    excluded = set()
+    for manifest_path in manifest_paths:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        for source in manifest.get("sources", ()) or ():
+            audio_filename = source.get("audio_filename")
+            if isinstance(audio_filename, str):
+                excluded.add(audio_filename)
+        for case in manifest.get("cases", ()) or ():
+            source_file = case.get("source_file")
+            if isinstance(source_file, str):
+                excluded.add(str(Path(source_file).as_posix()))
+                marker = "maestro-v3.0.0/"
+                if marker in source_file:
+                    excluded.add(source_file.split(marker, 1)[1].replace("\\", "/"))
+    return excluded
 
 
 def _ensure_pair(
