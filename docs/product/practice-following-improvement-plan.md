@@ -4168,3 +4168,129 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
      value yet. The next research question should be whether the runtime buffer
      must preserve sequence context across previous expected groups / previous
      strikes, rather than independently cropping each expected group.
+
+13. Position-matched zero-pad mechanism test
+
+   Status: completed on development + calibration only. Frozen evaluation was
+   not touched, thresholds were not changed, production recognition/progression
+   was not modified, and no runtime adapter was implemented.
+
+   Output artifact:
+
+   ```text
+   backend/data/work/datasets/maestro-v3.0.0/bytedance_position_matched_zero_pad.gpu.json
+   ```
+
+   Conditions:
+
+   ```text
+   A = UNCROPPED_REFERENCE
+       existing direct-note +220ms result
+       input = original case clip start -> target +220ms
+
+   B = REAL_1000MS_CROP
+       existing lookback result
+       input = target -1000ms -> target +220ms
+
+   C = POSITION_MATCHED_ZERO_PAD
+       real audio is identical to B:
+         target -1000ms -> target +220ms
+
+       but prepend zeros:
+         zero_pad_ms = max(0, A_target_position_ms - 1000ms)
+
+       therefore:
+         C target position from tensor start == A target position from tensor start
+   ```
+
+   Aggregate result:
+
+   ```text
+   A uncropped +220ms:
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     clean negative false = 0/61
+
+   B real 1000ms crop:
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     clean negative false = 0/61
+     agreement vs A = 191/192
+
+   C position-matched zero-pad:
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     clean negative false = 0/61
+     agreement vs A = 192/192
+   ```
+
+   C activation delta vs A:
+
+   ```text
+   onset abs mean = 0.000246
+   onset abs max  = 0.018497
+   frame abs mean = 0.000338
+   frame abs max  = 0.034699
+   NO_LOCAL_MODEL_FRAMES = 0/192
+   ```
+
+   Zero-padding distribution:
+
+   ```text
+   min = 0.0ms
+   median = 0.0ms
+   p95 = 537.7ms
+   max = 1420.8ms
+   mean = 62.559ms
+   ```
+
+   Key restored case:
+
+   ```text
+   case_id = s08_same_note_retrigger_002
+   group = 1
+   pitch = G3
+
+   A uncropped:
+     onset = 0.206188
+     frame = 0.996643
+     accepted = true
+
+   B real 1000ms crop:
+     onset = 0.183591
+     frame = 0.996142
+     accepted = false
+
+   C position-matched zero-pad:
+     restored to MATCH at case level
+   ```
+
+   Interpretation:
+
+   - C restores A's complete case-level behavior across all 192 cases.
+   - C fixes the only B-vs-A disagreement, including the lost same-note
+     retrigger.
+   - No new clean-negative false completion appears.
+   - This strongly supports the mechanism hypothesis:
+
+     ```text
+     cropped-lookback drift is mainly left-boundary / sequence-position /
+     recurrent warm-up behavior
+
+     not a dependency on the removed real historical music content
+     ```
+
+   - The next research question can be narrowed to a deterministic warm-up
+     contract for the direct note-model path:
+
+     ```text
+     fixed real lookback
+     +
+     deterministic left padding / warm-up
+     +
+     target position contract
+     ```
+
+     Do not freeze a specific padding length yet. This result only says the
+     mechanism is viable and should be tested as a runtime-like rolling-buffer
+     prototype before any production integration.
