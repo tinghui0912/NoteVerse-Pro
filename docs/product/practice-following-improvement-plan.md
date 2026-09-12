@@ -3550,18 +3550,112 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    +350ms = 4691.287 ms
    ```
 
-   Interpretation:
+   Correct interpretation:
 
-   - Frozen decisions are mostly stable by `+160ms`; `+120ms` is close but still
-     has one clean false and lower agreement.
-   - BiGRU future context is not the only blocker for decision stability because
-     short prefixes already approach the +350ms reference, but some future
-     context still matters.
-   - Inference latency is the major runtime blocker: even GPU bounded-prefix
-     inference is about `1.5s` per target-group call in this research setup, and
-     CPU is far outside interactive STEP requirements.
+   - This experiment measures the official
+     `PianoTranscription.transcribe()` zero-padded bounded-prefix sensitivity,
+     not strict streaming causality.
+   - Under the official 10-second-zero-padded offline wrapper, replacing padded
+     silence with real future audio beyond roughly `+160ms` rarely changes the
+     frozen decision; this is not a true causal-context bound.
+   - Inference latency is a major runtime blocker for the official wrapper:
+     GPU bounded-prefix inference is about `1.5s` per target-group call in this
+     research setup, and CPU is far outside interactive STEP requirements.
    - ByteDance/Kong should remain a strong representation teacher/reference for
      target-conditioned evidence, not a direct production runtime candidate yet.
    - Next research should focus on whether the useful onset/frame representation
      can be distilled, cached, streamed, or replaced by a lightweight verifier.
      Do not connect this model directly to production STEP progression.
+
+   ByteDance/Kong wrapper decomposition, development + calibration deterministic
+   12-case sample:
+
+   ```text
+   report GPU =
+   data/work/datasets/maestro-v3.0.0/bytedance_wrapper_decomposition.gpu.json
+
+   report CPU =
+   data/work/datasets/maestro-v3.0.0/bytedance_wrapper_decomposition.cpu.json
+
+   prefix = target + 350ms
+   thresholds = frozen 0.2 / 0.2
+   sample = deterministic first 12 development/calibration cases
+   ```
+
+   Four paths:
+
+   ```text
+   A. official PianoTranscription.transcribe()
+      10s padded input
+      Note_pedal(note + pedal)
+      MIDI-event postprocessing
+
+   B. same 10s padded input
+      direct full model forward
+      no RegressionPostProcessor / MIDI decoding
+
+   C. same 10s padded input
+      note_model only
+      no pedal_model
+      no postprocessing
+
+   D. actual bounded prefix only
+      note_model direct forward
+      no 10s pad
+      no pedal_model
+      no postprocessing
+   ```
+
+   GPU result:
+
+   ```text
+   A official transcribe:
+     mean / median / p95 = 1407.038 / 1381.918 / 1630.476 ms
+     tensor fed = 10.0s
+     output frames = 1001
+     accepted = 7/12
+
+   B direct full model, padded:
+     mean / median / p95 = 1064.568 / 1064.477 / 1177.738 ms
+     agreement with A = 12/12
+     activation delta vs A = 0
+
+   C note model only, padded:
+     mean / median / p95 = 634.642 / 624.250 / 724.014 ms
+     agreement with A = 12/12
+     activation delta vs A = 0
+
+   D note model only, actual prefix:
+     mean / median / p95 = 108.370 / 102.807 / 134.427 ms
+     tensor fed = 1.35s
+     output frames = 136
+     agreement with A = 12/12
+     onset abs mean/max delta vs A = 0.009063 / 0.059875
+     frame abs mean/max delta vs A = 0.023452 / 0.480104
+   ```
+
+   CPU result:
+
+   ```text
+   A official transcribe mean = 4921.033 ms
+   B direct full model, padded mean = 4565.173 ms
+   C note model only, padded mean = 2737.302 ms
+   D note model only, actual prefix mean = 363.761 ms
+   D agreement with A = 12/12
+   ```
+
+   Interpretation:
+
+   - The official wrapper cost is not mostly MIDI postprocessing; removing
+     postprocessing saves about `342ms` on GPU in this sample.
+   - Removing the unused pedal model is much more meaningful, reducing padded
+     GPU forward from about `1065ms` to about `635ms`.
+   - The largest win comes from removing fixed 10s padding: note-only actual
+     prefix forward is about `108ms` on GPU and `364ms` on CPU for this sample.
+   - Actual-prefix note-only output changes raw activations, as expected because
+     the BiGRU sequence boundary changes, but the frozen verifier decision still
+     agreed with the official wrapper on all 12 sampled cases.
+   - This keeps ByteDance/Kong viable as a research runtime candidate only if
+     NoteVerse can call the note model directly on bounded prefixes or extract a
+     lighter equivalent. The official `transcribe()` wrapper itself should not
+     be wired into production STEP.
