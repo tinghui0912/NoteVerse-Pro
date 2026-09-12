@@ -3076,7 +3076,8 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    MIDI target onset is used only as an offline benchmark anchor. It is not
    visible to production runtime or recognizer decisions.
 
-   Current temporal-local 59-case MAESTRO warm-start comparison:
+   Current temporal-local 59-case MAESTRO warm-start comparison after benchmark
+   integrity fixes:
 
    ```text
    production FFT observer:
@@ -3094,7 +3095,9 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    - wrong semitone false completion, excluding future-target contamination = 0/5
    - wrong octave false completion = 0/8
    - missing-note false completion = 0/8
+   - missing-note false completion, excluding future-target contamination = 0/8
    - same-note retrigger acceptance = 3/3
+   - no local model-frame cases = 0/59
 
    ByteDance/Kong high-resolution piano transcription raw activation:
    - correct single acceptance = 8/8
@@ -3103,7 +3106,9 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    - wrong semitone false completion, excluding future-target contamination = 0/5
    - wrong octave false completion = 0/8
    - missing-note false completion = 0/8
+   - missing-note false completion, excluding future-target contamination = 0/8
    - same-note retrigger acceptance = 3/3
+   - no local model-frame cases = 0/59
    ```
 
    The earlier 3/8 semitone completions for both pretrained frontends came from
@@ -3111,6 +3116,30 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    pitch appeared later inside the horizon. Under strike-local pooling those
    false completions disappear. Therefore this benchmark must keep both the
    bounded prefix and the local evidence window explicit.
+
+   Benchmark integrity rules are now:
+
+   - If a model has no frame inside `target - 50ms -> target + 120ms`, the
+     pitch/case is marked `NO_LOCAL_MODEL_FRAMES` and cannot be accepted.
+     The benchmark must not silently fall back to whole-clip pooling.
+   - For counterfactual negative cases, future-target contamination is computed
+     from `expected_pitches - actual_pitches_at_target`. In a missing-chord
+     case such as `actual = C4`, `expected = C4 + E4`, future C4 is not
+     contamination; future E4 is.
+   - Reports include onset-coupled diagnostics (`frame_at_onset_peak` and
+     nearby frame max), but those diagnostics do not change the current fixed
+     threshold acceptance rule.
+   - Source identity for future calibration/evaluation splitting is
+     `source_audio_sha256`; source file and MIDI hashes are retained only as
+     traceability metadata.
+
+   The corrected contamination definition changes missing-chord clean negatives
+   from `0/3` to `0/8`: the earlier clean count was too small because the
+   benchmark excluded cases where the future note matched an actually played
+   target tone instead of only excluding future counterfactual missing tones.
+   Positive onset peaks are not clustered at either local-window boundary:
+   Basic Pitch has 0 near-left and 0 near-right boundary peaks, and ByteDance
+   has 0 near-left and 0 near-right boundary peaks.
 
    The current evidence says production FFT is the first bottleneck for chord
    recall and retrigger recognition. Basic Pitch retains strong single/retrigger
@@ -3120,7 +3149,7 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    causal runtime.
 
    Calibration/evaluation split status: the current 59 cases all come from one
-   MAESTRO source recording, so they are not sufficient for a disjoint
+   MAESTRO source audio SHA, so they are not sufficient for a disjoint
    calibration/evaluation split. Future calibration work must group by source
    performance/recording so derived positive and counterfactual cases from the
    same physical strike never cross split boundaries.

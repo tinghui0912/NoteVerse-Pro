@@ -25,6 +25,8 @@ DEFAULT_ONSET_THRESHOLD = 0.5
 DEFAULT_FRAME_THRESHOLD = 0.3
 DEFAULT_BYTEDANCE_ONSET_THRESHOLD = 0.3
 DEFAULT_BYTEDANCE_FRAME_THRESHOLD = 0.1
+ONSET_PEAK_FRAME_NEIGHBORHOOD_SECONDS = 0.03
+LOCAL_WINDOW_BOUNDARY_BAND_SECONDS = 0.01
 MIDI_OFFSET = 21
 _PITCH_CLASSES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 
@@ -409,6 +411,7 @@ def _evaluate_raw_activation_case(
     source_start = float((case.get("source_time_range_seconds") or (0.0,))[0])
     target_seconds = tuple(float(value) for value in case.get("target_group_seconds", ()))
     expected_groups = tuple(tuple(group) for group in case.get("expected_groups", ()))
+    actual_groups = tuple(tuple(group) for group in case.get("actual_groups", ()))
     if len(target_seconds) < len(expected_groups):
         target_seconds = tuple(source_start + 1.0 for _ in expected_groups)
 
@@ -444,9 +447,11 @@ def _evaluate_raw_activation_case(
             pitch for pitch, evidence in prediction["expected_evidence"].items() if evidence["accepted"]
         )
         result, matched, missing, extra = _evaluate_expected(expected_pitches, observed)
+        actual_pitches = actual_groups[index] if index < len(actual_groups) else ()
         contamination = _future_target_contamination(
             case,
             expected_pitches=expected_pitches,
+            actual_pitches=actual_pitches,
             target_second=target_second,
             decision_end_seconds=target_second + horizon_seconds,
         )
@@ -455,6 +460,7 @@ def _evaluate_raw_activation_case(
                 "group_index": index,
                 "target_second": round(target_second, 6),
                 "expected_pitches": expected_pitches,
+                "actual_pitches_at_target": actual_pitches,
                 "observed_pitches": observed,
                 "result": result,
                 "matched_expected": matched,
@@ -531,8 +537,6 @@ def _activation_prediction(
     frame_mask = (frame_times >= analysis_start_seconds) & (
         frame_times <= analysis_end_seconds
     )
-    if not np.any(frame_mask):
-        frame_mask = np.ones_like(frame_times, dtype=bool)
 
     expected_evidence = {
         pitch: _pitch_evidence(
@@ -597,8 +601,16 @@ def _activation_prediction(
         }
         for pitch in expected_pitches
     }
-    onset_values = [float(evidence["onset_activation"]) for evidence in expected_evidence.values()]
-    frame_values = [float(evidence["frame_activation"]) for evidence in expected_evidence.values()]
+    onset_values = [
+        float(evidence["onset_activation"])
+        for evidence in expected_evidence.values()
+        if isinstance(evidence.get("onset_activation"), (int, float))
+    ]
+    frame_values = [
+        float(evidence["frame_activation"])
+        for evidence in expected_evidence.values()
+        if isinstance(evidence.get("frame_activation"), (int, float))
+    ]
     onset_peak_times = [
         float(evidence["onset_peak_time_relative_ms"])
         for evidence in expected_evidence.values()
@@ -649,10 +661,13 @@ def _pitch_evidence(
     if pitch is None:
         return {
             "pitch": None,
+            "local_evidence_status": "NO_PITCH",
             "onset_activation": None,
             "frame_activation": None,
             "velocity_evidence": None,
             "onset_peak_time_relative_ms": None,
+            "frame_at_onset_peak": None,
+            "frame_max_near_onset_peak": None,
             "accepted": False,
         }
     midi_note = _pitch_to_midi_note(pitch)
@@ -660,26 +675,55 @@ def _pitch_evidence(
     if pitch_index < 0 or pitch_index >= onsets.shape[1]:
         return {
             "pitch": pitch,
+            "local_evidence_status": "PITCH_OUT_OF_MODEL_RANGE",
             "onset_activation": None,
             "frame_activation": None,
             "velocity_evidence": None,
             "onset_peak_time_relative_ms": None,
+            "frame_at_onset_peak": None,
+            "frame_max_near_onset_peak": None,
+            "accepted": False,
+        }
+    if not np.any(frame_mask):
+        return {
+            "pitch": pitch,
+            "local_evidence_status": "NO_LOCAL_MODEL_FRAMES",
+            "onset_activation": None,
+            "frame_activation": None,
+            "velocity_evidence": None,
+            "onset_peak_time_relative_ms": None,
+            "frame_at_onset_peak": None,
+            "frame_max_near_onset_peak": None,
             "accepted": False,
         }
     onset_values = onsets[frame_mask, pitch_index]
     onset_argmax = int(np.argmax(onset_values))
     masked_frame_times = frame_times[frame_mask]
+    masked_frames = notes[frame_mask, pitch_index]
     onset_max = float(onset_values[onset_argmax])
     onset_peak_time = float(masked_frame_times[onset_argmax])
-    frame_max = float(np.max(notes[frame_mask, pitch_index]))
+    frame_max = float(np.max(masked_frames))
+    frame_at_onset_peak = float(masked_frames[onset_argmax])
+    near_onset_mask = (
+        np.abs(masked_frame_times - onset_peak_time)
+        <= ONSET_PEAK_FRAME_NEIGHBORHOOD_SECONDS
+    )
+    frame_max_near_onset_peak = (
+        float(np.max(masked_frames[near_onset_mask]))
+        if np.any(near_onset_mask)
+        else frame_at_onset_peak
+    )
     velocity_max = None
     if velocity is not None:
         velocity_max = float(np.max(velocity[frame_mask, pitch_index]))
     return {
         "pitch": pitch,
+        "local_evidence_status": "AVAILABLE",
         "onset_activation": round(onset_max, 6),
         "onset_peak_time_relative_ms": round((onset_peak_time - target_second) * 1000.0),
         "frame_activation": round(frame_max, 6),
+        "frame_at_onset_peak": round(frame_at_onset_peak, 6),
+        "frame_max_near_onset_peak": round(frame_max_near_onset_peak, 6),
         "velocity_evidence": _round_or_none(velocity_max),
         "accepted": onset_max >= onset_threshold and frame_max >= frame_threshold,
     }
@@ -742,8 +786,10 @@ def _raw_activation_frontend_report(
             "retrigger_acceptance": _rate(
                 bool(evaluation["accepted"]) for evaluation in by_kind["same_note_retrigger"]
             ),
+            "no_local_frame_case_count": _no_local_frame_case_count(evaluations),
         },
         "evidence_summary": _activation_evidence_summary(evaluations),
+        "contaminated_negative_cases": _contaminated_negative_cases(evaluations),
         "evaluations": evaluations,
     }
     if extra_metadata:
@@ -755,10 +801,52 @@ def _basic_pitch_evidence_summary(evaluations: list[dict[str, object]]) -> dict[
     return _activation_evidence_summary(evaluations)
 
 
+def _no_local_frame_case_count(evaluations: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "count": sum(1 for evaluation in evaluations if _has_no_local_model_frames(evaluation)),
+        "total": len(evaluations),
+    }
+
+
+def _has_no_local_model_frames(evaluation: dict[str, object]) -> bool:
+    for group in evaluation.get("group_results", ()) or ():
+        for evidence in group.get("expected_evidence", {}).values():
+            if evidence.get("local_evidence_status") == "NO_LOCAL_MODEL_FRAMES":
+                return True
+    return False
+
+
+def _contaminated_negative_cases(evaluations: list[dict[str, object]]) -> list[dict[str, object]]:
+    contaminated = []
+    negative_kinds = {"wrong_semitone", "wrong_octave", "missing_chord_tone"}
+    for evaluation in evaluations:
+        if evaluation.get("case_kind") not in negative_kinds:
+            continue
+        for group in evaluation.get("group_results", ()) or ():
+            contamination = group.get("future_target_contamination") or {}
+            if not contamination.get("contaminated"):
+                continue
+            contaminated.append(
+                {
+                    "case_id": evaluation.get("case_id"),
+                    "case_kind": evaluation.get("case_kind"),
+                    "group_index": group.get("group_index"),
+                    "expected_pitches": group.get("expected_pitches"),
+                    "actual_target_pitches": contamination.get("actual_target_pitches"),
+                    "counterfactual_pitches": contamination.get("counterfactual_pitches"),
+                    "future_contaminating_events": contamination.get("events"),
+                }
+            )
+    return contaminated
+
+
 def _activation_evidence_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
     target_onsets: list[float] = []
     target_frames: list[float] = []
     target_velocities: list[float] = []
+    positive_onset_peak_times: list[float] = []
+    positive_near_left_boundary_count = 0
+    positive_near_right_boundary_count = 0
     competitor_values: dict[str, dict[str, list[float]]] = {
         "-12": {"onset": [], "frame": [], "velocity": []},
         "-1": {"onset": [], "frame": [], "velocity": []},
@@ -773,12 +861,27 @@ def _activation_evidence_summary(evaluations: list[dict[str, object]]) -> dict[s
     chord_onset_spreads: list[float] = []
     chord_frame_mins: list[float] = []
     chord_frame_spreads: list[float] = []
+    positive_kinds = {"correct_strike", "correct_chord", "same_note_retrigger"}
     for evaluation in evaluations:
         for group in evaluation["group_results"]:
+            neighborhood = group.get("analysis_neighborhood") or {}
+            left_boundary_ms = -float(neighborhood.get("pre_seconds", DEFAULT_LOCAL_PRE_SECONDS)) * 1000.0
+            right_boundary_ms = float(neighborhood.get("post_seconds", DEFAULT_LOCAL_POST_SECONDS)) * 1000.0
+            boundary_band_ms = LOCAL_WINDOW_BOUNDARY_BAND_SECONDS * 1000.0
             for evidence in group["expected_evidence"].values():
                 _append_number(target_onsets, evidence.get("onset_activation"))
                 _append_number(target_frames, evidence.get("frame_activation"))
                 _append_number(target_velocities, evidence.get("velocity_evidence"))
+                peak_time = evidence.get("onset_peak_time_relative_ms")
+                if (
+                    evaluation.get("case_kind") in positive_kinds
+                    and isinstance(peak_time, (int, float))
+                ):
+                    positive_onset_peak_times.append(float(peak_time))
+                    if float(peak_time) <= left_boundary_ms + boundary_band_ms:
+                        positive_near_left_boundary_count += 1
+                    if float(peak_time) >= right_boundary_ms - boundary_band_ms:
+                        positive_near_right_boundary_count += 1
             for by_pitch in group["competitor_evidence"].values():
                 for offset, evidence in by_pitch.items():
                     _append_number(competitor_values[offset]["onset"], evidence.get("onset_activation"))
@@ -855,6 +958,14 @@ def _activation_evidence_summary(evaluations: list[dict[str, object]]) -> dict[s
             "target_onset_spread": _number_summary(chord_onset_spreads),
             "target_frame_min": _number_summary(chord_frame_mins),
             "target_frame_spread": _number_summary(chord_frame_spreads),
+        },
+        "positive_onset_peak_timing": {
+            "relative_ms": _number_summary(positive_onset_peak_times),
+            "near_left_boundary_count": positive_near_left_boundary_count,
+            "near_right_boundary_count": positive_near_right_boundary_count,
+            "left_boundary_ms": round(-DEFAULT_LOCAL_PRE_SECONDS * 1000.0),
+            "right_boundary_ms": round(DEFAULT_LOCAL_POST_SECONDS * 1000.0),
+            "boundary_band_ms": round(LOCAL_WINDOW_BOUNDARY_BAND_SECONDS * 1000.0),
         },
     }
 
@@ -941,14 +1052,17 @@ def _case_counts(cases: tuple[dict[str, object], ...]) -> dict[str, int]:
 
 def _source_split_readiness(cases: tuple[dict[str, object], ...]) -> dict[str, object]:
     source_groups: dict[str, set[str]] = defaultdict(set)
+    identity_kind_counts: dict[str, int] = defaultdict(int)
     for case in cases:
         identity = _case_source_identity(case)
         source_groups[identity["source_recording_id"]].add(str(case.get("case_id")))
+        identity_kind_counts[str(identity["source_recording_id_kind"])] += 1
     return {
         "source_recording_count": len(source_groups),
         "case_count_by_source_recording": {
             source: len(case_ids) for source, case_ids in sorted(source_groups.items())
         },
+        "source_recording_id_kind_counts": dict(sorted(identity_kind_counts.items())),
         "can_create_disjoint_calibration_evaluation_split": len(source_groups) >= 2,
         "split_rule": (
             "Group by source_recording_id. All derived cases from the same "
@@ -959,12 +1073,21 @@ def _source_split_readiness(cases: tuple[dict[str, object], ...]) -> dict[str, o
 
 
 def _case_source_identity(case: dict[str, object]) -> dict[str, object]:
-    source_recording = str(case.get("source_file") or case.get("source_dataset") or "unknown")
+    source_audio_sha256 = case.get("source_audio_sha256")
+    if source_audio_sha256:
+        source_recording = str(source_audio_sha256)
+        source_recording_id_kind = "source_audio_sha256"
+    else:
+        source_recording = str(case.get("source_file") or case.get("source_dataset") or "unknown")
+        source_recording_id_kind = "fallback_source_file_or_dataset"
     return {
         "source_recording_id": source_recording,
+        "source_recording_id_kind": source_recording_id_kind,
         "source_dataset": case.get("source_dataset"),
         "source_file": case.get("source_file"),
+        "source_audio_sha256": source_audio_sha256,
         "source_midi": case.get("source_midi"),
+        "source_midi_sha256": case.get("source_midi_sha256"),
         "target_group_indices": tuple(case.get("target_group_indices", ())),
         "target_group_seconds": tuple(case.get("target_group_seconds", ())),
         "source_time_range_seconds": tuple(case.get("source_time_range_seconds", ())),
@@ -975,11 +1098,14 @@ def _future_target_contamination(
     case: dict[str, object],
     *,
     expected_pitches: tuple[str, ...],
+    actual_pitches: tuple[str, ...],
     target_second: float,
     decision_end_seconds: float,
 ) -> dict[str, object]:
     matches = []
-    expected = set(expected_pitches)
+    actual = set(actual_pitches)
+    counterfactual = tuple(pitch for pitch in expected_pitches if pitch not in actual)
+    counterfactual_set = set(counterfactual)
     for event in case.get("ground_truth_note_events", ()) or ():
         pitch = event.get("pitch")
         start = event.get("start_seconds")
@@ -990,7 +1116,7 @@ def _future_target_contamination(
             continue
         if start > decision_end_seconds + 1e-6:
             continue
-        if pitch in expected:
+        if pitch in counterfactual_set:
             matches.append(
                 {
                     "pitch": pitch,
@@ -998,7 +1124,12 @@ def _future_target_contamination(
                     "delta_ms": round((start - target_second) * 1000.0),
                 }
             )
-    return {"contaminated": bool(matches), "events": matches}
+    return {
+        "contaminated": bool(matches),
+        "actual_target_pitches": actual_pitches,
+        "counterfactual_pitches": counterfactual,
+        "events": matches,
+    }
 
 
 def _weakest_expected_tone(
