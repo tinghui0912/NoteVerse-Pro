@@ -4035,14 +4035,136 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
        target-evidence p95: 86.472ms vs 147.857ms
      ```
 
-   - Research rolling-buffer recommendation:
+   - Superseded interpretation:
 
      ```text
-     keep at least 500ms of past audio
-     combine with +220ms future prefix
-     expected research strike->decision budget ~= 220ms + 69ms mean
-                                            ~= 220ms + 86ms p95
+     Do not freeze "500ms past audio" as the rolling-buffer recommendation yet.
      ```
 
-     This is conservative relative to the observed `150ms` agreement and avoids
-     relying on a surprising non-monotonic boundary effect.
+     Follow-up JSON-only comparison showed that the `1000ms cropped` lookback
+     reference is itself behaviorally different from the prior uncropped
+     `+220ms` direct-note baseline: it loses one same-note retrigger case
+     (`18/24 -> 17/24`). Therefore the cropped-lookback experiment remains
+     useful, but its `1000ms` reference should not be treated as the final
+     behavioral reference.
+
+12. Direct note-model lookback vs uncropped `+220ms` behavioral reference
+
+   Status: completed by reading existing JSON only. No model inference was
+   rerun, frozen evaluation was not touched, thresholds were not changed, and
+   production recognition/progression was not modified.
+
+   Input artifacts:
+
+   ```text
+   backend/data/work/datasets/maestro-v3.0.0/bytedance_direct_note_prefix_context.gpu.json
+   backend/data/work/datasets/maestro-v3.0.0/bytedance_direct_note_lookback_context.gpu.json
+   ```
+
+   Derived comparison artifact:
+
+   ```text
+   backend/data/work/datasets/maestro-v3.0.0/bytedance_direct_note_lookback_vs_uncropped_220_comparison.json
+   ```
+
+   Behavioral reference:
+
+   ```text
+   uncropped direct-note +220ms:
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     clean negative false = 0/61
+   ```
+
+   Agreement vs uncropped `+220ms`:
+
+   ```text
+   150ms cropped:
+     agreement = 191/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean negative false = 0/61
+
+   250ms cropped:
+     agreement = 190/192
+     correct single/chord/retrigger = 20/24, 18/24, 17/24
+     clean negative false = 0/61
+
+   500ms cropped:
+     agreement = 191/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean negative false = 0/61
+
+   750ms cropped:
+     agreement = 191/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean negative false = 0/61
+
+   1000ms cropped:
+     agreement = 191/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean negative false = 0/61
+   ```
+
+   Disagreements:
+
+   ```text
+   All cropped lookbacks:
+     - s08_same_note_retrigger_002
+       uncropped +220ms accepts; cropped lookback rejects.
+
+   250ms cropped additionally:
+     - s08_correct_chord_001
+       one low G1 chord tone drops below threshold.
+   ```
+
+   Same-note retrigger detail:
+
+   ```text
+   case_id = s08_same_note_retrigger_002
+   source_recording_id =
+     9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290
+
+   group 0:
+     target_second = 16.3927
+     uncropped input start relative to target = -1000.0ms
+     1000ms cropped input start relative to target = -1000ms
+     result = MATCH in both
+
+   group 1:
+     target_second = 16.9031
+     previous expected group target = 16.3927
+     distance previous -> current = 510.4ms
+
+     uncropped input start relative to target = -1510.4ms
+     1000ms cropped input start relative to target = -1000ms
+
+     uncropped G3 evidence:
+       onset = 0.206188
+       frame = 0.996643
+       accepted = true
+
+     1000ms cropped G3 evidence:
+       onset = 0.183591
+       frame = 0.996142
+       accepted = false
+   ```
+
+   Interpretation:
+
+   - `1000ms cropped` is not equivalent to uncropped `+220ms`; it loses one
+     same-note retrigger by pushing the second group's G3 onset evidence below
+     the frozen `0.2` onset threshold.
+   - The previous expected strike is not excluded by the `1000ms` crop. It is
+     about `510ms` before the second target and remains inside the cropped
+     window.
+   - The behavioral difference comes from earlier sequence context before that
+     previous strike: uncropped group 1 starts `1510ms` before the second target,
+     while `1000ms cropped` starts only `1000ms` before it.
+   - Therefore the earlier `150ms / 500ms / 750ms = 192/192 vs 1000ms`
+     conclusion was only agreement with an already-degraded cropped reference.
+   - No fixed tested lookback `<=1000ms` is fully equivalent to the uncropped
+     `+220ms` behavioral reference.
+   - Rolling-buffer lookback must not be frozen as a simple fixed millisecond
+     value yet. The next research question should be whether the runtime buffer
+     must preserve sequence context across previous expected groups / previous
+     strikes, rather than independently cropping each expected group.
