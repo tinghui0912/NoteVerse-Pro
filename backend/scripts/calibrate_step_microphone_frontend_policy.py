@@ -19,6 +19,9 @@ FRONTENDS = (
     "basic_pitch_raw_activation",
     "bytedance_high_resolution_piano_transcription",
 )
+DISABLED_MARGIN = -999.0
+DISABLED_CHORD_SPREAD_MS = 999.0
+BYTE_DANCE_FRONTEND = "bytedance_high_resolution_piano_transcription"
 
 
 def main() -> int:
@@ -117,7 +120,7 @@ def _robustness_audit(
             }
         )
     plateau = _policy_plateau(evaluations, all_best)
-    return {
+    audit = {
         "source_count": len(sources),
         "best_policy_on_all_non_frozen_sources": all_best,
         "leave_one_source_out": {
@@ -127,6 +130,53 @@ def _robustness_audit(
         },
         "ablation_of_best_policy": _ablation(evaluations, all_best["policy"]),
         "policy_plateau": plateau,
+    }
+    if frontend == BYTE_DANCE_FRONTEND:
+        canonical = _canonical_simplified_bytedance_policy()
+        canonical_score = _score_evaluations(evaluations, canonical)
+        canonical_in_plateau = _policy_in_balanced_plateau(
+            evaluations,
+            canonical,
+            all_best,
+        )
+        per_source = _per_source_scores(evaluations, canonical)
+        per_source_clean = all(
+            source_score["clean_negative_false"]["accepted"] == 0
+            for source_score in per_source.values()
+        )
+        audit["canonical_simplified_candidate"] = {
+            "policy": canonical,
+            "aggregate": _compact_score(canonical_score),
+            "positive_recall": canonical_score["positive_acceptance"],
+            "balanced_positive_recall": round(_balanced_positive_recall(canonical_score), 6),
+            "per_source": per_source,
+            "is_in_balanced_plateau": canonical_in_plateau,
+            "per_source_clean_negative_false_is_zero": per_source_clean,
+        }
+        if canonical_in_plateau and per_source_clean:
+            audit["FROZEN_POLICY_CANDIDATE"] = {
+                "policy": canonical,
+                "status": "ready_to_freeze_before_frozen_evaluation",
+                "reason": (
+                    "Uses only target onset/frame evidence, has zero clean-negative "
+                    "false completions on every non-frozen source, and stays within "
+                    "the balanced plateau where single/chord/retrigger each trail "
+                    "the balanced-best policy by at most one case."
+                ),
+                "aggregate": _compact_score(canonical_score),
+                "per_source": per_source,
+            }
+    return audit
+
+
+def _canonical_simplified_bytedance_policy() -> dict[str, object]:
+    return {
+        "frame_key": "frame_activation",
+        "target_onset_min": 0.1,
+        "target_frame_min": 0.05,
+        "semitone_onset_margin_min": DISABLED_MARGIN,
+        "octave_onset_margin_min": DISABLED_MARGIN,
+        "chord_onset_time_spread_max_ms": DISABLED_CHORD_SPREAD_MS,
     }
 
 
@@ -291,19 +341,18 @@ def _policy_plateau(
     evaluations: list[dict[str, object]],
     best: dict[str, object],
 ) -> dict[str, object]:
-    best_positive = best["score"]["positive_acceptance"]["accepted"]
-    best_balanced = best["balanced_positive_recall"]
+    best_by_kind = _positive_kind_acceptance(best["score"])
     members = []
     for policy in _policy_grid():
         score = _score_evaluations(evaluations, policy)
-        if score["clean_negative_false"]["accepted"] != 0:
-            continue
-        positive = score["positive_acceptance"]["accepted"]
-        if best_positive - positive <= 2:
+        if _score_in_balanced_plateau(score, best_by_kind):
             members.append(
                 {
                     "policy": policy,
-                    "positive_delta_from_best": best_positive - positive,
+                    "positive_deltas_from_balanced_best": _positive_kind_deltas(
+                        score,
+                        best_by_kind,
+                    ),
                     "balanced_positive_recall": round(_balanced_positive_recall(score), 6),
                     "positive_acceptance": score["positive_acceptance"],
                     "by_kind": {
@@ -313,11 +362,129 @@ def _policy_plateau(
                     },
                 }
             )
+    onset_frame_only = _onset_frame_only_plateau_members(evaluations, best_by_kind)
     return {
-        "best_positive_acceptance": best["score"]["positive_acceptance"],
-        "best_balanced_positive_recall": best_balanced,
-        "zero_clean_negative_policy_count_within_two_positive_cases": len(members),
+        "definition": (
+            "clean_negative_false.accepted == 0 and correct_single, correct_chord, "
+            "and retrigger each trail the balanced-best policy by no more than one case"
+        ),
+        "balanced_best_policy": best["policy"],
+        "balanced_best_positive_acceptance": best["score"]["positive_acceptance"],
+        "balanced_best_by_kind": {
+            "correct_single": best["score"]["by_kind"]["correct_strike"],
+            "correct_chord": best["score"]["by_kind"]["correct_chord"],
+            "retrigger": best["score"]["by_kind"]["same_note_retrigger"],
+        },
+        "balanced_policy_count": len(members),
         "sample_members": members[:10],
+        "onset_frame_only": onset_frame_only,
+    }
+
+
+def _onset_frame_only_plateau_members(
+    evaluations: list[dict[str, object]],
+    best_by_kind: dict[str, int],
+) -> dict[str, object]:
+    members = []
+    for frame_key, onset, frame in itertools.product(
+        ("frame_activation", "frame_at_onset_peak", "frame_max_near_onset_peak"),
+        (0.1, 0.2, 0.3, 0.4, 0.5, 0.6),
+        (0.05, 0.1, 0.2, 0.3, 0.4),
+    ):
+        policy = {
+            "frame_key": frame_key,
+            "target_onset_min": onset,
+            "target_frame_min": frame,
+            "semitone_onset_margin_min": DISABLED_MARGIN,
+            "octave_onset_margin_min": DISABLED_MARGIN,
+            "chord_onset_time_spread_max_ms": DISABLED_CHORD_SPREAD_MS,
+        }
+        score = _score_evaluations(evaluations, policy)
+        if not _score_in_balanced_plateau(score, best_by_kind):
+            continue
+        members.append(
+            {
+                "policy": policy,
+                "positive_deltas_from_balanced_best": _positive_kind_deltas(
+                    score,
+                    best_by_kind,
+                ),
+                "by_kind": {
+                    "correct_single": score["by_kind"]["correct_strike"],
+                    "correct_chord": score["by_kind"]["correct_chord"],
+                    "retrigger": score["by_kind"]["same_note_retrigger"],
+                },
+                "clean_negative_false": score["clean_negative_false"],
+            }
+        )
+    onset_values = sorted({member["policy"]["target_onset_min"] for member in members})
+    frame_values = sorted({member["policy"]["target_frame_min"] for member in members})
+    frame_key_distribution: dict[str, int] = {}
+    for member in members:
+        frame_key = str(member["policy"]["frame_key"])
+        frame_key_distribution[frame_key] = frame_key_distribution.get(frame_key, 0) + 1
+    return {
+        "policy_count": len(members),
+        "target_onset_min_values": onset_values,
+        "target_onset_min_range": [min(onset_values), max(onset_values)]
+        if onset_values
+        else None,
+        "target_frame_min_values": frame_values,
+        "target_frame_min_range": [min(frame_values), max(frame_values)]
+        if frame_values
+        else None,
+        "frame_key_distribution": frame_key_distribution,
+        "policies": members,
+    }
+
+
+def _policy_in_balanced_plateau(
+    evaluations: list[dict[str, object]],
+    policy: dict[str, object],
+    best: dict[str, object],
+) -> bool:
+    return _score_in_balanced_plateau(
+        _score_evaluations(evaluations, policy),
+        _positive_kind_acceptance(best["score"]),
+    )
+
+
+def _score_in_balanced_plateau(
+    score: dict[str, object],
+    best_by_kind: dict[str, int],
+) -> bool:
+    if score["clean_negative_false"]["accepted"] != 0:
+        return False
+    return all(delta <= 1 for delta in _positive_kind_deltas(score, best_by_kind).values())
+
+
+def _positive_kind_acceptance(score: dict[str, object]) -> dict[str, int]:
+    return {
+        "correct_single": int(score["by_kind"]["correct_strike"]["accepted"]),
+        "correct_chord": int(score["by_kind"]["correct_chord"]["accepted"]),
+        "retrigger": int(score["by_kind"]["same_note_retrigger"]["accepted"]),
+    }
+
+
+def _positive_kind_deltas(
+    score: dict[str, object],
+    best_by_kind: dict[str, int],
+) -> dict[str, int]:
+    current = _positive_kind_acceptance(score)
+    return {kind: best_by_kind[kind] - current[kind] for kind in best_by_kind}
+
+
+def _per_source_scores(
+    evaluations: list[dict[str, object]],
+    policy: dict[str, object],
+) -> dict[str, object]:
+    by_source: dict[str, list[dict[str, object]]] = {}
+    for evaluation in evaluations:
+        source = str(evaluation["source_identity"]["source_recording_id"])
+        by_source.setdefault(source, []).append(evaluation)
+    return {
+        source: _compact_score(_score_evaluations(source_evaluations, policy))
+        for source, source_evaluations in sorted(by_source.items())
     }
 
 

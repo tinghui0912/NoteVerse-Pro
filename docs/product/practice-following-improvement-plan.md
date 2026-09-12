@@ -3340,14 +3340,86 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    selected policy because disabling it produces the same result. This means the
    evidence supports a simpler candidate than the original margin-based rule.
 
-   Policy plateau:
+   Balanced plateau definition:
 
    ```text
-   zero-clean-negative policies within <= 2 positive cases of best = 630
+   clean_negative_false.accepted == 0
+   and
+   correct_single, correct_chord, retrigger
+   each trail the balanced-best policy by <= 1 case
    ```
 
-   This is a broad plateau, not a narrow single-point optimum. Do not freeze
-   the original full rule just because it appears first in the grid. Prefer a
-   simpler policy from the plateau, likely based on target onset/frame evidence
-   only, then run frozen evaluation exactly once after that policy is explicitly
-   frozen.
+   This replaces the earlier aggregate-positive `<= 2 cases` plateau rule. The
+   older rule was too loose because it could hide a regression concentrated in
+   one positive family.
+
+   Canonical simplified ByteDance/Kong candidate, evaluated on the 12
+   non-frozen sources only:
+
+   ```text
+   frame_key = frame_activation
+   target_onset_min = 0.1
+   target_frame_min = 0.05
+   semitone_onset_margin_min = disabled
+   octave_onset_margin_min = disabled
+   chord_onset_time_spread_max_ms = disabled
+
+   correct single = 20/24
+   correct chord = 19/24
+   retrigger = 18/24
+   clean semitone false = 0/18
+   clean octave false = 0/23
+   clean missing false = 0/20
+   clean negative false, aggregate = 0/61
+   ```
+
+   Per-source clean negative false completion is `0` on all 12 non-frozen
+   source recordings. Two source recordings remain weak on positives, but those
+   failures are not introduced by the simplified policy; they reflect source- or
+   frontend-level recall limits.
+
+   Balanced onset/frame-only plateau:
+
+   ```text
+   policy_count = 90
+   target_onset_min range = 0.1 -> 0.6
+   target_frame_min range = 0.05 -> 0.4
+   frame_key distribution:
+     frame_activation = 30
+     frame_at_onset_peak = 30
+     frame_max_near_onset_peak = 30
+   ```
+
+   The simplified candidate is not an isolated parameter point. A broad family
+   of onset/frame-only policies keeps clean negative false completion at zero
+   while staying within one case of the balanced-best policy for single, chord,
+   and retrigger acceptance.
+
+   Frozen policy candidate:
+
+   ```text
+   FROZEN_POLICY_CANDIDATE
+   frontend = ByteDance/Kong high-resolution piano transcription
+   frame_key = frame_activation
+   target_onset_min = 0.1
+   target_frame_min = 0.05
+   semitone margin = none
+   octave margin = none
+   chord timing spread = none
+   ```
+
+   Rationale:
+
+   - It uses only target onset/frame evidence.
+   - It avoids competitor margins and chord timing spread because the 12-source
+     audit did not show discrimination value from those extra conditions.
+   - It has zero clean negative false completion on every non-frozen source.
+   - It is inside a broad balanced plateau rather than being a narrow optimum.
+   - It has equal or better positive acceptance than the previous margin-based
+     best rule on the non-frozen data.
+
+   This policy is now frozen for research evaluation. Do not tune it from the
+   frozen set. The next step is to run the frozen evaluation set exactly once,
+   record the result, and then decide whether the pretrained frontend is
+   sufficient for a first target-conditioned verifier or whether a tiny verifier
+   is still needed.
