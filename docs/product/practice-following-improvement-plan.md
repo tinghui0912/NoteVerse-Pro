@@ -3902,3 +3902,147 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
      prototype stage. Continue to keep it out of production until the rolling
      adapter proves equivalent behavior under real chunking, scheduling, and
      memory constraints.
+
+11. Direct note-model fixed `+220ms` future context: past-lookback audit
+
+   Status: completed on the non-frozen development + calibration sets only.
+   Frozen evaluation was not touched, thresholds were not changed, and
+   production recognition/progression was not modified.
+
+   Output artifact:
+
+   ```text
+   backend/data/work/datasets/maestro-v3.0.0/bytedance_direct_note_lookback_context.gpu.json
+   ```
+
+   Contract:
+
+   ```text
+   source performances = 12
+   cases = 192
+   target-group inferences per lookback = 264
+
+   model = ByteDance note_model only
+   no 10s padding
+   no pedal_model
+   no RegressionPostProcessor
+   no MIDI decoding
+
+   verifier:
+   onset >= 0.2
+   frame >= 0.2
+   local evidence = target -50ms -> target +120ms
+   future prefix = target +220ms
+
+   input crop per expected group:
+   [target - lookback, target +220ms]
+
+   lookbacks:
+   150ms
+   250ms
+   500ms
+   750ms
+   1000ms reference
+   ```
+
+   Context reason:
+
+   ```text
+   STFT window = 2048 samples @ 16kHz
+   center = true
+   half-window ~= 64ms
+
+   local evidence starts at -50ms
+   minimum real past support for the leftmost local frame is ~= 114ms
+   ```
+
+   Results:
+
+   ```text
+   150ms lookback:
+     agreement vs 1000ms = 192/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     tensor duration = 370ms
+     target-evidence end-to-end mean / median / p95 =
+       40.848 / 37.114 / 57.137 ms
+
+   250ms lookback:
+     agreement vs 1000ms = 191/192
+     correct single/chord/retrigger = 20/24, 18/24, 17/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     tensor duration = 470ms
+     target-evidence end-to-end mean / median / p95 =
+       50.929 / 48.472 / 67.201 ms
+
+   500ms lookback:
+     agreement vs 1000ms = 192/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     tensor duration = 720ms
+     target-evidence end-to-end mean / median / p95 =
+       68.798 / 66.458 / 86.472 ms
+
+   750ms lookback:
+     agreement vs 1000ms = 192/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     tensor duration = 970ms
+     target-evidence end-to-end mean / median / p95 =
+       81.097 / 72.300 / 126.063 ms
+
+   1000ms lookback reference:
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     tensor duration = 1220ms
+     target-evidence end-to-end mean / median / p95 =
+       99.713 / 90.092 / 147.857 ms
+   ```
+
+   Disagreement:
+
+   ```text
+   250ms:
+     - s08_correct_chord_001:
+       positive recall loss. The G1 frame activation drops from 0.828380 at
+       1000ms to 0.162983 at 250ms, so the chord is rejected.
+
+   150ms / 500ms / 750ms:
+     - no case-level decision disagreements vs 1000ms
+   ```
+
+   Interpretation:
+
+   - `250ms` is not decision-equivalent to `1000ms`; it loses one correct chord.
+   - `500ms` is decision-equivalent to `1000ms` in this benchmark.
+   - `150ms` is also decision-equivalent to `1000ms` in this run, but the
+     non-monotonic `250ms` failure means this should not be interpreted as a
+     robust production-ready lower bound.
+   - No tested lookback introduces new clean-negative false completion.
+   - Retigger is not more history-dependent than single/chord in this result:
+     all lookbacks report `17/24`, matching the `1000ms` reference.
+   - Shorter history materially reduces compute:
+
+     ```text
+     500ms lookback vs 1000ms:
+       tensor duration: 720ms vs 1220ms
+       target-evidence mean: 68.798ms vs 99.713ms
+       target-evidence p95: 86.472ms vs 147.857ms
+     ```
+
+   - Research rolling-buffer recommendation:
+
+     ```text
+     keep at least 500ms of past audio
+     combine with +220ms future prefix
+     expected research strike->decision budget ~= 220ms + 69ms mean
+                                            ~= 220ms + 86ms p95
+     ```
+
+     This is conservative relative to the observed `150ms` agreement and avoids
+     relying on a surprising non-monotonic boundary effect.
