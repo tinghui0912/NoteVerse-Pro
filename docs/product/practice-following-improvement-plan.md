@@ -3401,8 +3401,8 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    FROZEN_POLICY_CANDIDATE
    frontend = ByteDance/Kong high-resolution piano transcription
    frame_key = frame_activation
-   target_onset_min = 0.1
-   target_frame_min = 0.05
+   target_onset_min = 0.2
+   target_frame_min = 0.2
    semitone margin = none
    octave margin = none
    chord timing spread = none
@@ -3417,9 +3417,48 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    - It is inside a broad balanced plateau rather than being a narrow optimum.
    - It has equal or better positive acceptance than the previous margin-based
      best rule on the non-frozen data.
+   - It was selected by deterministic tie-break from the exact same-score
+     onset/frame-only policies: among `frame_activation` policies tied at
+     `single = 20/24`, `chord = 19/24`, `retrigger = 18/24`, and clean negative
+     false `0/61`, `0.2 / 0.2` is closer to the existing grid midpoint than
+     `0.1 / 0.05`.
 
-   This policy is now frozen for research evaluation. Do not tune it from the
-   frozen set. The next step is to run the frozen evaluation set exactly once,
-   record the result, and then decide whether the pretrained frontend is
-   sufficient for a first target-conditioned verifier or whether a tiny verifier
-   is still needed.
+   Frozen artifact:
+
+   ```text
+   data/work/datasets/maestro-v3.0.0/step_microphone_bytedance_frozen_policy.json
+   status = frozen_before_evaluation
+   checkpoint_sha256 = c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141
+   ```
+
+   This policy is frozen for research evaluation. Do not tune it from the frozen
+   set.
+
+   Frozen evaluation was run exactly once with the frozen artifact:
+
+   ```text
+   report = data/work/datasets/maestro-v3.0.0/production_step_frozen_evaluation_set/frozen_bytedance_policy_evaluation_report.json
+
+   correct single = 7/8
+   correct chord = 7/8
+   retrigger = 8/8
+
+   clean semitone false = 0/7
+   clean octave false = 0/5
+   clean missing false = 0/7
+   NO_LOCAL_MODEL_FRAMES = 0/62
+   ```
+
+   Raw negative false completions before contamination filtering were
+   `wrong_semitone = 1/8` and `wrong_octave = 1/8`, but both were marked
+   contaminated under the benchmark's counterfactual-future-note policy. Clean
+   false completion stayed at zero for all three negative families.
+
+   Go/no-go: this is a `go` for the next research phase. The pretrained
+   ByteDance/Kong frontend plus a simple target onset/frame policy generalizes
+   well enough on frozen public paired data to justify streaming/runtime
+   feasibility work. Do not adjust thresholds from this result. The next phase
+   should test whether equivalent evidence can be made usable in the actual STEP
+   runtime constraints; if streaming feasibility fails, return to new
+   calibration data or tiny target-conditioned verifier research rather than
+   retuning on this frozen set.
