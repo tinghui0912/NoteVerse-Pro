@@ -83,6 +83,7 @@ FixtureStatus = Literal[
     "missing_required_fixture",
     "public_dataset_case",
 ]
+StartupMode = Literal["cold", "warm"]
 
 
 class FeaturePassthroughProcessor:
@@ -266,10 +267,19 @@ def main() -> None:
         default=None,
         help="Optional public-dataset causal case manifest produced by the extractor.",
     )
+    parser.add_argument(
+        "--startup-mode",
+        choices=("cold", "warm"),
+        default="cold",
+        help=(
+            "cold uses the product startup gate. warm pre-starts the stream for "
+            "diagnostic attribution only; it is not a product metric."
+        ),
+    )
     args = parser.parse_args()
 
     cases = _case_specs_from_manifest(args.case_manifest) if args.case_manifest else _case_specs()
-    results = tuple(_run_case(case) for case in cases)
+    results = tuple(_run_case(case, startup_mode=args.startup_mode) for case in cases)
     payload = {
         "benchmark_scope": "production_step_microphone_causal_replay",
         "recognition_chain": [
@@ -292,6 +302,7 @@ def main() -> None:
             "a substitute for same-take product validation recordings."
         ),
         "case_manifest": str(args.case_manifest) if args.case_manifest else None,
+        "startup_mode": args.startup_mode,
         "summary": _summary(results),
         "results": [asdict(result) for result in results],
     }
@@ -372,7 +383,7 @@ def _case_specs() -> tuple[CaseSpec, ...]:
     )
 
 
-def _run_case(case: CaseSpec) -> CaseResult:
+def _run_case(case: CaseSpec, *, startup_mode: StartupMode = "cold") -> CaseResult:
     if case.fixture_status == "missing_required_fixture":
         return CaseResult(
             case_id=case.case_id,
@@ -408,6 +419,10 @@ def _run_case(case: CaseSpec) -> CaseResult:
     frame_length = int(SAMPLE_RATE / DEFAULT_PRACTICE_AUDIO_PROFILE.frame_rate)
     frames = _split_frames(audio, frame_length)
     stream = _build_stream(frame_length)
+    if startup_mode == "warm":
+        stream.started = True
+        stream.armed = True
+        stream.stream_state = "following"
     observer = RecordingObserver()
     accumulator = ExpectedGroupAttemptAccumulator(
         observer=observer,
@@ -1467,6 +1482,7 @@ def _markdown_table(results: tuple[CaseResult, ...]) -> str:
 
 def _summary(results: tuple[CaseResult, ...]) -> dict[str, object]:
     by_failure = Counter(result.primary_failure for result in results)
+    by_evaluation = Counter(result.evaluation for result in results)
     by_kind_failure = Counter(
         (
             str((result.source_metadata or {}).get("case_kind", result.case_id)),
@@ -1493,6 +1509,9 @@ def _summary(results: tuple[CaseResult, ...]) -> dict[str, object]:
     return {
         "case_count": len(results),
         "by_primary_failure": dict(sorted(by_failure.items())),
+        "by_latest_evaluation": dict(sorted(by_evaluation.items())),
+        "actual_advance_count": sum(result.actual_advances for result in results),
+        "match_case_count": sum(1 for result in results if result.evaluation == "MATCH"),
         "by_case_kind_and_failure": {
             f"{kind}:{failure}": count
             for (kind, failure), count in sorted(by_kind_failure.items())

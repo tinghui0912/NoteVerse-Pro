@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import builtins
 from collections.abc import Iterator
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+import wave
 
 import pytest
 
@@ -32,6 +34,7 @@ from app.processing.engines.practice_alignment.matchmaker_live import (
     build_alignment_engine,
 )
 from app.processing.engines.practice_alignment.profile import (
+    DEFAULT_PRACTICE_AUDIO_PROFILE,
     PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID,
 )
 from app.processing.engines.practice_alignment.follow_policy import (
@@ -2135,6 +2138,20 @@ def sine_frame(np, frequency_hz: float, *, sample_rate: int):
     return (0.25 * np.sin(2 * np.pi * frequency_hz * t)).astype(np.float32)
 
 
+def read_fixture_wav(path: Path):
+    import numpy as np
+
+    with wave.open(str(path), "rb") as recording:
+        sample_rate = recording.getframerate()
+        channels = recording.getnchannels()
+        raw = recording.readframes(recording.getnframes())
+
+    samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    if channels > 1:
+        samples = samples.reshape(-1, channels).mean(axis=1)
+    return samples, sample_rate
+
+
 def test_wait_for_note_engine_advances_from_live_single_note_pcm() -> None:
     import numpy as np
 
@@ -2299,6 +2316,86 @@ def test_wait_for_note_engine_first_valid_strike_can_start_and_match() -> None:
     advances = [update for update in updates if update["decision"]["action"] == "advance"]
     assert len(advances) == 1
     assert advances[0]["decision"]["display_anchor"]["beat"] == 4.0
+
+
+def test_wait_for_note_real_startup_c4_fixture_starts_and_matches_once() -> None:
+    import numpy as np
+
+    samples, sample_rate = read_fixture_wav(
+        Path("tests/fixtures/practice_audio/public_samples/piano_uiowa_mf_c4_16k.wav")
+    )
+    assert sample_rate == 16000
+
+    engine = make_wait_for_note_engine(np)
+    profile = DEFAULT_PRACTICE_AUDIO_PROFILE
+    frame_length = int(sample_rate / profile.frame_rate)
+    feature_queue = DummyQueue()
+    engine._stream = BrowserAudioStreamAdapter(
+        processor=DummyProcessor(),
+        feature_queue=feature_queue,
+        np=np,
+        hop_length=frame_length,
+        rms_gate=profile.rms_gate,
+        peak_gate=profile.peak_gate,
+        start_rms_gate=profile.start_rms_gate,
+        start_peak_gate=profile.start_peak_gate,
+        min_active_frames=profile.min_active_frames,
+        calibration_sample_count=profile.calibration_sample_count(sample_rate),
+        rms_noise_multiplier=profile.rms_noise_multiplier,
+        peak_noise_multiplier=profile.peak_noise_multiplier,
+        diagnostics_enabled=False,
+        no_input_frames=profile.no_input_frames,
+        tonal_gate_enabled=profile.tonal_gate_enabled,
+        max_spectral_flatness=profile.max_spectral_flatness,
+        min_peak_prominence=profile.min_peak_prominence,
+        onset_flux_gate=profile.onset_flux_gate,
+        onset_hold_frames=profile.onset_hold_frames,
+        start_feature_window_frames=profile.startup_feature_window_frames,
+    )
+    engine._stream.start_feature_scorer = lambda _feature_vector: 0.99
+
+    gain = 10 ** (18 / 20)
+    samples = np.clip(samples.astype(np.float32) * gain, -1.0, 1.0)
+    silence = np.zeros(profile.calibration_sample_count(sample_rate), dtype=np.float32)
+    audio = np.concatenate((silence, samples))
+    usable = (audio.size // frame_length) * frame_length
+    updates = []
+    first_candidate_frame = None
+    started_frame = None
+    first_attempt_started_at_ms = None
+    strike_start_ms = int(round(silence.size / sample_rate * 1000))
+    engine.total_bytes = 0
+
+    for frame_index, start in enumerate(range(0, usable, frame_length), start=1):
+        frame = audio[start : start + frame_length]
+        engine.total_bytes += frame.size * 2
+        update = engine._ingest_audio_frame(frame)
+        if (
+            first_candidate_frame is None
+            and (engine._stream.last_rms >= engine._stream.start_rms_gate
+                 or engine._stream.last_peak >= engine._stream.start_peak_gate)
+        ):
+            first_candidate_frame = frame_index
+        if started_frame is None and engine._stream.started:
+            started_frame = frame_index
+        if (
+            first_attempt_started_at_ms is None
+            and engine._wait_for_note_attempt.last_resolved_attempt is not None
+        ):
+            first_attempt_started_at_ms = engine._wait_for_note_attempt.last_resolved_attempt.started_at_ms
+        if update is not None:
+            updates.append(update)
+
+    advances = [update for update in updates if update["decision"]["action"] == "advance"]
+
+    assert first_candidate_frame is not None
+    assert started_frame is not None
+    assert first_attempt_started_at_ms is not None
+    assert first_attempt_started_at_ms >= strike_start_ms
+    assert len(advances) == 1
+    assert advances[0]["decision"]["display_anchor"]["beat"] == 4.0
+    assert engine._follow_policy.current_expected_group is not None
+    assert engine._follow_policy.current_expected_group.pitches == ("E4",)
 
 
 def test_wait_for_note_engine_after_start_requires_new_onset_for_next_attempt() -> None:
