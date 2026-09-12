@@ -3750,3 +3750,155 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
      Still do not connect it to production until streaming/chunking behavior,
      batching, memory behavior, and failure cases are tested under a runtime-like
      adapter.
+
+   Direct note-model bounded-prefix context experiment:
+
+   ```text
+   report =
+   data/work/datasets/maestro-v3.0.0/bytedance_direct_note_prefix_context.gpu.json
+
+   cases = 192
+   source performances = 12
+   target-group inferences per prefix = 264
+
+   model = ByteDance note_model only
+   no 10s padding
+   no pedal_model
+   no RegressionPostProcessor
+   no MIDI decoding
+
+   verifier:
+   onset >= 0.2
+   frame >= 0.2
+   local evidence = target -50ms -> target +120ms
+
+   prefixes:
+   target +120ms
+   target +160ms
+   target +190ms
+   target +220ms
+   target +350ms reference
+   ```
+
+   Context reason:
+
+   ```text
+   STFT window = 2048 samples @ 16kHz
+   center = true
+   half-window ~= 64ms
+
+   local evidence ends at +120ms
+   full real-audio support for the rightmost local frame begins around +184ms
+   ```
+
+   Therefore:
+
+   ```text
+   +120ms / +160ms:
+     local-window right edge may depend on boundary padding
+
+   +190ms / +220ms / +350ms:
+     local-window STFT support is fully inside real observed audio
+   ```
+
+   Results:
+
+   ```text
+   +120ms:
+     agreement vs +350ms = 190/192
+     correct single/chord/retrigger = 20/24, 18/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     target-evidence end-to-end mean / median / p95 =
+       89.021 / 85.647 / 130.329 ms
+     estimated strike->decision mean / median / p95 =
+       209.021 / 205.647 / 250.329 ms
+
+   +160ms:
+     agreement vs +350ms = 191/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     target-evidence end-to-end mean / median / p95 =
+       92.451 / 85.920 / 137.929 ms
+     estimated strike->decision mean / median / p95 =
+       252.451 / 245.920 / 297.929 ms
+
+   +190ms:
+     agreement vs +350ms = 191/192
+     correct single/chord/retrigger = 20/24, 19/24, 17/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     target-evidence end-to-end mean / median / p95 =
+       101.279 / 93.984 / 143.426 ms
+     estimated strike->decision mean / median / p95 =
+       291.279 / 283.984 / 333.426 ms
+
+   +220ms:
+     agreement vs +350ms = 192/192
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     target-evidence end-to-end mean / median / p95 =
+       101.054 / 88.135 / 165.457 ms
+     estimated strike->decision mean / median / p95 =
+       321.054 / 308.135 / 385.457 ms
+
+   +350ms:
+     agreement vs +350ms = 192/192
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     NO_LOCAL_MODEL_FRAMES = 0/192
+     target-evidence end-to-end mean / median / p95 =
+       107.192 / 102.228 / 155.333 ms
+     estimated strike->decision mean / median / p95 =
+       457.192 / 452.228 / 505.333 ms
+   ```
+
+   Disagreements:
+
+   ```text
+   +120ms:
+     - s03_correct_chord_002:
+       positive recall loss; E4 onset is 0.193972 at +120ms vs 0.810750 at
+       +350ms, just below the frozen onset threshold.
+     - s08_wrong_semitone_001:
+       short prefix rejects while +350ms accepts. This does not create clean
+       negative risk because the short prefix is safer than the reference.
+
+   +160ms / +190ms:
+     - s08_same_note_retrigger_002:
+       positive recall loss. The second group's G3 onset is below threshold
+       at short prefix but accepted at +350ms.
+
+   +220ms:
+     - no disagreements
+   ```
+
+   Interpretation:
+
+   - `+190ms` is not fully decision-equivalent to `+350ms`; it still loses one
+     retrigger positive.
+   - `+220ms` is decision-equivalent to `+350ms` on this full non-frozen
+     benchmark.
+   - None of the shorter prefixes introduce clean-negative false completion.
+     Observed disagreements are positive recall / safer rejection issues, not
+     clean-negative safety regressions.
+   - Disagreements concentrate in two source recordings/case families:
+     one correct-chord case and one same-note-retrigger case, plus one
+     counterfactual semitone case where the short prefix rejects.
+   - The shortest prefix where the full frozen local evidence window has real
+     STFT support is approximately `+190ms`, but the shortest prefix that is
+     decision-equivalent to `+350ms` in this benchmark is `+220ms`.
+   - Research strike-to-decision budget for this direct note-model path is
+     roughly:
+
+     ```text
+     +190ms prefix: mean ~= 291ms, p95 ~= 333ms
+     +220ms prefix: mean ~= 321ms, p95 ~= 385ms
+     ```
+
+   - Direct note-model should enter the next runtime-like rolling-buffer
+     prototype stage. Continue to keep it out of production until the rolling
+     adapter proves equivalent behavior under real chunking, scheduling, and
+     memory constraints.
