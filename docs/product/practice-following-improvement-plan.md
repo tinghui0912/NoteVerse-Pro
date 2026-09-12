@@ -3024,3 +3024,67 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
    This makes end-to-end comparison possible without wiring the candidate into
    production. It is still benchmark-only: its fixed window/hop/timeout
    parameters are diagnostic scaffolding, not user-facing runtime policy.
+
+9. **P3.2: Stop optimizing legacy Matchmaker startup before acoustic frontend work.**
+   The cold/warm causal replay comparison now shows:
+
+   ```text
+   cold ATTACK_MISSED = 6
+   warm ATTACK_MISSED = 0
+
+   cold PITCH_FALSE_NEGATIVE = 12
+   warm PITCH_FALSE_NEGATIVE = 12
+   ```
+
+   This isolates two concerns. The cold-start first-strike loss belongs to the
+   current Matchmaker startup/runtime integration and should be recorded as a
+   known legacy limitation, not used as the next microphone recognition tuning
+   target. Acoustic frontend experiments must run with `startup_mode = warm` so
+   they answer the narrower product question:
+
+   ```text
+   System is ready.
+   Current expected pitches are known.
+   Did the user's new physical strike satisfy those expected pitches?
+   ```
+
+   Do not continue by adding pre-start audio buffering, changing the startup
+   feature window, tuning the start scorer, changing OLTW/start-queue behavior,
+   or designing a new first-strike lifecycle in Matchmaker. Keep startup safety
+   regressions as guardrails, but move recognition work to warm-start acoustic
+   evidence comparison.
+
+   A new diagnostic script compares frontends on the same frozen public causal
+   cases without changing production progression:
+
+   ```text
+   backend/scripts/compare_step_microphone_frontends_causal_cases.py
+   ```
+
+   Current 59-case MAESTRO warm-start comparison:
+
+   ```text
+   production FFT observer:
+   - correct single acceptance = 4/8
+   - correct chord complete acceptance = 0/8
+   - wrong semitone false completion = 0/8
+   - wrong octave false completion = 0/8
+   - missing-note false completion = 0/8
+   - same-note retrigger acceptance = 0/3
+
+   Basic Pitch raw onset/frame activation:
+   - correct single acceptance = 8/8
+   - correct chord complete acceptance = 6/8
+   - wrong semitone false completion = 3/8
+   - wrong octave false completion = 0/8
+   - missing-note false completion = 0/8
+   - same-note retrigger acceptance = 3/3
+   ```
+
+   This means the production FFT observer is the likely first bottleneck for
+   chord recall and retrigger recognition, but Basic Pitch raw thresholds are
+   not yet safe enough because semitone false completion appears in the frozen
+   negative cases. The next experiment should run this exact benchmark contract
+   against a piano-specific pretrained onset/frame frontend before choosing
+   between simple target-conditioned calibration and a small target-conditioned
+   strike verifier.
