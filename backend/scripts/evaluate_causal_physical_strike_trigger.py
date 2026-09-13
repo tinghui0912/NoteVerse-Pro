@@ -358,6 +358,11 @@ def _evaluate_case(
         "candidate_anchor_error_ms": matches["anchor_error_ms"],
         "candidate_emit_delay_ms": matches["emit_delay_ms"],
         "gate_attribution": gate_attributions,
+        "feature_separation_observations": _feature_separation_observations(
+            gt_groups,
+            frame_traces,
+            source_start=source_start,
+        ),
         "audio_sanity": _audio_sanity(audio, config=config),
         "frame_trace_summary": _frame_trace_summary(frame_traces),
         "target_reports": target_reports,
@@ -643,6 +648,151 @@ def _attribute_gt_gate_blocks(
     return reports
 
 
+FEATURE_NAMES = (
+    "raw_rms",
+    "rms_over_history_median",
+    "rms_over_history_p20",
+    "rms_over_history_p10",
+    "raw_spectral_flux",
+    "flux_over_effective_flux_gate",
+    "min_rms_median_flux_gate",
+    "min_rms_p20_flux_gate",
+    "min_rms_p10_flux_gate",
+)
+
+
+def _feature_separation_observations(
+    gt_groups: tuple[MidiStrikeGroup, ...],
+    frame_traces: tuple[FrameTrace, ...],
+    *,
+    source_start: float,
+) -> dict[str, object]:
+    gt_samples = [_relative_sample(group.seconds, source_start) for group in gt_groups]
+    positives = _positive_feature_observations(gt_groups, frame_traces, source_start=source_start)
+    negatives = _negative_feature_observations(gt_samples, frame_traces)
+    return {
+        "positive": positives,
+        "negative": negatives,
+    }
+
+
+def _positive_feature_observations(
+    gt_groups: tuple[MidiStrikeGroup, ...],
+    frame_traces: tuple[FrameTrace, ...],
+    *,
+    source_start: float,
+) -> list[dict[str, object]]:
+    observations = []
+    window_pre = round(0.050 * SAMPLE_RATE)
+    window_post = round(0.080 * SAMPLE_RATE)
+    for gt_index, group in enumerate(gt_groups):
+        gt_sample = _relative_sample(group.seconds, source_start)
+        nearby = [
+            trace
+            for trace in frame_traces
+            if gt_sample - window_pre <= trace.frame_start_sample <= gt_sample + window_post
+        ]
+        if not nearby:
+            continue
+        previous_seconds = gt_groups[gt_index - 1].seconds if gt_index > 0 else None
+        previous_distance_ms = (
+            None if previous_seconds is None else round((group.seconds - previous_seconds) * 1000.0, 6)
+        )
+        observations.append(
+            {
+                "kind": "positive",
+                "previous_gt_distance_ms": previous_distance_ms,
+                "previous_gt_distance_bucket": _previous_distance_bucket(previous_distance_ms),
+                "density_group": (
+                    "dense"
+                    if previous_distance_ms is not None and previous_distance_ms < 150.0
+                    else (
+                        "sparse"
+                        if previous_distance_ms is None or previous_distance_ms >= 600.0
+                        else "mid"
+                    )
+                ),
+                "features": _max_features(nearby),
+            }
+        )
+    return observations
+
+
+def _negative_feature_observations(
+    gt_samples: list[int],
+    frame_traces: tuple[FrameTrace, ...],
+) -> list[dict[str, object]]:
+    observations = []
+    for trace in frame_traces:
+        nearest_distance_samples = (
+            min(abs(trace.frame_start_sample - sample) for sample in gt_samples)
+            if gt_samples
+            else None
+        )
+        if nearest_distance_samples is not None and nearest_distance_samples <= round(0.100 * SAMPLE_RATE):
+            continue
+        distance_ms = (
+            None if nearest_distance_samples is None else nearest_distance_samples / SAMPLE_RATE * 1000.0
+        )
+        observations.append(
+            {
+                "kind": "negative",
+                "nearest_gt_distance_ms": None if distance_ms is None else round(distance_ms, 6),
+                "negative_distance_bucket": _negative_distance_bucket(distance_ms),
+                "features": _trace_features(trace),
+            }
+        )
+    return observations
+
+
+def _max_features(traces: list[FrameTrace]) -> dict[str, float]:
+    values: dict[str, float] = {}
+    for feature in FEATURE_NAMES:
+        feature_values = [
+            value
+            for trace in traces
+            for value in [_trace_features(trace).get(feature)]
+            if value is not None
+        ]
+        if feature_values:
+            values[feature] = round(float(max(feature_values)), 8)
+    return values
+
+
+def _trace_features(trace: FrameTrace) -> dict[str, float | None]:
+    rms_median = _safe_ratio(trace.rms, trace.median_rms_baseline)
+    rms_p20 = _safe_ratio(trace.rms, trace.history_rms_p20)
+    rms_p10 = _safe_ratio(trace.rms, trace.history_rms_p10)
+    flux_gate = _safe_ratio(trace.spectral_flux, trace.effective_flux_gate)
+    return {
+        "raw_rms": round(trace.rms, 8),
+        "rms_over_history_median": rms_median,
+        "rms_over_history_p20": rms_p20,
+        "rms_over_history_p10": rms_p10,
+        "raw_spectral_flux": round(trace.spectral_flux, 8),
+        "flux_over_effective_flux_gate": flux_gate,
+        "min_rms_median_flux_gate": _min_optional(rms_median, flux_gate),
+        "min_rms_p20_flux_gate": _min_optional(rms_p20, flux_gate),
+        "min_rms_p10_flux_gate": _min_optional(rms_p10, flux_gate),
+    }
+
+
+def _negative_distance_bucket(distance_ms: float | None) -> str:
+    if distance_ms is None or distance_ms > 1000:
+        return ">1000ms_or_none"
+    if distance_ms <= 200:
+        return "100-200ms"
+    if distance_ms <= 500:
+        return "200-500ms"
+    return "500-1000ms"
+
+
+def _min_optional(first: float | None, second: float | None) -> float | None:
+    if first is None or second is None:
+        return None
+    return round(float(min(first, second)), 8)
+
+
 def _trace_score(trace: FrameTrace) -> float:
     rms_ratio = _safe_ratio(trace.rms, trace.effective_rms_gate) or 0.0
     flux_ratio = _safe_ratio(trace.spectral_flux, trace.effective_flux_gate) or 0.0
@@ -798,6 +948,7 @@ def _summarize_case_reports(case_reports: list[dict[str, object]]) -> dict[str, 
         "unmatched_candidate_distance_buckets": dict(bucket_counts),
         "gate_diagnostics": _gate_diagnostics_summary(case_reports),
         "audio_sanity": _audio_sanity_summary(case_reports),
+        "feature_separation": _feature_separation_summary(case_reports),
     }
 
 
@@ -1033,6 +1184,149 @@ def _audio_sanity_summary(case_reports: list[dict[str, object]]) -> dict[str, ob
     }
 
 
+def _feature_separation_summary(case_reports: list[dict[str, object]]) -> dict[str, object]:
+    positives = _collect_feature_observations(case_reports, kind="positive")
+    negatives = _balanced_negative_observations(case_reports)
+    per_source = {}
+    source_ids = sorted({str(report["source_recording_id"]) for report in case_reports})
+    for source_id in source_ids:
+        source_reports = [report for report in case_reports if str(report["source_recording_id"]) == source_id]
+        source_positives = _collect_feature_observations(source_reports, kind="positive")
+        source_negatives = _balanced_negative_observations(source_reports)
+        per_source[source_id] = _feature_aurocs(source_positives, source_negatives)
+    feature_reports = {}
+    for feature in FEATURE_NAMES:
+        positive_values = _feature_values(positives, feature)
+        negative_values = _feature_values(negatives, feature)
+        source_aurocs = [
+            report[feature]
+            for report in per_source.values()
+            if report.get(feature) is not None
+        ]
+        feature_reports[feature] = {
+            "positive": _quantiles(positive_values),
+            "negative": {
+                **_quantiles(negative_values),
+                "p95": _percentile_or_none(negative_values, 95),
+                "p99": _percentile_or_none(negative_values, 99),
+            },
+            "aggregate_auroc": _auroc(positive_values, negative_values),
+            "per_source_auroc": {
+                "min": None if not source_aurocs else round(float(min(source_aurocs)), 8),
+                "median": None if not source_aurocs else round(float(np.median(source_aurocs)), 8),
+                "max": None if not source_aurocs else round(float(max(source_aurocs)), 8),
+            },
+            "dense_positive": _quantiles(
+                _feature_values(
+                    [item for item in positives if item.get("density_group") == "dense"],
+                    feature,
+                )
+            ),
+            "sparse_positive": _quantiles(
+                _feature_values(
+                    [item for item in positives if item.get("density_group") == "sparse"],
+                    feature,
+                )
+            ),
+            "negative_by_distance_bucket": {
+                bucket: _quantiles(
+                    _feature_values(
+                        [item for item in negatives if item.get("negative_distance_bucket") == bucket],
+                        feature,
+                    )
+                )
+                for bucket in ("100-200ms", "200-500ms", "500-1000ms", ">1000ms_or_none")
+            },
+        }
+    return {
+        "positive_count": len(positives),
+        "negative_count_source_balanced": len(negatives),
+        "negative_sampling": {
+            "deterministic": True,
+            "balanced_by": "source_recording_id + negative_distance_bucket",
+            "max_per_source_bucket": 200,
+        },
+        "features": feature_reports,
+    }
+
+
+def _collect_feature_observations(
+    case_reports: list[dict[str, object]],
+    *,
+    kind: str,
+) -> list[dict[str, object]]:
+    observations = []
+    for report in case_reports:
+        items = report.get("feature_separation_observations", {}).get(kind, ())
+        for item in items:
+            enriched = dict(item)
+            enriched["source_recording_id"] = str(report["source_recording_id"])
+            observations.append(enriched)
+    return observations
+
+
+def _balanced_negative_observations(case_reports: list[dict[str, object]]) -> list[dict[str, object]]:
+    all_negatives = _collect_feature_observations(case_reports, kind="negative")
+    grouped: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
+    for item in all_negatives:
+        grouped[(str(item["source_recording_id"]), str(item["negative_distance_bucket"]))].append(item)
+    sampled = []
+    for key in sorted(grouped):
+        sampled.extend(_even_sample(grouped[key], max_count=200))
+    return sampled
+
+
+def _even_sample(items: list[dict[str, object]], *, max_count: int) -> list[dict[str, object]]:
+    if len(items) <= max_count:
+        return items
+    indices = np.linspace(0, len(items) - 1, num=max_count, dtype=int)
+    return [items[int(index)] for index in indices]
+
+
+def _feature_aurocs(
+    positives: list[dict[str, object]],
+    negatives: list[dict[str, object]],
+) -> dict[str, float | None]:
+    return {
+        feature: _auroc(_feature_values(positives, feature), _feature_values(negatives, feature))
+        for feature in FEATURE_NAMES
+    }
+
+
+def _feature_values(observations: list[dict[str, object]], feature: str) -> list[float]:
+    values = []
+    for item in observations:
+        features = item.get("features", {})
+        if isinstance(features, dict) and features.get(feature) is not None:
+            values.append(float(features[feature]))
+    return values
+
+
+def _auroc(positive_values: list[float], negative_values: list[float]) -> float | None:
+    if not positive_values or not negative_values:
+        return None
+    values = [(value, 1) for value in positive_values] + [(value, 0) for value in negative_values]
+    values.sort(key=lambda item: item[0])
+    rank_sum_positive = 0.0
+    rank = 1
+    index = 0
+    while index < len(values):
+        end = index + 1
+        while end < len(values) and values[end][0] == values[index][0]:
+            end += 1
+        average_rank = (rank + rank + (end - index) - 1) / 2.0
+        positives_in_tie = sum(label for _, label in values[index:end])
+        rank_sum_positive += positives_in_tie * average_rank
+        rank += end - index
+        index = end
+    positive_count = len(positive_values)
+    negative_count = len(negative_values)
+    auc = (rank_sum_positive - positive_count * (positive_count + 1) / 2.0) / (
+        positive_count * negative_count
+    )
+    return round(float(auc), 8)
+
+
 def _bucket_unmatched_candidates(unmatched: list[dict[str, object]]) -> dict[str, int]:
     buckets = {"0-100ms": 0, "100-300ms": 0, "300-1000ms": 0, ">1000ms": 0}
     for candidate in unmatched:
@@ -1142,6 +1436,12 @@ def _quantiles(values: list[float] | list[int]) -> dict[str, object]:
         "median": round(float(np.median(array)), 8),
         "p90": round(float(np.percentile(array, 90)), 8),
     }
+
+
+def _percentile_or_none(values: list[float] | list[int], percentile: float) -> float | None:
+    if not values:
+        return None
+    return round(float(np.percentile(np.asarray(values, dtype=np.float64), percentile)), 8)
 
 
 def _signed_quantiles(values: list[float] | list[int]) -> dict[str, object]:
