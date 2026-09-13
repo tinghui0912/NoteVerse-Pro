@@ -207,6 +207,10 @@ def main() -> int:
                 "development baseline configuration; not formally calibrated; "
                 "calibration is a source-disjoint audit and is not used for retuning"
             ),
+            "trigger_research_governance": (
+                "current development + calibration sources are trigger-development evidence "
+                "after inspection; calibration is no longer independent for future trigger changes"
+            ),
         },
         "sample_rate": SAMPLE_RATE,
         "match_tolerance_seconds": MATCH_TOLERANCE_SECONDS,
@@ -523,42 +527,62 @@ def _attribute_gt_gate_blocks(
                 {
                     "gt_second": round(group.seconds, 6),
                     "matched_by_candidate": gt_index in matched_gt_indices,
-                    "primary_attribution": "no_detector_frame_in_window",
+                    "gate_category": "NO_DETECTOR_FRAME_IN_WINDOW",
                     "best_rms_ratio": None,
+                    "best_rms_frame_delta_ms": None,
                     "best_flux_ratio": None,
-                    "passes_rms": False,
-                    "passes_flux": False,
-                    "passes_both": False,
-                    "passes_all_including_refractory": False,
-                    "multi_label_blocks": ("no_detector_frame_in_window",),
+                    "best_flux_frame_delta_ms": None,
+                    "best_joint_min_ratio": None,
+                    "best_joint_frame_delta_ms": None,
+                    "rms_flux_best_frame_delta_ms": None,
+                    "rms_flux_best_frame_abs_delta_ms": None,
+                    "any_passes_rms": False,
+                    "any_passes_flux": False,
+                    "any_passes_both": False,
+                    "any_passes_both_and_refractory": False,
                 }
             )
             continue
-        best = max(nearby, key=_trace_score)
-        labels = _block_labels(best)
+        best_rms = max(nearby, key=lambda trace: _safe_ratio(trace.rms, trace.effective_rms_gate) or 0.0)
+        best_flux = max(
+            nearby,
+            key=lambda trace: _safe_ratio(trace.spectral_flux, trace.effective_flux_gate) or 0.0,
+        )
+        best_joint = max(nearby, key=_trace_score)
+        any_passes_rms = any(trace.passes_rms for trace in nearby)
+        any_passes_flux = any(trace.passes_flux for trace in nearby)
+        any_passes_both = any(trace.passes_rms and trace.passes_flux for trace in nearby)
+        any_passes_both_and_refractory = any(trace.would_emit for trace in nearby)
+        best_rms_delta_ms = _frame_delta_ms(best_rms, gt_sample)
+        best_flux_delta_ms = _frame_delta_ms(best_flux, gt_sample)
         reports.append(
             {
                 "gt_second": round(group.seconds, 6),
                 "matched_by_candidate": gt_index in matched_gt_indices,
-                "frame_start_sample": best.frame_start_sample,
-                "frame_start_delta_ms": round(
-                    (best.frame_start_sample - gt_sample) / SAMPLE_RATE * 1000.0,
-                    6,
+                "gate_category": _gate_category(
+                    any_passes_rms=any_passes_rms,
+                    any_passes_flux=any_passes_flux,
+                    any_passes_both=any_passes_both,
+                    any_passes_both_and_refractory=any_passes_both_and_refractory,
                 ),
-                "best_rms": round(best.rms, 8),
-                "best_flux": round(best.spectral_flux, 8),
-                "best_rms_gate": round(best.effective_rms_gate, 8),
-                "best_flux_gate": round(best.effective_flux_gate, 8),
-                "best_rms_ratio": _safe_ratio(best.rms, best.effective_rms_gate),
-                "best_flux_ratio": _safe_ratio(best.spectral_flux, best.effective_flux_gate),
-                "median_rms_baseline": round(best.median_rms_baseline, 8),
-                "median_flux_baseline": round(best.median_flux_baseline, 8),
-                "passes_rms": best.passes_rms,
-                "passes_flux": best.passes_flux,
-                "passes_both": best.passes_rms and best.passes_flux,
-                "passes_all_including_refractory": best.would_emit,
-                "primary_attribution": _primary_attribution(best),
-                "multi_label_blocks": labels,
+                "best_rms": round(best_rms.rms, 8),
+                "best_rms_gate": round(best_rms.effective_rms_gate, 8),
+                "best_rms_ratio": _safe_ratio(best_rms.rms, best_rms.effective_rms_gate),
+                "best_rms_frame_delta_ms": best_rms_delta_ms,
+                "best_flux": round(best_flux.spectral_flux, 8),
+                "best_flux_gate": round(best_flux.effective_flux_gate, 8),
+                "best_flux_ratio": _safe_ratio(best_flux.spectral_flux, best_flux.effective_flux_gate),
+                "best_flux_frame_delta_ms": best_flux_delta_ms,
+                "best_joint_min_ratio": round(_trace_score(best_joint), 8),
+                "best_joint_frame_delta_ms": _frame_delta_ms(best_joint, gt_sample),
+                "rms_flux_best_frame_delta_ms": round(best_rms_delta_ms - best_flux_delta_ms, 6),
+                "rms_flux_best_frame_abs_delta_ms": round(abs(best_rms_delta_ms - best_flux_delta_ms), 6),
+                "median_rms_baseline": round(best_joint.median_rms_baseline, 8),
+                "median_flux_baseline": round(best_joint.median_flux_baseline, 8),
+                "any_passes_rms": any_passes_rms,
+                "any_passes_flux": any_passes_flux,
+                "any_passes_both": any_passes_both,
+                "any_passes_both_and_refractory": any_passes_both_and_refractory,
             }
         )
     return reports
@@ -570,47 +594,28 @@ def _trace_score(trace: FrameTrace) -> float:
     return min(rms_ratio, flux_ratio)
 
 
-def _primary_attribution(trace: FrameTrace) -> str:
-    if trace.would_emit:
-        return "feature_passed_but_no_emit"
-    if trace.passes_rms and trace.passes_flux and not trace.passes_refractory:
-        return "refractory_only_block"
-    if not trace.passes_rms and not trace.passes_flux:
-        return "rms_and_flux_block"
-    if not trace.passes_rms:
-        return (
-            "absolute_rms_floor_block"
-            if trace.absolute_rms_floor >= trace.adaptive_rms_gate
-            else "adaptive_rms_ratio_block"
-        )
-    if not trace.passes_flux:
-        return (
-            "absolute_flux_floor_block"
-            if trace.absolute_flux_floor >= trace.adaptive_flux_gate
-            else "adaptive_flux_ratio_block"
-        )
-    return "feature_passed_but_no_emit"
+def _gate_category(
+    *,
+    any_passes_rms: bool,
+    any_passes_flux: bool,
+    any_passes_both: bool,
+    any_passes_both_and_refractory: bool,
+) -> str:
+    if any_passes_both_and_refractory:
+        return "WOULD_EMIT_FRAME_EXISTS"
+    if any_passes_both:
+        return "SAME_FRAME_BOTH_PASS_BUT_REFRACTORY_BLOCKED"
+    if any_passes_rms and any_passes_flux:
+        return "BOTH_PASS_BUT_ON_DIFFERENT_FRAMES"
+    if any_passes_rms:
+        return "RMS_ONLY_EVER_PASSES"
+    if any_passes_flux:
+        return "FLUX_ONLY_EVER_PASSES"
+    return "NEITHER_GATE_EVER_PASSES"
 
 
-def _block_labels(trace: FrameTrace) -> tuple[str, ...]:
-    labels: list[str] = []
-    if not trace.passes_rms:
-        labels.append(
-            "absolute_rms_floor_block"
-            if trace.absolute_rms_floor >= trace.adaptive_rms_gate
-            else "adaptive_rms_ratio_block"
-        )
-    if not trace.passes_flux:
-        labels.append(
-            "absolute_flux_floor_block"
-            if trace.absolute_flux_floor >= trace.adaptive_flux_gate
-            else "adaptive_flux_ratio_block"
-        )
-    if trace.passes_rms and trace.passes_flux and not trace.passes_refractory:
-        labels.append("refractory_only_block")
-    if trace.would_emit:
-        labels.append("feature_passed_but_no_emit")
-    return tuple(labels)
+def _frame_delta_ms(trace: FrameTrace, gt_sample: int) -> float:
+    return round((trace.frame_start_sample - gt_sample) / SAMPLE_RATE * 1000.0, 6)
 
 
 def _audio_sanity(audio: np.ndarray, *, config: DetectorConfig) -> dict[str, object]:
@@ -794,27 +799,63 @@ def _gate_diagnostics_summary(case_reports: list[dict[str, object]]) -> dict[str
 
 
 def _gate_diagnostics_for_attributions(attributions: list[dict[str, object]]) -> dict[str, object]:
-    primary = Counter(str(item["primary_attribution"]) for item in attributions)
-    labels: Counter[str] = Counter()
-    for item in attributions:
-        labels.update(item.get("multi_label_blocks", ()))
+    categories = Counter(str(item["gate_category"]) for item in attributions)
     return {
-        "gt_near_frame_rms": _quantiles([float(item["best_rms"]) for item in attributions if item.get("best_rms") is not None]),
-        "gt_near_frame_spectral_flux": _quantiles(
-            [float(item["best_flux"]) for item in attributions if item.get("best_flux") is not None]
-        ),
-        "rms_to_effective_gate_ratio": _quantiles(
+        "category_counts": dict(categories),
+        "best_rms_ratio": _quantiles(
             [
                 float(item["best_rms_ratio"])
                 for item in attributions
                 if item.get("best_rms_ratio") is not None
             ]
         ),
-        "flux_to_effective_gate_ratio": _quantiles(
+        "best_flux_ratio": _quantiles(
             [
                 float(item["best_flux_ratio"])
                 for item in attributions
                 if item.get("best_flux_ratio") is not None
+            ]
+        ),
+        "best_joint_min_ratio": _quantiles(
+            [
+                float(item["best_joint_min_ratio"])
+                for item in attributions
+                if item.get("best_joint_min_ratio") is not None
+            ]
+        ),
+        "best_rms_frame_delta_ms": _signed_quantiles(
+            [
+                float(item["best_rms_frame_delta_ms"])
+                for item in attributions
+                if item.get("best_rms_frame_delta_ms") is not None
+            ]
+        ),
+        "best_flux_frame_delta_ms": _signed_quantiles(
+            [
+                float(item["best_flux_frame_delta_ms"])
+                for item in attributions
+                if item.get("best_flux_frame_delta_ms") is not None
+            ]
+        ),
+        "best_joint_frame_delta_ms": _signed_quantiles(
+            [
+                float(item["best_joint_frame_delta_ms"])
+                for item in attributions
+                if item.get("best_joint_frame_delta_ms") is not None
+            ]
+        ),
+        "rms_vs_flux_best_frame_delta_ms": _signed_quantiles(
+            [
+                float(item["rms_flux_best_frame_delta_ms"])
+                for item in attributions
+                if item.get("rms_flux_best_frame_delta_ms") is not None
+            ]
+        ),
+        "rms_vs_flux_best_frame_abs_delta_ms": _distribution(
+            [
+                float(item["rms_flux_best_frame_abs_delta_ms"])
+                for item in attributions
+                if item.get("rms_flux_best_frame_abs_delta_ms") is not None
             ]
         ),
         "median_rms_baseline": _quantiles(
@@ -831,13 +872,11 @@ def _gate_diagnostics_for_attributions(attributions: list[dict[str, object]]) ->
                 if item.get("median_flux_baseline") is not None
             ]
         ),
-        "primary_attribution_counts": dict(primary),
-        "multi_label_block_counts": dict(labels),
-        "passes_rms_count": sum(1 for item in attributions if item.get("passes_rms")),
-        "passes_flux_count": sum(1 for item in attributions if item.get("passes_flux")),
-        "passes_both_count": sum(1 for item in attributions if item.get("passes_both")),
-        "passes_all_including_refractory_count": sum(
-            1 for item in attributions if item.get("passes_all_including_refractory")
+        "any_passes_rms_count": sum(1 for item in attributions if item.get("any_passes_rms")),
+        "any_passes_flux_count": sum(1 for item in attributions if item.get("any_passes_flux")),
+        "any_passes_both_count": sum(1 for item in attributions if item.get("any_passes_both")),
+        "any_passes_both_and_refractory_count": sum(
+            1 for item in attributions if item.get("any_passes_both_and_refractory")
         ),
     }
 
@@ -927,6 +966,20 @@ def _quantiles(values: list[float] | list[int]) -> dict[str, object]:
         "p10": round(float(np.percentile(array, 10)), 8),
         "median": round(float(np.median(array)), 8),
         "p90": round(float(np.percentile(array, 90)), 8),
+    }
+
+
+def _signed_quantiles(values: list[float] | list[int]) -> dict[str, object]:
+    if not values:
+        return {"count": 0, "p10": None, "median": None, "p90": None, "min": None, "max": None}
+    array = np.asarray(values, dtype=np.float64)
+    return {
+        "count": int(array.size),
+        "p10": round(float(np.percentile(array, 10)), 8),
+        "median": round(float(np.median(array)), 8),
+        "p90": round(float(np.percentile(array, 90)), 8),
+        "min": round(float(np.min(array)), 8),
+        "max": round(float(np.max(array)), 8),
     }
 
 
