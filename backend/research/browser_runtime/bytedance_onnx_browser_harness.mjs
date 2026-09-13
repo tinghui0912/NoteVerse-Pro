@@ -8,6 +8,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { createReadStream, existsSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import playwright from '../../../apps/customer-web/node_modules/playwright/index.js';
@@ -35,6 +36,8 @@ const ortDir = path.resolve(args['ort-dir'] ?? '');
 const backend = args.backend ?? 'webgpu';
 const warmRuns = Number(args['warm-runs'] ?? 20);
 const outputPath = args.output ? path.resolve(args.output) : null;
+const browserChannel = args['browser-channel'] ?? null;
+const headed = Object.prototype.hasOwnProperty.call(args, 'headed');
 
 if (!existsSync(modelPath)) throw new Error(`Missing --model: ${modelPath}`);
 if (!existsSync(fixtureDir)) throw new Error(`Missing --fixture-dir: ${fixtureDir}`);
@@ -160,6 +163,37 @@ function compareFloatArrays(actual, expected) {
 
 async function main() {
   ort.env.wasm.wasmPaths = '/ort/';
+  let adapterInfo = null;
+  if (BACKEND === 'webgpu') {
+    if (!navigator.gpu) {
+      throw new Error('WebGPU preflight failed: navigator.gpu is unavailable');
+    }
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      throw new Error('WebGPU preflight failed: requestAdapter returned null');
+    }
+    let info = null;
+    try {
+      if (typeof adapter.requestAdapterInfo === 'function') {
+        info = await adapter.requestAdapterInfo();
+      } else if (adapter.info) {
+        info = adapter.info;
+      }
+    } catch (error) {
+      info = { error: String(error && error.stack ? error.stack : error) };
+    }
+    adapterInfo = {
+      acquired: true,
+      isFallbackAdapter: adapter.isFallbackAdapter ?? null,
+      features: Array.from(adapter.features ?? []),
+      limits: adapter.limits ? {
+        maxBufferSize: adapter.limits.maxBufferSize,
+        maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,
+        maxComputeWorkgroupStorageSize: adapter.limits.maxComputeWorkgroupStorageSize,
+      } : null,
+      info,
+    };
+  }
   const startedLoad = performance.now();
   const session = await ort.InferenceSession.create('/model.onnx', {
     executionProviders: [BACKEND],
@@ -204,6 +238,7 @@ async function main() {
     backend: BACKEND,
     user_agent: navigator.userAgent,
     webgpu_available: Boolean(navigator.gpu),
+    webgpu_adapter: adapterInfo,
     model_load_ms: loadMs,
     first_inference_ms: firstInferenceMs,
     warm_inference_ms: {
@@ -253,15 +288,29 @@ const server = createServer(async (req, res) => {
 
 server.listen(0, '127.0.0.1', async () => {
   const address = server.address();
-  const browser = await chromium.launch({
-    headless: true,
+  const launchOptions = {
+    headless: !headed,
     args: backend === 'webgpu' ? ['--enable-unsafe-webgpu'] : [],
-  });
+  };
+  if (browserChannel) {
+    launchOptions.channel = browserChannel;
+  }
+  const browser = await chromium.launch(launchOptions);
   try {
     const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.__RESULT__ || window.__ERROR__, null, { timeout: 120000 });
     const result = await page.evaluate(() => ({ result: window.__RESULT__ ?? null, error: window.__ERROR__ ?? null }));
+    result.runtime = {
+      browser_channel: browserChannel,
+      headed,
+      browser_version: browser.version(),
+      os: {
+        platform: os.platform(),
+        release: os.release(),
+        arch: os.arch(),
+      },
+    };
     if (outputPath) {
       await import('node:fs/promises').then((fs) =>
         fs.writeFile(outputPath, JSON.stringify(result, null, 2), 'utf8'),

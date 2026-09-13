@@ -149,15 +149,86 @@ onnxruntime-web 1.20.1
 
 ### WebGPU
 
-The WebGPU path did not run in this headless environment:
+Initial headless Chromium could not acquire a WebGPU adapter:
 
 ```text
 Failed to get GPU adapter
 ```
 
-This is an environment/runtime availability blocker, not proof that the model
-cannot run with WebGPU. A follow-up should run the same harness in a browser
-environment that exposes a real WebGPU adapter.
+The harness was then run in headed mode against locally installed Chrome and
+Edge with WebGPU-only execution:
+
+```text
+executionProviders = ["webgpu"]
+graphOptimizationLevel = "disabled"
+```
+
+No WASM fallback was allowed.
+
+Chrome:
+
+```text
+browser channel:     chrome
+browser version:     152.0.7977.75
+OS:                  Windows 10.0.26200 x64
+model load:          1554.1 ms
+first inference:     2573.6 ms
+warm median:         608.3 ms
+warm p95:            820.3 ms
+```
+
+Edge:
+
+```text
+browser channel:     msedge
+browser version:     153.0.4234.32
+OS:                  Windows 10.0.26200 x64
+model load:          1636.9 ms
+first inference:     2915.8 ms
+warm median:         767.3 ms
+warm p95:            838.7 ms
+```
+
+Both browser runs acquired a WebGPU adapter. The browser-exposed adapter info
+did not include a useful vendor/device name in this environment, but
+`isFallbackAdapter` was not reported as `true`, and WebGPU feature/limit data
+was available.
+
+Numerical agreement against PyTorch remained close and all three smoke fixture
+verifier decisions agreed:
+
+| Browser | Fixture | Onset mean abs delta | Onset max abs delta | Frame mean abs delta | Frame max abs delta | Verifier decision |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| Chrome WebGPU | correct single | 0.00000102 | 0.00158 | 0.00000113 | 0.00214 | agree |
+| Chrome WebGPU | correct chord | 0.00001037 | 0.00594 | 0.00001349 | 0.01133 | agree |
+| Chrome WebGPU | retrigger | 0.00000960 | 0.01001 | 0.00001407 | 0.01809 | agree |
+| Edge WebGPU | correct single | 0.00000102 | 0.00158 | 0.00000113 | 0.00214 | agree |
+| Edge WebGPU | correct chord | 0.00001037 | 0.00594 | 0.00001349 | 0.01133 | agree |
+| Edge WebGPU | retrigger | 0.00000960 | 0.01001 | 0.00001407 | 0.01809 | agree |
+
+Estimated strike-to-decision budget, using the fixed `+220ms` future prefix:
+
+```text
+Chrome WebGPU median: 220ms + 608.3ms = 828.3ms
+Chrome WebGPU p95:    220ms + 820.3ms = 1040.3ms
+
+Edge WebGPU median:   220ms + 767.3ms = 987.3ms
+Edge WebGPU p95:      220ms + 838.7ms = 1058.7ms
+```
+
+For reference only, the existing Python CUDA direct-note fixed-anchor benchmark
+reported:
+
+```text
+target evidence end-to-end median: 114.96 ms
+target evidence end-to-end p95:    132.10 ms
+estimated strike-to-decision median: 334.96 ms
+estimated strike-to-decision p95:    352.10 ms
+```
+
+These numbers are not hardware-equivalent. They only show that the browser
+WebGPU path is currently several hundred milliseconds slower than the CUDA
+research path on this machine.
 
 ### WASM
 
@@ -184,27 +255,32 @@ Interpretation:
 
 - Browser ONNX raw outputs can match PyTorch closely enough for the frozen
   verifier on these golden fixtures.
-- WASM latency is not plausibly interactive for STEP.
-- Browser WebGPU remains the relevant feasibility question.
+- WASM latency in the current harness configuration is not plausibly
+  interactive for STEP. This is not a claim that all possible optimized WASM
+  configurations are impossible.
+- Browser WebGPU executes successfully on real Chrome/Edge hardware, but the
+  measured warm latency is still high for local STEP feedback.
 
 ## Conclusion
 
 Current status:
 
 ```text
-browser numerical consistency: GO on WASM golden fixtures
-browser WASM latency: NO-GO for interactive STEP
-browser WebGPU latency: unresolved, current harness could not acquire adapter
+browser numerical consistency: GO on 3-fixture smoke test
+browser WASM latency: NO-GO in current harness configuration
+browser WebGPU execution: GO on local Chrome/Edge
+browser WebGPU latency: high, ~608-767ms median before adding 220ms future
 model size: large but technically exportable (~99MB ONNX fp32)
 ```
 
-The architecture is not ready to enter production integration. The next useful
-step is not more RMS/flux trigger research; it is to run the existing browser
-harness in a WebGPU-capable browser environment. If WebGPU is still unavailable
-or too slow, the next decision should be between:
+The 3 golden fixtures are a numerical/runtime smoke test, not a cross-source
+model validation. The architecture is still not ready to enter production
+integration, because the browser-side local verifier would currently add an
+estimated median strike-to-decision budget around `828-987ms`.
+
+The next decision should be between:
 
 - distillation / smaller target-conditioned verifier,
 - backend inference,
 - or a hybrid architecture where browser handles capture and backend verifies
   candidate strikes.
-
