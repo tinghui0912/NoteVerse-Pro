@@ -4294,3 +4294,130 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
      Do not freeze a specific padding length yet. This result only says the
      mechanism is viable and should be tested as a runtime-like rolling-buffer
      prototype before any production integration.
+
+14. Fixed-anchor bounded-window runtime research candidate
+
+   Status: completed on development + calibration only. Frozen evaluation was
+   not touched, thresholds were not changed, no anchor sweep was performed, and
+   production recognition/progression was not modified.
+
+   Output artifact:
+
+   ```text
+   backend/data/work/datasets/maestro-v3.0.0/bytedance_fixed_anchor_window.gpu.json
+   ```
+
+   Terminology:
+
+   ```text
+   bounded-window runtime research candidate
+   ```
+
+   Do not describe this as a truly causal streaming model. The frontend still
+   uses centered STFT features and a bidirectional GRU.
+
+   Fixed input contract:
+
+   ```text
+   model = ByteDance note_model only
+   onset >= 0.2
+   frame >= 0.2
+   local evidence = target -50ms -> target +120ms
+
+   real past audio = last up to 1000ms
+   target anchor from tensor start = 1600ms
+   future audio = 220ms
+
+   typical:
+     left zero padding = 600ms
+     real lookback = 1000ms
+     target at 1600ms
+     total tensor duration = 1820ms
+   ```
+
+   This contract intentionally does not use:
+
+   ```text
+   A_target_position
+   case clip start
+   source-relative target age
+   ```
+
+   Result vs uncropped `+220ms` behavioral reference:
+
+   ```text
+   A uncropped +220ms:
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     clean negative false = 0/61
+
+   fixed-anchor bounded window:
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     clean negative false = 0/61
+     agreement vs A = 192/192
+     NO_LOCAL_MODEL_FRAMES = 0/192
+   ```
+
+   Activation delta vs A:
+
+   ```text
+   onset abs mean = 0.003499
+   onset abs max  = 0.081642
+   frame abs mean = 0.002624
+   frame abs max  = 0.061927
+   ```
+
+   Window distribution in this dev/cal run:
+
+   ```text
+   zero_pad_ms:
+     min / median / p95 / max = 600 / 600 / 600 / 600
+
+   available_real_lookback_ms:
+     min / median / p95 / max = 1000 / 1000 / 1000 / 1000
+
+   actual_tensor_duration_ms:
+     min / median / p95 / max = 1820 / 1820 / 1820 / 1820
+   ```
+
+   Latency:
+
+   ```text
+   note_model forward mean / median / p95 =
+     114.718 / 114.016 / 131.131 ms
+
+   target-evidence end-to-end mean / median / p95 =
+     115.751 / 114.963 / 132.100 ms
+
+   estimated strike->decision mean / median / p95 =
+     335.751 / 334.963 / 352.100 ms
+   ```
+
+   Interpretation:
+
+   - The fixed-anchor bounded-window contract fully restores the uncropped
+     `+220ms` behavioral reference on the full 12-source / 192-case non-frozen
+     benchmark.
+   - It preserves positive recall and clean-negative safety:
+
+     ```text
+     agreement = 192/192
+     clean false = 0/61
+     positive metrics match A exactly
+     ```
+
+   - Offline context experiments should stop here. Do not sweep `1700ms`,
+     `1800ms`, `2000ms`, or additional lookbacks unless a future rolling-buffer
+     prototype reveals a new failure mode.
+   - Research runtime input contract is now:
+
+     ```text
+     1000ms real lookback
+     + deterministic left zero padding
+     + target anchor at 1600ms
+     + 220ms future
+     ```
+
+   - Next step: oracle-timestamp rolling-buffer prototype using this bounded
+     window contract, still outside production.
