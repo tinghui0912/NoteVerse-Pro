@@ -57,6 +57,26 @@ class StrikeCandidate:
 
 
 @dataclass(frozen=True)
+class FrameTrace:
+    frame_start_sample: int
+    frame_end_sample: int
+    rms: float
+    spectral_flux: float
+    median_rms_baseline: float
+    median_flux_baseline: float
+    absolute_rms_floor: float
+    adaptive_rms_gate: float
+    effective_rms_gate: float
+    absolute_flux_floor: float
+    adaptive_flux_gate: float
+    effective_flux_gate: float
+    passes_rms: bool
+    passes_flux: bool
+    passes_refractory: bool
+    would_emit: bool
+
+
+@dataclass(frozen=True)
 class DetectorConfig:
     frame_size_samples: int = 512
     hop_samples: int = 160
@@ -80,6 +100,7 @@ class CausalPcmStrikeDetector:
         self._flux_history: deque[float] = deque(maxlen=self.config.baseline_frames)
         self._last_candidate_anchor: int | None = None
         self.candidates: list[StrikeCandidate] = []
+        self.frame_traces: list[FrameTrace] = []
         self.received_samples = 0
 
     def ingest(self, chunk: np.ndarray) -> tuple[StrikeCandidate, ...]:
@@ -102,19 +123,40 @@ class CausalPcmStrikeDetector:
                 positive = np.maximum(magnitude - self._previous_magnitude, 0.0)
                 flux = float(np.sum(positive) / (np.sum(self._previous_magnitude) + 1e-6))
 
-            rms_gate = max(
-                self.config.min_rms,
-                _median_or_zero(self._rms_history) * self.config.rms_ratio,
-            )
-            flux_gate = max(
-                self.config.min_flux,
-                _median_or_zero(self._flux_history) * self.config.flux_ratio,
-            )
+            median_rms = _median_or_zero(self._rms_history)
+            median_flux = _median_or_zero(self._flux_history)
+            adaptive_rms_gate = median_rms * self.config.rms_ratio
+            adaptive_flux_gate = median_flux * self.config.flux_ratio
+            rms_gate = max(self.config.min_rms, adaptive_rms_gate)
+            flux_gate = max(self.config.min_flux, adaptive_flux_gate)
             enough_refractory = (
                 self._last_candidate_anchor is None
                 or frame_start - self._last_candidate_anchor >= self.config.refractory_samples
             )
-            if rms >= rms_gate and flux >= flux_gate and enough_refractory:
+            passes_rms = rms >= rms_gate
+            passes_flux = flux >= flux_gate
+            would_emit = passes_rms and passes_flux and enough_refractory
+            self.frame_traces.append(
+                FrameTrace(
+                    frame_start_sample=int(frame_start),
+                    frame_end_sample=int(frame_end),
+                    rms=rms,
+                    spectral_flux=flux,
+                    median_rms_baseline=median_rms,
+                    median_flux_baseline=median_flux,
+                    absolute_rms_floor=self.config.min_rms,
+                    adaptive_rms_gate=adaptive_rms_gate,
+                    effective_rms_gate=rms_gate,
+                    absolute_flux_floor=self.config.min_flux,
+                    adaptive_flux_gate=adaptive_flux_gate,
+                    effective_flux_gate=flux_gate,
+                    passes_rms=passes_rms,
+                    passes_flux=passes_flux,
+                    passes_refractory=enough_refractory,
+                    would_emit=would_emit,
+                )
+            )
+            if would_emit:
                 candidate = StrikeCandidate(
                     candidate_anchor_sample=int(frame_start),
                     candidate_emit_sample=int(frame_end),
@@ -162,7 +204,7 @@ def main() -> int:
             "frozen_set_touched": False,
             "byte_dance_verifier_run": False,
             "threshold_governance": (
-                "single simple PCM detector config selected on development sources only; "
+                "development baseline configuration; not formally calibrated; "
                 "calibration is a source-disjoint audit and is not used for retuning"
             ),
         },
@@ -255,8 +297,14 @@ def _evaluate_case(
 
     source_start, source_end = (float(value) for value in case["source_time_range_seconds"])
     gt_groups = _case_gt_groups(case, source_start=source_start, source_end=source_end)
-    candidates, runtime = _run_detector(audio, config=config, chunk_spec=chunk_spec)
+    candidates, runtime, frame_traces = _run_detector(audio, config=config, chunk_spec=chunk_spec)
     matches = _match_candidates(gt_groups, candidates, source_start=source_start)
+    gate_attributions = _attribute_gt_gate_blocks(
+        gt_groups,
+        frame_traces,
+        source_start=source_start,
+        matched_gt_indices=set(matches["gt_to_candidate"]),
+    )
     target_seconds = tuple(float(value) for value in case.get("target_group_seconds", ()))
     target_reports = [
         _target_report(target_second, candidates, gt_groups, source_start=source_start)
@@ -286,6 +334,9 @@ def _evaluate_case(
         "unmatched_candidate_buckets": _bucket_unmatched_candidates(unmatched),
         "candidate_anchor_error_ms": matches["anchor_error_ms"],
         "candidate_emit_delay_ms": matches["emit_delay_ms"],
+        "gate_attribution": gate_attributions,
+        "audio_sanity": _audio_sanity(audio, config=config),
+        "frame_trace_summary": _frame_trace_summary(frame_traces),
         "target_reports": target_reports,
         "unmatched_candidates": unmatched[:30],
         "runtime": runtime,
@@ -297,7 +348,7 @@ def _run_detector(
     *,
     config: DetectorConfig,
     chunk_spec: str,
-) -> tuple[tuple[StrikeCandidate, ...], dict[str, object]]:
+) -> tuple[tuple[StrikeCandidate, ...], dict[str, object], tuple[FrameTrace, ...]]:
     detector = CausalPcmStrikeDetector(config)
     chunk_sizes = []
     started = perf_counter()
@@ -311,7 +362,7 @@ def _run_detector(
         "chunk_count": len(chunk_sizes),
         "chunk_size_distribution_samples": _distribution(chunk_sizes),
         "detector_runtime_ms": round(latency_ms, 6),
-    }
+    }, tuple(detector.frame_traces)
 
 
 def _case_gt_groups(
@@ -450,6 +501,157 @@ def _unmatched_candidate_reports(
     return reports
 
 
+def _attribute_gt_gate_blocks(
+    gt_groups: tuple[MidiStrikeGroup, ...],
+    frame_traces: tuple[FrameTrace, ...],
+    *,
+    source_start: float,
+    matched_gt_indices: set[int],
+) -> list[dict[str, object]]:
+    reports = []
+    window_pre = round(0.050 * SAMPLE_RATE)
+    window_post = round(0.080 * SAMPLE_RATE)
+    for gt_index, group in enumerate(gt_groups):
+        gt_sample = _relative_sample(group.seconds, source_start)
+        nearby = [
+            trace
+            for trace in frame_traces
+            if gt_sample - window_pre <= trace.frame_start_sample <= gt_sample + window_post
+        ]
+        if not nearby:
+            reports.append(
+                {
+                    "gt_second": round(group.seconds, 6),
+                    "matched_by_candidate": gt_index in matched_gt_indices,
+                    "primary_attribution": "no_detector_frame_in_window",
+                    "best_rms_ratio": None,
+                    "best_flux_ratio": None,
+                    "passes_rms": False,
+                    "passes_flux": False,
+                    "passes_both": False,
+                    "passes_all_including_refractory": False,
+                    "multi_label_blocks": ("no_detector_frame_in_window",),
+                }
+            )
+            continue
+        best = max(nearby, key=_trace_score)
+        labels = _block_labels(best)
+        reports.append(
+            {
+                "gt_second": round(group.seconds, 6),
+                "matched_by_candidate": gt_index in matched_gt_indices,
+                "frame_start_sample": best.frame_start_sample,
+                "frame_start_delta_ms": round(
+                    (best.frame_start_sample - gt_sample) / SAMPLE_RATE * 1000.0,
+                    6,
+                ),
+                "best_rms": round(best.rms, 8),
+                "best_flux": round(best.spectral_flux, 8),
+                "best_rms_gate": round(best.effective_rms_gate, 8),
+                "best_flux_gate": round(best.effective_flux_gate, 8),
+                "best_rms_ratio": _safe_ratio(best.rms, best.effective_rms_gate),
+                "best_flux_ratio": _safe_ratio(best.spectral_flux, best.effective_flux_gate),
+                "median_rms_baseline": round(best.median_rms_baseline, 8),
+                "median_flux_baseline": round(best.median_flux_baseline, 8),
+                "passes_rms": best.passes_rms,
+                "passes_flux": best.passes_flux,
+                "passes_both": best.passes_rms and best.passes_flux,
+                "passes_all_including_refractory": best.would_emit,
+                "primary_attribution": _primary_attribution(best),
+                "multi_label_blocks": labels,
+            }
+        )
+    return reports
+
+
+def _trace_score(trace: FrameTrace) -> float:
+    rms_ratio = _safe_ratio(trace.rms, trace.effective_rms_gate) or 0.0
+    flux_ratio = _safe_ratio(trace.spectral_flux, trace.effective_flux_gate) or 0.0
+    return min(rms_ratio, flux_ratio)
+
+
+def _primary_attribution(trace: FrameTrace) -> str:
+    if trace.would_emit:
+        return "feature_passed_but_no_emit"
+    if trace.passes_rms and trace.passes_flux and not trace.passes_refractory:
+        return "refractory_only_block"
+    if not trace.passes_rms and not trace.passes_flux:
+        return "rms_and_flux_block"
+    if not trace.passes_rms:
+        return (
+            "absolute_rms_floor_block"
+            if trace.absolute_rms_floor >= trace.adaptive_rms_gate
+            else "adaptive_rms_ratio_block"
+        )
+    if not trace.passes_flux:
+        return (
+            "absolute_flux_floor_block"
+            if trace.absolute_flux_floor >= trace.adaptive_flux_gate
+            else "adaptive_flux_ratio_block"
+        )
+    return "feature_passed_but_no_emit"
+
+
+def _block_labels(trace: FrameTrace) -> tuple[str, ...]:
+    labels: list[str] = []
+    if not trace.passes_rms:
+        labels.append(
+            "absolute_rms_floor_block"
+            if trace.absolute_rms_floor >= trace.adaptive_rms_gate
+            else "adaptive_rms_ratio_block"
+        )
+    if not trace.passes_flux:
+        labels.append(
+            "absolute_flux_floor_block"
+            if trace.absolute_flux_floor >= trace.adaptive_flux_gate
+            else "adaptive_flux_ratio_block"
+        )
+    if trace.passes_rms and trace.passes_flux and not trace.passes_refractory:
+        labels.append("refractory_only_block")
+    if trace.would_emit:
+        labels.append("feature_passed_but_no_emit")
+    return tuple(labels)
+
+
+def _audio_sanity(audio: np.ndarray, *, config: DetectorConfig) -> dict[str, object]:
+    frame_rms = _frame_rms_values(audio, config=config)
+    non_silent = [value for value in frame_rms if value >= 1e-4]
+    return {
+        "audio_absolute_peak": round(float(np.max(np.abs(audio))) if audio.size else 0.0, 8),
+        "audio_rms": round(float(np.sqrt(np.mean(np.square(audio), dtype=np.float64))) if audio.size else 0.0, 8),
+        "frame_rms_distribution": _quantiles(frame_rms),
+        "non_silent_frame_rms_distribution": _quantiles(non_silent),
+    }
+
+
+def _frame_rms_values(audio: np.ndarray, *, config: DetectorConfig) -> list[float]:
+    values = []
+    for start in range(0, max(0, int(audio.size) - config.frame_size_samples + 1), config.hop_samples):
+        frame = audio[start : start + config.frame_size_samples]
+        values.append(float(np.sqrt(np.mean(np.square(frame), dtype=np.float64))))
+    return values
+
+
+def _frame_trace_summary(frame_traces: tuple[FrameTrace, ...]) -> dict[str, object]:
+    return {
+        "frame_count": len(frame_traces),
+        "would_emit_count": sum(1 for trace in frame_traces if trace.would_emit),
+        "passes_rms_count": sum(1 for trace in frame_traces if trace.passes_rms),
+        "passes_flux_count": sum(1 for trace in frame_traces if trace.passes_flux),
+        "passes_both_count": sum(
+            1 for trace in frame_traces if trace.passes_rms and trace.passes_flux
+        ),
+        "rms_distribution": _quantiles([trace.rms for trace in frame_traces]),
+        "flux_distribution": _quantiles([trace.spectral_flux for trace in frame_traces]),
+        "median_rms_baseline_distribution": _quantiles(
+            [trace.median_rms_baseline for trace in frame_traces]
+        ),
+        "median_flux_baseline_distribution": _quantiles(
+            [trace.median_flux_baseline for trace in frame_traces]
+        ),
+    }
+
+
 def _chunk_invariance_report(
     cases: list[tuple[Path, dict[str, object]]],
     *,
@@ -464,7 +666,7 @@ def _chunk_invariance_report(
             raise ValueError(f"expected {SAMPLE_RATE}Hz WAV")
         reference = None
         for spec in chunk_specs:
-            candidates, _ = _run_detector(audio, config=config, chunk_spec=spec)
+            candidates, _, _ = _run_detector(audio, config=config, chunk_spec=spec)
             signature = tuple(
                 (candidate.candidate_anchor_sample, candidate.candidate_emit_sample)
                 for candidate in candidates
@@ -534,6 +736,8 @@ def _summarize_case_reports(case_reports: list[dict[str, object]]) -> dict[str, 
         "candidate_anchor_error_ms": _signed_distribution(anchor_errors),
         "candidate_emit_delay_ms": _distribution(emit_delays),
         "unmatched_candidate_distance_buckets": dict(bucket_counts),
+        "gate_diagnostics": _gate_diagnostics_summary(case_reports),
+        "audio_sanity": _audio_sanity_summary(case_reports),
     }
 
 
@@ -576,6 +780,84 @@ def _combine_summaries(splits: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _gate_diagnostics_summary(case_reports: list[dict[str, object]]) -> dict[str, object]:
+    attributions = [
+        attribution
+        for report in case_reports
+        for attribution in report.get("gate_attribution", ())
+    ]
+    missed = [item for item in attributions if not item.get("matched_by_candidate")]
+    return {
+        "all_gt": _gate_diagnostics_for_attributions(attributions),
+        "missed_gt": _gate_diagnostics_for_attributions(missed),
+    }
+
+
+def _gate_diagnostics_for_attributions(attributions: list[dict[str, object]]) -> dict[str, object]:
+    primary = Counter(str(item["primary_attribution"]) for item in attributions)
+    labels: Counter[str] = Counter()
+    for item in attributions:
+        labels.update(item.get("multi_label_blocks", ()))
+    return {
+        "gt_near_frame_rms": _quantiles([float(item["best_rms"]) for item in attributions if item.get("best_rms") is not None]),
+        "gt_near_frame_spectral_flux": _quantiles(
+            [float(item["best_flux"]) for item in attributions if item.get("best_flux") is not None]
+        ),
+        "rms_to_effective_gate_ratio": _quantiles(
+            [
+                float(item["best_rms_ratio"])
+                for item in attributions
+                if item.get("best_rms_ratio") is not None
+            ]
+        ),
+        "flux_to_effective_gate_ratio": _quantiles(
+            [
+                float(item["best_flux_ratio"])
+                for item in attributions
+                if item.get("best_flux_ratio") is not None
+            ]
+        ),
+        "median_rms_baseline": _quantiles(
+            [
+                float(item["median_rms_baseline"])
+                for item in attributions
+                if item.get("median_rms_baseline") is not None
+            ]
+        ),
+        "median_flux_baseline": _quantiles(
+            [
+                float(item["median_flux_baseline"])
+                for item in attributions
+                if item.get("median_flux_baseline") is not None
+            ]
+        ),
+        "primary_attribution_counts": dict(primary),
+        "multi_label_block_counts": dict(labels),
+        "passes_rms_count": sum(1 for item in attributions if item.get("passes_rms")),
+        "passes_flux_count": sum(1 for item in attributions if item.get("passes_flux")),
+        "passes_both_count": sum(1 for item in attributions if item.get("passes_both")),
+        "passes_all_including_refractory_count": sum(
+            1 for item in attributions if item.get("passes_all_including_refractory")
+        ),
+    }
+
+
+def _audio_sanity_summary(case_reports: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "audio_absolute_peak": _quantiles(
+            [float(report["audio_sanity"]["audio_absolute_peak"]) for report in case_reports]
+        ),
+        "audio_rms": _quantiles([float(report["audio_sanity"]["audio_rms"]) for report in case_reports]),
+        "non_silent_frame_rms_median_by_case": _quantiles(
+            [
+                float(report["audio_sanity"]["non_silent_frame_rms_distribution"]["median"])
+                for report in case_reports
+                if report["audio_sanity"]["non_silent_frame_rms_distribution"]["median"] is not None
+            ]
+        ),
+    }
+
+
 def _bucket_unmatched_candidates(unmatched: list[dict[str, object]]) -> dict[str, int]:
     buckets = {"0-100ms": 0, "100-300ms": 0, "300-1000ms": 0, ">1000ms": 0}
     for candidate in unmatched:
@@ -609,6 +891,12 @@ def _median_or_zero(values: deque[float]) -> float:
     return float(np.median(np.asarray(values, dtype=np.float64))) if values else 0.0
 
 
+def _safe_ratio(numerator: float, denominator: float) -> float | None:
+    if denominator == 0:
+        return None
+    return round(float(numerator / denominator), 8)
+
+
 def _ratio(numerator: int | float, denominator: int | float) -> dict[str, object]:
     return {
         "count": numerator,
@@ -627,6 +915,18 @@ def _distribution(values: list[float] | list[int]) -> dict[str, object]:
         "median": round(float(np.median(array)), 6),
         "p95": round(float(np.percentile(array, 95)), 6),
         "max": round(float(np.max(array)), 6),
+    }
+
+
+def _quantiles(values: list[float] | list[int]) -> dict[str, object]:
+    if not values:
+        return {"count": 0, "p10": None, "median": None, "p90": None}
+    array = np.asarray(values, dtype=np.float64)
+    return {
+        "count": int(array.size),
+        "p10": round(float(np.percentile(array, 10)), 8),
+        "median": round(float(np.median(array)), 8),
+        "p90": round(float(np.percentile(array, 90)), 8),
     }
 
 
