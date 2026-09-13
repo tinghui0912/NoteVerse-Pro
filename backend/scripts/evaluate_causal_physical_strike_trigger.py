@@ -63,6 +63,14 @@ class FrameTrace:
     rms: float
     spectral_flux: float
     median_rms_baseline: float
+    history_rms_p10: float
+    history_rms_p20: float
+    history_rms_p30: float
+    history_rms_p80: float
+    history_rms_p90: float
+    history_rms_max: float
+    history_rms_fraction_above_floor: float
+    history_rms_fraction_above_half_current: float
     median_flux_baseline: float
     absolute_rms_floor: float
     adaptive_rms_gate: float
@@ -125,6 +133,7 @@ class CausalPcmStrikeDetector:
 
             median_rms = _median_or_zero(self._rms_history)
             median_flux = _median_or_zero(self._flux_history)
+            rms_history_stats = _rms_history_stats(self._rms_history, current_rms=rms)
             adaptive_rms_gate = median_rms * self.config.rms_ratio
             adaptive_flux_gate = median_flux * self.config.flux_ratio
             rms_gate = max(self.config.min_rms, adaptive_rms_gate)
@@ -143,6 +152,16 @@ class CausalPcmStrikeDetector:
                     rms=rms,
                     spectral_flux=flux,
                     median_rms_baseline=median_rms,
+                    history_rms_p10=rms_history_stats["p10"],
+                    history_rms_p20=rms_history_stats["p20"],
+                    history_rms_p30=rms_history_stats["p30"],
+                    history_rms_p80=rms_history_stats["p80"],
+                    history_rms_p90=rms_history_stats["p90"],
+                    history_rms_max=rms_history_stats["max"],
+                    history_rms_fraction_above_floor=rms_history_stats["fraction_above_floor"],
+                    history_rms_fraction_above_half_current=rms_history_stats[
+                        "fraction_above_half_current"
+                    ],
                     median_flux_baseline=median_flux,
                     absolute_rms_floor=self.config.min_rms,
                     adaptive_rms_gate=adaptive_rms_gate,
@@ -517,6 +536,10 @@ def _attribute_gt_gate_blocks(
     window_post = round(0.080 * SAMPLE_RATE)
     for gt_index, group in enumerate(gt_groups):
         gt_sample = _relative_sample(group.seconds, source_start)
+        previous_seconds = gt_groups[gt_index - 1].seconds if gt_index > 0 else None
+        previous_distance_ms = (
+            None if previous_seconds is None else round((group.seconds - previous_seconds) * 1000.0, 6)
+        )
         nearby = [
             trace
             for trace in frame_traces
@@ -527,6 +550,8 @@ def _attribute_gt_gate_blocks(
                 {
                     "gt_second": round(group.seconds, 6),
                     "matched_by_candidate": gt_index in matched_gt_indices,
+                    "previous_gt_distance_ms": previous_distance_ms,
+                    "previous_gt_distance_bucket": _previous_distance_bucket(previous_distance_ms),
                     "gate_category": "NO_DETECTOR_FRAME_IN_WINDOW",
                     "best_rms_ratio": None,
                     "best_rms_frame_delta_ms": None,
@@ -559,6 +584,8 @@ def _attribute_gt_gate_blocks(
             {
                 "gt_second": round(group.seconds, 6),
                 "matched_by_candidate": gt_index in matched_gt_indices,
+                "previous_gt_distance_ms": previous_distance_ms,
+                "previous_gt_distance_bucket": _previous_distance_bucket(previous_distance_ms),
                 "gate_category": _gate_category(
                     any_passes_rms=any_passes_rms,
                     any_passes_flux=any_passes_flux,
@@ -569,6 +596,34 @@ def _attribute_gt_gate_blocks(
                 "best_rms_gate": round(best_rms.effective_rms_gate, 8),
                 "best_rms_ratio": _safe_ratio(best_rms.rms, best_rms.effective_rms_gate),
                 "best_rms_frame_delta_ms": best_rms_delta_ms,
+                "current_frame_rms": round(best_rms.rms, 8),
+                "history_rms": {
+                    "p10": round(best_rms.history_rms_p10, 8),
+                    "p20": round(best_rms.history_rms_p20, 8),
+                    "p30": round(best_rms.history_rms_p30, 8),
+                    "median": round(best_rms.median_rms_baseline, 8),
+                    "p80": round(best_rms.history_rms_p80, 8),
+                    "p90": round(best_rms.history_rms_p90, 8),
+                    "max": round(best_rms.history_rms_max, 8),
+                    "fraction_above_0_010": round(
+                        best_rms.history_rms_fraction_above_floor,
+                        8,
+                    ),
+                    "fraction_above_half_current": round(
+                        best_rms.history_rms_fraction_above_half_current,
+                        8,
+                    ),
+                },
+                "current_rms_to_history_p10": _safe_ratio(best_rms.rms, best_rms.history_rms_p10),
+                "current_rms_to_history_p20": _safe_ratio(best_rms.rms, best_rms.history_rms_p20),
+                "current_rms_to_history_median": _safe_ratio(
+                    best_rms.rms,
+                    best_rms.median_rms_baseline,
+                ),
+                "current_rms_to_effective_rms_gate": _safe_ratio(
+                    best_rms.rms,
+                    best_rms.effective_rms_gate,
+                ),
                 "best_flux": round(best_flux.spectral_flux, 8),
                 "best_flux_gate": round(best_flux.effective_flux_gate, 8),
                 "best_flux_ratio": _safe_ratio(best_flux.spectral_flux, best_flux.effective_flux_gate),
@@ -577,7 +632,7 @@ def _attribute_gt_gate_blocks(
                 "best_joint_frame_delta_ms": _frame_delta_ms(best_joint, gt_sample),
                 "rms_flux_best_frame_delta_ms": round(best_rms_delta_ms - best_flux_delta_ms, 6),
                 "rms_flux_best_frame_abs_delta_ms": round(abs(best_rms_delta_ms - best_flux_delta_ms), 6),
-                "median_rms_baseline": round(best_joint.median_rms_baseline, 8),
+                "median_rms_baseline": round(best_rms.median_rms_baseline, 8),
                 "median_flux_baseline": round(best_joint.median_flux_baseline, 8),
                 "any_passes_rms": any_passes_rms,
                 "any_passes_flux": any_passes_flux,
@@ -802,6 +857,11 @@ def _gate_diagnostics_for_attributions(attributions: list[dict[str, object]]) ->
     categories = Counter(str(item["gate_category"]) for item in attributions)
     return {
         "category_counts": dict(categories),
+        "by_category": _grouped_attribution_summary(attributions, key="gate_category"),
+        "by_previous_strike_distance": _grouped_attribution_summary(
+            attributions,
+            key="previous_gt_distance_bucket",
+        ),
         "best_rms_ratio": _quantiles(
             [
                 float(item["best_rms_ratio"])
@@ -878,7 +938,83 @@ def _gate_diagnostics_for_attributions(attributions: list[dict[str, object]]) ->
         "any_passes_both_and_refractory_count": sum(
             1 for item in attributions if item.get("any_passes_both_and_refractory")
         ),
+        "current_rms": _quantiles(
+            [
+                float(item["current_frame_rms"])
+                for item in attributions
+                if item.get("current_frame_rms") is not None
+            ]
+        ),
+        "history_rms_p10": _quantiles(_history_values(attributions, "p10")),
+        "history_rms_p20": _quantiles(_history_values(attributions, "p20")),
+        "history_rms_p30": _quantiles(_history_values(attributions, "p30")),
+        "history_rms_median": _quantiles(_history_values(attributions, "median")),
+        "history_rms_p80": _quantiles(_history_values(attributions, "p80")),
+        "history_rms_p90": _quantiles(_history_values(attributions, "p90")),
+        "history_rms_max": _quantiles(_history_values(attributions, "max")),
+        "current_rms_to_history_p10": _quantiles(_present_values(attributions, "current_rms_to_history_p10")),
+        "current_rms_to_history_p20": _quantiles(_present_values(attributions, "current_rms_to_history_p20")),
+        "current_rms_to_history_median": _quantiles(
+            _present_values(attributions, "current_rms_to_history_median")
+        ),
+        "current_rms_to_effective_rms_gate": _quantiles(
+            _present_values(attributions, "current_rms_to_effective_rms_gate")
+        ),
+        "history_fraction_above_0_010": _quantiles(_history_values(attributions, "fraction_above_0_010")),
+        "history_fraction_above_half_current": _quantiles(
+            _history_values(attributions, "fraction_above_half_current")
+        ),
     }
+
+
+def _grouped_attribution_summary(
+    attributions: list[dict[str, object]],
+    *,
+    key: str,
+) -> dict[str, object]:
+    grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for item in attributions:
+        grouped[str(item.get(key))].append(item)
+    return {
+        group: {
+            "count": len(items),
+            "best_rms_ratio": _quantiles(_present_values(items, "best_rms_ratio")),
+            "best_flux_ratio": _quantiles(_present_values(items, "best_flux_ratio")),
+            "current_rms": _quantiles(_present_values(items, "current_frame_rms")),
+            "history_rms_p10": _quantiles(_history_values(items, "p10")),
+            "history_rms_p20": _quantiles(_history_values(items, "p20")),
+            "history_rms_median": _quantiles(_history_values(items, "median")),
+            "current_rms_to_history_p10": _quantiles(
+                _present_values(items, "current_rms_to_history_p10")
+            ),
+            "current_rms_to_history_p20": _quantiles(
+                _present_values(items, "current_rms_to_history_p20")
+            ),
+            "current_rms_to_history_median": _quantiles(
+                _present_values(items, "current_rms_to_history_median")
+            ),
+            "history_fraction_above_0_010": _quantiles(
+                _history_values(items, "fraction_above_0_010")
+            ),
+            "history_fraction_above_half_current": _quantiles(
+                _history_values(items, "fraction_above_half_current")
+            ),
+        }
+        for group, items in sorted(grouped.items())
+    }
+
+
+def _present_values(items: list[dict[str, object]], key: str) -> list[float]:
+    return [float(item[key]) for item in items if item.get(key) is not None]
+
+
+def _history_values(items: list[dict[str, object]], key: str) -> list[float]:
+    values = []
+    for item in items:
+        history = item.get("history_rms")
+        if isinstance(history, dict) and history.get(key) is not None:
+            values.append(float(history[key]))
+    return values
 
 
 def _audio_sanity_summary(case_reports: list[dict[str, object]]) -> dict[str, object]:
@@ -928,6 +1064,45 @@ def _nearest_candidate(
 
 def _median_or_zero(values: deque[float]) -> float:
     return float(np.median(np.asarray(values, dtype=np.float64))) if values else 0.0
+
+
+def _rms_history_stats(history: deque[float], *, current_rms: float) -> dict[str, float]:
+    if not history:
+        return {
+            "p10": 0.0,
+            "p20": 0.0,
+            "p30": 0.0,
+            "p80": 0.0,
+            "p90": 0.0,
+            "max": 0.0,
+            "fraction_above_floor": 0.0,
+            "fraction_above_half_current": 0.0,
+        }
+    array = np.asarray(history, dtype=np.float64)
+    return {
+        "p10": float(np.percentile(array, 10)),
+        "p20": float(np.percentile(array, 20)),
+        "p30": float(np.percentile(array, 30)),
+        "p80": float(np.percentile(array, 80)),
+        "p90": float(np.percentile(array, 90)),
+        "max": float(np.max(array)),
+        "fraction_above_floor": float(np.mean(array >= 0.010)),
+        "fraction_above_half_current": float(np.mean(array >= 0.5 * current_rms)),
+    }
+
+
+def _previous_distance_bucket(distance_ms: float | None) -> str:
+    if distance_ms is None:
+        return ">1000ms_or_none"
+    if distance_ms < 150:
+        return "<150ms"
+    if distance_ms < 300:
+        return "150-300ms"
+    if distance_ms < 600:
+        return "300-600ms"
+    if distance_ms < 1000:
+        return "600-1000ms"
+    return ">1000ms_or_none"
 
 
 def _safe_ratio(numerator: float, denominator: float) -> float | None:
