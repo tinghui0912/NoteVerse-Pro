@@ -484,7 +484,9 @@ def _evaluate_same_note_retrigger_sequential(
     if len(expected_groups) < 2 or len(target_relative_seconds) < 2:
         raise ValueError(f"{case.get('case_id')} retrigger case requires two real target timestamps")
 
-    first_pairs = list(enumerate(candidates))
+    first_target_relative = float(target_relative_seconds[0])
+    second_target_relative = float(target_relative_seconds[1])
+    first_pairs = _compatible_candidates(candidates, first_target_relative)
     first_results = _verify_until_match(
         manifest_path,
         case,
@@ -504,8 +506,6 @@ def _evaluate_same_note_retrigger_sequential(
         latency_sink=latency_sink,
     )
     first_match = _first_match(first_results)
-    first_target_relative = float(target_relative_seconds[0])
-    second_target_relative = float(target_relative_seconds[1])
     first_group = _group_result(
         case,
         mode="sequential_first_advance",
@@ -549,9 +549,19 @@ def _evaluate_same_note_retrigger_sequential(
             latency_sink=latency_sink,
         )
     second_match = _first_match(second_results)
-    premature = False
+    second_advance_class = "NO_SECOND_MATCH"
+    second_match_delta_ms = None
     if second_match is not None:
-        premature = float(second_match["candidate_second"]) + FUTURE_SECONDS < second_target_relative
+        second_match_delta_ms = round(
+            (float(second_match["candidate_second"]) - second_target_relative) * 1000.0,
+            3,
+        )
+        if second_match_delta_ms < HANDOFF_MIN_DELTA_SECONDS * 1000.0:
+            second_advance_class = "PREMATURE_FALSE_ADVANCE"
+        elif second_match_delta_ms <= HANDOFF_MAX_DELTA_SECONDS * 1000.0:
+            second_advance_class = "LEGITIMATE_RETRIGGER_ADVANCE"
+        else:
+            second_advance_class = "LATE_OR_STALE_MATCH"
     second_group = _group_result(
         case,
         mode="sequential_second_retrigger",
@@ -567,8 +577,13 @@ def _evaluate_same_note_retrigger_sequential(
     second_group.update(
         {
             "step2_activation_time": round(step2_activation_time, 6) if step2_activation_time is not None else None,
+            "first_advance_established": bool(first_match),
             "second_retrigger_advance_success": bool(second_match),
-            "premature_second_advance_before_real_retrigger": premature,
+            "second_advance_class": second_advance_class,
+            "second_match_delta_ms": second_match_delta_ms,
+            "premature_second_advance_before_real_retrigger": (
+                second_advance_class == "PREMATURE_FALSE_ADVANCE"
+            ),
             "second_match_candidate_second": (
                 round(float(second_match["candidate_second"]), 6) if second_match is not None else None
             ),
@@ -609,7 +624,8 @@ def _evaluate_no_retrigger_sequential(
             f"{case.get('case_id')} no-retrigger case must have two expected groups "
             "and exactly one real target timestamp"
         )
-    first_pairs = list(enumerate(candidates))
+    first_target_relative = float(target_relative_seconds[0])
+    first_pairs = _compatible_candidates(candidates, first_target_relative)
     first_results = _verify_until_match(
         manifest_path,
         case,
@@ -629,7 +645,6 @@ def _evaluate_no_retrigger_sequential(
         latency_sink=latency_sink,
     )
     first_match = _first_match(first_results)
-    first_target_relative = float(target_relative_seconds[0])
     first_group = _group_result(
         case,
         mode="sequential_first_advance",
@@ -688,6 +703,7 @@ def _evaluate_no_retrigger_sequential(
     second_group.update(
         {
             "synthetic_target_used": False,
+            "first_advance_established": bool(first_match),
             "first_decision_time": round(first_decision_time, 6) if first_decision_time is not None else None,
             "post_advance_candidate_count": len(post_advance_pairs),
             "post_advance_bytedance_calls": len(post_advance_results),
@@ -1093,6 +1109,9 @@ def _safety_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
     no_retrigger = {
         kind: {
             "cases": len(_by_kind(evaluations, kind)),
+            "first_advance_established": _no_retrigger_first_established_rate(
+                _by_kind(evaluations, kind)
+            ),
             "no_strike_target_with_rtt_candidate": _no_retrigger_group_rate(
                 _by_kind(evaluations, kind),
                 key="handoff_compatible",
@@ -1115,12 +1134,15 @@ def _safety_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
                                 "time_from_first_decision_to_false_match_ms"
                             ),
                         }
-                        for group in _no_retrigger_groups(item)
+                        for group in _eligible_no_retrigger_groups(item)
                         if group["candidate_count"] or group["combined_match"]
                     ],
                 }
                 for item in _by_kind(evaluations, kind)
-                if any(group["candidate_count"] or group["combined_match"] for group in _no_retrigger_groups(item))
+                if any(
+                    group["candidate_count"] or group["combined_match"]
+                    for group in _eligible_no_retrigger_groups(item)
+                )
             ],
         }
         for kind in sorted(NO_RETRIGGER_CASE_KINDS)
@@ -1215,8 +1237,8 @@ def _stop_rule_assessment(evaluations: list[dict[str, object]]) -> dict[str, obj
         handoff["correct_single"]["accepted"] < handoff["correct_single"]["total"]
         or handoff["correct_chord"]["accepted"] < handoff["correct_chord"]["total"]
         or retrigger["first_advance_success"]["accepted"] < retrigger["first_advance_success"]["total"]
-        or retrigger["second_retrigger_advance_success"]["accepted"]
-        < retrigger["second_retrigger_advance_success"]["total"]
+        or retrigger["legitimate_second_advance"]["accepted"]
+        < retrigger["legitimate_second_advance"]["total"]
     )
     no_retrigger_false = sum(
         int(info["no_strike_bytedance_false_match"]["accepted"])
@@ -1264,15 +1286,35 @@ def _same_note_retrigger_summary(evaluations: list[dict[str, object]]) -> dict[s
             sum(1 for group in first_groups if bool(group.get("first_advance_success"))),
             len(first_groups),
         ),
-        "second_retrigger_advance_success": _fraction(
-            sum(1 for group in second_groups if bool(group.get("second_retrigger_advance_success"))),
-            len(second_groups),
-        ),
-        "premature_second_advance_before_real_retrigger": _fraction(
+        "legitimate_second_advance": _fraction(
             sum(
                 1
                 for group in second_groups
-                if bool(group.get("premature_second_advance_before_real_retrigger"))
+                if group.get("second_advance_class") == "LEGITIMATE_RETRIGGER_ADVANCE"
+            ),
+            len(second_groups),
+        ),
+        "premature_false_advance": _fraction(
+            sum(
+                1
+                for group in second_groups
+                if group.get("second_advance_class") == "PREMATURE_FALSE_ADVANCE"
+            ),
+            len(second_groups),
+        ),
+        "late_or_stale_match": _fraction(
+            sum(
+                1
+                for group in second_groups
+                if group.get("second_advance_class") == "LATE_OR_STALE_MATCH"
+            ),
+            len(second_groups),
+        ),
+        "no_second_match": _fraction(
+            sum(
+                1
+                for group in second_groups
+                if group.get("second_advance_class") == "NO_SECOND_MATCH"
             ),
             len(second_groups),
         ),
@@ -1284,8 +1326,29 @@ def _no_retrigger_group_rate(
     *,
     key: str,
 ) -> dict[str, object]:
-    groups = [group for item in evaluations for group in _no_retrigger_groups(item)]
+    groups = [group for item in evaluations for group in _eligible_no_retrigger_groups(item)]
     return _fraction(sum(1 for group in groups if bool(group[key])), len(groups))
+
+
+def _no_retrigger_first_established_rate(evaluations: list[dict[str, object]]) -> dict[str, object]:
+    first_groups = [
+        group
+        for item in evaluations
+        for group in item["group_results"]
+        if group.get("mode") == "sequential_first_advance"
+    ]
+    return _fraction(
+        sum(1 for group in first_groups if bool(group.get("first_advance_success"))),
+        len(first_groups),
+    )
+
+
+def _eligible_no_retrigger_groups(evaluation: dict[str, object]) -> list[dict[str, object]]:
+    return [
+        group
+        for group in _no_retrigger_groups(evaluation)
+        if bool(group.get("first_advance_established"))
+    ]
 
 
 def _no_retrigger_groups(evaluation: dict[str, object]) -> list[dict[str, object]]:
