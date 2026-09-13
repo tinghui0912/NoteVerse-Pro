@@ -221,10 +221,12 @@ def _sample_gate_for_cases(
     max_retained_samples: int,
 ) -> dict[str, object]:
     group_reports = []
+    missing_target_groups = []
     case_extractions = []
     chunk_sizes: list[int] = []
     overshoots: list[int] = []
     extraction_latencies_ms: list[float] = []
+    expected_group_count = 0
     for manifest_path, case in cases:
         audio_path = _case_audio_path(case, manifest_path=manifest_path)
         audio, sample_rate = _read_wav(audio_path)
@@ -244,6 +246,7 @@ def _sample_gate_for_cases(
             }
             for index, target_second in enumerate(target_seconds[: len(expected_groups)])
         ]
+        expected_group_count += len(pending)
         pending.sort(key=lambda item: int(item["decision_sample"]))
         pending_index = 0
         buffer = RollingPcmBuffer(max_retained_samples=max_retained_samples)
@@ -317,6 +320,20 @@ def _sample_gate_for_cases(
                     }
                 )
                 pending_index += 1
+        if pending_index != len(pending):
+            for item in pending[pending_index:]:
+                missing_target_groups.append(
+                    {
+                        "source_recording_id": _case_source_identity(case)["source_recording_id"],
+                        "case_id": case.get("case_id"),
+                        "case_kind": case.get("case_kind"),
+                        "group_index": int(item["group_index"]),
+                        "target_second": round(float(item["target_second"]), 6),
+                        "target_sample_index": int(item["target_sample"]),
+                        "decision_sample_index": int(item["decision_sample"]),
+                        "received_samples_at_case_end": int(buffer.received_samples),
+                    }
+                )
         case_extractions.append(
             {
                 "manifest_path": str(manifest_path),
@@ -340,10 +357,13 @@ def _sample_gate_for_cases(
             "streaming_causal_model": False,
             "product_false_advance_eligible": False,
         },
-        "group_count": len(group_reports),
+        "group_count": expected_group_count,
+        "extracted_group_count": len(group_reports),
         "tensor_equivalent_groups": equivalent_count,
-        "all_groups_equivalent": equivalent_count == len(group_reports),
+        "all_groups_equivalent": equivalent_count == expected_group_count
+        and not missing_target_groups,
         "failed_groups": [group for group in group_reports if not group["equivalent"]],
+        "missing_target_groups": missing_target_groups,
         "group_reports": group_reports,
         "chunk_size_distribution_samples": _distribution(chunk_sizes),
         "chunk_overshoot_samples": _distribution(overshoots),

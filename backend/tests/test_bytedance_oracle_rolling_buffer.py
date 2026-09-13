@@ -18,6 +18,7 @@ from evaluate_bytedance_oracle_rolling_buffer import (  # noqa: E402
     _array_hash,
     _extract_fixed_anchor_tensor_from_buffer,
     _fixed_anchor_tensor_from_audio,
+    _sample_gate_for_cases,
 )
 
 
@@ -86,3 +87,40 @@ def test_rolling_buffer_generates_left_zeros_without_storing_synthetic_pcm() -> 
     assert np.all(rolling[:expected_zero_count] == 0)
     assert np.all(rolling[expected_zero_count:] == 1)
     assert buffer.start_sample_index == 0
+
+
+def test_sample_gate_fails_closed_when_expected_target_is_never_extracted(monkeypatch) -> None:
+    case = {
+        "case_id": "too-short",
+        "case_kind": "correct_strike",
+        "source_audio_sha256": "source-a",
+        "source_time_range_seconds": (0.0, 0.5),
+        "target_group_seconds": (0.45,),
+        "expected_groups": ((60,),),
+    }
+    audio = np.zeros(SAMPLE_RATE // 4, dtype=np.float32)
+
+    monkeypatch.setattr(
+        "evaluate_bytedance_oracle_rolling_buffer._case_audio_path",
+        lambda _case, *, manifest_path: manifest_path,
+    )
+    monkeypatch.setattr(
+        "evaluate_bytedance_oracle_rolling_buffer._read_wav",
+        lambda _path: (audio, SAMPLE_RATE),
+    )
+    monkeypatch.setattr(
+        "evaluate_bytedance_oracle_rolling_buffer._case_source_identity",
+        lambda _case: {"source_recording_id": "source-a"},
+    )
+
+    report = _sample_gate_for_cases(
+        [(Path("manifest.json"), case)],
+        chunk_samples=640,
+        max_retained_samples=40_000,
+    )
+
+    assert report["group_count"] == 1
+    assert report["extracted_group_count"] == 0
+    assert report["tensor_equivalent_groups"] == 0
+    assert report["all_groups_equivalent"] is False
+    assert report["missing_target_groups"][0]["case_id"] == "too-short"
