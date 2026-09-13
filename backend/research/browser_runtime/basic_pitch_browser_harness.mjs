@@ -10,6 +10,7 @@ function parseArgs(argv) {
     warmRuns: 20,
     headed: false,
     browserChannel: undefined,
+    mappingProbeFrames: undefined,
   };
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -29,6 +30,8 @@ function parseArgs(argv) {
       args.browserChannel = argv[++i];
     } else if (arg === '--warm-runs') {
       args.warmRuns = Number(argv[++i]);
+    } else if (arg === '--mapping-probe-frames') {
+      args.mappingProbeFrames = Number(argv[++i]);
     } else if (arg === '--output') {
       args.output = argv[++i];
     } else {
@@ -83,7 +86,7 @@ function contentType(filePath) {
   return 'application/octet-stream';
 }
 
-function startServer({ fixtureDir, basicPitchDir, bundlePath, warmRuns }) {
+function startServer({ fixtureDir, basicPitchDir, bundlePath, warmRuns, mappingProbeFrames }) {
   const modelDir = path.join(basicPitchDir, 'model');
   const server = createServer(async (req, res) => {
     try {
@@ -94,7 +97,7 @@ function startServer({ fixtureDir, basicPitchDir, bundlePath, warmRuns }) {
         res.end(`<!doctype html>
 <meta charset="utf-8">
 <title>Basic Pitch browser feasibility</title>
-<script>window.__CONFIG__ = ${JSON.stringify({ warmRuns })};</script>
+<script>window.__CONFIG__ = ${JSON.stringify({ warmRuns, mappingProbeFrames })};</script>
 <script type="module" src="/bundle.js"></script>`);
         return;
       }
@@ -135,6 +138,7 @@ async function main() {
     basicPitchDir: path.resolve(args.basicPitchDir),
     bundlePath,
     warmRuns: args.warmRuns,
+    mappingProbeFrames: args.mappingProbeFrames,
   });
 
   const browser = await chromium.launch({

@@ -10,7 +10,8 @@ This benchmark asks only:
 
 ```text
 Can the official browser-compatible Basic Pitch package plausibly serve as a
-lightweight local STEP_BY_STEP bounded verifier?
+lightweight local STEP_BY_STEP bounded verifier under the same fixed-anchor
+runtime input contract used by the browser latency smoke test?
 ```
 
 ## Runtime Prototype
@@ -20,6 +21,7 @@ Added:
 ```text
 backend/research/browser_runtime/basic_pitch_browser_entry.js
 backend/research/browser_runtime/basic_pitch_browser_harness.mjs
+backend/scripts/evaluate_basic_pitch_fixed_anchor_window.py
 ```
 
 The harness uses the official package:
@@ -41,7 +43,8 @@ s01_same_note_retrigger_001_g02
 
 These fixtures are numerical/runtime smoke tests, not cross-source validation.
 The development/calibration STEP metrics below come from the existing
-development/calibration frontend comparison reports.
+development/calibration source manifests only. The frozen evaluation set was
+not used.
 
 ## Browser Result
 
@@ -65,18 +68,22 @@ Runtime:
 
 | Metric | Basic Pitch Chrome/WebGL |
 | --- | ---: |
-| model load | 256.4ms |
-| first inference | 11,665.6ms |
-| warm inference median | 291.6ms |
-| warm inference p95 | 304.0ms |
-| estimated strike→decision median | 511.6ms |
-| estimated strike→decision p95 | 524.0ms |
+| model load | 180.2ms |
+| first inference | 12,448.1ms |
+| warm 16k→22050 resample median | 0.5ms |
+| warm 16k→22050 resample p95 | 0.7ms |
+| warm model inference median | 311.9ms |
+| warm model inference p95 | 362.1ms |
+| warm local compute median | 312.5ms |
+| warm local compute p95 | 362.5ms |
+| estimated strike→decision median | 532.5ms |
+| estimated strike→decision p95 | 582.5ms |
 
 Estimated strike-to-decision uses:
 
 ```text
 220ms future prefix
-+ browser warm inference
++ browser warm resample + model inference
 ```
 
 The input smoke fixture is the same fixed-anchor bounded clip shape used in
@@ -87,51 +94,65 @@ the ByteDance feasibility work:
 resampled for Basic Pitch: 22,050 Hz, 40,131 samples
 ```
 
-## STEP Metrics
+## Frame Timing And Parity
 
-Existing development + calibration reports, using the existing Basic Pitch raw
-evidence semantics:
+The browser harness now uses a JavaScript equivalent of official Basic Pitch
+`model_frames_to_time()` rather than the earlier `t / 86` approximation.
+
+Parity check:
 
 ```text
+frame_count = 220
+max_abs_delta_seconds = 0.0
+mean_abs_delta_seconds = 0.0
+```
+
+Browser/Python smoke parity used the same three fixed-anchor golden fixtures:
+
+```text
+decision agreement = 3 / 3
+output shape agreement = 3 / 3
+max local onset delta <= 0.0033
+max local frame delta <= 0.0173
+```
+
+The small raw-value differences are expected because the browser path uses the
+official TensorFlow.js package and explicit 16k→22050 linear resampling, while
+the Python path writes the 16k WAV and lets the official Python inference stack
+perform its own file loading/resampling. The verifier decisions agreed.
+
+## STEP Metrics
+
+Exact fixed-anchor development + calibration report:
+
+```text
+input = 16k source PCM
+max real lookback = 1000ms
+target anchor = 1600ms
+future = 220ms
+left zero padding follows the ByteDance fixed-anchor contract
+Python Basic Pitch official inference path performs its own 16k→22050 resampling
 onset threshold = 0.5
 frame threshold = 0.3
 local evidence = target -50ms .. target +120ms
-bounded causal prefix = target +350ms in the source benchmark
 ```
 
 Aggregate development + calibration:
 
-| Metric | Basic Pitch | ByteDance reference |
+| Metric | old source-prefix +350ms | new fixed-anchor +220ms |
 | --- | ---: | ---: |
 | correct single | 20 / 24 | 20 / 24 |
-| correct chord | 13 / 24 | 19 / 24 |
-| retrigger | 13 / 24 | 17 / 24 |
-| clean semitone false accept | 1 / 18 | 0 / 18 |
-| clean octave false accept | 1 / 23 | 0 / 23 |
+| correct chord | 13 / 24 | 14 / 24 |
+| retrigger | 13 / 24 | 15 / 24 |
+| clean semitone false accept | 1 / 18 | 1 / 19 |
+| clean octave false accept | 1 / 23 | 1 / 24 |
 | clean missing-note false accept | 0 / 20 | 0 / 20 |
+| clean negative false accept | 2 / 61 | 2 / 63 |
 | no local model frames | 0 / 192 | 0 / 192 |
 
-Development split:
-
-| Metric | Basic Pitch |
-| --- | ---: |
-| correct single | 16 / 16 |
-| correct chord | 10 / 16 |
-| retrigger | 9 / 16 |
-| clean semitone false accept | 0 / 10 |
-| clean octave false accept | 1 / 15 |
-| clean missing-note false accept | 0 / 13 |
-
-Calibration split:
-
-| Metric | Basic Pitch |
-| --- | ---: |
-| correct single | 4 / 8 |
-| correct chord | 3 / 8 |
-| retrigger | 4 / 8 |
-| clean semitone false accept | 1 / 8 |
-| clean octave false accept | 0 / 8 |
-| clean missing-note false accept | 0 / 7 |
+The exact runtime contract improves chord and retrigger recall slightly, but it
+does not remove clean false accepts and it still leaves chord/retrigger recall
+well below the level needed for a STEP verifier.
 
 ## Comparison To Current References
 
@@ -163,18 +184,18 @@ Basic Pitch browser-local runtime is feasible as a lightweight browser model:
 ```text
 small model assets
 official browser-compatible package
-warm browser inference around 292ms on this machine
-estimated strike→decision around 512ms
+warm browser local compute around 313ms on this machine
+estimated strike→decision around 533ms
 ```
 
-However, the existing STEP evidence metrics are not acceptable enough to select
-it as the offline verifier:
+However, the exact fixed-anchor +220ms STEP evidence metrics are still not
+acceptable enough to select it as the offline verifier:
 
 ```text
-correct chord: 13 / 24
-retrigger: 13 / 24
-clean semitone false accept: 1 / 18
-clean octave false accept: 1 / 23
+correct chord: 14 / 24
+retrigger: 15 / 24
+clean semitone false accept: 1 / 19
+clean octave false accept: 1 / 24
 ```
 
 Per the stop rule, do not start large Basic Pitch threshold tuning from this
@@ -187,7 +208,9 @@ Inference-location research should stop here for now:
 ```text
 ByteDance browser WebGPU = numerically viable but too heavy
 ByteDance hybrid = online latency reference, not selected architecture
-Basic Pitch browser = lightweight but current STEP accuracy/safety insufficient
+Basic Pitch browser = lightweight but fixed-anchor STEP accuracy/safety insufficient
+
+Basic Pitch local verifier = STOP
 ```
 
 The remaining unresolved product/research problem is still:
