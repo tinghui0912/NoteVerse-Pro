@@ -4421,3 +4421,273 @@ Do not expose internal names such as `WAIT_FOR_NOTE`, `CONTINUOUS`,
 
    - Next step: oracle-timestamp rolling-buffer prototype using this bounded
      window contract, still outside production.
+
+15. Oracle-timestamp rolling-buffer equivalence
+
+   Status: completed on development + calibration only. Frozen evaluation was
+   not touched, thresholds were not changed, no strike detector was implemented,
+   WebSocket/runtime production code was not modified, and this remains a
+   research-only oracle-timestamp simulator.
+
+   Output artifact:
+
+   ```text
+   backend/data/work/datasets/maestro-v3.0.0/bytedance_oracle_rolling_buffer.gpu.json
+   ```
+
+   Focused tests:
+
+   ```text
+   backend/tests/test_bytedance_oracle_rolling_buffer.py
+   ```
+
+   Research script:
+
+   ```text
+   backend/scripts/evaluate_bytedance_oracle_rolling_buffer.py
+   ```
+
+   Runtime metadata:
+
+   ```text
+   oracle_target_timestamp = true
+   causal_attempt_detection = false
+   streaming_causal_model = false
+   product_false_advance_eligible = false
+   ```
+
+   This is a `bounded-window runtime research candidate`, not a truly causal
+   streaming model, because the acoustic frontend still uses centered STFT
+   features and a bidirectional GRU.
+
+   Current PCM chunk contract audit:
+
+   ```text
+   browser capture primitive:
+     navigator.mediaDevices.getUserMedia(...)
+     source file:
+       apps/customer-web/src/hooks/practice/use-practice-audio-stream.ts
+       lines 60-63
+
+   requested capture channels:
+     channelCount = PCM_CHANNELS = 1
+     source files:
+       apps/customer-web/src/lib/practice/audio-stream.ts lines 1-3
+       apps/customer-web/src/hooks/practice/use-practice-audio-stream.ts lines 60-63
+
+   browser processing primitive:
+     AudioWorkletNode('practice-pcm-processor')
+     source file:
+       apps/customer-web/src/hooks/practice/use-practice-audio-stream.ts
+       lines 84-103
+
+   worklet callback aggregation:
+     frameSize = 2048 AudioContext samples
+     postMessage(copy) only after 2048 samples are buffered
+     source file:
+       apps/customer-web/public/audio-worklets/practice-pcm-processor.js
+       lines 4-5, 16-29
+
+   resampling:
+     downsampleTo16k(samples, audioContext.sampleRate)
+     source file:
+       apps/customer-web/src/hooks/practice/use-practice-audio-stream.ts
+       lines 95-103
+
+     implementation:
+       outputLength = round(input.length / (inputSampleRate / 16000))
+       nearest-sample pick by round(index * ratio)
+     source file:
+       apps/customer-web/src/lib/practice/audio-stream.ts
+       lines 17-29
+
+   PCM encoding:
+     convertFloat32ToPcm16(...)
+     little-endian signed 16-bit PCM
+     source file:
+       apps/customer-web/src/lib/practice/audio-stream.ts
+       lines 5-15
+
+   WebSocket binary send:
+     socket.send(frame)
+     source file:
+       apps/customer-web/src/hooks/practice/use-practice-socket.ts
+       lines 65-70
+
+   client.init declared format:
+     sample_rate = session detail sample_rate
+     channels = session detail channels
+     frame_samples = 640
+     source file:
+       apps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/page.tsx
+       lines 716-718
+
+   session creation constants:
+     sample_rate = 16000
+     channels = 1
+     frame_format = pcm_s16le
+     source files:
+       apps/customer-web/src/lib/practice/audio-stream.ts lines 1-3
+       apps/customer-web/src/hooks/practice/use-practice-session.ts lines 55-57
+
+   backend WebSocket receive:
+     await websocket.receive()
+     binary_payload = message.get("bytes")
+     step_runtime.process_audio_chunk(binary_payload)
+     source file:
+       backend/app/modules/practice/router.py
+       lines 461, 716-725
+
+   backend chunk ordering:
+     process_audio_chunk appends bytes to AudioChunkBuffer
+     then calls engine.ingest_audio(chunk)
+     source file:
+       backend/app/processing/realtime/session_runtime.py
+       lines 117-121
+
+     AudioChunkBuffer is a deque that appends chunks in receive order
+     source file:
+       backend/app/processing/realtime/audio_buffer.py
+       lines 6-14
+
+   backend PCM recovery:
+     np.frombuffer(chunk, dtype=np.int16)
+     samples.astype(np.float32) / 32768.0
+     source file:
+       backend/app/processing/engines/practice_alignment/matchmaker_live.py
+       lines 618-620
+
+   backend re-framing:
+     chunks are concatenated into _pending_audio
+     then split into hop_length frames
+     hop_length = int(sample_rate / profile.frame_rate)
+     source file:
+       backend/app/processing/engines/practice_alignment/matchmaker_live.py
+       lines 189-190, 252-274
+   ```
+
+   Important chunking conclusion:
+
+   ```text
+   The frontend worklet emits fixed 2048 AudioContext-sample blocks, but the
+   downsampled 16k PCM chunk length depends on audioContext.sampleRate.
+
+   Therefore the binary WebSocket chunk size is not guaranteed to equal the
+   client.init frame_samples = 640 value.
+
+   The backend currently preserves binary chunk order but does not rely on
+   client.init frame_samples for splitting; Matchmaker concatenates chunks and
+   re-frames by hop_length.
+   ```
+
+   For this simulator run:
+
+   ```text
+   research chunking contract:
+     chunk_samples = 640 at 16kHz
+     chunk_duration = 40ms
+     parameterized = true
+     final_browser_scheduling_equivalence_claimed = false
+   ```
+
+   Sample-level hard gate:
+
+   ```text
+   WAV input:
+     streamed from the beginning of each case
+     ingested once in chunk order
+
+   oracle timestamp:
+     used only to identify the target sample
+
+   extraction:
+     allowed only after received_samples >= target + 220ms
+     chunk overshoot recorded
+     tensor always truncated exactly at target + 220ms
+
+   rolling tensor:
+     ring buffer stores real PCM only
+     600ms deterministic left zeros generated at extraction
+   ```
+
+   Gate result:
+
+   ```text
+   target groups = 264
+   tensor-equivalent groups = 264
+   all_groups_equivalent = true
+
+   shape equality = all true
+   sample-count equality = all true
+   target sample index = 1600ms anchor
+   max_abs_sample_diff = 0 for all groups
+   hash equality = all true
+   ```
+
+   Chunk/overshoot metrics:
+
+   ```text
+   chunk size samples:
+     min / median / p95 / max / mean =
+     13 / 640 / 640 / 640 / 635.181
+
+   chunk overshoot samples:
+     min / median / p95 / max / mean =
+     0 / 320 / 320 / 627 / 315.424
+
+   chunk overshoot ms:
+     min / median / p95 / max / mean =
+     0 / 20 / 20 / 39.188 / 19.714
+
+   ring-buffer extraction/copy ms:
+     min / median / p95 / max / mean =
+     0.035 / 0.058 / 0.109 / 0.221 / 0.065
+   ```
+
+   Model decision equivalence after sample gate passed:
+
+   ```text
+   rolling-buffer path:
+     correct single/chord/retrigger = 20/24, 19/24, 18/24
+     clean semitone/octave/missing false = 0/18, 0/23, 0/20
+     clean negative false = 0/61
+     NO_LOCAL_MODEL_FRAMES = 0/192
+
+   agreement vs fixed-anchor offline reference:
+     192/192
+   ```
+
+   Runtime research latency decomposition:
+
+   ```text
+   required future acquisition:
+     220ms
+
+   chunk-boundary overshoot:
+     median = 20ms
+     p95 = 20ms
+     max = 39.188ms
+
+   ring-buffer extraction/copy:
+     median = 0.058ms
+     p95 = 0.109ms
+
+   model/evidence compute:
+     mean / median / p95 =
+     106.318 / 100.947 / 137.560 ms
+
+   research strike->decision:
+     mean / median / p95 =
+     346.097 / 341.038 / 377.616 ms
+   ```
+
+   Interpretation:
+
+   - The rolling-buffer extraction exactly reproduces the fixed-anchor offline
+     tensor for every expected group before model inference.
+   - The rolling path then reproduces the fixed-anchor offline case decisions
+     `192/192`.
+   - Simulator equivalence research should stop here.
+   - Next stage: causal physical-strike candidate trigger research. That stage
+     must not assume oracle timestamps and must separately evaluate
+     false-advance eligibility.
