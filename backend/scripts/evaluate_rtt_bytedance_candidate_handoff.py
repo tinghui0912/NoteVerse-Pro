@@ -59,6 +59,13 @@ NO_RETRIGGER_CASE_KINDS = {
     "long_held_note_without_retrigger",
     "pedal_sustain_tail_without_retrigger",
 }
+TARGET_LOCAL_CASE_KINDS = {
+    "correct_strike",
+    "correct_chord",
+    "wrong_semitone",
+    "wrong_octave",
+    "missing_chord_tone",
+}
 POSITIVE_CASE_KINDS = {"correct_strike", "correct_chord", "same_note_retrigger"}
 NEGATIVE_CASE_KINDS = {"wrong_semitone", "wrong_octave", "missing_chord_tone"}
 
@@ -181,14 +188,25 @@ def main() -> int:
             },
         },
         "handoff_scoring": {
+            "target_local_scope": (
+                "Oracle target-local handoff diagnostics only for correct_strike, "
+                "correct_chord, wrong_semitone, wrong_octave, and missing_chord_tone."
+            ),
             "compatible_delta_ms": [
                 int(HANDOFF_MIN_DELTA_SECONDS * 1000),
                 int(HANDOFF_MAX_DELTA_SECONDS * 1000),
             ],
             "candidate_delta_definition": "candidate_time - GT_strike_time",
-            "multi_candidate_rule": (
-                "All compatible candidates are verified in chronological order; "
-                "a target succeeds if at least one candidate produces MATCH."
+            "same_note_retrigger_scope": (
+                "Sequential replay: first group consumes chronological RTT candidates "
+                "until MATCH; second group can only consume candidates at or after "
+                "first_candidate_time + 220ms."
+            ),
+            "no_retrigger_scope": (
+                "Sequential replay: first group consumes chronological RTT candidates "
+                "until MATCH; second group consumes every later RTT candidate from "
+                "first decision time to clip end. No synthetic second target timestamp "
+                "is created."
             ),
         },
         "case_manifests": [str(path) for path in args.case_manifest],
@@ -257,66 +275,84 @@ def _evaluate_case(
     actual_groups = tuple(tuple(group) for group in case.get("actual_groups", ()))
     target_absolute_seconds = tuple(float(value) for value in case.get("target_group_seconds", ()))
     target_relative_seconds = tuple(value - source_start for value in target_absolute_seconds)
-    if len(target_relative_seconds) < len(expected_groups):
-        target_relative_seconds = tuple(1.0 for _ in expected_groups)
-        target_absolute_seconds = tuple(source_start + value for value in target_relative_seconds)
 
-    group_results = []
     bytedance_latencies = []
-    for group_index, expected_pitches in enumerate(expected_groups):
-        target_relative = float(target_relative_seconds[group_index])
-        target_absolute = float(target_absolute_seconds[group_index])
-        actual_pitches = actual_groups[group_index] if group_index < len(actual_groups) else ()
-        compatible_candidates = _compatible_candidates(candidates, target_relative)
-        candidate_results = []
-        for candidate_index, candidate in compatible_candidates:
-            candidate_result = _verify_candidate(
-                manifest_path,
-                case,
-                audio,
-                sample_rate,
-                source_start_seconds=source_start,
-                candidate_index=candidate_index,
-                candidate=candidate,
-                expected_pitches=expected_pitches,
-                provider=bytedance_provider,
-                device=bytedance_device,
-                work_dir=work_dir,
-                local_pre_seconds=local_pre_seconds,
-                local_post_seconds=local_post_seconds,
-                onset_threshold=onset_threshold,
-                frame_threshold=frame_threshold,
-            )
-            candidate_results.append(candidate_result)
-            if candidate_result.get("latency"):
-                bytedance_latencies.append(candidate_result["latency"])
-        matched_candidates = [item for item in candidate_results if item["result"] == "MATCH"]
-        contamination = _future_target_contamination(
+    verifier_cache: dict[tuple[int, tuple[str, ...]], dict[str, object]] = {}
+    case_kind = str(case.get("case_kind"))
+    if case_kind in TARGET_LOCAL_CASE_KINDS:
+        group_results = _evaluate_target_local_groups(
+            manifest_path,
             case,
-            expected_pitches=expected_pitches,
-            actual_pitches=actual_pitches,
-            target_second=target_absolute,
-            decision_end_seconds=target_absolute + FUTURE_SECONDS,
+            audio,
+            sample_rate,
+            candidates=candidates,
+            source_start=source_start,
+            expected_groups=expected_groups,
+            actual_groups=actual_groups,
+            target_relative_seconds=target_relative_seconds,
+            target_absolute_seconds=target_absolute_seconds,
+            provider=bytedance_provider,
+            device=bytedance_device,
+            work_dir=work_dir,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            verifier_cache=verifier_cache,
+            latency_sink=bytedance_latencies,
         )
-        group_results.append(
-            {
-                "group_index": group_index,
-                "target_second": round(target_relative, 6),
-                "target_absolute_second": round(target_absolute, 6),
-                "expected_pitches": expected_pitches,
-                "actual_pitches_at_target": actual_pitches,
-                "candidate_count": len(compatible_candidates),
-                "candidate_deltas_ms": [
-                    round((float(candidate["anchor_second"]) - target_relative) * 1000.0, 3)
-                    for _, candidate in compatible_candidates
-                ],
-                "handoff_compatible": bool(compatible_candidates),
-                "candidate_results": candidate_results,
-                "combined_result": "MATCH" if matched_candidates else "NO_MATCH",
-                "combined_match": bool(matched_candidates),
-                "future_target_contamination": contamination,
-            }
+        matched_groups = sum(1 for group in group_results if group["combined_match"])
+        evaluation_mode = "oracle_target_local"
+    elif case_kind == "same_note_retrigger":
+        group_results = _evaluate_same_note_retrigger_sequential(
+            manifest_path,
+            case,
+            audio,
+            sample_rate,
+            candidates=candidates,
+            source_start=source_start,
+            expected_groups=expected_groups,
+            actual_groups=actual_groups,
+            target_relative_seconds=target_relative_seconds,
+            target_absolute_seconds=target_absolute_seconds,
+            provider=bytedance_provider,
+            device=bytedance_device,
+            work_dir=work_dir,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            verifier_cache=verifier_cache,
+            latency_sink=bytedance_latencies,
         )
+        matched_groups = sum(1 for group in group_results if group["combined_match"])
+        evaluation_mode = "sequential_same_note_retrigger"
+    elif case_kind in NO_RETRIGGER_CASE_KINDS:
+        group_results = _evaluate_no_retrigger_sequential(
+            manifest_path,
+            case,
+            audio,
+            sample_rate,
+            candidates=candidates,
+            source_start=source_start,
+            expected_groups=expected_groups,
+            actual_groups=actual_groups,
+            target_relative_seconds=target_relative_seconds,
+            target_absolute_seconds=target_absolute_seconds,
+            provider=bytedance_provider,
+            device=bytedance_device,
+            work_dir=work_dir,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            verifier_cache=verifier_cache,
+            latency_sink=bytedance_latencies,
+        )
+        matched_groups = sum(1 for group in group_results if group["combined_match"])
+        evaluation_mode = "sequential_no_retrigger"
+    else:
+        raise ValueError(f"Unsupported case kind for RTT handoff benchmark: {case_kind}")
 
     expected_advances = int(case.get("expected_advances", 0))
     matched_groups = sum(1 for group in group_results if group["combined_match"])
@@ -324,7 +360,8 @@ def _evaluate_case(
     duration_seconds = audio.size / sample_rate
     return {
         "case_id": case.get("case_id"),
-        "case_kind": case.get("case_kind"),
+        "case_kind": case_kind,
+        "evaluation_mode": evaluation_mode,
         "expected_advances": expected_advances,
         "matched_groups": matched_groups,
         "accepted": accepted,
@@ -352,6 +389,464 @@ def _evaluate_case(
             "bytedance_candidate_verifier": bytedance_latencies,
         },
     }
+
+
+def _evaluate_target_local_groups(
+    manifest_path: Path,
+    case: dict[str, object],
+    audio: np.ndarray,
+    sample_rate: int,
+    *,
+    candidates: list[dict[str, object]],
+    source_start: float,
+    expected_groups: tuple[tuple[str, ...], ...],
+    actual_groups: tuple[tuple[str, ...], ...],
+    target_relative_seconds: tuple[float, ...],
+    target_absolute_seconds: tuple[float, ...],
+    provider: ByteDancePianoTranscriptionProvider,
+    device: str,
+    work_dir: Path,
+    local_pre_seconds: float,
+    local_post_seconds: float,
+    onset_threshold: float,
+    frame_threshold: float,
+    verifier_cache: dict[tuple[int, tuple[str, ...]], dict[str, object]],
+    latency_sink: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    if len(target_relative_seconds) < len(expected_groups):
+        raise ValueError(
+            f"{case.get('case_id')} is target-local but has fewer target timestamps "
+            f"({len(target_relative_seconds)}) than expected groups ({len(expected_groups)})"
+        )
+    group_results = []
+    for group_index, expected_pitches in enumerate(expected_groups):
+        target_relative = float(target_relative_seconds[group_index])
+        target_absolute = float(target_absolute_seconds[group_index])
+        actual_pitches = actual_groups[group_index] if group_index < len(actual_groups) else ()
+        compatible_candidates = _compatible_candidates(candidates, target_relative)
+        candidate_results = _verify_candidates(
+            manifest_path,
+            case,
+            audio,
+            sample_rate,
+            source_start_seconds=source_start,
+            candidates=compatible_candidates,
+            expected_pitches=expected_pitches,
+            provider=provider,
+            device=device,
+            work_dir=work_dir,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            verifier_cache=verifier_cache,
+            latency_sink=latency_sink,
+        )
+        group_results.append(
+            _group_result(
+                case,
+                mode="oracle_target_local",
+                group_index=group_index,
+                expected_pitches=expected_pitches,
+                actual_pitches=actual_pitches,
+                target_relative=target_relative,
+                target_absolute=target_absolute,
+                candidate_pairs=compatible_candidates,
+                candidate_results=candidate_results,
+                contamination_decision_end=target_absolute + FUTURE_SECONDS,
+            )
+        )
+    return group_results
+
+
+def _evaluate_same_note_retrigger_sequential(
+    manifest_path: Path,
+    case: dict[str, object],
+    audio: np.ndarray,
+    sample_rate: int,
+    *,
+    candidates: list[dict[str, object]],
+    source_start: float,
+    expected_groups: tuple[tuple[str, ...], ...],
+    actual_groups: tuple[tuple[str, ...], ...],
+    target_relative_seconds: tuple[float, ...],
+    target_absolute_seconds: tuple[float, ...],
+    provider: ByteDancePianoTranscriptionProvider,
+    device: str,
+    work_dir: Path,
+    local_pre_seconds: float,
+    local_post_seconds: float,
+    onset_threshold: float,
+    frame_threshold: float,
+    verifier_cache: dict[tuple[int, tuple[str, ...]], dict[str, object]],
+    latency_sink: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    if len(expected_groups) < 2 or len(target_relative_seconds) < 2:
+        raise ValueError(f"{case.get('case_id')} retrigger case requires two real target timestamps")
+
+    first_pairs = list(enumerate(candidates))
+    first_results = _verify_until_match(
+        manifest_path,
+        case,
+        audio,
+        sample_rate,
+        source_start_seconds=source_start,
+        candidate_pairs=first_pairs,
+        expected_pitches=expected_groups[0],
+        provider=provider,
+        device=device,
+        work_dir=work_dir,
+        local_pre_seconds=local_pre_seconds,
+        local_post_seconds=local_post_seconds,
+        onset_threshold=onset_threshold,
+        frame_threshold=frame_threshold,
+        verifier_cache=verifier_cache,
+        latency_sink=latency_sink,
+    )
+    first_match = _first_match(first_results)
+    first_target_relative = float(target_relative_seconds[0])
+    second_target_relative = float(target_relative_seconds[1])
+    first_group = _group_result(
+        case,
+        mode="sequential_first_advance",
+        group_index=0,
+        expected_pitches=expected_groups[0],
+        actual_pitches=actual_groups[0] if actual_groups else (),
+        target_relative=first_target_relative,
+        target_absolute=float(target_absolute_seconds[0]),
+        candidate_pairs=[(int(result["candidate_index"]), {"anchor_second": result["candidate_second"]}) for result in first_results],
+        candidate_results=first_results,
+        contamination_decision_end=float(target_absolute_seconds[0]) + FUTURE_SECONDS,
+    )
+    first_group["first_advance_success"] = bool(first_match)
+    if first_match is None:
+        second_pairs: list[tuple[int, dict[str, object]]] = []
+        second_results: list[dict[str, object]] = []
+        step2_activation_time = None
+    else:
+        step2_activation_time = float(first_match["candidate_second"]) + FUTURE_SECONDS
+        second_pairs = [
+            (index, candidate)
+            for index, candidate in enumerate(candidates)
+            if float(candidate["anchor_second"]) >= step2_activation_time
+        ]
+        second_results = _verify_until_match(
+            manifest_path,
+            case,
+            audio,
+            sample_rate,
+            source_start_seconds=source_start,
+            candidate_pairs=second_pairs,
+            expected_pitches=expected_groups[1],
+            provider=provider,
+            device=device,
+            work_dir=work_dir,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            verifier_cache=verifier_cache,
+            latency_sink=latency_sink,
+        )
+    second_match = _first_match(second_results)
+    premature = False
+    if second_match is not None:
+        premature = float(second_match["candidate_second"]) + FUTURE_SECONDS < second_target_relative
+    second_group = _group_result(
+        case,
+        mode="sequential_second_retrigger",
+        group_index=1,
+        expected_pitches=expected_groups[1],
+        actual_pitches=actual_groups[1] if len(actual_groups) > 1 else (),
+        target_relative=second_target_relative,
+        target_absolute=float(target_absolute_seconds[1]),
+        candidate_pairs=second_pairs,
+        candidate_results=second_results,
+        contamination_decision_end=float(target_absolute_seconds[1]) + FUTURE_SECONDS,
+    )
+    second_group.update(
+        {
+            "step2_activation_time": round(step2_activation_time, 6) if step2_activation_time is not None else None,
+            "second_retrigger_advance_success": bool(second_match),
+            "premature_second_advance_before_real_retrigger": premature,
+            "second_match_candidate_second": (
+                round(float(second_match["candidate_second"]), 6) if second_match is not None else None
+            ),
+            "second_match_decision_second": (
+                round(float(second_match["candidate_second"]) + FUTURE_SECONDS, 6)
+                if second_match is not None
+                else None
+            ),
+        }
+    )
+    return [first_group, second_group]
+
+
+def _evaluate_no_retrigger_sequential(
+    manifest_path: Path,
+    case: dict[str, object],
+    audio: np.ndarray,
+    sample_rate: int,
+    *,
+    candidates: list[dict[str, object]],
+    source_start: float,
+    expected_groups: tuple[tuple[str, ...], ...],
+    actual_groups: tuple[tuple[str, ...], ...],
+    target_relative_seconds: tuple[float, ...],
+    target_absolute_seconds: tuple[float, ...],
+    provider: ByteDancePianoTranscriptionProvider,
+    device: str,
+    work_dir: Path,
+    local_pre_seconds: float,
+    local_post_seconds: float,
+    onset_threshold: float,
+    frame_threshold: float,
+    verifier_cache: dict[tuple[int, tuple[str, ...]], dict[str, object]],
+    latency_sink: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    if len(expected_groups) < 2 or len(target_relative_seconds) != 1:
+        raise ValueError(
+            f"{case.get('case_id')} no-retrigger case must have two expected groups "
+            "and exactly one real target timestamp"
+        )
+    first_pairs = list(enumerate(candidates))
+    first_results = _verify_until_match(
+        manifest_path,
+        case,
+        audio,
+        sample_rate,
+        source_start_seconds=source_start,
+        candidate_pairs=first_pairs,
+        expected_pitches=expected_groups[0],
+        provider=provider,
+        device=device,
+        work_dir=work_dir,
+        local_pre_seconds=local_pre_seconds,
+        local_post_seconds=local_post_seconds,
+        onset_threshold=onset_threshold,
+        frame_threshold=frame_threshold,
+        verifier_cache=verifier_cache,
+        latency_sink=latency_sink,
+    )
+    first_match = _first_match(first_results)
+    first_target_relative = float(target_relative_seconds[0])
+    first_group = _group_result(
+        case,
+        mode="sequential_first_advance",
+        group_index=0,
+        expected_pitches=expected_groups[0],
+        actual_pitches=actual_groups[0] if actual_groups else (),
+        target_relative=first_target_relative,
+        target_absolute=float(target_absolute_seconds[0]),
+        candidate_pairs=[(int(result["candidate_index"]), {"anchor_second": result["candidate_second"]}) for result in first_results],
+        candidate_results=first_results,
+        contamination_decision_end=float(target_absolute_seconds[0]) + FUTURE_SECONDS,
+    )
+    first_group["first_advance_success"] = bool(first_match)
+    if first_match is None:
+        post_advance_pairs: list[tuple[int, dict[str, object]]] = []
+        post_advance_results: list[dict[str, object]] = []
+        first_decision_time = None
+    else:
+        first_decision_time = float(first_match["candidate_second"]) + FUTURE_SECONDS
+        post_advance_pairs = [
+            (index, candidate)
+            for index, candidate in enumerate(candidates)
+            if float(candidate["anchor_second"]) >= first_decision_time
+        ]
+        post_advance_results = _verify_until_match(
+            manifest_path,
+            case,
+            audio,
+            sample_rate,
+            source_start_seconds=source_start,
+            candidate_pairs=post_advance_pairs,
+            expected_pitches=expected_groups[1],
+            provider=provider,
+            device=device,
+            work_dir=work_dir,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            verifier_cache=verifier_cache,
+            latency_sink=latency_sink,
+        )
+    false_match = _first_match(post_advance_results)
+    second_group = _group_result(
+        case,
+        mode="sequential_no_retrigger_post_advance",
+        group_index=1,
+        expected_pitches=expected_groups[1],
+        actual_pitches=actual_groups[1] if len(actual_groups) > 1 else (),
+        target_relative=None,
+        target_absolute=None,
+        candidate_pairs=post_advance_pairs,
+        candidate_results=post_advance_results,
+        contamination_decision_end=None,
+    )
+    second_group.update(
+        {
+            "synthetic_target_used": False,
+            "first_decision_time": round(first_decision_time, 6) if first_decision_time is not None else None,
+            "post_advance_candidate_count": len(post_advance_pairs),
+            "post_advance_bytedance_calls": len(post_advance_results),
+            "false_second_match": bool(false_match),
+            "time_from_first_decision_to_false_match_ms": (
+                round((float(false_match["candidate_second"]) + FUTURE_SECONDS - float(first_decision_time)) * 1000.0, 3)
+                if false_match is not None and first_decision_time is not None
+                else None
+            ),
+        }
+    )
+    return [first_group, second_group]
+
+
+def _verify_until_match(
+    manifest_path: Path,
+    case: dict[str, object],
+    audio: np.ndarray,
+    sample_rate: int,
+    *,
+    source_start_seconds: float,
+    candidate_pairs: list[tuple[int, dict[str, object]]],
+    expected_pitches: tuple[str, ...],
+    provider: ByteDancePianoTranscriptionProvider,
+    device: str,
+    work_dir: Path,
+    local_pre_seconds: float,
+    local_post_seconds: float,
+    onset_threshold: float,
+    frame_threshold: float,
+    verifier_cache: dict[tuple[int, tuple[str, ...]], dict[str, object]],
+    latency_sink: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    results = []
+    for candidate_index, candidate in candidate_pairs:
+        result = _verify_candidates(
+            manifest_path,
+            case,
+            audio,
+            sample_rate,
+            source_start_seconds=source_start_seconds,
+            candidates=[(candidate_index, candidate)],
+            expected_pitches=expected_pitches,
+            provider=provider,
+            device=device,
+            work_dir=work_dir,
+            local_pre_seconds=local_pre_seconds,
+            local_post_seconds=local_post_seconds,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            verifier_cache=verifier_cache,
+            latency_sink=latency_sink,
+        )[0]
+        results.append(result)
+        if result["result"] == "MATCH":
+            break
+    return results
+
+
+def _verify_candidates(
+    manifest_path: Path,
+    case: dict[str, object],
+    audio: np.ndarray,
+    sample_rate: int,
+    *,
+    source_start_seconds: float,
+    candidates: list[tuple[int, dict[str, object]]],
+    expected_pitches: tuple[str, ...],
+    provider: ByteDancePianoTranscriptionProvider,
+    device: str,
+    work_dir: Path,
+    local_pre_seconds: float,
+    local_post_seconds: float,
+    onset_threshold: float,
+    frame_threshold: float,
+    verifier_cache: dict[tuple[int, tuple[str, ...]], dict[str, object]],
+    latency_sink: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    results = []
+    for candidate_index, candidate in candidates:
+        cache_key = (candidate_index, tuple(expected_pitches))
+        if cache_key not in verifier_cache:
+            verifier_cache[cache_key] = _verify_candidate(
+                manifest_path,
+                case,
+                audio,
+                sample_rate,
+                source_start_seconds=source_start_seconds,
+                candidate_index=candidate_index,
+                candidate=candidate,
+                expected_pitches=expected_pitches,
+                provider=provider,
+                device=device,
+                work_dir=work_dir,
+                local_pre_seconds=local_pre_seconds,
+                local_post_seconds=local_post_seconds,
+                onset_threshold=onset_threshold,
+                frame_threshold=frame_threshold,
+            )
+            if verifier_cache[cache_key].get("latency"):
+                latency_sink.append(verifier_cache[cache_key]["latency"])
+        results.append(verifier_cache[cache_key])
+    return results
+
+
+def _group_result(
+    case: dict[str, object],
+    *,
+    mode: str,
+    group_index: int,
+    expected_pitches: tuple[str, ...],
+    actual_pitches: tuple[str, ...],
+    target_relative: float | None,
+    target_absolute: float | None,
+    candidate_pairs: list[tuple[int, dict[str, object]]],
+    candidate_results: list[dict[str, object]],
+    contamination_decision_end: float | None,
+) -> dict[str, object]:
+    matched_candidates = [item for item in candidate_results if item["result"] == "MATCH"]
+    contamination = (
+        _future_target_contamination(
+            case,
+            expected_pitches=expected_pitches,
+            actual_pitches=actual_pitches,
+            target_second=target_absolute,
+            decision_end_seconds=contamination_decision_end,
+        )
+        if target_absolute is not None and contamination_decision_end is not None
+        else {"contaminated": False, "actual_target_pitches": list(actual_pitches), "counterfactual_pitches": [], "events": []}
+    )
+    return {
+        "mode": mode,
+        "group_index": group_index,
+        "target_second": round(target_relative, 6) if target_relative is not None else None,
+        "target_absolute_second": round(target_absolute, 6) if target_absolute is not None else None,
+        "expected_pitches": expected_pitches,
+        "actual_pitches_at_target": actual_pitches,
+        "candidate_count": len(candidate_pairs),
+        "candidate_deltas_ms": (
+            [
+                round((float(candidate["anchor_second"]) - float(target_relative)) * 1000.0, 3)
+                for _, candidate in candidate_pairs
+            ]
+            if target_relative is not None
+            else []
+        ),
+        "handoff_compatible": bool(candidate_pairs),
+        "candidate_results": candidate_results,
+        "combined_result": "MATCH" if matched_candidates else "NO_MATCH",
+        "combined_match": bool(matched_candidates),
+        "future_target_contamination": contamination,
+    }
+
+
+def _first_match(candidate_results: list[dict[str, object]]) -> dict[str, object] | None:
+    for result in candidate_results:
+        if result["result"] == "MATCH":
+            return result
+    return None
 
 
 def _compatible_candidates(
@@ -484,7 +979,23 @@ def _candidate_pressure(
     *,
     duration_seconds: float,
 ) -> dict[str, object]:
-    verifier_calls = sum(int(group["candidate_count"]) for group in group_results)
+    verifier_calls = sum(len(group["candidate_results"]) for group in group_results)
+    oracle_target_local_calls = sum(
+        len(group["candidate_results"])
+        for group in group_results
+        if group.get("mode") == "oracle_target_local"
+    )
+    sequential_first_calls = sum(
+        len(group["candidate_results"])
+        for group in group_results
+        if group.get("mode") == "sequential_first_advance"
+    )
+    sequential_post_advance_calls = sum(
+        len(group["candidate_results"])
+        for group in group_results
+        if group.get("mode")
+        in {"sequential_second_retrigger", "sequential_no_retrigger_post_advance"}
+    )
     duplicates = 0
     for group in gt_groups:
         gt_time = float(group["anchor_second"])
@@ -502,6 +1013,21 @@ def _candidate_pressure(
         "rtt_candidates_per_minute": round(len(candidates) / minutes, 6),
         "bytedance_verifier_calls": verifier_calls,
         "bytedance_verifier_calls_per_minute": round(verifier_calls / minutes, 6),
+        "oracle_target_local_verifier_calls": oracle_target_local_calls,
+        "oracle_target_local_verifier_calls_per_minute": round(
+            oracle_target_local_calls / minutes,
+            6,
+        ),
+        "sequential_first_advance_verifier_calls": sequential_first_calls,
+        "sequential_first_advance_verifier_calls_per_minute": round(
+            sequential_first_calls / minutes,
+            6,
+        ),
+        "sequential_post_advance_verifier_calls": sequential_post_advance_calls,
+        "sequential_post_advance_verifier_calls_per_minute": round(
+            sequential_post_advance_calls / minutes,
+            6,
+        ),
         "duplicate_calls": duplicates,
         "duplicate_calls_per_physical_strike": (
             round(duplicates / len(gt_groups), 6) if gt_groups else None
@@ -522,16 +1048,23 @@ def _summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
 
 
 def _handoff_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
-    positive = [item for item in evaluations if str(item["case_kind"]) in POSITIVE_CASE_KINDS]
+    target_local_positive = [
+        item for item in evaluations if str(item["case_kind"]) in {"correct_strike", "correct_chord"}
+    ]
+    target_local_negative = [
+        item for item in evaluations if str(item["case_kind"]) in NEGATIVE_CASE_KINDS
+    ]
     return {
-        "all_positive_targets": _target_rate(positive, "handoff_compatible"),
+        "scope": "oracle target-local handoff diagnostics; excludes same-note retrigger sequential replay",
+        "target_local_positive_targets": _target_rate(target_local_positive, "handoff_compatible"),
         "correct_single": _target_rate(_by_kind(evaluations, "correct_strike"), "handoff_compatible"),
         "correct_chord": _target_rate(_by_kind(evaluations, "correct_chord"), "handoff_compatible"),
-        "retrigger": _target_rate(_by_kind(evaluations, "same_note_retrigger"), "handoff_compatible"),
+        "target_local_negative_targets": _target_rate(target_local_negative, "handoff_compatible"),
         "candidate_delta_ms": _distribution(
             [
                 float(delta)
                 for evaluation in evaluations
+                if str(evaluation["case_kind"]) in TARGET_LOCAL_CASE_KINDS
                 for group in evaluation["group_results"]
                 for delta in group["candidate_deltas_ms"]
             ]
@@ -544,6 +1077,9 @@ def _combined_summary(evaluations: list[dict[str, object]]) -> dict[str, object]
         "correct_single": _case_rate(_by_kind(evaluations, "correct_strike")),
         "correct_chord": _case_rate(_by_kind(evaluations, "correct_chord")),
         "retrigger": _case_rate(_by_kind(evaluations, "same_note_retrigger")),
+        "same_note_retrigger_sequential": _same_note_retrigger_summary(
+            _by_kind(evaluations, "same_note_retrigger")
+        ),
         "positive_overall": _case_rate(
             [item for item in evaluations if str(item["case_kind"]) in POSITIVE_CASE_KINDS]
         ),
@@ -572,8 +1108,12 @@ def _safety_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
                         {
                             "group_index": group["group_index"],
                             "candidate_count": group["candidate_count"],
+                            "post_advance_bytedance_calls": group.get("post_advance_bytedance_calls"),
                             "combined_match": group["combined_match"],
-                            "candidate_deltas_ms": group["candidate_deltas_ms"],
+                            "false_second_match": group.get("false_second_match"),
+                            "time_from_first_decision_to_false_match_ms": group.get(
+                                "time_from_first_decision_to_false_match_ms"
+                            ),
                         }
                         for group in _no_retrigger_groups(item)
                         if group["candidate_count"] or group["combined_match"]
@@ -602,6 +1142,24 @@ def _pressure_summary(evaluations: list[dict[str, object]]) -> dict[str, object]
         "bytedance_verifier_calls_per_minute": _distribution(
             [
                 float(item["candidate_pressure"]["bytedance_verifier_calls_per_minute"])
+                for item in evaluations
+            ]
+        ),
+        "oracle_target_local_verifier_calls_per_minute": _distribution(
+            [
+                float(item["candidate_pressure"]["oracle_target_local_verifier_calls_per_minute"])
+                for item in evaluations
+            ]
+        ),
+        "sequential_first_advance_verifier_calls_per_minute": _distribution(
+            [
+                float(item["candidate_pressure"]["sequential_first_advance_verifier_calls_per_minute"])
+                for item in evaluations
+            ]
+        ),
+        "sequential_post_advance_verifier_calls_per_minute": _distribution(
+            [
+                float(item["candidate_pressure"]["sequential_post_advance_verifier_calls_per_minute"])
                 for item in evaluations
             ]
         ),
@@ -652,10 +1210,13 @@ def _stop_rule_assessment(evaluations: list[dict[str, object]]) -> dict[str, obj
     combined = _combined_summary(evaluations)
     safety = _safety_summary(evaluations)
     handoff = _handoff_summary(evaluations)
+    retrigger = combined["same_note_retrigger_sequential"]
     candidate_miss_is_bottleneck = (
         handoff["correct_single"]["accepted"] < handoff["correct_single"]["total"]
         or handoff["correct_chord"]["accepted"] < handoff["correct_chord"]["total"]
-        or handoff["retrigger"]["accepted"] < handoff["retrigger"]["total"]
+        or retrigger["first_advance_success"]["accepted"] < retrigger["first_advance_success"]["total"]
+        or retrigger["second_retrigger_advance_success"]["accepted"]
+        < retrigger["second_retrigger_advance_success"]["total"]
     )
     no_retrigger_false = sum(
         int(info["no_strike_bytedance_false_match"]["accepted"])
@@ -683,6 +1244,39 @@ def _stop_rule_assessment(evaluations: list[dict[str, object]]) -> dict[str, obj
 def _target_rate(evaluations: list[dict[str, object]], key: str) -> dict[str, object]:
     groups = [group for item in evaluations for group in item["group_results"]]
     return _fraction(sum(1 for group in groups if bool(group[key])), len(groups))
+
+
+def _same_note_retrigger_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
+    first_groups = [
+        group
+        for item in evaluations
+        for group in item["group_results"]
+        if group.get("mode") == "sequential_first_advance"
+    ]
+    second_groups = [
+        group
+        for item in evaluations
+        for group in item["group_results"]
+        if group.get("mode") == "sequential_second_retrigger"
+    ]
+    return {
+        "first_advance_success": _fraction(
+            sum(1 for group in first_groups if bool(group.get("first_advance_success"))),
+            len(first_groups),
+        ),
+        "second_retrigger_advance_success": _fraction(
+            sum(1 for group in second_groups if bool(group.get("second_retrigger_advance_success"))),
+            len(second_groups),
+        ),
+        "premature_second_advance_before_real_retrigger": _fraction(
+            sum(
+                1
+                for group in second_groups
+                if bool(group.get("premature_second_advance_before_real_retrigger"))
+            ),
+            len(second_groups),
+        ),
+    }
 
 
 def _no_retrigger_group_rate(

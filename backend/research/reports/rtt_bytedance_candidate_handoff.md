@@ -8,7 +8,7 @@ used.
 
 ## Question
 
-Keep the current conclusion:
+Keep the current model-level conclusion:
 
 ```text
 RTT raw pitch verifier = STOP
@@ -24,6 +24,26 @@ RTT causal onset candidate
 
 This is candidate-handoff research, not a complete STEP progression benchmark.
 The case clips do not contain full score-state history.
+
+## Important Semantic Fix
+
+The previous handoff run incorrectly synthesized missing target timestamps:
+
+```python
+if len(target_relative_seconds) < len(expected_groups):
+    target_relative_seconds = tuple(1.0 for _ in expected_groups)
+```
+
+That was invalid for `long_held_note_without_retrigger` and
+`pedal_sustain_tail_without_retrigger`: those cases intentionally have one real
+physical-strike target timestamp and a second expected group with no physical
+retrigger. The benchmark now uses:
+
+- target-local oracle diagnostics only for cases with real target timestamps;
+- sequential replay for `same_note_retrigger`;
+- sequential replay for held/pedal no-retrigger cases.
+
+No synthetic second target timestamp is created.
 
 ## Runtime Contract
 
@@ -62,15 +82,62 @@ frame >= 0.2
 local evidence = -50ms..+120ms
 ```
 
-Candidate handoff compatibility:
+## Evaluation Semantics
+
+### Oracle Target-Local Diagnostics
+
+For these case families:
+
+```text
+correct_strike
+correct_chord
+wrong_semitone
+wrong_octave
+missing_chord_tone
+```
+
+a compatible candidate is:
 
 ```text
 candidate_delta = candidate_time - GT_strike_time
-compatible = -120ms <= candidate_delta <= +50ms
+-120ms <= candidate_delta <= +50ms
 ```
 
-If multiple compatible candidates exist, all are verified in chronological
-order. A target succeeds if at least one candidate produces `MATCH`.
+These metrics are target-local diagnostics. They are not a full runtime
+false-advance benchmark.
+
+### Same-Note Retrigger Sequential Replay
+
+The first expected group consumes chronological RTT candidates until ByteDance
+produces `MATCH`.
+
+Once the first group matches:
+
+```text
+step2_activation_time = first_candidate_time + 220ms
+```
+
+The second expected group can consume only:
+
+```text
+candidate_time >= step2_activation_time
+```
+
+The second GT strike timestamp is used only for post-hoc scoring.
+
+### Held/Pedal No-Retrigger Sequential Replay
+
+The first expected group consumes chronological RTT candidates until ByteDance
+produces `MATCH`.
+
+Then, from the first decision time until clip end:
+
+```text
+every subsequent RTT candidate
+→ ByteDance verifier(expected group 2)
+```
+
+Any second-group `MATCH` is a false second advance.
 
 ## Artifacts
 
@@ -80,35 +147,43 @@ order. A target succeeds if at least one candidate produces `MATCH`.
 
 ## Results
 
-### RTT Candidate Handoff Recall
+### Oracle Target-Local Handoff Diagnostics
 
 | Target family | Compatible targets |
 | --- | ---: |
 | Correct single | 16 / 24 |
 | Correct chord | 23 / 24 |
-| Same-note retrigger targets | 38 / 48 |
-| All positive targets | 77 / 96 |
+| Correct single + chord | 39 / 48 |
+| Target-local negatives | 48 / 72 |
 
 Compatible candidate delta:
 
 ```text
-count = 301
+count = 124
 median = 0ms
-p05 = -100ms
-p95 = +20ms
+p05 = -90ms
+p95 = +10ms
 min/max = -120ms / +30ms
 ```
 
-### Combined RTT → ByteDance MATCH
+### Combined RTT → ByteDance Positive Recall
 
 | Case family | MATCH cases |
 | --- | ---: |
 | Correct single | 13 / 24 |
 | Correct chord | 20 / 24 |
-| Same-note retrigger | 13 / 24 |
-| Positive overall | 46 / 72 |
+| Same-note retrigger | 15 / 24 |
+| Positive overall | 48 / 72 |
 
-### Wrong-Note Safety
+Same-note retrigger sequential details:
+
+| Metric | Result |
+| --- | ---: |
+| First advance success | 21 / 24 |
+| Second retrigger advance success | 15 / 24 |
+| Premature second advance before real retrigger | 1 / 24 |
+
+### Target-Local Wrong-Note Safety
 
 | Negative family | Clean false MATCH |
 | --- | ---: |
@@ -117,67 +192,84 @@ min/max = -120ms / +30ms
 | Missing chord tone | 0 / 20 |
 | All clean wrong-note negatives | 0 / 63 |
 
-The ByteDance verifier remains strong for counterfactual wrong-note safety under
-this handoff contract.
+This only means target-local counterfactual wrong-note safety remains clean. It
+does not prove full runtime false-advance safety.
 
-### No-Retrigger Safety
+### Sequential No-Retrigger Safety
 
-This is the failing invariant.
-
-| Safety family | No-strike target with RTT candidate | No-strike ByteDance false MATCH |
+| Safety family | Post-advance RTT candidate | False second MATCH |
 | --- | ---: | ---: |
-| Long-held note without retrigger | 23 / 24 | 21 / 24 |
-| Pedal sustain tail without retrigger | 20 / 24 | 17 / 24 |
+| Long-held note without retrigger | 20 / 24 | 3 / 24 |
+| Pedal sustain tail without retrigger | 17 / 24 | 4 / 24 |
+| Combined | 37 / 48 | 7 / 48 |
 
-The no-retrigger calculation counts only the second/no-new-strike expected
-target group (`group_index >= expected_advances`). The first real physical
-strike is not counted as a failure.
+False second MATCH examples:
+
+```text
+long-held:
+- s05_long_held_note_without_retrigger_001: +470ms after first decision
+- s02_long_held_note_without_retrigger_002: +990ms
+- s04_long_held_note_without_retrigger_002: +560ms
+
+pedal-sustain:
+- s02_pedal_sustain_tail_without_retrigger_002: +760ms
+- s03_pedal_sustain_tail_without_retrigger_001: +280ms
+- s04_pedal_sustain_tail_without_retrigger_001: +890ms
+- s06_pedal_sustain_tail_without_retrigger_001: +260ms
+```
 
 ## Candidate Pressure
 
 | Metric | Median | P95 |
 | --- | ---: | ---: |
 | RTT candidates / minute | 288.0 | 552.0 |
-| ByteDance verifier calls / minute | 24.0 | 96.0 |
+| ByteDance verifier calls / minute | 48.0 | 405.6 |
+| Oracle target-local verifier calls / minute | 0.0 | 48.0 |
+| Sequential first-advance verifier calls / minute | 0.0 | 240.0 |
+| Sequential post-advance verifier calls / minute | 0.0 | 264.0 |
 | Duplicate calls / physical strike | 0.304 | 1.2 |
 
 ## Runtime Reference
 
 This is not a true incremental RTT runtime measurement. RTT was run on full case
-clips for this research handoff; ByteDance was run per compatible candidate.
+clips for this research handoff; ByteDance was run per candidate.
 
 | Metric | Median | P95 |
 | --- | ---: | ---: |
-| RTT full-clip compute | 189.0ms | 286.1ms |
-| ByteDance candidate evidence compute | 152.2ms | 194.3ms |
-| ByteDance candidate estimated candidate→decision | 372.2ms | 414.3ms |
+| RTT full-clip compute | 172.6ms | 271.5ms |
+| ByteDance candidate evidence compute | 146.5ms | 180.6ms |
+| ByteDance candidate estimated candidate→decision | 366.5ms | 400.6ms |
 
 ## Conclusion
 
+The previous catastrophic no-retrigger conclusion is withdrawn because it was
+based on a synthetic second target timestamp.
+
+Corrected conclusion:
+
 ```text
-RTT → ByteDance handoff = DO NOT KEEP current rule
+RTT → ByteDance current handoff = still DO NOT KEEP as-is
 ```
 
 Reason:
 
-- Positive recall improves over RTT raw pitch verification, especially chords.
-- Clean wrong-note safety remains excellent: `0 / 63` clean false MATCH.
-- But the no-retrigger product invariant fails badly:
-  - long-held false MATCH: `21 / 24`
-  - pedal-sustain false MATCH: `17 / 24`
+- Chord recall is promising: `20 / 24`.
+- Target-local clean wrong-note false MATCH remains excellent: `0 / 63`.
+- But sequential safety still fails:
+  - no-retrigger false second advance: `7 / 48`
+  - premature same-note retrigger second advance: `1 / 24`
+- Same-note retrigger recall is also incomplete: `15 / 24`.
 
-The current RTT candidate rule fires on sustained/held/pedal-tail contexts, and
-ByteDance anchored on those candidates often still sees enough expected-pitch
-evidence to produce `MATCH`.
-
-Therefore the current RTT candidate rule should not proceed to production-style
-integration or incremental/chunk parity work. The blocker is not the wrong-note
-pitch verifier; it is candidate generation for "new physical strike" versus old
-sustain/tail.
+This is no longer a clear "RTT candidate rule is hopeless" result, but it is
+not safe enough to move into production-style integration or chunk-state parity.
 
 ## Next Direction
 
-Do not threshold-sweep this RTT rule. The next useful step is to decide whether
-to test another causal piano frontend such as PARpiano, or design a candidate
-generator that explicitly distinguishes new physical strikes from sustained
-pitch evidence before calling any bounded verifier.
+Do not tune RTT thresholds from this result. The clean next step is either:
+
+1. test another causal piano frontend such as PARpiano; or
+2. design a candidate generator with an explicit new-physical-strike criterion
+   before bounded verification.
+
+The current RTT candidate rule remains a research reference, not a selected
+runtime component.
