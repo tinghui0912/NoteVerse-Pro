@@ -89,7 +89,8 @@ def main() -> int:
             "midi_oracle_runtime": False,
             "target_timestamp_runtime": False,
             "future_audio_runtime": False,
-            "decoded_midi_used_for_scoring": False,
+            "decoded_midi_used_for_primary_scoring": False,
+            "official_postprocessor_used_for_diagnostic": True,
             "raw_outputs_used": ["onset_output", "frame_output", "velocity_output", "offset_output"],
         },
         "runtime_contract": {
@@ -114,6 +115,7 @@ def main() -> int:
         "summary": {
             "physical_strike": _physical_strike_summary(evaluations),
             "step": _step_summary(evaluations),
+            "official_postprocessor_diagnostic": _decoded_event_summary(evaluations),
             "latency": _latency_summary(evaluations),
             "per_source_step": _per_source_step_summary(evaluations),
         },
@@ -178,8 +180,18 @@ def _evaluate_case(
         raise ValueError(f"expected {SAMPLE_RATE}Hz case audio, got {sample_rate}")
     output, latency = _predict_rtt_raw(model, audio, device=device, input_scale=input_scale)
     candidates = _candidate_strikes(output["onset_output"], output["frame_output"])
-    gt_groups = _ground_truth_strike_groups(case)
-    target_seconds = tuple(float(value) for value in case.get("target_group_seconds", ()))
+    source_start = float((case.get("source_time_range_seconds") or (0.0,))[0])
+    source_end = float(
+        (case.get("source_time_range_seconds") or (source_start, source_start + audio.size / sample_rate))[1]
+    )
+    target_absolute_seconds = tuple(float(value) for value in case.get("target_group_seconds", ()))
+    target_seconds = tuple(value - source_start for value in target_absolute_seconds)
+    gt_groups = _ground_truth_strike_groups(
+        case,
+        source_start_seconds=source_start,
+        source_end_seconds=source_end,
+    )
+    decoded_events = _official_decoded_events(output)
     expected_groups = tuple(tuple(group) for group in case.get("expected_groups", ()))
     actual_groups = tuple(tuple(group) for group in case.get("actual_groups", ()))
     if len(target_seconds) < len(expected_groups):
@@ -189,6 +201,7 @@ def _evaluate_case(
     matched_groups = 0
     for index, expected_pitches in enumerate(expected_groups):
         target_second = target_seconds[index]
+        target_absolute_second = target_absolute_seconds[index] if index < len(target_absolute_seconds) else target_second + source_start
         actual_pitches = actual_groups[index] if index < len(actual_groups) else ()
         observed = []
         evidence = {}
@@ -208,13 +221,19 @@ def _evaluate_case(
             case,
             expected_pitches=expected_pitches,
             actual_pitches=actual_pitches,
+            target_second=target_absolute_second,
+            decision_end_seconds=target_absolute_second + STEP_LOCAL_POST_SECONDS,
+        )
+        decoded_prediction = _decoded_group_prediction(
+            decoded_events,
+            expected_pitches=expected_pitches,
             target_second=target_second,
-            decision_end_seconds=target_second + STEP_LOCAL_POST_SECONDS,
         )
         group_results.append(
             {
                 "group_index": index,
                 "target_second": round(target_second, 6),
+                "target_absolute_second": round(target_absolute_second, 6),
                 "expected_pitches": expected_pitches,
                 "actual_pitches_at_target": actual_pitches,
                 "observed_pitches": tuple(observed),
@@ -224,6 +243,7 @@ def _evaluate_case(
                 "extra_observed": extra,
                 "expected_evidence": evidence,
                 "future_target_contamination": contamination,
+                "official_decoded_event_diagnostic": decoded_prediction,
             }
         )
 
@@ -239,9 +259,21 @@ def _evaluate_case(
             group["future_target_contamination"]["contaminated"] for group in group_results
         ),
         "source_identity": _case_source_identity(case),
+        "timeline": {
+            "source_start_seconds": source_start,
+            "source_end_seconds": source_end,
+            "case_wav_duration_seconds": round(audio.size / sample_rate, 6),
+            "timeline": "clip_relative_seconds",
+        },
         "gt_strike_groups": gt_groups,
         "candidate_strikes": candidates,
-        "physical_strike_scoring": _score_candidates(candidates, gt_groups, target_seconds),
+        "official_decoded_events": decoded_events,
+        "physical_strike_scoring": _score_candidates(
+            candidates,
+            gt_groups,
+            target_seconds,
+            duration_seconds=audio.size / sample_rate,
+        ),
         "group_results": group_results,
         "latency": latency,
     }
@@ -306,14 +338,23 @@ def _candidate_strikes(onsets: np.ndarray, frames: np.ndarray) -> list[dict[str,
     return candidates
 
 
-def _ground_truth_strike_groups(case: dict[str, object]) -> list[dict[str, object]]:
+def _ground_truth_strike_groups(
+    case: dict[str, object],
+    *,
+    source_start_seconds: float,
+    source_end_seconds: float,
+) -> list[dict[str, object]]:
     events = sorted(
-        case.get("ground_truth_note_events", ()),
+        (
+            event
+            for event in case.get("ground_truth_note_events", ())
+            if source_start_seconds <= float(event["start_seconds"]) < source_end_seconds
+        ),
         key=lambda event: float(event["start_seconds"]),
     )
     groups: list[dict[str, object]] = []
     for event in events:
-        start = float(event["start_seconds"])
+        start = float(event["start_seconds"]) - source_start_seconds
         if groups and start - float(groups[-1]["anchor_second"]) <= GT_STRIKE_GROUP_TOLERANCE_SECONDS:
             groups[-1]["pitches"].append(str(event["pitch"]))
             groups[-1]["midi_notes"].append(int(event["midi_note"]))
@@ -335,6 +376,8 @@ def _score_candidates(
     candidates: list[dict[str, object]],
     gt_groups: list[dict[str, object]],
     target_seconds: tuple[float, ...],
+    *,
+    duration_seconds: float,
 ) -> dict[str, object]:
     matched_candidate_indices = set()
     matched_gt_indices = set()
@@ -364,7 +407,6 @@ def _score_candidates(
             if abs(float(candidate["anchor_second"]) - gt_time) <= DUPLICATE_STRIKE_WINDOW_SECONDS
         )
         duplicates += max(0, near_count - 1)
-    duration_seconds = _case_duration_seconds(gt_groups, candidates)
     unmatched = len(candidates) - len(matched_candidate_indices)
     return {
         "all_gt_recall_hit": len(matched_gt_indices),
@@ -391,16 +433,6 @@ def _nearest_candidate(
         key=lambda item: abs(float(item[1]["anchor_second"]) - target_second),
     )
     return index, candidate
-
-
-def _case_duration_seconds(gt_groups: list[dict[str, object]], candidates: list[dict[str, object]]) -> float:
-    last = 0.0
-    if gt_groups:
-        last = max(last, max(float(group["anchor_second"]) for group in gt_groups))
-    if candidates:
-        last = max(last, max(float(candidate["anchor_second"]) for candidate in candidates))
-    return max(last, 1.0)
-
 
 def _pitch_local_evidence(
     output: dict[str, np.ndarray],
@@ -441,6 +473,80 @@ def _pitch_local_evidence(
         "frame_activation": round(frame_max, 6),
         "accepted": onset_max >= ONSET_THRESHOLD and frame_max >= FRAME_THRESHOLD,
     }
+
+
+def _official_decoded_events(output: dict[str, np.ndarray]) -> list[dict[str, object]]:
+    from postprocessing import RTTPostProcessor
+
+    postprocessor = RTTPostProcessor(
+        FRAMES_PER_SECOND,
+        88,
+        onset_threshold=ONSET_THRESHOLD,
+        offset_threshold=0.3,
+        frame_threshold=FRAME_THRESHOLD,
+    )
+    events = postprocessor.output_dict_to_midi_events(output)
+    decoded = []
+    for event in events:
+        decoded.append(
+            {
+                "onset_time": round(float(event["onset_time"]), 6),
+                "offset_time": round(float(event["offset_time"]), 6),
+                "midi_note": int(event["midi_note"]),
+                "pitch": _midi_note_name(int(event["midi_note"])),
+                "velocity": int(event["velocity"]),
+            }
+        )
+    return decoded
+
+
+def _decoded_group_prediction(
+    decoded_events: list[dict[str, object]],
+    *,
+    expected_pitches: tuple[str, ...],
+    target_second: float,
+) -> dict[str, object]:
+    observed = []
+    evidence = {}
+    for pitch in expected_pitches:
+        nearest = _nearest_decoded_event(decoded_events, pitch=pitch, target_second=target_second)
+        hit = (
+            nearest is not None
+            and abs(float(nearest["onset_time"]) - target_second) <= TARGET_MATCH_TOLERANCE_SECONDS
+        )
+        evidence[pitch] = {
+            "accepted": hit,
+            "nearest_onset_time": round(float(nearest["onset_time"]), 6) if nearest else None,
+            "nearest_delta_ms": (
+                round((float(nearest["onset_time"]) - target_second) * 1000.0, 3)
+                if nearest
+                else None
+            ),
+        }
+        if hit:
+            observed.append(pitch)
+    result, matched, missing, extra = _evaluate_expected(expected_pitches, tuple(observed))
+    return {
+        "observed_pitches": tuple(observed),
+        "result": result,
+        "matched_expected": matched,
+        "missing_expected": missing,
+        "extra_observed": extra,
+        "expected_evidence": evidence,
+        "accepted": result == "MATCH",
+    }
+
+
+def _nearest_decoded_event(
+    decoded_events: list[dict[str, object]],
+    *,
+    pitch: str,
+    target_second: float,
+) -> dict[str, object] | None:
+    pitch_events = [event for event in decoded_events if event["pitch"] == pitch]
+    if not pitch_events:
+        return None
+    return min(pitch_events, key=lambda event: abs(float(event["onset_time"]) - target_second))
 
 
 def _physical_strike_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
@@ -506,6 +612,40 @@ def _step_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
             [e for e in by_kind["missing_chord_tone"] if not bool(e["future_target_contaminated"])]
         ),
     }
+
+
+def _decoded_event_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
+    by_kind: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for evaluation in evaluations:
+        by_kind[str(evaluation["case_kind"])].append(evaluation)
+    return {
+        "correct_single": _decoded_case_acceptance(by_kind["correct_strike"]),
+        "correct_chord": _decoded_case_acceptance(by_kind["correct_chord"]),
+        "retrigger": _decoded_case_acceptance(by_kind["same_note_retrigger"]),
+        "clean_semitone_false": _decoded_case_acceptance(
+            [e for e in by_kind["wrong_semitone"] if not bool(e["future_target_contaminated"])]
+        ),
+        "clean_octave_false": _decoded_case_acceptance(
+            [e for e in by_kind["wrong_octave"] if not bool(e["future_target_contaminated"])]
+        ),
+        "clean_missing_false": _decoded_case_acceptance(
+            [e for e in by_kind["missing_chord_tone"] if not bool(e["future_target_contaminated"])]
+        ),
+    }
+
+
+def _decoded_case_acceptance(evaluations: list[dict[str, object]]) -> dict[str, object]:
+    accepted = 0
+    for evaluation in evaluations:
+        expected_advances = int(evaluation.get("expected_advances", 0))
+        matched = sum(
+            1
+            for group in evaluation["group_results"]
+            if group["official_decoded_event_diagnostic"]["accepted"]
+        )
+        if (matched > 0 if expected_advances == 0 else matched >= expected_advances):
+            accepted += 1
+    return _fraction(accepted, len(evaluations))
 
 
 def _per_source_step_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:

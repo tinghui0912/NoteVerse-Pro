@@ -22,6 +22,41 @@ Can this model serve as NoteVerse's causal physical-strike + pitch evidence
 frontend?
 ```
 
+## Important Correction
+
+An earlier RTT pass incorrectly compared clip-relative model candidates against
+absolute source timestamps. That made strike recall look much worse than it
+really was.
+
+This report supersedes that pass.
+
+Corrected semantics:
+
+```text
+case WAV runtime timeline starts at 0
+
+source_start = source_time_range_seconds[0]
+
+target_relative =
+  target_group_seconds - source_start
+
+gt_note_on_relative =
+  ground_truth_note_event.start_seconds - source_start
+```
+
+Physical-strike ground truth is restricted to note-on events inside the case
+clip:
+
+```text
+source_start <= note.start_seconds < source_end
+```
+
+Sustained notes whose note-on occurred before the clip are not counted as new
+physical strikes.
+
+The duration denominator for unmatched candidates per minute is the real case
+WAV duration.
+
 ## Model Audit
 
 Repository:
@@ -68,16 +103,16 @@ raw outputs:
 The model is designed to be causal in the acoustic stack. The repository's
 provided inference script processes 3-second segments with overlap for
 full-file evaluation, but the model itself can produce raw frame outputs
-without MIDI postprocessing. This audit uses raw sigmoid onset/frame outputs.
+without MIDI postprocessing.
 
-Important caveat:
+Important upstream ambiguity:
 
 ```text
 README/inference.py loads float PCM with librosa
 but CustomAMT.forward() divides input by int16 range.
 ```
 
-Because this is ambiguous, this audit ran two input-scale sanity modes:
+Therefore this audit keeps two input-scale sanity modes:
 
 ```text
 official_float:
@@ -126,15 +161,14 @@ velocity_output
 offset_output
 ```
 
-No MIDI decoding is used for the STEP score. Candidate strikes are generated
-from onset rising edges:
+Primary raw candidate rule:
 
 ```text
 per-pitch onset rising edge >= 0.5
 same-frame active pitches grouped into one physical-strike candidate
 ```
 
-The simple STEP evidence rule is:
+Primary raw STEP rule:
 
 ```text
 expected pitch accepted when:
@@ -147,7 +181,19 @@ local window:
 
 These are the repository's default postprocessor thresholds, not a grid search.
 
-## Results
+Additional diagnostic:
+
+```text
+same raw outputs
+→ official RTTPostProcessor
+→ decoded note onset events
+```
+
+Decoded events are not treated as product runtime truth. They are only used to
+check whether the current NoteVerse raw rule is misreading otherwise useful
+model output.
+
+## Corrected Results
 
 Dataset:
 
@@ -162,102 +208,136 @@ frozen evaluation set unused
 
 | Metric | official_float | int16_range |
 | --- | ---: | ---: |
-| all GT strike recall | 859 / 3254 | 1240 / 3254 |
-| target strike recall | 153 / 264 | 190 / 264 |
-| single target recall | 13 / 24 | 22 / 24 |
-| chord target recall | 6 / 24 | 9 / 24 |
-| same-note retrigger target recall | 9 / 48 | 9 / 48 |
-| unmatched candidates / minute median | 78.9 | 806.7 |
-| duplicate candidates / strike median | 0.0 | 0.91 |
-| anchor timing error median | -2.7ms | -1.5ms |
-| emit delay p95 | 35.8ms | 29.6ms |
+| target strike recall | 209 / 264 | 234 / 264 |
+| single target recall | 16 / 24 | 24 / 24 |
+| chord target recall | 22 / 24 | 20 / 24 |
+| same-note retrigger target recall | 37 / 48 | 34 / 48 |
+| unmatched candidates / minute median | 24.0 | 864.0 |
+| duplicate candidates / strike median | 0.09 | 1.54 |
+| anchor timing error median | 3.5ms | 2.2ms |
 
 Interpretation:
 
 ```text
 official_float:
-  duplicate pressure is modest
-  but target/chord/retrigger recall is too low
+  physical-strike detection is genuinely promising
+  chord and retrigger target recall are useful
+  candidate pressure is moderate
 
 int16_range:
-  single-note target recall improves
-  but unmatched candidates explode
-  duplicate pressure becomes unacceptable
-  chord/retrigger remain poor
+  target recall is high
+  but candidate pressure and duplicates are too high
 ```
 
-### STEP Pitch Evidence
+The scale ambiguity matters. Based on candidate pressure, `official_float`
+is the safer current interpretation for a strike-detector candidate.
+
+### Raw STEP Rule
 
 | Metric | official_float | int16_range |
 | --- | ---: | ---: |
-| correct single | 4 / 24 | 5 / 24 |
-| correct chord | 0 / 24 | 0 / 24 |
-| retrigger | 0 / 24 | 0 / 24 |
-| clean semitone false accept | 0 / 22 | 0 / 22 |
+| correct single | 11 / 24 | 8 / 24 |
+| correct chord | 2 / 24 | 1 / 24 |
+| retrigger | 4 / 24 | 0 / 24 |
+| clean semitone false accept | 0 / 22 | 2 / 22 |
 | clean octave false accept | 0 / 24 | 0 / 24 |
 | clean missing-tone false accept | 0 / 23 | 0 / 23 |
 
 Interpretation:
 
 ```text
-RTT raw onset/frame evidence is very conservative under the fixed rule.
-It keeps clean false accepts at zero, but positive recall is far below the
-level needed for STEP verification.
+The current NoteVerse raw onset AND frame rule is too conservative and weak as
+a STEP verifier. It preserves safety in official_float, but positive recall is
+not acceptable.
 ```
 
-### Latency
-
-CPU measurement in the research container:
+### Official Postprocessor Diagnostic
 
 | Metric | official_float | int16_range |
 | --- | ---: | ---: |
-| compute median | 131.4ms | 143.5ms |
-| compute p95 | 189.2ms | 221.6ms |
-| estimated strike→decision median | 141.4ms | 153.5ms |
-| estimated strike→decision p95 | 199.2ms | 231.6ms |
+| correct single | 11 / 24 | 8 / 24 |
+| correct chord | 2 / 24 | 0 / 24 |
+| retrigger | 5 / 24 | 0 / 24 |
+| clean semitone false evidence | 1 / 22 | 1 / 22 |
+| clean octave false evidence | 0 / 24 | 0 / 24 |
+| clean missing-tone false evidence | 0 / 23 | 0 / 23 |
 
-Estimated strike-to-decision here is:
+Interpretation:
 
 ```text
-~10ms intrinsic / FFT delay
-+ model compute
+Official postprocessing does not rescue the pitch/STEP verifier result.
+RTT is not currently a good STEP pitch verifier under default thresholds.
 ```
 
-This is promising as a latency profile, but the evidence quality does not pass
-the current STEP requirements.
+## Latency Wording
+
+This pass runs the model over full case clips. Therefore it reports only:
+
+```text
+full-clip forward compute median / p95
+```
+
+It does not claim true incremental strike-to-decision latency.
+
+CPU full-clip compute:
+
+| Metric | official_float | int16_range |
+| --- | ---: | ---: |
+| compute median | 134.7ms | 118.0ms |
+| compute p95 | 200.9ms | 201.2ms |
+
+The intrinsic model timing is still promising:
+
+```text
+hop = 10ms
+causal conv / unidirectional GRU
+```
+
+If RTT remains in play, the next benchmark must be an incremental/stateful
+runtime benchmark, not another full-clip timing proxy.
 
 ## Decision
 
-RTT is not selected as the next NoteVerse frontend candidate in its current
-raw-output/default-threshold form.
+Updated conclusion:
 
 ```text
-RTT as STEP verifier: STOP
-RTT as direct CausalStrikeDetector: STOP for now
+RTT as direct STEP pitch verifier: STOP
+current NoteVerse raw RTT adapter: STOP
+RTT as CausalStrikeDetector candidate: KEEP
 ```
 
-Reason:
+Why KEEP as strike detector:
 
 ```text
-Strike side:
-  official_float recall too low
-  int16_range recall better but candidate pressure too high
-  same-note retrigger remains weak in both modes
-
-Pitch/STEP side:
-  correct chord = 0 / 24
-  retrigger = 0 / 24
-  correct single <= 5 / 24
+official_float target strike recall = 209 / 264
+official_float chord target recall = 22 / 24
+official_float same-note retrigger target recall = 37 / 48
+unmatched candidates/min median = 24.0
+duplicate candidates/strike median = 0.09
 ```
 
-Per the stop rule:
+Why STOP as verifier:
 
 ```text
-If strike and pitch are both insufficient:
-  STOP RTT
-  consider PARpiano / another lightweight causal piano AMT next
+raw correct chord = 2 / 24
+raw retrigger = 4 / 24
+official decoded correct chord = 2 / 24
+official decoded retrigger = 5 / 24
 ```
 
-Do not continue RTT threshold search on the inspected dev+cal evidence unless a
-separate reason emerges, such as an upstream-confirmed input-scaling bug or a
-documented streaming adapter contract from the authors.
+Recommended next step:
+
+```text
+Do not move to PARpiano yet.
+
+First test:
+  RTT causal strike trigger
+  → candidate-anchored bounded verifier
+
+The bounded verifier can be ByteDance or another already-audited verifier, but
+RTT should only provide candidate timing unless a new, evidence-backed pitch
+adapter is designed later.
+```
+
+Do not tune RTT thresholds further on the already inspected dev+cal evidence
+before defining the candidate-trigger handoff contract.
