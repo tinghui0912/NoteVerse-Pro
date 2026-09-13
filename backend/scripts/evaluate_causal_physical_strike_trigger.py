@@ -723,26 +723,56 @@ def _negative_feature_observations(
     frame_traces: tuple[FrameTrace, ...],
 ) -> list[dict[str, object]]:
     observations = []
+    window_pre = round(0.050 * SAMPLE_RATE)
+    window_post = round(0.080 * SAMPLE_RATE)
+    min_anchor_spacing = round(0.100 * SAMPLE_RATE)
+    last_anchor_sample: int | None = None
     for trace in frame_traces:
+        anchor_sample = trace.frame_start_sample
+        if last_anchor_sample is not None and anchor_sample - last_anchor_sample < min_anchor_spacing:
+            continue
+        window = [
+            window_trace
+            for window_trace in frame_traces
+            if anchor_sample - window_pre <= window_trace.frame_start_sample <= anchor_sample + window_post
+        ]
+        if not window or not _negative_window_is_pure(window, gt_samples):
+            continue
         nearest_distance_samples = (
-            min(abs(trace.frame_start_sample - sample) for sample in gt_samples)
+            min(abs(anchor_sample - sample) for sample in gt_samples)
             if gt_samples
             else None
         )
-        if nearest_distance_samples is not None and nearest_distance_samples <= round(0.100 * SAMPLE_RATE):
-            continue
         distance_ms = (
             None if nearest_distance_samples is None else nearest_distance_samples / SAMPLE_RATE * 1000.0
         )
         observations.append(
             {
                 "kind": "negative",
+                "anchor_sample": int(anchor_sample),
                 "nearest_gt_distance_ms": None if distance_ms is None else round(distance_ms, 6),
                 "negative_distance_bucket": _negative_distance_bucket(distance_ms),
-                "features": _trace_features(trace),
+                "features": _max_features(window),
             }
         )
+        last_anchor_sample = anchor_sample
     return observations
+
+
+def _negative_window_is_pure(window: list[FrameTrace], gt_samples: list[int]) -> bool:
+    separation_samples = round(0.100 * SAMPLE_RATE)
+    for trace in window:
+        if any(_frame_interval_distance(trace, sample) < separation_samples for sample in gt_samples):
+            return False
+    return True
+
+
+def _frame_interval_distance(trace: FrameTrace, sample: int) -> int:
+    if sample < trace.frame_start_sample:
+        return trace.frame_start_sample - sample
+    if sample >= trace.frame_end_sample:
+        return sample - trace.frame_end_sample
+    return 0
 
 
 def _max_features(traces: list[FrameTrace]) -> dict[str, float]:
@@ -1216,6 +1246,9 @@ def _feature_separation_summary(case_reports: list[dict[str, object]]) -> dict[s
                 "median": None if not source_aurocs else round(float(np.median(source_aurocs)), 8),
                 "max": None if not source_aurocs else round(float(max(source_aurocs)), 8),
             },
+            "source_macro_auroc": (
+                None if not source_aurocs else round(float(np.mean(source_aurocs)), 8)
+            ),
             "dense_positive": _quantiles(
                 _feature_values(
                     [item for item in positives if item.get("density_group") == "dense"],
@@ -1241,10 +1274,18 @@ def _feature_separation_summary(case_reports: list[dict[str, object]]) -> dict[s
     return {
         "positive_count": len(positives),
         "negative_count_source_balanced": len(negatives),
+        "negative_count_per_source": dict(Counter(str(item["source_recording_id"]) for item in negatives)),
+        "negative_count_per_distance_bucket": dict(
+            Counter(str(item["negative_distance_bucket"]) for item in negatives)
+        ),
         "negative_sampling": {
             "deterministic": True,
             "balanced_by": "source_recording_id + negative_distance_bucket",
             "max_per_source_bucket": 200,
+            "observation_unit": "negative_anchor_window_max",
+            "window_frame_start_ms": [-50, 80],
+            "minimum_anchor_spacing_ms": 100,
+            "frame_interval_gt_separation_ms": 100,
         },
         "features": feature_reports,
     }
