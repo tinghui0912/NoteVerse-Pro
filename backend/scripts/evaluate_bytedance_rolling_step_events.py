@@ -46,10 +46,13 @@ REAL_LOOKBACK_SECONDS = 1.0
 FUTURE_SECONDS = 0.22
 CADENCE_SECONDS = 0.150
 INITIALIZATION_PRE_SECONDS = 0.120
-INITIALIZATION_POST_SECONDS = 0.500
 RETRIGGER_MIN_DELTA_SECONDS = -0.120
 RETRIGGER_MAX_DELTA_SECONDS = 0.050
 EVENT_DEDUPE_SECONDS = 0.050
+EVENT_RULES = {
+    "current_max_frame": "max_frame_in_local_window",
+    "temporally_bound": "frame_at_onset_peak",
+}
 
 TARGET_LOCAL_CASE_KINDS = {
     "correct_strike",
@@ -164,7 +167,14 @@ def main() -> int:
         },
         "case_manifests": [str(path) for path in args.case_manifest],
         "case_count": len(cases),
-        "summary": _summary(evaluations),
+        "summary_by_event_rule": {
+            rule_name: _summary(evaluations, rule_name=rule_name)
+            for rule_name in EVENT_RULES
+        },
+        "failure_diagnostics_by_event_rule": {
+            rule_name: _failure_diagnostics(evaluations, rule_name=rule_name)
+            for rule_name in EVENT_RULES
+        },
         "evaluations": evaluations,
     }
     text = json.dumps(report, ensure_ascii=False, indent=2)
@@ -222,33 +232,38 @@ def _evaluate_case(
         frame_threshold=frame_threshold,
     )
 
-    if case_kind in TARGET_LOCAL_CASE_KINDS:
-        result = _evaluate_target_local_case(
-            case,
-            expected_groups=expected_groups,
-            actual_groups=actual_groups,
-            target_relative=target_relative,
-            source_start=source_start,
-            inferences=inference_rows,
-        )
-    elif case_kind == "same_note_retrigger":
-        result = _evaluate_same_note_retrigger(
-            expected_groups=expected_groups,
-            target_relative=target_relative,
-            inferences=inference_rows,
-        )
-    elif case_kind in NO_RETRIGGER_CASE_KINDS:
-        result = _evaluate_no_retrigger(
-            expected_groups=expected_groups,
-            target_relative=target_relative,
-            inferences=inference_rows,
-        )
-    else:
-        result = {
-            "mode": "unsupported_case_kind",
-            "accepted": False,
-            "reason": f"unsupported case_kind {case_kind}",
-        }
+    rolling_results = {}
+    for rule_name, frame_rule in EVENT_RULES.items():
+        if case_kind in TARGET_LOCAL_CASE_KINDS:
+            result = _evaluate_target_local_case(
+                case,
+                expected_groups=expected_groups,
+                actual_groups=actual_groups,
+                target_relative=target_relative,
+                inferences=inference_rows,
+                frame_rule=frame_rule,
+            )
+        elif case_kind == "same_note_retrigger":
+            result = _evaluate_same_note_retrigger(
+                expected_groups=expected_groups,
+                target_relative=target_relative,
+                inferences=inference_rows,
+                frame_rule=frame_rule,
+            )
+        elif case_kind in NO_RETRIGGER_CASE_KINDS:
+            result = _evaluate_no_retrigger(
+                expected_groups=expected_groups,
+                target_relative=target_relative,
+                inferences=inference_rows,
+                frame_rule=frame_rule,
+            )
+        else:
+            result = {
+                "mode": "unsupported_case_kind",
+                "accepted": False,
+                "reason": f"unsupported case_kind {case_kind}",
+            }
+        rolling_results[rule_name] = result
 
     future_contamination = _case_future_contamination(
         case,
@@ -265,7 +280,7 @@ def _evaluate_case(
         "actual_groups": actual_groups,
         "target_relative_seconds": tuple(round(value, 6) for value in target_relative),
         "oracle_initialized": case_kind in (NO_RETRIGGER_CASE_KINDS | {"same_note_retrigger"} | TARGET_LOCAL_CASE_KINDS),
-        "rolling_result": result,
+        "rolling_results": rolling_results,
         "future_target_contaminated": any(item["contaminated"] for item in future_contamination),
         "future_target_contamination": future_contamination,
         "event_pressure": event_pressure,
@@ -378,20 +393,23 @@ def _evaluate_target_local_case(
     expected_groups: tuple[tuple[str, ...], ...],
     actual_groups: tuple[tuple[str, ...], ...],
     target_relative: tuple[float, ...],
-    source_start: float,
     inferences: list[dict[str, object]],
+    frame_rule: str,
 ) -> dict[str, object]:
     if not expected_groups or not target_relative:
         return {"mode": "target_local", "accepted": False, "reason": "missing expected group or target"}
     target = target_relative[0]
     active_from = max(0.0, target - INITIALIZATION_PRE_SECONDS)
-    active_until = target + INITIALIZATION_POST_SECONDS
+    active_until = target + RETRIGGER_MAX_DELTA_SECONDS
     step = _first_match(
         inferences,
         expected_groups[0],
         consumed_through_time=active_from,
         active_from=active_from,
         active_until=active_until,
+        event_min_time=target + RETRIGGER_MIN_DELTA_SECONDS,
+        event_max_time=target + RETRIGGER_MAX_DELTA_SECONDS,
+        frame_rule=frame_rule,
     )
     accepted = step is not None
     expected_advances = int(case.get("expected_advances", 0))
@@ -412,6 +430,7 @@ def _evaluate_same_note_retrigger(
     expected_groups: tuple[tuple[str, ...], ...],
     target_relative: tuple[float, ...],
     inferences: list[dict[str, object]],
+    frame_rule: str,
 ) -> dict[str, object]:
     if len(expected_groups) < 2 or len(target_relative) < 2:
         return {"mode": "same_note_retrigger", "first_advance_established": False, "reason": "missing targets"}
@@ -422,7 +441,10 @@ def _evaluate_same_note_retrigger(
         expected_groups[0],
         consumed_through_time=first_active_from,
         active_from=first_active_from,
-        active_until=first_target + INITIALIZATION_POST_SECONDS,
+        active_until=first_target + RETRIGGER_MAX_DELTA_SECONDS,
+        event_min_time=first_target + RETRIGGER_MIN_DELTA_SECONDS,
+        event_max_time=first_target + RETRIGGER_MAX_DELTA_SECONDS,
+        frame_rule=frame_rule,
     )
     if first is None:
         return {
@@ -438,6 +460,9 @@ def _evaluate_same_note_retrigger(
         consumed_through_time=float(first["consumed_through_time"]),
         active_from=float(first["decision_time"]),
         active_until=None,
+        event_min_time=None,
+        event_max_time=None,
+        frame_rule=frame_rule,
     )
     if second is None:
         return {
@@ -476,6 +501,7 @@ def _evaluate_no_retrigger(
     expected_groups: tuple[tuple[str, ...], ...],
     target_relative: tuple[float, ...],
     inferences: list[dict[str, object]],
+    frame_rule: str,
 ) -> dict[str, object]:
     if len(expected_groups) < 2 or not target_relative:
         return {"mode": "no_retrigger", "first_advance_established": False, "reason": "missing groups"}
@@ -486,7 +512,10 @@ def _evaluate_no_retrigger(
         expected_groups[0],
         consumed_through_time=first_active_from,
         active_from=first_active_from,
-        active_until=first_target + INITIALIZATION_POST_SECONDS,
+        active_until=first_target + RETRIGGER_MAX_DELTA_SECONDS,
+        event_min_time=first_target + RETRIGGER_MIN_DELTA_SECONDS,
+        event_max_time=first_target + RETRIGGER_MAX_DELTA_SECONDS,
+        frame_rule=frame_rule,
     )
     if first is None:
         return {
@@ -504,6 +533,9 @@ def _evaluate_no_retrigger(
         consumed_through_time=float(first["consumed_through_time"]),
         active_from=float(first["decision_time"]),
         active_until=None,
+        event_min_time=None,
+        event_max_time=None,
+        frame_rule=frame_rule,
     )
     return {
         "mode": "no_retrigger",
@@ -527,6 +559,9 @@ def _first_match(
     consumed_through_time: float,
     active_from: float,
     active_until: float | None,
+    event_min_time: float | None,
+    event_max_time: float | None,
+    frame_rule: str,
 ) -> dict[str, object] | None:
     for row in inferences:
         decision_time = float(row["decision_time"])
@@ -534,7 +569,14 @@ def _first_match(
             continue
         if active_until is not None and float(row["anchor_time"]) > active_until + 1e-9:
             continue
-        match = _match_from_inference(row, expected_pitches, consumed_through_time=consumed_through_time)
+        match = _match_from_inference(
+            row,
+            expected_pitches,
+            consumed_through_time=consumed_through_time,
+            event_min_time=event_min_time,
+            event_max_time=event_max_time,
+            frame_rule=frame_rule,
+        )
         if match is not None:
             return match
     return None
@@ -545,13 +587,20 @@ def _match_from_inference(
     expected_pitches: tuple[str, ...],
     *,
     consumed_through_time: float,
+    event_min_time: float | None,
+    event_max_time: float | None,
+    frame_rule: str,
 ) -> dict[str, object] | None:
     events = []
     for pitch in expected_pitches:
-        event = _pitch_event(row, pitch)
+        event = _pitch_event(row, pitch, frame_rule=frame_rule)
         if event is None:
             return None
         if float(event["event_time"]) <= consumed_through_time + 1e-9:
+            return None
+        if event_min_time is not None and float(event["event_time"]) < event_min_time - 1e-9:
+            return None
+        if event_max_time is not None and float(event["event_time"]) > event_max_time + 1e-9:
             return None
         events.append(event)
     observed = tuple(event["pitch"] for event in events)
@@ -564,6 +613,7 @@ def _match_from_inference(
         "anchor_time": round(float(row["anchor_time"]), 6),
         "decision_time": round(float(row["decision_time"]), 6),
         "expected_pitches": expected_pitches,
+        "event_rule": frame_rule,
         "events": events,
         "earliest_event_time": round(earliest_event_time, 6),
         "latest_event_time": round(latest_event_time, 6),
@@ -581,7 +631,7 @@ def _match_from_inference(
     }
 
 
-def _pitch_event(row: dict[str, object], pitch: str) -> dict[str, object] | None:
+def _pitch_event(row: dict[str, object], pitch: str, *, frame_rule: str) -> dict[str, object] | None:
     raw_output = row["raw_output"]
     onsets = raw_output["onset"]
     frames = raw_output["frame"]
@@ -598,17 +648,32 @@ def _pitch_event(row: dict[str, object], pitch: str) -> dict[str, object] | None
     frames_values = frames[frame_mask, pitch_index]
     masked_times = frame_times[frame_mask]
     onset_argmax = int(np.argmax(onset_values))
-    onset = float(onset_values[onset_argmax])
-    frame = float(np.max(frames_values))
-    if onset < float(row["onset_threshold"]) or frame < float(row["frame_threshold"]):
+    frame_argmax = int(np.argmax(frames_values))
+    onset_peak_score = float(onset_values[onset_argmax])
+    onset_peak_time = float(masked_times[onset_argmax])
+    frame_score_at_onset_peak = float(frames_values[onset_argmax])
+    frame_peak_score = float(frames_values[frame_argmax])
+    frame_peak_time = float(masked_times[frame_argmax])
+    if frame_rule == "max_frame_in_local_window":
+        frame_score_used = frame_peak_score
+    elif frame_rule == "frame_at_onset_peak":
+        frame_score_used = frame_score_at_onset_peak
+    else:
+        raise ValueError(f"unsupported frame rule: {frame_rule}")
+    if onset_peak_score < float(row["onset_threshold"]) or frame_score_used < float(row["frame_threshold"]):
         return None
-    event_time = float(masked_times[onset_argmax])
     return {
         "pitch": pitch,
-        "event_time": round(event_time, 6),
-        "onset_score": round(onset, 6),
-        "frame_score": round(frame, 6),
-        "relative_to_anchor_ms": round((event_time - float(row["anchor_time"])) * 1000.0, 3),
+        "event_time": round(onset_peak_time, 6),
+        "onset_peak_time": round(onset_peak_time, 6),
+        "onset_peak_score": round(onset_peak_score, 6),
+        "frame_score_at_onset_peak": round(frame_score_at_onset_peak, 6),
+        "frame_peak_time": round(frame_peak_time, 6),
+        "frame_peak_score": round(frame_peak_score, 6),
+        "frame_peak_minus_onset_peak_ms": round((frame_peak_time - onset_peak_time) * 1000.0, 3),
+        "frame_score_used": round(frame_score_used, 6),
+        "event_rule": frame_rule,
+        "relative_to_anchor_ms": round((onset_peak_time - float(row["anchor_time"])) * 1000.0, 3),
     }
 
 
@@ -715,71 +780,81 @@ def _event_pressure(
     }
 
 
-def _summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
+def _summary(evaluations: list[dict[str, object]], *, rule_name: str) -> dict[str, object]:
     by_kind: dict[str, list[dict[str, object]]] = defaultdict(list)
     for evaluation in evaluations:
         by_kind[str(evaluation["case_kind"])].append(evaluation)
     return {
+        "event_rule": {
+            "name": rule_name,
+            "frame_semantics": EVENT_RULES[rule_name],
+        },
         "metrics": {
-            "correct_single": _target_local_rate(by_kind["correct_strike"], "legitimate_advance"),
-            "correct_chord": _target_local_rate(by_kind["correct_chord"], "legitimate_advance"),
-            "wrong_semitone_false_advance": _clean_false_rate(by_kind["wrong_semitone"]),
-            "wrong_octave_false_advance": _clean_false_rate(by_kind["wrong_octave"]),
-            "missing_chord_false_advance": _clean_false_rate(by_kind["missing_chord_tone"]),
-            "same_note_retrigger": _retrigger_summary(by_kind["same_note_retrigger"]),
+            "correct_single": _target_local_rate(by_kind["correct_strike"], "legitimate_advance", rule_name=rule_name),
+            "correct_chord": _target_local_rate(by_kind["correct_chord"], "legitimate_advance", rule_name=rule_name),
+            "wrong_semitone_target_local_false_match": _clean_false_rate(by_kind["wrong_semitone"], rule_name=rule_name),
+            "wrong_octave_target_local_false_match": _clean_false_rate(by_kind["wrong_octave"], rule_name=rule_name),
+            "missing_chord_target_local_false_match": _clean_false_rate(by_kind["missing_chord_tone"], rule_name=rule_name),
+            "same_note_retrigger": _retrigger_summary(by_kind["same_note_retrigger"], rule_name=rule_name),
             "long_held_false_second_advance": _no_retrigger_summary(
-                by_kind["long_held_note_without_retrigger"]
+                by_kind["long_held_note_without_retrigger"],
+                rule_name=rule_name,
             ),
             "pedal_tail_false_second_advance": _no_retrigger_summary(
-                by_kind["pedal_sustain_tail_without_retrigger"]
+                by_kind["pedal_sustain_tail_without_retrigger"],
+                rule_name=rule_name,
             ),
         },
         "pressure": _pressure_summary(evaluations),
         "latency": _latency_summary(evaluations),
-        "decision": _decision(evaluations),
+        "decision": _decision(evaluations, rule_name=rule_name),
     }
 
 
-def _target_local_rate(items: list[dict[str, object]], key: str) -> dict[str, object]:
-    values = [bool(item["rolling_result"].get(key)) for item in items]
+def _rolling_result(item: dict[str, object], rule_name: str) -> dict[str, object]:
+    return item["rolling_results"][rule_name]
+
+
+def _target_local_rate(items: list[dict[str, object]], key: str, *, rule_name: str) -> dict[str, object]:
+    values = [bool(_rolling_result(item, rule_name).get(key)) for item in items]
     return _bool_rate(values)
 
 
-def _clean_false_rate(items: list[dict[str, object]]) -> dict[str, object]:
+def _clean_false_rate(items: list[dict[str, object]], *, rule_name: str) -> dict[str, object]:
     clean = [item for item in items if not bool(item["future_target_contaminated"])]
-    values = [bool(item["rolling_result"].get("false_advance")) for item in clean]
+    values = [bool(_rolling_result(item, rule_name).get("false_advance")) for item in clean]
     return _bool_rate(values)
 
 
-def _retrigger_summary(items: list[dict[str, object]]) -> dict[str, object]:
-    established = [item for item in items if item["rolling_result"].get("first_advance_established")]
+def _retrigger_summary(items: list[dict[str, object]], *, rule_name: str) -> dict[str, object]:
+    established = [item for item in items if _rolling_result(item, rule_name).get("first_advance_established")]
     return {
         "first_advance_established": _bool_rate(
-            [item["rolling_result"].get("first_advance_established") for item in items]
+            [_rolling_result(item, rule_name).get("first_advance_established") for item in items]
         ),
         "legitimate_second_advance": _bool_rate(
-            [item["rolling_result"].get("second_legitimate_advance") for item in established]
+            [_rolling_result(item, rule_name).get("second_legitimate_advance") for item in established]
         ),
         "premature_second_advance": _bool_rate(
-            [item["rolling_result"].get("premature_second_advance") for item in established]
+            [_rolling_result(item, rule_name).get("premature_second_advance") for item in established]
         ),
         "late_or_stale_second_match": _bool_rate(
-            [item["rolling_result"].get("late_or_stale_second_match") for item in established]
+            [_rolling_result(item, rule_name).get("late_or_stale_second_match") for item in established]
         ),
         "missed_retrigger": _bool_rate(
-            [item["rolling_result"].get("missed_retrigger") for item in established]
+            [_rolling_result(item, rule_name).get("missed_retrigger") for item in established]
         ),
     }
 
 
-def _no_retrigger_summary(items: list[dict[str, object]]) -> dict[str, object]:
-    established = [item for item in items if item["rolling_result"].get("first_advance_established")]
+def _no_retrigger_summary(items: list[dict[str, object]], *, rule_name: str) -> dict[str, object]:
+    established = [item for item in items if _rolling_result(item, rule_name).get("first_advance_established")]
     return {
         "first_advance_established": _bool_rate(
-            [item["rolling_result"].get("first_advance_established") for item in items]
+            [_rolling_result(item, rule_name).get("first_advance_established") for item in items]
         ),
         "false_second_advance": _bool_rate(
-            [item["rolling_result"].get("false_second_advance") for item in established]
+            [_rolling_result(item, rule_name).get("false_second_advance") for item in established]
         ),
         "eligible_cases": len(established),
     }
@@ -823,30 +898,105 @@ def _latency_summary(evaluations: list[dict[str, object]]) -> dict[str, object]:
     }
 
 
-def _decision(evaluations: list[dict[str, object]]) -> str:
+def _decision(evaluations: list[dict[str, object]], *, rule_name: str) -> str:
     summary = {
         "wrong": sum(
-            int(bool(item["rolling_result"].get("false_advance")))
+            int(bool(_rolling_result(item, rule_name).get("false_advance")))
             for item in evaluations
             if item["case_kind"] in {"wrong_semitone", "wrong_octave", "missing_chord_tone"}
             and not bool(item["future_target_contaminated"])
         ),
         "held": sum(
-            int(bool(item["rolling_result"].get("false_second_advance")))
+            int(bool(_rolling_result(item, rule_name).get("false_second_advance")))
             for item in evaluations
             if item["case_kind"] in NO_RETRIGGER_CASE_KINDS
-            and bool(item["rolling_result"].get("first_advance_established"))
+            and bool(_rolling_result(item, rule_name).get("first_advance_established"))
         ),
         "retrigger_legit": sum(
-            int(bool(item["rolling_result"].get("second_legitimate_advance")))
+            int(bool(_rolling_result(item, rule_name).get("second_legitimate_advance")))
             for item in evaluations
             if item["case_kind"] == "same_note_retrigger"
-            and bool(item["rolling_result"].get("first_advance_established"))
+            and bool(_rolling_result(item, rule_name).get("first_advance_established"))
         ),
     }
     if summary["wrong"] == 0 and summary["held"] == 0 and summary["retrigger_legit"] > 0:
         return "ByteDance rolling STEP = KEEP_CANDIDATE"
     return "ByteDance rolling STEP = STOP_OR_NEEDS_FURTHER_ANALYSIS"
+
+
+def _failure_diagnostics(evaluations: list[dict[str, object]], *, rule_name: str) -> dict[str, object]:
+    rows = []
+    for item in evaluations:
+        kind = str(item["case_kind"])
+        result = _rolling_result(item, rule_name)
+        include = False
+        failure_kind = None
+        match = None
+        if kind in {"wrong_semitone", "wrong_octave", "missing_chord_tone"}:
+            include = bool(result.get("false_advance")) and not bool(item["future_target_contaminated"])
+            failure_kind = "target_local_wrong_note_false_match"
+            match = result.get("match")
+        elif kind in NO_RETRIGGER_CASE_KINDS:
+            include = bool(result.get("false_second_advance"))
+            failure_kind = "no_retrigger_false_second_match"
+            match = result.get("false_second_match")
+        elif kind == "same_note_retrigger":
+            include = bool(result.get("missed_retrigger"))
+            failure_kind = "same_note_missed_retrigger"
+            match = result.get("second_match")
+        if not include:
+            continue
+        rows.append(
+            {
+                "source_recording_id": item["source_identity"]["source_recording_id"],
+                "case_id": item["case_id"],
+                "case_kind": kind,
+                "failure_kind": failure_kind,
+                "target_relative_seconds": item["target_relative_seconds"],
+                "match": _event_timing_summary(match),
+                "rolling_result_summary": {
+                    key: result.get(key)
+                    for key in (
+                        "false_advance",
+                        "false_second_advance",
+                        "second_legitimate_advance",
+                        "premature_second_advance",
+                        "missed_retrigger",
+                        "second_classification",
+                    )
+                    if key in result
+                },
+            }
+        )
+    return {
+        "count": len(rows),
+        "rows": rows,
+    }
+
+
+def _event_timing_summary(match: object) -> object:
+    if not isinstance(match, dict):
+        return match
+    return {
+        "anchor_time": match.get("anchor_time"),
+        "decision_time": match.get("decision_time"),
+        "earliest_event_time": match.get("earliest_event_time"),
+        "latest_event_time": match.get("latest_event_time"),
+        "events": [
+            {
+                "pitch": event.get("pitch"),
+                "event_time": event.get("event_time"),
+                "onset_peak_score": event.get("onset_peak_score"),
+                "frame_score_at_onset_peak": event.get("frame_score_at_onset_peak"),
+                "frame_peak_score": event.get("frame_peak_score"),
+                "frame_peak_minus_onset_peak_ms": event.get("frame_peak_minus_onset_peak_ms"),
+                "frame_score_used": event.get("frame_score_used"),
+                "event_rule": event.get("event_rule"),
+                "relative_to_anchor_ms": event.get("relative_to_anchor_ms"),
+            }
+            for event in match.get("events", ())
+        ],
+    }
 
 
 def _bool_rate(values: list[object]) -> dict[str, object]:

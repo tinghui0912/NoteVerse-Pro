@@ -103,25 +103,51 @@ Reason:
 
 The same physical onset can appear in adjacent overlapping inference windows with a small absolute-time drift, for example `1.00s` in one window and `1.01s` in the next. Without dedupe, that is incorrectly treated as a fresh onset and can create false second advances. This dedupe is not threshold tuning; it is the required event identity boundary for overlapping rolling windows.
 
+Target-local and oracle initialization semantics were tightened after the first pass:
+
+```text
+first-state establishment:
+  event_time must be in first_GT -120ms .. first_GT +50ms
+
+wrong-note target-local diagnostic:
+  false MATCH counts only if expected-pitch event_time is in GT -120ms .. GT +50ms
+```
+
+This prevents later unrelated musical events from being mislabeled as wrong-note false advances.
+
+Two predeclared event rules were compared:
+
+```text
+A. current_max_frame
+   onset_peak >= 0.2
+   AND max_frame_in_local_window >= 0.2
+
+B. temporally_bound
+   onset_peak >= 0.2
+   AND frame_at_onset_peak >= 0.2
+```
+
+No threshold, cadence, or dedupe value was swept.
+
 ## Results
 
 Aggregate dev + calibration:
 
-| Metric | Result |
-| --- | ---: |
-| correct single | 20 / 24 |
-| correct chord | 20 / 24 |
-| wrong semitone false advance | 2 / 18 clean |
-| wrong octave false advance | 3 / 23 clean |
-| missing chord false advance | 0 / 20 clean |
-| same-note first advance established | 20 / 24 |
-| same-note legitimate second advance | 17 / 20 eligible |
-| same-note premature second advance | 0 / 20 eligible |
-| same-note missed retrigger | 3 / 20 eligible |
-| long-held first advance established | 20 / 24 |
-| long-held false second advance | 2 / 20 eligible |
-| pedal-tail first advance established | 20 / 24 |
-| pedal-tail false second advance | 5 / 20 eligible |
+| Metric | current_max_frame | temporally_bound |
+| --- | ---: | ---: |
+| correct single | 20 / 24 | 20 / 24 |
+| correct chord | 18 / 24 | 18 / 24 |
+| wrong semitone target-local false MATCH | 0 / 18 clean | 0 / 18 clean |
+| wrong octave target-local false MATCH | 0 / 23 clean | 0 / 23 clean |
+| missing chord target-local false MATCH | 0 / 20 clean | 0 / 20 clean |
+| same-note first advance established | 20 / 24 | 20 / 24 |
+| same-note legitimate second advance | 17 / 20 eligible | 17 / 20 eligible |
+| same-note premature second advance | 0 / 20 eligible | 0 / 20 eligible |
+| same-note missed retrigger | 3 / 20 eligible | 3 / 20 eligible |
+| long-held first advance established | 20 / 24 | 20 / 24 |
+| long-held false second advance | 2 / 20 eligible | 2 / 20 eligible |
+| pedal-tail first advance established | 19 / 24 | 18 / 24 |
+| pedal-tail false second advance | 5 / 19 eligible | 4 / 18 eligible |
 
 Pressure:
 
@@ -146,34 +172,53 @@ The latency numbers are research harness measurements, not browser/product laten
 Positive signal:
 
 - Same-note retrigger is much more promising under rolling ByteDance than under previous handcrafted trigger attempts.
-- After adding event dedupe, same-note premature second advance fell to zero in eligible cases.
+- After event dedupe and stricter first-state establishment, same-note premature second advance is zero in eligible cases.
 - Legitimate same-note retrigger was detected in 17 / 20 eligible cases.
-- Correct single/chord recall remained 20 / 24 each.
+- Correct single recall is 20 / 24.
+- Correct chord is 18 / 24 under both event rules after stricter target-local semantics.
+- Wrong-note target-local diagnostics are clean under the corrected definition:
+  - semitone: 0 / 18 clean
+  - octave: 0 / 23 clean
+  - missing chord: 0 / 20 clean
 
 Safety blockers:
 
-- Wrong-note target-local safety is not clean:
-  - semitone false advance: 2 / 18 clean
-  - octave false advance: 3 / 23 clean
 - Held/sustain safety is not clean:
   - long-held false second advance: 2 / 20 eligible
-  - pedal-tail false second advance: 5 / 20 eligible
-- Missing chord was safe in this run: 0 / 20 clean false advance.
+  - pedal-tail false second advance: 5 / 19 eligible under current_max_frame
+  - pedal-tail false second advance: 4 / 18 eligible under temporally_bound
+- Temporally binding frame evidence to the onset peak helps only slightly and does not change the main conclusion.
 
-The remaining failures are not mainly duplicate-window identity errors; the dedupe fix removed that class of false second advance. The remaining blockers look like real raw-evidence semantics:
+The remaining failures are not mainly duplicate-window identity errors; the dedupe fix removed that class of false second advance. The remaining held/pedal blockers also are not mainly caused by stitching an onset from one time to a frame from another time. Example temporally-bound false second events still have strong `frame_at_onset_peak`:
 
 ```text
-wrong pitch can still generate strong expected-pitch onset/frame evidence
-old held/pedal audio can still produce later accepted onset evidence
+pedal tail:
+  F#4 onset_peak=0.241885
+  frame_at_onset_peak=0.858423
+
+long held:
+  G#4 onset_peak=0.210683
+  frame_at_onset_peak=0.994089
+
+pedal tail:
+  F2 onset_peak=0.921713
+  frame_at_onset_peak=0.990898
+```
+
+So the remaining issue is closer to:
+
+```text
+ByteDance onset head can still emit accepted expected-pitch onset evidence
+on held/pedal/no-retrigger audio.
 ```
 
 ## Decision
 
-The stop rule was not met:
+The KEEP rule is not yet met:
 
 ```text
-wrong-note false advance ≈ 0        no
-held/pedal false second advance ≈ 0 no
+wrong-note target-local false MATCH ≈ 0  yes
+held/pedal false second advance ≈ 0      no
 same-note retrigger usable          mostly yes
 single/chord recall acceptable      yes
 ```
@@ -181,10 +226,10 @@ single/chord recall acceptable      yes
 Therefore:
 
 ```text
-ByteDance rolling STEP = STOP_OR_NEEDS_FURTHER_ANALYSIS
+ByteDance rolling STEP = FORMULATION_NOT_READY
 ```
 
-Do not proceed to production integration, browser deployment, or cadence/compute-budget work based on this result.
+Do not proceed to production integration, browser deployment, or cadence/compute-budget work based on this result. Also do not call ByteDance rolling STOP solely from this run: the corrected formulation substantially changed the wrong-note conclusion and showed that retrigger is viable. The remaining blocker is specifically held/pedal no-retrigger safety.
 
 ## Next
 
@@ -192,11 +237,12 @@ Do not resume generic strike-detector model search yet solely because this faile
 
 ```text
 ByteDance rolling raw onset semantics solve much of same-note retrigger,
-but they are not safe enough by themselves for wrong-note and sustain/pedal cases.
+and corrected target-local wrong-note diagnostics are clean,
+but held/pedal no-retrigger safety is still not clean.
 ```
 
 The next research question should be chosen explicitly:
 
-1. If staying on ByteDance rolling: investigate whether the remaining failures can be rejected by already-available raw evidence diagnostics without threshold sweeping.
+1. If staying on ByteDance rolling: investigate held/pedal false second events only, using already recorded raw onset/frame diagnostics and without sweeping thresholds.
 2. If comparing another bounded-context onset frontend: resume O&V only as a bounded-context onset comparator, not as strict causal.
 3. If product latency/architecture becomes the priority: do not use this unsafe rolling policy as the product verifier.
