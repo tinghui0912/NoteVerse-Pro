@@ -278,6 +278,20 @@ model validation. The architecture is still not ready to enter production
 integration, because the browser-side local verifier would currently add an
 estimated median strike-to-decision budget around `828-987ms`.
 
+Architecture conclusion:
+
+```text
+current ByteDance note_model:
+browser WebGPU numerically viable
+but not selected as frontend production verifier
+because local latency/model size are too high.
+
+preferred near-term direction:
+event-driven hybrid bounded verifier.
+
+future smaller local verifier remains swappable.
+```
+
 The next decision should be between:
 
 - distillation / smaller target-conditioned verifier,
