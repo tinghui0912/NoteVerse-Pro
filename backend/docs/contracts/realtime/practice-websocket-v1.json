@@ -86,10 +86,42 @@
             "title": "Channels",
             "type": "integer"
           },
+          "evaluation_profile": {
+            "enum": [
+              "LEARNING",
+              "PERFORMANCE"
+            ],
+            "title": "Evaluation Profile",
+            "type": "string"
+          },
           "frame_samples": {
             "minimum": 1,
             "title": "Frame Samples",
             "type": "integer"
+          },
+          "input_source": {
+            "enum": [
+              "MICROPHONE",
+              "MIDI"
+            ],
+            "title": "Input Source",
+            "type": "string"
+          },
+          "progression_mode": {
+            "enum": [
+              "WAIT_FOR_NOTE",
+              "CONTINUOUS"
+            ],
+            "title": "Progression Mode",
+            "type": "string"
+          },
+          "realtime_guidance": {
+            "enum": [
+              "STATUS_ONLY",
+              "GUIDED"
+            ],
+            "title": "Realtime Guidance",
+            "type": "string"
           },
           "sample_rate": {
             "minimum": 1,
@@ -100,9 +132,76 @@
         "required": [
           "sample_rate",
           "channels",
-          "frame_samples"
+          "frame_samples",
+          "progression_mode",
+          "realtime_guidance",
+          "evaluation_profile",
+          "input_source"
         ],
         "title": "ClientInitPayload",
+        "type": "object"
+      },
+      "ClientMidiEventMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ClientMidiEventPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "client.midi_event",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "payload"
+        ],
+        "title": "ClientMidiEventMessage",
+        "type": "object"
+      },
+      "ClientMidiEventPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "enum": [
+              "note_on",
+              "note_off"
+            ],
+            "title": "Event Type",
+            "type": "string"
+          },
+          "note_number": {
+            "maximum": 127,
+            "minimum": 0,
+            "title": "Note Number",
+            "type": "integer"
+          },
+          "timestamp_ms": {
+            "minimum": 0,
+            "title": "Timestamp Ms",
+            "type": "integer"
+          },
+          "velocity": {
+            "default": 0,
+            "maximum": 127,
+            "minimum": 0,
+            "title": "Velocity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_type",
+          "note_number",
+          "timestamp_ms"
+        ],
+        "title": "ClientMidiEventPayload",
         "type": "object"
       },
       "ClientPauseMessage": {
@@ -155,6 +254,31 @@
         "title": "ClientResumeMessage",
         "type": "object"
       },
+      "ClientSkipMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ClientTimestampPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "client.skip",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "payload"
+        ],
+        "title": "ClientSkipMessage",
+        "type": "object"
+      },
       "ClientTimestampPayload": {
         "additionalProperties": false,
         "properties": {
@@ -176,8 +300,10 @@
         "client.finish": "#/$defs/ClientFinishMessage",
         "client.heartbeat": "#/$defs/ClientHeartbeatMessage",
         "client.init": "#/$defs/ClientInitMessage",
+        "client.midi_event": "#/$defs/ClientMidiEventMessage",
         "client.pause": "#/$defs/ClientPauseMessage",
-        "client.resume": "#/$defs/ClientResumeMessage"
+        "client.resume": "#/$defs/ClientResumeMessage",
+        "client.skip": "#/$defs/ClientSkipMessage"
       },
       "propertyName": "type"
     },
@@ -195,7 +321,13 @@
         "$ref": "#/$defs/ClientFinishMessage"
       },
       {
+        "$ref": "#/$defs/ClientSkipMessage"
+      },
+      {
         "$ref": "#/$defs/ClientHeartbeatMessage"
+      },
+      {
+        "$ref": "#/$defs/ClientMidiEventMessage"
       }
     ]
   },
@@ -208,6 +340,168 @@
   "protocol_version": 1,
   "server_messages": {
     "$defs": {
+      "AlignmentDecisionPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "advance",
+              "hold",
+              "wait",
+              "skip"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "attempt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attempt Id"
+          },
+          "attempt_resolved_at_ms": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attempt Resolved At Ms"
+          },
+          "attempt_sequence": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attempt Sequence"
+          },
+          "attempt_started_at_ms": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attempt Started At Ms"
+          },
+          "attempt_state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "resolved"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attempt State"
+          },
+          "confidence_summary": {
+            "$ref": "#/$defs/PracticeConfidenceSummaryPayload"
+          },
+          "display_anchor": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PracticeDisplayAnchorPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluator_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Evaluator Version"
+          },
+          "experience_state": {
+            "enum": [
+              "waiting_for_input",
+              "listening",
+              "following",
+              "partially_matched",
+              "heard_but_uncertain",
+              "possible_wrong_note",
+              "recovering",
+              "lost",
+              "paused",
+              "skipped"
+            ],
+            "title": "Experience State",
+            "type": "string"
+          },
+          "policy_profile_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Policy Profile Version"
+          },
+          "reason": {
+            "enum": [
+              "stable_match",
+              "partial_match",
+              "insufficient_input",
+              "entry_mismatch",
+              "low_alignment_confidence",
+              "holding_position",
+              "reacquiring",
+              "large_jump",
+              "practice_paused",
+              "practice_finished",
+              "connection_closed",
+              "user_skipped"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "reason",
+          "experience_state",
+          "display_anchor",
+          "confidence_summary"
+        ],
+        "title": "AlignmentDecisionPayload",
+        "type": "object"
+      },
       "AlignmentUpdateMessage": {
         "additionalProperties": false,
         "properties": {
@@ -279,6 +573,22 @@
             ],
             "title": "Beat Velocity"
           },
+          "completion_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "FULL_SCORE_END_REACHED",
+                  "SCOPE_END_REACHED",
+                  "FINAL_EXPECTED_GROUP_MATCHED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completion Reason"
+          },
           "confidence": {
             "title": "Confidence",
             "type": "number"
@@ -291,6 +601,9 @@
             "minLength": 1,
             "title": "Continuity State",
             "type": "string"
+          },
+          "decision": {
+            "$ref": "#/$defs/AlignmentDecisionPayload"
           },
           "feature_confidence": {
             "title": "Feature Confidence",
@@ -311,6 +624,9 @@
             "minLength": 1,
             "title": "Gate Reason",
             "type": "string"
+          },
+          "input_health": {
+            "$ref": "#/$defs/InputHealthPayload"
           },
           "input_peak": {
             "title": "Input Peak",
@@ -351,8 +667,8 @@
             "title": "Queue Decision",
             "type": "string"
           },
-          "score_completed": {
-            "title": "Score Completed",
+          "scope_completed": {
+            "title": "Scope Completed",
             "type": "boolean"
           },
           "spectral_flatness": {
@@ -394,10 +710,12 @@
           "continuity_confidence",
           "visual_confidence",
           "timestamp_ms",
-          "score_completed",
+          "scope_completed",
+          "completion_reason",
           "audio_active",
           "input_rms",
           "input_peak",
+          "input_health",
           "match_state",
           "feature_confidence",
           "beat_delta",
@@ -415,9 +733,438 @@
           "beat_velocity",
           "validation_confidence",
           "input_weight",
-          "input_policy_confidence"
+          "input_policy_confidence",
+          "decision"
         ],
         "title": "AlignmentUpdatePayload",
+        "type": "object"
+      },
+      "InputHealthPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "level": {
+            "enum": [
+              "good",
+              "too_quiet",
+              "clipping"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "noise": {
+            "enum": [
+              "good",
+              "elevated",
+              "high"
+            ],
+            "title": "Noise",
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "level",
+          "noise",
+          "confidence"
+        ],
+        "title": "InputHealthPayload",
+        "type": "object"
+      },
+      "PerformanceClockSyncMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.clock_sync",
+            "default": "performance.clock_sync",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceClockSyncMessage",
+        "type": "object"
+      },
+      "PerformanceClockSyncPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "count_in_remaining_ms": {
+            "minimum": 0.0,
+            "title": "Count In Remaining Ms",
+            "type": "number"
+          },
+          "count_in_remaining_pulses": {
+            "minimum": 0.0,
+            "title": "Count In Remaining Pulses",
+            "type": "number"
+          },
+          "musical_beat": {
+            "title": "Musical Beat",
+            "type": "number"
+          },
+          "nominal_scope_duration_ms": {
+            "minimum": 0.0,
+            "title": "Nominal Scope Duration Ms",
+            "type": "number"
+          },
+          "performance_time_ms": {
+            "minimum": 0.0,
+            "title": "Performance Time Ms",
+            "type": "number"
+          },
+          "scope_completed": {
+            "title": "Scope Completed",
+            "type": "boolean"
+          },
+          "scope_end_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope End Group Id"
+          },
+          "scope_start_beat": {
+            "title": "Scope Start Beat",
+            "type": "number"
+          },
+          "scope_start_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope Start Group Id"
+          },
+          "scope_terminal_beat": {
+            "title": "Scope Terminal Beat",
+            "type": "number"
+          },
+          "speed_ratio": {
+            "exclusiveMinimum": 0.0,
+            "title": "Speed Ratio",
+            "type": "number"
+          },
+          "state": {
+            "enum": [
+              "READY",
+              "COUNT_IN",
+              "RUNNING",
+              "PAUSED",
+              "ENDED"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "musical_beat",
+          "performance_time_ms",
+          "count_in_remaining_ms",
+          "count_in_remaining_pulses",
+          "scope_completed",
+          "scope_start_beat",
+          "scope_terminal_beat",
+          "nominal_scope_duration_ms",
+          "speed_ratio"
+        ],
+        "title": "PerformanceClockSyncPayload",
+        "type": "object"
+      },
+      "PerformanceEndedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.ended",
+            "default": "performance.ended",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceEndedMessage",
+        "type": "object"
+      },
+      "PerformancePausedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.paused",
+            "default": "performance.paused",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformancePausedMessage",
+        "type": "object"
+      },
+      "PerformanceResumedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.resumed",
+            "default": "performance.resumed",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceResumedMessage",
+        "type": "object"
+      },
+      "PerformanceStartedMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceClockSyncPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.started",
+            "default": "performance.started",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceStartedMessage",
+        "type": "object"
+      },
+      "PerformanceTimelineMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PerformanceTimelineProjectionPayload"
+          },
+          "protocol_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Protocol Version",
+            "type": "integer"
+          },
+          "type": {
+            "const": "performance.timeline",
+            "default": "performance.timeline",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PerformanceTimelineMessage",
+        "type": "object"
+      },
+      "PerformanceTimelineProjectionPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "scope_start_beat": {
+            "title": "Scope Start Beat",
+            "type": "number"
+          },
+          "scope_terminal_beat": {
+            "title": "Scope Terminal Beat",
+            "type": "number"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/$defs/PerformanceTimelineProjectionSegmentPayload"
+            },
+            "title": "Segments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scope_start_beat",
+          "scope_terminal_beat",
+          "segments"
+        ],
+        "title": "PerformanceTimelineProjectionPayload",
+        "type": "object"
+      },
+      "PerformanceTimelineProjectionSegmentPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "end_beat": {
+            "title": "End Beat",
+            "type": "number"
+          },
+          "end_performance_time_ms": {
+            "minimum": 0.0,
+            "title": "End Performance Time Ms",
+            "type": "number"
+          },
+          "start_beat": {
+            "title": "Start Beat",
+            "type": "number"
+          },
+          "start_performance_time_ms": {
+            "minimum": 0.0,
+            "title": "Start Performance Time Ms",
+            "type": "number"
+          }
+        },
+        "required": [
+          "start_performance_time_ms",
+          "end_performance_time_ms",
+          "start_beat",
+          "end_beat"
+        ],
+        "title": "PerformanceTimelineProjectionSegmentPayload",
+        "type": "object"
+      },
+      "PracticeConfidenceSummaryPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment": {
+            "title": "Alignment",
+            "type": "number"
+          },
+          "audio": {
+            "title": "Audio",
+            "type": "number"
+          },
+          "continuity": {
+            "title": "Continuity",
+            "type": "number"
+          },
+          "input_policy": {
+            "title": "Input Policy",
+            "type": "number"
+          },
+          "validation": {
+            "title": "Validation",
+            "type": "number"
+          },
+          "visual": {
+            "title": "Visual",
+            "type": "number"
+          }
+        },
+        "required": [
+          "visual",
+          "alignment",
+          "audio",
+          "continuity",
+          "validation",
+          "input_policy"
+        ],
+        "title": "PracticeConfidenceSummaryPayload",
+        "type": "object"
+      },
+      "PracticeDisplayAnchorPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "beat": {
+            "title": "Beat",
+            "type": "number"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Event Id"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group Id"
+          },
+          "render_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Render Note Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "beat"
+        ],
+        "title": "PracticeDisplayAnchorPayload",
         "type": "object"
       },
       "SessionArmedMessage": {
@@ -448,14 +1195,8 @@
       "SessionArmedPayload": {
         "additionalProperties": false,
         "properties": {
-          "environment_quality": {
-            "enum": [
-              "good",
-              "noisy",
-              "poor"
-            ],
-            "title": "Environment Quality",
-            "type": "string"
+          "input_health": {
+            "$ref": "#/$defs/InputHealthPayload"
           },
           "session_id": {
             "minLength": 1,
@@ -465,9 +1206,61 @@
         },
         "required": [
           "session_id",
-          "environment_quality"
+          "input_health"
         ],
         "title": "SessionArmedPayload",
+        "type": "object"
+      },
+      "SessionCompletionOutcomePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "completion_reason": {
+            "enum": [
+              "SCOPE_COMPLETED",
+              "STOPPED_BY_USER"
+            ],
+            "title": "Completion Reason",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "FULL_PIECE_LEARNING",
+              "FULL_PIECE_PERFORMANCE",
+              "SELECTED_SECTION"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "playback_expected": {
+            "title": "Playback Expected",
+            "type": "boolean"
+          },
+          "scope_kind": {
+            "enum": [
+              "FULL_PIECE",
+              "SELECTED_RANGE"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "summary_artifact_kind": {
+            "enum": [
+              "LEARNING_SUMMARY",
+              "PERFORMANCE_SUMMARY",
+              "SECTION_SUMMARY"
+            ],
+            "title": "Summary Artifact Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "scope_kind",
+          "summary_artifact_kind",
+          "completion_reason",
+          "playback_expected"
+        ],
+        "title": "SessionCompletionOutcomePayload",
         "type": "object"
       },
       "SessionConnectingMessage": {
@@ -560,7 +1353,7 @@
         "additionalProperties": false,
         "properties": {
           "payload": {
-            "$ref": "#/$defs/SessionStatePayload"
+            "$ref": "#/$defs/SessionFinishedPayload"
           },
           "protocol_version": {
             "const": 1,
@@ -579,6 +1372,25 @@
           "payload"
         ],
         "title": "SessionFinishedMessage",
+        "type": "object"
+      },
+      "SessionFinishedPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "completion_outcome": {
+            "$ref": "#/$defs/SessionCompletionOutcomePayload"
+          },
+          "state": {
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "completion_outcome"
+        ],
+        "title": "SessionFinishedPayload",
         "type": "object"
       },
       "SessionReadyMessage": {
@@ -671,6 +1483,12 @@
     "discriminator": {
       "mapping": {
         "alignment.update": "#/$defs/AlignmentUpdateMessage",
+        "performance.clock_sync": "#/$defs/PerformanceClockSyncMessage",
+        "performance.ended": "#/$defs/PerformanceEndedMessage",
+        "performance.paused": "#/$defs/PerformancePausedMessage",
+        "performance.resumed": "#/$defs/PerformanceResumedMessage",
+        "performance.started": "#/$defs/PerformanceStartedMessage",
+        "performance.timeline": "#/$defs/PerformanceTimelineMessage",
         "session.armed": "#/$defs/SessionArmedMessage",
         "session.connecting": "#/$defs/SessionConnectingMessage",
         "session.error": "#/$defs/SessionErrorMessage",
@@ -701,6 +1519,24 @@
       },
       {
         "$ref": "#/$defs/AlignmentUpdateMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceTimelineMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceClockSyncMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceStartedMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformancePausedMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceResumedMessage"
+      },
+      {
+        "$ref": "#/$defs/PerformanceEndedMessage"
       }
     ]
   },

@@ -8,7 +8,7 @@ def log_audio_gate_diagnostic(adapter, decision: str, rms: float, peak: float) -
         return
     if not (
         decision == "accepted"
-        or adapter.total_frames <= adapter.warmup_frames
+        or adapter.noise_estimate_warming
         or adapter.total_frames % adapter.diagnostic_frame_interval == 0
     ):
         return

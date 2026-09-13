@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback } from 'react';
 import { filesApi, publicationsApi, scoresApi, scoreSharingApi } from '@/lib/api';

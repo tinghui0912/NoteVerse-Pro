@@ -26,11 +26,11 @@ describe('editor tracks view model', () => {
               voices: [
                 {
                   name: 'voiceLabel 1',
-                  notes: [{ type: 'rest', duration: 'durationQuarter' }],
+                  events: [{ type: 'rest', duration: 'durationQuarter' }],
                 },
                 {
                   name: 'voiceLabel 2',
-                  notes: [],
+                  events: [],
                 },
               ],
             },
@@ -45,7 +45,7 @@ describe('editor tracks view model', () => {
               voices: [
                 {
                   name: 'voiceLabel 1',
-                  notes: [{ type: 'note', pitch: 'C4', duration: 'durationQuarter' }],
+                  events: [{ type: 'note', pitch: 'C4', duration: 'durationQuarter' }],
                 },
               ],
             },
@@ -70,12 +70,12 @@ describe('editor tracks view model', () => {
             {
               clef: 'treble',
               name: 'trebleClef',
-              voices: [{ name: 'voiceLabel 1', notes: [{ type: 'note', pitch: 'C4', duration: 'durationQuarter' }] }],
+              voices: [{ name: 'voiceLabel 1', events: [{ type: 'note', pitch: 'C4', duration: 'durationQuarter' }] }],
             },
             {
               clef: 'bass',
               name: 'bassClef',
-              voices: [{ name: 'voiceLabel 1', notes: [{ type: 'note', pitch: 'C3', duration: 'durationQuarter' }] }],
+              voices: [{ name: 'voiceLabel 1', events: [{ type: 'note', pitch: 'C3', duration: 'durationQuarter' }] }],
             },
           ],
         },
@@ -98,14 +98,14 @@ describe('editor tracks view model', () => {
               clef: 'treble',
               name: 'trebleClef',
               voices: [
-                { name: 'voiceLabel 1', notes: [] },
-                { name: 'voiceLabel 3', notes: [] },
+                { name: 'voiceLabel 1', events: [] },
+                { name: 'voiceLabel 3', events: [] },
               ],
             },
             {
               clef: 'bass',
               name: 'bassClef',
-              voices: [{ name: 'voiceLabel 2', notes: [] }],
+              voices: [{ name: 'voiceLabel 2', events: [] }],
             },
           ],
         },
@@ -138,8 +138,8 @@ describe('editor tracks view model', () => {
               clef: 'treble',
               name: 'trebleClef',
               voices: [
-                { name: 'voiceLabel 1', notes: [] },
-                { name: 'voiceLabel 2', notes: [] },
+                { name: 'voiceLabel 1', events: [] },
+                { name: 'voiceLabel 2', events: [] },
               ],
             },
           ],
@@ -151,8 +151,8 @@ describe('editor tracks view model', () => {
               clef: 'treble',
               name: 'trebleClef',
               voices: [
-                { name: 'voiceLabel 1', notes: [] },
-                { name: 'voiceLabel 3', notes: [] },
+                { name: 'voiceLabel 1', events: [] },
+                { name: 'voiceLabel 3', events: [] },
               ],
             },
           ],
@@ -172,12 +172,12 @@ describe('editor tracks view model', () => {
             {
               clef: 'treble',
               name: 'trebleClef',
-              voices: [{ name: 'voiceLabel 1', notes: [] }],
+              voices: [{ name: 'voiceLabel 1', events: [] }],
             },
             {
               clef: 'bass',
               name: 'bassClef',
-              voices: [{ name: 'voiceLabel 2', notes: [] }],
+              voices: [{ name: 'voiceLabel 2', events: [] }],
             },
           ],
         },
@@ -196,7 +196,7 @@ describe('editor tracks view model', () => {
             {
               clef: 'treble',
               name: 'trebleClef',
-              voices: [{ name: 'voiceLabel 2', notes: [] }],
+              voices: [{ name: 'voiceLabel 2', events: [] }],
             },
           ],
         },

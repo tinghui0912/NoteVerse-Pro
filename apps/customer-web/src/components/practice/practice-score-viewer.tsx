@@ -3,64 +3,71 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, Maximize, Minimize, Settings } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
-import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { PracticeFollowController } from '@/lib/practice/follow-controller';
+import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
-import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
+import type {
+  PracticeAlignmentUpdateMessage,
+  PracticePerformanceClockPayload,
+  PracticePerformanceTimelinePayload,
+} from '@/lib/practice/protocol';
+import type { PracticeSessionMode } from '@/lib/practice/session-policy';
 
 type PracticeScoreViewerProps = {
   className?: string;
-  bottomControls?: ReactNode;
   sessionStatus?: ReactNode;
-  isMaximized: boolean;
-  onOpenSettings: () => void;
-  onToggleMaximize: () => void;
   xmlContent: string | null;
   isLoadingXml: boolean;
   practiceStatus:
     | 'idle'
     | 'connecting'
-    | 'arming'
     | 'listening'
     | 'practicing'
     | 'paused'
+    | 'finishing'
     | 'finished';
   alignment?: PracticeAlignmentUpdateMessage['payload'] | null;
+  performanceClockSync?: PracticePerformanceClockPayload | null;
+  performanceTimeline?: PracticePerformanceTimelinePayload | null;
+  sessionMode: PracticeSessionMode;
+  selectedRangeRenderNoteIds?: readonly string[];
+  selectedRangeStartRenderNoteIds?: readonly string[];
+  selectedRangeEndRenderNoteIds?: readonly string[];
+  onRenderNoteClick?: (renderNoteId: string) => void;
 };
 
 export function PracticeScoreViewer({
   className,
-  bottomControls = null,
   sessionStatus = null,
-  isMaximized,
-  onOpenSettings,
-  onToggleMaximize,
   xmlContent,
   isLoadingXml,
   practiceStatus,
   alignment = null,
+  performanceClockSync = null,
+  performanceTimeline = null,
+  sessionMode,
+  selectedRangeRenderNoteIds = [],
+  selectedRangeStartRenderNoteIds = [],
+  selectedRangeEndRenderNoteIds = [],
+  onRenderNoteClick,
 }: PracticeScoreViewerProps) {
   const isMobile = useIsMobile();
-  const t = useTranslations('common');
   const tPractice = useTranslations('practice');
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const followController = useMemo(() => new PracticeFollowController(), []);
+  const performancePlayheadController = useMemo(() => new PerformancePlayheadController(), []);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderRevision, setRenderRevision] = useState(0);
+  const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
   const handleRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       containerRef.current = container;
@@ -76,11 +83,11 @@ export function PracticeScoreViewer({
     }
 
     const shouldClearFollowState =
+      sessionMode !== 'STEP_BY_STEP' ||
       !alignment ||
       !xmlContent ||
       renderRevision === 0 ||
-      practiceStatus === 'idle' ||
-      practiceStatus === 'finished';
+      practiceStatus === 'idle';
 
     if (shouldClearFollowState) {
       followController.clear(container);
@@ -92,13 +99,120 @@ export function PracticeScoreViewer({
       followController.refreshDecorations(container);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [adapter, alignment, followController, practiceStatus, renderRevision, xmlContent]);
+  }, [
+    adapter,
+    alignment,
+    followController,
+    practiceStatus,
+    renderRevision,
+    sessionMode,
+    xmlContent,
+  ]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (
+      !container ||
+      sessionMode !== 'CONTINUOUS_PLAY' ||
+      !performanceClockSync ||
+      !xmlContent ||
+      renderRevision === 0 ||
+      practiceStatus === 'idle' ||
+      practiceStatus === 'finished'
+    ) {
+      if (container) {
+        performancePlayheadController.clear(container);
+      }
+      return;
+    }
+
+    if (performanceTimeline) {
+      performancePlayheadController.receiveTimeline(performanceTimeline);
+    }
+    const rangeNoteIds = selectedRangeRenderNoteIdSignature
+      ? selectedRangeRenderNoteIdSignature.split('\u001f')
+      : [];
+    performancePlayheadController.receiveSelectedRangeNoteIds(rangeNoteIds);
+    performancePlayheadController.receiveSync(performanceClockSync);
+    let frame: number | null = null;
+    const renderPlayhead = () => {
+      performancePlayheadController.apply(container, adapter);
+      if (performanceClockSync.state === 'COUNT_IN' || performanceClockSync.state === 'RUNNING') {
+        frame = window.requestAnimationFrame(renderPlayhead);
+      }
+    };
+
+    frame = window.requestAnimationFrame(renderPlayhead);
+    return () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
+  }, [
+    adapter,
+    performanceClockSync,
+    performanceTimeline,
+    performancePlayheadController,
+    practiceStatus,
+    renderRevision,
+    selectedRangeRenderNoteIdSignature,
+    sessionMode,
+    xmlContent,
+  ]);
+
+  useEffect(() => {
+    const container = rootRef.current;
+    if (!container || !xmlContent || renderRevision === 0) {
+      return;
+    }
+
+    const rangeNoteIds = selectedRangeRenderNoteIdSignature
+      ? selectedRangeRenderNoteIdSignature.split('\u001f')
+      : [];
+    let frame: number | null = null;
+    const scheduleSync = () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        clearRangeBackgrounds(container);
+        applyRangeBackgrounds(container, rangeNoteIds);
+      });
+    };
+
+    scheduleSync();
+    const scoreRoot = container.querySelector<HTMLElement>('.practice-score-svg') ?? container;
+    const mutationObserver = new MutationObserver((mutations) => {
+      if (mutations.every(isRangeBackgroundMutation)) {
+        return;
+      }
+      scheduleSync();
+    });
+    mutationObserver.observe(scoreRoot, { childList: true, subtree: true });
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => scheduleSync());
+    resizeObserver?.observe(scoreRoot);
+
+    return () => {
+      mutationObserver.disconnect();
+      resizeObserver?.disconnect();
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      clearRangeBackgrounds(container);
+    };
+  }, [renderRevision, selectedRangeRenderNoteIdSignature, xmlContent]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (
       !container ||
       !alignment ||
+      sessionMode !== 'STEP_BY_STEP' ||
       !xmlContent ||
       renderRevision === 0 ||
       practiceStatus === 'idle' ||
@@ -119,13 +233,30 @@ export function PracticeScoreViewer({
 
   return (
     <div
+      ref={rootRef}
       className={cn(
         'relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm',
-        isMaximized ? 'fixed inset-0 z-[45] rounded-none' : 'min-h-[38rem]',
+        'min-h-[38rem]',
         className
       )}
+      data-practice-range-note-ids={selectedRangeRenderNoteIds.join(',')}
+      data-practice-range-start-note-ids={selectedRangeStartRenderNoteIds.join(',')}
+      data-practice-range-end-note-ids={selectedRangeEndRenderNoteIds.join(',')}
     >
       <style jsx global>{`
+        .practice-score-svg-selectable svg {
+          cursor: crosshair;
+        }
+        .practice-score-svg-selectable [data-class='note'],
+        .practice-score-svg-selectable .note {
+          pointer-events: bounding-box;
+        }
+        .practice-score-svg .practice-range-background {
+          fill: rgb(251 191 36 / 10%);
+          stroke: rgb(245 158 11 / 34%);
+          stroke-width: 1.2px;
+          pointer-events: none;
+        }
         .practice-score-svg .practice-note-active {
           fill: #f97316 !important;
           stroke: #ea580c !important;
@@ -149,16 +280,18 @@ export function PracticeScoreViewer({
           stroke: #ea580c !important;
           opacity: 1 !important;
         }
+        .practice-score-svg .practice-note-active .practice-range-background {
+          fill: rgb(251 191 36 / 10%) !important;
+          stroke: rgb(245 158 11 / 34%) !important;
+          stroke-width: 1.2px !important;
+          filter: none !important;
+        }
         .practice-score-svg svg {
           display: block;
           height: auto;
         }
         .practice-score-svg-fit svg {
           width: 100% !important;
-        }
-        .practice-score-svg-natural svg {
-          width: auto;
-          max-width: none;
         }
         .practice-score-scroll {
           -ms-overflow-style: none;
@@ -170,44 +303,8 @@ export function PracticeScoreViewer({
       `}</style>
 
       <div className="relative z-40 flex min-h-14 shrink-0 items-center border-b border-slate-200 bg-white/95 px-3 backdrop-blur sm:px-4">
-        <div className="flex min-w-0 flex-1 justify-center px-11 sm:px-14">
+        <div className="flex min-w-0 flex-1 justify-center">
           {sessionStatus}
-        </div>
-        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2 sm:right-4">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-950"
-                  onClick={onOpenSettings}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>
-                <p>{tPractice('settingsTitle')}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-950"
-                  onClick={onToggleMaximize}
-                >
-                  {isMaximized ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>
-                <p>{isMaximized ? t('minimize') : t('maximize')}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
       </div>
 
@@ -219,18 +316,18 @@ export function PracticeScoreViewer({
         onRendered={handleRendered}
         className={cn(
           'practice-score-scroll min-h-0 flex-1 overflow-auto bg-white',
-          isMaximized ? 'px-6 pb-28 pt-4' : 'px-4 py-4'
+          'px-4 py-4'
         )}
         pageClassName={cn(
           'bg-white',
-          isMaximized
-            ? 'w-fit max-w-full overflow-x-auto'
-            : 'w-full overflow-hidden border-0 shadow-none'
+          'w-full overflow-hidden border-0 shadow-none'
         )}
         svgClassName={cn(
           'practice-score-svg',
-          isMaximized ? 'practice-score-svg-natural' : 'practice-score-svg-fit'
+          onRenderNoteClick ? 'practice-score-svg-selectable' : null,
+          'practice-score-svg-fit'
         )}
+        onRenderNoteClick={onRenderNoteClick}
         loadingContent={
           <PreviewLoading label={tPractice('preparingPractice')} className="min-h-[45vh]" />
         }
@@ -245,12 +342,105 @@ export function PracticeScoreViewer({
           </div>
         )}
       />
-
-      {isMaximized && bottomControls ? (
-        <div className="absolute inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:px-6">
-          <div className="mx-auto max-w-5xl">{bottomControls}</div>
-        </div>
-      ) : null}
     </div>
   );
+}
+
+function cssStringLiteral(value: string) {
+  return JSON.stringify(value);
+}
+
+function clearRangeBackgrounds(container: HTMLElement) {
+  container
+    .querySelectorAll('[data-practice-range-background]')
+    .forEach((element) => element.remove());
+}
+
+function isRangeBackgroundMutation(mutation: MutationRecord) {
+  const changedNodes = [...mutation.addedNodes, ...mutation.removedNodes];
+  return (
+    changedNodes.length > 0 &&
+    changedNodes.every(
+      (node) =>
+        node instanceof Element &&
+        node.hasAttribute('data-practice-range-background')
+    )
+  );
+}
+
+function applyRangeBackgrounds(
+  container: HTMLElement,
+  noteIds: readonly string[]
+) {
+  const systemBoxes = new Map<SVGGraphicsElement, DOMRect>();
+  for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
+    const note = container.querySelector<SVGGraphicsElement>(
+      `[data-id=${cssStringLiteral(noteId)}]`
+    );
+    if (!note || typeof note.getBBox !== 'function') {
+      continue;
+    }
+
+    let box: DOMRect;
+    try {
+      box = note.getBBox();
+    } catch {
+      continue;
+    }
+
+    const system = note.closest<SVGGraphicsElement>('.system');
+    const layer = system ?? note.ownerSVGElement;
+    if (!layer) {
+      continue;
+    }
+
+    const currentBox = systemBoxes.get(layer);
+    systemBoxes.set(layer, currentBox ? mergeRangeBox(currentBox, box) : box);
+  }
+
+  for (const [layer, rangeBox] of systemBoxes) {
+    const verticalBox = rangeVerticalBox(layer, rangeBox);
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    const paddingX = Math.max(8, rangeBox.width * 0.02);
+    const paddingY = Math.max(8, verticalBox.height * 0.04);
+    rect.setAttribute('data-practice-range-background', 'true');
+    rect.setAttribute('class', 'practice-range-background');
+    rect.setAttribute('x', String(rangeBox.x - paddingX));
+    rect.setAttribute('y', String(verticalBox.y - paddingY));
+    rect.setAttribute('width', String(rangeBox.width + paddingX * 2));
+    rect.setAttribute('height', String(verticalBox.height + paddingY * 2));
+    rect.setAttribute('rx', '4');
+    layer.insertBefore(rect, layer.firstChild);
+  }
+}
+
+function mergeRangeBox(first: DOMRect, second: DOMRect): DOMRect {
+  const x = Math.min(first.x, second.x);
+  const y = Math.min(first.y, second.y);
+  const right = Math.max(first.x + first.width, second.x + second.width);
+  const bottom = Math.max(first.y + first.height, second.y + second.height);
+  return DOMRect.fromRect({
+    x,
+    y,
+    width: right - x,
+    height: bottom - y,
+  });
+}
+
+function rangeVerticalBox(layer: SVGGraphicsElement, rangeBox: DOMRect): DOMRect {
+  if (!layer.classList.contains('system')) {
+    return rangeBox;
+  }
+
+  try {
+    const systemBox = layer.getBBox();
+    return DOMRect.fromRect({
+      x: rangeBox.x,
+      y: systemBox.y,
+      width: rangeBox.width,
+      height: systemBox.height,
+    });
+  } catch {
+    return rangeBox;
+  }
 }

@@ -1,4 +1,4 @@
-import type { ScoreData, Measure, Stave, Voice, ScoreEntity } from '@/types/score-types';
+import type { ScoreData, Measure, Stave, Voice, ParsedScoreEvent } from '@/types/score-types';
 import { buildDirtyMeasureStatuses } from '@/lib/editor/measure-status';
 import { parseXml } from './core';
 
@@ -179,7 +179,7 @@ function validateUnpairedConnections(scoreData: ScoreData | null, t: TranslateFu
     scoreData.measures.forEach((measure: Measure, measureIndex: number) => {
         measure.staves.forEach((stave: Stave, staveIndex: number) => {
             stave.voices.forEach((voice: Voice) => {
-                voice.notes.forEach((entity: ScoreEntity) => {
+                voice.events.forEach((entity: ParsedScoreEvent) => {
                     if (!entity.meta?.id) return;
 
                     const entityId = entity.meta.id;

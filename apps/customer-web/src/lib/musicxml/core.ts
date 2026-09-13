@@ -179,8 +179,8 @@ export function getDurationTypeName(durationType: string): string {
 // ============================================================================
 
 /**
- * Entity groups map MusicXML note/forward elements to one UI score entity.
- * A group may represent a note, chord, rest, or blank forward entity.
+ * Entity groups map editable MusicXML note elements to one UI score entity.
+ * Adapter-only callers may include forward groups when they need cursor timing.
  */
 export type EntityGroup = {
     /** UI entity type represented by this group. */
@@ -190,13 +190,14 @@ export type EntityGroup = {
 };
 
 /**
- * Returns all UI entity groups for a staff/voice within one measure.
+ * Returns UI entity groups for a staff/voice within one measure.
  * 
  * This mirrors `MusicXMLParser.parseMeasures` so returned array indexes match
  * UI `entityIndex` values:
- * - iterate `note` and `forward` elements in document order;
+ * - iterate `note` elements in document order;
  * - group chord members with their root note;
- * - represent matching `forward` elements as blank UI entities.
+ * - omit matching `forward` elements by default because MusicXML cursor
+ *   movement is not an editable entity.
  *
  * @param measureEl Measure element.
  * @param staffNumber 1-based MusicXML staff number.
@@ -206,7 +207,8 @@ export type EntityGroup = {
 export function getEntityGroupsFromMeasure(
     measureEl: Element,
     staffNumber: number,
-    voiceNum: number
+    voiceNum: number,
+    options: { includeForwardGroups?: boolean } = {}
 ): EntityGroup[] {
     const entityGroups: EntityGroup[] = [];
     let currentNoteGroup: Element[] = [];
@@ -234,11 +236,12 @@ export function getEntityGroupsFromMeasure(
                     });
                     currentNoteGroup = [];
                 }
-                // A matching forward element is exposed as its own blank entity.
-                entityGroups.push({
-                    type: 'forward',
-                    elements: [element]
-                });
+                if (options.includeForwardGroups) {
+                    entityGroups.push({
+                        type: 'forward',
+                        elements: [element]
+                    });
+                }
             }
         } else if (element.tagName === 'note') {
             const staffEl = element.querySelector('staff');

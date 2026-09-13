@@ -6,6 +6,28 @@ from typing import Literal
 
 AudioFrameClass = Literal["silence", "transient", "tonal", "uncertain"]  # Alignment input class.
 
+SHORT_FRAME_MIN_SAMPLES = 8
+SPECTRUM_EPSILON = 1e-12
+SILENCE_RMS_RATIO = 0.1
+SILENCE_PEAK_RATIO = 0.1
+ONSET_RMS_RATIO = 0.2
+ONSET_PEAK_RATIO = 0.1
+NOISE_FLOOR_CANDIDATE_RATIO = 0.75
+INITIAL_NOISE_ALPHA = 0.15
+RUNTIME_NOISE_ALPHA = 0.02
+FLUX_FLOOR_DIVISOR = 4.0
+FLUX_GATE_MULTIPLIER = 3.0
+MUSICAL_START_FLATNESS_GATE = 0.58
+MUSICAL_START_PROMINENCE_MULTIPLIER = 1.5
+MUSICAL_START_MIN_PROMINENCE = 12.0
+TONAL_FOCUSED_START_FLATNESS_GATE = 0.30
+FOCUSED_START_PROMINENCE_MULTIPLIER = 3.0
+FOCUSED_START_MIN_PROMINENCE = 24.0
+HOLD_TONAL_DECAY_CONFIDENCE = 0.35
+HOLD_UNCERTAIN_INPUT_CONFIDENCE = 0.2
+JUST_INACTIVE_CONFIDENCE = 0.45
+NO_INPUT_GRACE_CONFIDENCE = 0.35
+
 
 @dataclass
 class AudioFrameFeatures:
@@ -30,7 +52,10 @@ class FrameClassifier:
         peak_gate: float,
         calibrated_flux_gate: float,
     ) -> AudioFrameClass:
-        if features.rms < rms_gate * 0.1 and features.peak < peak_gate * 0.1:
+        if (
+            features.rms < rms_gate * SILENCE_RMS_RATIO
+            and features.peak < peak_gate * SILENCE_PEAK_RATIO
+        ):
             return "silence"
         if features.tonal_signal:
             return "tonal"
@@ -77,7 +102,7 @@ class AudioFeatureExtractor:
                 frame_class="tonal",
             )
 
-        if audio_frame.size < 8:
+        if audio_frame.size < SHORT_FRAME_MIN_SAMPLES:
             return self._with_frame_class(
                 self._empty_features(rms, peak),
                 rms_gate=rms_gate,
@@ -95,9 +120,10 @@ class AudioFeatureExtractor:
                 calibrated_flux_gate=calibrated_flux_gate,
             )
 
-        eps = 1e-12
-        mean_magnitude = float(self.np.mean(spectrum)) + eps
-        geometric_mean = float(self.np.exp(self.np.mean(self.np.log(spectrum + eps))))
+        mean_magnitude = float(self.np.mean(spectrum)) + SPECTRUM_EPSILON
+        geometric_mean = float(
+            self.np.exp(self.np.mean(self.np.log(spectrum + SPECTRUM_EPSILON)))
+        )
         spectral_flatness = geometric_mean / mean_magnitude
         peak_prominence = float(self.np.max(spectrum)) / mean_magnitude
         spectral_flux = self._spectral_flux(spectrum, mean_magnitude)
@@ -106,10 +132,14 @@ class AudioFeatureExtractor:
             and peak_prominence >= self.min_peak_prominence
         )
         musical_start_spectrum = tonal_signal or (
-            spectral_flatness <= 0.58
-            and peak_prominence >= max(self.min_peak_prominence * 1.5, 12.0)
+            spectral_flatness <= MUSICAL_START_FLATNESS_GATE
+            and peak_prominence
+            >= max(
+                self.min_peak_prominence * MUSICAL_START_PROMINENCE_MULTIPLIER,
+                MUSICAL_START_MIN_PROMINENCE,
+            )
         )
-        has_onset_energy = rms >= rms_gate * 0.2 or peak >= peak_gate * 0.1
+        has_onset_energy = rms >= rms_gate * ONSET_RMS_RATIO or peak >= peak_gate * ONSET_PEAK_RATIO
         onset_signal = (
             spectral_flux >= calibrated_flux_gate and has_onset_energy and musical_start_spectrum
         )
@@ -162,7 +192,7 @@ class AudioFeatureExtractor:
         )
 
     def _spectral_flux(self, spectrum, mean_magnitude: float) -> float:
-        normalized = spectrum / max(mean_magnitude, 1e-12)
+        normalized = spectrum / max(mean_magnitude, SPECTRUM_EPSILON)
         if self._previous_flux_spectrum is None:
             self._previous_flux_spectrum = normalized
             return 0.0
@@ -207,19 +237,22 @@ class AdaptiveNoiseCalibrator:
         self.noise_peak_values: list[float] = []
         self.noise_rms_floor = max(rms_gate / max(rms_noise_multiplier, 1.0), 1e-6)
         self.noise_peak_floor = max(peak_gate / max(peak_noise_multiplier, 1.0), 1e-6)
-        self.flux_floor = max(onset_flux_gate / 4.0, 1e-6)
+        self.flux_floor = max(onset_flux_gate / FLUX_FLOOR_DIVISOR, 1e-6)
         self.calibrated_rms_gate = rms_gate
         self.calibrated_peak_gate = peak_gate
         self.calibrated_flux_gate = onset_flux_gate
 
-    def collect_noise_floor(self, features: AudioFrameFeatures) -> None:
+    def collect_noise_floor(self, features: AudioFrameFeatures) -> bool:
+        if features.tonal_signal or features.onset_signal:
+            return False
         if not self.is_noise_floor_candidate(features.rms, features.peak):
-            return
+            return False
 
         self.noise_rms_values.append(features.rms)
         self.noise_peak_values.append(features.peak)
-        self.update_noise_floor(features, alpha=0.15)
+        self.update_noise_floor(features, alpha=INITIAL_NOISE_ALPHA)
         self.refresh_gates()
+        return True
 
     def maybe_update_runtime_noise_floor(self, features: AudioFrameFeatures) -> None:
         if (
@@ -229,11 +262,14 @@ class AdaptiveNoiseCalibrator:
         ):
             return
 
-        self.update_noise_floor(features, alpha=0.02)
+        self.update_noise_floor(features, alpha=RUNTIME_NOISE_ALPHA)
         self.refresh_gates()
 
     def is_noise_floor_candidate(self, rms: float, peak: float) -> bool:
-        return rms <= self.rms_gate * 0.75 and peak <= self.peak_gate * 0.75
+        return (
+            rms <= self.rms_gate * NOISE_FLOOR_CANDIDATE_RATIO
+            and peak <= self.peak_gate * NOISE_FLOOR_CANDIDATE_RATIO
+        )
 
     def refresh_gates(self) -> None:
         self.calibrated_rms_gate = max(
@@ -246,7 +282,7 @@ class AdaptiveNoiseCalibrator:
         )
         self.calibrated_flux_gate = max(
             self.onset_flux_gate,
-            self.flux_floor * 3.0,
+            self.flux_floor * FLUX_GATE_MULTIPLIER,
         )
 
     def update_noise_floor(self, features: AudioFrameFeatures, alpha: float) -> None:
@@ -276,6 +312,14 @@ class AudioGateConfig:
     start_peak_gate: float
     min_peak_prominence: float
     onset_hold_frames: int
+    start_rms_ratio: float = 0.5
+    start_rms_fallback_ratio: float = 0.75
+    start_peak_ratio: float = 0.55
+    start_peak_fallback_ratio: float = 0.75
+    runtime_rms_ratio: float = 0.45
+    runtime_peak_ratio: float = 0.30
+    decay_rms_ratio: float = 0.2
+    decay_peak_ratio: float = 0.1
 
 
 @dataclass(frozen=True)
@@ -304,25 +348,52 @@ class PracticeAudioGate:
         effective_rms_gate: float,
         effective_peak_gate: float,
     ) -> StartSignalDecision:
-        prominence_gate = max(self.config.min_peak_prominence * 3.0, 24.0)
+        prominence_gate = max(
+            self.config.min_peak_prominence * FOCUSED_START_PROMINENCE_MULTIPLIER,
+            FOCUSED_START_MIN_PROMINENCE,
+        )
+        focused_musical_candidate = (
+            features.spectral_flatness <= TONAL_FOCUSED_START_FLATNESS_GATE
+            and features.peak_prominence >= prominence_gate
+        )
+        has_candidate_energy = (
+            features.rms
+            >= min(
+                self.config.start_rms_gate * self.config.start_rms_ratio,
+                self.config.rms_gate * self.config.start_rms_fallback_ratio,
+            )
+            and features.peak >= min(
+                self.config.start_peak_gate * self.config.start_peak_ratio,
+                self.config.peak_gate * self.config.start_peak_fallback_ratio,
+            )
+        )
         strong_start = (
             features.rms >= effective_rms_gate
             and features.peak >= effective_peak_gate
-            and features.tonal_signal
+            and (features.tonal_signal or focused_musical_candidate)
             and features.peak_prominence >= prominence_gate
         )
         if strong_start:
-            return StartSignalDecision(True, "strong_start")
+            return StartSignalDecision(
+                True,
+                "strong_start" if features.tonal_signal else "focused_musical_start",
+            )
+
+        if not features.tonal_signal and focused_musical_candidate and has_candidate_energy:
+            return StartSignalDecision(True, "focused_musical_start_candidate")
 
         if not features.tonal_signal:
             return StartSignalDecision(False, "not_tonal")
         if features.peak_prominence < prominence_gate:
             return StartSignalDecision(False, "low_prominence")
-        if features.rms < min(self.config.start_rms_gate * 0.5, self.config.rms_gate):
+        if features.rms < min(
+            self.config.start_rms_gate * self.config.start_rms_ratio,
+            self.config.rms_gate * self.config.start_rms_fallback_ratio,
+        ):
             return StartSignalDecision(False, "low_start_rms")
         if features.peak < min(
-            self.config.start_peak_gate * 0.55,
-            self.config.peak_gate * 0.75,
+            self.config.start_peak_gate * self.config.start_peak_ratio,
+            self.config.peak_gate * self.config.start_peak_fallback_ratio,
         ):
             return StartSignalDecision(False, "low_start_peak")
         return StartSignalDecision(False, "start_gate_not_met")
@@ -337,16 +408,16 @@ class PracticeAudioGate:
         last_onset_frame: int | None,
         in_keepalive_window: bool,
     ) -> RuntimeActivityDecision:
-        runtime_rms_gate = calibrated_rms_gate * 0.45
-        runtime_peak_gate = calibrated_peak_gate * 0.30
+        runtime_rms_gate = calibrated_rms_gate * self.config.runtime_rms_ratio
+        runtime_peak_gate = calibrated_peak_gate * self.config.runtime_peak_ratio
         in_onset_hold = (
             last_onset_frame is not None
             and total_frames - last_onset_frame <= self.config.onset_hold_frames
         )
         has_runtime_energy = features.rms >= runtime_rms_gate or features.peak >= runtime_peak_gate
         has_decay_energy = (
-            features.rms >= self.config.rms_gate * 0.2
-            or features.peak >= self.config.peak_gate * 0.1
+            features.rms >= self.config.rms_gate * self.config.decay_rms_ratio
+            or features.peak >= self.config.peak_gate * self.config.decay_peak_ratio
         )
         trusted_onset = features.onset_signal and features.tonal_signal
         current_musical_activity = features.tonal_signal and has_runtime_energy
@@ -390,12 +461,27 @@ class OltwInputPolicy:
             return OltwQueueDecision(False, "priming_context", 0.0, 0.0)
         if not runtime_active:
             if frame_class == "tonal":
-                return OltwQueueDecision(False, "hold_tonal_decay", 0.0, 0.35)
+                return OltwQueueDecision(
+                    False,
+                    "hold_tonal_decay",
+                    0.0,
+                    HOLD_TONAL_DECAY_CONFIDENCE,
+                )
             if frame_class == "uncertain":
-                return OltwQueueDecision(False, "hold_uncertain_input", 0.0, 0.2)
+                return OltwQueueDecision(
+                    False,
+                    "hold_uncertain_input",
+                    0.0,
+                    HOLD_UNCERTAIN_INPUT_CONFIDENCE,
+                )
             return OltwQueueDecision(False, f"hold_{frame_class}", 0.0, 0.0)
         if frame_class != "tonal":
-            return OltwQueueDecision(False, f"hold_active_{frame_class}", 0.0, 0.2)
+            return OltwQueueDecision(
+                False,
+                f"hold_active_{frame_class}",
+                0.0,
+                HOLD_UNCERTAIN_INPUT_CONFIDENCE,
+            )
         return OltwQueueDecision(True, "queued_tonal", 1.0, 1.0)
 
 
@@ -415,22 +501,23 @@ class ActivityConfidenceEstimator:
         if not started:
             return 0.0
         if no_input_streak == 0:
-            return 0.45
+            return JUST_INACTIVE_CONFIDENCE
         if no_input_streak < no_input_frames:
-            return 0.35
+            return NO_INPUT_GRACE_CONFIDENCE
         return 0.0
 
 
 class PracticeActivityStateMachine:
     """Own practice stream state and activity counters."""
 
-    def __init__(self, warmup_frames: int, no_input_frames: int) -> None:
-        self.warmup_frames = warmup_frames
+    def __init__(self, calibration_sample_count: int, no_input_frames: int) -> None:
+        self.calibration_sample_count = max(calibration_sample_count, 0)
+        self.calibration_samples = 0
         self.no_input_frames = max(no_input_frames, 1)
-        self.armed = warmup_frames <= 0
+        self.armed = True
         self.started = False
         self.performance_active = False
-        self.stream_state = "armed" if self.armed else "calibrating"
+        self.stream_state = "armed"
         self.total_frames = 0
         self.accepted_frames = 0
         self.rejected_frames = 0
@@ -449,6 +536,13 @@ class PracticeActivityStateMachine:
         self.total_frames += 1
         self.last_audio_active = False
 
+    def record_calibration_samples(self, sample_count: int) -> None:
+        self.calibration_samples += max(sample_count, 0)
+
+    @property
+    def calibration_complete(self) -> bool:
+        return self.calibration_samples >= self.calibration_sample_count
+
     def reject(self, state: str | None = None) -> None:
         if state is not None:
             self.stream_state = state
@@ -458,10 +552,6 @@ class PracticeActivityStateMachine:
     def accept(self) -> None:
         self.accepted_frames += 1
         self.active_streak += 1
-
-    def mark_armed(self) -> None:
-        self.armed = True
-        self.stream_state = "armed"
 
     def mark_start_signal(self, onset_signal: bool) -> None:
         self.start_streak += 1

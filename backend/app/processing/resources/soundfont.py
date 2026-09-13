@@ -20,7 +20,7 @@ def soundfont_sha256(path: Path) -> str:
 
 
 def ensure_partitura_default_soundfont(soundfont_path: str | None) -> Path | None:
-    """Prevent partitura from downloading its bundled default soundfont at import time."""
+    """Point Partitura's default SoundFont asset to a configured real SoundFont."""
 
     if not soundfont_path:
         return None

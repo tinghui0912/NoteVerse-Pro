@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import type { ScoreData } from '@/types/score-types';
 import {
-  findScoreEntityById,
-  getVerovioElementIdFromTarget,
+  getVerovioRenderElementIdFromTarget,
   getVerovioMeasureIndexFromTarget,
   getVerovioStaffElementForIndex,
 } from './verovio-entity-map';
@@ -17,7 +15,7 @@ describe('verovio entity mapping', () => {
     const path = document.createElement('path');
     group.appendChild(path);
 
-    expect(getVerovioElementIdFromTarget(path)).toBe('note-1');
+    expect(getVerovioRenderElementIdFromTarget(path)).toBe('note-1');
   });
 
   it('prefers the nearest Verovio event id over outer page/system ids', () => {
@@ -35,18 +33,18 @@ describe('verovio entity mapping', () => {
     system.appendChild(note);
     page.appendChild(system);
 
-    expect(getVerovioElementIdFromTarget(path)).toBe('note-stable-1');
+    expect(getVerovioRenderElementIdFromTarget(path)).toBe('note-stable-1');
   });
 
-  it('exposes Verovio spaces as editable blank event hits', () => {
+  it('does not expose Verovio spaces as ordinary editable event hits', () => {
     const space = document.createElement('g');
-    space.setAttribute('data-id', 'blank-forward-1');
+    space.setAttribute('data-id', 'forward-gap-1');
     space.setAttribute('data-class', 'space');
     const hitArea = document.createElement('rect');
 
     space.appendChild(hitArea);
 
-    expect(getVerovioElementIdFromTarget(hitArea)).toBe('blank-forward-1');
+    expect(getVerovioRenderElementIdFromTarget(hitArea)).toBeNull();
   });
 
   it('maps a Verovio measure hit back to its rendered measure index', () => {
@@ -79,98 +77,5 @@ describe('verovio entity mapping', () => {
     measure.append(firstStaff, secondStaff, nestedMeasure);
 
     expect(getVerovioStaffElementForIndex(measure, 1)).toBe(secondStaff);
-  });
-
-  it('maps a stable element id back to a score entity and location', () => {
-    const scoreData: ScoreData = {
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [
-                {
-                  name: 'voiceLabel 1',
-                  notes: [
-                    {
-                      type: 'note',
-                      pitch: 'C4',
-                      duration: 'durationQuarter',
-                      meta: {
-                        id: 'note-1',
-                        measureIndex: 0,
-                        staveIndex: 0,
-                        xmlVoice: 1,
-                        entityIndex: 0,
-                        startTick: 0,
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    };
-
-    expect(findScoreEntityById(scoreData, 'note-1')).toMatchObject({
-      entity: { type: 'note', pitch: 'C4' },
-      location: {
-        measureIndex: 0,
-        staveIndex: 0,
-        xmlVoice: 1,
-        entityIndex: 0,
-      },
-    });
-  });
-
-  it('maps chord member source ids back to the parent chord entity', () => {
-    const scoreData: ScoreData = {
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [
-                {
-                  name: 'voiceLabel 1',
-                  notes: [
-                    {
-                      type: 'chord',
-                      pitches: ['C4', 'E4'],
-                      duration: 'durationQuarter',
-                      meta: {
-                        id: 'chord-main',
-                        sourceIds: ['chord-main', 'chord-member-2'],
-                        measureIndex: 0,
-                        staveIndex: 0,
-                        xmlVoice: 1,
-                        entityIndex: 0,
-                        startTick: 0,
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    };
-
-    expect(findScoreEntityById(scoreData, 'chord-member-2')).toMatchObject({
-      entity: { type: 'chord', pitches: ['C4', 'E4'] },
-      location: {
-        measureIndex: 0,
-        staveIndex: 0,
-        xmlVoice: 1,
-        entityIndex: 0,
-      },
-    });
   });
 });

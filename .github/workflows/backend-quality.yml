@@ -173,6 +173,7 @@ jobs:
           "python -m pytest tests -q
           --ignore=tests/test_practice_api_smoke.py
           --ignore=tests/test_practice_audio_replay_evaluation.py
+          --ignore=tests/test_practice_render_identity_contract.py
           --ignore=tests/test_practice_runtime_regressions.py
           --ignore=tests/test_practice_websocket_flow.py"
 
@@ -182,6 +183,7 @@ jobs:
           "python -m pytest
           tests/test_practice_api_smoke.py
           tests/test_practice_audio_replay_evaluation.py
+          tests/test_practice_render_identity_contract.py
           tests/test_practice_runtime_regressions.py
           tests/test_practice_websocket_flow.py
           -q"
@@ -193,6 +195,7 @@ jobs:
           tests/test_practice_service_access.py
           tests/test_practice_api_smoke.py
           tests/test_practice_audio_replay_evaluation.py
+          tests/test_practice_render_identity_contract.py
           tests/test_practice_runtime_regressions.py
           tests/test_practice_websocket_flow.py
           -q

@@ -13,6 +13,7 @@ import { ScoreDetailHero } from '@/components/score-detail/score-detail-hero';
 import { ScoreDetailTabs } from '@/components/score-detail/score-detail-tabs';
 import { ScoreHeroActions } from '@/components/score-detail/score-hero-actions';
 import { ScoreInfoPanel } from '@/components/score-detail/score-info-panel';
+import { ScoreSavedPerformancesPanel } from '@/components/score-detail/score-saved-performances-panel';
 import { ScoreSharePanel } from '@/components/score-detail/score-share-panel';
 import { ScoreVersionsPanel } from '@/components/score-detail/score-versions-panel';
 import { ResourceLoadError } from '@/components/states';
@@ -97,6 +98,11 @@ function ScorePageContent({ id, source }: { id: string; source: 'shares' | 'my-s
         />
       ),
     },
+    score.capabilities.can_practice ? {
+      value: 'saved-performances',
+      label: t('savedPerformances'),
+      content: <ScoreSavedPerformancesPanel scoreId={score.score_id} />,
+    } : null,
     {
       value: 'versions',
       label: t('versionsAction'),

@@ -139,6 +139,34 @@ docker compose -f docker-compose.backend-dev.yml build worker
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+## Object Storage Direct Uploads
+
+Practice performance replay saves use browser-to-object-storage direct upload.
+The backend returns a presigned `PUT` URL plus the required upload headers, then
+finalizes the durable replay artifact only after the object already exists.
+
+When `FILE_STORAGE_BACKEND=s3` points to Aliyun OSS or another S3-compatible
+bucket, configure bucket CORS for each Customer Web origin that can save
+replays. Local development with Customer Web on `http://localhost:3000` needs a
+rule equivalent to:
+
+```json
+[
+  {
+    "AllowedOrigin": ["http://localhost:3000"],
+    "AllowedMethod": ["PUT", "GET", "HEAD"],
+    "AllowedHeader": ["content-type", "x-amz-meta-sha256"],
+    "ExposeHeader": ["ETag"],
+    "MaxAgeSeconds": 300
+  }
+]
+```
+
+Production should list the production Customer Web origins instead of using a
+wildcard. The presigned replay upload currently signs `content-type` and
+`x-amz-meta-sha256`; if the upload header contract changes, update the bucket
+CORS rule at the same time.
+
 ## Local Quality Checks
 
 Run these before merging backend changes:
@@ -159,7 +187,8 @@ Targeted checks are available when a full run is not needed:
 `pytest` is split into `pytest-core` and `pytest-practice`. Core tests include
 worker contracts such as Celery configuration, import execution, rendering,
 playback, and runtime-check behavior. Practice realtime tests run in the
-practice quality image.
+practice quality image, including tests that require practice-only dependencies
+such as `partitura`, `pymatchmaker`, and the practice render/target catalog.
 
 The repository-wide quality wrapper delegates backend checks to the same
 quality image:

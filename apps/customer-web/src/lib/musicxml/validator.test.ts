@@ -18,7 +18,7 @@ describe('validateDataIntegrity', () => {
           name: 'trebleClef',
           voices: [{
             name: 'voiceLabel 1',
-            notes: [{ type: 'note', pitch: 'C4', duration: 'durationQuarter' }],
+            events: [{ type: 'note', pitch: 'C4', duration: 'durationQuarter' }],
           }],
         }],
       }],
@@ -65,7 +65,7 @@ describe('validateDataIntegrity', () => {
           name: 'trebleClef',
           voices: [{
             name: 'voiceLabel 1',
-            notes: [{
+            events: [{
               type: 'note',
               pitch: 'C4',
               duration: 'durationWhole',
