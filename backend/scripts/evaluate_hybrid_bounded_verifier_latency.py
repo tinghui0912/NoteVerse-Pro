@@ -380,9 +380,9 @@ def _send_request(
         "X-Target-Second": str(fixture["target_second"]),
         "X-Synthetic-One-Way-Delay-Ms": str(synthetic_one_way_delay_ms),
     }
+    request_started = perf_counter()
     if synthetic_one_way_delay_ms > 0:
         time.sleep(synthetic_one_way_delay_ms / 1000.0)
-    request_started = perf_counter()
     connection = HTTPConnection(host, port, timeout=30)
     try:
         connection.request("POST", "/verify", body=payload, headers=headers)
@@ -395,7 +395,7 @@ def _send_request(
         raise RuntimeError(f"verifier returned {response.status}: {response_payload[:200]!r}")
     body = json.loads(response_payload.decode("utf-8"))
     backend_total = sum(float(value) for value in body["timings_ms"].values())
-    transport_overhead_ms = request_to_decision_ms - backend_total - synthetic_one_way_delay_ms
+    transport_overhead_ms = request_to_decision_ms - backend_total - (2 * synthetic_one_way_delay_ms)
     return {
         "fixture_id": fixture["fixture_id"],
         "case_kind": fixture["case_kind"],

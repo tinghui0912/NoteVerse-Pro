@@ -7,7 +7,7 @@ does not refactor Matchmaker, does not connect real microphone input, does not
 touch the frozen evaluation set, and does not tune the frozen `0.2 / 0.2`
 ByteDance verifier.
 
-This benchmark stops browser model feasibility work and asks only:
+This benchmark asks only:
 
 ```text
 browser/client bounded clip
@@ -17,7 +17,7 @@ browser/client bounded clip
 Is end-to-end latency clearly better than browser WebGPU?
 ```
 
-## Current Architecture Conclusion
+## Current Browser Model Conclusion
 
 ```text
 current ByteDance note_model:
@@ -25,8 +25,9 @@ browser WebGPU numerically viable
 but not selected as frontend production verifier
 because local latency/model size are too high.
 
-preferred near-term direction:
-event-driven hybrid bounded verifier.
+hybrid ByteDance:
+online latency reference,
+not selected architecture.
 
 future smaller local verifier remains swappable.
 ```
@@ -76,7 +77,15 @@ Request body:
 ```
 
 Headers carry only expected pitches, target time, and the synthetic one-way
-delay value used by the harness.
+delay value used by the harness. The request-to-decision timer covers:
+
+```text
+synthetic uplink delay
++ HTTP request
++ backend work
++ synthetic downlink delay
++ response
+```
 
 The backend path is:
 
@@ -118,10 +127,10 @@ Each bucket used 24 warm requests.
 
 | One-way delay | Request→decision median | Request→decision p95 | Estimated strike→decision median | Estimated strike→decision p95 | Backend model median |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0ms | 116.9ms | 147.6ms | 336.9ms | 367.6ms | 114.0ms |
-| 25ms | 164.5ms | 190.4ms | 384.5ms | 410.4ms | 136.8ms |
-| 50ms | 202.7ms | 228.6ms | 422.7ms | 448.6ms | 149.3ms |
-| 100ms | 250.5ms | 278.3ms | 470.5ms | 498.3ms | 147.5ms |
+| 0ms | 133.6ms | 160.1ms | 353.6ms | 380.1ms | 130.7ms |
+| 25ms | 212.2ms | 246.1ms | 432.2ms | 466.1ms | 158.1ms |
+| 50ms | 265.6ms | 307.2ms | 485.6ms | 527.2ms | 161.9ms |
+| 100ms | 361.4ms | 402.1ms | 581.4ms | 622.1ms | 157.8ms |
 
 Other measured details:
 
@@ -129,9 +138,9 @@ Other measured details:
 request upload bytes: 116480
 response bytes median: 742
 client serialization median: ~0.02ms
-backend deserialize median: ~0.14ms at 0ms synthetic delay
-backend evidence median: ~0.46ms at 0ms synthetic delay
-backend evaluation median: ~0.01ms at 0ms synthetic delay
+backend deserialize median: sub-millisecond
+backend evidence median: sub-millisecond
+backend evaluation median: sub-millisecond
 ```
 
 The estimated physical strike-to-decision budget is:
@@ -155,24 +164,25 @@ Edge WebGPU:
   estimated strike→decision median = 987.3ms
 ```
 
-Hybrid remote verifier:
+Hybrid remote verifier online reference:
 
 ```text
 0ms one-way:
-  estimated median = 336.9ms
+  estimated median = 353.6ms
 
 25ms one-way:
-  estimated median = 384.5ms
+  estimated median = 432.2ms
 
 50ms one-way:
-  estimated median = 422.7ms
+  estimated median = 485.6ms
 
 100ms one-way:
-  estimated median = 470.5ms
+  estimated median = 581.4ms
 ```
 
 Even with `100ms` synthetic one-way delay, the hybrid path remains clearly
-below the current browser WebGPU median budget.
+below the current browser WebGPU median budget. This makes it a useful online
+latency reference, not an automatic production architecture choice.
 
 ## Architecture Boundary
 
@@ -184,7 +194,7 @@ StrikeVerifier
   → result + optional evidence
 ```
 
-Near-term implementation:
+Possible remote implementation:
 
 ```text
 RemoteBoundedVerifier
@@ -192,7 +202,7 @@ RemoteBoundedVerifier
   backend GPU verifies
 ```
 
-Future swappable implementation:
+Possible local implementation:
 
 ```text
 LocalBoundedVerifier
@@ -207,18 +217,22 @@ provider details.
 
 The hybrid remote bounded verifier is clearly faster than the current browser
 WebGPU ByteDance `note_model` path under the measured synthetic network
-conditions.
+conditions, after correcting the benchmark to include both synthetic uplink and
+downlink delay inside request-to-decision timing.
 
-Stop inference-location benchmarking here:
+Stop hybrid benchmarking here:
 
 ```text
-near-term architecture = hybrid remote verifier
-future optimization = smaller local verifier
+hybrid ByteDance = online latency reference
+not selected production architecture
 ```
 
-The real remaining product/research problem is now:
+The next inference-location experiment is Basic Pitch browser-local feasibility.
+Hybrid ByteDance remains a reference line, while architecture selection is still
+open.
+
+The real product/research problem that remains outside this benchmark is still:
 
 ```text
 causal physical-strike candidate generation
 ```
-
