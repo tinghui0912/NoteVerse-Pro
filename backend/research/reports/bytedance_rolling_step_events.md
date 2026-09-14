@@ -115,16 +115,22 @@ wrong-note target-local diagnostic:
 
 This prevents later unrelated musical events from being mislabeled as wrong-note false advances.
 
-Two predeclared event rules were compared:
+The first formulation pass compared `current_max_frame` and `temporally_bound`.
+The second pass replaced `current_max_frame` with the official ByteDance
+regression-peak event semantics:
 
 ```text
-A. current_max_frame
-   onset_peak >= 0.2
-   AND max_frame_in_local_window >= 0.2
-
-B. temporally_bound
+A. temporally_bound
    onset_peak >= 0.2
    AND frame_at_onset_peak >= 0.2
+
+B. model_native_onset_peak
+   official RegressionPostProcessor-equivalent:
+     threshold = 0.2
+     monotonic local peak
+     neighbour = 2
+     regression onset shift
+   AND frame_at_that_official_peak >= 0.2
 ```
 
 No threshold, cadence, or dedupe value was swept.
@@ -133,10 +139,10 @@ No threshold, cadence, or dedupe value was swept.
 
 Aggregate dev + calibration:
 
-| Metric | current_max_frame | temporally_bound |
+| Metric | temporally_bound | model_native_onset_peak |
 | --- | ---: | ---: |
-| correct single | 20 / 24 | 20 / 24 |
-| correct chord | 18 / 24 | 18 / 24 |
+| correct single | 20 / 24 | 18 / 24 |
+| correct chord | 18 / 24 | 10 / 24 |
 | wrong semitone target-local false MATCH | 0 / 18 clean | 0 / 18 clean |
 | wrong octave target-local false MATCH | 0 / 23 clean | 0 / 23 clean |
 | missing chord target-local false MATCH | 0 / 20 clean | 0 / 20 clean |
@@ -144,10 +150,17 @@ Aggregate dev + calibration:
 | same-note legitimate second advance | 17 / 20 eligible | 17 / 20 eligible |
 | same-note premature second advance | 0 / 20 eligible | 0 / 20 eligible |
 | same-note missed retrigger | 3 / 20 eligible | 3 / 20 eligible |
-| long-held first advance established | 20 / 24 | 20 / 24 |
-| long-held false second advance | 2 / 20 eligible | 2 / 20 eligible |
-| pedal-tail first advance established | 19 / 24 | 18 / 24 |
-| pedal-tail false second advance | 5 / 19 eligible | 4 / 18 eligible |
+| long-held first advance established | 20 / 24 | 12 / 24 |
+| long-held false second advance | 2 / 20 eligible | 2 / 12 eligible |
+| pedal-tail first advance established | 18 / 24 | 13 / 24 |
+| pedal-tail false second advance | 4 / 18 eligible | 4 / 13 eligible |
+
+Paired held/pedal comparison, only cases where both A and B established the first advance:
+
+| Case family | Intersection | A false -> B safe | A safe -> B false | false under both | safe under both |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| long-held | 12 | 0 | 0 | 2 | 10 |
+| pedal-tail | 13 | 0 | 0 | 4 | 9 |
 
 Pressure:
 
@@ -174,8 +187,8 @@ Positive signal:
 - Same-note retrigger is much more promising under rolling ByteDance than under previous handcrafted trigger attempts.
 - After event dedupe and stricter first-state establishment, same-note premature second advance is zero in eligible cases.
 - Legitimate same-note retrigger was detected in 17 / 20 eligible cases.
-- Correct single recall is 20 / 24.
-- Correct chord is 18 / 24 under both event rules after stricter target-local semantics.
+- Correct single recall is 20 / 24 under temporally_bound, but drops to 18 / 24 under model_native_onset_peak.
+- Correct chord is 18 / 24 under temporally_bound, but drops to 10 / 24 under model_native_onset_peak.
 - Wrong-note target-local diagnostics are clean under the corrected definition:
   - semitone: 0 / 18 clean
   - octave: 0 / 23 clean
@@ -185,11 +198,28 @@ Safety blockers:
 
 - Held/sustain safety is not clean:
   - long-held false second advance: 2 / 20 eligible
-  - pedal-tail false second advance: 5 / 19 eligible under current_max_frame
   - pedal-tail false second advance: 4 / 18 eligible under temporally_bound
-- Temporally binding frame evidence to the onset peak helps only slightly and does not change the main conclusion.
+- Model-native onset peak semantics do not remove held/pedal false second advance in paired intersections:
+  - long-held: 2 false under both / 12 intersection
+  - pedal-tail: 4 false under both / 13 intersection
+- Model-native onset peak also reduces positive recall, especially chord recall.
 
-The remaining failures are not mainly duplicate-window identity errors; the dedupe fix removed that class of false second advance. The remaining held/pedal blockers also are not mainly caused by stitching an onset from one time to a frame from another time. Example temporally-bound false second events still have strong `frame_at_onset_peak`:
+The remaining failures are not mainly duplicate-window identity errors; the dedupe fix removed that class of false second advance. The remaining held/pedal blockers also are not mainly caused by stitching an onset from one time to a frame from another time.
+
+They also are not an artifact of using a non-official local-window onset maximum. The official-equivalent model-native event extraction still produces false second events in the same paired cases.
+
+Example model-native false second event:
+
+```text
+long-held G#4:
+  official_peak_frame_index = 158
+  reg_onset[-2..+2] = [0.071522, 0.119984, 0.210683, 0.206954, 0.142783]
+  onset_peak = 0.210683
+  frame_at_peak = 0.994089
+  regression shift = +0.479443 frames
+```
+
+Earlier temporally-bound examples:
 
 ```text
 pedal tail:
@@ -220,7 +250,8 @@ The KEEP rule is not yet met:
 wrong-note target-local false MATCH ≈ 0  yes
 held/pedal false second advance ≈ 0      no
 same-note retrigger usable          mostly yes
-single/chord recall acceptable      yes
+single/chord recall acceptable      yes under temporally_bound,
+                                    weaker under model_native_onset_peak
 ```
 
 Therefore:
@@ -230,6 +261,13 @@ ByteDance rolling STEP = FORMULATION_NOT_READY
 ```
 
 Do not proceed to production integration, browser deployment, or cadence/compute-budget work based on this result. Also do not call ByteDance rolling STOP solely from this run: the corrected formulation substantially changed the wrong-note conclusion and showed that retrigger is viable. The remaining blocker is specifically held/pedal no-retrigger safety.
+
+However, the latest comparison does answer the requested formulation question:
+
+```text
+Official model-native onset-event semantics do not solve held/pedal false second advance.
+The issue is not just our previous local-window max formulation.
+```
 
 ## Next
 
@@ -243,6 +281,6 @@ but held/pedal no-retrigger safety is still not clean.
 
 The next research question should be chosen explicitly:
 
-1. If staying on ByteDance rolling: investigate held/pedal false second events only, using already recorded raw onset/frame diagnostics and without sweeping thresholds.
+1. If staying on ByteDance rolling: investigate held/pedal false second events only, using already existing raw outputs such as velocity/onset shape or other already available model heads. Do not sweep thresholds yet.
 2. If comparing another bounded-context onset frontend: resume O&V only as a bounded-context onset comparator, not as strict causal.
 3. If product latency/architecture becomes the priority: do not use this unsafe rolling policy as the product verifier.
