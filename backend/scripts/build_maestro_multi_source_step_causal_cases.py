@@ -47,18 +47,24 @@ def main() -> int:
     if not metadata_path.exists():
         raise RuntimeError(f"MAESTRO metadata CSV not found: {metadata_path}")
 
-    rows = _select_rows(
-        metadata_path,
-        split=args.split,
-        source_count=args.source_count,
-        seed=args.seed,
-        selection_mode=args.selection_mode,
-        exclude_audio_filenames=_excluded_audio_filenames(args.exclude_manifest),
-        min_duration_seconds=args.min_duration_seconds,
-        max_duration_seconds=args.max_duration_seconds,
-        dataset_dir=args.dataset_dir,
-        existing_only=args.existing_only,
-    )
+    if args.source_list_manifest is not None:
+        rows = _rows_from_source_list_manifest(
+            metadata_path,
+            source_list_manifest=args.source_list_manifest,
+        )
+    else:
+        rows = _select_rows(
+            metadata_path,
+            split=args.split,
+            source_count=args.source_count,
+            seed=args.seed,
+            selection_mode=args.selection_mode,
+            exclude_audio_filenames=_excluded_audio_filenames(args.exclude_manifest),
+            min_duration_seconds=args.min_duration_seconds,
+            max_duration_seconds=args.max_duration_seconds,
+            dataset_dir=args.dataset_dir,
+            existing_only=args.existing_only,
+        )
     source_manifests = []
     combined_cases = []
     clips_dir = args.output_dir / "clips"
@@ -131,6 +137,7 @@ def main() -> int:
             "source_count": len(source_manifests),
             "set_role": args.set_role,
             "source_selection": args.selection_mode,
+            "source_list_manifest": str(args.source_list_manifest) if args.source_list_manifest else None,
             "selection_seed": args.seed,
             "excluded_manifest_count": len(args.exclude_manifest),
         },
@@ -175,6 +182,15 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--seed", type=int, default=20260912)
     parser.add_argument("--exclude-manifest", type=Path, action="append", default=[])
+    parser.add_argument(
+        "--source-list-manifest",
+        type=Path,
+        default=None,
+        help=(
+            "Optional existing multi-source manifest whose sources[].audio_filename "
+            "order should be reused exactly. This bypasses source selection."
+        ),
+    )
     parser.add_argument("--source-count", type=int, default=10)
     parser.add_argument("--max-cases-per-kind", type=int, default=2)
     parser.add_argument("--min-duration-seconds", type=float, default=None)
@@ -189,6 +205,23 @@ def parse_args() -> argparse.Namespace:
         help="Select only source rows whose audio and MIDI files already exist locally.",
     )
     return parser.parse_args()
+
+
+def _rows_from_source_list_manifest(
+    metadata_path: Path,
+    *,
+    source_list_manifest: Path,
+) -> list[dict[str, str]]:
+    source_manifest = json.loads(source_list_manifest.read_text(encoding="utf-8"))
+    requested = [str(source["audio_filename"]) for source in source_manifest.get("sources", ())]
+    if not requested:
+        raise RuntimeError(f"No sources found in source-list manifest: {source_list_manifest}")
+    with metadata_path.open("r", encoding="utf-8", newline="") as file:
+        rows_by_audio = {row["audio_filename"]: row for row in csv.DictReader(file)}
+    missing = [audio for audio in requested if audio not in rows_by_audio]
+    if missing:
+        raise RuntimeError(f"Source-list manifest references unknown MAESTRO rows: {missing}")
+    return [rows_by_audio[audio] for audio in requested]
 
 
 def _select_rows(

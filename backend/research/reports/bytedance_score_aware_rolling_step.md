@@ -10,11 +10,14 @@ Scope:
 - Production parser/progression: not modified.
 - Thresholds unchanged: `onset >= 0.2`, `frame >= 0.2`.
 - Cadence unchanged: `150ms`.
+- Event dedupe unchanged: `50ms`.
 - No threshold sweep, cadence sweep, velocity/onset-shape rejection, O&V, RTT, model training, browser optimization, or production integration.
 
-Script:
+Scripts:
 
 ```text
+backend/scripts/build_maestro_multi_source_step_causal_cases.py
+backend/scripts/extract_public_paired_step_causal_cases.py
 backend/scripts/evaluate_bytedance_score_aware_rolling_step.py
 ```
 
@@ -24,155 +27,204 @@ Output:
 backend/data/work/datasets/maestro-v3.0.0/bytedance_score_aware_rolling_step_dev_cal.json
 ```
 
-## Contract
+## Benchmark Fixes
 
-This benchmark changes the musical contract from:
+### No-Retrigger Case Rebuild
 
-```text
-expected pitch set
-```
-
-to:
-
-```text
-ATTACK_REQUIRED
-CONTINUATION
-```
-
-Only ATTACK_REQUIRED pitches can drive automatic STEP advancement.
-
-```text
-ATTACK_REQUIRED:
-  must have new onset evidence
-
-CONTINUATION:
-  belongs to the score position
-  does not require a new onset
-  cannot advance by sustain alone
-```
-
-The current implementation still uses the same ByteDance rolling event stream:
-
-```text
-PCM
--> periodic ByteDance note_model
--> onset/frame events
--> consumed-event boundary
--> ATTACK_REQUIRED set
-```
-
-The `50ms` event dedupe remains only an overlapping-window identity boundary. It is not a long same-note cooldown.
-
-## Case Families
-
-Primary product metrics:
-
-```text
-single_new_attack
-chord_new_attack
-wrong_pitch
-missing_chord_tone
-same_note_rearticulation
-shared_tone_rearticulation
-shared_tone_continuation
-```
-
-Secondary safety stress:
+The public paired case builder now applies full-export-range same-pitch exclusion to:
 
 ```text
 long_held_note_without_retrigger
 pedal_sustain_tail_without_retrigger
 ```
 
-`shared_tone_continuation` is not a notation-tie claim. MAESTRO MIDI does not reliably encode score ties. These cases are marked as:
+This generalizes the existing same-pitch guard previously used only by:
 
 ```text
-gt_note_span_synthetic_product_semantic_diagnostic
+same_note_retrigger
 ```
 
-They are constructed when a note span remains active at the next physical strike while other notes attack.
+The development/calibration manifests were rebuilt from the same source recordings. Source filename + audio SHA256 stayed unchanged for both sets.
+
+Case counts stayed:
+
+```text
+development: 128
+calibration: 64
+```
+
+Held/pedal replacements occurred only within the same source recordings. The largest change was in pedal-tail cases, where previous exported clips could contain uncounted same-pitch note-ons near the end of the clip.
+
+### Adjacent Transition Semantics
+
+The score-aware transition builder no longer searches for an arbitrary later suitable group.
+
+Every score-aware transition is now based only on adjacent GT physical strike groups:
+
+```text
+group[i] -> group[i+1]
+```
+
+For `group[i+1]`:
+
+```text
+ATTACK_REQUIRED =
+  pitches with physical note-on in group[i+1]
+
+CONTINUATION =
+  pitches whose earlier note span remains active across group[i+1]
+  and which do not have a new note-on in group[i+1]
+```
+
+This is physical-action GT semantics, not notation-tie ground truth. MAESTRO MIDI does not reliably encode score ties.
+
+Transitions are deduplicated by:
+
+```text
+source_recording_id
+first_group_source_time
+second_group_source_time
+```
+
+so overlapping extracted clips do not multiply-count the same real source transition.
+
+## Runtime Contract
+
+The simulated STEP runtime remains:
+
+```text
+PCM
+-> periodic ByteDance note_model
+-> new onset events
+-> consumed-event boundary
+-> ATTACK_REQUIRED set only
+```
+
+CONTINUATION:
+
+```text
+does not require a new onset
+does not itself drive advancement
+```
 
 ## Results
 
+`temporally_bound` remains the main candidate because `model_native_event_stream` has weaker chord recall.
+
 ### temporally_bound
 
-| Family | Auto advance | Clean false automatic advance | Missed expected advance |
-| --- | ---: | ---: | ---: |
-| single new attack | 20 / 24 | 0 / 24 | 4 / 24 |
-| chord new attack | 18 / 24 | 0 / 24 | 6 / 24 |
-| wrong pitch | 0 / 48 | 0 / 43 | 0 / 48 |
-| missing chord tone | 2 / 24 | 0 / 20 clean | 0 / 24 |
-| same-note re-articulation | 17 / 20 eligible | 0 / 20 | 3 / 20 |
-| shared-tone re-articulation | 36 / 50 eligible | 0 / 50 | 15 / 50 |
-| shared-tone continuation | 76 / 77 eligible | 3 / 77 | 4 / 77 |
+Primary product metrics:
+
+| Family | Total | Legitimate/auto advance | Clean false automatic advance | Missed / unresolved |
+| --- | ---: | ---: | ---: | ---: |
+| single attack | 24 | 24 / 24 | 0 / 24 | 0 / 24 |
+| chord attack | 24 | 21 / 24 | 0 / 24 | 3 / 24 |
+| wrong pitch | 48 | 0 / 48 | 0 / 43 clean | 0 / 48 |
+| missing chord tone | 24 | 2 / 24 raw | 0 / 20 clean | 0 / 24 |
+| same-note re-articulation | 24 | 20 / 23 eligible | 0 / 23 | 3 / 23 |
+| adjacent transitions, all | 985 | 813 / 895 eligible | 0 / 895 | 125 / 895 |
+| adjacent single attack | 726 | 625 / 669 eligible | 0 / 669 | 68 / 669 |
+| adjacent multi-note attack | 259 | 188 / 226 eligible | 0 / 226 | 57 / 226 |
+| same-pitch re-articulation | 28 | 19 / 23 eligible | 0 / 23 | 4 / 23 |
+| shared-pitch re-articulation | 65 | 42 / 50 eligible | 0 / 50 | 12 / 50 |
+| mixed continuation + attack | 399 | 328 / 356 eligible | 0 / 356 | 44 / 356 |
+
+Adjacent transition classifications:
+
+```text
+LEGITIMATE_ADVANCE: 770
+LATE_OR_STALE_MATCH: 43
+PREMATURE_FALSE_ADVANCE: 0
+```
 
 Secondary safety stress:
 
 | Family | Auto advance | Clean false automatic advance |
 | --- | ---: | ---: |
-| long-held no-retrigger | 2 / 20 eligible | 2 / 20 |
-| pedal-tail no-retrigger | 4 / 18 eligible | 4 / 18 |
+| long-held no-retrigger | 1 / 23 eligible | 1 / 23 |
+| pedal-tail no-retrigger | 0 / 20 eligible | 0 / 20 |
 
 ### model_native_event_stream
 
-| Family | Auto advance | Clean false automatic advance | Missed expected advance |
-| --- | ---: | ---: | ---: |
-| single new attack | 20 / 24 | 0 / 24 | 4 / 24 |
-| chord new attack | 10 / 24 | 0 / 24 | 14 / 24 |
-| wrong pitch | 0 / 48 | 0 / 43 | 0 / 48 |
-| missing chord tone | 2 / 24 | 0 / 20 clean | 0 / 24 |
-| same-note re-articulation | 17 / 20 eligible | 0 / 20 | 3 / 20 |
-| shared-tone re-articulation | 36 / 53 eligible | 0 / 53 | 19 / 53 |
-| shared-tone continuation | 57 / 57 eligible | 3 / 57 | 3 / 57 |
+Diagnostic comparison only:
+
+| Family | Total | Legitimate/auto advance | Clean false automatic advance | Missed / unresolved |
+| --- | ---: | ---: | ---: | ---: |
+| single attack | 24 | 24 / 24 | 0 / 24 | 0 / 24 |
+| chord attack | 24 | 12 / 24 | 0 / 24 | 12 / 24 |
+| wrong pitch | 48 | 0 / 48 | 0 / 43 clean | 0 / 48 |
+| missing chord tone | 24 | 2 / 24 raw | 0 / 20 clean | 0 / 24 |
+| same-note re-articulation | 24 | 20 / 23 eligible | 0 / 23 | 3 / 23 |
+| adjacent transitions, all | 985 | 795 / 900 eligible | 0 / 900 | 133 / 900 |
+| adjacent single attack | 726 | 620 / 672 eligible | 0 / 672 | 71 / 672 |
+| adjacent multi-note attack | 259 | 175 / 228 eligible | 0 / 228 | 62 / 228 |
+| same-pitch re-articulation | 28 | 22 / 26 eligible | 0 / 26 | 4 / 26 |
+| shared-pitch re-articulation | 65 | 41 / 53 eligible | 0 / 53 | 14 / 53 |
+| mixed continuation + attack | 399 | 322 / 358 eligible | 0 / 358 | 43 / 358 |
 
 Secondary safety stress:
 
 | Family | Auto advance | Clean false automatic advance |
 | --- | ---: | ---: |
-| long-held no-retrigger | 2 / 13 eligible | 2 / 13 |
-| pedal-tail no-retrigger | 4 / 13 eligible | 4 / 13 |
+| long-held no-retrigger | 1 / 14 eligible | 1 / 14 |
+| pedal-tail no-retrigger | 0 / 16 eligible | 0 / 16 |
 
 ## Interpretation
 
-The score-aware contract improves the interpretation of the previous rolling results:
+The corrected adjacent-transition benchmark changes the conclusion:
 
 ```text
-wrong pitch clean false advance = 0
-missing chord clean false advance = 0
-same-note re-articulation is usable
-shared-tone re-articulation is usable but has false negatives
+primary clean false automatic advance = 0
 ```
 
-This supports the idea that STEP should be driven by ATTACK_REQUIRED onsets, not by a flat expected pitch set.
-
-However, this formulation is not yet clean enough to freeze:
+across:
 
 ```text
-shared-tone continuation has 3 premature false advances
+wrong pitch
+missing chord tone
+same-note re-articulation
+shared-pitch re-articulation
+mixed continuation + attack
+all adjacent physical transitions
 ```
 
-Those are synthetic product-semantic diagnostics, not proven notation-tie failures, but they show that the current score-aware formulation still needs a stricter definition of when a continuation diagnostic is eligible to count as a product transition.
+Remaining product-facing failures are mostly:
 
-The held/pedal no-retrigger families remain useful safety stress tests, but they should not be the primary product gate by themselves.
+```text
+false negatives
+late/stale matches
+unresolved attempts
+```
+
+This is compatible with explicit Skip as the recovery path.
+
+The secondary held/pedal stress cases are much cleaner after rebuilding:
+
+```text
+pedal-tail false = 0
+long-held false = 1
+```
+
+They remain useful stress tests, but they no longer dominate the product decision.
 
 ## Decision
 
-Current decision:
+For the current development/calibration formulation evidence:
 
 ```text
-ByteDance score-aware rolling STEP = NEEDS_MORE_FORMULATION_WORK
+ByteDance score-aware rolling STEP = KEEP_CANDIDATE_FORMULATION
 ```
 
-This is not a model STOP. The important product-facing signal is:
+This is not production integration approval. It means the score-aware contract is now the right research direction:
 
 ```text
-clean wrong/missing false advance is zero
-same-note re-articulation works in most eligible cases
-shared-tone re-articulation works without clean false automatic advance
+ATTACK_REQUIRED drives automatic progression.
+CONTINUATION does not require onset and does not advance by sustain alone.
 ```
 
-The next step should be benchmark construction, not model tuning:
+Next work should be about engineering the formulation toward runtime, not threshold or rejection-rule tuning:
 
-1. Rebuild held/pedal no-retrigger cases after the full-export-range same-pitch exclusion fix.
-2. Refine score-aware shared-tone continuation case construction so it reflects a real score transition or remains clearly labeled as synthetic stress.
-3. Only after the score-aware case semantics are clean should raw evidence separability or another model be reconsidered.
+1. Keep `temporally_bound` as the main candidate.
+2. Treat `model_native_event_stream` as diagnostic because chord recall is lower.
+3. Do not tune thresholds/cadence/dedupe on this inspected dev/cal evidence.
+4. Before production integration, design the score parser contract that can mark ATTACK_REQUIRED vs CONTINUATION from actual score structure.

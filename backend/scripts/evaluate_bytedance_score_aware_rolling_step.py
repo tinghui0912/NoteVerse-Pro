@@ -172,6 +172,7 @@ def _evaluate_case(
         raise ValueError(f"expected {SAMPLE_RATE} Hz case audio, got {sample_rate}: {audio_path}")
 
     source_start = float((case.get("source_time_range_seconds") or (0.0,))[0])
+    source_id = str(_case_source_identity(case)["source_recording_id"])
     target_seconds = tuple(float(value) for value in case.get("target_group_seconds", ()))
     target_relative = tuple(max(0.0, value - source_start) for value in target_seconds)
     expected_groups = tuple(tuple(group) for group in case.get("expected_groups", ()))
@@ -194,6 +195,7 @@ def _evaluate_case(
     score_cases = _score_aware_cases_from_manifest_case(
         case,
         case_kind=case_kind,
+        source_recording_id=source_id,
         expected_groups=expected_groups,
         actual_groups=actual_groups,
         target_relative=target_relative,
@@ -222,6 +224,7 @@ def _score_aware_cases_from_manifest_case(
     case: dict[str, object],
     *,
     case_kind: str,
+    source_recording_id: str,
     expected_groups: tuple[tuple[str, ...], ...],
     actual_groups: tuple[tuple[str, ...], ...],
     target_relative: tuple[float, ...],
@@ -239,6 +242,7 @@ def _score_aware_cases_from_manifest_case(
                 expected_auto_advance=True,
                 source_case_kind=case_kind,
                 diagnostic_note="All expected pitches are ATTACK_REQUIRED.",
+                transition_key=f"{source_recording_id}:{source_start + target_relative[0]:.6f}",
             )
         )
     elif case_kind in {"wrong_semitone", "wrong_octave", "missing_chord_tone"} and expected_groups and target_relative:
@@ -260,6 +264,7 @@ def _score_aware_cases_from_manifest_case(
                     actual_pitches=actual_group,
                     target_abs=target_abs,
                 ),
+                transition_key=f"{source_recording_id}:{target_abs:.6f}:{case_kind}",
             )
         )
     elif case_kind == "same_note_retrigger" and len(expected_groups) >= 2 and len(target_relative) >= 2:
@@ -273,6 +278,10 @@ def _score_aware_cases_from_manifest_case(
                 "second_expected_group": expected_groups[1],
                 "second_attack_required": expected_groups[1],
                 "second_continuation": (),
+                "transition_key": (
+                    f"{source_recording_id}:{source_start + target_relative[0]:.6f}:"
+                    f"{source_start + target_relative[1]:.6f}:same_note"
+                ),
                 "expected_auto_advance": True,
                 "semantic_origin": "midi_note_on_gt",
                 "diagnostic_note": "Second same-pitch physical note-on is ATTACK_REQUIRED.",
@@ -288,13 +297,23 @@ def _score_aware_cases_from_manifest_case(
                 "second_expected_group": expected_groups[1],
                 "second_attack_required": expected_groups[1],
                 "second_continuation": (),
+                "transition_key": (
+                    f"{source_recording_id}:{source_start + target_relative[0]:.6f}:"
+                    f"{case_kind}"
+                ),
                 "expected_auto_advance": False,
                 "semantic_origin": "safety_stress_no_retrigger",
                 "diagnostic_note": "Safety stress: no second same-pitch physical note-on should auto-advance.",
             }
         )
 
-    cases.extend(_shared_tone_score_cases(case, source_start=source_start))
+    cases.extend(
+        _adjacent_transition_score_cases(
+            case,
+            source_recording_id=source_recording_id,
+            source_start=source_start,
+        )
+    )
     return cases
 
 
@@ -309,6 +328,7 @@ def _target_local_score_case(
     source_case_kind: str,
     diagnostic_note: str,
     future_target_contaminated: bool = False,
+    transition_key: str | None = None,
 ) -> dict[str, object]:
     return {
         "family": family,
@@ -320,6 +340,7 @@ def _target_local_score_case(
         "expected_auto_advance": expected_auto_advance,
         "semantic_origin": "midi_note_on_gt",
         "future_target_contaminated": future_target_contaminated,
+        "transition_key": transition_key,
         "diagnostic_note": diagnostic_note,
     }
 
@@ -346,60 +367,49 @@ def _target_local_future_counterfactual_contaminated(
     return False
 
 
-def _shared_tone_score_cases(case: dict[str, object], *, source_start: float) -> list[dict[str, object]]:
+def _adjacent_transition_score_cases(
+    case: dict[str, object],
+    *,
+    source_recording_id: str,
+    source_start: float,
+) -> list[dict[str, object]]:
     groups = _gt_strike_groups(case, source_start=source_start)
     if len(groups) < 2:
         return []
     output: list[dict[str, object]] = []
     for first, second in zip(groups, groups[1:], strict=False):
-        first_pitches = set(first["pitches"])
-        second_pitches = set(second["pitches"])
-        overlap = tuple(sorted(first_pitches & second_pitches, key=_pitch_sort_key))
-        if overlap:
-            output.append(
-                {
-                    "family": "shared_tone_rearticulation",
-                    "source_case_kind": case.get("case_kind"),
-                    "first_target_time": round(float(first["time"]), 6),
-                    "second_target_time": round(float(second["time"]), 6),
-                    "first_expected_group": tuple(first["pitches"]),
-                    "second_expected_group": tuple(second["pitches"]),
-                    "second_attack_required": tuple(second["pitches"]),
-                    "second_continuation": (),
-                    "shared_pitches": overlap,
-                    "expected_auto_advance": True,
-                    "semantic_origin": "midi_note_on_gt",
-                    "diagnostic_note": "Shared pitch has a second physical note-on and is ATTACK_REQUIRED.",
-                }
-            )
-            break
-    for first in groups:
-        sustained = _sustained_pitches_at_next_group(first, groups, case)
-        if sustained is None:
-            continue
-        second, continuation = sustained
+        continuation = _continuation_pitches_at_group(second, case)
         attack_required = tuple(second["pitches"])
-        expected_group = tuple(dict.fromkeys((*attack_required, continuation)))
+        expected_group = tuple(dict.fromkeys((*attack_required, *continuation)))
+        first_pitches = set(first["pitches"])
+        attack_set = set(attack_required)
+        rearticulated_shared = tuple(sorted(first_pitches & attack_set, key=_pitch_sort_key))
         output.append(
             {
-                "family": "shared_tone_continuation",
+                "family": "adjacent_physical_transition",
                 "source_case_kind": case.get("case_kind"),
+                "transition_key": (
+                    f"{source_recording_id}:{float(first['source_time']):.6f}:"
+                    f"{float(second['source_time']):.6f}"
+                ),
+                "first_group_source_time": round(float(first["source_time"]), 6),
+                "second_group_source_time": round(float(second["source_time"]), 6),
                 "first_target_time": round(float(first["time"]), 6),
                 "second_target_time": round(float(second["time"]), 6),
                 "first_expected_group": tuple(first["pitches"]),
                 "second_expected_group": expected_group,
                 "second_attack_required": attack_required,
-                "second_continuation": (continuation,),
-                "shared_pitches": (continuation,),
+                "second_continuation": continuation,
+                "rearticulated_shared_pitches": rearticulated_shared,
                 "expected_auto_advance": True,
-                "semantic_origin": "gt_note_span_synthetic_product_semantic_diagnostic",
+                "semantic_origin": "adjacent_physical_action_gt",
                 "diagnostic_note": (
-                    "Continuation is inferred from a note span that remains active at the "
-                    "next strike; this is not a notation tie claim."
+                    "Adjacent physical transition. ATTACK_REQUIRED comes from note-ons "
+                    "in group[i+1]. CONTINUATION comes from earlier note spans still "
+                    "active at group[i+1] and is not notation-tie ground truth."
                 ),
             }
         )
-        break
     return output
 
 
@@ -435,30 +445,24 @@ def _gt_strike_groups(case: dict[str, object], *, source_start: float) -> list[d
     return [group for group in groups if group["pitches"]]
 
 
-def _sustained_pitches_at_next_group(
-    first: dict[str, object],
-    groups: list[dict[str, object]],
+def _continuation_pitches_at_group(
+    group: dict[str, object],
     case: dict[str, object],
-) -> tuple[dict[str, object], str] | None:
-    first_time = float(first["source_time"])
-    first_pitches = set(first["pitches"])
-    later_groups = [group for group in groups if float(group["source_time"]) > first_time + 0.15]
-    for second in later_groups:
-        second_pitches = set(second["pitches"])
-        if first_pitches & second_pitches:
+) -> tuple[str, ...]:
+    group_time = float(group["source_time"])
+    attack_pitches = set(group["pitches"])
+    continuation = []
+    for event in case.get("ground_truth_note_events", ()) or ():
+        pitch = event.get("pitch")
+        start = event.get("start_seconds")
+        end = event.get("end_seconds")
+        if not isinstance(pitch, str) or pitch in attack_pitches:
             continue
-        second_time = float(second["source_time"])
-        for event in case.get("ground_truth_note_events", ()) or ():
-            pitch = event.get("pitch")
-            end = event.get("end_seconds")
-            start = event.get("start_seconds")
-            if pitch not in first_pitches:
-                continue
-            if not isinstance(start, (int, float)) or abs(float(start) - first_time) > GT_GROUP_WINDOW_SECONDS:
-                continue
-            if isinstance(end, (int, float)) and float(end) >= second_time + 0.05:
-                return second, str(pitch)
-    return None
+        if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+            continue
+        if float(start) < group_time - GT_GROUP_WINDOW_SECONDS and float(end) >= group_time + 0.05:
+            continuation.append(pitch)
+    return tuple(sorted(set(continuation), key=_pitch_sort_key))
 
 
 def _evaluate_score_case(
@@ -481,6 +485,7 @@ def _evaluate_score_case(
             "family": family,
         "expected_auto_advance": bool(score_case["expected_auto_advance"]),
         "future_target_contaminated": bool(score_case.get("future_target_contaminated", False)),
+        "transition_key": score_case.get("transition_key"),
         "auto_advanced": auto_advanced,
         "false_automatic_advance": auto_advanced and not bool(score_case["expected_auto_advance"]),
             "missed_expected_advance": (not auto_advanced) and bool(score_case["expected_auto_advance"]),
@@ -528,6 +533,7 @@ def _evaluate_score_case(
         "first_advance_established": True,
         "expected_auto_advance": bool(score_case["expected_auto_advance"]),
         "future_target_contaminated": bool(score_case.get("future_target_contaminated", False)),
+        "transition_key": score_case.get("transition_key"),
         "auto_advanced": auto_advanced,
         "false_automatic_advance": (
             auto_advanced
@@ -575,9 +581,11 @@ def _summary(evaluations: list[dict[str, object]], *, rule_name: str) -> dict[st
         for evaluation in evaluations
         for result in evaluation["results_by_event_rule"][rule_name]
     ]
+    primary_rows = _dedupe_primary_rows(rows)
     by_family: dict[str, list[dict[str, object]]] = defaultdict(list)
-    for row in rows:
+    for row in primary_rows:
         by_family[str(row["family"])].append(row)
+    adjacent = by_family["adjacent_physical_transition"]
     return {
         "event_rule": {
             "name": rule_name,
@@ -591,9 +599,33 @@ def _summary(evaluations: list[dict[str, object]], *, rule_name: str) -> dict[st
                 "wrong_pitch",
                 "missing_chord_tone",
                 "same_note_rearticulation",
-                "shared_tone_rearticulation",
-                "shared_tone_continuation",
             )
+        }
+        | {
+            "adjacent_all": _family_summary(adjacent),
+            "adjacent_single_attack": _family_summary(
+                [item for item in adjacent if len(item["score_case"]["second_attack_required"]) == 1]
+            ),
+            "adjacent_multi_note_attack": _family_summary(
+                [item for item in adjacent if len(item["score_case"]["second_attack_required"]) > 1]
+            ),
+            "same_pitch_rearticulation": _family_summary(
+                [
+                    item for item in adjacent
+                    if item["score_case"]["rearticulated_shared_pitches"]
+                    and len(item["score_case"]["second_attack_required"]) == 1
+                ]
+            ),
+            "shared_pitch_rearticulation": _family_summary(
+                [item for item in adjacent if item["score_case"]["rearticulated_shared_pitches"]]
+            ),
+            "mixed_continuation_attack": _family_summary(
+                [
+                    item for item in adjacent
+                    if item["score_case"]["second_continuation"]
+                    and item["score_case"]["second_attack_required"]
+                ]
+            ),
         },
         "secondary_safety_stress": {
             family: _family_summary(by_family[family])
@@ -608,6 +640,26 @@ def _summary(evaluations: list[dict[str, object]], *, rule_name: str) -> dict[st
         },
         "decision": _decision(by_family),
     }
+
+
+def _dedupe_primary_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    seen = set()
+    output = []
+    for row in rows:
+        family = str(row["family"])
+        if family in {"long_held_note_without_retrigger", "pedal_sustain_tail_without_retrigger"}:
+            output.append(row)
+            continue
+        key = row.get("transition_key") or row.get("score_case", {}).get("transition_key")
+        if key is None:
+            output.append(row)
+            continue
+        dedupe_key = (family, key)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        output.append(row)
+    return output
 
 
 def _family_summary(items: list[dict[str, object]]) -> dict[str, object]:
@@ -642,8 +694,7 @@ def _decision(by_family: dict[str, list[dict[str, object]]]) -> str:
             "wrong_pitch",
             "missing_chord_tone",
             "same_note_rearticulation",
-            "shared_tone_rearticulation",
-            "shared_tone_continuation",
+            "adjacent_physical_transition",
         )
         for item in by_family.get(family, ())
         if not bool(item.get("future_target_contaminated"))
@@ -654,8 +705,7 @@ def _decision(by_family: dict[str, list[dict[str, object]]]) -> str:
             "single_new_attack",
             "chord_new_attack",
             "same_note_rearticulation",
-            "shared_tone_rearticulation",
-            "shared_tone_continuation",
+            "adjacent_physical_transition",
         )
         for item in by_family.get(family, ())
     )
