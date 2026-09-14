@@ -571,3 +571,110 @@ while keeping existing pitches/render_note_ids fields for compatibility.
 ```
 
 Do not integrate ByteDance runtime until the API/read-model contract can carry score-action semantics explicitly.
+
+## 2026-09-14 Internal IR Contract Tightening
+
+Status:
+
+```text
+PracticeAttackStep IR = READY_FOR_CATALOG_MIGRATION
+```
+
+Two internal contract issues were fixed before exposing the projection.
+
+### Semantic Step Identity
+
+`PracticeAttackStep.step_id` no longer depends on `render_note_id`.
+
+Current identity input:
+
+```text
+onset_beat
+stable event_ids
+```
+
+This matches the existing `ExpectedPracticeGroup` principle: rendering ids may change between revisions/renders, but the musical/event identity should remain stable when the underlying score position is unchanged.
+
+Regression coverage:
+
+```text
+same musical structure
+different MusicXML render note ids
+-> PracticeAttackStep.step_id unchanged
+-> event_ids unchanged
+-> render_note_ids changed
+```
+
+### Physical Attack Targets
+
+`attack_required` now contains physical attack targets rather than raw notation notes.
+
+Internal target:
+
+```text
+PracticeAttackTarget {
+  attack_id
+  pitch
+  notes
+  event_ids
+  render_note_ids
+  measure_numbers
+}
+```
+
+`PracticeAttackStep.attack_targets` is an alias for `PracticeAttackStep.attack_required`.
+
+Semantics:
+
+```text
+same onset + same pitch across voices/staves
+-> one physical attack target
+-> multiple underlying PracticeStepNote items
+```
+
+```text
+same onset + different pitches
+-> one physical attack target per pitch
+```
+
+`continuation` remains notation-note metadata:
+
+```text
+continuation: tuple[PracticeStepNote, ...]
+```
+
+because continuation notes do not drive microphone MATCH.
+
+### Focused Verification
+
+Additional coverage:
+
+```text
+step_id stable when render ids change
+same pitch in two voices/staves -> one attack target, two notation notes
+mixed tied chord -> attack targets exclude tied note, continuation includes tied note
+same pitch without tie at later onset -> new attack target
+pure continuation -> no PracticeAttackStep
+```
+
+Verification:
+
+```text
+docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_practice_score_timeline.py -q"
+```
+
+Result:
+
+```text
+12 passed, 1 warning
+```
+
+The warning is the existing Starlette/httpx dependency deprecation warning.
+
+Next safe boundary:
+
+```text
+PracticeTargetCatalog/API migration can begin.
+```
+
+Still do not integrate ByteDance runtime until the catalog/API contract exposes the score-action semantics explicitly.
