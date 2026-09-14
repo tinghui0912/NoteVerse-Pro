@@ -711,10 +711,100 @@ Result:
 
 The warning is the existing Starlette/httpx dependency deprecation warning.
 
-Next safe boundary:
+Previous safe boundary:
 
 ```text
 PracticeTargetCatalog/API migration can begin.
 ```
 
 Still do not integrate ByteDance runtime until the catalog/API contract exposes the score-action semantics explicitly.
+
+
+## Catalog/API Read-Model Migration
+
+Status:
+
+```text
+Practice Target API semantics = READY_FOR_CONSUMER_MIGRATION
+```
+
+The backend target catalog still preserves the legacy catalog identity:
+
+```text
+PracticeTargetCatalog
+<- PracticeScoreTimeline.expected_practice_groups
+```
+
+The following legacy fields remain sourced from `ExpectedPracticeGroup` and must remain unchanged:
+
+```text
+index
+group_id
+onset_beat
+event_ids
+render_note_ids
+pitches
+measure_numbers
+staff_ids
+voice_ids
+```
+
+The additive score-action fields are attached by matching each existing target to the unique
+`PracticeAttackStep` at the same `onset_beat`:
+
+```text
+step_id
+attack_targets
+continuation
+```
+
+Catalog construction fails fast if the expected group pitch set differs from the corresponding
+`PracticeAttackStep.attack_targets` pitch set. There is no fallback compatibility path, because that
+would hide a score-semantics contract violation.
+
+Read DTOs:
+
+```text
+PracticeStepNoteRead
+PracticeAttackTargetRead
+PracticeTargetRead.step_id
+PracticeTargetRead.attack_targets
+PracticeTargetRead.continuation
+```
+
+There is no public `attack_required` alias. `ATTACK_REQUIRED` remains a design term; the API field is
+`attack_targets`.
+
+Focused verification now covers:
+
+```text
+legacy target order/count/group_id unchanged
+simple new attack exposes step_id and attack_targets
+mixed tied chord keeps legacy pitches/render ids as new attacks only
+mixed tied chord exposes tied notes through continuation
+same pitch across voices/staves consolidates into one physical attack target
+pure tie continuation creates no catalog target
+step_id and attack_id remain stable across render-note id changes
+OpenAPI serializes step_id / attack_targets / continuation
+```
+
+Verification:
+
+```text
+docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_practice_score_timeline.py tests/test_practice_target_catalog.py tests/test_practice_service_access.py::test_list_practice_targets_uses_practice_access_and_score_timeline tests/test_practice_api_smoke.py::test_practice_openapi_keeps_session_response_contracts_explicit -q"
+```
+
+Result:
+
+```text
+19 passed, 1 warning
+```
+
+Next safe boundary:
+
+```text
+frontend type regeneration / runtime consumer migration can begin.
+```
+
+Do not change session progression, matcher/evaluator behavior, or ByteDance runtime integration until
+a consumer explicitly adopts `attack_targets` / `continuation`.

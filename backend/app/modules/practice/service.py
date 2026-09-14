@@ -69,8 +69,13 @@ from app.processing.engines.practice_alignment.target_catalog import (
     PracticeTargetCatalog,
     practice_target_catalog_from_musicxml,
 )
+from app.processing.engines.practice_alignment.score_timeline import (
+    PracticeAttackTarget,
+    PracticeStepNote,
+)
 from app.modules.practice.repository import PracticeRepository
 from app.modules.practice.schemas import (
+    PracticeAttackTargetRead,
     PracticeReplayFinalizeRequest,
     PracticeReplayUploadAuthorizationRead,
     PracticeReplayUploadAuthorizationRequest,
@@ -84,6 +89,7 @@ from app.modules.practice.schemas import (
     SavedPracticePerformanceRead,
     PracticeTargetCatalogRead,
     PracticeTargetRead,
+    PracticeStepNoteRead,
 )
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolicy, ScoreAction
@@ -1257,9 +1263,40 @@ class PracticeService:
                     measure_numbers=list(target.measure_numbers),
                     staff_ids=list(target.staff_ids),
                     voice_ids=list(target.voice_ids),
+                    step_id=target.step_id,
+                    attack_targets=[
+                        PracticeService._attack_target_read(attack_target)
+                        for attack_target in target.attack_targets
+                    ],
+                    continuation=[
+                        PracticeService._step_note_read(note) for note in target.continuation
+                    ],
                 )
                 for target in catalog.targets
             ],
+        )
+
+    @staticmethod
+    def _step_note_read(note: PracticeStepNote) -> PracticeStepNoteRead:
+        return PracticeStepNoteRead(
+            step_note_id=note.step_note_id,
+            event_id=note.event_id,
+            pitch=note.pitch,
+            render_note_id=note.render_note_id,
+            measure_numbers=list(note.measure_numbers),
+            staff_ids=list(note.staff_ids),
+            voice_ids=list(note.voice_ids),
+        )
+
+    @staticmethod
+    def _attack_target_read(target: PracticeAttackTarget) -> PracticeAttackTargetRead:
+        return PracticeAttackTargetRead(
+            attack_id=target.attack_id,
+            pitch=target.pitch,
+            notes=[PracticeService._step_note_read(note) for note in target.notes],
+            event_ids=list(target.event_ids),
+            render_note_ids=list(target.render_note_ids),
+            measure_numbers=list(target.measure_numbers),
         )
 
     async def _practice_musicxml_path(

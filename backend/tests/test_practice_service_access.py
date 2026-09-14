@@ -34,6 +34,10 @@ from app.processing.engines.practice_alignment.target_catalog import (
     PracticeTargetCatalog,
     PracticeTargetCatalogEntry,
 )
+from app.processing.engines.practice_alignment.score_timeline import (
+    PracticeAttackTarget,
+    PracticeStepNote,
+)
 from app.processing.engines.practice_alignment.attempt_assembler import (
     PracticeAttemptOutcome,
     ResolvedPracticeAttempt,
@@ -213,6 +217,15 @@ async def test_list_practice_targets_uses_practice_access_and_score_timeline(
 
     def catalog_from_musicxml(score_file_path: Path) -> PracticeTargetCatalog:
         assert score_file_path == Path("/materialized/score.musicxml")
+        note = PracticeStepNote(
+            step_note_id="step-note-1",
+            event_id="event-1",
+            pitch="C4",
+            render_note_id="note-1",
+            measure_numbers=("2",),
+            staff_ids=("1",),
+            voice_ids=("1",),
+        )
         return PracticeTargetCatalog(
             targets=(
                 PracticeTargetCatalogEntry(
@@ -225,6 +238,18 @@ async def test_list_practice_targets_uses_practice_access_and_score_timeline(
                     measure_numbers=("2",),
                     staff_ids=("1",),
                     voice_ids=("1",),
+                    step_id="step-1",
+                    attack_targets=(
+                        PracticeAttackTarget(
+                            attack_id="attack-1",
+                            pitch="C4",
+                            notes=(note,),
+                            event_ids=("event-1",),
+                            render_note_ids=("note-1",),
+                            measure_numbers=("2",),
+                        ),
+                    ),
+                    continuation=(),
                 ),
             )
         )
@@ -261,6 +286,28 @@ async def test_list_practice_targets_uses_practice_access_and_score_timeline(
                 "measure_numbers": ["2"],
                 "staff_ids": ["1"],
                 "voice_ids": ["1"],
+                "step_id": "step-1",
+                "attack_targets": [
+                    {
+                        "attack_id": "attack-1",
+                        "pitch": "C4",
+                        "notes": [
+                            {
+                                "step_note_id": "step-note-1",
+                                "event_id": "event-1",
+                                "pitch": "C4",
+                                "render_note_id": "note-1",
+                                "measure_numbers": ["2"],
+                                "staff_ids": ["1"],
+                                "voice_ids": ["1"],
+                            }
+                        ],
+                        "event_ids": ["event-1"],
+                        "render_note_ids": ["note-1"],
+                        "measure_numbers": ["2"],
+                    }
+                ],
+                "continuation": [],
             }
         ],
     }

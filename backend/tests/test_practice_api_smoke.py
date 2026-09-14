@@ -281,9 +281,22 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
             "evaluation_available",
         },
         "PracticeSessionResultSummaryRead": {"session_id", "summary_status", "summary_payload"},
+        "PracticeTargetRead": {
+            "index",
+            "group_id",
+            "onset_beat",
+            "step_id",
+        },
+        "PracticeAttackTargetRead": {"attack_id", "pitch"},
+        "PracticeStepNoteRead": {"step_note_id", "event_id", "pitch", "render_note_id"},
     }
     for schema_name, fields in expected_required_fields.items():
         assert fields.issubset(components[schema_name]["required"])
+
+    target_properties = components["PracticeTargetRead"]["properties"]
+    assert "attack_targets" in target_properties
+    assert "continuation" in target_properties
+    assert "attack_required" not in target_properties
 
     create_properties = components["CreatePracticeSessionRequest"]["properties"]
     assert "preset" in create_properties

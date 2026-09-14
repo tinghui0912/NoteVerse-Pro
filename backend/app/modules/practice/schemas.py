@@ -23,6 +23,25 @@ class PracticeSessionScope(BaseModel):
     end_measure_number: str | None = None
 
 
+class PracticeStepNoteRead(BaseModel):
+    step_note_id: str
+    event_id: str
+    pitch: str
+    render_note_id: str
+    measure_numbers: list[str] = Field(default_factory=list)
+    staff_ids: list[str] = Field(default_factory=list)
+    voice_ids: list[str] = Field(default_factory=list)
+
+
+class PracticeAttackTargetRead(BaseModel):
+    attack_id: str
+    pitch: str
+    notes: list[PracticeStepNoteRead] = Field(default_factory=list)
+    event_ids: list[str] = Field(default_factory=list)
+    render_note_ids: list[str] = Field(default_factory=list)
+    measure_numbers: list[str] = Field(default_factory=list)
+
+
 class PracticeTargetRead(BaseModel):
     index: int
     group_id: str
@@ -33,6 +52,9 @@ class PracticeTargetRead(BaseModel):
     measure_numbers: list[str] = Field(default_factory=list)
     staff_ids: list[str] = Field(default_factory=list)
     voice_ids: list[str] = Field(default_factory=list)
+    step_id: str
+    attack_targets: list[PracticeAttackTargetRead] = Field(default_factory=list)
+    continuation: list[PracticeStepNoteRead] = Field(default_factory=list)
 
 
 class PracticeTargetCatalogRead(BaseModel):
