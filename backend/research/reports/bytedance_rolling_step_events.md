@@ -116,21 +116,34 @@ wrong-note target-local diagnostic:
 This prevents later unrelated musical events from being mislabeled as wrong-note false advances.
 
 The first formulation pass compared `current_max_frame` and `temporally_bound`.
-The second pass replaced `current_max_frame` with the official ByteDance
-regression-peak event semantics:
+The second pass compared `temporally_bound` with official ByteDance
+regression-peak event semantics. The initial implementation selected only the
+earliest official peak in a local window before consumed/window filtering; that
+could let an old consumed peak hide a later legal peak. The current pass fixes
+that by enumerating all official peaks and selecting the earliest eligible event
+after applying consumed/window bounds:
 
 ```text
 A. temporally_bound
    onset_peak >= 0.2
    AND frame_at_onset_peak >= 0.2
 
-B. model_native_onset_peak
+B. model_native_event_stream
    official RegressionPostProcessor-equivalent:
      threshold = 0.2
      monotonic local peak
      neighbour = 2
      regression onset shift
    AND frame_at_that_official_peak >= 0.2
+
+Selection order:
+
+```text
+all official peaks
+-> filter event_time > consumed_through_time
+-> filter event_min_time <= event_time <= event_max_time
+-> choose earliest eligible event
+```
 ```
 
 No threshold, cadence, or dedupe value was swept.
@@ -139,9 +152,9 @@ No threshold, cadence, or dedupe value was swept.
 
 Aggregate dev + calibration:
 
-| Metric | temporally_bound | model_native_onset_peak |
+| Metric | temporally_bound | model_native_event_stream |
 | --- | ---: | ---: |
-| correct single | 20 / 24 | 18 / 24 |
+| correct single | 20 / 24 | 20 / 24 |
 | correct chord | 18 / 24 | 10 / 24 |
 | wrong semitone target-local false MATCH | 0 / 18 clean | 0 / 18 clean |
 | wrong octave target-local false MATCH | 0 / 23 clean | 0 / 23 clean |
@@ -150,8 +163,8 @@ Aggregate dev + calibration:
 | same-note legitimate second advance | 17 / 20 eligible | 17 / 20 eligible |
 | same-note premature second advance | 0 / 20 eligible | 0 / 20 eligible |
 | same-note missed retrigger | 3 / 20 eligible | 3 / 20 eligible |
-| long-held first advance established | 20 / 24 | 12 / 24 |
-| long-held false second advance | 2 / 20 eligible | 2 / 12 eligible |
+| long-held first advance established | 20 / 24 | 13 / 24 |
+| long-held false second advance | 2 / 20 eligible | 2 / 13 eligible |
 | pedal-tail first advance established | 18 / 24 | 13 / 24 |
 | pedal-tail false second advance | 4 / 18 eligible | 4 / 13 eligible |
 
@@ -159,7 +172,7 @@ Paired held/pedal comparison, only cases where both A and B established the firs
 
 | Case family | Intersection | A false -> B safe | A safe -> B false | false under both | safe under both |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| long-held | 12 | 0 | 0 | 2 | 10 |
+| long-held | 13 | 0 | 0 | 2 | 11 |
 | pedal-tail | 13 | 0 | 0 | 4 | 9 |
 
 Pressure:
@@ -174,9 +187,9 @@ Research compute on the current CUDA path:
 
 | Metric | Median | P95 |
 | --- | ---: | ---: |
-| note_model forward per cadence window | 14.145ms | 16.210ms |
-| target evidence end-to-end per cadence window | 14.255ms | 16.337ms |
-| estimated event-to-decision | 234.255ms | 236.337ms |
+| note_model forward per cadence window | 21.683ms | 23.280ms |
+| target evidence end-to-end per cadence window | 21.814ms | 23.396ms |
+| estimated event-to-decision | 241.814ms | 243.396ms |
 
 The latency numbers are research harness measurements, not browser/product latency.
 
@@ -187,8 +200,8 @@ Positive signal:
 - Same-note retrigger is much more promising under rolling ByteDance than under previous handcrafted trigger attempts.
 - After event dedupe and stricter first-state establishment, same-note premature second advance is zero in eligible cases.
 - Legitimate same-note retrigger was detected in 17 / 20 eligible cases.
-- Correct single recall is 20 / 24 under temporally_bound, but drops to 18 / 24 under model_native_onset_peak.
-- Correct chord is 18 / 24 under temporally_bound, but drops to 10 / 24 under model_native_onset_peak.
+- Correct single recall is 20 / 24 under both formulations after event-stream enumeration.
+- Correct chord is 18 / 24 under temporally_bound, but remains 10 / 24 under model_native_event_stream.
 - Wrong-note target-local diagnostics are clean under the corrected definition:
   - semitone: 0 / 18 clean
   - octave: 0 / 23 clean
@@ -199,14 +212,14 @@ Safety blockers:
 - Held/sustain safety is not clean:
   - long-held false second advance: 2 / 20 eligible
   - pedal-tail false second advance: 4 / 18 eligible under temporally_bound
-- Model-native onset peak semantics do not remove held/pedal false second advance in paired intersections:
-  - long-held: 2 false under both / 12 intersection
+- Model-native event-stream semantics do not remove held/pedal false second advance in paired intersections:
+  - long-held: 2 false under both / 13 intersection
   - pedal-tail: 4 false under both / 13 intersection
-- Model-native onset peak also reduces positive recall, especially chord recall.
+- Model-native event-stream enumeration fixes the old-peak masking bug for single-note recall, but chord recall remains substantially lower than temporally_bound.
 
 The remaining failures are not mainly duplicate-window identity errors; the dedupe fix removed that class of false second advance. The remaining held/pedal blockers also are not mainly caused by stitching an onset from one time to a frame from another time.
 
-They also are not an artifact of using a non-official local-window onset maximum. The official-equivalent model-native event extraction still produces false second events in the same paired cases.
+They also are not an artifact of using a non-official local-window onset maximum, or of selecting an old consumed official peak before filtering. The official-equivalent model-native event stream still produces false second events in the same paired cases.
 
 Example model-native false second event:
 
@@ -251,7 +264,7 @@ wrong-note target-local false MATCH ≈ 0  yes
 held/pedal false second advance ≈ 0      no
 same-note retrigger usable          mostly yes
 single/chord recall acceptable      yes under temporally_bound,
-                                    weaker under model_native_onset_peak
+                                    weaker for chords under model_native_event_stream
 ```
 
 Therefore:
@@ -265,8 +278,8 @@ Do not proceed to production integration, browser deployment, or cadence/compute
 However, the latest comparison does answer the requested formulation question:
 
 ```text
-Official model-native onset-event semantics do not solve held/pedal false second advance.
-The issue is not just our previous local-window max formulation.
+Official model-native onset-event stream semantics do not solve held/pedal false second advance.
+The issue is not just the previous local-window max formulation or the old-peak selection bug.
 ```
 
 ## Next

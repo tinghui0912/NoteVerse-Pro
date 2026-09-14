@@ -51,7 +51,7 @@ RETRIGGER_MAX_DELTA_SECONDS = 0.050
 EVENT_DEDUPE_SECONDS = 0.050
 EVENT_RULES = {
     "temporally_bound": "frame_at_onset_peak",
-    "model_native_onset_peak": "official_regression_peak_frame_at_peak",
+    "model_native_event_stream": "official_regression_peak_event_stream",
 }
 MODEL_NATIVE_NEIGHBOUR = 2
 
@@ -599,15 +599,19 @@ def _match_from_inference(
 ) -> dict[str, object] | None:
     events = []
     for pitch in expected_pitches:
-        event = _pitch_event(row, pitch, frame_rule=frame_rule)
-        if event is None:
+        eligible_events = []
+        for event in _pitch_events(row, pitch, frame_rule=frame_rule):
+            event_time = float(event["event_time"])
+            if event_time <= consumed_through_time + 1e-9:
+                continue
+            if event_min_time is not None and event_time < event_min_time - 1e-9:
+                continue
+            if event_max_time is not None and event_time > event_max_time + 1e-9:
+                continue
+            eligible_events.append(event)
+        if not eligible_events:
             return None
-        if float(event["event_time"]) <= consumed_through_time + 1e-9:
-            return None
-        if event_min_time is not None and float(event["event_time"]) < event_min_time - 1e-9:
-            return None
-        if event_max_time is not None and float(event["event_time"]) > event_max_time + 1e-9:
-            return None
+        event = min(eligible_events, key=lambda item: float(item["event_time"]))
         events.append(event)
     observed = tuple(event["pitch"] for event in events)
     result, matched, missing, extra = _evaluate_expected(expected_pitches, observed)
@@ -637,7 +641,7 @@ def _match_from_inference(
     }
 
 
-def _pitch_event(row: dict[str, object], pitch: str, *, frame_rule: str) -> dict[str, object] | None:
+def _pitch_events(row: dict[str, object], pitch: str, *, frame_rule: str) -> list[dict[str, object]]:
     raw_output = row["raw_output"]
     onsets = raw_output["onset"]
     frames = raw_output["frame"]
@@ -646,12 +650,12 @@ def _pitch_event(row: dict[str, object], pitch: str, *, frame_rule: str) -> dict
         frame_times <= float(row["anchor_time"]) + float(row["local_post_seconds"])
     )
     if not np.any(frame_mask):
-        return None
+        return []
     pitch_index = _pitch_to_midi_note(pitch) - 21
     if pitch_index < 0 or pitch_index >= onsets.shape[1]:
-        return None
-    if frame_rule == "official_regression_peak_frame_at_peak":
-        return _model_native_pitch_event(
+        return []
+    if frame_rule == "official_regression_peak_event_stream":
+        return _model_native_pitch_events(
             row,
             pitch=pitch,
             pitch_index=pitch_index,
@@ -675,36 +679,38 @@ def _pitch_event(row: dict[str, object], pitch: str, *, frame_rule: str) -> dict
     else:
         raise ValueError(f"unsupported frame rule: {frame_rule}")
     if onset_peak_score < float(row["onset_threshold"]) or frame_score_used < float(row["frame_threshold"]):
-        return None
-    return {
-        "pitch": pitch,
-        "event_time": round(onset_peak_time, 6),
-        "onset_peak_time": round(onset_peak_time, 6),
-        "onset_peak_score": round(onset_peak_score, 6),
-        "frame_score_at_onset_peak": round(frame_score_at_onset_peak, 6),
-        "frame_peak_time": round(frame_peak_time, 6),
-        "frame_peak_score": round(frame_peak_score, 6),
-        "frame_peak_minus_onset_peak_ms": round((frame_peak_time - onset_peak_time) * 1000.0, 3),
-        "frame_score_used": round(frame_score_used, 6),
-        "event_rule": frame_rule,
-        "relative_to_anchor_ms": round((onset_peak_time - float(row["anchor_time"])) * 1000.0, 3),
-    }
+        return []
+    return [
+        {
+            "pitch": pitch,
+            "event_time": round(onset_peak_time, 6),
+            "onset_peak_time": round(onset_peak_time, 6),
+            "onset_peak_score": round(onset_peak_score, 6),
+            "frame_score_at_onset_peak": round(frame_score_at_onset_peak, 6),
+            "frame_peak_time": round(frame_peak_time, 6),
+            "frame_peak_score": round(frame_peak_score, 6),
+            "frame_peak_minus_onset_peak_ms": round((frame_peak_time - onset_peak_time) * 1000.0, 3),
+            "frame_score_used": round(frame_score_used, 6),
+            "event_rule": frame_rule,
+            "relative_to_anchor_ms": round((onset_peak_time - float(row["anchor_time"])) * 1000.0, 3),
+        }
+    ]
 
 
-def _model_native_pitch_event(
+def _model_native_pitch_events(
     row: dict[str, object],
     *,
     pitch: str,
     pitch_index: int,
     frame_times: np.ndarray,
     frame_mask: np.ndarray,
-) -> dict[str, object] | None:
+) -> list[dict[str, object]]:
     raw_output = row["raw_output"]
     onsets = raw_output["onset"]
     frames = raw_output["frame"]
     onset_threshold = float(row["onset_threshold"])
     frame_threshold = float(row["frame_threshold"])
-    peak_rows = []
+    events = []
     x = onsets[:, pitch_index]
     for frame_index in range(MODEL_NATIVE_NEIGHBOUR, x.shape[0] - MODEL_NATIVE_NEIGHBOUR):
         if not frame_mask[frame_index]:
@@ -724,39 +730,30 @@ def _model_native_pitch_event(
             continue
         left = max(0, frame_index - 2)
         right = min(x.shape[0], frame_index + 3)
-        peak_rows.append(
+        frame_time = float(frame_times[frame_index])
+        events.append(
             {
-                "frame_index": frame_index,
-                "shift": shift,
-                "event_time": shifted_event_time,
-                "onset_peak_score": float(x[frame_index]),
-                "frame_score_at_peak": frame_score_at_peak,
+                "pitch": pitch,
+                "event_time": round(shifted_event_time, 6),
+                "official_peak_frame_index": frame_index,
+                "official_regression_shift_frames": round(float(shift), 6),
+                "onset_peak_time": round(frame_time, 6),
+                "shifted_event_time": round(shifted_event_time, 6),
+                "onset_peak_score": round(float(x[frame_index]), 6),
+                "frame_score_at_onset_peak": round(frame_score_at_peak, 6),
+                "frame_peak_time": round(frame_time, 6),
+                "frame_peak_score": round(frame_score_at_peak, 6),
+                "frame_peak_minus_onset_peak_ms": 0.0,
+                "frame_score_used": round(frame_score_at_peak, 6),
                 "reg_onset_neighbourhood": [round(float(value), 6) for value in x[left:right]],
+                "event_rule": "official_regression_peak_event_stream",
+                "relative_to_anchor_ms": round(
+                    (shifted_event_time - float(row["anchor_time"])) * 1000.0,
+                    3,
+                ),
             }
         )
-    if not peak_rows:
-        return None
-    peak = min(peak_rows, key=lambda item: item["event_time"])
-    event_time = float(peak["event_time"])
-    frame_index = int(peak["frame_index"])
-    frame_time = float(frame_times[frame_index])
-    return {
-        "pitch": pitch,
-        "event_time": round(event_time, 6),
-        "official_peak_frame_index": frame_index,
-        "official_regression_shift_frames": round(float(peak["shift"]), 6),
-        "onset_peak_time": round(frame_time, 6),
-        "shifted_event_time": round(event_time, 6),
-        "onset_peak_score": round(float(peak["onset_peak_score"]), 6),
-        "frame_score_at_onset_peak": round(float(peak["frame_score_at_peak"]), 6),
-        "frame_peak_time": round(frame_time, 6),
-        "frame_peak_score": round(float(peak["frame_score_at_peak"]), 6),
-        "frame_peak_minus_onset_peak_ms": 0.0,
-        "frame_score_used": round(float(peak["frame_score_at_peak"]), 6),
-        "reg_onset_neighbourhood": peak["reg_onset_neighbourhood"],
-        "event_rule": "official_regression_peak_frame_at_peak",
-        "relative_to_anchor_ms": round((event_time - float(row["anchor_time"])) * 1000.0, 3),
-    }
+    return sorted(events, key=lambda item: float(item["event_time"]))
 
 
 def _is_monotonic_neighbour(x: np.ndarray, index: int, neighbour: int) -> bool:
@@ -1119,7 +1116,7 @@ def _paired_no_retrigger_kind(
         if item["case_kind"] != case_kind:
             continue
         a = _rolling_result(item, "temporally_bound")
-        b = _rolling_result(item, "model_native_onset_peak")
+        b = _rolling_result(item, "model_native_event_stream")
         if not (a.get("first_advance_established") and b.get("first_advance_established")):
             continue
         a_false = bool(a.get("false_second_advance"))
