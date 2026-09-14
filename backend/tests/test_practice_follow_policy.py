@@ -4,6 +4,7 @@ from app.processing.engines.practice_alignment.expected_event_evaluator import (
     AudioObservation,
     EvaluatorEvidence,
     MidiObservation,
+    PracticeEventEvaluation,
 )
 from app.processing.engines.practice_alignment.follow_policy import (
     FollowPolicyConfig,
@@ -74,6 +75,12 @@ def make_update(**overrides):
     }
     update.update(overrides)
     return update
+
+
+def current_attack_pitches(policy: WaitForNoteFollowPolicy) -> tuple[str, ...]:
+    step = policy.current_attack_step
+    assert step is not None
+    return tuple(target.pitch for target in step.attack_targets)
 
 
 def test_practice_score_timeline_resolves_entry_group_end_beat() -> None:
@@ -212,6 +219,174 @@ def make_multi_target_wait_for_note_timeline() -> PracticeScoreTimeline:
     )
 
 
+def make_same_note_reattack_timeline() -> PracticeScoreTimeline:
+    events = (
+        PracticeScoreEvent(
+            event_id="event-1",
+            onset_beat=1.0,
+            duration_beats=0.5,
+            pitches=("C4",),
+            render_note_ids=("c4-a",),
+            measure_numbers=("1",),
+            staff_ids=("1",),
+            voice_ids=("1",),
+            tie_types=(),
+            playable=True,
+            entry_candidate=True,
+        ),
+        PracticeScoreEvent(
+            event_id="event-2",
+            onset_beat=2.0,
+            duration_beats=0.5,
+            pitches=("C4",),
+            render_note_ids=("c4-b",),
+            measure_numbers=("1",),
+            staff_ids=("1",),
+            voice_ids=("1",),
+            tie_types=(),
+            playable=True,
+            entry_candidate=True,
+        ),
+    )
+    return PracticeScoreTimeline(
+        events=events,
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-1",
+                onset_beat=1.0,
+                event_ids=("event-1",),
+                render_note_ids=("c4-a",),
+                entry_candidate=True,
+            ),
+            PracticeEntryGroup(
+                group_id="entry-2",
+                onset_beat=2.0,
+                event_ids=("event-2",),
+                render_note_ids=("c4-b",),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-1",
+        first_playable_beat=1.0,
+        end_beat=2.5,
+    )
+
+
+def make_mixed_tied_chord_timeline() -> PracticeScoreTimeline:
+    events = (
+        PracticeScoreEvent(
+            event_id="event-c4-start",
+            onset_beat=1.0,
+            duration_beats=2.0,
+            pitches=("C4",),
+            render_note_ids=("c4-start",),
+            measure_numbers=("1",),
+            staff_ids=("1",),
+            voice_ids=("1",),
+            tie_types=("start",),
+            playable=True,
+            entry_candidate=True,
+        ),
+        PracticeScoreEvent(
+            event_id="event-c4-stop",
+            onset_beat=2.0,
+            duration_beats=1.0,
+            pitches=("C4",),
+            render_note_ids=("c4-stop",),
+            measure_numbers=("1",),
+            staff_ids=("1",),
+            voice_ids=("1",),
+            tie_types=("stop",),
+            playable=True,
+            entry_candidate=False,
+        ),
+        PracticeScoreEvent(
+            event_id="event-new",
+            onset_beat=2.0,
+            duration_beats=1.0,
+            pitches=("F4", "A4"),
+            render_note_ids=("f4", "a4"),
+            measure_numbers=("1",),
+            staff_ids=("1",),
+            voice_ids=("1",),
+            tie_types=(),
+            playable=True,
+            entry_candidate=True,
+        ),
+    )
+    return PracticeScoreTimeline(
+        events=events,
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-1",
+                onset_beat=1.0,
+                event_ids=("event-c4-start",),
+                render_note_ids=("c4-start",),
+                entry_candidate=True,
+            ),
+            PracticeEntryGroup(
+                group_id="entry-2",
+                onset_beat=2.0,
+                event_ids=("event-c4-stop", "event-new"),
+                render_note_ids=("c4-stop", "f4", "a4"),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-c4-start",
+        first_playable_beat=1.0,
+        end_beat=3.0,
+    )
+
+
+def make_same_pitch_multi_voice_timeline() -> PracticeScoreTimeline:
+    event = PracticeScoreEvent(
+        event_id="event-c4-unison",
+        onset_beat=1.0,
+        duration_beats=1.0,
+        pitches=("C4", "C4"),
+        render_note_ids=("upper-c4", "lower-c4"),
+        measure_numbers=("1",),
+        staff_ids=("1", "2"),
+        voice_ids=("1", "2"),
+        tie_types=(),
+        playable=True,
+        entry_candidate=True,
+    )
+    return PracticeScoreTimeline(
+        events=(event,),
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-1",
+                onset_beat=1.0,
+                event_ids=("event-c4-unison",),
+                render_note_ids=("upper-c4", "lower-c4"),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-c4-unison",
+        first_playable_beat=1.0,
+        end_beat=2.0,
+    )
+
+
+class RecordingEvaluator:
+    def __init__(self, result: str = "MATCH") -> None:
+        self.result = result
+        self.seen_groups = []
+
+    def evaluate(self, expected_group, evidence):
+        self.seen_groups.append(expected_group)
+        return PracticeEventEvaluation(
+            expected_group_id=expected_group.group_id,
+            result=self.result,
+            matched_pitches=expected_group.pitches if self.result == "MATCH" else (),
+            missing_pitches=() if self.result == "MATCH" else expected_group.pitches,
+            extra_pitches=(),
+            confidence=evidence.confidence,
+            evaluator_version="recording-test",
+        )
+
+
 def test_follow_policy_factory_creates_wait_for_note_policy() -> None:
     policy = follow_policy_for_progression(
         make_wait_for_note_timeline(),
@@ -221,6 +396,174 @@ def test_follow_policy_factory_creates_wait_for_note_policy() -> None:
     assert isinstance(policy, WaitForNoteFollowPolicy)
     assert policy.current_expected_group is not None
     assert policy.current_expected_group.pitches == ("C4",)
+    assert current_attack_pitches(policy) == ("C4",)
+
+
+def test_wait_for_note_policy_shadow_attack_step_advances_with_match() -> None:
+    policy = WaitForNoteFollowPolicy(make_wait_for_note_timeline())
+    evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+
+    evaluation = policy.evaluate_evidence(evidence)
+    policy.decide_evaluation(evidence=evidence, evaluation=evaluation)
+
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("E4", "G4")
+    assert current_attack_pitches(policy) == ("E4", "G4")
+
+
+def test_wait_for_note_policy_shadow_attack_step_advances_with_skip() -> None:
+    policy = WaitForNoteFollowPolicy(make_wait_for_note_timeline())
+
+    decision = policy.skip_current_group()
+
+    assert decision["action"] == "skip"
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("E4", "G4")
+    assert current_attack_pitches(policy) == ("E4", "G4")
+
+
+def test_wait_for_note_policy_shadow_attack_step_waits_on_non_match_results() -> None:
+    for evidence in (
+        EvaluatorEvidence.from_midi(MidiObservation(("D4",))),
+        EvaluatorEvidence.from_midi(MidiObservation(())),
+        EvaluatorEvidence.from_audio(AudioObservation(("C4",), confidence=0.4)),
+    ):
+        policy = WaitForNoteFollowPolicy(make_wait_for_note_timeline())
+        evaluation = policy.evaluate_evidence(evidence)
+
+        policy.decide_evaluation(evidence=evidence, evaluation=evaluation)
+
+        assert evaluation.result in {"MISMATCH", "UNCERTAIN"}
+        assert policy.current_expected_group is not None
+        assert policy.current_expected_group.pitches == ("C4",)
+        assert current_attack_pitches(policy) == ("C4",)
+
+    partial_policy = WaitForNoteFollowPolicy(
+        make_wait_for_note_timeline(),
+        profile=WAIT_FOR_NOTE_POLICY_PROFILE_WITH_MIDI,
+    )
+    partial_policy.decide_evaluation(
+        evidence=EvaluatorEvidence.from_midi(MidiObservation(("C4",))),
+        evaluation=partial_policy.evaluate_evidence(
+            EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+        ),
+    )
+    partial_evidence = EvaluatorEvidence.from_midi(MidiObservation(("E4",)))
+    partial_evaluation = partial_policy.evaluate_evidence(partial_evidence)
+    partial_policy.decide_evaluation(evidence=partial_evidence, evaluation=partial_evaluation)
+
+    assert partial_evaluation.result == "PARTIAL"
+    assert partial_policy.current_expected_group is not None
+    assert partial_policy.current_expected_group.pitches == ("E4", "G4")
+    assert current_attack_pitches(partial_policy) == ("E4", "G4")
+
+
+def test_wait_for_note_policy_shadow_attack_step_resets_to_scoped_start() -> None:
+    policy = WaitForNoteFollowPolicy(make_wait_for_note_timeline())
+    evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+    policy.decide_evaluation(evidence=evidence, evaluation=policy.evaluate_evidence(evidence))
+
+    assert current_attack_pitches(policy) == ("E4", "G4")
+
+    policy.reset()
+
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("C4",)
+    assert current_attack_pitches(policy) == ("C4",)
+
+
+def test_wait_for_note_policy_shadow_attack_step_respects_scope_boundaries() -> None:
+    policy = WaitForNoteFollowPolicy(
+        make_multi_target_wait_for_note_timeline(),
+        profile=WAIT_FOR_NOTE_POLICY_PROFILE_WITH_MIDI,
+        start_expected_group_id="entry-2",
+        end_expected_group_id="entry-3",
+    )
+
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.group_id == "entry-2"
+    assert current_attack_pitches(policy) == ("D4",)
+
+    first_evidence = EvaluatorEvidence.from_midi(MidiObservation(("D4",)))
+    policy.decide_evaluation(
+        evidence=first_evidence,
+        evaluation=policy.evaluate_evidence(first_evidence),
+    )
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.group_id == "entry-3"
+    assert current_attack_pitches(policy) == ("E4",)
+
+    terminal_evidence = EvaluatorEvidence.from_midi(MidiObservation(("E4",)))
+    policy.decide_evaluation(
+        evidence=terminal_evidence,
+        evaluation=policy.evaluate_evidence(terminal_evidence),
+    )
+    assert policy.current_expected_group is None
+    assert policy.current_attack_step is None
+
+
+def test_wait_for_note_policy_evaluator_still_receives_legacy_expected_group() -> None:
+    evaluator = RecordingEvaluator()
+    policy = WaitForNoteFollowPolicy(make_mixed_tied_chord_timeline(), evaluator=evaluator)
+    first_evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+    policy.evaluate_evidence(first_evidence)
+
+    mixed_evidence = EvaluatorEvidence.from_midi(MidiObservation(("F4", "A4")))
+    policy.decide_evaluation(evidence=first_evidence, evaluation=policy.evaluate_evidence(first_evidence))
+    policy.evaluate_evidence(mixed_evidence)
+
+    assert tuple(group.pitches for group in evaluator.seen_groups) == (("C4",), ("C4",), ("F4", "A4"))
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("F4", "A4")
+    assert current_attack_pitches(policy) == ("F4", "A4")
+    assert policy.current_attack_step is not None
+    assert tuple(note.pitch for note in policy.current_attack_step.continuation) == ("C4",)
+
+
+def test_wait_for_note_policy_shadow_step_supports_same_note_reattack() -> None:
+    policy = WaitForNoteFollowPolicy(make_same_note_reattack_timeline())
+
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("C4",)
+    assert current_attack_pitches(policy) == ("C4",)
+    assert policy.current_attack_step is not None
+    first_attack_id = policy.current_attack_step.attack_targets[0].attack_id
+
+    evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+    policy.decide_evaluation(evidence=evidence, evaluation=policy.evaluate_evidence(evidence))
+
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("C4",)
+    assert current_attack_pitches(policy) == ("C4",)
+    assert policy.current_attack_step is not None
+    assert policy.current_attack_step.attack_targets[0].attack_id != first_attack_id
+
+
+def test_wait_for_note_policy_shadow_step_exposes_mixed_tie_continuation() -> None:
+    policy = WaitForNoteFollowPolicy(make_mixed_tied_chord_timeline())
+    evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+    policy.decide_evaluation(evidence=evidence, evaluation=policy.evaluate_evidence(evidence))
+
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("F4", "A4")
+    assert current_attack_pitches(policy) == ("F4", "A4")
+    assert policy.current_attack_step is not None
+    assert tuple(note.pitch for note in policy.current_attack_step.continuation) == ("C4",)
+    assert tuple(note.render_note_id for note in policy.current_attack_step.continuation) == (
+        "c4-stop",
+    )
+
+
+def test_wait_for_note_policy_shadow_step_consolidates_same_pitch_multi_voice() -> None:
+    policy = WaitForNoteFollowPolicy(make_same_pitch_multi_voice_timeline())
+
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("C4",)
+    assert policy.current_attack_step is not None
+    assert tuple(target.pitch for target in policy.current_attack_step.attack_targets) == ("C4",)
+    target = policy.current_attack_step.attack_targets[0]
+    assert set(target.render_note_ids) == {"upper-c4", "lower-c4"}
+    assert len(target.notes) == 2
 
 
 def test_follow_policy_factory_rejects_continuous_until_fixed_clock_engine_exists() -> None:

@@ -7,6 +7,7 @@ from typing import Any, Literal, Mapping, NotRequired, TypedDict
 
 from app.processing.engines.practice_alignment.score_timeline import (
     ExpectedPracticeGroup,
+    PracticeAttackStep,
     PracticeScoreTimeline,
 )
 from app.processing.engines.practice_alignment.expected_event_evaluator import (
@@ -155,6 +156,8 @@ class WaitForNoteFollowPolicy:
         end_expected_group_id: str | None = None,
     ) -> None:
         self._expected_groups = score_timeline.expected_practice_groups
+        self._attack_steps = score_timeline.practice_attack_steps
+        self._validate_attack_step_pairing()
         self._config = profile.config
         self.progression_mode = profile.progression_mode
         self.input_source = profile.input_source
@@ -185,6 +188,27 @@ class WaitForNoteFollowPolicy:
                 return index
         raise PracticeScopeTargetNotFound(expected_group_id)
 
+    def _validate_attack_step_pairing(self) -> None:
+        if len(self._expected_groups) != len(self._attack_steps):
+            raise ValueError(
+                "Expected practice groups and practice attack steps must have the same length."
+            )
+        for group, step in zip(self._expected_groups, self._attack_steps, strict=True):
+            if group.onset_beat != step.onset_beat:
+                raise ValueError(
+                    "Expected practice group and practice attack step onset mismatch: "
+                    f"group_id={group.group_id} group_onset={group.onset_beat} "
+                    f"step_id={step.step_id} step_onset={step.onset_beat}"
+                )
+            group_pitches = set(group.pitches)
+            attack_pitches = {target.pitch for target in step.attack_targets}
+            if group_pitches != attack_pitches:
+                raise ValueError(
+                    "Expected practice group pitches and practice attack target pitches mismatch: "
+                    f"group_id={group.group_id} expected={sorted(group_pitches)} "
+                    f"actual={sorted(attack_pitches)}"
+                )
+
     @property
     def current_expected_group(self) -> ExpectedPracticeGroup | None:
         if self._current_index > self._end_index_value:
@@ -192,6 +216,14 @@ class WaitForNoteFollowPolicy:
         if self._current_index >= len(self._expected_groups):
             return None
         return self._expected_groups[self._current_index]
+
+    @property
+    def current_attack_step(self) -> PracticeAttackStep | None:
+        if self._current_index > self._end_index_value:
+            return None
+        if self._current_index >= len(self._attack_steps):
+            return None
+        return self._attack_steps[self._current_index]
 
     @property
     def scope_start_beat(self) -> float | None:

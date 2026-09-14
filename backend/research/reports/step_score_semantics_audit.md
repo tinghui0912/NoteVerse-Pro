@@ -808,3 +808,103 @@ frontend type regeneration / runtime consumer migration can begin.
 
 Do not change session progression, matcher/evaluator behavior, or ByteDance runtime integration until
 a consumer explicitly adopts `attack_targets` / `continuation`.
+
+
+## STEP Progression Shadow Consumer
+
+Status:
+
+```text
+STEP score-action consumer contract = READY_FOR_VERIFIER_MIGRATION
+```
+
+`WaitForNoteFollowPolicy` now reads both projections:
+
+```text
+score_timeline.expected_practice_groups
+score_timeline.practice_attack_steps
+```
+
+and validates them once during initialization.
+
+Contract:
+
+```text
+len(expected_practice_groups) == len(practice_attack_steps)
+group.onset_beat == step.onset_beat
+set(group.pitches) == set(target.pitch for target in step.attack_targets)
+```
+
+There is no fallback to pitch-only inference. A mismatch is an internal score-semantics contract
+violation.
+
+Runtime behavior remains legacy-authoritative:
+
+```text
+current_expected_group
+-> ExpectedEventEvaluator.evaluate(...)
+-> MATCH / PARTIAL / MISMATCH / UNCERTAIN
+-> existing progression behavior
+```
+
+The new shadow property:
+
+```text
+WaitForNoteFollowPolicy.current_attack_step
+```
+
+uses the same `_current_index` and scope boundaries as `current_expected_group`. It does not maintain
+a second progression index.
+
+Verified lockstep behavior:
+
+```text
+initial target
+MATCH advances once
+explicit Skip advances once
+PARTIAL / MISMATCH / UNCERTAIN do not advance
+reset returns both projections to scoped start
+start_expected_group_id starts both projections at the same score position
+end_expected_group_id makes both projections None after the terminal target
+```
+
+Musical regression coverage:
+
+```text
+C4 -> C4 same-note re-articulation
+tied C4 + new F4/A4 mixed chord
+same-pitch multi-voice/staff consolidation
+```
+
+The mixed tied chord regression confirms:
+
+```text
+current_expected_group.pitches = [F4, A4]
+current_attack_step.attack_targets = [F4, A4]
+current_attack_step.continuation = [C4]
+ExpectedEventEvaluator still receives only the legacy expected group [F4, A4]
+```
+
+Verification:
+
+```text
+docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_practice_follow_policy.py -q"
+docker exec 10377603b8c2 bash -lc "cd /app && python -m py_compile app/processing/engines/practice_alignment/follow_policy.py"
+docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_practice_midi_engine.py tests/test_practice_runtime_regressions.py::test_matchmaker_live_engine_reset_input_buffer_discards_wait_for_note_event_state -q"
+```
+
+Result:
+
+```text
+23 passed, 1 warning
+9 passed, 1 warning
+```
+
+Next safe boundary:
+
+```text
+microphone verifier migration can read current_attack_step.attack_targets.
+```
+
+Do not alter progression decisions until the verifier boundary explicitly adopts score-action
+semantics.
