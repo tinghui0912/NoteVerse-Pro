@@ -129,6 +129,97 @@ def test_practice_score_timeline_preserves_events_and_exact_onset_groups(tmp_pat
     assert near_onset_group.render_note_ids == ("n5",)
 
 
+def test_practice_attack_steps_cover_simple_new_attacks(tmp_path) -> None:
+    import numpy as np
+
+    dtype = [
+        ("onset_beat", "f4"),
+        ("duration_beat", "f4"),
+        ("pitch", "i4"),
+        ("voice", "i4"),
+        ("id", "U16"),
+    ]
+    notes = np.array(
+        [
+            (1.0, 1.0, 60, 1, "n1"),
+            (2.0, 1.0, 62, 1, "n2"),
+        ],
+        dtype=dtype,
+    )
+    musicxml_path = tmp_path / "c-to-d.musicxml"
+    musicxml_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <note id="n2"><pitch><step>D</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>
+""",
+        encoding="utf-8",
+    )
+
+    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+
+    assert tuple(
+        tuple(note.pitch for note in step.attack_required)
+        for step in timeline.practice_attack_steps
+    ) == (("C4",), ("D4",))
+    assert all(step.continuation == () for step in timeline.practice_attack_steps)
+    assert tuple(group.pitches for group in timeline.expected_practice_groups) == (
+        ("C4",),
+        ("D4",),
+    )
+
+
+def test_practice_attack_steps_keep_same_pitch_without_tie_as_new_attack(tmp_path) -> None:
+    import numpy as np
+
+    dtype = [
+        ("onset_beat", "f4"),
+        ("duration_beat", "f4"),
+        ("pitch", "i4"),
+        ("voice", "i4"),
+        ("id", "U16"),
+    ]
+    notes = np.array(
+        [
+            (1.0, 1.0, 60, 1, "n1"),
+            (2.0, 1.0, 60, 1, "n2"),
+        ],
+        dtype=dtype,
+    )
+    musicxml_path = tmp_path / "rearticulated-c.musicxml"
+    musicxml_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>
+""",
+        encoding="utf-8",
+    )
+
+    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+
+    assert tuple(
+        tuple(note.pitch for note in step.attack_required)
+        for step in timeline.practice_attack_steps
+    ) == (("C4",), ("C4",))
+    assert tuple(step.render_note_ids for step in timeline.practice_attack_steps) == (
+        ("n1",),
+        ("n2",),
+    )
+
+
 def test_practice_score_timeline_preserves_meter_for_count_in_duration_and_pulses(tmp_path) -> None:
     import numpy as np
 
@@ -279,6 +370,9 @@ def test_practice_score_timeline_does_not_prompt_tie_continuations(tmp_path) -> 
     assert tied_continuation.entry_candidate is False
     group = timeline.expected_practice_groups[0]
     assert timeline.entry_group_end_beat(group.group_id) == 5.0
+    assert tuple(step.onset_beat for step in timeline.practice_attack_steps) == (3.0,)
+    assert tuple(note.pitch for note in timeline.practice_attack_steps[0].attack_required) == ("C4",)
+    assert timeline.practice_attack_steps[0].continuation == ()
 
 
 def test_practice_score_timeline_follows_multi_fragment_tie_chain_end(tmp_path) -> None:
@@ -327,6 +421,9 @@ def test_practice_score_timeline_follows_multi_fragment_tie_chain_end(tmp_path) 
     assert tuple(group.onset_beat for group in timeline.expected_practice_groups) == (3.0,)
     group = timeline.expected_practice_groups[0]
     assert timeline.entry_group_end_beat(group.group_id) == 6.5
+    assert tuple(step.onset_beat for step in timeline.practice_attack_steps) == (3.0,)
+    assert tuple(note.pitch for note in timeline.practice_attack_steps[0].attack_required) == ("C4",)
+    assert timeline.practice_attack_steps[0].continuation == ()
 
 
 def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord(tmp_path) -> None:
@@ -372,3 +469,72 @@ def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord(tmp_path) 
     group = timeline.expected_practice_groups[0]
     assert group.pitches == ("E4", "G4")
     assert group.render_note_ids == ("n2", "n3")
+    step = timeline.practice_attack_steps[0]
+    assert step.onset_beat == 4.0
+    assert tuple(note.pitch for note in step.attack_required) == ("E4", "G4")
+    assert tuple(note.render_note_id for note in step.attack_required) == ("n2", "n3")
+    assert tuple(note.pitch for note in step.continuation) == ("C4",)
+    assert tuple(note.render_note_id for note in step.continuation) == ("n1",)
+
+
+def test_practice_attack_steps_keep_shared_pitch_rearticulation_in_chord(tmp_path) -> None:
+    import numpy as np
+
+    dtype = [
+        ("onset_beat", "f4"),
+        ("duration_beat", "f4"),
+        ("pitch", "i4"),
+        ("voice", "i4"),
+        ("id", "U16"),
+    ]
+    notes = np.array(
+        [
+            (1.0, 1.0, 60, 1, "n1"),
+            (1.0, 1.0, 64, 1, "n2"),
+            (1.0, 1.0, 67, 1, "n3"),
+            (2.0, 1.0, 60, 1, "n4"),
+            (2.0, 1.0, 65, 1, "n5"),
+            (2.0, 1.0, 69, 1, "n6"),
+        ],
+        dtype=dtype,
+    )
+    musicxml_path = tmp_path / "shared-rearticulated.musicxml"
+    musicxml_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <note id="n2"><chord/><pitch><step>E</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <note id="n3"><chord/><pitch><step>G</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <note id="n4"><pitch><step>C</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <note id="n5"><chord/><pitch><step>F</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+      <note id="n6"><chord/><pitch><step>A</step><octave>4</octave></pitch><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>
+""",
+        encoding="utf-8",
+    )
+
+    timeline = PracticeScoreTimeline.from_note_array(notes, musicxml_path=musicxml_path)
+
+    second_step = timeline.practice_attack_steps[1]
+    assert tuple(note.pitch for note in second_step.attack_required) == ("C4", "F4", "A4")
+    assert second_step.continuation == ()
+
+
+def test_practice_attack_steps_merge_multi_voice_staff_same_onset(tmp_path) -> None:
+    import numpy as np
+
+    timeline = PracticeScoreTimeline.from_note_array(
+        note_array(np),
+        musicxml_path=musicxml_fixture(tmp_path),
+    )
+
+    step = next(item for item in timeline.practice_attack_steps if item.onset_beat == 4.0)
+    assert tuple(note.pitch for note in step.attack_required) == ("C4", "E4", "C3")
+    assert set(step.staff_ids) == {"1", "2"}
+    assert set(step.voice_ids) == {"1", "2"}
+    assert step.continuation == ()

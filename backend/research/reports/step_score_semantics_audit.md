@@ -414,3 +414,160 @@ should consume attack_required pitches only.
 ```
 
 Do not infer continuation from audio, sustain, pedal, or observed frame energy.
+
+## 2026-09-14 Internal Projection Implementation
+
+Status:
+
+```text
+implemented internally
+API/frontend migration not started
+ByteDance runtime integration not started
+```
+
+Added backend-only projection:
+
+```text
+PracticeScoreTimeline.practice_attack_steps
+```
+
+New internal types:
+
+```text
+PracticeStepNote
+PracticeAttackStep
+```
+
+Implementation file:
+
+```text
+backend/app/processing/engines/practice_alignment/score_timeline.py
+```
+
+Implementation semantics:
+
+```text
+For each score onset:
+  collect all PracticeScoreEvent items at that onset
+  partition:
+    entry_candidate=True  -> attack_required
+    entry_candidate=False -> continuation
+
+If attack_required is empty:
+  do not create a user-action PracticeAttackStep
+
+If attack_required is non-empty:
+  create one PracticeAttackStep for that onset
+  preserve continuation notes as context metadata
+```
+
+Compatibility:
+
+```text
+ExpectedPracticeGroup remains unchanged.
+Existing runtime/evaluator callers are unchanged.
+```
+
+### Tie Source Audit
+
+Repository/local canonical MusicXML samples were audited for tie representation.
+
+Observed:
+
+```text
+notes_with_tie: 88
+notes_with_tied: 88
+tied_without_tie: 0
+```
+
+The current available canonical/work samples consistently include operational MusicXML tie elements:
+
+```xml
+<tie type="start|stop"/>
+```
+
+alongside notation elements:
+
+```xml
+<notations><tied type="start|stop"/></notations>
+```
+
+No local canonical sample was found with only `<notations><tied .../>` and no sibling `<tie .../>`.
+
+Compatibility gap:
+
+```text
+If a future importer provides only <notations><tied .../>
+without <tie .../>, the current timeline metadata reader will not classify
+that note as a tie continuation.
+```
+
+That gap is recorded but intentionally not fixed in this projection-only pass.
+
+### Focused Tests
+
+Updated test file:
+
+```text
+backend/tests/test_practice_score_timeline.py
+```
+
+Covered cases:
+
+```text
+C4 -> D4
+C4 -> C4 without tie
+C4 --tie-- C4
+mixed chord: tied C4 + new E4/G4
+shared C4 re-articulated without tie
+multi voice/staff same onset
+multi-fragment tie chain
+```
+
+Important assertions:
+
+```text
+pure tie continuation
+-> no extra PracticeAttackStep
+
+mixed tie position
+-> attack_required = new notes
+-> continuation = tied notes
+
+same pitch without tie
+-> new PracticeAttackStep attack
+
+same onset across voices/staves
+-> one physical STEP projection
+```
+
+Verification:
+
+```text
+docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_practice_score_timeline.py -q"
+```
+
+Result:
+
+```text
+11 passed, 1 warning
+```
+
+The warning is an existing Starlette/httpx deprecation warning from test dependencies, not from this change.
+
+### Next Safe Boundary
+
+The projection is now ready for the next migration step:
+
+```text
+PracticeTargetCatalog/API migration
+```
+
+Recommended next step:
+
+```text
+Expose attack_required / continuation in PracticeTargetCatalogRead
+while keeping existing pitches/render_note_ids fields for compatibility.
+```
+
+Do not integrate ByteDance runtime until the API/read-model contract can carry score-action semantics explicitly.

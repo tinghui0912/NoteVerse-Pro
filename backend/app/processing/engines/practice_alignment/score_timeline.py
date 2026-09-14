@@ -74,6 +74,30 @@ class ExpectedPracticeGroup:
 
 
 @dataclass(frozen=True)
+class PracticeStepNote:
+    step_note_id: str
+    event_id: str
+    pitch: str
+    render_note_id: str
+    measure_numbers: tuple[str, ...]
+    staff_ids: tuple[str, ...]
+    voice_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PracticeAttackStep:
+    step_id: str
+    onset_beat: ScoreBeat
+    event_ids: tuple[str, ...]
+    attack_required: tuple[PracticeStepNote, ...]
+    continuation: tuple[PracticeStepNote, ...]
+    render_note_ids: tuple[str, ...]
+    measure_numbers: tuple[str, ...]
+    staff_ids: tuple[str, ...]
+    voice_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class PracticeMeterSegment:
     start_beat: ScoreBeat
     numerator: int
@@ -207,6 +231,10 @@ class PracticeScoreTimeline:
             for group in self.entry_groups
             if (expected_group := self.expected_group_for_entry(group.group_id)) is not None
         )
+
+    @property
+    def practice_attack_steps(self) -> tuple[PracticeAttackStep, ...]:
+        return _build_practice_attack_steps(self.events)
 
     def expected_group_for_entry(self, group_id: str) -> ExpectedPracticeGroup | None:
         group = next((item for item in self.entry_groups if item.group_id == group_id), None)
@@ -347,6 +375,98 @@ def _expected_notes_for_event(event: PracticeScoreEvent) -> tuple[ExpectedPracti
         )
         for pitch, render_note_id in zip(event.pitches, event.render_note_ids, strict=True)
     )
+
+
+def _step_notes_for_event(event: PracticeScoreEvent) -> tuple[PracticeStepNote, ...]:
+    if len(event.pitches) != len(event.render_note_ids):
+        raise ValueError("Practice score event pitch/render-note identity mismatch.")
+    return tuple(
+        PracticeStepNote(
+            step_note_id=f"{event.event_id}:{render_note_id}",
+            event_id=event.event_id,
+            pitch=pitch,
+            render_note_id=render_note_id,
+            measure_numbers=event.measure_numbers,
+            staff_ids=event.staff_ids,
+            voice_ids=event.voice_ids,
+        )
+        for pitch, render_note_id in zip(event.pitches, event.render_note_ids, strict=True)
+    )
+
+
+def _build_practice_attack_steps(
+    events: tuple[PracticeScoreEvent, ...],
+) -> tuple[PracticeAttackStep, ...]:
+    events_by_onset: dict[ScoreBeat, list[PracticeScoreEvent]] = {}
+    for event in events:
+        events_by_onset.setdefault(event.onset_beat, []).append(event)
+
+    steps: list[PracticeAttackStep] = []
+    for onset_beat in sorted(events_by_onset):
+        onset_events = tuple(
+            sorted(
+                events_by_onset[onset_beat],
+                key=lambda event: (
+                    event.staff_ids,
+                    event.voice_ids,
+                    event.duration_beats,
+                    event.event_id,
+                ),
+            )
+        )
+        attack_required = tuple(
+            note
+            for event in onset_events
+            if event.entry_candidate
+            for note in _step_notes_for_event(event)
+        )
+        if not attack_required:
+            continue
+        continuation = tuple(
+            note
+            for event in onset_events
+            if not event.entry_candidate
+            for note in _step_notes_for_event(event)
+        )
+        event_ids = tuple(event.event_id for event in onset_events)
+        step_id = _stable_attack_step_id(onset_beat, tuple(note.step_note_id for note in attack_required))
+        steps.append(
+            PracticeAttackStep(
+                step_id=step_id,
+                onset_beat=onset_beat,
+                event_ids=event_ids,
+                attack_required=attack_required,
+                continuation=continuation,
+                render_note_ids=tuple(
+                    dict.fromkeys(
+                        note.render_note_id
+                        for note in (*attack_required, *continuation)
+                    )
+                ),
+                measure_numbers=tuple(
+                    dict.fromkeys(
+                        number
+                        for note in (*attack_required, *continuation)
+                        for number in note.measure_numbers
+                    )
+                ),
+                staff_ids=tuple(
+                    dict.fromkeys(
+                        staff_id
+                        for note in (*attack_required, *continuation)
+                        for staff_id in note.staff_ids
+                    )
+                ),
+                voice_ids=tuple(
+                    dict.fromkeys(
+                        voice_id
+                        for note in (*attack_required, *continuation)
+                        for voice_id in note.voice_ids
+                    )
+                ),
+            )
+        )
+    return tuple(steps)
 
 
 def _strike_targets_for_expected_notes(
@@ -631,6 +751,12 @@ def _stable_entry_group_id(onset_beat: ScoreBeat, event_ids: tuple[str, ...]) ->
     identity = "|".join((str(onset_beat), *event_ids))
     digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:12]
     return f"entry-{_safe_id(str(onset_beat))}-{digest}"
+
+
+def _stable_attack_step_id(onset_beat: ScoreBeat, step_note_ids: tuple[str, ...]) -> str:
+    identity = "|".join((str(onset_beat), *step_note_ids))
+    digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:12]
+    return f"attack-{_safe_id(str(onset_beat))}-{digest}"
 
 
 def _field_as_string(value: object) -> str:
