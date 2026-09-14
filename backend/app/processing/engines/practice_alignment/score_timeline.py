@@ -99,16 +99,12 @@ class PracticeAttackStep:
     step_id: str
     onset_beat: ScoreBeat
     event_ids: tuple[str, ...]
-    attack_required: tuple[PracticeAttackTarget, ...]
+    attack_targets: tuple[PracticeAttackTarget, ...]
     continuation: tuple[PracticeStepNote, ...]
     render_note_ids: tuple[str, ...]
     measure_numbers: tuple[str, ...]
     staff_ids: tuple[str, ...]
     voice_ids: tuple[str, ...]
-
-    @property
-    def attack_targets(self) -> tuple[PracticeAttackTarget, ...]:
-        return self.attack_required
 
 
 @dataclass(frozen=True)
@@ -436,21 +432,24 @@ def _build_practice_attack_steps(
         )
         if not attack_notes:
             continue
-        attack_required = _attack_targets_for_step_notes(attack_notes)
+        event_ids = tuple(event.event_id for event in onset_events)
+        step_id = _stable_attack_step_id(onset_beat, event_ids)
+        attack_targets = _attack_targets_for_step_notes(
+            attack_notes,
+            step_id=step_id,
+        )
         continuation = tuple(
             note
             for event in onset_events
             if not event.entry_candidate
             for note in _step_notes_for_event(event)
         )
-        event_ids = tuple(event.event_id for event in onset_events)
-        step_id = _stable_attack_step_id(onset_beat, tuple(event.event_id for event in onset_events))
         steps.append(
             PracticeAttackStep(
                 step_id=step_id,
                 onset_beat=onset_beat,
                 event_ids=event_ids,
-                attack_required=attack_required,
+                attack_targets=attack_targets,
                 continuation=continuation,
                 render_note_ids=tuple(
                     dict.fromkeys(
@@ -486,6 +485,8 @@ def _build_practice_attack_steps(
 
 def _attack_targets_for_step_notes(
     notes: tuple[PracticeStepNote, ...],
+    *,
+    step_id: str,
 ) -> tuple[PracticeAttackTarget, ...]:
     notes_by_pitch: dict[str, list[PracticeStepNote]] = {}
     for note in notes:
@@ -493,7 +494,7 @@ def _attack_targets_for_step_notes(
 
     return tuple(
         PracticeAttackTarget(
-            attack_id=f"attack:{_safe_id(pitch)}",
+            attack_id=_stable_attack_target_id(step_id, pitch, tuple(note.event_id for note in pitch_notes)),
             pitch=pitch,
             notes=tuple(pitch_notes),
             event_ids=tuple(dict.fromkeys(note.event_id for note in pitch_notes)),
@@ -798,6 +799,12 @@ def _stable_attack_step_id(onset_beat: ScoreBeat, event_ids: tuple[str, ...]) ->
     identity = "|".join((str(onset_beat), *event_ids))
     digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:12]
     return f"attack-{_safe_id(str(onset_beat))}-{digest}"
+
+
+def _stable_attack_target_id(step_id: str, pitch: str, event_ids: tuple[str, ...]) -> str:
+    identity = "|".join((step_id, pitch, *event_ids))
+    digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:12]
+    return f"{step_id}:target:{_safe_id(pitch)}:{digest}"
 
 
 def _field_as_string(value: object) -> str:

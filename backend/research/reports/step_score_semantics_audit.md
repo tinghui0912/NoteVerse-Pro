@@ -192,11 +192,21 @@ PracticeAttackStep {
     event_ids: string[]
     render_note_ids: string[]
   }
-  attack_required: PracticeStepNote[]
+  attack_targets: PracticeAttackTarget[]
   continuation: PracticeStepNote[]
 }
 
+PracticeAttackTarget {
+  attack_id: string
+  pitch: string
+  notes: PracticeStepNote[]
+  event_ids: string[]
+  render_note_ids: string[]
+  measure_numbers: string[]
+}
+
 PracticeStepNote {
+  step_note_id: string
   pitch: string
   render_note_id: string
   event_id: string
@@ -209,8 +219,15 @@ PracticeStepNote {
 Rules:
 
 ```text
-attack_required
-= notes at this score position that require a new physical key attack
+ATTACK_REQUIRED
+= music-semantic set of notes at this score position that require a new physical key attack
+
+Code contract:
+
+```text
+attack_targets
+= pitch-consolidated physical targets for ATTACK_REQUIRED notes
+```
 ```
 
 ```text
@@ -234,7 +251,7 @@ attack_required != []
 continuation != []
 ```
 
-Create one practice step for `attack_required`. Keep `continuation` as context metadata for display/reporting, but do not require new onset for continuation notes.
+Create one practice step for the ATTACK_REQUIRED notes represented as `attack_targets`. Keep `continuation` as context metadata for display/reporting, but do not require new onset for continuation notes.
 
 ## Required Examples
 
@@ -348,7 +365,7 @@ mixed tie continuation + new chord tones: yes
 Not yet explicit enough for a score-aware ByteDance runtime:
 
 ```text
-attack_required: not exposed as a named contract
+attack_targets / ATTACK_REQUIRED: not exposed as a named contract
 continuation: not exposed as a named contract
 per-note tie/staff/voice in public target API: not exposed
 zero-attack position contract: implicit, not named
@@ -388,7 +405,7 @@ The smallest clean next step:
 1. Extend `PracticeScoreTimeline` with an explicit `practice_attack_steps` projection.
 2. Keep existing `expected_practice_groups` as a compatibility projection until callers migrate.
 3. Add `PracticeAttackStepRead` / `PracticeStepNoteRead` to the practice API.
-4. Update `PracticeTargetCatalog` to expose `attack_required` and `continuation`.
+4. Update `PracticeTargetCatalog` to expose `attack_targets` and `continuation`.
 5. Add tests for the six examples in this document.
 
 Primary implementation point:
@@ -410,7 +427,7 @@ Runtime boundary after that:
 
 ```text
 ExpectedEventEvaluator / future ByteDance rolling verifier
-should consume attack_required pitches only.
+should consume `attack_targets` pitches only.
 ```
 
 Do not infer continuation from audio, sustain, pedal, or observed frame energy.
@@ -450,13 +467,13 @@ Implementation semantics:
 For each score onset:
   collect all PracticeScoreEvent items at that onset
   partition:
-    entry_candidate=True  -> attack_required
+    entry_candidate=True  -> attack_targets
     entry_candidate=False -> continuation
 
-If attack_required is empty:
+If no attack targets exist:
   do not create a user-action PracticeAttackStep
 
-If attack_required is non-empty:
+If attack targets exist:
   create one PracticeAttackStep for that onset
   preserve continuation notes as context metadata
 ```
@@ -531,7 +548,7 @@ pure tie continuation
 -> no extra PracticeAttackStep
 
 mixed tie position
--> attack_required = new notes
+-> attack_targets = new physical targets
 -> continuation = tied notes
 
 same pitch without tie
@@ -566,7 +583,7 @@ PracticeTargetCatalog/API migration
 Recommended next step:
 
 ```text
-Expose attack_required / continuation in PracticeTargetCatalogRead
+Expose attack_targets / continuation in PracticeTargetCatalogRead
 while keeping existing pitches/render_note_ids fields for compatibility.
 ```
 
@@ -607,7 +624,7 @@ different MusicXML render note ids
 
 ### Physical Attack Targets
 
-`attack_required` now contains physical attack targets rather than raw notation notes.
+`PracticeAttackStep.attack_targets` contains physical attack targets rather than raw notation notes.
 
 Internal target:
 
@@ -621,8 +638,6 @@ PracticeAttackTarget {
   measure_numbers
 }
 ```
-
-`PracticeAttackStep.attack_targets` is an alias for `PracticeAttackStep.attack_required`.
 
 Semantics:
 
@@ -645,12 +660,37 @@ continuation: tuple[PracticeStepNote, ...]
 
 because continuation notes do not drive microphone MATCH.
 
+
+### Canonical Field Name And Target Identity
+
+The internal code contract now uses one canonical field name:
+
+```text
+PracticeAttackStep.attack_targets
+```
+
+There is no `attack_required` field or alias in the internal IR. `ATTACK_REQUIRED` remains only a music-semantics term in product/design language.
+
+`PracticeAttackTarget.attack_id` is now unique across distinct score steps and stable across render-id changes.
+
+Identity input:
+
+```text
+step_id
+pitch
+stable event_ids for that pitch target
+```
+
+It must not depend on `render_note_id`.
+
 ### Focused Verification
 
 Additional coverage:
 
 ```text
 step_id stable when render ids change
+attack_id stable when render ids change
+two different C4 attack steps have different attack_id values
 same pitch in two voices/staves -> one attack target, two notation notes
 mixed tied chord -> attack targets exclude tied note, continuation includes tied note
 same pitch without tie at later onset -> new attack target
