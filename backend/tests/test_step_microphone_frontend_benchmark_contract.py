@@ -7,8 +7,12 @@ import sys
 import numpy as np
 
 
+SCRIPTS_DIR = Path(__file__).parents[1] / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
 SCRIPT_PATH = (
-    Path(__file__).parents[1] / "scripts" / "compare_step_microphone_frontends_causal_cases.py"
+    SCRIPTS_DIR / "compare_step_microphone_frontends_causal_cases.py"
 )
 SPEC = importlib.util.spec_from_file_location(
     "compare_step_microphone_frontends_causal_cases",
@@ -19,6 +23,19 @@ MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+
+EXTRACTOR_SCRIPT_PATH = (
+    SCRIPTS_DIR / "extract_public_paired_step_causal_cases.py"
+)
+EXTRACTOR_SPEC = importlib.util.spec_from_file_location(
+    "extract_public_paired_step_causal_cases",
+    EXTRACTOR_SCRIPT_PATH,
+)
+assert EXTRACTOR_SPEC is not None
+EXTRACTOR_MODULE = importlib.util.module_from_spec(EXTRACTOR_SPEC)
+assert EXTRACTOR_SPEC.loader is not None
+sys.modules[EXTRACTOR_SPEC.name] = EXTRACTOR_MODULE
+EXTRACTOR_SPEC.loader.exec_module(EXTRACTOR_MODULE)
 
 
 def test_local_frame_mask_empty_never_falls_back_to_whole_clip() -> None:
@@ -153,3 +170,43 @@ def test_positive_onset_timing_metadata_uses_actual_local_window() -> None:
 
     assert timing["left_boundary_ms"] == -20.0
     assert timing["right_boundary_ms"] == 80.0
+
+
+def test_no_retrigger_export_range_rejects_uncounted_second_group_pitch() -> None:
+    spans = (
+        EXTRACTOR_MODULE.MidiNoteSpan(
+            pitch="F2",
+            midi_note=41,
+            start_seconds=1.0,
+            end_seconds=1.6,
+            velocity=80,
+        ),
+        EXTRACTOR_MODULE.MidiNoteSpan(
+            pitch="F2",
+            midi_note=41,
+            start_seconds=2.35,
+            end_seconds=2.5,
+            velocity=70,
+        ),
+    )
+
+    assert (
+        EXTRACTOR_MODULE._has_uncounted_same_pitch_note_in_export_range(
+            expected_pitches=("F2",),
+            target_seconds=(1.0,),
+            spans=spans,
+            start_seconds=0.0,
+            end_seconds=2.5,
+        )
+        is True
+    )
+    assert (
+        EXTRACTOR_MODULE._has_uncounted_same_pitch_note_in_export_range(
+            expected_pitches=("F2",),
+            target_seconds=(1.0, 2.35),
+            spans=spans,
+            start_seconds=0.0,
+            end_seconds=2.5,
+        )
+        is False
+    )

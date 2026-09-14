@@ -490,14 +490,24 @@ def export_cases(
         target_indices = tuple(int(index) for index in plan["target_indices"])
         start_seconds = max(0.0, min(group.seconds for group in actual_groups) - pre_context_seconds)
         end_seconds = min(duration_seconds, max(group.seconds for group in actual_groups) + post_context_seconds)
-        if kind == "same_note_retrigger" and _has_uncounted_same_pitch_note_in_export_range(
-            expected_pitch=str(tuple(plan["expected_groups"])[0][0]),
-            target_seconds=tuple(group.seconds for group in actual_groups),
-            spans=spans,
-            start_seconds=start_seconds,
-            end_seconds=end_seconds,
-        ):
-            continue
+        if kind in {
+            "same_note_retrigger",
+            "long_held_note_without_retrigger",
+            "pedal_sustain_tail_without_retrigger",
+        }:
+            expected_groups = tuple(tuple(group) for group in plan["expected_groups"])
+            if kind == "same_note_retrigger":
+                checked_pitches = expected_groups[0]
+            else:
+                checked_pitches = expected_groups[1]
+            if _has_uncounted_same_pitch_note_in_export_range(
+                expected_pitches=checked_pitches,
+                target_seconds=tuple(group.seconds for group in actual_groups),
+                spans=spans,
+                start_seconds=start_seconds,
+                end_seconds=end_seconds,
+            ):
+                continue
         kind_counts[kind] = kind_counts.get(kind, 0) + 1
         start_sample = int(round(start_seconds * sample_rate))
         end_sample = int(round(end_seconds * sample_rate))
@@ -539,15 +549,16 @@ def export_cases(
 
 def _has_uncounted_same_pitch_note_in_export_range(
     *,
-    expected_pitch: str,
+    expected_pitches: tuple[str, ...],
     target_seconds: tuple[float, ...],
     spans: tuple[MidiNoteSpan, ...],
     start_seconds: float,
     end_seconds: float,
 ) -> bool:
     target_tolerance_seconds = 0.08
+    expected_pitch_set = set(expected_pitches)
     for span in spans:
-        if span.pitch != expected_pitch:
+        if span.pitch not in expected_pitch_set:
             continue
         if span.start_seconds < start_seconds or span.start_seconds > end_seconds:
             continue
