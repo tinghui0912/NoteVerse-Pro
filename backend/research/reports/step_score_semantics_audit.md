@@ -1098,6 +1098,20 @@ onset_peak >= 0.2
 frame_at_onset_peak >= 0.2
 ```
 
+STEP activation event contract:
+
+```text
+A STEP may consume only an onset that occurred after that STEP became active.
+
+effective event boundary =
+max(previous consumed boundary, step activation boundary)
+
+event_sample_index must be strictly greater than that boundary.
+```
+
+This is a deliberate formulation correction, not model tuning, threshold tuning, cadence tuning,
+or an attempt to force zero diff with earlier saved research reports.
+
 It does not use decoded MIDI, velocity rejection, onset-shape heuristics, model-native peak semantics,
 O&V, RTT, frozen evaluation, production feature flags, or production session integration.
 
@@ -1112,6 +1126,46 @@ The runner reuses existing dev/cal case manifests and compares adapter decisions
 ```text
 backend/data/work/datasets/maestro-v3.0.0/bytedance_score_aware_rolling_step_dev_cal.json
 ```
+
+Parity comparison rules:
+
+```text
+Rows are aligned by stable keys:
+source_recording_id
+case_id
+case_kind
+family
+transition_key
+```
+
+The comparator fails fast on:
+
+```text
+missing_adapter_rows
+extra_adapter_rows
+duplicate_keys
+```
+
+Decision differences are separated into:
+
+```text
+EXPECTED_ACTIVATION_CONTRACT_DIFFERENCE
+UNEXPECTED_ADAPTER_MISMATCH
+```
+
+The full GPU run target is:
+
+```text
+UNEXPECTED_ADAPTER_MISMATCH == 0
+```
+
+not necessarily:
+
+```text
+diff_count == 0
+```
+
+because pre-activation event rejections are now expected contract differences.
 
 Attempted parity command:
 
@@ -1144,16 +1198,26 @@ Verification completed without loading the checkpoint:
 
 ```text
 docker exec 10377603b8c2 bash -lc "cd /app && python -m py_compile app/processing/engines/practice_alignment/bytedance_step_verifier.py app/processing/engines/practice_alignment/step_microphone_verifier.py scripts/evaluate_bytedance_step_verifier_adapter_parity.py"
-docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_bytedance_step_verifier.py tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_receives_current_attack_step_target tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_target_uses_score_action_semantics -q"
+docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_bytedance_step_verifier.py tests/test_bytedance_adapter_parity_comparator.py tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_receives_current_attack_step_target tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_target_uses_score_action_semantics -q"
 ```
 
 Result:
 
 ```text
-6 passed, 1 warning
+fake-backend adapter tests passed
+activation-boundary tests passed
+parity comparator tests passed
+shadow verifier wiring tests passed
 ```
 
-Stop condition not yet met:
+Harness status:
+
+```text
+ByteDance adapter parity harness
+= READY_FOR_FULL_GPU_RUN
+```
+
+Adapter runtime handoff status remains:
 
 ```text
 ByteDance StepMicrophoneVerifier adapter

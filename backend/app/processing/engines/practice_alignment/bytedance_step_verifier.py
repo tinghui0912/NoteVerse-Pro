@@ -58,7 +58,13 @@ class ByteDanceStepVerifierLatency:
 
 
 class ByteDanceRollingStepVerifier(StepMicrophoneVerifier):
-    """Rolling score-aware adapter for ByteDance note_model raw outputs."""
+    """Rolling score-aware adapter for ByteDance note_model raw outputs.
+
+    A STEP may only consume onset events that occurred after the STEP became
+    active. This is intentional product semantics, not an attempt to reproduce
+    older research rows that allowed pre-activation events to satisfy a later
+    step.
+    """
 
     def __init__(
         self,
@@ -218,7 +224,11 @@ class ByteDanceRollingStepVerifier(StepMicrophoneVerifier):
 
         if not events:
             return None
-        if any(event.event_sample_index <= self._consumed_through_sample for event in events):
+        event_boundary_sample = max(
+            self._consumed_through_sample,
+            self._step_activation_boundary_sample,
+        )
+        if any(event.event_sample_index <= event_boundary_sample for event in events):
             return None
         if any(not self._passes_dedupe(event) for event in events):
             return None

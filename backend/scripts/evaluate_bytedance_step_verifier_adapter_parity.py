@@ -21,6 +21,7 @@ if str(ROOT) not in sys.path:
 from app.processing.engines.practice_alignment.bytedance_step_verifier import (  # noqa: E402
     ByteDanceRawOutput,
     ByteDanceRollingStepVerifier,
+    ByteDanceStepVerifierConfig,
 )
 from app.processing.engines.practice_alignment.step_microphone_verifier import (  # noqa: E402
     StepVerifierTarget,
@@ -145,6 +146,7 @@ def main() -> int:
     args = parse_args()
     policy_artifact = json.loads(args.policy.read_text(encoding="utf-8"))
     _validate_policy(policy_artifact)
+    adapter_config = _adapter_config_from_policy(policy_artifact)
     frontend = policy_artifact["frontend"]
     checkpoint_path = _checkpoint_path(frontend)
     checkpoint_sha256 = _sha256(checkpoint_path)
@@ -173,7 +175,7 @@ def main() -> int:
         _evaluate_case_with_adapter(manifest_path, case, backend=backend)
         for manifest_path, case in cases
     ]
-    diffs = _diff_against_reference(evaluations, reference_report)
+    parity = _compare_against_reference(evaluations, reference_report)
     report = {
         "benchmark_scope": "bytedance_step_verifier_adapter_parity_dev_cal",
         "scope_wording": (
@@ -188,6 +190,24 @@ def main() -> int:
             "cadence_tuning": False,
             "dedupe_tuning": False,
             "event_rule": FRAME_RULE_NAME,
+            "activation_contract": (
+                "A STEP may consume only an onset event that occurred after "
+                "that STEP became active. Differences caused only by rejecting "
+                "pre-activation events are expected formulation corrections."
+            ),
+        },
+        "adapter_config": {
+            "sample_rate": adapter_config.sample_rate,
+            "lookback_seconds": adapter_config.lookback_seconds,
+            "target_anchor_seconds": adapter_config.target_anchor_seconds,
+            "future_seconds": adapter_config.future_seconds,
+            "onset_threshold": adapter_config.onset_threshold,
+            "frame_threshold": adapter_config.frame_threshold,
+            "cadence_seconds": adapter_config.cadence_seconds,
+            "event_dedupe_seconds": adapter_config.event_dedupe_seconds,
+            "local_pre_seconds": adapter_config.local_pre_seconds,
+            "local_post_seconds": adapter_config.local_post_seconds,
+            "output_frame_rate_hz": adapter_config.output_frame_rate_hz,
         },
         "integration_question_left_open": (
             "Final verifier-driven progression still needs an explicit accepted-event "
@@ -196,11 +216,7 @@ def main() -> int:
         "case_manifests": [str(path) for path in args.case_manifest],
         "case_count": len(cases),
         "summary_by_event_rule": {FRAME_RULE_NAME: _summary(evaluations, rule_name=FRAME_RULE_NAME)},
-        "parity": {
-            "reference_report": str(args.reference_report),
-            "diff_count": len(diffs),
-            "diffs": diffs,
-        },
+        "parity": {"reference_report": str(args.reference_report), **parity},
         "evaluations": evaluations,
     }
     text = json.dumps(report, ensure_ascii=False, indent=2)
@@ -225,6 +241,31 @@ def parse_args() -> argparse.Namespace:
         help="Run only the first N manifest cases for CPU-only smoke parity checks.",
     )
     return parser.parse_args()
+
+
+def _adapter_config_from_policy(policy_artifact: dict[str, object]) -> ByteDanceStepVerifierConfig:
+    policy = policy_artifact.get("policy") or {}
+    window = policy_artifact.get("benchmark_window") or {}
+    config = ByteDanceStepVerifierConfig()
+    expected = {
+        "target_onset_min": config.onset_threshold,
+        "target_frame_min": config.frame_threshold,
+    }
+    for field, value in expected.items():
+        if float(policy.get(field)) != float(value):
+            raise ValueError(f"adapter config mismatch for {field}: expected {value}, got {policy.get(field)}")
+    window_expected = {
+        "local_pre_seconds": config.local_pre_seconds,
+        "local_post_seconds": config.local_post_seconds,
+    }
+    for field, value in window_expected.items():
+        if float(window.get(field)) != float(value):
+            raise ValueError(f"adapter config mismatch for {field}: expected {value}, got {window.get(field)}")
+    if policy.get("competitor_margins_enabled") is not False:
+        raise ValueError("adapter requires competitor margins disabled")
+    if policy.get("chord_timing_spread_enabled") is not False:
+        raise ValueError("adapter requires chord timing spread disabled")
+    return config
 
 
 def _evaluate_case_with_adapter(
@@ -288,6 +329,7 @@ def _evaluate_score_case_with_adapter(
             "expected_auto_advance": bool(score_case["expected_auto_advance"]),
             "future_target_contaminated": bool(score_case.get("future_target_contaminated", False)),
             "transition_key": score_case.get("transition_key"),
+            "active_from": max(0.0, target - INITIALIZATION_PRE_SECONDS),
             "auto_advanced": auto_advanced,
             "false_automatic_advance": auto_advanced and not bool(score_case["expected_auto_advance"]),
             "missed_expected_advance": (not auto_advanced) and bool(score_case["expected_auto_advance"]),
@@ -308,6 +350,7 @@ def _evaluate_score_case_with_adapter(
         return {
             "family": family,
             "first_advance_established": False,
+            "active_from": max(0.0, float(score_case["first_target_time"]) - INITIALIZATION_PRE_SECONDS),
             "auto_advanced": False,
             "false_automatic_advance": False,
             "missed_expected_advance": bool(score_case["expected_auto_advance"]),
@@ -338,6 +381,7 @@ def _evaluate_score_case_with_adapter(
         "expected_auto_advance": bool(score_case["expected_auto_advance"]),
         "future_target_contaminated": bool(score_case.get("future_target_contaminated", False)),
         "transition_key": score_case.get("transition_key"),
+        "active_from": float(first["decision_time"]),
         "auto_advanced": auto_advanced,
         "false_automatic_advance": (
             auto_advanced
@@ -412,34 +456,143 @@ def _seconds_to_samples(seconds: float) -> int:
     return int(round(seconds * SAMPLE_RATE))
 
 
-def _diff_against_reference(
+def _compare_against_reference(
     evaluations: list[dict[str, object]],
     reference_report: dict[str, object],
-) -> list[dict[str, object]]:
+) -> dict[str, object]:
+    adapter_rows = _flatten_rows(evaluations)
+    reference_rows = _flatten_rows(reference_report.get("evaluations", []))
+    adapter_duplicates = _duplicate_keys(adapter_rows)
+    reference_duplicates = _duplicate_keys(reference_rows)
+    adapter_by_key = {row["key"]: row for row in adapter_rows}
+    reference_by_key = {row["key"]: row for row in reference_rows}
+    missing_adapter_rows = sorted(reference_by_key.keys() - adapter_by_key.keys())
+    extra_adapter_rows = sorted(adapter_by_key.keys() - reference_by_key.keys())
     diffs = []
-    reference_evaluations = reference_report.get("evaluations", [])
-    for adapter_case, reference_case in zip(evaluations, reference_evaluations, strict=False):
-        adapter_results = adapter_case["results_by_event_rule"][FRAME_RULE_NAME]
-        reference_results = reference_case["results_by_event_rule"][FRAME_RULE_NAME]
-        for index, (adapter, reference) in enumerate(
-            zip(adapter_results, reference_results, strict=False)
-        ):
-            if _decision_signature(adapter) == _decision_signature(reference):
-                continue
-            diffs.append(
-                {
-                    "case_id": adapter_case.get("case_id"),
-                    "case_kind": adapter_case.get("case_kind"),
-                    "score_case_index": index,
-                    "transition_key": adapter.get("transition_key"),
-                    "old_decision": _decision_signature(reference),
-                    "adapter_decision": _decision_signature(adapter),
-                    "old_event_time": _extract_event_time(reference),
-                    "adapter_event_time": _extract_event_time(adapter),
-                    "reason": "adapter decision/event differs from saved temporally_bound reference",
-                }
+    for key in sorted(adapter_by_key.keys() & reference_by_key.keys()):
+        adapter_row = adapter_by_key[key]
+        reference_row = reference_by_key[key]
+        adapter = adapter_row["result"]
+        reference = reference_row["result"]
+        if _decision_signature(adapter) == _decision_signature(reference):
+            continue
+        reason = _diff_reason(adapter, reference)
+        diffs.append(
+            {
+                "key": _key_to_dict(key),
+                "old_decision": _decision_signature(reference),
+                "adapter_decision": _decision_signature(adapter),
+                "old_event_time": _extract_event_time(reference),
+                "adapter_event_time": _extract_event_time(adapter),
+                "reason": reason,
+            }
+        )
+    unexpected = [diff for diff in diffs if diff["reason"] != "EXPECTED_ACTIVATION_CONTRACT_DIFFERENCE"]
+    return {
+        "key_contract": {
+            "adapter_key_count": len(adapter_by_key),
+            "reference_key_count": len(reference_by_key),
+            "missing_adapter_rows": [_key_to_dict(key) for key in missing_adapter_rows],
+            "extra_adapter_rows": [_key_to_dict(key) for key in extra_adapter_rows],
+            "duplicate_keys": {
+                "adapter": [_key_to_dict(key) for key in adapter_duplicates],
+                "reference": [_key_to_dict(key) for key in reference_duplicates],
+            },
+            "failed": bool(missing_adapter_rows or extra_adapter_rows or adapter_duplicates or reference_duplicates),
+        },
+        "diff_count": len(diffs),
+        "expected_activation_contract_difference_count": len(diffs) - len(unexpected),
+        "unexpected_adapter_mismatch_count": len(unexpected),
+        "diffs": diffs,
+    }
+
+
+def _flatten_rows(evaluations: list[dict[str, object]]) -> list[dict[str, object]]:
+    rows = []
+    for case in evaluations:
+        results = case.get("results_by_event_rule", {}).get(FRAME_RULE_NAME, [])
+        source_identity = case.get("source_identity") or {}
+        source_recording_id = str(source_identity.get("source_recording_id", ""))
+        for index, result in enumerate(results):
+            key = _row_key(
+                source_recording_id=source_recording_id,
+                case_id=str(case.get("case_id")),
+                case_kind=str(case.get("case_kind")),
+                result=result,
+                index=index,
             )
-    return diffs
+            rows.append({"key": key, "case": case, "result": result})
+    return rows
+
+
+def _row_key(
+    *,
+    source_recording_id: str,
+    case_id: str,
+    case_kind: str,
+    result: dict[str, object],
+    index: int,
+) -> tuple[str, str, str, str, str]:
+    score_case = result.get("score_case") if isinstance(result.get("score_case"), dict) else {}
+    transition_key = result.get("transition_key") or score_case.get("transition_key")
+    if transition_key is None:
+        transition_key = score_case.get("target_time")
+    if transition_key is None:
+        transition_key = score_case.get("first_target_time")
+    if transition_key is None:
+        transition_key = f"index:{index}"
+    return (
+        source_recording_id,
+        case_id,
+        case_kind,
+        str(result.get("family") or score_case.get("family")),
+        str(transition_key),
+    )
+
+
+def _duplicate_keys(rows: list[dict[str, object]]) -> list[tuple[str, str, str, str, str]]:
+    seen: set[tuple[str, str, str, str, str]] = set()
+    duplicates: set[tuple[str, str, str, str, str]] = set()
+    for row in rows:
+        key = row["key"]
+        if key in seen:
+            duplicates.add(key)
+        seen.add(key)
+    return sorted(duplicates)
+
+
+def _key_to_dict(key: tuple[str, str, str, str, str]) -> dict[str, str]:
+    return {
+        "source_recording_id": key[0],
+        "case_id": key[1],
+        "case_kind": key[2],
+        "family": key[3],
+        "transition_key": key[4],
+    }
+
+
+def _diff_reason(adapter: dict[str, object], reference: dict[str, object]) -> str:
+    old_event_time = _extract_event_time(reference)
+    if old_event_time is not None:
+        active_from = _activation_start(reference)
+        if active_from is not None and old_event_time <= active_from + 1e-9:
+            return "EXPECTED_ACTIVATION_CONTRACT_DIFFERENCE"
+    return "UNEXPECTED_ADAPTER_MISMATCH"
+
+
+def _activation_start(result: dict[str, object]) -> float | None:
+    active_from = result.get("active_from")
+    if active_from is not None:
+        return float(active_from)
+    first_match = result.get("first_match")
+    if isinstance(first_match, dict) and "decision_time" in first_match:
+        return float(first_match["decision_time"])
+    score_case = result.get("score_case")
+    if isinstance(score_case, dict) and "target_time" in score_case:
+        return max(0.0, float(score_case["target_time"]) - INITIALIZATION_PRE_SECONDS)
+    if isinstance(score_case, dict) and "first_target_time" in score_case:
+        return max(0.0, float(score_case["first_target_time"]) - INITIALIZATION_PRE_SECONDS)
+    return None
 
 
 def _decision_signature(result: dict[str, object]) -> dict[str, object]:

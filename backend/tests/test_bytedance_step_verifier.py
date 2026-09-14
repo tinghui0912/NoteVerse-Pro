@@ -130,8 +130,110 @@ def test_bytedance_step_verifier_allows_same_pitch_after_step_changes() -> None:
     assert first.step_id != second_step.step_id
 
 
+def test_bytedance_step_verifier_rejects_events_at_or_before_activation_boundary() -> None:
+    verifier = ByteDanceRollingStepVerifier(
+        FakeByteDanceBackend(),
+        config=ByteDanceStepVerifierConfig(
+            sample_rate=100,
+            target_anchor_seconds=1.0,
+            future_seconds=0.0,
+            local_pre_seconds=0.1,
+            local_post_seconds=0.1,
+            output_frame_rate_hz=100.0,
+        ),
+    )
+    target = StepVerifierTarget(
+        step_id="step-c4",
+        attack_pitches=("C4",),
+        continuation_pitches=(),
+    )
+    verifier._step_activation_boundary_sample = 100
+    verifier._consumed_through_sample = 0
+
+    assert _observation_for_event_sample(verifier, target=target, event_sample=99) is None
+    assert _observation_for_event_sample(verifier, target=target, event_sample=100) is None
+
+    fresh = _observation_for_event_sample(verifier, target=target, event_sample=101)
+
+    assert fresh is not None
+    assert fresh.events[0].event_sample_index == 101
+
+
+def test_bytedance_step_verifier_step_change_cannot_reuse_old_same_pitch_onset() -> None:
+    verifier = ByteDanceRollingStepVerifier(
+        FakeByteDanceBackend(),
+        config=ByteDanceStepVerifierConfig(
+            sample_rate=100,
+            target_anchor_seconds=1.0,
+            future_seconds=0.0,
+            local_pre_seconds=0.1,
+            local_post_seconds=0.1,
+            output_frame_rate_hz=100.0,
+        ),
+    )
+    first_target = StepVerifierTarget(
+        step_id="step-c4-a",
+        attack_pitches=("C4",),
+        continuation_pitches=(),
+    )
+    second_target = StepVerifierTarget(
+        step_id="step-c4-b",
+        attack_pitches=("C4",),
+        continuation_pitches=(),
+    )
+    verifier._step_activation_boundary_sample = -1
+    verifier._consumed_through_sample = -1
+    first = _observation_for_event_sample(
+        verifier,
+        target=first_target,
+        event_sample=100,
+        anchor_sample=100,
+    )
+    assert first is not None
+
+    verifier._step_activation_boundary_sample = 150
+    verifier._consumed_through_sample = 150
+    stale = _observation_for_event_sample(
+        verifier,
+        target=second_target,
+        event_sample=100,
+        anchor_sample=100,
+    )
+    fresh = _observation_for_event_sample(
+        verifier,
+        target=second_target,
+        event_sample=160,
+        anchor_sample=160,
+    )
+
+    assert stale is None
+    assert fresh is not None
+    assert fresh.events[0].event_sample_index == 160
+
+
 def _pcm16_silence(sample_count: int) -> bytes:
     return np.zeros(sample_count, dtype=np.int16).tobytes()
+
+
+def _observation_for_event_sample(
+    verifier: ByteDanceRollingStepVerifier,
+    *,
+    target: StepVerifierTarget,
+    event_sample: int,
+    anchor_sample: int = 100,
+):
+    frame_count = max(anchor_sample + 20, event_sample + 20)
+    pitch_index = _pitch_to_midi_note("C4") - 21
+    onsets = np.zeros((frame_count, 88), dtype=np.float32)
+    frames = np.zeros((frame_count, 88), dtype=np.float32)
+    onsets[event_sample, pitch_index] = 0.8
+    frames[event_sample, pitch_index] = 0.7
+    return verifier._observation_from_raw_output(
+        ByteDanceRawOutput(reg_onset_output=onsets, frame_output=frames),
+        target=target,
+        anchor_sample=anchor_sample,
+        clip_start_sample=0,
+    )
 
 
 def _pitch_to_midi_note(pitch: str) -> int:
