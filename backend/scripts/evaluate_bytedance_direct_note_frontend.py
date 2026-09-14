@@ -12,6 +12,7 @@ import argparse
 from collections import defaultdict
 import hashlib
 import json
+import os
 from pathlib import Path
 from time import perf_counter
 
@@ -552,6 +553,9 @@ def _validate_policy(policy_artifact: dict[str, object]) -> None:
 
 
 def _checkpoint_path(frontend: dict[str, object]) -> Path:
+    env_path = os.environ.get("NOTEVERSE_BYTEDANCE_CHECKPOINT")
+    if env_path:
+        return Path(env_path)
     configured = frontend.get("checkpoint_path")
     if configured:
         return Path(str(configured))

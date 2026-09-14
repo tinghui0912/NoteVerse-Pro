@@ -20,11 +20,22 @@ class StepVerifierTarget:
 
 
 @dataclass(frozen=True)
+class StepVerifierEvent:
+    pitch: str
+    event_sample_index: int
+    event_time_seconds: float
+    onset_score: float
+    frame_score: float
+
+
+@dataclass(frozen=True)
 class StepVerifierObservation:
     step_id: str
     observed_attack_pitches: tuple[str, ...]
     confidence: float
-    event_time: float | None = None
+    events: tuple[StepVerifierEvent, ...] = ()
+    decision_sample_index: int | None = None
+    decision_time_seconds: float | None = None
 
 
 class StepMicrophoneVerifier(Protocol):

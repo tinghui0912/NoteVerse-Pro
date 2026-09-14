@@ -1010,3 +1010,155 @@ ByteDance score-aware rolling adapter can implement StepMicrophoneVerifier.
 
 Do not let verifier observations drive production progression until a dedicated migration explicitly
 changes the evaluator/progression boundary.
+
+
+## ByteDance StepMicrophoneVerifier Adapter
+
+Status:
+
+```text
+ByteDance StepMicrophoneVerifier adapter = IMPLEMENTED_FOR_RESEARCH
+dev/cal parity = BLOCKED_BY_MISSING_CHECKPOINT_IN_CURRENT_CONTAINER
+```
+
+The research-only adapter implements:
+
+```text
+StepVerifierTarget
++ PCM s16le stream
+-> ByteDanceRollingStepVerifier
+-> timestamped StepVerifierObservation
+```
+
+Fixed contract:
+
+```text
+sample_rate = 16000
+mono PCM s16le
+lookback = 1000ms
+anchor = 1600ms
+future = 220ms
+onset threshold = 0.2
+frame threshold = 0.2
+cadence = 150ms
+event dedupe = 50ms
+event rule = temporally_bound
+```
+
+Observation event time is audio-stream time:
+
+```text
+event_sample_index
+event_time_seconds = event_sample_index / sample_rate
+onset_score
+frame_score
+```
+
+Model compute latency remains separate from acoustic event time.
+
+Rolling state currently tracks:
+
+```text
+PCM rolling buffer
+absolute sample cursor
+next inference anchor
+deduplicated onset events
+active step_id
+step activation boundary
+consumed-through sample
+```
+
+Important boundary:
+
+```text
+step_id change at chunk boundary
+```
+
+is only the research adapter contract. Production still needs an explicit accepted-event handoff design:
+
+```text
+accepted verifier event
+-> consumed boundary
+-> MATCH
+-> policy advance
+-> next STEP activation
+```
+
+The adapter uses only:
+
+```text
+reg_onset_output
+frame_output
+```
+
+and the `temporally_bound` rule:
+
+```text
+onset_peak >= 0.2
+frame_at_onset_peak >= 0.2
+```
+
+It does not use decoded MIDI, velocity rejection, onset-shape heuristics, model-native peak semantics,
+O&V, RTT, frozen evaluation, production feature flags, or production session integration.
+
+Research parity runner:
+
+```text
+backend/scripts/evaluate_bytedance_step_verifier_adapter_parity.py
+```
+
+The runner reuses existing dev/cal case manifests and compares adapter decisions against:
+
+```text
+backend/data/work/datasets/maestro-v3.0.0/bytedance_score_aware_rolling_step_dev_cal.json
+```
+
+Attempted parity command:
+
+```text
+docker exec 10377603b8c2 bash -lc "cd /app && NOTEVERSE_BYTEDANCE_CHECKPOINT=/opt/noteverse/models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth python scripts/evaluate_bytedance_step_verifier_adapter_parity.py --policy research/policies/step_microphone_bytedance_v1.json --case-manifest data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --case-manifest data/work/datasets/maestro-v3.0.0/production_step_calibration_set/public_step_causal_cases_manifest.json --reference-report data/work/datasets/maestro-v3.0.0/bytedance_score_aware_rolling_step_dev_cal.json --output data/work/datasets/maestro-v3.0.0/bytedance_step_verifier_adapter_parity_dev_cal.json --device cuda"
+```
+
+Checkpoint status:
+
+```text
+/opt/noteverse/models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth
+sha256 = c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141
+```
+
+The checkpoint identity matches the frozen policy. The script supports `NOTEVERSE_BYTEDANCE_CHECKPOINT`
+so the container-local `/opt/noteverse/...` path can be used without committing local model links.
+
+Current blocker:
+
+```text
+torch.cuda.is_available() == False
+```
+
+The container currently sees a CUDA build of PyTorch but no CUDA device. Full 192-case adapter parity
+falls back to CPU and is not practical in this container. A CPU smoke run was started and stopped after
+it exceeded the expected quick-check budget. Do not treat this as a model or checkpoint failure; rerun
+the parity command in a container where CUDA is visible, or expect a long CPU-only research run.
+
+Verification completed without loading the checkpoint:
+
+```text
+docker exec 10377603b8c2 bash -lc "cd /app && python -m py_compile app/processing/engines/practice_alignment/bytedance_step_verifier.py app/processing/engines/practice_alignment/step_microphone_verifier.py scripts/evaluate_bytedance_step_verifier_adapter_parity.py"
+docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_bytedance_step_verifier.py tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_receives_current_attack_step_target tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_target_uses_score_action_semantics -q"
+```
+
+Result:
+
+```text
+6 passed, 1 warning
+```
+
+Stop condition not yet met:
+
+```text
+ByteDance StepMicrophoneVerifier adapter
+!= READY_FOR_RUNTIME_HANDOFF_DESIGN
+```
+
+It can only be promoted after dev/cal adapter parity runs against the expected checkpoint and any
+decision/event diffs are either zero or explicitly explained.
