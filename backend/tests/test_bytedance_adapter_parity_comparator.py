@@ -12,6 +12,7 @@ import pytest
 from evaluate_bytedance_step_verifier_adapter_parity import (
     _adapter_config_from_policy,
     _compare_against_reference,
+    _exit_code_for_parity,
 )
 
 
@@ -107,6 +108,127 @@ def test_parity_comparator_classifies_pre_activation_rejection_as_expected_diffe
     assert parity["diffs"][0]["reason"] == "EXPECTED_ACTIVATION_CONTRACT_DIFFERENCE"
 
 
+def test_parity_comparator_chord_with_any_pre_activation_event_is_expected_difference() -> None:
+    adapter = [
+        _case(
+            "case-a",
+            _result("chord", "transition-a", auto_advanced=False, active_from=10.0),
+        )
+    ]
+    reference = [
+        _case(
+            "case-a",
+            _result(
+                "chord",
+                "transition-a",
+                auto_advanced=True,
+                active_from=10.0,
+                event_times=(9.99, 10.02),
+            ),
+        )
+    ]
+
+    parity = _compare_against_reference(adapter, {"evaluations": reference})
+
+    assert parity["expected_activation_contract_difference_count"] == 1
+    assert parity["unexpected_adapter_mismatch_count"] == 0
+
+
+def test_parity_comparator_does_not_exempt_unrelated_adapter_failure() -> None:
+    adapter = [
+        _case(
+            "case-a",
+            _result(
+                "same_note",
+                "transition-a",
+                auto_advanced=True,
+                active_from=10.0,
+                event_time=10.02,
+                second_classification="PREMATURE_FALSE_ADVANCE",
+            ),
+        )
+    ]
+    reference = [
+        _case(
+            "case-a",
+            _result(
+                "same_note",
+                "transition-a",
+                auto_advanced=True,
+                active_from=10.0,
+                event_time=9.99,
+                second_classification="LEGITIMATE_ADVANCE",
+            ),
+        )
+    ]
+
+    parity = _compare_against_reference(adapter, {"evaluations": reference})
+
+    assert parity["expected_activation_contract_difference_count"] == 0
+    assert parity["unexpected_adapter_mismatch_count"] == 1
+    assert parity["diffs"][0]["reason"] == "UNEXPECTED_ADAPTER_MISMATCH"
+
+
+def test_parity_comparator_filters_reference_to_adapter_case_keys_for_case_limit() -> None:
+    adapter = [_case("case-a", _result("single", "transition-a"))]
+    reference = [
+        _case("case-a", _result("single", "transition-a")),
+        _case("case-b", _result("single", "transition-b")),
+    ]
+
+    parity = _compare_against_reference(adapter, {"evaluations": reference})
+
+    assert parity["key_contract"]["failed"] is False
+    assert parity["key_contract"]["adapter_key_count"] == 1
+    assert parity["key_contract"]["reference_key_count"] == 1
+    assert parity["diff_count"] == 0
+
+
+def test_parity_exit_code_fails_on_key_contract_failure() -> None:
+    parity = _compare_against_reference([], {"evaluations": [_case("case-a", _result("single", "transition-a"))]})
+
+    assert _exit_code_for_parity(parity) == 1
+
+
+def test_parity_exit_code_fails_on_unexpected_mismatch() -> None:
+    adapter = [_case("case-a", _result("single", "transition-a", auto_advanced=False))]
+    reference = [
+        _case(
+            "case-a",
+            _result("single", "transition-a", auto_advanced=True, event_time=0.1),
+        )
+    ]
+    parity = _compare_against_reference(adapter, {"evaluations": reference})
+
+    assert parity["unexpected_adapter_mismatch_count"] == 1
+    assert _exit_code_for_parity(parity) == 1
+
+
+def test_parity_exit_code_allows_only_expected_activation_differences() -> None:
+    adapter = [
+        _case(
+            "case-a",
+            _result("single", "transition-a", auto_advanced=False, active_from=10.0),
+        )
+    ]
+    reference = [
+        _case(
+            "case-a",
+            _result(
+                "single",
+                "transition-a",
+                auto_advanced=True,
+                active_from=10.0,
+                event_time=9.99,
+            ),
+        )
+    ]
+    parity = _compare_against_reference(adapter, {"evaluations": reference})
+
+    assert parity["expected_activation_contract_difference_count"] == 1
+    assert _exit_code_for_parity(parity) == 0
+
+
 def test_adapter_config_validation_fails_when_policy_threshold_does_not_match() -> None:
     policy = _policy_artifact()
     policy["policy"]["target_onset_min"] = 0.25
@@ -140,10 +262,20 @@ def _result(
     auto_advanced: bool = False,
     active_from: float = 0.0,
     event_time: float | None = None,
+    event_times: tuple[float, ...] | None = None,
+    second_classification: str | None = None,
 ) -> dict[str, object]:
     match = None
-    if event_time is not None:
-        match = {"latest_event_time": event_time}
+    if event_times is not None:
+        match = {
+            "latest_event_time": max(event_times),
+            "events": [{"event_time": value} for value in event_times],
+        }
+    elif event_time is not None:
+        match = {
+            "latest_event_time": event_time,
+            "events": [{"event_time": event_time}],
+        }
     return {
         "family": family,
         "transition_key": transition_key,
@@ -151,7 +283,7 @@ def _result(
         "auto_advanced": auto_advanced,
         "false_automatic_advance": False,
         "missed_expected_advance": not auto_advanced,
-        "second_classification": None,
+        "second_classification": second_classification,
         "first_advance_established": None,
         "match": match,
         "score_case": {

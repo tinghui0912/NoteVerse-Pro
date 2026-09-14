@@ -1146,6 +1146,19 @@ extra_adapter_rows
 duplicate_keys
 ```
 
+The CLI now returns non-zero after still writing the report when:
+
+```text
+key_contract.failed == true
+unexpected_adapter_mismatch_count > 0
+```
+
+Only pure expected activation-contract differences may exit successfully.
+
+When `--case-limit` is used for a smoke run, the reference report is restricted to the same selected
+case identities before row comparison. Coverage checks remain enabled; the limit does not silently
+turn parity into a best-effort zip comparison.
+
 Decision differences are separated into:
 
 ```text
@@ -1166,6 +1179,11 @@ diff_count == 0
 ```
 
 because pre-activation event rejections are now expected contract differences.
+
+Activation-contract differences are narrowly classified. The reference selected match must have
+accepted, the adapter must fail in the rejection direction, and at least one selected required attack
+event in `events[].event_time` must be at or before the activation boundary. Other decision changes
+remain `UNEXPECTED_ADAPTER_MISMATCH` even when the reference match contains an early event.
 
 Attempted parity command:
 
@@ -1208,6 +1226,7 @@ fake-backend adapter tests passed
 activation-boundary tests passed
 parity comparator tests passed
 shadow verifier wiring tests passed
+CLI exit-code gate tests passed
 ```
 
 Harness status:

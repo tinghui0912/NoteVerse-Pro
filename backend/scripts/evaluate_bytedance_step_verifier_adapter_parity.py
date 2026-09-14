@@ -83,9 +83,15 @@ class DirectNoteBackend:
 
 
 class AdapterReplay:
-    def __init__(self, audio: np.ndarray, backend: DirectNoteBackend) -> None:
+    def __init__(
+        self,
+        audio: np.ndarray,
+        backend: DirectNoteBackend,
+        *,
+        config: ByteDanceStepVerifierConfig,
+    ) -> None:
         self.audio = audio
-        self.verifier = ByteDanceRollingStepVerifier(backend)
+        self.verifier = ByteDanceRollingStepVerifier(backend, config=config)
         self.cursor = 0
         self.inactive_target = StepVerifierTarget(
             step_id="inactive",
@@ -172,7 +178,7 @@ def main() -> int:
     if args.case_limit is not None:
         cases = cases[: args.case_limit]
     evaluations = [
-        _evaluate_case_with_adapter(manifest_path, case, backend=backend)
+        _evaluate_case_with_adapter(manifest_path, case, backend=backend, config=adapter_config)
         for manifest_path, case in cases
     ]
     parity = _compare_against_reference(evaluations, reference_report)
@@ -224,7 +230,7 @@ def main() -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(text + "\n", encoding="utf-8")
     print(text)
-    return 0
+    return _exit_code_for_parity(parity)
 
 
 def parse_args() -> argparse.Namespace:
@@ -273,6 +279,7 @@ def _evaluate_case_with_adapter(
     case: dict[str, object],
     *,
     backend: DirectNoteBackend,
+    config: ByteDanceStepVerifierConfig,
 ) -> dict[str, object]:
     audio_path = _case_audio_path(case, manifest_path=manifest_path)
     audio, sample_rate = _read_wav(audio_path)
@@ -293,7 +300,10 @@ def _evaluate_case_with_adapter(
         target_relative=target_relative,
         source_start=source_start,
     )
-    results = [_evaluate_score_case_with_adapter(score_case, audio, backend=backend) for score_case in score_cases]
+    results = [
+        _evaluate_score_case_with_adapter(score_case, audio, backend=backend, config=config)
+        for score_case in score_cases
+    ]
     return {
         "case_id": case.get("case_id"),
         "case_kind": str(case.get("case_kind")),
@@ -309,8 +319,9 @@ def _evaluate_score_case_with_adapter(
     audio: np.ndarray,
     *,
     backend: DirectNoteBackend,
+    config: ByteDanceStepVerifierConfig,
 ) -> dict[str, object]:
-    replay = AdapterReplay(audio, backend)
+    replay = AdapterReplay(audio, backend, config=config)
     family = str(score_case["family"])
     if "target_time" in score_case:
         target = float(score_case["target_time"])
@@ -461,7 +472,11 @@ def _compare_against_reference(
     reference_report: dict[str, object],
 ) -> dict[str, object]:
     adapter_rows = _flatten_rows(evaluations)
-    reference_rows = _flatten_rows(reference_report.get("evaluations", []))
+    reference_evaluations = _reference_evaluations_for_adapter_cases(
+        reference_report.get("evaluations", []),
+        evaluations,
+    )
+    reference_rows = _flatten_rows(reference_evaluations)
     adapter_duplicates = _duplicate_keys(adapter_rows)
     reference_duplicates = _duplicate_keys(reference_rows)
     adapter_by_key = {row["key"]: row for row in adapter_rows}
@@ -525,6 +540,29 @@ def _flatten_rows(evaluations: list[dict[str, object]]) -> list[dict[str, object
     return rows
 
 
+def _reference_evaluations_for_adapter_cases(
+    reference_evaluations: list[dict[str, object]],
+    adapter_evaluations: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    adapter_case_keys = {_case_key(evaluation) for evaluation in adapter_evaluations}
+    if not adapter_case_keys:
+        return reference_evaluations
+    return [
+        evaluation
+        for evaluation in reference_evaluations
+        if _case_key(evaluation) in adapter_case_keys
+    ]
+
+
+def _case_key(evaluation: dict[str, object]) -> tuple[str, str, str]:
+    source_identity = evaluation.get("source_identity") or {}
+    return (
+        str(source_identity.get("source_recording_id", "")),
+        str(evaluation.get("case_id")),
+        str(evaluation.get("case_kind")),
+    )
+
+
 def _row_key(
     *,
     source_recording_id: str,
@@ -572,12 +610,62 @@ def _key_to_dict(key: tuple[str, str, str, str, str]) -> dict[str, str]:
 
 
 def _diff_reason(adapter: dict[str, object], reference: dict[str, object]) -> str:
-    old_event_time = _extract_event_time(reference)
-    if old_event_time is not None:
-        active_from = _activation_start(reference)
-        if active_from is not None and old_event_time <= active_from + 1e-9:
-            return "EXPECTED_ACTIVATION_CONTRACT_DIFFERENCE"
+    if _is_expected_activation_contract_difference(adapter, reference):
+        return "EXPECTED_ACTIVATION_CONTRACT_DIFFERENCE"
     return "UNEXPECTED_ADAPTER_MISMATCH"
+
+
+def _is_expected_activation_contract_difference(
+    adapter: dict[str, object],
+    reference: dict[str, object],
+) -> bool:
+    if not _result_accepted(reference):
+        return False
+    if _result_accepted(adapter):
+        return False
+    active_from = _activation_start(reference)
+    if active_from is None:
+        return False
+    event_times = _selected_match_event_times(reference)
+    if not event_times:
+        return False
+    return any(event_time <= active_from + 1e-9 for event_time in event_times)
+
+
+def _result_accepted(result: dict[str, object]) -> bool:
+    if result.get("auto_advanced") is True:
+        return True
+    if result.get("first_advance_established") is True and result.get("second_match") is not None:
+        return True
+    return False
+
+
+def _selected_match_event_times(result: dict[str, object]) -> list[float]:
+    match = _selected_match(result)
+    if not isinstance(match, dict):
+        return []
+    events = match.get("events")
+    if not isinstance(events, list):
+        latest = match.get("latest_event_time")
+        return [float(latest)] if latest is not None else []
+    times = []
+    for event in events:
+        if isinstance(event, dict) and event.get("event_time") is not None:
+            times.append(float(event["event_time"]))
+    return times
+
+
+def _selected_match(result: dict[str, object]) -> dict[str, object] | None:
+    match = result.get("match")
+    if isinstance(match, dict):
+        return match
+    second_match = result.get("second_match")
+    if isinstance(second_match, dict):
+        return second_match
+    first_match = result.get("first_match")
+    if isinstance(first_match, dict):
+        return first_match
+    return None
 
 
 def _activation_start(result: dict[str, object]) -> float | None:
@@ -606,11 +694,19 @@ def _decision_signature(result: dict[str, object]) -> dict[str, object]:
 
 
 def _extract_event_time(result: dict[str, object]) -> float | None:
-    for key in ("match", "second_match", "first_match"):
-        match = result.get(key)
-        if isinstance(match, dict) and "latest_event_time" in match:
-            return float(match["latest_event_time"])
+    match = _selected_match(result)
+    if isinstance(match, dict) and "latest_event_time" in match:
+        return float(match["latest_event_time"])
     return None
+
+
+def _exit_code_for_parity(parity: dict[str, object]) -> int:
+    key_contract = parity.get("key_contract")
+    if isinstance(key_contract, dict) and key_contract.get("failed"):
+        return 1
+    if int(parity.get("unexpected_adapter_mismatch_count", 0)) > 0:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
