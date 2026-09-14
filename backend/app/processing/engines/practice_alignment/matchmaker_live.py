@@ -50,6 +50,11 @@ from app.processing.engines.practice_alignment.reference_features import (
     slice_reference_timeline,
 )
 from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
+from app.processing.engines.practice_alignment.step_microphone_verifier import (
+    StepMicrophoneVerifier,
+    StepVerifierObservation,
+    step_verifier_target_from_attack_step,
+)
 
 DEFAULT_TEMPO_BPM = 120
 WAIT_FOR_NOTE_AUDIO_WINDOW_SECONDS = 0.5
@@ -75,6 +80,7 @@ class MatchmakerLiveEngine:
         input_source: str = "MICROPHONE",
         start_expected_group_id: str | None = None,
         end_expected_group_id: str | None = None,
+        step_microphone_verifier: StepMicrophoneVerifier | None = None,
     ) -> None:
         if input_source != "MICROPHONE":
             raise RuntimeError(
@@ -139,6 +145,8 @@ class MatchmakerLiveEngine:
         self._acoustic_observer = AcousticEventObserver()
         self._wait_for_note_attempt_assembler = PracticeAttemptAssembler()
         self._resolved_practice_attempts = ResolvedPracticeAttemptBuffer()
+        self._step_microphone_verifier = step_microphone_verifier
+        self._step_microphone_verifier_observations: list[StepVerifierObservation] = []
         self._wait_for_note_attempt = ExpectedGroupAttemptAccumulator(
             observer=self._acoustic_observer,
             lifecycle=self._wait_for_note_attempt_assembler.lifecycle,
@@ -256,6 +264,7 @@ class MatchmakerLiveEngine:
             return None
 
         self.total_bytes += len(chunk)
+        self._observe_step_microphone_verifier(chunk)
         audio = self._pcm_s16le_to_float32(chunk)
         if audio.size == 0:
             return None
@@ -292,6 +301,9 @@ class MatchmakerLiveEngine:
         attempt = getattr(self, "_wait_for_note_attempt", None)
         if attempt is not None:
             attempt.reset()
+        verifier = getattr(self, "_step_microphone_verifier", None)
+        if verifier is not None:
+            verifier.reset()
 
     def skip_current_expected_group(self) -> AlignmentUpdate | None:
         follow_policy = getattr(self, "_follow_policy", None)
@@ -437,6 +449,11 @@ class MatchmakerLiveEngine:
 
     def drain_resolved_practice_attempts(self) -> list[ResolvedPracticeAttempt]:
         return self._resolved_practice_attempts.drain()
+
+    def drain_step_microphone_verifier_observations(self) -> list[StepVerifierObservation]:
+        observations = self._step_microphone_verifier_observations
+        self._step_microphone_verifier_observations = []
+        return observations
 
     def finalize_pending_practice_attempt(
         self,
@@ -613,7 +630,27 @@ class MatchmakerLiveEngine:
         return PRACTICE_ALIGNMENT_RUNTIME_PROFILE_ID
 
     def close(self) -> None:
+        verifier = getattr(self, "_step_microphone_verifier", None)
+        if verifier is not None:
+            verifier.close()
         self._queue.put(self._stream_end_marker)
+
+    def _observe_step_microphone_verifier(self, chunk: bytes) -> None:
+        verifier = getattr(self, "_step_microphone_verifier", None)
+        if verifier is None:
+            return
+        follow_policy = getattr(self, "_follow_policy", None)
+        if follow_policy is None:
+            return
+        current_attack_step = follow_policy.current_attack_step
+        if current_attack_step is None:
+            return
+        observation = verifier.observe_audio(
+            chunk,
+            target=step_verifier_target_from_attack_step(current_attack_step),
+        )
+        if observation is not None:
+            self._step_microphone_verifier_observations.append(observation)
 
     def _pcm_s16le_to_float32(self, chunk: bytes):
         samples = self._np.frombuffer(chunk, dtype=self._np.int16)

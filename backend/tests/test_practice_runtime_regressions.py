@@ -27,11 +27,19 @@ from app.processing.engines.practice_alignment.attempt_assembler import (
 from app.processing.engines.practice_alignment.expected_group_attempt_accumulator import (
     ExpectedGroupAttemptAccumulator,
 )
+from app.processing.engines.practice_alignment.expected_event_evaluator import (
+    AudioObservation,
+    EvaluatorEvidence,
+    MidiObservation,
+)
 
 from app.processing.engines.practice_alignment.matchmaker_live import (
     BrowserAudioStreamAdapter,
     MatchmakerLiveEngine,
     build_alignment_engine,
+)
+from app.processing.engines.practice_alignment.step_microphone_verifier import (
+    StepVerifierObservation,
 )
 from app.processing.engines.practice_alignment.profile import (
     DEFAULT_PRACTICE_AUDIO_PROFILE,
@@ -220,6 +228,27 @@ class DummyQueue:
 
     def put(self, item) -> None:
         self.items.append(item)
+
+
+class RecordingStepMicrophoneVerifier:
+    def __init__(self) -> None:
+        self.calls = []
+        self.reset_count = 0
+        self.closed = False
+
+    def observe_audio(self, chunk: bytes, *, target):
+        self.calls.append((chunk, target))
+        return StepVerifierObservation(
+            step_id=target.step_id,
+            observed_attack_pitches=target.attack_pitches,
+            confidence=0.99,
+        )
+
+    def reset(self) -> None:
+        self.reset_count += 1
+
+    def close(self) -> None:
+        self.closed = True
 
 
 def voiced_frame(np, amplitude: float, length: int = 128):
@@ -1946,6 +1975,116 @@ def test_matchmaker_live_engine_reset_input_buffer_discards_wait_for_note_event_
     assert engine._wait_for_note_attempt.release_frames == 0
 
 
+def test_step_microphone_verifier_receives_current_attack_step_target() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(np)
+
+    assert engine.ingest_audio(b"first") is None
+
+    verifier = engine._step_microphone_verifier
+    assert [target.attack_pitches for _chunk, target in verifier.calls] == [("C4",)]
+    assert [target.continuation_pitches for _chunk, target in verifier.calls] == [()]
+    assert engine.drain_step_microphone_verifier_observations()[0].observed_attack_pitches == (
+        "C4",
+    )
+    assert engine._follow_policy.current_expected_group is not None
+    assert engine._follow_policy.current_expected_group.pitches == ("C4",)
+    engine.close()
+    assert engine._step_microphone_verifier.closed is True
+
+
+def test_step_microphone_verifier_target_follows_match_and_skip_progression() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(np)
+    verifier = engine._step_microphone_verifier
+    policy = engine._follow_policy
+
+    engine.ingest_audio(b"first")
+    evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+    policy.decide_evaluation(evidence=evidence, evaluation=policy.evaluate_evidence(evidence))
+    engine.ingest_audio(b"second")
+    policy.skip_current_group()
+    engine.ingest_audio(b"after-terminal")
+
+    assert [target.attack_pitches for _chunk, target in verifier.calls] == [("C4",), ("E4",)]
+    assert policy.current_expected_group is None
+
+
+def test_step_microphone_verifier_target_does_not_advance_on_non_match_results() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(np)
+    verifier = engine._step_microphone_verifier
+    policy = engine._follow_policy
+
+    for evidence in (
+        EvaluatorEvidence.from_midi(MidiObservation(("D4",))),
+        EvaluatorEvidence.from_audio(AudioObservation(("C4",), confidence=0.4)),
+    ):
+        policy.decide_evaluation(evidence=evidence, evaluation=policy.evaluate_evidence(evidence))
+        engine.ingest_audio(b"chunk")
+
+    assert [target.attack_pitches for _chunk, target in verifier.calls] == [("C4",), ("C4",)]
+    assert policy.current_expected_group is not None
+    assert policy.current_expected_group.pitches == ("C4",)
+
+
+def test_step_microphone_verifier_reset_returns_target_to_scoped_start() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(np)
+    verifier = engine._step_microphone_verifier
+    policy = engine._follow_policy
+
+    evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+    policy.decide_evaluation(evidence=evidence, evaluation=policy.evaluate_evidence(evidence))
+    engine.ingest_audio(b"advanced")
+    policy.reset()
+    engine.reset_input_buffer()
+    engine.ingest_audio(b"reset")
+
+    assert [target.attack_pitches for _chunk, target in verifier.calls] == [("E4",), ("C4",)]
+    assert verifier.reset_count == 1
+
+
+def test_step_microphone_verifier_target_uses_score_action_semantics() -> None:
+    import numpy as np
+
+    mixed_engine = make_shadow_verifier_engine(np, timeline=mixed_tied_chord_timeline())
+    mixed_policy = mixed_engine._follow_policy
+    evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+    mixed_policy.decide_evaluation(
+        evidence=evidence,
+        evaluation=mixed_policy.evaluate_evidence(evidence),
+    )
+    mixed_engine.ingest_audio(b"mixed")
+    _chunk, mixed_target = mixed_engine._step_microphone_verifier.calls[0]
+    assert mixed_target.attack_pitches == ("F4", "A4")
+    assert mixed_target.continuation_pitches == ("C4",)
+
+    same_note_engine = make_shadow_verifier_engine(np, timeline=same_note_reattack_timeline())
+    same_note_engine.ingest_audio(b"first-c4")
+    first_target = same_note_engine._step_microphone_verifier.calls[-1][1]
+    same_note_policy = same_note_engine._follow_policy
+    c4_evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
+    same_note_policy.decide_evaluation(
+        evidence=c4_evidence,
+        evaluation=same_note_policy.evaluate_evidence(c4_evidence),
+    )
+    same_note_engine.ingest_audio(b"second-c4")
+    second_target = same_note_engine._step_microphone_verifier.calls[-1][1]
+    assert first_target.attack_pitches == ("C4",)
+    assert second_target.attack_pitches == ("C4",)
+    assert first_target.step_id != second_target.step_id
+
+    multi_voice_engine = make_shadow_verifier_engine(np, timeline=same_pitch_multi_voice_timeline())
+    multi_voice_engine.ingest_audio(b"multi-voice")
+    _chunk, multi_voice_target = multi_voice_engine._step_microphone_verifier.calls[0]
+    assert multi_voice_target.attack_pitches == ("C4",)
+
+
 def make_wait_for_note_engine(np):
     engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
     engine._np = np
@@ -2002,6 +2141,26 @@ def make_wait_for_note_engine(np):
         start_peak_gate=gate_config.start_peak_gate,
     )
     configure_wait_for_note_candidate_stream(engine)
+    return engine
+
+
+def make_shadow_verifier_engine(np, *, timeline: PracticeScoreTimeline | None = None):
+    engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
+    engine._error = None
+    engine.total_bytes = 0
+    engine._np = np
+    engine.channels = 1
+    engine.sample_rate = 16000
+    engine.hop_length = 128
+    engine._pending_audio = np.array([], dtype=np.float32)
+    engine._pcm_s16le_to_float32 = lambda _chunk: np.array([], dtype=np.float32)
+    engine._ingest_audio_frame = lambda _audio_frame: None
+    engine._follow_policy = WaitForNoteFollowPolicy(timeline or wait_for_note_timeline())
+    engine._step_microphone_verifier = RecordingStepMicrophoneVerifier()
+    engine._step_microphone_verifier_observations = []
+    engine._wait_for_note_attempt = SimpleNamespace(reset=lambda: None)
+    engine._queue = DummyQueue()
+    engine._stream_end_marker = object()
     return engine
 
 
@@ -2130,6 +2289,155 @@ def wait_for_note_timeline() -> PracticeScoreTimeline:
         first_playable_event_id="event-3",
         first_playable_beat=3.0,
         end_beat=5.0,
+    )
+
+
+def same_note_reattack_timeline() -> PracticeScoreTimeline:
+    return PracticeScoreTimeline(
+        events=(
+            PracticeScoreEvent(
+                event_id="event-c4-a",
+                onset_beat=1.0,
+                duration_beats=0.5,
+                pitches=("C4",),
+                render_note_ids=("c4-a",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+            PracticeScoreEvent(
+                event_id="event-c4-b",
+                onset_beat=2.0,
+                duration_beats=0.5,
+                pitches=("C4",),
+                render_note_ids=("c4-b",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+        ),
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-c4-a",
+                onset_beat=1.0,
+                event_ids=("event-c4-a",),
+                render_note_ids=("c4-a",),
+                entry_candidate=True,
+            ),
+            PracticeEntryGroup(
+                group_id="entry-c4-b",
+                onset_beat=2.0,
+                event_ids=("event-c4-b",),
+                render_note_ids=("c4-b",),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-c4-a",
+        first_playable_beat=1.0,
+        end_beat=2.5,
+    )
+
+
+def mixed_tied_chord_timeline() -> PracticeScoreTimeline:
+    return PracticeScoreTimeline(
+        events=(
+            PracticeScoreEvent(
+                event_id="event-c4-start",
+                onset_beat=1.0,
+                duration_beats=2.0,
+                pitches=("C4",),
+                render_note_ids=("c4-start",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=("start",),
+                playable=True,
+                entry_candidate=True,
+            ),
+            PracticeScoreEvent(
+                event_id="event-c4-stop",
+                onset_beat=2.0,
+                duration_beats=1.0,
+                pitches=("C4",),
+                render_note_ids=("c4-stop",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=("stop",),
+                playable=True,
+                entry_candidate=False,
+            ),
+            PracticeScoreEvent(
+                event_id="event-new",
+                onset_beat=2.0,
+                duration_beats=1.0,
+                pitches=("F4", "A4"),
+                render_note_ids=("f4", "a4"),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+        ),
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-c4",
+                onset_beat=1.0,
+                event_ids=("event-c4-start",),
+                render_note_ids=("c4-start",),
+                entry_candidate=True,
+            ),
+            PracticeEntryGroup(
+                group_id="entry-mixed",
+                onset_beat=2.0,
+                event_ids=("event-c4-stop", "event-new"),
+                render_note_ids=("c4-stop", "f4", "a4"),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-c4-start",
+        first_playable_beat=1.0,
+        end_beat=3.0,
+    )
+
+
+def same_pitch_multi_voice_timeline() -> PracticeScoreTimeline:
+    return PracticeScoreTimeline(
+        events=(
+            PracticeScoreEvent(
+                event_id="event-c4-unison",
+                onset_beat=1.0,
+                duration_beats=1.0,
+                pitches=("C4", "C4"),
+                render_note_ids=("upper-c4", "lower-c4"),
+                measure_numbers=("1",),
+                staff_ids=("1", "2"),
+                voice_ids=("1", "2"),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+        ),
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="entry-c4",
+                onset_beat=1.0,
+                event_ids=("event-c4-unison",),
+                render_note_ids=("upper-c4", "lower-c4"),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-c4-unison",
+        first_playable_beat=1.0,
+        end_beat=2.0,
     )
 
 

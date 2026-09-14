@@ -908,3 +908,105 @@ microphone verifier migration can read current_attack_step.attack_targets.
 
 Do not alter progression decisions until the verifier boundary explicitly adopts score-action
 semantics.
+
+
+## STEP Microphone Verifier Boundary
+
+Status:
+
+```text
+STEP microphone verifier boundary = READY_FOR_BYTEDANCE_ADAPTER
+```
+
+The backend now has a lightweight verifier boundary:
+
+```text
+StepVerifierTarget {
+  step_id
+  attack_pitches
+  continuation_pitches
+}
+```
+
+Construction is deterministic from `PracticeAttackStep`:
+
+```text
+attack_pitches = tuple(target.pitch for target in step.attack_targets)
+continuation_pitches = tuple(note.pitch for note in step.continuation)
+```
+
+The boundary also defines a stateful protocol:
+
+```text
+observe_audio(chunk, *, target)
+reset()
+close()
+```
+
+Current integration is shadow-only in `MatchmakerLiveEngine`:
+
+```text
+policy.current_attack_step
+-> StepVerifierTarget
+-> optional verifier.observe_audio(...)
+-> internal shadow observation buffer
+```
+
+The verifier is disabled by default. Verifier observations do not call:
+
+```text
+ExpectedEventEvaluator
+decide_evaluation
+advance
+_current_index += 1
+```
+
+Score-action invariants covered:
+
+```text
+tied C4 + new F4/A4
+-> attack_pitches = [F4, A4]
+-> continuation_pitches = [C4]
+
+C4 -> C4
+-> both steps require C4 attack
+-> distinct step_id values
+
+same-pitch multi-voice/staff C4
+-> one physical C4 attack target
+```
+
+Shadow lifecycle coverage:
+
+```text
+audio chunk receives current step target
+MATCH moves later chunks to the next target
+Skip moves later chunks to the next target
+PARTIAL / MISMATCH / UNCERTAIN leave target unchanged
+reset returns target to scoped start
+scope terminal has no target
+verifier observation cannot change progression
+verifier reset/close are forwarded when the engine resets/closes
+```
+
+Verification:
+
+```text
+docker exec 10377603b8c2 bash -lc "cd /app && python -m py_compile app/processing/engines/practice_alignment/step_microphone_verifier.py app/processing/engines/practice_alignment/matchmaker_live.py"
+docker exec 10377603b8c2 bash -lc "cd /app && python -m pytest tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_receives_current_attack_step_target tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_target_follows_match_and_skip_progression tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_target_does_not_advance_on_non_match_results tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_reset_returns_target_to_scoped_start tests/test_practice_runtime_regressions.py::test_step_microphone_verifier_target_uses_score_action_semantics tests/test_practice_runtime_regressions.py::test_matchmaker_live_engine_reset_input_buffer_discards_wait_for_note_event_state tests/test_practice_midi_engine.py -q"
+```
+
+Result:
+
+```text
+14 passed, 1 warning
+```
+
+Next safe boundary:
+
+```text
+ByteDance score-aware rolling adapter can implement StepMicrophoneVerifier.
+```
+
+Do not let verifier observations drive production progression until a dedicated migration explicitly
+changes the evaluator/progression boundary.
