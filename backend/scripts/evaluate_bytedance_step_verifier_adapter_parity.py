@@ -629,7 +629,11 @@ def _is_expected_activation_contract_difference(
     event_times = _selected_match_event_times(reference)
     if not event_times:
         return False
-    return any(event_time <= active_from + 1e-9 for event_time in event_times)
+    activation_sample = _seconds_to_samples(active_from)
+    return any(
+        _seconds_to_samples(event_time) < activation_sample
+        for event_time in event_times
+    )
 
 
 def _result_accepted(result: dict[str, object]) -> bool:

@@ -79,11 +79,13 @@ def test_parity_comparator_uses_keys_not_row_order() -> None:
     assert parity["diff_count"] == 0
 
 
-def test_parity_comparator_classifies_pre_activation_rejection_as_expected_difference() -> None:
+def test_parity_comparator_classifies_one_sample_before_activation_as_expected_difference() -> None:
+    active_from = 10.0
+    one_sample_before = active_from - (1.0 / 16000.0)
     adapter = [
         _case(
             "case-a",
-            _result("single", "transition-a", auto_advanced=False, active_from=10.0),
+            _result("single", "transition-a", auto_advanced=False, active_from=active_from),
         )
     ]
     reference = [
@@ -93,8 +95,8 @@ def test_parity_comparator_classifies_pre_activation_rejection_as_expected_diffe
                 "single",
                 "transition-a",
                 auto_advanced=True,
-                active_from=10.0,
-                event_time=9.99,
+                active_from=active_from,
+                event_time=one_sample_before,
             ),
         )
     ]
@@ -108,11 +110,42 @@ def test_parity_comparator_classifies_pre_activation_rejection_as_expected_diffe
     assert parity["diffs"][0]["reason"] == "EXPECTED_ACTIVATION_CONTRACT_DIFFERENCE"
 
 
-def test_parity_comparator_chord_with_any_pre_activation_event_is_expected_difference() -> None:
+def test_parity_comparator_does_not_exempt_event_exactly_at_activation_sample() -> None:
+    active_from = 10.0
     adapter = [
         _case(
             "case-a",
-            _result("chord", "transition-a", auto_advanced=False, active_from=10.0),
+            _result("single", "transition-a", auto_advanced=False, active_from=active_from),
+        )
+    ]
+    reference = [
+        _case(
+            "case-a",
+            _result(
+                "single",
+                "transition-a",
+                auto_advanced=True,
+                active_from=active_from,
+                event_time=active_from,
+            ),
+        )
+    ]
+
+    parity = _compare_against_reference(adapter, {"evaluations": reference})
+
+    assert parity["expected_activation_contract_difference_count"] == 0
+    assert parity["unexpected_adapter_mismatch_count"] == 1
+    assert parity["diffs"][0]["reason"] == "UNEXPECTED_ADAPTER_MISMATCH"
+
+
+def test_parity_comparator_chord_with_any_pre_activation_event_is_expected_difference() -> None:
+    active_from = 10.0
+    one_sample_before = active_from - (1.0 / 16000.0)
+    one_sample_after = active_from + (1.0 / 16000.0)
+    adapter = [
+        _case(
+            "case-a",
+            _result("chord", "transition-a", auto_advanced=False, active_from=active_from),
         )
     ]
     reference = [
@@ -122,8 +155,8 @@ def test_parity_comparator_chord_with_any_pre_activation_event_is_expected_diffe
                 "chord",
                 "transition-a",
                 auto_advanced=True,
-                active_from=10.0,
-                event_times=(9.99, 10.02),
+                active_from=active_from,
+                event_times=(one_sample_before, one_sample_after),
             ),
         )
     ]
@@ -205,10 +238,12 @@ def test_parity_exit_code_fails_on_unexpected_mismatch() -> None:
 
 
 def test_parity_exit_code_allows_only_expected_activation_differences() -> None:
+    active_from = 10.0
+    one_sample_before = active_from - (1.0 / 16000.0)
     adapter = [
         _case(
             "case-a",
-            _result("single", "transition-a", auto_advanced=False, active_from=10.0),
+            _result("single", "transition-a", auto_advanced=False, active_from=active_from),
         )
     ]
     reference = [
@@ -218,8 +253,8 @@ def test_parity_exit_code_allows_only_expected_activation_differences() -> None:
                 "single",
                 "transition-a",
                 auto_advanced=True,
-                active_from=10.0,
-                event_time=9.99,
+                active_from=active_from,
+                event_time=one_sample_before,
             ),
         )
     ]

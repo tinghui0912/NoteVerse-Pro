@@ -1182,8 +1182,15 @@ because pre-activation event rejections are now expected contract differences.
 
 Activation-contract differences are narrowly classified. The reference selected match must have
 accepted, the adapter must fail in the rejection direction, and at least one selected required attack
-event in `events[].event_time` must be at or before the activation boundary. Other decision changes
-remain `UNEXPECTED_ADAPTER_MISMATCH` even when the reference match contains an early event.
+event in `events[].event_time` must convert to a sample strictly before the activation sample:
+
+```text
+event_sample < activation_sample
+```
+
+An event exactly at `activation_sample` is the first valid post-activation sample and is not an
+expected activation-contract rejection. Other decision changes remain `UNEXPECTED_ADAPTER_MISMATCH`
+even when the reference match contains an early event.
 
 Attempted parity command:
 
