@@ -17,6 +17,7 @@ export type LocalMidiNoteObservation = CaptureTime & {
 export type StepVerifierTarget = {
   stepId: string;
   activationGeneration: number;
+  activationBoundaryMs: number;
   attackPitches: string[];
   continuationPitches: string[];
 };
@@ -24,6 +25,7 @@ export type StepVerifierTarget = {
 export type StepVerifierObservation = CaptureTime & {
   stepId: string;
   activationGeneration: number;
+  attackOnsetTimeMs: number;
   observedAttackPitches: string[];
   confidence: number;
   source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
@@ -39,6 +41,35 @@ export type PerformanceEvidenceObservation = CaptureTime & {
 export type PerformanceEvaluationObservation = PerformanceEvidenceObservation & {
   performanceTimeMs: number;
   musicalBeat: number;
+};
+
+export type PerformanceExpectedStrikeResult = 'MATCHED' | 'MISSING' | 'UNCONFIRMED';
+
+export type PerformanceExpectedEventResult =
+  | 'MATCH'
+  | 'PARTIAL'
+  | 'MISMATCH'
+  | 'UNCERTAIN'
+  | 'NOT_OBSERVED';
+
+export type PerformanceExpectedStrikeOutcome = {
+  strikeId: string;
+  pitch: string;
+  renderNoteIds: string[];
+  result: PerformanceExpectedStrikeResult;
+};
+
+export type PerformanceExpectedEventOutcome = {
+  expectedGroupId: string;
+  performanceTimeMs: number;
+  result: PerformanceExpectedEventResult;
+  confidence: number;
+  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
+  expectedStrikeOutcomes: PerformanceExpectedStrikeOutcome[];
+  unexpectedPitches: string[];
+  renderNoteIds: string[];
+  measureNumbers: string[];
+  timingOffsetMs?: number;
 };
 
 export type LocalEvidencePipeline = {

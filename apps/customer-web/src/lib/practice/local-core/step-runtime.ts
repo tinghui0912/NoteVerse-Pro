@@ -25,6 +25,7 @@ export type StepWaitReason =
   | 'scope_completed'
   | 'stale_step'
   | 'stale_activation'
+  | 'stale_attack'
   | 'wrong_or_partial_attack_set';
 
 export type StepPracticeRuntimeOptions = {
@@ -46,6 +47,7 @@ export class StepPracticeRuntime {
   private readonly resolvedScope;
   private currentIndex: number;
   private activationGeneration: number;
+  private activationBoundaryMs: number;
   private attempts: LocalPracticeAttempt[];
   private completed: boolean;
   private readonly version: RuntimeVersionIdentity;
@@ -59,11 +61,15 @@ export class StepPracticeRuntime {
       schemaVersion: 1,
       runtimeVersion: 'local-practice-core-v1',
     };
-    this.inputSource = options.inputSource ?? 'MICROPHONE';
-    this.resolvedScope = this.scope(this.artifact, options.scope);
+    if (options.snapshot) {
+      validateStepSnapshot(options.artifact, options.snapshot, options.inputSource, options.scope);
+    }
+    this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
+    this.resolvedScope = this.scope(this.artifact, options.snapshot?.practiceScope ?? options.scope);
     this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
     this.currentIndex = options.snapshot?.step.currentIndex ?? this.resolvedScope.startIndex;
     this.activationGeneration = options.snapshot?.step.activationGeneration ?? 1;
+    this.activationBoundaryMs = options.snapshot?.step.activationBoundaryMs ?? -1;
     this.attempts = [...(options.snapshot?.step.attempts ?? [])];
     this.completed = options.snapshot?.step.completed ?? false;
   }
@@ -76,6 +82,7 @@ export class StepPracticeRuntime {
     return {
       stepId: step.stepId,
       activationGeneration: this.activationGeneration,
+      activationBoundaryMs: this.activationBoundaryMs,
       attackPitches: attackPitchesForStep(step),
       continuationPitches: continuationPitchesForStep(step),
     };
@@ -97,6 +104,9 @@ export class StepPracticeRuntime {
     }
     if (!pitchSetsEqual(observation.observedAttackPitches, target.attackPitches)) {
       return { kind: 'WAIT', reason: 'wrong_or_partial_attack_set', currentTarget: target };
+    }
+    if (observation.attackOnsetTimeMs <= target.activationBoundaryMs) {
+      return { kind: 'WAIT', reason: 'stale_attack', currentTarget: target };
     }
 
     this.recordAttempt({
@@ -132,6 +142,7 @@ export class StepPracticeRuntime {
     this.currentIndex = this.resolvedScope.startIndex;
     this.completed = false;
     this.activationGeneration += 1;
+    this.activationBoundaryMs = this.clock.nowMs();
   }
 
   snapshot(): LocalStepSessionSnapshot {
@@ -154,6 +165,7 @@ export class StepPracticeRuntime {
       step: {
         currentIndex: this.currentIndex,
         activationGeneration: this.activationGeneration,
+        activationBoundaryMs: this.activationBoundaryMs,
         completed: this.completed,
         attempts: [...this.attempts],
       },
@@ -182,6 +194,7 @@ export class StepPracticeRuntime {
   private advanceOne(): void {
     this.currentIndex += 1;
     this.activationGeneration += 1;
+    this.activationBoundaryMs = this.clock.nowMs();
     if (this.currentIndex > this.resolvedScope.endIndex) {
       this.completed = true;
     }
@@ -198,4 +211,50 @@ export class StepPracticeRuntime {
 
 export function groupForCurrentStep(runtime: StepPracticeRuntime) {
   return groupForStep(runtime.artifact, runtime.currentStepIndex);
+}
+
+function validateStepSnapshot(
+  artifact: PracticeScoreArtifact,
+  snapshot: LocalStepSessionSnapshot,
+  inputSource?: 'MICROPHONE' | 'MIDI',
+  scope?: PracticeScope
+): void {
+  if (snapshot.mode !== 'STEP_BY_STEP') {
+    throw new Error('Cannot restore non-STEP snapshot into StepPracticeRuntime.');
+  }
+  validateCommonSnapshot(artifact, snapshot, inputSource, scope);
+  if (!Number.isInteger(snapshot.step.currentIndex) || snapshot.step.currentIndex < 0) {
+    throw new Error('Invalid STEP snapshot current index.');
+  }
+  if (snapshot.step.currentIndex > artifact.practiceAttackSteps.length) {
+    throw new Error('STEP snapshot current index is outside the artifact.');
+  }
+  if (!Number.isInteger(snapshot.step.activationGeneration) || snapshot.step.activationGeneration < 1) {
+    throw new Error('Invalid STEP snapshot activation generation.');
+  }
+  if (!Number.isFinite(snapshot.step.activationBoundaryMs)) {
+    throw new Error('Invalid STEP snapshot activation boundary.');
+  }
+}
+
+function validateCommonSnapshot(
+  artifact: PracticeScoreArtifact,
+  snapshot: LocalStepSessionSnapshot,
+  inputSource?: 'MICROPHONE' | 'MIDI',
+  scope?: PracticeScope
+): void {
+  if (snapshot.scoreId !== artifact.scoreId
+    || snapshot.revisionId !== artifact.revisionId
+    || snapshot.artifactId !== artifact.artifactId) {
+    throw new Error('Practice session snapshot does not belong to this score artifact.');
+  }
+  if (snapshot.version.schemaVersion !== 1 || snapshot.version.runtimeVersion !== 'local-practice-core-v1') {
+    throw new Error('Unsupported local practice runtime snapshot version.');
+  }
+  if (inputSource && snapshot.inputSource !== inputSource) {
+    throw new Error('Practice session snapshot input source mismatch.');
+  }
+  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope ?? {})) {
+    throw new Error('Practice session snapshot scope mismatch.');
+  }
 }

@@ -35,11 +35,31 @@ export type ExpectedPracticeGroup = {
   groupId: string;
   onsetBeat: number;
   eventIds: string[];
+  expectedNotes: ExpectedPracticeNote[];
+  strikeTargets: ExpectedPracticeStrikeTarget[];
   renderNoteIds: string[];
   pitches: string[];
   measureNumbers: string[];
   staffIds: string[];
   voiceIds: string[];
+  canonicalEndBeat: number;
+};
+
+export type ExpectedPracticeNote = {
+  expectedNoteId: string;
+  eventId: string;
+  pitch: string;
+  renderNoteId: string;
+  measureNumbers: string[];
+};
+
+export type ExpectedPracticeStrikeTarget = {
+  strikeId: string;
+  pitch: string;
+  expectedNotes: ExpectedPracticeNote[];
+  eventIds: string[];
+  renderNoteIds: string[];
+  measureNumbers: string[];
 };
 
 export type PracticeStepNote = {
@@ -77,6 +97,9 @@ export type MeterSegment = {
   startBeat: number;
   numerator: number;
   denominator: number;
+  measureDurationBeats: number;
+  countInPulses: number;
+  source?: 'MUSICXML' | 'DEFAULT_4_4';
 };
 
 export type TempoSegment = {
@@ -98,6 +121,13 @@ export type ResolvedPracticeScope = {
   endGroupId?: string;
 };
 
+export type CountInContract = {
+  durationBeats: number;
+  pulses: number;
+  numerator: number;
+  denominator: number;
+};
+
 export function assertPracticeScoreArtifact(artifact: PracticeScoreArtifact): void {
   if (artifact.schemaVersion !== PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION) {
     throw new Error(`Unsupported PracticeScoreArtifact schema: ${artifact.schemaVersion}`);
@@ -115,8 +145,15 @@ export function assertPracticeScoreArtifact(artifact: PracticeScoreArtifact): vo
     }
     const groupPitches = uniqueSorted(group.pitches);
     const stepPitches = uniqueSorted(step.attackTargets.map((target) => target.pitch));
+    const strikePitches = uniqueSorted(group.strikeTargets.map((target) => target.pitch));
     if (groupPitches.join('\u001f') !== stepPitches.join('\u001f')) {
       throw new Error(`PracticeScoreArtifact step/group attack pitch mismatch at index ${index}.`);
+    }
+    if (groupPitches.join('\u001f') !== strikePitches.join('\u001f')) {
+      throw new Error(`PracticeScoreArtifact group strike target mismatch at index ${index}.`);
+    }
+    if (roundBeat(group.canonicalEndBeat) < roundBeat(group.onsetBeat)) {
+      throw new Error(`PracticeScoreArtifact group canonical end precedes onset at index ${index}.`);
     }
   });
 }
@@ -159,14 +196,7 @@ export function entryGroupEndBeat(artifact: PracticeScoreArtifact, groupId: stri
   if (!group) {
     throw new Error(`Practice scope target not found: ${groupId}`);
   }
-  const eventsById = new Map(artifact.playableEvents.map((event) => [event.eventId, event]));
-  const endBeat = Math.max(
-    ...group.eventIds.map((eventId) => {
-      const event = eventsById.get(eventId);
-      return event ? event.onsetBeat + event.durationBeats : group.onsetBeat;
-    })
-  );
-  return roundBeat(endBeat);
+  return roundBeat(group.canonicalEndBeat);
 }
 
 export function groupForStep(
@@ -182,6 +212,36 @@ export function attackPitchesForStep(step: PracticeAttackStep): string[] {
 
 export function continuationPitchesForStep(step: PracticeAttackStep): string[] {
   return Array.from(new Set(step.continuation.map((note) => note.pitch)));
+}
+
+export function meterAt(artifact: PracticeScoreArtifact, beat: number): MeterSegment {
+  const defaultMeter: MeterSegment = {
+    startBeat: 0,
+    numerator: 4,
+    denominator: 4,
+    measureDurationBeats: 4,
+    countInPulses: 4,
+    source: 'DEFAULT_4_4',
+  };
+  const segments = artifact.meterSegments.length > 0 ? artifact.meterSegments : [defaultMeter];
+  let active = segments[0] ?? defaultMeter;
+  for (const segment of segments) {
+    if (segment.startBeat > beat) {
+      break;
+    }
+    active = segment;
+  }
+  return active;
+}
+
+export function countInContractAt(artifact: PracticeScoreArtifact, beat: number): CountInContract {
+  const meter = meterAt(artifact, beat);
+  return {
+    durationBeats: meter.measureDurationBeats,
+    pulses: meter.countInPulses,
+    numerator: meter.numerator,
+    denominator: meter.denominator,
+  };
 }
 
 function groupIndex(artifact: PracticeScoreArtifact, groupId: string): number {

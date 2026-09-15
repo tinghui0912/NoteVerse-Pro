@@ -22,6 +22,7 @@ export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
   step: {
     currentIndex: number;
     activationGeneration: number;
+    activationBoundaryMs: number;
     completed: boolean;
     attempts: LocalPracticeAttempt[];
   };
@@ -31,14 +32,16 @@ export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
   mode: 'CONTINUOUS_PLAY';
   performance: {
     state: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
+    stateBeforePause: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
     speedRatio: number;
     scopeStartBeat: number;
     scopeTerminalBeat: number;
-    startedAtMs: number | null;
-    pausedAtMs: number | null;
-    pausedAccumulatedMs: number;
+    activeElapsedMs: number;
     countInMs: number;
+    countInBeats: number;
+    countInPulses: number;
     observations: LocalPerformanceObservationRecord[];
+    outcomes: LocalPerformanceExpectedEventOutcomeRecord[];
   };
 };
 
@@ -62,6 +65,24 @@ export type LocalPerformanceObservationRecord = {
   confidence: number;
   performanceTimeMs: number;
   musicalBeat: number;
+};
+
+export type LocalPerformanceExpectedEventOutcomeRecord = {
+  expectedGroupId: string;
+  performanceTimeMs: number;
+  result: 'MATCH' | 'PARTIAL' | 'MISMATCH' | 'UNCERTAIN' | 'NOT_OBSERVED';
+  confidence: number;
+  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
+  expectedStrikeOutcomes: {
+    strikeId: string;
+    pitch: string;
+    renderNoteIds: string[];
+    result: 'MATCHED' | 'MISSING' | 'UNCONFIRMED';
+  }[];
+  unexpectedPitches: string[];
+  renderNoteIds: string[];
+  measureNumbers: string[];
+  timingOffsetMs?: number;
 };
 
 export type LocalPracticeSessionStore = {

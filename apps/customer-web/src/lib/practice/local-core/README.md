@@ -14,13 +14,17 @@ contains:
 - score, revision, and artifact identity
 - playable note events
 - legacy expected practice groups
+- canonical expected notes and physical strike targets
 - physical attack steps and continuation metadata
+- canonical expected-group sounding end beats for tied scope terminals
 - render note, measure, staff, and voice identities for UI correlation
-- meter and tempo segments
+- meter segments with count-in duration/pulse metadata and tempo segments
 - first playable position, score end, and schema version
 
 The browser must not build a second independent MusicXML parser for active
-practice execution.
+practice execution. The canonical producer is
+`backend/app/processing/practice_score/practice_score_artifact.py`; browser
+tests consume the checked JSON fixture it produces.
 
 ## Shared Core
 
@@ -47,9 +51,12 @@ own progression rules.
 - Skip, reset, scope completion, and attempt history
 
 Only a current-step observation with the current activation generation and the
-complete physical attack pitch set may produce MATCH. Wrong, partial, stale,
-missing, continuation-only, or unrelated evidence waits. MATCH and Skip advance
-exactly once and invalidate previous asynchronous evidence.
+complete physical attack pitch set may produce MATCH. The observation must also
+carry a fresh attack onset after the current activation boundary; stale onset or
+sustain residue from a previous STEP cannot satisfy a repeated-pitch STEP.
+Wrong, partial, stale, missing, continuation-only, or unrelated evidence waits.
+MATCH and Skip advance exactly once and invalidate previous asynchronous
+evidence.
 
 ## CONTINUOUS_PLAY Runtime
 
@@ -57,12 +64,15 @@ exactly once and invalidate previous asynchronous evidence.
 
 - resolved performance scope
 - tempo timeline and speed ratio
-- count-in, start, pause, resume, and end state
+- meter-derived count-in, start, pause, resume, and end state
 - local musical position from an injected monotonic clock
 - capture-aligned evidence evaluation records
 
 Acoustic or MIDI evidence never starts, stops, accelerates, or delays the
-performance clock. Evidence is downstream evaluation only.
+performance clock. Evidence is downstream evaluation only. Local performance
+evaluation is implemented separately from the clock and produces expected-event
+and expected-strike outcomes such as `MATCH`, `PARTIAL`, `MISMATCH`, and
+`NOT_OBSERVED`.
 
 ## Evidence and Timebase
 
@@ -86,7 +96,10 @@ The real ByteDance/WebGPU model is not integrated here.
 `LocalPracticeSessionSnapshot` is the offline-first session boundary. It stores
 the local session id, score/revision identity, mode, input source, scope,
 runtime/schema version, lifecycle state, mode-specific runtime snapshot, and
-history required for product behavior.
+history required for product behavior. Restores validate score/revision/artifact
+identity, runtime/schema version, input source, and scope. Performance restores
+use logical runtime position and resume interrupted active sessions as paused,
+so a new browser monotonic clock origin cannot silently advance musical time.
 
 `LocalPracticeSessionStore` keeps persistence outside runtime logic. The current
 implementation includes an in-memory store for deterministic domain tests.

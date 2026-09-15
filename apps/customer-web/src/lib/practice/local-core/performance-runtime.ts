@@ -1,21 +1,25 @@
 import {
   assertPracticeScoreArtifact,
+  countInContractAt,
   entryGroupEndBeat,
   resolvePracticeScope,
   roundBeat,
   type PracticeScoreArtifact,
+  type PracticeInputSource,
   type PracticeScope,
   type TempoSegment,
 } from './artifact';
 import type {
   PerformanceEvaluationObservation,
   PerformanceEvidenceObservation,
+  PerformanceExpectedEventOutcome,
 } from './evidence';
 import type { LocalClock, RuntimeVersionIdentity } from './timebase';
 import {
   createLocalSessionId,
   type LocalPerformanceSessionSnapshot,
 } from './session';
+import { LocalPerformanceEvaluator } from './performance-evaluator';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
 
@@ -25,6 +29,8 @@ export type PerformanceClockSnapshot = {
   musicalBeat: number;
   performanceTimeMs: number;
   countInRemainingMs: number;
+  countInBeats: number;
+  countInPulses: number;
   scopeCompleted: boolean;
   scopeStartBeat: number;
   scopeTerminalBeat: number;
@@ -35,6 +41,7 @@ export type PerformancePracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact;
   scope?: PracticeScope;
   clock: LocalClock;
+  inputSource?: PracticeInputSource;
   speedRatio?: number;
   countInBeats?: number;
   localSessionId?: string;
@@ -57,16 +64,21 @@ export class PerformancePracticeRuntime {
 
   private readonly clock: LocalClock;
   private readonly version: RuntimeVersionIdentity;
+  private readonly inputSource: PracticeInputSource;
   private readonly speedRatio: number;
   private readonly timeline: PerformanceTimeline;
   private readonly scope: PerformanceScope;
   private readonly countInMs: number;
+  private readonly countInBeats: number;
+  private readonly countInPulses: number;
+  private readonly evaluator: LocalPerformanceEvaluator;
   private state: PerformanceRuntimeState = 'READY';
-  private startedAtMs: number | null = null;
-  private pausedAtMs: number | null = null;
-  private pausedAccumulatedMs = 0;
   private stateBeforePause: PerformanceRuntimeState = 'READY';
+  private activeElapsedMs = 0;
+  private currentSegment: ClockSegment | null = null;
+  private clockSegments: ClockSegment[] = [];
   private observations: PerformanceEvaluationObservation[] = [];
+  private outcomes: PerformanceExpectedEventOutcome[] = [];
 
   constructor(options: PerformancePracticeRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact);
@@ -76,24 +88,41 @@ export class PerformancePracticeRuntime {
       schemaVersion: 1,
       runtimeVersion: 'local-practice-core-v1',
     };
+    if (options.snapshot) {
+      validatePerformanceSnapshot(options.artifact, options.snapshot, options.inputSource, options.scope);
+    }
+    this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
     this.speedRatio = options.snapshot?.performance.speedRatio ?? options.speedRatio ?? 1;
     if (this.speedRatio <= 0) {
       throw new Error('Performance speed ratio must be positive.');
     }
     this.timeline = new PerformanceTimeline(this.artifact);
-    this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.scope);
-    const countInBeats = options.countInBeats ?? 4;
-    this.countInMs = beatsToMs(countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat)) / this.speedRatio;
+    this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.snapshot?.practiceScope ?? options.scope);
+    const countIn = countInContractAt(this.artifact, this.scope.startBeat);
+    this.countInBeats = options.snapshot?.performance.countInBeats ?? options.countInBeats ?? countIn.durationBeats;
+    this.countInPulses = options.snapshot?.performance.countInPulses ?? countIn.pulses;
+    this.countInMs = options.snapshot?.performance.countInMs
+      ?? beatsToMs(this.countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat)) / this.speedRatio;
+    this.evaluator = new LocalPerformanceEvaluator({
+      artifact: this.artifact,
+      timeline: this.timeline,
+      scope: this.scope,
+    });
     this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
 
     if (options.snapshot) {
-      this.state = options.snapshot.performance.state;
-      this.startedAtMs = options.snapshot.performance.startedAtMs;
-      this.pausedAtMs = options.snapshot.performance.pausedAtMs;
-      this.pausedAccumulatedMs = options.snapshot.performance.pausedAccumulatedMs;
+      this.state = options.snapshot.performance.state === 'ENDED' ? 'ENDED' : 'PAUSED';
+      this.stateBeforePause = options.snapshot.performance.state === 'PAUSED'
+        ? options.snapshot.performance.stateBeforePause
+        : options.snapshot.performance.state;
+      this.activeElapsedMs = options.snapshot.performance.activeElapsedMs;
       this.observations = options.snapshot.performance.observations.map((observation) => ({
         ...observation,
         source: 'FAKE',
+      }));
+      this.outcomes = options.snapshot.performance.outcomes.map((outcome) => ({
+        ...outcome,
+        source: outcome.source,
       }));
     }
   }
@@ -102,8 +131,9 @@ export class PerformancePracticeRuntime {
     if (this.state !== 'READY') {
       throw new Error('Performance runtime can only start from READY.');
     }
-    this.startedAtMs = this.clock.nowMs();
     this.state = this.countInMs > 0 ? 'COUNT_IN' : 'RUNNING';
+    this.activeElapsedMs = 0;
+    this.currentSegment = this.startClockSegment(this.state, this.activeElapsedMs);
     return this.snapshot();
   }
 
@@ -112,19 +142,19 @@ export class PerformancePracticeRuntime {
     if (this.state !== 'COUNT_IN' && this.state !== 'RUNNING') {
       throw new Error('Performance runtime can only pause while active.');
     }
+    this.activeElapsedMs = this.activeElapsedAt(this.clock.nowMs());
+    this.finishCurrentSegment(this.clock.nowMs());
     this.stateBeforePause = this.state;
     this.state = 'PAUSED';
-    this.pausedAtMs = this.clock.nowMs();
     return this.snapshot();
   }
 
   resume(): PerformanceClockSnapshot {
-    if (this.state !== 'PAUSED' || this.pausedAtMs === null) {
+    if (this.state !== 'PAUSED') {
       throw new Error('Performance runtime can only resume from PAUSED.');
     }
-    this.pausedAccumulatedMs += Math.max(0, this.clock.nowMs() - this.pausedAtMs);
-    this.pausedAtMs = null;
     this.state = this.stateBeforePause;
+    this.currentSegment = this.startClockSegment(this.state, this.activeElapsedMs);
     return this.snapshot();
   }
 
@@ -137,6 +167,8 @@ export class PerformancePracticeRuntime {
       musicalBeat: this.musicalBeat(performanceTimeMs),
       performanceTimeMs,
       countInRemainingMs: Math.max(0, this.countInMs - activeElapsedMs),
+      countInBeats: this.countInBeats,
+      countInPulses: this.countInPulses,
       scopeCompleted: this.state === 'ENDED',
       scopeStartBeat: this.scope.startBeat,
       scopeTerminalBeat: this.scope.terminalBeat,
@@ -152,6 +184,7 @@ export class PerformancePracticeRuntime {
       musicalBeat: this.musicalBeat(performanceTimeMs),
     };
     this.observations.push(evaluated);
+    this.outcomes = this.evaluator.evaluate(this.observations);
     return evaluated;
   }
 
@@ -163,24 +196,25 @@ export class PerformancePracticeRuntime {
       revisionId: this.artifact.revisionId,
       artifactId: this.artifact.artifactId,
       mode: 'CONTINUOUS_PLAY',
-      inputSource: 'MICROPHONE',
+      inputSource: this.inputSource,
       practiceScope: {
         startGroupId: this.scope.startGroupId,
         endGroupId: this.scope.endGroupId,
       },
-      lifecycleState: this.state === 'ENDED' ? 'ENDED' : 'ACTIVE',
+      lifecycleState: this.state === 'ENDED' ? 'ENDED' : this.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
       version: this.version,
       createdAtMs: nowMs,
       updatedAtMs: nowMs,
       performance: {
         state: this.state,
+        stateBeforePause: this.stateBeforePause,
         speedRatio: this.speedRatio,
         scopeStartBeat: this.scope.startBeat,
         scopeTerminalBeat: this.scope.terminalBeat,
-        startedAtMs: this.startedAtMs,
-        pausedAtMs: this.pausedAtMs,
-        pausedAccumulatedMs: this.pausedAccumulatedMs,
+        activeElapsedMs: this.activeElapsedAt(this.clock.nowMs()),
         countInMs: this.countInMs,
+        countInBeats: this.countInBeats,
+        countInPulses: this.countInPulses,
         observations: this.observations.map((observation) => ({
           captureTimeMs: observation.captureTimeMs,
           inferenceCompletedAtMs: observation.inferenceCompletedAtMs,
@@ -189,6 +223,7 @@ export class PerformancePracticeRuntime {
           performanceTimeMs: observation.performanceTimeMs,
           musicalBeat: observation.musicalBeat,
         })),
+        outcomes: this.outcomes,
       },
     };
   }
@@ -197,17 +232,23 @@ export class PerformancePracticeRuntime {
     return [...this.observations];
   }
 
+  get evaluationOutcomes(): PerformanceExpectedEventOutcome[] {
+    return [...this.outcomes];
+  }
+
   private advanceState(): number {
     if (this.state === 'READY') {
       return 0;
     }
-    const activeElapsedMs = this.activeElapsedMs(this.clock.nowMs());
+    const activeElapsedMs = this.activeElapsedAt(this.clock.nowMs());
     if (this.state === 'PAUSED') {
       return activeElapsedMs;
     }
     if (activeElapsedMs < this.countInMs) {
       this.state = 'COUNT_IN';
     } else if (this.performanceElapsedMs(activeElapsedMs) >= this.scopeDurationMs()) {
+      this.activeElapsedMs = activeElapsedMs;
+      this.finishCurrentSegment(this.clock.nowMs());
       this.state = 'ENDED';
     } else {
       this.state = 'RUNNING';
@@ -215,15 +256,50 @@ export class PerformancePracticeRuntime {
     return activeElapsedMs;
   }
 
-  private activeElapsedMs(nowMs: number): number {
-    if (this.startedAtMs === null) {
-      return 0;
+  private activeElapsedAt(nowMs: number): number {
+    if (!this.currentSegment || this.state === 'PAUSED' || this.state === 'ENDED') {
+      return this.activeElapsedMs;
     }
-    const pauseElapsed =
-      this.state === 'PAUSED' && this.pausedAtMs !== null
-        ? Math.max(0, nowMs - this.pausedAtMs)
-        : 0;
-    return Math.max(0, nowMs - this.startedAtMs - this.pausedAccumulatedMs - pauseElapsed);
+    return Math.max(0, this.currentSegment.activeElapsedStartMs + nowMs - this.currentSegment.clockStartMs);
+  }
+
+  private activeElapsedForCapture(captureTimeMs: number): number {
+    for (const segment of this.clockSegments) {
+      const end = segment.clockEndMs ?? (
+        this.currentSegment === segment ? this.clock.nowMs() : segment.clockStartMs
+      );
+      if (segment.clockStartMs <= captureTimeMs && captureTimeMs <= end) {
+        return Math.max(0, segment.activeElapsedStartMs + captureTimeMs - segment.clockStartMs);
+      }
+    }
+    if (this.currentSegment
+      && this.currentSegment.clockStartMs <= captureTimeMs
+      && captureTimeMs <= this.clock.nowMs()) {
+      return Math.max(0, this.currentSegment.activeElapsedStartMs + captureTimeMs - this.currentSegment.clockStartMs);
+    }
+    return this.activeElapsedAt(captureTimeMs);
+  }
+
+  private performanceTimeAtCapture(captureTimeMs: number): number {
+    const activeElapsedMs = this.activeElapsedForCapture(captureTimeMs);
+    return this.performanceElapsedMs(activeElapsedMs);
+  }
+
+  private startClockSegment(state: PerformanceRuntimeState, activeElapsedStartMs: number): ClockSegment {
+    const segment = {
+      state,
+      clockStartMs: this.clock.nowMs(),
+      activeElapsedStartMs,
+    };
+    this.clockSegments.push(segment);
+    return segment;
+  }
+
+  private finishCurrentSegment(clockEndMs: number): void {
+    if (this.currentSegment) {
+      this.currentSegment.clockEndMs = clockEndMs;
+      this.currentSegment = null;
+    }
   }
 
   private performanceElapsedMs(activeElapsedMs: number): number {
@@ -231,11 +307,6 @@ export class PerformancePracticeRuntime {
       Math.max(0, activeElapsedMs - this.countInMs) * this.speedRatio,
       this.scopeDurationMs()
     );
-  }
-
-  private performanceTimeAtCapture(captureTimeMs: number): number {
-    const activeElapsedMs = this.activeElapsedMs(captureTimeMs);
-    return this.performanceElapsedMs(activeElapsedMs);
   }
 
   private musicalBeat(performanceTimeMs: number): number {
@@ -249,6 +320,13 @@ export class PerformancePracticeRuntime {
     return Math.max(0, this.scope.nominalEndTimeMs - this.scope.nominalStartTimeMs);
   }
 }
+
+type ClockSegment = {
+  state: PerformanceRuntimeState;
+  clockStartMs: number;
+  clockEndMs?: number;
+  activeElapsedStartMs: number;
+};
 
 export class PerformanceTimeline {
   private readonly segments: TimelineSegment[];
@@ -358,4 +436,40 @@ function beatsToMs(beats: number, bpm: number): number {
 
 function msToBeats(milliseconds: number, bpm: number): number {
   return milliseconds * bpm / 60_000;
+}
+
+function validatePerformanceSnapshot(
+  artifact: PracticeScoreArtifact,
+  snapshot: LocalPerformanceSessionSnapshot,
+  inputSource?: PracticeInputSource,
+  scope?: PracticeScope
+): void {
+  if (snapshot.mode !== 'CONTINUOUS_PLAY') {
+    throw new Error('Cannot restore non-performance snapshot into PerformancePracticeRuntime.');
+  }
+  if (snapshot.scoreId !== artifact.scoreId
+    || snapshot.revisionId !== artifact.revisionId
+    || snapshot.artifactId !== artifact.artifactId) {
+    throw new Error('Practice session snapshot does not belong to this score artifact.');
+  }
+  if (snapshot.version.schemaVersion !== 1 || snapshot.version.runtimeVersion !== 'local-practice-core-v1') {
+    throw new Error('Unsupported local practice runtime snapshot version.');
+  }
+  if (inputSource && snapshot.inputSource !== inputSource) {
+    throw new Error('Practice session snapshot input source mismatch.');
+  }
+  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope ?? {})) {
+    throw new Error('Practice session snapshot scope mismatch.');
+  }
+  if (snapshot.performance.speedRatio <= 0) {
+    throw new Error('Invalid performance snapshot speed ratio.');
+  }
+  if (snapshot.performance.activeElapsedMs < 0 || !Number.isFinite(snapshot.performance.activeElapsedMs)) {
+    throw new Error('Invalid performance snapshot active elapsed time.');
+  }
+  if (snapshot.performance.countInMs < 0
+    || snapshot.performance.countInBeats < 0
+    || snapshot.performance.countInPulses < 0) {
+    throw new Error('Invalid performance snapshot count-in state.');
+  }
 }
