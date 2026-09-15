@@ -4,9 +4,9 @@ import argparse
 import difflib
 import json
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -28,7 +28,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Compare the backend canonical PracticeScoreArtifact with the checked browser fixture."
     )
-    parser.add_argument("--fixture", type=Path, default=BROWSER_FIXTURE)
+    parser.add_argument("--fixture-path", "--fixture", type=Path, default=BROWSER_FIXTURE)
     parser.add_argument(
         "--self-test-missing-fixture",
         action="store_true",
@@ -37,9 +37,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.self_test_missing_fixture:
-        missing = Path(tempfile.gettempdir()) / "noteverse-missing-practice-score-artifact.json"
-        if missing.exists():
-            missing.unlink()
+        missing = Path("/tmp") / f"noteverse-contract-missing-{uuid4().hex}.json"
         try:
             compare_fixture(missing)
         except FileNotFoundError:
@@ -47,8 +45,8 @@ def main() -> int:
         print("Missing fixture did not fail the contract check.", file=sys.stderr)
         return 1
 
-    compare_fixture(args.fixture)
-    print(f"canonical PracticeScoreArtifact fixture matches: {args.fixture}")
+    compare_fixture(args.fixture_path)
+    print(f"canonical PracticeScoreArtifact fixture matches: {args.fixture_path}")
     return 0
 
 
@@ -75,6 +73,8 @@ def compare_fixture(fixture_path: Path) -> None:
 
 def _canonical_artifact() -> dict[str, Any]:
     sys.path.insert(0, str(BACKEND_ROOT))
+    import tempfile
+
     from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
     from app.processing.performance.timeline import TempoSegment
     from app.processing.practice_score.practice_score_artifact import (

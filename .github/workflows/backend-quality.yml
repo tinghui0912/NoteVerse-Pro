@@ -152,6 +152,15 @@ jobs:
           LEGATO_REPO_PATH=$LEGATO_REPO_PATH
           EOF
 
+      - name: Enforce Practice score artifact contract
+        run: >-
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
+          -v "$GITHUB_WORKSPACE:/repo:ro"
+          "$PRACTICE_QUALITY_IMAGE" bash -lc
+          "cd /repo &&
+          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py &&
+          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py --self-test-missing-fixture"
+
       - name: Run Ruff
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m ruff check app tests scripts"
 
@@ -191,15 +200,6 @@ jobs:
           tests/test_practice_runtime_regressions.py
           tests/test_practice_websocket_flow.py
           -q"
-
-      - name: Verify browser practice score artifact fixture contract
-        run: >-
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
-          -v "$GITHUB_WORKSPACE:/repo:ro"
-          "$PRACTICE_QUALITY_IMAGE" bash -lc
-          "cd /repo &&
-          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py &&
-          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py --self-test-missing-fixture"
 
       - name: Enforce Practice session-service coverage
         run: >-
