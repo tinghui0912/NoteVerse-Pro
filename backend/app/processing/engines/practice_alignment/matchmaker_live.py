@@ -146,7 +146,7 @@ class MatchmakerLiveEngine:
         self._wait_for_note_attempt_assembler = PracticeAttemptAssembler()
         self._resolved_practice_attempts = ResolvedPracticeAttemptBuffer()
         self._step_microphone_verifier = step_microphone_verifier
-        self._step_microphone_verifier_observations: list[StepVerifierObservation] = []
+        self._last_step_microphone_verifier_observation: StepVerifierObservation | None = None
         self._wait_for_note_attempt = ExpectedGroupAttemptAccumulator(
             observer=self._acoustic_observer,
             lifecycle=self._wait_for_note_attempt_assembler.lifecycle,
@@ -264,7 +264,9 @@ class MatchmakerLiveEngine:
             return None
 
         self.total_bytes += len(chunk)
-        self._observe_step_microphone_verifier(chunk)
+        verifier_update = self._step_microphone_verifier_update(chunk)
+        if verifier_update is not None:
+            return verifier_update
         audio = self._pcm_s16le_to_float32(chunk)
         if audio.size == 0:
             return None
@@ -451,9 +453,9 @@ class MatchmakerLiveEngine:
         return self._resolved_practice_attempts.drain()
 
     def drain_step_microphone_verifier_observations(self) -> list[StepVerifierObservation]:
-        observations = self._step_microphone_verifier_observations
-        self._step_microphone_verifier_observations = []
-        return observations
+        observation = getattr(self, "_last_step_microphone_verifier_observation", None)
+        self._last_step_microphone_verifier_observation = None
+        return [] if observation is None else [observation]
 
     def finalize_pending_practice_attempt(
         self,
@@ -635,22 +637,89 @@ class MatchmakerLiveEngine:
             verifier.close()
         self._queue.put(self._stream_end_marker)
 
-    def _observe_step_microphone_verifier(self, chunk: bytes) -> None:
+    def _step_microphone_verifier_update(self, chunk: bytes) -> AlignmentUpdate | None:
         verifier = getattr(self, "_step_microphone_verifier", None)
         if verifier is None:
-            return
+            return None
         follow_policy = getattr(self, "_follow_policy", None)
         if follow_policy is None:
-            return
+            return None
+        current_group = follow_policy.current_expected_group
+        if current_group is None:
+            return None
         current_attack_step = follow_policy.current_attack_step
         if current_attack_step is None:
-            return
+            return None
+        target = step_verifier_target_from_attack_step(current_attack_step)
         observation = verifier.observe_audio(
             chunk,
-            target=step_verifier_target_from_attack_step(current_attack_step),
+            target=target,
         )
-        if observation is not None:
-            self._step_microphone_verifier_observations.append(observation)
+        if observation is None:
+            return None
+        self._last_step_microphone_verifier_observation = observation
+        if observation.step_id != current_attack_step.step_id:
+            return None
+        expected_attack_pitches = tuple(target.pitch for target in current_attack_step.attack_targets)
+        if set(observation.observed_attack_pitches) != set(expected_attack_pitches):
+            return None
+
+        timestamp_ms = self._timestamp_ms()
+        self._wait_for_note_attempt_assembler.begin(
+            expected_group_id=current_group.group_id,
+            timestamp_ms=timestamp_ms,
+        )
+        evaluation = PracticeEventEvaluation(
+            expected_group_id=current_group.group_id,
+            result="MATCH",
+            matched_pitches=tuple(observation.observed_attack_pitches),
+            missing_pitches=(),
+            extra_pitches=(),
+            confidence=observation.confidence,
+            evaluator_version="step-microphone-verifier-v1",
+        )
+        outcome = self._wait_for_note_attempt_assembler.resolve(
+            evaluation,
+            timestamp_ms=timestamp_ms,
+        )
+        evidence = EvaluatorEvidence(
+            observed_pitches=tuple(observation.observed_attack_pitches),
+            confidence=observation.confidence,
+            source="AUDIO",
+            onset_beat=current_group.onset_beat,
+            alignment_beat=current_group.onset_beat,
+        )
+        decision = follow_policy.decide_evaluation(evidence=evidence, evaluation=evaluation)
+        attach_attempt_outcome(decision, outcome)
+        display_anchor = decision["display_anchor"]
+        beat_position = current_group.onset_beat if display_anchor is None else float(display_anchor["beat"])
+        update = self._wait_for_note_alignment_update(
+            beat_position=beat_position,
+            confidence=observation.confidence,
+            scope_completed=follow_policy.current_expected_group is None,
+            decision=decision,
+        )
+        update["audio_active"] = True
+        update["match_state"] = "matched"
+        update["stream_state"] = "following"
+        update["gate_reason"] = "step_microphone_verifier_match"
+        update["queue_decision"] = "step_microphone_verifier_match"
+        update["tonal_signal"] = True
+        update["onset_signal"] = True
+        update["alignment_state"] = "matched"
+        self._resolved_practice_attempts.append_for_expected_group(
+            outcome=outcome,
+            action=decision["action"],
+            resolution_reason=decision["reason"],
+            experience_state=decision["experience_state"],
+            expected_group=current_group,
+            update_confidence=update["confidence"],
+            update_timestamp_ms=update["timestamp_ms"],
+            validation_confidence=update.get("validation_confidence"),
+            input_policy_confidence=update.get("input_policy_confidence"),
+        )
+        self._reset_wait_for_note_event()
+        return update
 
     def _pcm_s16le_to_float32(self, chunk: bytes):
         samples = self._np.frombuffer(chunk, dtype=self._np.int16)

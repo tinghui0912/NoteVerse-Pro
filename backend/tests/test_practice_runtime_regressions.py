@@ -231,18 +231,20 @@ class DummyQueue:
 
 
 class RecordingStepMicrophoneVerifier:
-    def __init__(self) -> None:
+    def __init__(self, observations=None) -> None:
         self.calls = []
+        self.observations = list(observations or [])
         self.reset_count = 0
         self.closed = False
 
     def observe_audio(self, chunk: bytes, *, target):
         self.calls.append((chunk, target))
-        return StepVerifierObservation(
-            step_id=target.step_id,
-            observed_attack_pitches=target.attack_pitches,
-            confidence=0.99,
-        )
+        if not self.observations:
+            return None
+        observation = self.observations.pop(0)
+        if callable(observation):
+            return observation(target)
+        return observation
 
     def reset(self) -> None:
         self.reset_count += 1
@@ -1985,31 +1987,92 @@ def test_step_microphone_verifier_receives_current_attack_step_target() -> None:
     verifier = engine._step_microphone_verifier
     assert [target.attack_pitches for _chunk, target in verifier.calls] == [("C4",)]
     assert [target.continuation_pitches for _chunk, target in verifier.calls] == [()]
-    assert engine.drain_step_microphone_verifier_observations()[0].observed_attack_pitches == (
-        "C4",
-    )
+    assert engine.drain_step_microphone_verifier_observations() == []
     assert engine._follow_policy.current_expected_group is not None
     assert engine._follow_policy.current_expected_group.pitches == ("C4",)
     engine.close()
     assert engine._step_microphone_verifier.closed is True
 
 
-def test_step_microphone_verifier_target_follows_match_and_skip_progression() -> None:
+def test_step_microphone_verifier_accepted_observation_advances_exactly_one_step() -> None:
     import numpy as np
 
-    engine = make_shadow_verifier_engine(np)
+    engine = make_shadow_verifier_engine(
+        np,
+        observations=[lambda target: StepVerifierObservation(
+            step_id=target.step_id,
+            observed_attack_pitches=target.attack_pitches,
+            confidence=0.99,
+        )],
+    )
     verifier = engine._step_microphone_verifier
-    policy = engine._follow_policy
+
+    update = engine.ingest_audio(b"first")
+
+    assert update is not None
+    assert update["decision"]["action"] == "advance"
+    assert update["decision"]["reason"] == "stable_match"
+    assert update["decision"]["evaluation_result"] == "MATCH"
+    assert update["decision"]["matched_pitches"] == ["C4"]
+    assert engine._follow_policy.current_expected_group is not None
+    assert engine._follow_policy.current_expected_group.pitches == ("E4",)
+    assert [target.attack_pitches for _chunk, target in verifier.calls] == [("C4",)]
+    assert len(engine.drain_resolved_practice_attempts()) == 1
+
+
+def test_step_microphone_verifier_next_chunk_receives_new_step_after_match() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(
+        np,
+        observations=[lambda target: StepVerifierObservation(
+            step_id=target.step_id,
+            observed_attack_pitches=target.attack_pitches,
+            confidence=0.99,
+        )],
+    )
+    verifier = engine._step_microphone_verifier
 
     engine.ingest_audio(b"first")
-    evidence = EvaluatorEvidence.from_midi(MidiObservation(("C4",)))
-    policy.decide_evaluation(evidence=evidence, evaluation=policy.evaluate_evidence(evidence))
     engine.ingest_audio(b"second")
-    policy.skip_current_group()
-    engine.ingest_audio(b"after-terminal")
 
     assert [target.attack_pitches for _chunk, target in verifier.calls] == [("C4",), ("E4",)]
-    assert policy.current_expected_group is None
+    assert verifier.calls[0][1].step_id != verifier.calls[1][1].step_id
+
+
+def test_step_microphone_verifier_same_chunk_cannot_advance_twice() -> None:
+    import numpy as np
+
+    legacy_called = False
+    engine = make_shadow_verifier_engine(
+        np,
+        observations=[
+            lambda target: StepVerifierObservation(
+                step_id=target.step_id,
+                observed_attack_pitches=target.attack_pitches,
+                confidence=0.99,
+            ),
+            lambda target: StepVerifierObservation(
+                step_id=target.step_id,
+                observed_attack_pitches=target.attack_pitches,
+                confidence=0.99,
+            ),
+        ],
+    )
+
+    def legacy_update(_audio_frame):
+        nonlocal legacy_called
+        legacy_called = True
+        return None
+
+    engine._ingest_audio_frame = legacy_update
+
+    engine.ingest_audio(b"first")
+
+    assert legacy_called is False
+    assert engine._follow_policy.current_expected_group is not None
+    assert engine._follow_policy.current_expected_group.pitches == ("E4",)
+    assert len(engine._step_microphone_verifier.calls) == 1
 
 
 def test_step_microphone_verifier_target_does_not_advance_on_non_match_results() -> None:
@@ -2031,6 +2094,58 @@ def test_step_microphone_verifier_target_does_not_advance_on_non_match_results()
     assert policy.current_expected_group.pitches == ("C4",)
 
 
+def test_step_microphone_verifier_stale_or_wrong_observation_cannot_advance() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(
+        np,
+        observations=[
+            StepVerifierObservation(
+                step_id="old-step",
+                observed_attack_pitches=("C4",),
+                confidence=0.99,
+            ),
+            lambda target: StepVerifierObservation(
+                step_id=target.step_id,
+                observed_attack_pitches=("D4",),
+                confidence=0.99,
+            ),
+        ],
+    )
+
+    assert engine.ingest_audio(b"stale") is None
+    assert engine._follow_policy.current_expected_group.pitches == ("C4",)
+    assert engine.ingest_audio(b"wrong") is None
+    assert engine._follow_policy.current_expected_group.pitches == ("C4",)
+
+
+def test_step_microphone_verifier_no_observation_does_not_advance() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(np)
+
+    assert engine.ingest_audio(b"quiet") is None
+    assert engine._follow_policy.current_expected_group.pitches == ("C4",)
+
+
+def test_no_step_microphone_verifier_uses_legacy_audio_frame_path() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(np)
+    engine._step_microphone_verifier = None
+    calls = []
+
+    def legacy_update(audio_frame):
+        calls.append(audio_frame)
+        return {"legacy": True}
+
+    engine._pcm_s16le_to_float32 = lambda _chunk: np.ones(128, dtype=np.float32)
+    engine._ingest_audio_frame = legacy_update
+
+    assert engine.ingest_audio(b"legacy") == {"legacy": True}
+    assert len(calls) == 1
+
+
 def test_step_microphone_verifier_reset_returns_target_to_scoped_start() -> None:
     import numpy as np
 
@@ -2047,6 +2162,28 @@ def test_step_microphone_verifier_reset_returns_target_to_scoped_start() -> None
 
     assert [target.attack_pitches for _chunk, target in verifier.calls] == [("E4",), ("C4",)]
     assert verifier.reset_count == 1
+
+
+def test_step_microphone_verifier_skip_and_old_observation_do_not_double_advance() -> None:
+    import numpy as np
+
+    engine = make_shadow_verifier_engine(
+        np,
+        observations=[
+            StepVerifierObservation(
+                step_id="entry-0-stale",
+                observed_attack_pitches=("C4",),
+                confidence=0.99,
+            )
+        ],
+    )
+
+    skipped = engine.skip_current_expected_group()
+    assert skipped is not None
+    assert skipped["decision"]["action"] == "skip"
+    assert engine._follow_policy.current_expected_group.pitches == ("E4",)
+    assert engine.ingest_audio(b"old-observation") is None
+    assert engine._follow_policy.current_expected_group.pitches == ("E4",)
 
 
 def test_step_microphone_verifier_target_uses_score_action_semantics() -> None:
@@ -2144,7 +2281,25 @@ def make_wait_for_note_engine(np):
     return engine
 
 
-def make_shadow_verifier_engine(np, *, timeline: PracticeScoreTimeline | None = None):
+def make_shadow_verifier_engine(
+    np,
+    *,
+    timeline: PracticeScoreTimeline | None = None,
+    observations=None,
+):
+    return make_shadow_verifier_engine_with_verifier(
+        np,
+        verifier=RecordingStepMicrophoneVerifier(observations=observations),
+        timeline=timeline,
+    )
+
+
+def make_shadow_verifier_engine_with_verifier(
+    np,
+    *,
+    verifier,
+    timeline: PracticeScoreTimeline | None = None,
+):
     engine = MatchmakerLiveEngine.__new__(MatchmakerLiveEngine)
     engine._error = None
     engine.total_bytes = 0
@@ -2156,11 +2311,33 @@ def make_shadow_verifier_engine(np, *, timeline: PracticeScoreTimeline | None = 
     engine._pcm_s16le_to_float32 = lambda _chunk: np.array([], dtype=np.float32)
     engine._ingest_audio_frame = lambda _audio_frame: None
     engine._follow_policy = WaitForNoteFollowPolicy(timeline or wait_for_note_timeline())
-    engine._step_microphone_verifier = RecordingStepMicrophoneVerifier()
-    engine._step_microphone_verifier_observations = []
+    engine._step_microphone_verifier = verifier
+    engine._last_step_microphone_verifier_observation = None
     engine._wait_for_note_attempt = SimpleNamespace(reset=lambda: None)
+    engine._wait_for_note_attempt_assembler = PracticeAttemptAssembler()
+    engine._resolved_practice_attempts = ResolvedPracticeAttemptBuffer()
     engine._queue = DummyQueue()
     engine._stream_end_marker = object()
+    engine._last_beat_position = None
+    engine._last_alignment_timestamp_ms = None
+    engine._score_end_beat = 5.0
+    engine._stream = SimpleNamespace(
+        last_audio_active=True,
+        last_rms=0.2,
+        last_peak=0.4,
+        input_health=GOOD_INPUT_HEALTH,
+        stream_state="following",
+        last_frame_class="tonal",
+        last_gate_reason="accepted",
+        last_queue_decision="accepted",
+        last_tonal_signal=True,
+        last_onset_signal=True,
+        last_spectral_flatness=0.1,
+        last_peak_prominence=20.0,
+        last_spectral_flux=0.5,
+        last_input_weight=1.0,
+        last_input_policy_confidence=1.0,
+    )
     return engine
 
 

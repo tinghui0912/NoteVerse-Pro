@@ -211,6 +211,50 @@ def test_bytedance_step_verifier_step_change_cannot_reuse_old_same_pitch_onset()
     assert fresh.events[0].event_sample_index == 160
 
 
+def test_bytedance_step_verifier_chunk_handoff_activates_next_step_after_previous_cursor() -> None:
+    config = ByteDanceStepVerifierConfig(
+        sample_rate=100,
+        target_anchor_seconds=1.0,
+        future_seconds=0.0,
+        cadence_seconds=2.0,
+        local_pre_seconds=1.0,
+        local_post_seconds=1.0,
+        output_frame_rate_hz=100.0,
+    )
+    verifier = ByteDanceRollingStepVerifier(
+        FakeByteDanceBackend(frame_count=140, pitch_events={"C4": [(100, 0.8, 0.7)]}),
+        config=config,
+    )
+    first_target = StepVerifierTarget(
+        step_id="step-c4-a",
+        attack_pitches=("C4",),
+        continuation_pitches=(),
+    )
+    second_target = StepVerifierTarget(
+        step_id="step-c4-b",
+        attack_pitches=("C4",),
+        continuation_pitches=(),
+    )
+
+    first = verifier.observe_audio(_pcm16_silence(100), target=first_target)
+    assert first is not None
+    assert first.events[0].event_sample_index == 0
+    cursor_before_next_chunk = verifier.absolute_sample_cursor
+
+    second = verifier.observe_audio(_pcm16_silence(100), target=second_target)
+
+    assert verifier.step_activation_boundary_sample == cursor_before_next_chunk - 1
+    stale = _observation_for_event_sample(
+        verifier,
+        target=second_target,
+        event_sample=0,
+        anchor_sample=0,
+    )
+    assert stale is None
+    assert second is not None
+    assert second.events[0].event_sample_index == cursor_before_next_chunk + 100
+
+
 def _pcm16_silence(sample_count: int) -> bytes:
     return np.zeros(sample_count, dtype=np.int16).tobytes()
 
