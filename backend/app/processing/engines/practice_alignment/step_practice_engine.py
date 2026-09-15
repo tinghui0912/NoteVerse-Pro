@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Literal, cast
+import array
+import math
 
 from app.processing.engines.practice_alignment.alignment_metrics import (
     beat_velocity,
@@ -75,6 +77,11 @@ class StepPracticeEngine:
             raise RuntimeError("STEP practice sessions require WAIT_FOR_NOTE progression.")
         if realtime_guidance != "GUIDED" or evaluation_profile != "LEARNING":
             raise RuntimeError("STEP practice sessions require canonical learning config.")
+        if step_microphone_verifier is None:
+            raise RuntimeError(
+                "STEP microphone runtime requires a StepMicrophoneVerifier. "
+                "Legacy acoustic fallback is disabled."
+            )
 
         self.score_file_path = score_file_path
         self.sample_rate = sample_rate
@@ -87,6 +94,8 @@ class StepPracticeEngine:
         self.total_bytes = 0
         self._closed = False
         self._audio_received = False
+        self._last_input_rms = 0.0
+        self._last_input_peak = 0.0
         self._last_beat_position: float | None = None
         self._last_alignment_timestamp_ms: int | None = None
         self._attempt_assembler = PracticeAttemptAssembler()
@@ -117,9 +126,8 @@ class StepPracticeEngine:
 
         self.total_bytes += len(chunk)
         self._audio_received = True
+        self._last_input_rms, self._last_input_peak = _pcm_s16le_level(chunk)
         verifier = self._step_microphone_verifier
-        if verifier is None:
-            return None
 
         current_group = self._follow_policy.current_expected_group
         current_attack_step = self._follow_policy.current_attack_step
@@ -242,7 +250,23 @@ class StepPracticeEngine:
 
     @property
     def input_health(self) -> InputHealth:
-        return _GOOD_AUDIO_INPUT_HEALTH if self._audio_received else _NO_AUDIO_INPUT_HEALTH
+        if not self._audio_received:
+            return _NO_AUDIO_INPUT_HEALTH
+        if self._last_input_peak >= 0.999:
+            return {
+                "available": True,
+                "level": "clipping",
+                "noise": "good",
+                "confidence": 1.0,
+            }
+        if self._last_input_rms <= 0.0001:
+            return {
+                "available": True,
+                "level": "too_quiet",
+                "noise": "good",
+                "confidence": 0.5,
+            }
+        return _GOOD_AUDIO_INPUT_HEALTH
 
     def close(self) -> None:
         if self._closed:
@@ -377,8 +401,8 @@ class StepPracticeEngine:
                 "FINAL_EXPECTED_GROUP_MATCHED" if scope_completed else None
             ),
             "audio_active": audio_active,
-            "input_rms": 0.0,
-            "input_peak": 0.0,
+            "input_rms": round(self._last_input_rms, 5),
+            "input_peak": round(self._last_input_peak, 5),
             "input_health": self.input_health,
             "match_state": match_state,
             "feature_confidence": rounded_confidence,
@@ -432,3 +456,20 @@ class StepPracticeEngine:
         resolved["decision"] = decision
         resolved["timestamp_ms"] = timestamp_ms
         return cast(AlignmentUpdate, resolved)
+
+
+def _pcm_s16le_level(chunk: bytes) -> tuple[float, float]:
+    sample_count = len(chunk) // 2
+    if sample_count <= 0:
+        return 0.0, 0.0
+    samples = array.array("h")
+    samples.frombytes(chunk[: sample_count * 2])
+    if samples.itemsize != 2:
+        return 0.0, 0.0
+    squares = 0.0
+    peak = 0.0
+    for sample in samples:
+        normalized = abs(float(sample) / 32768.0)
+        peak = max(peak, normalized)
+        squares += normalized * normalized
+    return math.sqrt(squares / sample_count), peak

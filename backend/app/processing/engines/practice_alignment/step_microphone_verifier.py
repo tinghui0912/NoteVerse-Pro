@@ -1,13 +1,14 @@
-"""Shadow STEP microphone verifier contract.
+"""STEP microphone verifier contract.
 
-This module defines the score-action boundary for future microphone verifiers. It
-does not implement acoustic recognition and must not drive progression.
+A StepMicrophoneVerifier supplies authoritative, score-target-conditioned
+observations for STEP microphone progression. Only accepted observations for the
+current PracticeAttackStep may create MATCH decisions.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Callable, Protocol
 
 from app.processing.engines.practice_alignment.score_timeline import PracticeAttackStep
 
@@ -49,6 +50,26 @@ class StepMicrophoneVerifier(Protocol):
     def reset(self) -> None: ...
 
     def close(self) -> None: ...
+
+
+@dataclass(frozen=True)
+class StepMicrophoneVerifierContext:
+    score_file_path: str
+    sample_rate: int
+    channels: int
+    frame_format: str
+    progression_mode: str
+    realtime_guidance: str
+    evaluation_profile: str
+    input_source: str
+    start_expected_group_id: str | None
+    end_expected_group_id: str | None
+
+
+StepMicrophoneVerifierFactory = Callable[
+    [StepMicrophoneVerifierContext],
+    StepMicrophoneVerifier,
+]
 
 
 def step_verifier_target_from_attack_step(step: PracticeAttackStep) -> StepVerifierTarget:

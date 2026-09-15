@@ -23,8 +23,14 @@ from app.processing.realtime.session_runtime import (
 
 
 class RecordingStepVerifier:
-    def __init__(self, observations: list[StepVerifierObservation | None] | None = None) -> None:
+    def __init__(
+        self,
+        observations: list[StepVerifierObservation | None] | None = None,
+        *,
+        auto_match: bool = False,
+    ) -> None:
         self.observations = list(observations or [])
+        self.auto_match = auto_match
         self.calls = []
         self.reset_count = 0
         self.closed = False
@@ -32,6 +38,12 @@ class RecordingStepVerifier:
     def observe_audio(self, chunk: bytes, *, target):
         self.calls.append((chunk, target))
         if not self.observations:
+            if self.auto_match:
+                return StepVerifierObservation(
+                    step_id=target.step_id,
+                    observed_attack_pitches=target.attack_pitches,
+                    confidence=0.97,
+                )
             return None
         return self.observations.pop(0)
 
@@ -138,6 +150,8 @@ def make_engine(
     start_expected_group_id: str | None = None,
     end_expected_group_id: str | None = None,
 ) -> StepPracticeEngine:
+    if verifier is None:
+        verifier = RecordingStepVerifier()
     return StepPracticeEngine(
         score_file_path="score.xml",
         sample_rate=16000,
@@ -168,7 +182,26 @@ def test_step_engine_module_does_not_import_matchmaker() -> None:
     assert "matchmaker" not in source.lower()
 
 
-def test_step_by_step_builder_constructs_step_engine_without_matchmaker() -> None:
+def test_step_by_step_builder_without_verifier_fails_fast() -> None:
+    with patch(
+        "app.processing.engines.practice_alignment.step_practice_engine.practice_score_timeline_from_musicxml",
+        return_value=simple_timeline(),
+    ):
+        try:
+            build_alignment_engine(
+                score_file_path="score.xml",
+                sample_rate=16000,
+                channels=1,
+                frame_format="pcm_s16le",
+            )
+        except RuntimeError as exc:
+            assert "StepMicrophoneVerifier" in str(exc)
+        else:  # pragma: no cover - clarity for this contract test
+            raise AssertionError("STEP microphone builder must fail without a verifier.")
+
+
+def test_step_by_step_builder_constructs_step_engine_with_fake_verifier() -> None:
+    verifier = RecordingStepVerifier()
     with patch(
         "app.processing.engines.practice_alignment.step_practice_engine.practice_score_timeline_from_musicxml",
         return_value=simple_timeline(),
@@ -178,13 +211,36 @@ def test_step_by_step_builder_constructs_step_engine_without_matchmaker() -> Non
             sample_rate=16000,
             channels=1,
             frame_format="pcm_s16le",
+            step_microphone_verifier=verifier,
         )
 
     assert isinstance(engine, StepPracticeEngine)
+    assert engine._step_microphone_verifier is verifier
 
 
-def test_runtime_registry_uses_step_engine_for_step_by_step_sessions() -> None:
+def test_runtime_registry_step_by_step_without_verifier_fails_fast() -> None:
     registry = PracticeSessionRuntimeRegistry()
+    with patch(
+        "app.processing.engines.practice_alignment.step_practice_engine.practice_score_timeline_from_musicxml",
+        return_value=simple_timeline(),
+    ):
+        try:
+            registry.register(
+                session_id="session-1",
+                task_id="task-1",
+                state="CREATED",
+                score_file_path="score.xml",
+            )
+        except RuntimeError as exc:
+            assert "StepMicrophoneVerifier" in str(exc)
+        else:  # pragma: no cover - clarity for this contract test
+            raise AssertionError("STEP registry must fail without a verifier.")
+
+
+def test_runtime_registry_uses_injected_step_verifier_for_step_by_step_sessions() -> None:
+    registry = PracticeSessionRuntimeRegistry()
+    verifier = RecordingStepVerifier(auto_match=True)
+    seen_contexts = []
     with patch(
         "app.processing.engines.practice_alignment.step_practice_engine.practice_score_timeline_from_musicxml",
         return_value=simple_timeline(),
@@ -194,10 +250,40 @@ def test_runtime_registry_uses_step_engine_for_step_by_step_sessions() -> None:
             task_id="task-1",
             state="CREATED",
             score_file_path="score.xml",
+            step_microphone_verifier_factory=lambda context: (
+                seen_contexts.append(context) or verifier
+            ),
         )
 
     assert isinstance(runtime.engine, StepPracticeEngine)
+    assert runtime.engine._step_microphone_verifier is verifier
+    assert seen_contexts
+
+    update = runtime.process_audio_chunk((1000).to_bytes(2, "little", signed=True))
+
+    assert update is not None
+    assert update["decision"]["action"] == "advance"
+    assert runtime.engine._follow_policy.current_expected_group.pitches == ("D4",)
     registry.release("session-1")
+
+
+def test_midi_step_builder_does_not_require_microphone_verifier() -> None:
+    class DummyMidiEngine:
+        pass
+
+    with patch(
+        "app.processing.engines.practice_alignment.midi_live.MidiPracticeEngine",
+        return_value=DummyMidiEngine(),
+    ):
+        engine = build_alignment_engine(
+            score_file_path="score.xml",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+            input_source="MIDI",
+        )
+
+    assert isinstance(engine, DummyMidiEngine)
 
 
 def test_continuous_play_runtime_still_uses_performance_runtime() -> None:
@@ -349,11 +435,17 @@ def test_same_pitch_multi_voice_is_one_physical_attack_target() -> None:
     assert target.attack_pitches == ("C4",)
 
 
-def test_no_verifier_does_not_fallback_to_legacy_progression() -> None:
-    engine = make_engine(verifier=None)
-    current_step = engine._follow_policy.current_attack_step
-
-    update = engine.ingest_audio(b"chunk")
-
-    assert update is None
-    assert engine._follow_policy.current_attack_step == current_step
+def test_direct_step_engine_without_verifier_fails_fast() -> None:
+    try:
+        StepPracticeEngine(
+            score_file_path="score.xml",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+            score_timeline=simple_timeline(),
+            step_microphone_verifier=None,
+        )
+    except RuntimeError as exc:
+        assert "StepMicrophoneVerifier" in str(exc)
+    else:  # pragma: no cover - clarity for this contract test
+        raise AssertionError("STEP engine must fail without a verifier.")

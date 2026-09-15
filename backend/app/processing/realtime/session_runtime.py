@@ -22,6 +22,10 @@ if TYPE_CHECKING:
         InputHealth,
     )
     from app.processing.engines.practice_alignment.attempt_assembler import ResolvedPracticeAttempt
+    from app.processing.engines.practice_alignment.step_microphone_verifier import (
+        StepMicrophoneVerifier,
+        StepMicrophoneVerifierFactory,
+    )
 
 
 def build_alignment_engine(
@@ -36,6 +40,8 @@ def build_alignment_engine(
     input_source: str = "MICROPHONE",
     start_expected_group_id: str | None = None,
     end_expected_group_id: str | None = None,
+    step_microphone_verifier: "StepMicrophoneVerifier | None" = None,
+    step_microphone_verifier_factory: "StepMicrophoneVerifierFactory | None" = None,
 ) -> "AlignmentEngine":
     """Create the practice alignment engine without importing heavy runtime deps at module load."""
     if input_source == "MIDI":
@@ -52,6 +58,30 @@ def build_alignment_engine(
     from app.processing.engines.practice_alignment.step_practice_engine import (
         StepPracticeEngine,
     )
+    from app.processing.engines.practice_alignment.step_microphone_verifier import (
+        StepMicrophoneVerifierContext,
+    )
+
+    if step_microphone_verifier is None:
+        if step_microphone_verifier_factory is None:
+            raise RuntimeError(
+                "STEP_BY_STEP microphone runtime requires a StepMicrophoneVerifier. "
+                "Configure a step_microphone_verifier_factory; legacy acoustic fallback is disabled."
+            )
+        step_microphone_verifier = step_microphone_verifier_factory(
+            StepMicrophoneVerifierContext(
+                score_file_path=score_file_path,
+                sample_rate=sample_rate,
+                channels=channels,
+                frame_format=frame_format,
+                progression_mode=progression_mode,
+                realtime_guidance=realtime_guidance,
+                evaluation_profile=evaluation_profile,
+                input_source=input_source,
+                start_expected_group_id=start_expected_group_id,
+                end_expected_group_id=end_expected_group_id,
+            )
+        )
 
     return StepPracticeEngine(
         score_file_path=score_file_path,
@@ -64,6 +94,7 @@ def build_alignment_engine(
         input_source=input_source,
         start_expected_group_id=start_expected_group_id,
         end_expected_group_id=end_expected_group_id,
+        step_microphone_verifier=step_microphone_verifier,
     )
 
 
@@ -371,6 +402,7 @@ class PracticeSessionRuntimeRegistry:
         start_expected_group_id: str | None = None,
         end_expected_group_id: str | None = None,
         runtime_kind: str = "STEP_BY_STEP",
+        step_microphone_verifier_factory: "StepMicrophoneVerifierFactory | None" = None,
     ) -> PracticeRuntime:
         if runtime_kind == "FIXED_CLOCK_PERFORMANCE":
             if (
@@ -444,6 +476,7 @@ class PracticeSessionRuntimeRegistry:
                 input_source=input_source,
                 start_expected_group_id=start_expected_group_id,
                 end_expected_group_id=end_expected_group_id,
+                step_microphone_verifier_factory=step_microphone_verifier_factory,
             ),
             is_ready_for_performance=True,
             pending_ready_notification=True,
