@@ -52,6 +52,11 @@ class PracticeInputSource(str, enum.Enum):
     MIDI = "MIDI"
 
 
+class PracticeStepMicrophoneVerificationProvider(str, enum.Enum):
+    SERVER = "SERVER"
+    BROWSER_LOCAL = "BROWSER_LOCAL"
+
+
 class PracticeReplayArtifactKind(str, enum.Enum):
     AUDIO_RECORDING = "AUDIO_RECORDING"
     MIDI_EVENTS = "MIDI_EVENTS"
@@ -151,6 +156,15 @@ class PracticeSession(SQLModel, table=True):  # type: ignore[call-arg]
             SAEnum(PracticeInputSource, name="practiceinputsource"),
             nullable=False,
             default=PracticeInputSource.MICROPHONE,
+        ),
+    )
+    step_microphone_verification_provider: Optional[PracticeStepMicrophoneVerificationProvider] = Field(
+        default=None,
+        sa_column=Column(
+            SAEnum(
+                PracticeStepMicrophoneVerificationProvider,
+                name="practicestepmicrophoneverificationprovider",
+            )
         ),
     )
     sample_rate: int = Field(sa_column=Column(BigInteger, nullable=False))

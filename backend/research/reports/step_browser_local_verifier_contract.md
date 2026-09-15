@@ -22,7 +22,8 @@ The backend practice WebSocket endpoint is
 `backend/app/modules/practice/router.py`. JSON control messages are validated by
 `backend/app/processing/realtime/protocol.py` and serialized by
 `backend/app/processing/realtime/message_codec.py`. Binary PCM frames continue to
-flow through `PracticeSessionRuntime.process_audio_chunk`.
+flow through `PracticeSessionRuntime.process_audio_chunk` for `SERVER`
+microphone sessions; `BROWSER_LOCAL` STEP sessions ignore unexpected binary PCM.
 
 STEP runtime construction is owned by
 `backend/app/processing/realtime/session_runtime.py`. `STEP_BY_STEP` microphone
@@ -84,13 +85,30 @@ verifier.
 ## Runtime Boundary
 
 `PracticeSessionRuntimeRegistry` requires an explicit STEP microphone verifier
-provider and fails fast if none is configured. Tests can select `BROWSER_LOCAL`
-explicitly at runtime construction. Production session creation still needs an
-explicit deployment-provider decision before browser-local inference is enabled.
+provider and fails fast if none is configured. Production session creation now
+persists that provider decision before stream runtime construction.
 
-Binary PCM frames may still be received for compatibility and minimal input
-health, but in browser-local mode they do not drive progression. Progression is
-owned by accepted `client.step_verifier_observation` messages.
+`PracticeSession.step_microphone_verification_provider` is the immutable
+session-level provider decision for STEP microphone sessions. Session creation
+defaults STEP microphone sessions to `SERVER`; `BROWSER_LOCAL` is accepted only
+when the request also declares `STEP_MICROPHONE_VERIFIER_V1` browser capability.
+MIDI STEP and fixed-clock performance sessions cannot carry a STEP microphone
+verifier provider. `PracticeService.prepare_stream_runtime` passes the persisted
+provider to `PracticeSessionRuntimeRegistry`, so the provider is selected before
+the runtime exists and cannot change per frame or per observation.
+
+`step.verifier_target` remains a protocol-version-1 extension. Compatibility is
+provided by provider gating rather than a version bump: only explicit
+`BROWSER_LOCAL` sessions publish this message. Default `SERVER`, MIDI, and
+fixed-clock performance sessions do not publish browser-local targets, so older
+strict clients in the ordinary product flow never receive the new message.
+
+In browser-local mode, raw PCM is not required by the backend for progression.
+The intended browser contract is to keep microphone audio and neural inference
+local, then send only target-conditioned verifier observations. As defense in
+depth, the backend ignores unexpected binary PCM frames for `BROWSER_LOCAL` STEP
+sessions; they are not appended to the runtime audio buffer and cannot produce
+MATCH. `SERVER` microphone sessions keep the existing binary PCM transport.
 
 ## Remaining Browser WebGPU Blockers
 

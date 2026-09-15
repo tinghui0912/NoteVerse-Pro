@@ -46,6 +46,7 @@ class PracticeReadModel:
             session_id=session.session_uuid,
             state=session.state,
             ws_url=f"/api/v1/practice/sessions/{session.session_uuid}/stream",
+            step_microphone_verification_provider=session.step_microphone_verification_provider,
         )
 
     async def to_session_detail(
@@ -72,6 +73,7 @@ class PracticeReadModel:
             realtime_guidance=session.realtime_guidance,
             evaluation_profile=session.evaluation_profile,
             input_source=session.input_source,
+            step_microphone_verification_provider=session.step_microphone_verification_provider,
             practice_scope=(
                 PracticeSessionScope(
                     start_expected_group_id=session.scope_start_expected_group_id,

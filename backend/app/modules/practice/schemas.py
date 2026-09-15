@@ -1,3 +1,4 @@
+import enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -11,6 +12,7 @@ from app.db.models.practice import (
     PracticeSessionCompletionReason,
     PracticeSessionSummaryStatus,
     PracticeSessionState,
+    PracticeStepMicrophoneVerificationProvider,
 )
 from app.modules.practice.session_config import PracticeSessionPreset
 from app.db.models.score_access import AccessOrigin
@@ -70,6 +72,10 @@ class PracticeReadyScoreContentRead(BaseModel):
     mime_type: str = "application/vnd.recordare.musicxml+xml"
 
 
+class PracticeBrowserVerifierCapability(str, enum.Enum):
+    STEP_MICROPHONE_VERIFIER_V1 = "STEP_MICROPHONE_VERIFIER_V1"
+
+
 class CreatePracticeSessionRequest(BaseModel):
     score_id: str = Field(..., min_length=1)
     revision_id: str | None = None
@@ -79,12 +85,15 @@ class CreatePracticeSessionRequest(BaseModel):
     frame_format: str = Field(default="pcm_s16le", min_length=1)
     input_source: PracticeInputSource = PracticeInputSource.MICROPHONE
     practice_scope: PracticeSessionScope | None = None
+    step_microphone_verification_provider: PracticeStepMicrophoneVerificationProvider | None = None
+    browser_verifier_capabilities: list[PracticeBrowserVerifierCapability] = Field(default_factory=list)
 
 
 class PracticeSessionStartRead(BaseModel):
     session_id: str
     state: PracticeSessionState
     ws_url: str
+    step_microphone_verification_provider: PracticeStepMicrophoneVerificationProvider | None = None
 
 
 PracticeSessionOutcomeKind = Literal[
@@ -139,6 +148,7 @@ class PracticeSessionDetailRead(BaseModel):
     realtime_guidance: PracticeRealtimeGuidance
     evaluation_profile: PracticeEvaluationProfile
     input_source: PracticeInputSource
+    step_microphone_verification_provider: PracticeStepMicrophoneVerificationProvider | None = None
     practice_scope: PracticeSessionScope | None = None
     sample_rate: int
     channels: int

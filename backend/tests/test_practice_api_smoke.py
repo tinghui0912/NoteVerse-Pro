@@ -300,6 +300,12 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
 
     create_properties = components["CreatePracticeSessionRequest"]["properties"]
     assert "preset" in create_properties
+    assert "step_microphone_verification_provider" in create_properties
+    assert "browser_verifier_capabilities" in create_properties
     assert "progression_mode" not in create_properties
     assert "realtime_guidance" not in create_properties
     assert "evaluation_profile" not in create_properties
+    start_properties = components["PracticeSessionStartRead"]["properties"]
+    detail_properties = components["PracticeSessionDetailRead"]["properties"]
+    assert "step_microphone_verification_provider" in start_properties
+    assert "step_microphone_verification_provider" in detail_properties

@@ -294,6 +294,11 @@ export type ApiResponseListSavedPracticeReplayArtifactRead = {
 export type AccessOrigin = 'OWNER' | 'MEMBERSHIP' | 'SHARE' | 'PUBLICATION';
 
 /**
+ * PracticeBrowserVerifierCapability
+ */
+export type PracticeBrowserVerifierCapability = 'STEP_MICROPHONE_VERIFIER_V1';
+
+/**
  * CreatePracticeSessionRequest
  */
 export type CreatePracticeSessionRequest = {
@@ -306,6 +311,10 @@ export type CreatePracticeSessionRequest = {
      */
     frame_format?: string;
     input_source?: PracticeInputSource;
+    /**
+     * Browser Verifier Capabilities
+     */
+    browser_verifier_capabilities?: Array<PracticeBrowserVerifierCapability>;
     practice_scope?: PracticeSessionScope | null;
     preset?: PracticeSessionPreset;
     /**
@@ -320,6 +329,7 @@ export type CreatePracticeSessionRequest = {
      * Score Id
      */
     score_id: string;
+    step_microphone_verification_provider?: PracticeStepMicrophoneVerificationProvider | null;
 };
 
 /**
@@ -341,6 +351,11 @@ export type PracticeEvaluationProfile = 'LEARNING' | 'PERFORMANCE';
  * PracticeInputSource
  */
 export type PracticeInputSource = 'MICROPHONE' | 'MIDI';
+
+/**
+ * PracticeStepMicrophoneVerificationProvider
+ */
+export type PracticeStepMicrophoneVerificationProvider = 'SERVER' | 'BROWSER_LOCAL';
 
 /**
  * PracticePerformanceReportAvailabilityRead
@@ -630,6 +645,7 @@ export type PracticeSessionDetailRead = {
      */
     started_at: string | null;
     state: PracticeSessionState;
+    step_microphone_verification_provider?: PracticeStepMicrophoneVerificationProvider | null;
     summary_status: PracticeSessionSummaryStatus;
 };
 
@@ -682,6 +698,7 @@ export type PracticeSessionStartRead = {
      */
     session_id: string;
     state: PracticeSessionState;
+    step_microphone_verification_provider?: PracticeStepMicrophoneVerificationProvider | null;
     /**
      * Ws Url
      */

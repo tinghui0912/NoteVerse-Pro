@@ -36,6 +36,7 @@ from app.db.models import (
     PracticeSessionSummaryStatus,
     PracticeSession,
     PracticeSessionState,
+    PracticeStepMicrophoneVerificationProvider,
     Score,
     ScoreRevision,
 )
@@ -76,6 +77,7 @@ from app.processing.engines.practice_alignment.score_timeline import (
 from app.modules.practice.repository import PracticeRepository
 from app.modules.practice.schemas import (
     PracticeAttackTargetRead,
+    PracticeBrowserVerifierCapability,
     PracticeReplayFinalizeRequest,
     PracticeReplayUploadAuthorizationRead,
     PracticeReplayUploadAuthorizationRequest,
@@ -106,6 +108,36 @@ if TYPE_CHECKING:
     )
     from app.processing.engines.practice_alignment.attempt_assembler import ResolvedPracticeAttempt
     from app.processing.engines.practice_alignment.contracts import AlignmentUpdate
+
+
+def _step_microphone_verification_provider_for_session(
+    *,
+    runtime_kind: str,
+    input_source: PracticeInputSource,
+    requested_provider: PracticeStepMicrophoneVerificationProvider | None,
+    browser_verifier_capabilities: Sequence[PracticeBrowserVerifierCapability],
+) -> PracticeStepMicrophoneVerificationProvider | None:
+    if runtime_kind != "STEP_BY_STEP" or input_source != PracticeInputSource.MICROPHONE:
+        if requested_provider is not None or browser_verifier_capabilities:
+            raise ValidationException(
+                field="step_microphone_verification_provider",
+                details={
+                    "reason": "STEP microphone verifier provider is only valid for STEP_BY_STEP microphone sessions."
+                },
+            )
+        return None
+
+    provider = requested_provider or PracticeStepMicrophoneVerificationProvider.SERVER
+    if provider == PracticeStepMicrophoneVerificationProvider.BROWSER_LOCAL:
+        required_capability = PracticeBrowserVerifierCapability.STEP_MICROPHONE_VERIFIER_V1
+        if required_capability not in set(browser_verifier_capabilities):
+            raise ValidationException(
+                field="browser_verifier_capabilities",
+                details={
+                    "reason": "BROWSER_LOCAL STEP microphone verification requires explicit browser verifier capability."
+                },
+            )
+    return provider
 
 
 class PracticeService:
@@ -166,10 +198,23 @@ class PracticeService:
         preset: PracticeSessionPreset = PracticeSessionPreset.STEP_BY_STEP,
         input_source: PracticeInputSource = PracticeInputSource.MICROPHONE,
         practice_scope: PracticeSessionScope | None = None,
+        step_microphone_verification_provider: PracticeStepMicrophoneVerificationProvider | None = None,
+        browser_verifier_capabilities: Sequence[PracticeBrowserVerifierCapability] = (),
     ) -> PracticeSessionStartRead:
         runtime_config = canonical_runtime_config_for_preset(
             preset=preset,
             input_source=input_source,
+        )
+        runtime_kind = canonical_runtime_kind_for_execution_config(
+            progression_mode=runtime_config.progression_mode,
+            realtime_guidance=runtime_config.realtime_guidance,
+            evaluation_profile=runtime_config.evaluation_profile,
+        )
+        provider = _step_microphone_verification_provider_for_session(
+            runtime_kind=runtime_kind.value,
+            input_source=runtime_config.input_source,
+            requested_provider=step_microphone_verification_provider,
+            browser_verifier_capabilities=browser_verifier_capabilities,
         )
         self._validate_session_policy(
             progression_mode=runtime_config.progression_mode,
@@ -203,6 +248,7 @@ class PracticeService:
             realtime_guidance=runtime_config.realtime_guidance,
             evaluation_profile=runtime_config.evaluation_profile,
             input_source=runtime_config.input_source,
+            step_microphone_verification_provider=provider,
             scope_start_expected_group_id=(
                 practice_scope.start_expected_group_id if practice_scope else None
             ),
@@ -408,6 +454,11 @@ class PracticeService:
                 realtime_guidance=session.realtime_guidance.value,
                 evaluation_profile=session.evaluation_profile.value,
                 input_source=session.input_source.value,
+                step_microphone_verification_provider=(
+                    session.step_microphone_verification_provider.value
+                    if session.step_microphone_verification_provider is not None
+                    else None
+                ),
                 start_expected_group_id=session.scope_start_expected_group_id,
                 end_expected_group_id=session.scope_end_expected_group_id,
                 runtime_kind=canonical_runtime_kind_for_execution_config(

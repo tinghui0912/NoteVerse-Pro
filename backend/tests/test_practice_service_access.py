@@ -25,9 +25,10 @@ from app.db.models.practice import (
     PracticeSessionCompletionReason,
     PracticeSessionSummaryStatus,
     PracticeSessionState,
+    PracticeStepMicrophoneVerificationProvider,
 )
 from app.modules.practice.service import PracticeService
-from app.modules.practice.schemas import PracticeSessionScope
+from app.modules.practice.schemas import PracticeBrowserVerifierCapability, PracticeSessionScope
 from app.modules.practice.session_config import PracticeSessionPreset
 from app.modules.score_access.policy import ScoreAction
 from app.processing.engines.practice_alignment.target_catalog import (
@@ -71,6 +72,7 @@ def _session(
         realtime_guidance=PracticeRealtimeGuidance.GUIDED,
         evaluation_profile=PracticeEvaluationProfile.LEARNING,
         input_source=PracticeInputSource.MICROPHONE,
+        step_microphone_verification_provider=PracticeStepMicrophoneVerificationProvider.SERVER,
         scope_start_expected_group_id=None,
         scope_end_expected_group_id=None,
         scope_start_measure_number=None,
@@ -751,6 +753,14 @@ async def test_create_session_requires_a_canonical_revision_source() -> None:
     assert created_session.realtime_guidance == PracticeRealtimeGuidance.GUIDED
     assert created_session.evaluation_profile == PracticeEvaluationProfile.LEARNING
     assert created_session.input_source == PracticeInputSource.MICROPHONE
+    assert (
+        created_session.step_microphone_verification_provider
+        == PracticeStepMicrophoneVerificationProvider.SERVER
+    )
+    assert (
+        session_start.step_microphone_verification_provider
+        == PracticeStepMicrophoneVerificationProvider.SERVER
+    )
 
     asset_repository.canonical_source = AsyncMock(return_value=None)
     with pytest.raises(ResourceNotFoundException) as error:
@@ -765,6 +775,108 @@ async def test_create_session_requires_a_canonical_revision_source() -> None:
         )
 
     assert error.value.code == ErrorCode.FILE_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_create_session_requires_browser_capability_for_browser_local_step_microphone() -> None:
+    repository = Mock()
+    repository.create_session = AsyncMock(side_effect=lambda _db, value: value)
+    access_policy = Mock()
+    access_policy.authorize = AsyncMock(
+        return_value=SimpleNamespace(
+            score=SimpleNamespace(id=11),
+            revision=SimpleNamespace(id=12),
+            origin="OWNER",
+            grant=None,
+        )
+    )
+    asset_repository = Mock()
+    asset_repository.canonical_source = AsyncMock(
+        return_value=SimpleNamespace(storage_key="scores/score-1.musicxml")
+    )
+    service = PracticeService(
+        repository=repository,
+        access_policy=access_policy,
+        asset_repository=asset_repository,
+    )
+
+    with pytest.raises(ValidationException) as missing_capability:
+        await service.create_session(
+            Mock(),
+            score_uuid="score-1",
+            user_id=7,
+            revision_uuid="revision-1",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+            step_microphone_verification_provider=(
+                PracticeStepMicrophoneVerificationProvider.BROWSER_LOCAL
+            ),
+        )
+
+    assert missing_capability.value.details["field"] == "browser_verifier_capabilities"
+    repository.create_session.assert_not_awaited()
+
+    session_start = await service.create_session(
+        Mock(),
+        score_uuid="score-1",
+        user_id=7,
+        revision_uuid="revision-1",
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+        step_microphone_verification_provider=(
+            PracticeStepMicrophoneVerificationProvider.BROWSER_LOCAL
+        ),
+        browser_verifier_capabilities=(
+            PracticeBrowserVerifierCapability.STEP_MICROPHONE_VERIFIER_V1,
+        ),
+    )
+
+    created_session = repository.create_session.await_args.args[1]
+    assert (
+        created_session.step_microphone_verification_provider
+        == PracticeStepMicrophoneVerificationProvider.BROWSER_LOCAL
+    )
+    assert (
+        session_start.step_microphone_verification_provider
+        == PracticeStepMicrophoneVerificationProvider.BROWSER_LOCAL
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_session_rejects_step_microphone_provider_outside_step_microphone() -> None:
+    service = PracticeService()
+
+    with pytest.raises(ValidationException) as midi_error:
+        await service.create_session(
+            Mock(),
+            score_uuid="score-1",
+            user_id=7,
+            revision_uuid="revision-1",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+            input_source=PracticeInputSource.MIDI,
+            step_microphone_verification_provider=PracticeStepMicrophoneVerificationProvider.SERVER,
+        )
+
+    assert midi_error.value.details["field"] == "step_microphone_verification_provider"
+
+    with pytest.raises(ValidationException) as continuous_error:
+        await service.create_session(
+            Mock(),
+            score_uuid="score-1",
+            user_id=7,
+            revision_uuid="revision-1",
+            sample_rate=16000,
+            channels=1,
+            frame_format="pcm_s16le",
+            preset=PracticeSessionPreset.CONTINUOUS_PLAY,
+            step_microphone_verification_provider=PracticeStepMicrophoneVerificationProvider.SERVER,
+        )
+
+    assert continuous_error.value.details["field"] == "step_microphone_verification_provider"
 
 
 @pytest.mark.asyncio
@@ -804,6 +916,7 @@ async def test_prepare_runtime_registers_the_authorized_session() -> None:
         realtime_guidance=PracticeRealtimeGuidance.GUIDED,
         evaluation_profile=PracticeEvaluationProfile.LEARNING,
         input_source=PracticeInputSource.MICROPHONE,
+        step_microphone_verification_provider="SERVER",
         start_expected_group_id=None,
         end_expected_group_id=None,
         runtime_kind="STEP_BY_STEP",
@@ -817,6 +930,7 @@ async def test_prepare_runtime_registers_fixed_clock_performance_session() -> No
     session.realtime_guidance = PracticeRealtimeGuidance.STATUS_ONLY
     session.evaluation_profile = PracticeEvaluationProfile.PERFORMANCE
     session.input_source = PracticeInputSource.MIDI
+    session.step_microphone_verification_provider = None
     session.scope_start_expected_group_id = "entry-4"
     session.scope_end_expected_group_id = "entry-6"
     service, repository, runtime_registry, _library = _service_with_session(session)
@@ -853,9 +967,43 @@ async def test_prepare_runtime_registers_fixed_clock_performance_session() -> No
         realtime_guidance=PracticeRealtimeGuidance.STATUS_ONLY,
         evaluation_profile=PracticeEvaluationProfile.PERFORMANCE,
         input_source=PracticeInputSource.MIDI,
+        step_microphone_verification_provider=None,
         start_expected_group_id="entry-4",
         end_expected_group_id="entry-6",
         runtime_kind="FIXED_CLOCK_PERFORMANCE",
+    )
+
+
+@pytest.mark.asyncio
+async def test_prepare_runtime_carries_browser_local_provider_selection() -> None:
+    session = _session()
+    session.step_microphone_verification_provider = (
+        PracticeStepMicrophoneVerificationProvider.BROWSER_LOCAL
+    )
+    service, _repository, runtime_registry, _library = _service_with_session(session)
+    database = Mock()
+    database.get = AsyncMock(
+        side_effect=[
+            SimpleNamespace(score_uuid="score-1"),
+            SimpleNamespace(id=12, revision_uuid="revision-1"),
+        ]
+    )
+    service.asset_repository = Mock()
+    service.asset_repository.canonical_source = AsyncMock(
+        return_value=SimpleNamespace(storage_key="scores/score-1.musicxml")
+    )
+    service.storage = Mock()
+    service.storage.local_path.return_value = "/cache/score-1.musicxml"
+    service.storage.materialize_to_local.return_value = "/materialized/score-1.musicxml"
+    runtime = SimpleNamespace()
+    runtime_registry.get.return_value = None
+    runtime_registry.register.return_value = runtime
+
+    assert await service.prepare_stream_runtime(database, "session-1", 7) is runtime
+
+    assert (
+        runtime_registry.register.call_args.kwargs["step_microphone_verification_provider"]
+        == "BROWSER_LOCAL"
     )
 
 
@@ -1050,6 +1198,7 @@ async def test_create_session_accepts_wait_for_note_midi_policy() -> None:
 
     created_session = repository.create_session.await_args.args[1]
     assert created_session.input_source == PracticeInputSource.MIDI
+    assert created_session.step_microphone_verification_provider is None
 
 
 @pytest.mark.asyncio
@@ -1092,6 +1241,7 @@ async def test_create_session_accepts_continuous_play_midi_policy() -> None:
     assert created_session.realtime_guidance == PracticeRealtimeGuidance.STATUS_ONLY
     assert created_session.evaluation_profile == PracticeEvaluationProfile.PERFORMANCE
     assert created_session.input_source == PracticeInputSource.MIDI
+    assert created_session.step_microphone_verification_provider is None
 
 
 @pytest.mark.asyncio

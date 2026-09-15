@@ -222,6 +222,12 @@ class PracticeSessionRuntime:
             return None
         return current_target()
 
+    def publishes_step_verifier_targets(self) -> bool:
+        return getattr(self.engine, "verification_provider", None) == "BROWSER_LOCAL"
+
+    def accepts_binary_audio(self) -> bool:
+        return getattr(self.engine, "verification_provider", None) != "BROWSER_LOCAL"
+
     def consume_ready_notification(self) -> bool:
         if not self.pending_ready_notification:
             return False

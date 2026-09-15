@@ -140,6 +140,8 @@ async def _send_step_verifier_target_if_available(
     websocket: WebSocket,
     runtime: PracticeSessionRuntime,
 ) -> None:
+    if not runtime.publishes_step_verifier_targets():
+        return
     target = runtime.current_step_verifier_target()
     if target is not None:
         await websocket.send_json(step_verifier_target_message(target))
@@ -164,6 +166,8 @@ async def create_practice_session(
         preset=request.preset,
         input_source=request.input_source,
         practice_scope=request.practice_scope,
+        step_microphone_verification_provider=request.step_microphone_verification_provider,
+        browser_verifier_capabilities=request.browser_verifier_capabilities,
     )
     return success_response(data=result, message=SuccessCode.PRACTICE_SESSION_CREATED)
 
@@ -604,6 +608,10 @@ async def stream_practice_session(
                     state = _practice_session_state_value(detail)
                     step_runtime.state = state
                     await websocket.send_json(state_changed_message(state))
+                    await _send_step_verifier_target_if_available(
+                        websocket=websocket,
+                        runtime=step_runtime,
+                    )
                     phase = "streaming"
                 elif message_type == "client.finish":
                     if isinstance(runtime, PerformancePracticeSessionRuntime):
@@ -784,6 +792,8 @@ async def stream_practice_session(
                     continue
                 step_runtime = runtime
                 if step_runtime.state != "STREAMING":
+                    continue
+                if not step_runtime.accepts_binary_audio():
                     continue
                 phase = "streaming_audio"
                 try:
