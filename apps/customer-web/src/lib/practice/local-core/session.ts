@@ -22,7 +22,6 @@ export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
   step: {
     currentIndex: number;
     activationGeneration: number;
-    activationBoundaryMs: number;
     completed: boolean;
     attempts: LocalPracticeAttempt[];
   };
@@ -59,6 +58,7 @@ export type LocalPracticeAttempt = {
 };
 
 export type LocalPerformanceObservationRecord = {
+  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
   captureTimeMs: number;
   inferenceCompletedAtMs?: number;
   pitches: string[];

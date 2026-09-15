@@ -13,7 +13,7 @@ export type PracticeScoreArtifact = {
   practiceAttackSteps: PracticeAttackStep[];
   meterSegments: MeterSegment[];
   tempoSegments: TempoSegment[];
-  firstPlayableBeat: number;
+  firstPlayableBeat: number | null;
   scoreEndBeat: number;
 };
 

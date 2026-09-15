@@ -9,6 +9,7 @@ import {
 } from './artifact';
 import { pitchSetsEqual, type StepVerifierObservation, type StepVerifierTarget } from './evidence';
 import type { LocalClock, RuntimeVersionIdentity } from './timebase';
+import type { DurableClock } from './timebase';
 import {
   createLocalSessionId,
   type LocalPracticeAttempt,
@@ -34,6 +35,7 @@ export type StepPracticeRuntimeOptions = {
   inputSource?: 'MICROPHONE' | 'MIDI';
   localSessionId?: string;
   clock: LocalClock;
+  metadataClock?: DurableClock;
   version?: RuntimeVersionIdentity;
   snapshot?: LocalStepSessionSnapshot;
 };
@@ -44,6 +46,7 @@ export class StepPracticeRuntime {
 
   private readonly scope = resolvePracticeScope;
   private readonly clock: LocalClock;
+  private readonly metadataClock: DurableClock;
   private readonly resolvedScope;
   private currentIndex: number;
   private activationGeneration: number;
@@ -52,11 +55,13 @@ export class StepPracticeRuntime {
   private completed: boolean;
   private readonly version: RuntimeVersionIdentity;
   private readonly inputSource: 'MICROPHONE' | 'MIDI';
+  private readonly createdAtMs: number;
 
   constructor(options: StepPracticeRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact);
     this.artifact = options.artifact;
     this.clock = options.clock;
+    this.metadataClock = options.metadataClock ?? { nowEpochMs: () => Date.now() };
     this.version = options.version ?? {
       schemaVersion: 1,
       runtimeVersion: 'local-practice-core-v1',
@@ -67,9 +72,12 @@ export class StepPracticeRuntime {
     this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
     this.resolvedScope = this.scope(this.artifact, options.snapshot?.practiceScope ?? options.scope);
     this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
+    this.createdAtMs = options.snapshot?.createdAtMs ?? this.metadataClock.nowEpochMs();
     this.currentIndex = options.snapshot?.step.currentIndex ?? this.resolvedScope.startIndex;
-    this.activationGeneration = options.snapshot?.step.activationGeneration ?? 1;
-    this.activationBoundaryMs = options.snapshot?.step.activationBoundaryMs ?? -1;
+    this.activationGeneration = options.snapshot
+      ? options.snapshot.step.activationGeneration + 1
+      : 1;
+    this.activationBoundaryMs = options.snapshot ? this.clock.nowMs() : -1;
     this.attempts = [...(options.snapshot?.step.attempts ?? [])];
     this.completed = options.snapshot?.step.completed ?? false;
   }
@@ -146,7 +154,7 @@ export class StepPracticeRuntime {
   }
 
   snapshot(): LocalStepSessionSnapshot {
-    const nowMs = this.clock.nowMs();
+    const nowMs = this.metadataClock.nowEpochMs();
     return {
       localSessionId: this.localSessionId,
       scoreId: this.artifact.scoreId,
@@ -160,12 +168,11 @@ export class StepPracticeRuntime {
       },
       lifecycleState: this.completed ? 'ENDED' : 'ACTIVE',
       version: this.version,
-      createdAtMs: nowMs,
+      createdAtMs: this.createdAtMs,
       updatedAtMs: nowMs,
       step: {
         currentIndex: this.currentIndex,
         activationGeneration: this.activationGeneration,
-        activationBoundaryMs: this.activationBoundaryMs,
         completed: this.completed,
         attempts: [...this.attempts],
       },
@@ -231,9 +238,6 @@ function validateStepSnapshot(
   }
   if (!Number.isInteger(snapshot.step.activationGeneration) || snapshot.step.activationGeneration < 1) {
     throw new Error('Invalid STEP snapshot activation generation.');
-  }
-  if (!Number.isFinite(snapshot.step.activationBoundaryMs)) {
-    throw new Error('Invalid STEP snapshot activation boundary.');
   }
 }
 

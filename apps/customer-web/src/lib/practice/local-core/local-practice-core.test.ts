@@ -4,7 +4,9 @@ import canonicalArtifactJson from './__fixtures__/canonical-practice-score-artif
 import {
   InMemoryPracticeSessionStore,
   ManualClock,
+  ManualDurableClock,
   PerformancePracticeRuntime,
+  PracticeTimebase,
   StepPracticeRuntime,
   countInContractAt,
   entryGroupEndBeat,
@@ -234,6 +236,36 @@ describe('local STEP practice runtime', () => {
       },
     })).toThrow(/Unsupported/);
   });
+
+  it('re-establishes STEP activation after restore under a new monotonic clock origin', () => {
+    const oldClock = new ManualClock(100_000);
+    const runtime = new StepPracticeRuntime({ artifact, clock: oldClock });
+    runtime.observe(observation(runtime, ['C4'], { attackOnsetTimeMs: 100_010, captureTimeMs: 100_010 }));
+    const snapshot = runtime.snapshot();
+    expect(snapshot.step.activationGeneration).toBe(2);
+
+    const restored = new StepPracticeRuntime({ artifact, clock: new ManualClock(0), snapshot });
+    const restoredTarget = restored.currentTarget();
+    expect(restoredTarget).toMatchObject({
+      stepId: artifact.practiceAttackSteps[1].stepId,
+      activationGeneration: 3,
+      activationBoundaryMs: 0,
+    });
+
+    expect(restored.observe({
+      stepId: restoredTarget?.stepId ?? '',
+      activationGeneration: snapshot.step.activationGeneration,
+      attackOnsetTimeMs: 100_020,
+      observedAttackPitches: ['C4'],
+      confidence: 1,
+      captureTimeMs: 100_020,
+      source: 'FAKE',
+    })).toMatchObject({ kind: 'WAIT', reason: 'stale_activation' });
+
+    expect(restored.observe(observation(restored, ['C4'], { attackOnsetTimeMs: 200, captureTimeMs: 200 }))).toMatchObject({
+      kind: 'MATCH',
+    });
+  });
 });
 
 describe('local CONTINUOUS practice runtime', () => {
@@ -386,6 +418,81 @@ describe('local CONTINUOUS practice runtime', () => {
     });
   });
 
+  it('preserves READY PAUSED and ENDED restore states explicitly', () => {
+    const ready = new PerformancePracticeRuntime({ artifact, clock: new ManualClock(0) });
+    expect(new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(5_000),
+      snapshot: ready.snapshotSession(),
+    }).snapshot().state).toBe('READY');
+
+    const pausedClock = new ManualClock(0);
+    const paused = new PerformancePracticeRuntime({ artifact, clock: pausedClock, countInBeats: 0 });
+    paused.start();
+    pausedClock.advance(100);
+    paused.pause();
+    expect(new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(10_000),
+      snapshot: paused.snapshotSession(),
+    }).snapshot()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 100 });
+
+    const endedClock = new ManualClock(0);
+    const ended = new PerformancePracticeRuntime({ artifact, clock: endedClock, countInBeats: 0 });
+    ended.start();
+    endedClock.advance(10_000);
+    ended.snapshot();
+    expect(new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(20_000),
+      snapshot: ended.snapshotSession(),
+    }).snapshot().state).toBe('ENDED');
+  });
+
+  it('keeps durable metadata time separate from runtime monotonic time', () => {
+    const runtimeClock = new ManualClock(10_000);
+    const metadataClock = new ManualDurableClock(1_000_000);
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      clock: runtimeClock,
+      metadataClock,
+      countInBeats: 0,
+    });
+    const first = runtime.snapshotSession();
+    metadataClock.advance(5_000);
+    runtimeClock.advance(100);
+    const second = runtime.snapshotSession();
+
+    expect(second.createdAtMs).toBe(first.createdAtMs);
+    expect(second.updatedAtMs).toBe(1_005_000);
+    expect(second.performance.activeElapsedMs).toBe(0);
+  });
+
+  it('preserves observation source and outcomes across persistence', () => {
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      clock,
+      inputSource: 'MIDI',
+      countInBeats: 0,
+    });
+    runtime.start();
+    runtime.observeEvidence({ captureTimeMs: 0, pitches: ['C4'], confidence: 1, source: 'MIDI' });
+    const uninterruptedOutcomes = runtime.evaluationOutcomes;
+
+    const restored = new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(10_000),
+      inputSource: 'MIDI',
+      snapshot: runtime.snapshotSession(),
+    });
+    expect(restored.evaluationObservations[0]?.source).toBe('MIDI');
+    expect(restored.evaluationOutcomes).toEqual(uninterruptedOutcomes);
+    restored.resume();
+    restored.observeEvidence({ captureTimeMs: 10_500, pitches: ['C4'], confidence: 1, source: 'MIDI' });
+    expect(restored.evaluationObservations.map((item) => item.source)).toEqual(['MIDI', 'MIDI']);
+  });
+
   it('rejects incompatible performance snapshots', () => {
     const runtime = new PerformancePracticeRuntime({ artifact, clock: new ManualClock(), inputSource: 'MIDI' });
     const snapshot = runtime.snapshotSession();
@@ -423,5 +530,32 @@ describe('local session foundation', () => {
       snapshot: saved && saved.mode === 'STEP_BY_STEP' ? saved : undefined,
     });
     expect(restored.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[1].stepId);
+  });
+
+  it('defines one comparable local session timebase for runtime and sample-index evidence', () => {
+    const timebase = new PracticeTimebase(1_000, 16_000);
+
+    expect(timebase.runtimeToSessionTime(1_250)).toEqual({ sessionTimeMs: 250 });
+    expect(timebase.sampleIndexToSessionTime(3_200)).toEqual({
+      sessionTimeMs: 200,
+      sampleIndex: 3_200,
+    });
+    expect(() => timebase.assertSameSessionTimeDomain(
+      timebase.runtimeToSessionTime(1_250),
+      timebase.sampleIndexToSessionTime(3_200)
+    )).not.toThrow();
+  });
+
+  it('rejects empty artifacts before local practice instead of inventing playable state', () => {
+    const empty = cloneArtifact({
+      artifactId: 'empty-artifact',
+      firstPlayableBeat: null,
+      scoreEndBeat: 0,
+      playableEvents: [],
+      expectedPracticeGroups: [],
+      practiceAttackSteps: [],
+    });
+    expect(() => new StepPracticeRuntime({ artifact: empty, clock: new ManualClock() })).toThrow(/at least one expected group/);
+    expect(() => new PerformancePracticeRuntime({ artifact: empty, clock: new ManualClock() })).toThrow(/at least one expected group/);
   });
 });

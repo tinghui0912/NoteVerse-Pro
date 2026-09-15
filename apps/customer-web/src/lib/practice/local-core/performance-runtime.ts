@@ -14,7 +14,7 @@ import type {
   PerformanceEvidenceObservation,
   PerformanceExpectedEventOutcome,
 } from './evidence';
-import type { LocalClock, RuntimeVersionIdentity } from './timebase';
+import type { DurableClock, LocalClock, RuntimeVersionIdentity } from './timebase';
 import {
   createLocalSessionId,
   type LocalPerformanceSessionSnapshot,
@@ -41,6 +41,7 @@ export type PerformancePracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact;
   scope?: PracticeScope;
   clock: LocalClock;
+  metadataClock?: DurableClock;
   inputSource?: PracticeInputSource;
   speedRatio?: number;
   countInBeats?: number;
@@ -63,6 +64,7 @@ export class PerformancePracticeRuntime {
   readonly localSessionId: string;
 
   private readonly clock: LocalClock;
+  private readonly metadataClock: DurableClock;
   private readonly version: RuntimeVersionIdentity;
   private readonly inputSource: PracticeInputSource;
   private readonly speedRatio: number;
@@ -72,6 +74,7 @@ export class PerformancePracticeRuntime {
   private readonly countInBeats: number;
   private readonly countInPulses: number;
   private readonly evaluator: LocalPerformanceEvaluator;
+  private readonly createdAtMs: number;
   private state: PerformanceRuntimeState = 'READY';
   private stateBeforePause: PerformanceRuntimeState = 'READY';
   private activeElapsedMs = 0;
@@ -84,6 +87,7 @@ export class PerformancePracticeRuntime {
     assertPracticeScoreArtifact(options.artifact);
     this.artifact = options.artifact;
     this.clock = options.clock;
+    this.metadataClock = options.metadataClock ?? { nowEpochMs: () => Date.now() };
     this.version = options.version ?? {
       schemaVersion: 1,
       runtimeVersion: 'local-practice-core-v1',
@@ -109,16 +113,18 @@ export class PerformancePracticeRuntime {
       scope: this.scope,
     });
     this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
+    this.createdAtMs = options.snapshot?.createdAtMs ?? this.metadataClock.nowEpochMs();
 
     if (options.snapshot) {
-      this.state = options.snapshot.performance.state === 'ENDED' ? 'ENDED' : 'PAUSED';
+      this.state = options.snapshot.performance.state === 'READY' || options.snapshot.performance.state === 'ENDED'
+        ? options.snapshot.performance.state
+        : 'PAUSED';
       this.stateBeforePause = options.snapshot.performance.state === 'PAUSED'
         ? options.snapshot.performance.stateBeforePause
         : options.snapshot.performance.state;
       this.activeElapsedMs = options.snapshot.performance.activeElapsedMs;
       this.observations = options.snapshot.performance.observations.map((observation) => ({
         ...observation,
-        source: 'FAKE',
       }));
       this.outcomes = options.snapshot.performance.outcomes.map((outcome) => ({
         ...outcome,
@@ -189,7 +195,7 @@ export class PerformancePracticeRuntime {
   }
 
   snapshotSession(): LocalPerformanceSessionSnapshot {
-    const nowMs = this.clock.nowMs();
+    const nowMs = this.metadataClock.nowEpochMs();
     return {
       localSessionId: this.localSessionId,
       scoreId: this.artifact.scoreId,
@@ -203,7 +209,7 @@ export class PerformancePracticeRuntime {
       },
       lifecycleState: this.state === 'ENDED' ? 'ENDED' : this.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
       version: this.version,
-      createdAtMs: nowMs,
+      createdAtMs: this.createdAtMs,
       updatedAtMs: nowMs,
       performance: {
         state: this.state,
@@ -216,6 +222,7 @@ export class PerformancePracticeRuntime {
         countInBeats: this.countInBeats,
         countInPulses: this.countInPulses,
         observations: this.observations.map((observation) => ({
+          source: observation.source,
           captureTimeMs: observation.captureTimeMs,
           inferenceCompletedAtMs: observation.inferenceCompletedAtMs,
           pitches: observation.pitches,
