@@ -1,0 +1,93 @@
+import type { PracticeInputSource, PracticeMode, PracticeScope } from './artifact';
+import type { RuntimeVersionIdentity } from './timebase';
+
+export type PracticeLifecycleState = 'CREATED' | 'ACTIVE' | 'PAUSED' | 'ENDED';
+
+export type LocalPracticeSessionBase = {
+  localSessionId: string;
+  scoreId: string;
+  revisionId: string;
+  artifactId: string;
+  mode: PracticeMode;
+  inputSource: PracticeInputSource;
+  practiceScope?: PracticeScope;
+  lifecycleState: PracticeLifecycleState;
+  version: RuntimeVersionIdentity;
+  createdAtMs: number;
+  updatedAtMs: number;
+};
+
+export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
+  mode: 'STEP_BY_STEP';
+  step: {
+    currentIndex: number;
+    activationGeneration: number;
+    completed: boolean;
+    attempts: LocalPracticeAttempt[];
+  };
+};
+
+export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
+  mode: 'CONTINUOUS_PLAY';
+  performance: {
+    state: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
+    speedRatio: number;
+    scopeStartBeat: number;
+    scopeTerminalBeat: number;
+    startedAtMs: number | null;
+    pausedAtMs: number | null;
+    pausedAccumulatedMs: number;
+    countInMs: number;
+    observations: LocalPerformanceObservationRecord[];
+  };
+};
+
+export type LocalPracticeSessionSnapshot =
+  | LocalStepSessionSnapshot
+  | LocalPerformanceSessionSnapshot;
+
+export type LocalPracticeAttempt = {
+  attemptId: string;
+  stepId: string;
+  result: 'MATCH' | 'WAIT' | 'SKIPPED';
+  observedAttackPitches: string[];
+  confidence: number;
+  createdAtMs: number;
+};
+
+export type LocalPerformanceObservationRecord = {
+  captureTimeMs: number;
+  inferenceCompletedAtMs?: number;
+  pitches: string[];
+  confidence: number;
+  performanceTimeMs: number;
+  musicalBeat: number;
+};
+
+export type LocalPracticeSessionStore = {
+  save(snapshot: LocalPracticeSessionSnapshot): Promise<void> | void;
+  load(localSessionId: string): Promise<LocalPracticeSessionSnapshot | null> | LocalPracticeSessionSnapshot | null;
+  delete(localSessionId: string): Promise<void> | void;
+};
+
+export class InMemoryPracticeSessionStore implements LocalPracticeSessionStore {
+  private readonly snapshots = new Map<string, LocalPracticeSessionSnapshot>();
+
+  save(snapshot: LocalPracticeSessionSnapshot): void {
+    this.snapshots.set(snapshot.localSessionId, structuredClone(snapshot));
+  }
+
+  load(localSessionId: string): LocalPracticeSessionSnapshot | null {
+    const snapshot = this.snapshots.get(localSessionId);
+    return snapshot ? structuredClone(snapshot) : null;
+  }
+
+  delete(localSessionId: string): void {
+    this.snapshots.delete(localSessionId);
+  }
+}
+
+export function createLocalSessionId(prefix = 'local-practice'): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+  return `${prefix}:${random}`;
+}
