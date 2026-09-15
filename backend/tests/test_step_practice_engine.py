@@ -41,6 +41,7 @@ class RecordingStepVerifier:
             if self.auto_match:
                 return StepVerifierObservation(
                     step_id=target.step_id,
+                    activation_generation=target.activation_generation,
                     observed_attack_pitches=target.attack_pitches,
                     confidence=0.97,
                 )
@@ -165,11 +166,12 @@ def make_engine(
 
 
 def observation_for_current(engine: StepPracticeEngine, *, confidence: float = 0.93) -> StepVerifierObservation:
-    step = engine._follow_policy.current_attack_step
-    assert step is not None
+    target = engine.current_step_verifier_target()
+    assert target is not None
     return StepVerifierObservation(
-        step_id=step.step_id,
-        observed_attack_pitches=tuple(target.pitch for target in step.attack_targets),
+        step_id=target.step_id,
+        activation_generation=target.activation_generation,
+        observed_attack_pitches=target.attack_pitches,
         confidence=confidence,
     )
 
@@ -265,6 +267,106 @@ def test_runtime_registry_uses_injected_step_verifier_for_step_by_step_sessions(
     assert update["decision"]["action"] == "advance"
     assert runtime.engine._follow_policy.current_expected_group.pitches == ("D4",)
     registry.release("session-1")
+
+
+def test_runtime_registry_can_construct_browser_local_step_runtime() -> None:
+    registry = PracticeSessionRuntimeRegistry()
+    with patch(
+        "app.processing.engines.practice_alignment.step_practice_engine.practice_score_timeline_from_musicxml",
+        return_value=simple_timeline(),
+    ):
+        runtime = registry.register(
+            session_id="session-1",
+            task_id="task-1",
+            state="CREATED",
+            score_file_path="score.xml",
+            step_microphone_verification_provider="BROWSER_LOCAL",
+        )
+
+    assert isinstance(runtime.engine, StepPracticeEngine)
+    assert runtime.engine.verification_provider == "BROWSER_LOCAL"
+    target = runtime.current_step_verifier_target()
+    assert target is not None
+    assert target.activation_generation == 1
+    assert target.attack_pitches == ("C4",)
+
+    update = runtime.process_step_verifier_observation(
+        StepVerifierObservation(
+            step_id=target.step_id,
+            activation_generation=target.activation_generation,
+            observed_attack_pitches=target.attack_pitches,
+            confidence=0.96,
+        )
+    )
+
+    assert update is not None
+    assert update["decision"]["action"] == "advance"
+    next_target = runtime.current_step_verifier_target()
+    assert next_target is not None
+    assert next_target.attack_pitches == ("D4",)
+    assert next_target.activation_generation == target.activation_generation + 1
+    registry.release("session-1")
+
+
+def test_browser_local_step_runtime_rejects_stale_generation() -> None:
+    engine = StepPracticeEngine(
+        score_file_path="score.xml",
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+        score_timeline=simple_timeline(),
+        verification_provider="BROWSER_LOCAL",
+    )
+    target = engine.current_step_verifier_target()
+    assert target is not None
+
+    assert engine.ingest_step_verifier_observation(
+        StepVerifierObservation(
+            step_id=target.step_id,
+            activation_generation=target.activation_generation,
+            observed_attack_pitches=target.attack_pitches,
+            confidence=1.0,
+        )
+    )
+    next_target = engine.current_step_verifier_target()
+    assert next_target is not None
+
+    assert engine.ingest_step_verifier_observation(
+        StepVerifierObservation(
+            step_id=target.step_id,
+            activation_generation=target.activation_generation,
+            observed_attack_pitches=target.attack_pitches,
+            confidence=1.0,
+        )
+    ) is None
+    assert engine._follow_policy.current_expected_group.pitches == ("D4",)
+
+
+def test_browser_local_step_runtime_waits_on_pcm_or_wrong_attack_set() -> None:
+    engine = StepPracticeEngine(
+        score_file_path="score.xml",
+        sample_rate=16000,
+        channels=1,
+        frame_format="pcm_s16le",
+        score_timeline=simple_timeline(),
+        verification_provider="BROWSER_LOCAL",
+    )
+    target = engine.current_step_verifier_target()
+    assert target is not None
+
+    assert engine.ingest_audio((1000).to_bytes(2, "little", signed=True)) is None
+    assert engine.current_step_verifier_target() == target
+    assert engine.input_health["available"] is True
+
+    assert engine.ingest_step_verifier_observation(
+        StepVerifierObservation(
+            step_id=target.step_id,
+            activation_generation=target.activation_generation,
+            observed_attack_pitches=("D4",),
+            confidence=0.99,
+        )
+    ) is None
+    assert engine.current_step_verifier_target() == target
 
 
 def test_midi_step_builder_does_not_require_microphone_verifier() -> None:
@@ -363,9 +465,12 @@ def test_stale_or_wrong_observation_waits_without_advancing() -> None:
     wrong_engine = make_engine(verifier=wrong_verifier)
     current_step = wrong_engine._follow_policy.current_attack_step
     assert current_step is not None
+    current_target = wrong_engine.current_step_verifier_target()
+    assert current_target is not None
     wrong_verifier.observations.append(
         StepVerifierObservation(
             step_id=current_step.step_id,
+            activation_generation=current_target.activation_generation,
             observed_attack_pitches=("D4",),
             confidence=1.0,
         )

@@ -286,6 +286,58 @@ def _short_performance_session_runtime(
     )
 
 
+def _browser_local_step_timeline() -> PracticeScoreTimeline:
+    return PracticeScoreTimeline(
+        events=(
+            PracticeScoreEvent(
+                event_id="event-c",
+                onset_beat=1.0,
+                duration_beats=1.0,
+                pitches=("C4",),
+                render_note_ids=("n1",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+            PracticeScoreEvent(
+                event_id="event-d",
+                onset_beat=2.0,
+                duration_beats=1.0,
+                pitches=("D4",),
+                render_note_ids=("n2",),
+                measure_numbers=("1",),
+                staff_ids=("1",),
+                voice_ids=("1",),
+                tie_types=(),
+                playable=True,
+                entry_candidate=True,
+            ),
+        ),
+        entry_groups=(
+            PracticeEntryGroup(
+                group_id="group-c",
+                onset_beat=1.0,
+                event_ids=("event-c",),
+                render_note_ids=("n1",),
+                entry_candidate=True,
+            ),
+            PracticeEntryGroup(
+                group_id="group-d",
+                onset_beat=2.0,
+                event_ids=("event-d",),
+                render_note_ids=("n2",),
+                entry_candidate=True,
+            ),
+        ),
+        first_playable_event_id="event-c",
+        first_playable_beat=1.0,
+        end_beat=3.0,
+    )
+
+
 class FailingEngine:
     def ingest_audio(self, chunk: bytes):
         _ = chunk
@@ -617,6 +669,151 @@ def test_step_by_step_websocket_skip_advances_current_expected_group(
                 assert update["payload"]["decision"]["reason"] == "user_skipped"
                 assert update["payload"]["decision"]["experience_state"] == "skipped"
                 assert update["payload"]["scope_completed"] is False
+    finally:
+        app.dependency_overrides.pop(get_practice_service, None)
+        practice_runtime_registry.clear()
+
+
+def test_step_by_step_websocket_browser_local_verifier_observation_advances_and_publishes_next_target(
+    client: TestClient,
+) -> None:
+    practice_runtime_registry.clear()
+    with patch(
+        "app.processing.engines.practice_alignment.step_practice_engine.practice_score_timeline_from_musicxml",
+        return_value=_browser_local_step_timeline(),
+    ):
+        practice_runtime_registry.register(
+            session_id="session-1",
+            task_id="task-1",
+            state="CREATED",
+            score_file_path="score.xml",
+            step_microphone_verification_provider="BROWSER_LOCAL",
+        )
+
+    app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
+
+    async def fake_current_user(websocket, db):
+        _ = (websocket, db)
+        return SimpleNamespace(id=1, is_active=True)
+
+    try:
+        with patch("app.modules.practice.router.get_websocket_current_user", fake_current_user):
+            with client.websocket_connect("/api/v1/practice/sessions/session-1/stream") as websocket:
+                websocket.send_json(
+                    {
+                        "protocol_version": 1,
+                        "type": "client.init",
+                        "payload": {
+                            "sample_rate": 16000,
+                            "channels": 1,
+                            "frame_samples": 640,
+                            "progression_mode": "WAIT_FOR_NOTE",
+                            "realtime_guidance": "GUIDED",
+                            "evaluation_profile": "LEARNING",
+                            "input_source": "MICROPHONE",
+                        },
+                    }
+                )
+
+                assert websocket.receive_json()["type"] == "session.connecting"
+                assert websocket.receive_json()["type"] == "session.ready"
+                assert websocket.receive_json()["type"] == "session.armed"
+                first_target = websocket.receive_json()
+                assert first_target["type"] == "step.verifier_target"
+                assert first_target["payload"]["attack_pitches"] == ["C4"]
+                assert first_target["payload"]["activation_generation"] == 1
+
+                websocket.send_json(
+                    {
+                        "protocol_version": 1,
+                        "type": "client.step_verifier_observation",
+                        "payload": {
+                            "step_id": first_target["payload"]["step_id"],
+                            "activation_generation": first_target["payload"]["activation_generation"],
+                            "observed_attack_pitches": first_target["payload"]["attack_pitches"],
+                            "confidence": 0.98,
+                        },
+                    }
+                )
+
+                update = websocket.receive_json()
+                assert update["type"] == "alignment.update"
+                assert update["payload"]["decision"]["action"] == "advance"
+                assert update["payload"]["decision"]["reason"] == "stable_match"
+
+                second_target = websocket.receive_json()
+                assert second_target["type"] == "step.verifier_target"
+                assert second_target["payload"]["attack_pitches"] == ["D4"]
+                assert second_target["payload"]["step_id"] != first_target["payload"]["step_id"]
+                assert (
+                    second_target["payload"]["activation_generation"]
+                    == first_target["payload"]["activation_generation"] + 1
+                )
+    finally:
+        app.dependency_overrides.pop(get_practice_service, None)
+        practice_runtime_registry.clear()
+
+
+def test_step_by_step_websocket_skip_publishes_new_activation_generation(
+    client: TestClient,
+) -> None:
+    practice_runtime_registry.clear()
+    with patch(
+        "app.processing.engines.practice_alignment.step_practice_engine.practice_score_timeline_from_musicxml",
+        return_value=_browser_local_step_timeline(),
+    ):
+        practice_runtime_registry.register(
+            session_id="session-1",
+            task_id="task-1",
+            state="CREATED",
+            score_file_path="score.xml",
+            step_microphone_verification_provider="BROWSER_LOCAL",
+        )
+
+    app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
+
+    async def fake_current_user(websocket, db):
+        _ = (websocket, db)
+        return SimpleNamespace(id=1, is_active=True)
+
+    try:
+        with patch("app.modules.practice.router.get_websocket_current_user", fake_current_user):
+            with client.websocket_connect("/api/v1/practice/sessions/session-1/stream") as websocket:
+                websocket.send_json(
+                    {
+                        "protocol_version": 1,
+                        "type": "client.init",
+                        "payload": {
+                            "sample_rate": 16000,
+                            "channels": 1,
+                            "frame_samples": 640,
+                            "progression_mode": "WAIT_FOR_NOTE",
+                            "realtime_guidance": "GUIDED",
+                            "evaluation_profile": "LEARNING",
+                            "input_source": "MICROPHONE",
+                        },
+                    }
+                )
+
+                websocket.receive_json()
+                websocket.receive_json()
+                websocket.receive_json()
+                first_target = websocket.receive_json()
+
+                websocket.send_json(
+                    {"protocol_version": 1, "type": "client.skip", "payload": {"t": 1}}
+                )
+
+                update = websocket.receive_json()
+                assert update["type"] == "alignment.update"
+                assert update["payload"]["decision"]["action"] == "skip"
+                second_target = websocket.receive_json()
+                assert second_target["type"] == "step.verifier_target"
+                assert second_target["payload"]["step_id"] != first_target["payload"]["step_id"]
+                assert (
+                    second_target["payload"]["activation_generation"]
+                    == first_target["payload"]["activation_generation"] + 1
+                )
     finally:
         app.dependency_overrides.pop(get_practice_service, None)
         practice_runtime_registry.clear()

@@ -29,6 +29,7 @@ from app.processing.engines.practice_alignment.score_timeline import PracticeSco
 from app.processing.engines.practice_alignment.step_microphone_verifier import (
     StepMicrophoneVerifier,
     StepVerifierObservation,
+    StepVerifierTarget,
     step_verifier_target_from_attack_step,
 )
 from app.processing.practice_score.score_loader import practice_score_timeline_from_musicxml
@@ -65,6 +66,7 @@ class StepPracticeEngine:
         start_expected_group_id: str | None = None,
         end_expected_group_id: str | None = None,
         step_microphone_verifier: StepMicrophoneVerifier | None = None,
+        verification_provider: Literal["SERVER", "BROWSER_LOCAL"] = "SERVER",
         score_timeline: PracticeScoreTimeline | None = None,
     ) -> None:
         if input_source != "MICROPHONE":
@@ -77,10 +79,16 @@ class StepPracticeEngine:
             raise RuntimeError("STEP practice sessions require WAIT_FOR_NOTE progression.")
         if realtime_guidance != "GUIDED" or evaluation_profile != "LEARNING":
             raise RuntimeError("STEP practice sessions require canonical learning config.")
-        if step_microphone_verifier is None:
+        if verification_provider not in {"SERVER", "BROWSER_LOCAL"}:
+            raise RuntimeError(f"Unsupported STEP microphone verifier provider: {verification_provider}")
+        if verification_provider == "SERVER" and step_microphone_verifier is None:
             raise RuntimeError(
                 "STEP microphone runtime requires a StepMicrophoneVerifier. "
                 "Legacy acoustic fallback is disabled."
+            )
+        if verification_provider == "BROWSER_LOCAL" and step_microphone_verifier is not None:
+            raise RuntimeError(
+                "STEP microphone runtime must use exactly one acoustic verification provider."
             )
 
         self.score_file_path = score_file_path
@@ -91,6 +99,7 @@ class StepPracticeEngine:
         self.realtime_guidance = realtime_guidance
         self.evaluation_profile = evaluation_profile
         self.input_source = input_source
+        self.verification_provider = verification_provider
         self.total_bytes = 0
         self._closed = False
         self._audio_received = False
@@ -102,6 +111,7 @@ class StepPracticeEngine:
         self._resolved_practice_attempts = ResolvedPracticeAttemptBuffer()
         self._step_microphone_verifier = step_microphone_verifier
         self._last_step_microphone_verifier_observation: StepVerifierObservation | None = None
+        self._activation_generation = 1
 
         self.score_timeline = score_timeline or practice_score_timeline_from_musicxml(score_file_path)
         if self.score_timeline.first_playable_beat is None:
@@ -134,15 +144,21 @@ class StepPracticeEngine:
         if current_group is None or current_attack_step is None:
             return self._completed_update()
 
-        target = step_verifier_target_from_attack_step(current_attack_step)
+        if self.verification_provider != "SERVER":
+            return None
+
+        target = step_verifier_target_from_attack_step(
+            current_attack_step,
+            activation_generation=self._activation_generation,
+        )
         observation = verifier.observe_audio(chunk, target=target)
         if observation is None:
             return None
         self._last_step_microphone_verifier_observation = observation
-        if observation.step_id != current_attack_step.step_id:
-            return None
-        expected_attack_pitches = tuple(target.pitch for target in current_attack_step.attack_targets)
-        if set(observation.observed_attack_pitches) != set(expected_attack_pitches):
+        if not self._is_current_observation(
+            observation,
+            current_attack_step=current_attack_step,
+        ):
             return None
 
         return self._accepted_observation_update(
@@ -161,12 +177,36 @@ class StepPracticeEngine:
         _ = (event_type, note_number, velocity, timestamp_ms)
         raise RuntimeError("Microphone STEP practice sessions do not accept MIDI events.")
 
+    def ingest_step_verifier_observation(
+        self,
+        observation: StepVerifierObservation,
+    ) -> AlignmentUpdate | None:
+        if self._closed:
+            raise RuntimeError("STEP practice engine is closed.")
+        if self.verification_provider != "BROWSER_LOCAL":
+            return None
+        current_group = self._follow_policy.current_expected_group
+        current_attack_step = self._follow_policy.current_attack_step
+        if current_group is None or current_attack_step is None:
+            return self._completed_update()
+        self._last_step_microphone_verifier_observation = observation
+        if not self._is_current_observation(
+            observation,
+            current_attack_step=current_attack_step,
+        ):
+            return None
+        return self._accepted_observation_update(
+            observation=observation,
+            current_group=current_group,
+        )
+
     def reset_input_buffer(self) -> None:
         self._follow_policy.reset()
         self._attempt_assembler.reset()
         self._last_step_microphone_verifier_observation = None
         self._last_beat_position = None
         self._last_alignment_timestamp_ms = None
+        self._activation_generation += 1
         verifier = self._step_microphone_verifier
         if verifier is not None:
             verifier.reset()
@@ -195,6 +235,7 @@ class StepPracticeEngine:
         )
         outcome = self._attempt_assembler.resolve(evaluation, timestamp_ms=timestamp_ms)
         decision = self._follow_policy.skip_current_group()
+        self._activation_generation += 1
         attach_attempt_outcome(decision, outcome)
         display_anchor = decision["display_anchor"]
         beat_position = current_group.onset_beat if display_anchor is None else float(display_anchor["beat"])
@@ -233,6 +274,15 @@ class StepPracticeEngine:
         observation = self._last_step_microphone_verifier_observation
         self._last_step_microphone_verifier_observation = None
         return [] if observation is None else [observation]
+
+    def current_step_verifier_target(self) -> StepVerifierTarget | None:
+        current_attack_step = self._follow_policy.current_attack_step
+        if current_attack_step is None:
+            return None
+        return step_verifier_target_from_attack_step(
+            current_attack_step,
+            activation_generation=self._activation_generation,
+        )
 
     def finalize_pending_practice_attempt(
         self,
@@ -305,6 +355,7 @@ class StepPracticeEngine:
             alignment_beat=current_group.onset_beat,
         )
         decision = self._follow_policy.decide_evaluation(evidence=evidence, evaluation=evaluation)
+        self._activation_generation += 1
         attach_attempt_outcome(decision, outcome)
         display_anchor = decision["display_anchor"]
         beat_position = current_group.onset_beat if display_anchor is None else float(display_anchor["beat"])
@@ -435,6 +486,19 @@ class StepPracticeEngine:
         if verifier is not None:
             verifier.reset()
         self._attempt_assembler.clear_current()
+
+    def _is_current_observation(
+        self,
+        observation: StepVerifierObservation,
+        *,
+        current_attack_step,
+    ) -> bool:
+        if observation.step_id != current_attack_step.step_id:
+            return False
+        if observation.activation_generation != self._activation_generation:
+            return False
+        expected_attack_pitches = tuple(target.pitch for target in current_attack_step.attack_targets)
+        return set(observation.observed_attack_pitches) == set(expected_attack_pitches)
 
     def _timestamp_ms(self) -> int:
         frame_width = max(self.channels * 2, 1)

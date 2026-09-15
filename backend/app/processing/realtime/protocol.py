@@ -39,6 +39,13 @@ class ClientMidiEventPayload(_StrictModel):
     timestamp_ms: int = Field(ge=0)
 
 
+class ClientStepVerifierObservationPayload(_StrictModel):
+    step_id: str = Field(min_length=1)
+    activation_generation: int = Field(ge=1)
+    observed_attack_pitches: list[str]
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
 class ClientInitMessage(_ProtocolEnvelope):
     type: Literal["client.init"]
     payload: ClientInitPayload
@@ -74,6 +81,11 @@ class ClientMidiEventMessage(_ProtocolEnvelope):
     payload: ClientMidiEventPayload
 
 
+class ClientStepVerifierObservationMessage(_ProtocolEnvelope):
+    type: Literal["client.step_verifier_observation"]
+    payload: ClientStepVerifierObservationPayload
+
+
 PracticeClientMessage = Annotated[
     ClientInitMessage
     | ClientPauseMessage
@@ -81,7 +93,8 @@ PracticeClientMessage = Annotated[
     | ClientFinishMessage
     | ClientSkipMessage
     | ClientHeartbeatMessage
-    | ClientMidiEventMessage,
+    | ClientMidiEventMessage
+    | ClientStepVerifierObservationMessage,
     Field(discriminator="type"),
 ]
 practice_client_message_adapter = TypeAdapter(PracticeClientMessage)
@@ -106,6 +119,13 @@ class InputHealthPayload(_StrictModel):
 class SessionArmedPayload(_StrictModel):
     session_id: str = Field(min_length=1)
     input_health: InputHealthPayload
+
+
+class StepVerifierTargetPayload(_StrictModel):
+    step_id: str = Field(min_length=1)
+    activation_generation: int = Field(ge=1)
+    attack_pitches: list[str]
+    continuation_pitches: list[str]
 
 
 class SessionStatePayload(_StrictModel):
@@ -191,6 +211,10 @@ class AlignmentDecisionPayload(_StrictModel):
     attempt_resolved_at_ms: int | None = Field(default=None, ge=0)
     evaluator_version: str | None = None
     policy_profile_version: str | None = None
+    evaluation_result: Literal["MATCH", "PARTIAL", "MISMATCH", "UNCERTAIN", "SKIPPED"] | None = None
+    matched_pitches: list[str] = Field(default_factory=list)
+    missing_pitches: list[str] = Field(default_factory=list)
+    extra_pitches: list[str] = Field(default_factory=list)
 
 
 class AlignmentUpdatePayload(_StrictModel):
@@ -215,7 +239,7 @@ class AlignmentUpdatePayload(_StrictModel):
     feature_confidence: float
     beat_delta: float | None
     stream_state: str = Field(min_length=1)
-    frame_class: Literal["silence", "transient", "tonal", "uncertain", "unknown"]
+    frame_class: Literal["silence", "transient", "tonal", "uncertain", "unknown", "step_verifier"]
     gate_reason: str = Field(min_length=1)
     queue_decision: str = Field(min_length=1)
     tonal_signal: bool
@@ -295,6 +319,11 @@ class AlignmentUpdateMessage(_ProtocolEnvelope):
     payload: AlignmentUpdatePayload
 
 
+class StepVerifierTargetMessage(_ProtocolEnvelope):
+    type: Literal["step.verifier_target"] = "step.verifier_target"
+    payload: StepVerifierTargetPayload
+
+
 class PerformanceClockSyncMessage(_ProtocolEnvelope):
     type: Literal["performance.clock_sync"] = "performance.clock_sync"
     payload: PerformanceClockSyncPayload
@@ -332,6 +361,7 @@ PracticeServerMessage = Annotated[
     | SessionStateChangedMessage
     | SessionFinishedMessage
     | SessionErrorMessage
+    | StepVerifierTargetMessage
     | AlignmentUpdateMessage
     | PerformanceTimelineMessage
     | PerformanceClockSyncMessage

@@ -45,6 +45,29 @@ describe('Practice WebSocket protocol', () => {
     ).toMatchObject({ type: 'performance.clock_sync' });
   });
 
+  it('accepts STEP verifier target messages', () => {
+    expect(
+      parsePracticeServerMessage({
+        protocol_version: 1,
+        type: 'step.verifier_target',
+        payload: {
+          step_id: 'step-1',
+          activation_generation: 3,
+          attack_pitches: ['F4', 'A4'],
+          continuation_pitches: ['C4'],
+        },
+      })
+    ).toMatchObject({
+      type: 'step.verifier_target',
+      payload: {
+        step_id: 'step-1',
+        activation_generation: 3,
+        attack_pitches: ['F4', 'A4'],
+        continuation_pitches: ['C4'],
+      },
+    });
+  });
+
   it('accepts fixed-clock performance timeline projection messages', () => {
     expect(
       parsePracticeServerMessage({

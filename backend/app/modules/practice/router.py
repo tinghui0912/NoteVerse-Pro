@@ -38,8 +38,10 @@ from app.processing.realtime.message_codec import (
     session_finished_message,
     session_ready_message,
     state_changed_message,
+    step_verifier_target_message,
 )
 from app.processing.realtime.protocol import ClientInitPayload
+from app.processing.engines.practice_alignment.step_microphone_verifier import StepVerifierObservation
 from app.processing.realtime.session_runtime import (
     PerformancePracticeSessionRuntime,
     PracticeRuntime,
@@ -131,6 +133,16 @@ def _practice_session_completion_outcome_value(
     if detail.completion_outcome is None:
         raise RuntimeError("finished practice session is missing completion outcome")
     return detail.completion_outcome.model_dump(mode="json")
+
+
+async def _send_step_verifier_target_if_available(
+    *,
+    websocket: WebSocket,
+    runtime: PracticeSessionRuntime,
+) -> None:
+    target = runtime.current_step_verifier_target()
+    if target is not None:
+        await websocket.send_json(step_verifier_target_message(target))
 
 
 @router.post("/sessions", response_model=APIResponse[PracticeSessionStartRead])
@@ -551,6 +563,10 @@ async def stream_practice_session(
                                 input_health=step_runtime.input_health,
                             )
                         )
+                    await _send_step_verifier_target_if_available(
+                        websocket=websocket,
+                        runtime=step_runtime,
+                    )
                     phase = "streaming"
                     logger.bind(
                         event="practice.websocket.session_ready_sent",
@@ -662,6 +678,10 @@ async def stream_practice_session(
                             terminal_reason = "scope_completed"
                             terminal_fields = {"state": finished_state}
                             break
+                        await _send_step_verifier_target_if_available(
+                            websocket=websocket,
+                            runtime=step_runtime,
+                        )
                 elif message_type == "client.heartbeat":
                     continue
                 elif message_type == "client.midi_event":
@@ -704,6 +724,51 @@ async def stream_practice_session(
                             terminal_reason = "scope_completed"
                             terminal_fields = {"state": finished_state}
                             break
+                elif message_type == "client.step_verifier_observation":
+                    if isinstance(runtime, PerformancePracticeSessionRuntime):
+                        continue
+                    step_runtime = runtime
+                    if step_runtime.state != "STREAMING":
+                        continue
+                    phase = "streaming_step_verifier_observation"
+                    observation = StepVerifierObservation(
+                        step_id=control.payload.step_id,
+                        activation_generation=control.payload.activation_generation,
+                        observed_attack_pitches=tuple(control.payload.observed_attack_pitches),
+                        confidence=control.payload.confidence,
+                    )
+                    try:
+                        alignment = step_runtime.process_step_verifier_observation(observation)
+                    except RuntimeError:
+                        terminal_event = "practice.websocket.failed"
+                        terminal_reason = "step_verifier_observation_processing_failed"
+                        terminal_fields = {"public_code": ErrorCode.PRACTICE_ALIGNMENT_FAILED}
+                        await websocket.send_json(
+                            session_error_message(
+                                public_code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+                            )
+                        )
+                        break
+
+                    if alignment is not None:
+                        finished_state = await _send_alignment_and_finish_if_needed(
+                            websocket=websocket,
+                            db=db,
+                            practice_service=practice_service,
+                            runtime=step_runtime,
+                            session_id=session_id,
+                            user_id=user_id,
+                            alignment=alignment,
+                        )
+                        if finished_state is not None:
+                            terminal_event = "practice.websocket.finished"
+                            terminal_reason = "scope_completed"
+                            terminal_fields = {"state": finished_state}
+                            break
+                        await _send_step_verifier_target_if_available(
+                            websocket=websocket,
+                            runtime=step_runtime,
+                        )
                 else:
                     terminal_event = "practice.websocket.failed"
                     terminal_reason = "unsupported_control_message"
@@ -757,6 +822,10 @@ async def stream_practice_session(
                         terminal_reason = "scope_completed"
                         terminal_fields = {"state": finished_state}
                         break
+                    await _send_step_verifier_target_if_available(
+                        websocket=websocket,
+                        runtime=step_runtime,
+                    )
 
     except AppException as exc:
         terminal_event = "practice.websocket.failed"

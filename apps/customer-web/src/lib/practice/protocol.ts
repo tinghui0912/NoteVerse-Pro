@@ -61,6 +61,10 @@ const alignmentDecision = z.object({
   attempt_resolved_at_ms: z.number().int().nonnegative().optional().nullable(),
   evaluator_version: z.string().min(1).optional().nullable(),
   policy_profile_version: z.string().min(1).optional().nullable(),
+  evaluation_result: z.enum(['MATCH', 'PARTIAL', 'MISMATCH', 'UNCERTAIN', 'SKIPPED']).optional().nullable(),
+  matched_pitches: z.array(z.string()).optional(),
+  missing_pitches: z.array(z.string()).optional(),
+  extra_pitches: z.array(z.string()).optional(),
 }).strict();
 
 const inputHealth = z.object({
@@ -96,6 +100,13 @@ const performanceTimelineProjection = z.object({
   }).strict()),
 }).strict();
 
+const stepVerifierTarget = z.object({
+  step_id: z.string().min(1),
+  activation_generation: z.number().int().positive(),
+  attack_pitches: z.array(z.string()),
+  continuation_pitches: z.array(z.string()),
+}).strict();
+
 export const practiceServerMessageSchema = z.discriminatedUnion('type', [
   envelope.extend({ type: z.literal('session.connecting'), payload: z.object({ session_id: z.string().min(1) }).strict() }),
   envelope.extend({ type: z.literal('session.ready'), payload: z.object({ session_id: z.string().min(1), state: practiceSessionState }).strict() }),
@@ -124,13 +135,14 @@ export const practiceServerMessageSchema = z.discriminatedUnion('type', [
       input_health: inputHealth,
       match_state: z.enum(['matched', 'holding_decay', 'lost', 'no_input']), feature_confidence: z.number(),
       beat_delta: z.number().nullable(), stream_state: z.string().min(1),
-      frame_class: z.enum(['silence', 'transient', 'tonal', 'uncertain', 'unknown']), gate_reason: z.string().min(1),
+      frame_class: z.enum(['silence', 'transient', 'tonal', 'uncertain', 'unknown', 'step_verifier']), gate_reason: z.string().min(1),
       queue_decision: z.string().min(1), tonal_signal: z.boolean(), onset_signal: z.boolean(), spectral_flatness: z.number(),
       peak_prominence: z.number(), spectral_flux: z.number(), alignment_state: z.string().min(1),
       continuity_state: z.string().min(1), beat_velocity: z.number().nullable(), validation_confidence: z.number(),
       input_weight: z.number(), input_policy_confidence: z.number(), decision: alignmentDecision,
     }).strict(),
   }),
+  envelope.extend({ type: z.literal('step.verifier_target'), payload: stepVerifierTarget }),
   envelope.extend({ type: z.literal('performance.timeline'), payload: performanceTimelineProjection }),
   envelope.extend({ type: z.literal('performance.clock_sync'), payload: performanceClockSync }),
   envelope.extend({ type: z.literal('performance.started'), payload: performanceClockSync }),
@@ -141,6 +153,7 @@ export const practiceServerMessageSchema = z.discriminatedUnion('type', [
 
 export type PracticeServerMessage = z.infer<typeof practiceServerMessageSchema>;
 export type PracticeAlignmentUpdateMessage = Extract<PracticeServerMessage, { type: 'alignment.update' }>;
+export type PracticeStepVerifierTargetMessage = Extract<PracticeServerMessage, { type: 'step.verifier_target' }>;
 export type PracticePerformanceClockSyncMessage = Extract<PracticeServerMessage, { type: 'performance.clock_sync' }>;
 export type PracticePerformanceClockPayload = PracticePerformanceClockSyncMessage['payload'];
 export type PracticePerformanceTimelineMessage = Extract<PracticeServerMessage, { type: 'performance.timeline' }>;

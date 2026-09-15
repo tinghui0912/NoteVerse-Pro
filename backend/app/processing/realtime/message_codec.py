@@ -24,6 +24,8 @@ from app.processing.realtime.protocol import (
     SessionErrorPayload,
     SessionFinishedMessage,
     SessionFinishedPayload,
+    StepVerifierTargetMessage,
+    StepVerifierTargetPayload,
     SessionConnectingMessage,
     SessionConnectingPayload,
     SessionReadyMessage,
@@ -35,6 +37,7 @@ from app.processing.realtime.protocol import (
 
 if TYPE_CHECKING:
     from app.processing.engines.practice_alignment.contracts import AlignmentUpdate, InputHealth
+    from app.processing.engines.practice_alignment.step_microphone_verifier import StepVerifierTarget
     from app.processing.performance.runtime import PerformanceClockSync
     from app.processing.performance.timeline import PerformanceTimelineProjection
 
@@ -97,6 +100,19 @@ def session_error_message(public_code: str, public_message: str | None = None) -
             payload=SessionErrorPayload(
                 public_code=public_code,
                 public_message=public_message or public_code,
+            )
+        )
+    )
+
+
+def step_verifier_target_message(target: "StepVerifierTarget") -> dict[str, object]:
+    return _message_payload(
+        StepVerifierTargetMessage(
+            payload=StepVerifierTargetPayload(
+                step_id=target.step_id,
+                activation_generation=target.activation_generation,
+                attack_pitches=list(target.attack_pitches),
+                continuation_pitches=list(target.continuation_pitches),
             )
         )
     )

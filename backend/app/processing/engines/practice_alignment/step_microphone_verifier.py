@@ -18,6 +18,7 @@ class StepVerifierTarget:
     step_id: str
     attack_pitches: tuple[str, ...]
     continuation_pitches: tuple[str, ...]
+    activation_generation: int = 0
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class StepVerifierObservation:
     step_id: str
     observed_attack_pitches: tuple[str, ...]
     confidence: float
+    activation_generation: int = 0
     events: tuple[StepVerifierEvent, ...] = ()
     decision_sample_index: int | None = None
     decision_time_seconds: float | None = None
@@ -72,9 +74,14 @@ StepMicrophoneVerifierFactory = Callable[
 ]
 
 
-def step_verifier_target_from_attack_step(step: PracticeAttackStep) -> StepVerifierTarget:
+def step_verifier_target_from_attack_step(
+    step: PracticeAttackStep,
+    *,
+    activation_generation: int = 0,
+) -> StepVerifierTarget:
     return StepVerifierTarget(
         step_id=step.step_id,
         attack_pitches=tuple(target.pitch for target in step.attack_targets),
         continuation_pitches=tuple(note.pitch for note in step.continuation),
+        activation_generation=activation_generation,
     )

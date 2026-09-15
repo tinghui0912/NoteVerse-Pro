@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from app.processing.engines.practice_alignment.step_microphone_verifier import (
         StepMicrophoneVerifier,
         StepMicrophoneVerifierFactory,
+        StepVerifierObservation,
+        StepVerifierTarget,
     )
 
 
@@ -42,6 +44,7 @@ def build_alignment_engine(
     end_expected_group_id: str | None = None,
     step_microphone_verifier: "StepMicrophoneVerifier | None" = None,
     step_microphone_verifier_factory: "StepMicrophoneVerifierFactory | None" = None,
+    step_microphone_verification_provider: Literal["SERVER", "BROWSER_LOCAL"] | None = None,
 ) -> "AlignmentEngine":
     """Create the practice alignment engine without importing heavy runtime deps at module load."""
     if input_source == "MIDI":
@@ -62,7 +65,24 @@ def build_alignment_engine(
         StepMicrophoneVerifierContext,
     )
 
-    if step_microphone_verifier is None:
+    provider = step_microphone_verification_provider
+    if provider is None:
+        provider = (
+            "SERVER"
+            if step_microphone_verifier is not None or step_microphone_verifier_factory is not None
+            else None
+        )
+    if provider is None:
+        raise RuntimeError(
+            "STEP_BY_STEP microphone runtime requires an explicit StepMicrophoneVerifier provider."
+        )
+    if provider == "BROWSER_LOCAL" and (
+        step_microphone_verifier is not None or step_microphone_verifier_factory is not None
+    ):
+        raise RuntimeError(
+            "STEP_BY_STEP microphone runtime must use exactly one acoustic verification provider."
+        )
+    if provider == "SERVER" and step_microphone_verifier is None:
         if step_microphone_verifier_factory is None:
             raise RuntimeError(
                 "STEP_BY_STEP microphone runtime requires a StepMicrophoneVerifier. "
@@ -95,6 +115,7 @@ def build_alignment_engine(
         start_expected_group_id=start_expected_group_id,
         end_expected_group_id=end_expected_group_id,
         step_microphone_verifier=step_microphone_verifier,
+        verification_provider=provider,
     )
 
 
@@ -180,6 +201,26 @@ class PracticeSessionRuntime:
         self.last_alignment = alignment
         self.pending_alignment_updates += 1
         return alignment
+
+    def process_step_verifier_observation(
+        self,
+        observation: "StepVerifierObservation",
+    ) -> AlignmentUpdate | None:
+        ingest_observation = getattr(self.engine, "ingest_step_verifier_observation", None)
+        if ingest_observation is None:
+            raise RuntimeError("This practice session does not accept verifier observations.")
+        alignment = ingest_observation(observation)
+        if alignment is None:
+            return None
+        self.last_alignment = alignment
+        self.pending_alignment_updates += 1
+        return alignment
+
+    def current_step_verifier_target(self) -> "StepVerifierTarget | None":
+        current_target = getattr(self.engine, "current_step_verifier_target", None)
+        if current_target is None:
+            return None
+        return current_target()
 
     def consume_ready_notification(self) -> bool:
         if not self.pending_ready_notification:
@@ -403,6 +444,7 @@ class PracticeSessionRuntimeRegistry:
         end_expected_group_id: str | None = None,
         runtime_kind: str = "STEP_BY_STEP",
         step_microphone_verifier_factory: "StepMicrophoneVerifierFactory | None" = None,
+        step_microphone_verification_provider: Literal["SERVER", "BROWSER_LOCAL"] | None = None,
     ) -> PracticeRuntime:
         if runtime_kind == "FIXED_CLOCK_PERFORMANCE":
             if (
@@ -477,6 +519,7 @@ class PracticeSessionRuntimeRegistry:
                 start_expected_group_id=start_expected_group_id,
                 end_expected_group_id=end_expected_group_id,
                 step_microphone_verifier_factory=step_microphone_verifier_factory,
+                step_microphone_verification_provider=step_microphone_verification_provider,
             ),
             is_ready_for_performance=True,
             pending_ready_notification=True,

@@ -10,6 +10,7 @@ from app.processing.realtime.message_codec import (
     parse_control_message,
     session_finished_message,
     session_ready_message,
+    step_verifier_target_message,
 )
 from app.processing.performance.clock import PerformanceClockState
 from app.processing.performance.runtime import PerformanceClockSync
@@ -17,6 +18,7 @@ from app.processing.performance.timeline import (
     PerformanceTimelineProjection,
     PerformanceTimelineProjectionSegment,
 )
+from app.processing.engines.practice_alignment.step_microphone_verifier import StepVerifierTarget
 from app.processing.realtime.protocol import practice_server_message_adapter
 
 
@@ -197,6 +199,53 @@ def test_practice_websocket_accepts_skip_control_frames() -> None:
 
     assert message.type == "client.skip"
     assert message.payload.t == 1234
+
+
+def test_practice_websocket_accepts_step_verifier_observation_control_frames() -> None:
+    message = parse_control_message(
+        """
+        {
+          "protocol_version": 1,
+          "type": "client.step_verifier_observation",
+          "payload": {
+            "step_id": "step-1",
+            "activation_generation": 2,
+            "observed_attack_pitches": ["C4", "E4"],
+            "confidence": 0.97
+          }
+        }
+        """
+    )
+
+    assert message.type == "client.step_verifier_observation"
+    assert message.payload.step_id == "step-1"
+    assert message.payload.activation_generation == 2
+    assert message.payload.observed_attack_pitches == ["C4", "E4"]
+
+
+def test_step_verifier_target_message_uses_generation_and_score_action_payload() -> None:
+    message = step_verifier_target_message(
+        StepVerifierTarget(
+            step_id="step-1",
+            activation_generation=4,
+            attack_pitches=("F4", "A4"),
+            continuation_pitches=("C4",),
+        )
+    )
+
+    assert message == {
+        "protocol_version": 1,
+        "type": "step.verifier_target",
+        "payload": {
+            "step_id": "step-1",
+            "activation_generation": 4,
+            "attack_pitches": ["F4", "A4"],
+            "continuation_pitches": ["C4"],
+        },
+    }
+    parsed = practice_server_message_adapter.validate_python(message)
+    assert parsed.type == "step.verifier_target"
+    assert parsed.payload.attack_pitches == ["F4", "A4"]
 
 
 def test_session_armed_message_requires_structured_input_health() -> None:
