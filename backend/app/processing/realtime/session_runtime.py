@@ -49,11 +49,11 @@ def build_alignment_engine(
             end_expected_group_id=end_expected_group_id,
         )
 
-    from app.processing.engines.practice_alignment.matchmaker_live import (
-        build_alignment_engine as build_matchmaker_engine,
+    from app.processing.engines.practice_alignment.step_practice_engine import (
+        StepPracticeEngine,
     )
 
-    return build_matchmaker_engine(
+    return StepPracticeEngine(
         score_file_path=score_file_path,
         sample_rate=sample_rate,
         channels=channels,
