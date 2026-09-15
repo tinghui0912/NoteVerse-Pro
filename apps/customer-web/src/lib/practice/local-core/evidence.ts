@@ -1,4 +1,4 @@
-import type { CaptureTime } from './timebase';
+import type { CaptureTime, SessionTime } from './timebase';
 
 export type NormalizedAcousticNoteEvidence = CaptureTime & {
   pitch: string;
@@ -17,7 +17,7 @@ export type LocalMidiNoteObservation = CaptureTime & {
 export type StepVerifierTarget = {
   stepId: string;
   activationGeneration: number;
-  activationBoundaryMs: number;
+  activationBoundary: SessionTime;
   attackPitches: string[];
   continuationPitches: string[];
 };
@@ -25,7 +25,7 @@ export type StepVerifierTarget = {
 export type StepVerifierObservation = CaptureTime & {
   stepId: string;
   activationGeneration: number;
-  attackOnsetTimeMs: number;
+  attackOnsetTime: SessionTime;
   observedAttackPitches: string[];
   confidence: number;
   source: 'ACOUSTIC' | 'MIDI' | 'FAKE';

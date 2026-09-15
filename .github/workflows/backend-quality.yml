@@ -5,18 +5,22 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.practice-deps"
       - "docker/backend/Dockerfile.practice-quality"
+      - "scripts/check_practice_score_artifact_contract.py"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
       - ".github/workflows/backend-quality.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.practice-deps"
       - "docker/backend/Dockerfile.practice-quality"
+      - "scripts/check_practice_score_artifact_contract.py"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
       - ".github/workflows/backend-quality.yml"
@@ -187,6 +191,15 @@ jobs:
           tests/test_practice_runtime_regressions.py
           tests/test_practice_websocket_flow.py
           -q"
+
+      - name: Verify browser practice score artifact fixture contract
+        run: >-
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
+          -v "$GITHUB_WORKSPACE:/repo:ro"
+          "$PRACTICE_QUALITY_IMAGE" bash -lc
+          "cd /repo &&
+          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py &&
+          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py --self-test-missing-fixture"
 
       - name: Enforce Practice session-service coverage
         run: >-

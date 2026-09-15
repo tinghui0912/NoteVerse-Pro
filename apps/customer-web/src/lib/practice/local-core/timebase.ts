@@ -47,40 +47,81 @@ export class ManualDurableClock implements DurableClock {
 }
 
 export type SessionTime = {
-  sessionTimeMs: number;
+  domainId: string;
+  ms: number;
   sampleIndex?: number;
 };
 
+export type PracticeTimebaseOptions = {
+  domainId: string;
+  runtimeOriginMs?: number;
+  sampleRateHz?: number;
+  anchorSampleIndex?: number;
+  anchorSessionTimeMs?: number;
+};
+
 export class PracticeTimebase {
-  constructor(
-    private readonly originRuntimeMs: number,
-    private readonly sampleRate?: number,
-  ) {}
+  readonly domainId: string;
+  private readonly runtimeOriginMs: number;
+  private readonly sampleRateHz?: number;
+  private readonly anchorSampleIndex: number;
+  private readonly anchorSessionTimeMs: number;
+
+  constructor(options: PracticeTimebaseOptions | string, sampleRateHz?: number) {
+    if (typeof options === 'string') {
+      this.domainId = options;
+      this.runtimeOriginMs = 0;
+      this.sampleRateHz = sampleRateHz;
+      this.anchorSampleIndex = 0;
+      this.anchorSessionTimeMs = 0;
+      return;
+    }
+    this.domainId = options.domainId;
+    this.runtimeOriginMs = options.runtimeOriginMs ?? 0;
+    this.sampleRateHz = options.sampleRateHz;
+    this.anchorSampleIndex = options.anchorSampleIndex ?? 0;
+    this.anchorSessionTimeMs = options.anchorSessionTimeMs ?? 0;
+  }
+
+  atSessionMs(ms: number, sampleIndex?: number): SessionTime {
+    if (!Number.isFinite(ms)) {
+      throw new Error('Session time values must be finite.');
+    }
+    return sampleIndex === undefined
+      ? { domainId: this.domainId, ms }
+      : { domainId: this.domainId, ms, sampleIndex };
+  }
 
   runtimeToSessionTime(runtimeMs: number): SessionTime {
-    return { sessionTimeMs: Math.max(0, runtimeMs - this.originRuntimeMs) };
+    return this.atSessionMs(runtimeMs - this.runtimeOriginMs);
   }
 
   sampleIndexToSessionTime(sampleIndex: number): SessionTime {
-    if (!this.sampleRate || this.sampleRate <= 0) {
+    if (!this.sampleRateHz || this.sampleRateHz <= 0) {
       throw new Error('Sample-index time conversion requires a positive sample rate.');
     }
-    return {
-      sessionTimeMs: sampleIndex / this.sampleRate * 1000,
-      sampleIndex,
-    };
+    return this.atSessionMs(
+      this.anchorSessionTimeMs + (sampleIndex - this.anchorSampleIndex) / this.sampleRateHz * 1000,
+      sampleIndex
+    );
+  }
+
+  midiEventToSessionTime(midiEventTimeMs: number): SessionTime {
+    return this.runtimeToSessionTime(midiEventTimeMs);
   }
 
   assertSameSessionTimeDomain(left: SessionTime, right: SessionTime): void {
-    if (!Number.isFinite(left.sessionTimeMs) || !Number.isFinite(right.sessionTimeMs)) {
+    if (!Number.isFinite(left.ms) || !Number.isFinite(right.ms)) {
       throw new Error('Session time values must be finite before comparison.');
+    }
+    if (left.domainId !== right.domainId) {
+      throw new Error('Session time values belong to different practice time domains.');
     }
   }
 }
 
 export type CaptureTime = {
-  captureTimeMs: number;
-  sampleIndex?: number;
+  captureTime: SessionTime;
 };
 
 export type RuntimeVersionIdentity = {

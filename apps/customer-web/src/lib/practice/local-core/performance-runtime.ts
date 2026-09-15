@@ -14,7 +14,7 @@ import type {
   PerformanceEvidenceObservation,
   PerformanceExpectedEventOutcome,
 } from './evidence';
-import type { DurableClock, LocalClock, RuntimeVersionIdentity } from './timebase';
+import { PracticeTimebase, type DurableClock, type LocalClock, type RuntimeVersionIdentity } from './timebase';
 import {
   createLocalSessionId,
   type LocalPerformanceSessionSnapshot,
@@ -41,6 +41,7 @@ export type PerformancePracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact;
   scope?: PracticeScope;
   clock: LocalClock;
+  timebase?: PracticeTimebase;
   metadataClock?: DurableClock;
   inputSource?: PracticeInputSource;
   speedRatio?: number;
@@ -64,6 +65,7 @@ export class PerformancePracticeRuntime {
   readonly localSessionId: string;
 
   private readonly clock: LocalClock;
+  private readonly timebase: PracticeTimebase;
   private readonly metadataClock: DurableClock;
   private readonly version: RuntimeVersionIdentity;
   private readonly inputSource: PracticeInputSource;
@@ -113,6 +115,7 @@ export class PerformancePracticeRuntime {
       scope: this.scope,
     });
     this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
+    this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
     this.createdAtMs = options.snapshot?.createdAtMs ?? this.metadataClock.nowEpochMs();
 
     if (options.snapshot) {
@@ -148,8 +151,8 @@ export class PerformancePracticeRuntime {
     if (this.state !== 'COUNT_IN' && this.state !== 'RUNNING') {
       throw new Error('Performance runtime can only pause while active.');
     }
-    this.activeElapsedMs = this.activeElapsedAt(this.clock.nowMs());
-    this.finishCurrentSegment(this.clock.nowMs());
+    this.activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
+    this.finishCurrentSegment(this.nowSessionMs());
     this.stateBeforePause = this.state;
     this.state = 'PAUSED';
     return this.snapshot();
@@ -169,7 +172,7 @@ export class PerformancePracticeRuntime {
     const performanceTimeMs = this.performanceElapsedMs(activeElapsedMs);
     return {
       state: this.state,
-      nowMs: this.clock.nowMs(),
+      nowMs: this.nowSessionMs(),
       musicalBeat: this.musicalBeat(performanceTimeMs),
       performanceTimeMs,
       countInRemainingMs: Math.max(0, this.countInMs - activeElapsedMs),
@@ -183,7 +186,8 @@ export class PerformancePracticeRuntime {
   }
 
   observeEvidence(observation: PerformanceEvidenceObservation): PerformanceEvaluationObservation {
-    const performanceTimeMs = this.performanceTimeAtCapture(observation.captureTimeMs);
+    this.timebase.assertSameSessionTimeDomain(observation.captureTime, this.timebase.atSessionMs(0));
+    const performanceTimeMs = this.performanceTimeAtCapture(observation.captureTime.ms);
     const evaluated: PerformanceEvaluationObservation = {
       ...observation,
       performanceTimeMs,
@@ -217,13 +221,13 @@ export class PerformancePracticeRuntime {
         speedRatio: this.speedRatio,
         scopeStartBeat: this.scope.startBeat,
         scopeTerminalBeat: this.scope.terminalBeat,
-        activeElapsedMs: this.activeElapsedAt(this.clock.nowMs()),
+        activeElapsedMs: this.activeElapsedAt(this.nowSessionMs()),
         countInMs: this.countInMs,
         countInBeats: this.countInBeats,
         countInPulses: this.countInPulses,
         observations: this.observations.map((observation) => ({
           source: observation.source,
-          captureTimeMs: observation.captureTimeMs,
+          captureTime: observation.captureTime,
           inferenceCompletedAtMs: observation.inferenceCompletedAtMs,
           pitches: observation.pitches,
           confidence: observation.confidence,
@@ -247,7 +251,7 @@ export class PerformancePracticeRuntime {
     if (this.state === 'READY') {
       return 0;
     }
-    const activeElapsedMs = this.activeElapsedAt(this.clock.nowMs());
+    const activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
     if (this.state === 'PAUSED') {
       return activeElapsedMs;
     }
@@ -255,7 +259,7 @@ export class PerformancePracticeRuntime {
       this.state = 'COUNT_IN';
     } else if (this.performanceElapsedMs(activeElapsedMs) >= this.scopeDurationMs()) {
       this.activeElapsedMs = activeElapsedMs;
-      this.finishCurrentSegment(this.clock.nowMs());
+      this.finishCurrentSegment(this.nowSessionMs());
       this.state = 'ENDED';
     } else {
       this.state = 'RUNNING';
@@ -273,7 +277,7 @@ export class PerformancePracticeRuntime {
   private activeElapsedForCapture(captureTimeMs: number): number {
     for (const segment of this.clockSegments) {
       const end = segment.clockEndMs ?? (
-        this.currentSegment === segment ? this.clock.nowMs() : segment.clockStartMs
+        this.currentSegment === segment ? this.nowSessionMs() : segment.clockStartMs
       );
       if (segment.clockStartMs <= captureTimeMs && captureTimeMs <= end) {
         return Math.max(0, segment.activeElapsedStartMs + captureTimeMs - segment.clockStartMs);
@@ -281,7 +285,7 @@ export class PerformancePracticeRuntime {
     }
     if (this.currentSegment
       && this.currentSegment.clockStartMs <= captureTimeMs
-      && captureTimeMs <= this.clock.nowMs()) {
+      && captureTimeMs <= this.nowSessionMs()) {
       return Math.max(0, this.currentSegment.activeElapsedStartMs + captureTimeMs - this.currentSegment.clockStartMs);
     }
     return this.activeElapsedAt(captureTimeMs);
@@ -295,7 +299,7 @@ export class PerformancePracticeRuntime {
   private startClockSegment(state: PerformanceRuntimeState, activeElapsedStartMs: number): ClockSegment {
     const segment = {
       state,
-      clockStartMs: this.clock.nowMs(),
+      clockStartMs: this.nowSessionMs(),
       activeElapsedStartMs,
     };
     this.clockSegments.push(segment);
@@ -325,6 +329,10 @@ export class PerformancePracticeRuntime {
 
   private scopeDurationMs(): number {
     return Math.max(0, this.scope.nominalEndTimeMs - this.scope.nominalStartTimeMs);
+  }
+
+  private nowSessionMs(): number {
+    return this.timebase.runtimeToSessionTime(this.clock.nowMs()).ms;
   }
 }
 

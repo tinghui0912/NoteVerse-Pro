@@ -11,6 +11,7 @@ import {
   countInContractAt,
   entryGroupEndBeat,
   type PracticeScoreArtifact,
+  type SessionTime,
   type StepVerifierObservation,
 } from './index';
 
@@ -29,15 +30,42 @@ function observation(
   if (!target) {
     throw new Error('No current target.');
   }
-  const attackOnsetTimeMs = overrides.attackOnsetTimeMs ?? target.activationBoundaryMs + 1;
+  const attackOnsetTime = overrides.attackOnsetTime ?? {
+    ...target.activationBoundary,
+    ms: target.activationBoundary.ms + 1,
+  };
   return {
     stepId: target.stepId,
     activationGeneration: target.activationGeneration,
-    attackOnsetTimeMs,
+    attackOnsetTime,
     observedAttackPitches: pitches ?? target.attackPitches,
     confidence: 0.97,
-    captureTimeMs: attackOnsetTimeMs,
+    captureTime: attackOnsetTime,
     source: 'FAKE',
+    ...overrides,
+  };
+}
+
+function sessionTime(domainId: string, ms: number, sampleIndex?: number): SessionTime {
+  return sampleIndex === undefined ? { domainId, ms } : { domainId, ms, sampleIndex };
+}
+
+function withMs(time: SessionTime | undefined, ms: number): SessionTime {
+  return { ...(time ?? sessionTime('', 0)), ms };
+}
+
+function performanceEvidence(
+  domainId: string,
+  ms: number,
+  pitches: string[],
+  source: 'ACOUSTIC' | 'MIDI' | 'FAKE' = 'MIDI',
+  overrides: Record<string, unknown> = {}
+) {
+  return {
+    captureTime: sessionTime(domainId, ms),
+    pitches,
+    confidence: 1,
+    source,
     ...overrides,
   };
 }
@@ -98,25 +126,31 @@ describe('local STEP practice runtime', () => {
     const runtime = new StepPracticeRuntime({ artifact, clock });
     const first = runtime.currentTarget();
 
-    expect(runtime.observe(observation(runtime, ['C4'], { attackOnsetTimeMs: 0, captureTimeMs: 0 }))).toMatchObject({
+    expect(runtime.observe(observation(runtime, ['C4'], {
+      attackOnsetTime: withMs(first?.activationBoundary, 0),
+      captureTime: withMs(first?.activationBoundary, 0),
+    }))).toMatchObject({
       kind: 'MATCH',
     });
     const second = runtime.currentTarget();
     expect(second?.attackPitches).toEqual(['C4']);
-    expect(second?.activationBoundaryMs).toBe(0);
+    expect(second?.activationBoundary.ms).toBe(0);
 
     expect(runtime.observe({
       stepId: second?.stepId ?? '',
       activationGeneration: second?.activationGeneration ?? 1,
-      attackOnsetTimeMs: 0,
-      captureTimeMs: 50,
+      attackOnsetTime: second?.activationBoundary ?? sessionTime('', 0),
+      captureTime: { ...(second?.activationBoundary ?? sessionTime('', 0)), ms: 50 },
       observedAttackPitches: first?.attackPitches ?? ['C4'],
       confidence: 0.99,
       source: 'FAKE',
     })).toMatchObject({ kind: 'WAIT', reason: 'stale_attack' });
 
     clock.advance(10);
-    expect(runtime.observe(observation(runtime, ['C4'], { attackOnsetTimeMs: 10, captureTimeMs: 10 }))).toMatchObject({
+    expect(runtime.observe(observation(runtime, ['C4'], {
+      attackOnsetTime: withMs(second?.activationBoundary, 10),
+      captureTime: withMs(second?.activationBoundary, 10),
+    }))).toMatchObject({
       kind: 'MATCH',
     });
   });
@@ -156,10 +190,10 @@ describe('local STEP practice runtime', () => {
     expect(runtime.observe({
       stepId: first?.stepId ?? '',
       activationGeneration: first?.activationGeneration ?? 1,
-      attackOnsetTimeMs: 100,
+      attackOnsetTime: { ...(first?.activationBoundary ?? sessionTime('', 0)), ms: 100 },
       observedAttackPitches: ['C4'],
       confidence: 0.99,
-      captureTimeMs: 100,
+      captureTime: { ...(first?.activationBoundary ?? sessionTime('', 0)), ms: 100 },
       source: 'FAKE',
     })).toMatchObject({ kind: 'WAIT', reason: 'stale_step' });
 
@@ -180,10 +214,10 @@ describe('local STEP practice runtime', () => {
     expect(runtime.observe({
       stepId: skipped?.stepId ?? '',
       activationGeneration: skipped?.activationGeneration ?? 1,
-      attackOnsetTimeMs: 10,
+      attackOnsetTime: { ...(skipped?.activationBoundary ?? sessionTime('', 0)), ms: 10 },
       observedAttackPitches: skipped?.attackPitches ?? [],
       confidence: 1,
-      captureTimeMs: 10,
+      captureTime: { ...(skipped?.activationBoundary ?? sessionTime('', 0)), ms: 10 },
       source: 'FAKE',
     })).toMatchObject({ kind: 'WAIT', reason: 'stale_step' });
 
@@ -193,10 +227,10 @@ describe('local STEP practice runtime', () => {
     expect(runtime.observe({
       stepId: beforeReset?.stepId ?? '',
       activationGeneration: beforeReset?.activationGeneration ?? 1,
-      attackOnsetTimeMs: 20,
+      attackOnsetTime: { ...(beforeReset?.activationBoundary ?? sessionTime('', 0)), ms: 20 },
       observedAttackPitches: beforeReset?.attackPitches ?? [],
       confidence: 1,
-      captureTimeMs: 20,
+      captureTime: { ...(beforeReset?.activationBoundary ?? sessionTime('', 0)), ms: 20 },
       source: 'FAKE',
     })).toMatchObject({ kind: 'WAIT' });
   });
@@ -240,7 +274,11 @@ describe('local STEP practice runtime', () => {
   it('re-establishes STEP activation after restore under a new monotonic clock origin', () => {
     const oldClock = new ManualClock(100_000);
     const runtime = new StepPracticeRuntime({ artifact, clock: oldClock });
-    runtime.observe(observation(runtime, ['C4'], { attackOnsetTimeMs: 100_010, captureTimeMs: 100_010 }));
+    const firstTarget = runtime.currentTarget();
+    runtime.observe(observation(runtime, ['C4'], {
+      attackOnsetTime: { ...(firstTarget?.activationBoundary ?? sessionTime('', 0)), ms: 100_010 },
+      captureTime: { ...(firstTarget?.activationBoundary ?? sessionTime('', 0)), ms: 100_010 },
+    }));
     const snapshot = runtime.snapshot();
     expect(snapshot.step.activationGeneration).toBe(2);
 
@@ -249,20 +287,23 @@ describe('local STEP practice runtime', () => {
     expect(restoredTarget).toMatchObject({
       stepId: artifact.practiceAttackSteps[1].stepId,
       activationGeneration: 3,
-      activationBoundaryMs: 0,
+      activationBoundary: { domainId: runtime.localSessionId, ms: 0 },
     });
 
     expect(restored.observe({
       stepId: restoredTarget?.stepId ?? '',
       activationGeneration: snapshot.step.activationGeneration,
-      attackOnsetTimeMs: 100_020,
+      attackOnsetTime: sessionTime(runtime.localSessionId, 100_020),
       observedAttackPitches: ['C4'],
       confidence: 1,
-      captureTimeMs: 100_020,
+      captureTime: sessionTime(runtime.localSessionId, 100_020),
       source: 'FAKE',
     })).toMatchObject({ kind: 'WAIT', reason: 'stale_activation' });
 
-    expect(restored.observe(observation(restored, ['C4'], { attackOnsetTimeMs: 200, captureTimeMs: 200 }))).toMatchObject({
+    expect(restored.observe(observation(restored, ['C4'], {
+      attackOnsetTime: sessionTime(runtime.localSessionId, 200),
+      captureTime: sessionTime(runtime.localSessionId, 200),
+    }))).toMatchObject({
       kind: 'MATCH',
     });
   });
@@ -311,7 +352,12 @@ describe('local CONTINUOUS practice runtime', () => {
 
   it('pauses, resumes, and maps delayed pre-pause evidence to original capture position', () => {
     const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({ artifact, clock, countInBeats: 0 });
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      clock,
+      countInBeats: 0,
+      localSessionId: 'performance-delayed',
+    });
     runtime.start();
     clock.advance(200);
     const capturedAt = clock.nowMs();
@@ -323,7 +369,7 @@ describe('local CONTINUOUS practice runtime', () => {
     clock.advance(500);
 
     const evaluated = runtime.observeEvidence({
-      captureTimeMs: capturedAt,
+      captureTime: sessionTime('performance-delayed', capturedAt),
       inferenceCompletedAtMs: clock.nowMs(),
       pitches: ['C4'],
       confidence: 1,
@@ -336,13 +382,18 @@ describe('local CONTINUOUS practice runtime', () => {
 
   it('evaluates single notes, chords, missing notes, extra notes, partial chords, and timing offsets downstream of the clock', () => {
     const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({ artifact, clock, countInBeats: 0 });
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      clock,
+      countInBeats: 0,
+      localSessionId: 'performance-eval',
+    });
     runtime.start();
-    runtime.observeEvidence({ captureTimeMs: 0, pitches: ['C4'], confidence: 1, source: 'MIDI' });
-    runtime.observeEvidence({ captureTimeMs: 500, pitches: ['C4'], confidence: 1, source: 'MIDI' });
-    runtime.observeEvidence({ captureTimeMs: 1_000, pitches: ['G4'], confidence: 1, source: 'MIDI' });
-    runtime.observeEvidence({ captureTimeMs: 1_500, pitches: ['A4'], confidence: 0.8, source: 'MIDI' });
-    runtime.observeEvidence({ captureTimeMs: 1_700, pitches: ['D#5'], confidence: 0.7, source: 'MIDI' });
+    runtime.observeEvidence(performanceEvidence('performance-eval', 0, ['C4']));
+    runtime.observeEvidence(performanceEvidence('performance-eval', 500, ['C4']));
+    runtime.observeEvidence(performanceEvidence('performance-eval', 1_000, ['G4']));
+    runtime.observeEvidence(performanceEvidence('performance-eval', 1_500, ['A4'], 'MIDI', { confidence: 0.8 }));
+    runtime.observeEvidence(performanceEvidence('performance-eval', 1_700, ['D#5'], 'MIDI', { confidence: 0.7 }));
 
     const outcomes = runtime.evaluationOutcomes;
     expect(outcomes.map((outcome) => outcome.result)).toEqual([
@@ -358,9 +409,14 @@ describe('local CONTINUOUS practice runtime', () => {
     });
     expect(runtime.snapshot().state).toBe('RUNNING');
 
-    const partial = new PerformancePracticeRuntime({ artifact, clock: new ManualClock(0), countInBeats: 0 });
+    const partial = new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      countInBeats: 0,
+      localSessionId: 'performance-partial',
+    });
     partial.start();
-    partial.observeEvidence({ captureTimeMs: 1_500, pitches: ['A4'], confidence: 1, source: 'MIDI' });
+    partial.observeEvidence(performanceEvidence('performance-partial', 1_500, ['A4']));
     expect(partial.evaluationOutcomes[3]).toMatchObject({
       result: 'PARTIAL',
       expectedStrikeOutcomes: [
@@ -475,9 +531,10 @@ describe('local CONTINUOUS practice runtime', () => {
       clock,
       inputSource: 'MIDI',
       countInBeats: 0,
+      localSessionId: 'performance-persist-midi',
     });
     runtime.start();
-    runtime.observeEvidence({ captureTimeMs: 0, pitches: ['C4'], confidence: 1, source: 'MIDI' });
+    runtime.observeEvidence(performanceEvidence('performance-persist-midi', 0, ['C4']));
     const uninterruptedOutcomes = runtime.evaluationOutcomes;
 
     const restored = new PerformancePracticeRuntime({
@@ -489,7 +546,7 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(restored.evaluationObservations[0]?.source).toBe('MIDI');
     expect(restored.evaluationOutcomes).toEqual(uninterruptedOutcomes);
     restored.resume();
-    restored.observeEvidence({ captureTimeMs: 10_500, pitches: ['C4'], confidence: 1, source: 'MIDI' });
+    restored.observeEvidence(performanceEvidence('performance-persist-midi', 10_500, ['C4']));
     expect(restored.evaluationObservations.map((item) => item.source)).toEqual(['MIDI', 'MIDI']);
   });
 
@@ -533,17 +590,100 @@ describe('local session foundation', () => {
   });
 
   it('defines one comparable local session timebase for runtime and sample-index evidence', () => {
-    const timebase = new PracticeTimebase(1_000, 16_000);
+    const timebase = new PracticeTimebase({
+      domainId: 'session-domain',
+      runtimeOriginMs: 1_000,
+      sampleRateHz: 16_000,
+      anchorSampleIndex: 8_000,
+      anchorSessionTimeMs: 250,
+    });
 
-    expect(timebase.runtimeToSessionTime(1_250)).toEqual({ sessionTimeMs: 250 });
-    expect(timebase.sampleIndexToSessionTime(3_200)).toEqual({
-      sessionTimeMs: 200,
-      sampleIndex: 3_200,
+    expect(timebase.runtimeToSessionTime(1_250)).toEqual({ domainId: 'session-domain', ms: 250 });
+    expect(timebase.sampleIndexToSessionTime(8_000)).toEqual({
+      domainId: 'session-domain',
+      ms: 250,
+      sampleIndex: 8_000,
+    });
+    expect(timebase.sampleIndexToSessionTime(9_600)).toEqual({
+      domainId: 'session-domain',
+      ms: 350,
+      sampleIndex: 9_600,
+    });
+    expect(timebase.sampleIndexToSessionTime(6_400)).toEqual({
+      domainId: 'session-domain',
+      ms: 150,
+      sampleIndex: 6_400,
     });
     expect(() => timebase.assertSameSessionTimeDomain(
       timebase.runtimeToSessionTime(1_250),
-      timebase.sampleIndexToSessionTime(3_200)
+      timebase.sampleIndexToSessionTime(8_000)
     )).not.toThrow();
+    expect(() => timebase.assertSameSessionTimeDomain(
+      timebase.runtimeToSessionTime(1_250),
+      sessionTime('other-domain', 250)
+    )).toThrow(/different practice time domains/);
+  });
+
+  it('rejects STEP evidence from the wrong session time domain even with the same numeric timestamp', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      localSessionId: 'step-domain-a',
+    });
+    const target = runtime.currentTarget();
+    expect(target?.activationBoundary.ms).toBe(-1);
+
+    expect(runtime.observe(observation(runtime, ['C4'], {
+      attackOnsetTime: sessionTime('step-domain-b', 100),
+      captureTime: sessionTime('step-domain-b', 100),
+    }))).toMatchObject({ kind: 'WAIT', reason: 'stale_attack' });
+
+    expect(runtime.observe(observation(runtime, ['C4'], {
+      attackOnsetTime: sessionTime('step-domain-a', 100),
+      captureTime: sessionTime('step-domain-a', 100),
+    }))).toMatchObject({ kind: 'MATCH' });
+  });
+
+  it('normalizes acoustic sample timing and MIDI timing before local runtime consumption', () => {
+    const acousticTimebase = new PracticeTimebase({
+      domainId: 'normalized-acoustic',
+      sampleRateHz: 16_000,
+      anchorSampleIndex: 16_000,
+      anchorSessionTimeMs: 500,
+    });
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      localSessionId: 'normalized-acoustic',
+      timebase: acousticTimebase,
+    });
+    const onset = acousticTimebase.sampleIndexToSessionTime(16_800);
+
+    expect(runtime.observe(observation(runtime, ['C4'], {
+      attackOnsetTime: onset,
+      captureTime: onset,
+      source: 'ACOUSTIC',
+    }))).toMatchObject({ kind: 'MATCH' });
+
+    const midiTimebase = new PracticeTimebase({ domainId: 'normalized-midi' });
+    const performance = new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      countInBeats: 0,
+      localSessionId: 'normalized-midi',
+      inputSource: 'MIDI',
+      timebase: midiTimebase,
+    });
+    performance.start();
+    const evaluated = performance.observeEvidence({
+      captureTime: midiTimebase.midiEventToSessionTime(500),
+      pitches: ['C4'],
+      confidence: 1,
+      source: 'MIDI',
+      inferenceCompletedAtMs: 5_000,
+    });
+    expect(evaluated.performanceTimeMs).toBe(500);
+    expect(evaluated.source).toBe('MIDI');
   });
 
   it('rejects empty artifacts before local practice instead of inventing playable state', () => {

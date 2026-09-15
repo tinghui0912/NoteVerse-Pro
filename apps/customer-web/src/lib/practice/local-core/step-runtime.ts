@@ -8,7 +8,7 @@ import {
   type PracticeScope,
 } from './artifact';
 import { pitchSetsEqual, type StepVerifierObservation, type StepVerifierTarget } from './evidence';
-import type { LocalClock, RuntimeVersionIdentity } from './timebase';
+import { PracticeTimebase, type LocalClock, type RuntimeVersionIdentity, type SessionTime } from './timebase';
 import type { DurableClock } from './timebase';
 import {
   createLocalSessionId,
@@ -35,6 +35,7 @@ export type StepPracticeRuntimeOptions = {
   inputSource?: 'MICROPHONE' | 'MIDI';
   localSessionId?: string;
   clock: LocalClock;
+  timebase?: PracticeTimebase;
   metadataClock?: DurableClock;
   version?: RuntimeVersionIdentity;
   snapshot?: LocalStepSessionSnapshot;
@@ -46,11 +47,12 @@ export class StepPracticeRuntime {
 
   private readonly scope = resolvePracticeScope;
   private readonly clock: LocalClock;
+  private readonly timebase: PracticeTimebase;
   private readonly metadataClock: DurableClock;
   private readonly resolvedScope;
   private currentIndex: number;
   private activationGeneration: number;
-  private activationBoundaryMs: number;
+  private activationBoundary: SessionTime;
   private attempts: LocalPracticeAttempt[];
   private completed: boolean;
   private readonly version: RuntimeVersionIdentity;
@@ -72,12 +74,15 @@ export class StepPracticeRuntime {
     this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
     this.resolvedScope = this.scope(this.artifact, options.snapshot?.practiceScope ?? options.scope);
     this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
+    this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
     this.createdAtMs = options.snapshot?.createdAtMs ?? this.metadataClock.nowEpochMs();
     this.currentIndex = options.snapshot?.step.currentIndex ?? this.resolvedScope.startIndex;
     this.activationGeneration = options.snapshot
       ? options.snapshot.step.activationGeneration + 1
       : 1;
-    this.activationBoundaryMs = options.snapshot ? this.clock.nowMs() : -1;
+    this.activationBoundary = options.snapshot
+      ? this.timebase.runtimeToSessionTime(this.clock.nowMs())
+      : this.timebase.atSessionMs(-1);
     this.attempts = [...(options.snapshot?.step.attempts ?? [])];
     this.completed = options.snapshot?.step.completed ?? false;
   }
@@ -90,7 +95,7 @@ export class StepPracticeRuntime {
     return {
       stepId: step.stepId,
       activationGeneration: this.activationGeneration,
-      activationBoundaryMs: this.activationBoundaryMs,
+      activationBoundary: this.activationBoundary,
       attackPitches: attackPitchesForStep(step),
       continuationPitches: continuationPitchesForStep(step),
     };
@@ -113,7 +118,12 @@ export class StepPracticeRuntime {
     if (!pitchSetsEqual(observation.observedAttackPitches, target.attackPitches)) {
       return { kind: 'WAIT', reason: 'wrong_or_partial_attack_set', currentTarget: target };
     }
-    if (observation.attackOnsetTimeMs <= target.activationBoundaryMs) {
+    try {
+      this.timebase.assertSameSessionTimeDomain(observation.attackOnsetTime, target.activationBoundary);
+    } catch {
+      return { kind: 'WAIT', reason: 'stale_attack', currentTarget: target };
+    }
+    if (observation.attackOnsetTime.ms <= target.activationBoundary.ms) {
       return { kind: 'WAIT', reason: 'stale_attack', currentTarget: target };
     }
 
@@ -150,7 +160,7 @@ export class StepPracticeRuntime {
     this.currentIndex = this.resolvedScope.startIndex;
     this.completed = false;
     this.activationGeneration += 1;
-    this.activationBoundaryMs = this.clock.nowMs();
+    this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
   }
 
   snapshot(): LocalStepSessionSnapshot {
@@ -201,16 +211,16 @@ export class StepPracticeRuntime {
   private advanceOne(): void {
     this.currentIndex += 1;
     this.activationGeneration += 1;
-    this.activationBoundaryMs = this.clock.nowMs();
+    this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
     if (this.currentIndex > this.resolvedScope.endIndex) {
       this.completed = true;
     }
   }
 
-  private recordAttempt(input: Omit<LocalPracticeAttempt, 'attemptId' | 'createdAtMs'>): void {
+  private recordAttempt(input: Omit<LocalPracticeAttempt, 'attemptId' | 'sessionTime'>): void {
     this.attempts.push({
       attemptId: `${this.localSessionId}:attempt:${this.attempts.length + 1}`,
-      createdAtMs: this.clock.nowMs(),
+      sessionTime: this.timebase.runtimeToSessionTime(this.clock.nowMs()),
       ...input,
     });
   }

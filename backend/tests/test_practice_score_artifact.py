@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import json
-import os
-from pathlib import Path
-
 from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
 from app.processing.performance.timeline import TempoSegment
 from app.processing.practice_score.practice_score_artifact import (
@@ -69,10 +65,6 @@ def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
             "source": "MUSICXML",
         },
     ]
-    if fixture_path := _browser_fixture_path():
-        assert artifact == json.loads(fixture_path.read_text(encoding="utf-8-sig"))
-
-
 def test_empty_practice_score_artifact_uses_null_first_playable() -> None:
     artifact = practice_score_artifact_from_timeline(
         PracticeScoreTimeline(
@@ -89,28 +81,6 @@ def test_empty_practice_score_artifact_uses_null_first_playable() -> None:
 
     assert artifact["firstPlayableBeat"] is None
     assert artifact["expectedPracticeGroups"] == []
-
-
-def _browser_fixture_path() -> Path | None:
-    candidates: list[Path] = []
-    if root := os.environ.get("NOTEVERSE_REPO_ROOT"):
-        candidates.append(Path(root))
-    candidates.extend(Path(__file__).resolve().parents)
-    for root in candidates:
-        path = (
-            root
-            / "apps"
-            / "customer-web"
-            / "src"
-            / "lib"
-            / "practice"
-            / "local-core"
-            / "__fixtures__"
-            / "canonical-practice-score-artifact.json"
-        )
-        if path.exists():
-            return path
-    return None
 
 
 def _canonical_note_array() -> _NoteArray:

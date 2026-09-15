@@ -1,5 +1,5 @@
 import type { PracticeInputSource, PracticeMode, PracticeScope } from './artifact';
-import type { RuntimeVersionIdentity } from './timebase';
+import type { RuntimeVersionIdentity, SessionTime } from './timebase';
 
 export type PracticeLifecycleState = 'CREATED' | 'ACTIVE' | 'PAUSED' | 'ENDED';
 
@@ -54,12 +54,12 @@ export type LocalPracticeAttempt = {
   result: 'MATCH' | 'WAIT' | 'SKIPPED';
   observedAttackPitches: string[];
   confidence: number;
-  createdAtMs: number;
+  sessionTime: SessionTime;
 };
 
 export type LocalPerformanceObservationRecord = {
   source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
-  captureTimeMs: number;
+  captureTime: SessionTime;
   inferenceCompletedAtMs?: number;
   pitches: string[];
   confidence: number;
