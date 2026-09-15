@@ -2006,6 +2006,7 @@ def test_step_microphone_verifier_accepted_observation_advances_exactly_one_step
         )],
     )
     verifier = engine._step_microphone_verifier
+    engine._ingest_audio_frame = legacy_progression_must_not_run
 
     update = engine.ingest_audio(b"first")
 
@@ -2032,6 +2033,7 @@ def test_step_microphone_verifier_next_chunk_receives_new_step_after_match() -> 
         )],
     )
     verifier = engine._step_microphone_verifier
+    engine._ingest_audio_frame = legacy_progression_must_not_run
 
     engine.ingest_audio(b"first")
     engine.ingest_audio(b"second")
@@ -2112,6 +2114,7 @@ def test_step_microphone_verifier_stale_or_wrong_observation_cannot_advance() ->
             ),
         ],
     )
+    engine._ingest_audio_frame = legacy_progression_must_not_run
 
     assert engine.ingest_audio(b"stale") is None
     assert engine._follow_policy.current_expected_group.pitches == ("C4",)
@@ -2123,6 +2126,7 @@ def test_step_microphone_verifier_no_observation_does_not_advance() -> None:
     import numpy as np
 
     engine = make_shadow_verifier_engine(np)
+    engine._ingest_audio_frame = legacy_progression_must_not_run
 
     assert engine.ingest_audio(b"quiet") is None
     assert engine._follow_policy.current_expected_group.pitches == ("C4",)
@@ -2144,6 +2148,10 @@ def test_no_step_microphone_verifier_uses_legacy_audio_frame_path() -> None:
 
     assert engine.ingest_audio(b"legacy") == {"legacy": True}
     assert len(calls) == 1
+
+
+def legacy_progression_must_not_run(_audio_frame):
+    raise AssertionError("legacy WAIT_FOR_NOTE progression must not run when verifier is injected")
 
 
 def test_step_microphone_verifier_reset_returns_target_to_scoped_start() -> None:
@@ -2177,6 +2185,7 @@ def test_step_microphone_verifier_skip_and_old_observation_do_not_double_advance
             )
         ],
     )
+    engine._ingest_audio_frame = legacy_progression_must_not_run
 
     skipped = engine.skip_current_expected_group()
     assert skipped is not None

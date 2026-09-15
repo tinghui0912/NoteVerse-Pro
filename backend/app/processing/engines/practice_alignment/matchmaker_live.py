@@ -264,9 +264,8 @@ class MatchmakerLiveEngine:
             return None
 
         self.total_bytes += len(chunk)
-        verifier_update = self._step_microphone_verifier_update(chunk)
-        if verifier_update is not None:
-            return verifier_update
+        if getattr(self, "_step_microphone_verifier", None) is not None:
+            return self._step_microphone_verifier_update(chunk)
         audio = self._pcm_s16le_to_float32(chunk)
         if audio.size == 0:
             return None
