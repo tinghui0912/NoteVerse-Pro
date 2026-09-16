@@ -96,6 +96,9 @@ authoritative.
 `__fixtures__/bytedance-python-reference-contract.json` is generated from the
 existing non-frozen dev/cal PyTorch golden fixture under
 `backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures`.
+Those research artifacts are local and gitignored; materialize them first with
+the existing backend feasibility workflow before regenerating the checked
+compact contract fixture.
 Regenerate it with:
 
 ```bash
@@ -104,3 +107,24 @@ node apps/customer-web/scripts/generate-bytedance-reference-contract-fixture.mjs
 
 It stores source tensor hashes, raw output shapes, and the minimal local raw
 values needed to lock the validated temporally-bound event interpretation.
+
+## Production Worker WebGPU smoke
+
+The production-facing smoke must exercise the real Worker factory:
+
+```bash
+node apps/customer-web/scripts/bytedance-worker-webgpu-smoke.mjs \
+  --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx \
+  --fixture-dir backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures \
+  --browser-channel chrome \
+  --headed \
+  --warm-runs 5 \
+  --output backend/research/reports/bytedance_worker_webgpu_smoke_latest.json
+```
+
+The script recomputes the local model byte size and SHA256 before loading. It
+uses `createByteDanceBrowserWorkerClient()`, so the Vite/Next-visible Worker
+entry and `onnxruntime-web/webgpu` import are part of the browser bundle. The
+older `backend/research/browser_runtime/bytedance_onnx_browser_harness.mjs`
+remains useful as a direct ORT feasibility comparator, but it does not prove the
+production Worker boundary.

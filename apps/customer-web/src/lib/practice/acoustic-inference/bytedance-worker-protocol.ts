@@ -1,5 +1,6 @@
 import type {
   ByteDanceInferenceResult,
+  ByteDanceLoadDiagnostics,
   ByteDanceModelManifest,
   ByteDancePcmInferenceRequest,
 } from './bytedance-contract';
@@ -16,7 +17,7 @@ export type ByteDanceWorkerRequest =
   | { type: 'DISPOSE'; requestId: string };
 
 export type ByteDanceWorkerResponse =
-  | { type: 'READY'; requestId: string }
+  | { type: 'READY'; requestId: string; diagnostics?: ByteDanceLoadDiagnostics }
   | { type: 'RESULT'; requestId: string; result: ByteDanceInferenceResult }
   | { type: 'DISPOSED'; requestId: string }
   | { type: 'ERROR'; requestId: string; error: string };
@@ -75,9 +76,9 @@ export class ByteDanceWorkerProtocolRuntime {
         if (this.ready) {
           throw new Error('ByteDance worker is already loaded; DISPOSE before loading another model.');
         }
-        await this.core.load(message.manifest);
+        const diagnostics = await this.core.load(message.manifest);
         this.ready = true;
-        return { type: 'READY', requestId: message.requestId };
+        return { type: 'READY', requestId: message.requestId, diagnostics };
       }
       if (message.type === 'DISPOSE') {
         if (this.activeInference) {
@@ -96,13 +97,44 @@ export class ByteDanceWorkerProtocolRuntime {
       }
       this.activeInference = message.requestId;
       try {
+        const inferenceStartedAt = nowMs();
         const raw = await this.core.infer(message.input);
+        const inferenceCompletedAt = nowMs();
+        const events = decodeByteDanceRawOutputs(raw, message.input, {
+          inferenceCompletedAtMs: inferenceCompletedAt,
+        });
+        const decodeCompletedAt = nowMs();
         return {
           type: 'RESULT',
           requestId: message.requestId,
           result: {
             requestId: message.input.requestId,
-            events: decodeByteDanceRawOutputs(raw, message.input),
+            events,
+            inferenceCompletedAtMs: inferenceCompletedAt,
+            diagnostics: {
+              inputTensor: {
+                name: 'audio',
+                dtype: 'float32',
+                shape: [1, message.input.pcm.length],
+              },
+              outputTensors: {
+                regOnset: {
+                  name: 'reg_onset_output',
+                  dtype: 'float32',
+                  shape: raw.reg_onset_shape,
+                },
+                frame: {
+                  name: 'frame_output',
+                  dtype: 'float32',
+                  shape: raw.frame_shape,
+                },
+              },
+              timingMs: {
+                onnxInference: inferenceCompletedAt - inferenceStartedAt,
+                decode: decodeCompletedAt - inferenceCompletedAt,
+                workerTotal: decodeCompletedAt - inferenceStartedAt,
+              },
+            },
           },
         };
       } finally {
@@ -132,11 +164,12 @@ export class ByteDanceBrowserWorkerClient {
     });
   }
 
-  async load(manifest: ByteDanceModelManifest): Promise<void> {
+  async load(manifest: ByteDanceModelManifest): Promise<ByteDanceLoadDiagnostics | undefined> {
     const response = await this.send({ type: 'LOAD', requestId: this.nextId(), manifest });
     if (response.type !== 'READY') {
       throw new Error(response.type === 'ERROR' ? response.error : 'ByteDance worker load failed.');
     }
+    return response.diagnostics;
   }
 
   async infer(input: ByteDancePcmInferenceRequest): Promise<ByteDanceInferenceResult> {
@@ -165,4 +198,8 @@ export class ByteDanceBrowserWorkerClient {
     this.sequence += 1;
     return `bytedance-worker:${this.sequence}`;
   }
+}
+
+function nowMs(): number {
+  return globalThis.performance?.now?.() ?? Date.now();
 }

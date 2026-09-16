@@ -3,6 +3,7 @@ import * as ortWebGpu from 'onnxruntime-web/webgpu';
 import {
   BYTEDANCE_INPUT_DESCRIPTOR,
   BYTEDANCE_OUTPUT_DESCRIPTORS,
+  type ByteDanceLoadDiagnostics,
   type ByteDanceModelManifest,
   type ByteDancePcmInferenceRequest,
   type ByteDanceRawOutputs,
@@ -69,12 +70,23 @@ export class ByteDanceOnnxInferenceCore {
     private readonly modelLoader: ByteDanceModelLoader = fetchAndVerifyByteDanceModel
   ) {}
 
-  async load(manifest: ByteDanceModelManifest): Promise<void> {
+  async load(manifest: ByteDanceModelManifest): Promise<ByteDanceLoadDiagnostics> {
     validateByteDanceModelManifest(manifest);
+    const loadStartedAt = nowMs();
     await this.dispose();
+    const modelLoadStartedAt = nowMs();
     const modelBytes = await this.modelLoader(manifest);
+    const modelLoadedAt = nowMs();
     this.session = await this.runtime.createSession(manifest, modelBytes);
+    const sessionCreatedAt = nowMs();
     this.manifest = manifest;
+    return {
+      modelFetchAndVerifyMs: modelLoadedAt - modelLoadStartedAt,
+      sessionCreateMs: sessionCreatedAt - modelLoadedAt,
+      totalLoadMs: sessionCreatedAt - loadStartedAt,
+      modelByteSize: modelBytes.byteLength,
+      modelSha256: manifest.sha256,
+    };
   }
 
   async infer(request: ByteDancePcmInferenceRequest): Promise<ByteDanceRawOutputs> {
@@ -105,6 +117,10 @@ export class ByteDanceOnnxInferenceCore {
     this.session = null;
     this.manifest = null;
   }
+}
+
+function nowMs(): number {
+  return globalThis.performance?.now?.() ?? Date.now();
 }
 
 export type ByteDanceModelLoader = (manifest: ByteDanceModelManifest) => Promise<Uint8Array>;

@@ -90,6 +90,34 @@ export type ByteDanceInferenceResult = {
   requestId: string;
   events: AcousticNoteEvent[];
   inferenceCompletedAtMs?: number;
+  diagnostics?: ByteDanceInferenceDiagnostics;
+};
+
+export type ByteDanceTensorDiagnostics = {
+  name: string;
+  dtype: 'float32';
+  shape: readonly number[];
+};
+
+export type ByteDanceInferenceDiagnostics = {
+  inputTensor: ByteDanceTensorDiagnostics;
+  outputTensors: {
+    regOnset: ByteDanceTensorDiagnostics;
+    frame: ByteDanceTensorDiagnostics;
+  };
+  timingMs: {
+    onnxInference: number;
+    decode: number;
+    workerTotal: number;
+  };
+};
+
+export type ByteDanceLoadDiagnostics = {
+  modelFetchAndVerifyMs: number;
+  sessionCreateMs: number;
+  totalLoadMs: number;
+  modelByteSize: number;
+  modelSha256: string;
 };
 
 export function defaultByteDanceModelManifest(input: {

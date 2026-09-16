@@ -346,9 +346,26 @@ describe('ByteDance worker protocol', () => {
     await expect(worker.handle({ type: 'INFER', requestId: 'before-ready', input: request() }))
       .resolves.toMatchObject({ type: 'ERROR' });
     await expect(worker.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
-      .resolves.toMatchObject({ type: 'READY' });
+      .resolves.toMatchObject({
+        type: 'READY',
+        diagnostics: {
+          modelByteSize: verifiedModelBytes.byteLength,
+          modelSha256: verifiedManifest().sha256,
+        },
+      });
     await expect(worker.handle({ type: 'INFER', requestId: 'run-1', input: request() }))
-      .resolves.toMatchObject({ type: 'RESULT' });
+      .resolves.toMatchObject({
+        type: 'RESULT',
+        result: {
+          diagnostics: {
+            inputTensor: { name: BYTEDANCE_INPUT_DESCRIPTOR.name, shape: [1, 29120] },
+            outputTensors: {
+              regOnset: { name: BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name, shape: [1, 240, 88] },
+              frame: { name: BYTEDANCE_OUTPUT_DESCRIPTORS.frame.name, shape: [1, 240, 88] },
+            },
+          },
+        },
+      });
     await expect(worker.handle({ type: 'INFER', requestId: 'run-2', input: request({ requestId: 'infer-2' }) }))
       .resolves.toMatchObject({ type: 'RESULT' });
     expect(runtime.sessionCreateCount).toBe(1);
