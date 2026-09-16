@@ -1,8 +1,9 @@
 # ByteDance Browser Acoustic Inference Boundary
 
 This package is the shared browser-local inference boundary for future STEP and
-CONTINUOUS practice. It does not implement live microphone capture,
-AudioWorklet, model caching, or production model delivery.
+CONTINUOUS practice. It includes the first production-shaped live capture
+pipeline, but it still does not implement model caching, customer-facing
+microphone UI, or production model delivery.
 
 ## Model identity
 
@@ -70,6 +71,39 @@ does not yet have 1000 ms of real lookback, but it never pads missing right-side
 future context. A window is not ready until the full `+220 ms` future prefix is
 captured.
 
+## Live capture pipeline
+
+The live path is:
+
+```text
+AudioWorklet capture
+-> deterministic mono PCM chunks with source sample indexes
+-> streaming 16 kHz resampler
+-> bounded absolute-indexed 16 kHz sample ring
+-> 150 ms fixed-anchor scheduler
+-> production ByteDance Worker
+-> decoder
+-> AcousticEventStreamNormalizer
+-> STEP / CONTINUOUS adapters
+```
+
+The AudioWorklet only captures audio and posts PCM chunks. It does not run
+inference, pitch recognition, onset detection, matching, progression, or score
+logic.
+
+Each capture lifecycle gets a capture-domain/session-time identity. One
+PracticeTimebase anchor maps normalized 16 kHz sample indexes into the local
+practice session domain. The controller does not continuously re-anchor based on
+callback time or Worker latency. Restarting capture creates a new generation and
+resets the stream normalizer so late results and old per-pitch dedupe state
+cannot cross into the new domain.
+
+The rolling scheduler uses the frozen 150 ms grid (`2400` samples at 16 kHz).
+Because current warm WebGPU inference is slower than the grid, the live
+controller permits one active inference and at most one coalesced latest-ready
+anchor. It never builds an unbounded FIFO backlog and never submits an anchor
+until the full `+220 ms` future context is present.
+
 ## Event stream normalization
 
 Per-window decoded events pass through `AcousticEventStreamNormalizer` before
@@ -132,3 +166,20 @@ entry and `onnxruntime-web/webgpu` import are part of the browser bundle. The
 older `backend/research/browser_runtime/bytedance_onnx_browser_harness.mjs`
 remains useful as a direct ORT feasibility comparator, but it does not prove the
 production Worker boundary.
+
+## Live capture smoke
+
+The AudioWorklet smoke uses a deterministic oscillator source instead of a
+physical microphone so it can run without device permission:
+
+```bash
+node apps/customer-web/scripts/bytedance-live-capture-smoke.mjs \
+  --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx \
+  --browser-channel chrome \
+  --headed \
+  --output backend/research/reports/bytedance_live_capture_smoke_latest.json
+```
+
+It loads the real AudioWorklet module, checks source sample continuity, streams
+through the live resampler/ring/scheduler, and sends at least one assembled
+fixed-anchor window through `createByteDanceBrowserWorkerClient()`.

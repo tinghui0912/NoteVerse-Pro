@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-09-16T05:23:49.012Z",
+  "gitHead": "0ea2a24ff873d163574f40bc3ee805ac0b4a819d",
+  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-live-capture-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed --timeout 45000 --output backend/research/reports/bytedance_live_capture_smoke_latest.json",
+  "harness": "apps/customer-web/scripts/bytedance-live-capture-smoke.mjs",
+  "model": {
+    "filename": "bytedance_note_model_fixed_anchor.onnx",
+    "byteSize": 98691493,
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+  },
+  "browser": {
+    "channel": "chrome",
+    "headed": true
+  },
+  "os": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "arch": "x64"
+  },
+  "result": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+    "webgpu": {
+      "available": true,
+      "adapterAcquired": true,
+      "adapter": {
+        "isFallbackAdapter": null,
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "bgra8unorm-storage",
+          "texture-formats-tier1",
+          "chromium-experimental-multi-draw-indirect",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "chromium-experimental-sampling-resource-table",
+          "core-features-and-limits",
+          "chromium-experimental-timestamp-query-inside-passes",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "texture-compression-unaligned",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "clip-distances",
+          "texture-formats-tier2",
+          "shader-f16",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "limits": {
+          "maxBufferSize": 2147483648,
+          "maxStorageBufferBindingSize": 2147483644,
+          "maxComputeWorkgroupStorageSize": 32768
+        },
+        "info": null
+      }
+    },
+    "audioContextSampleRate": 48000,
+    "workletChunks": 533,
+    "workletSampleContinuity": true,
+    "firstChunks": [
+      {
+        "sourceStartSampleIndex": 0,
+        "sourceEndSampleIndex": 128,
+        "normalizedStartSampleIndex": 0,
+        "normalizedEndSampleIndex": 43
+      },
+      {
+        "sourceStartSampleIndex": 128,
+        "sourceEndSampleIndex": 256,
+        "normalizedStartSampleIndex": 43,
+        "normalizedEndSampleIndex": 85
+      },
+      {
+        "sourceStartSampleIndex": 256,
+        "sourceEndSampleIndex": 384,
+        "normalizedStartSampleIndex": 85,
+        "normalizedEndSampleIndex": 128
+      },
+      {
+        "sourceStartSampleIndex": 384,
+        "sourceEndSampleIndex": 512,
+        "normalizedStartSampleIndex": 128,
+        "normalizedEndSampleIndex": 171
+      },
+      {
+        "sourceStartSampleIndex": 512,
+        "sourceEndSampleIndex": 640,
+        "normalizedStartSampleIndex": 171,
+        "normalizedEndSampleIndex": 213
+      }
+    ],
+    "lastChunk": {
+      "sourceStartSampleIndex": 68096,
+      "sourceEndSampleIndex": 68224,
+      "normalizedStartSampleIndex": 22699,
+      "normalizedEndSampleIndex": 22741
+    },
+    "pipelineState": {
+      "state": "idle",
+      "normalizedEndSampleIndex": 0,
+      "skippedAnchorCount": 0
+    },
+    "timings": {
+      "loadMs": 1550,
+      "inferences": [
+        {
+          "requestId": "live-bytedance:1:0",
+          "anchorStartSample": -25600,
+          "endToEndMs": 1192.9000000953674,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 1191.6999998092651,
+              "decode": 0.7000000476837158,
+              "workerTotal": 1192.3999998569489
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 0,
+                "sampleIndex": 0
+              },
+              "confidence": 0.8159834146499634,
+              "onsetScore": 0.8475258350372314,
+              "frameScore": 0.8159834146499634,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 3351.2999999523163
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "browserErrors": [
+    "error: \u001b[0;93m2026-09-16 13:23:46.605300 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-16 13:23:46.608100 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+  ],
+  "browserWarnings": []
+}

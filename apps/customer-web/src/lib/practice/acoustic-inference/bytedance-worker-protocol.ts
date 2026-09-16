@@ -187,6 +187,14 @@ export class ByteDanceBrowserWorkerClient {
     }
   }
 
+  terminate(reason = 'ByteDance worker was terminated.'): void {
+    for (const [requestId, resolve] of this.pending.entries()) {
+      resolve({ type: 'ERROR', requestId, error: reason });
+    }
+    this.pending.clear();
+    this.worker.terminate();
+  }
+
   private send(message: ByteDanceWorkerRequest): Promise<ByteDanceWorkerResponse> {
     this.worker.postMessage(message);
     return new Promise((resolve) => {
