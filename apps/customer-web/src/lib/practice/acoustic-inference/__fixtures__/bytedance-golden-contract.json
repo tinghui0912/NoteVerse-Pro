@@ -1,0 +1,57 @@
+{
+  "fixtureId": "bytedance-browser-contract-dev-cal-smoke-v1",
+  "source": "Small deterministic research contract derived from the frozen ByteDance fixed-anchor browser feasibility semantics; not from the frozen 62-case evaluation set.",
+  "sampleRateHz": 16000,
+  "sourcePcmLength": 20000,
+  "sourceNonZeroSamples": [
+    [0, 0.25],
+    [9600, 0.5],
+    [19519, -0.25]
+  ],
+  "anchorSampleIndex": 9600,
+  "expectedFixedAnchor": {
+    "clipStartSampleIndex": -16000,
+    "realStartSampleIndex": 0,
+    "realEndSampleIndex": 13120,
+    "zeroPaddingSamples": 16000,
+    "sampleCount": 29120,
+    "nonZeroSamples": [
+      [16000, 0.25],
+      [25600, 0.5]
+    ]
+  },
+  "captureStartSessionMs": -1000,
+  "rawEvents": [
+    { "frame": 160, "midiPitch": 60, "onset": 0.21, "frameScore": 0.7 },
+    { "frame": 161, "midiPitch": 60, "onset": 0.91, "frameScore": 0.8 },
+    { "frame": 162, "midiPitch": 60, "onset": 0.4, "frameScore": 0.75 },
+    { "frame": 161, "midiPitch": 64, "onset": 0.88, "frameScore": 0.72 },
+    { "frame": 180, "midiPitch": 60, "onset": 0.83, "frameScore": 0.81 }
+  ],
+  "expectedDecodedEvents": [
+    {
+      "pitch": "C4",
+      "midiPitch": 60,
+      "sampleIndex": 9760,
+      "sessionMs": 610,
+      "onsetScore": 0.91,
+      "frameScore": 0.8
+    },
+    {
+      "pitch": "E4",
+      "midiPitch": 64,
+      "sampleIndex": 9760,
+      "sessionMs": 610,
+      "onsetScore": 0.88,
+      "frameScore": 0.72
+    },
+    {
+      "pitch": "C4",
+      "midiPitch": 60,
+      "sampleIndex": 12800,
+      "sessionMs": 800,
+      "onsetScore": 0.83,
+      "frameScore": 0.81
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import * as ortWebGpu from 'onnxruntime-web/webgpu';
+
 import {
   BYTEDANCE_INPUT_DESCRIPTOR,
   BYTEDANCE_OUTPUT_DESCRIPTORS,
@@ -22,13 +24,14 @@ export type ByteDanceOnnxSession = {
 };
 
 export type ByteDanceOnnxRuntime = {
-  createSession(manifest: ByteDanceModelManifest): Promise<ByteDanceOnnxSession>;
+  createTensor(type: 'float32', data: Float32Array, dims: readonly number[]): unknown;
+  createSession(manifest: ByteDanceModelManifest, modelBytes: Uint8Array): Promise<ByteDanceOnnxSession>;
 };
 
 type OrtRuntimeModule = {
   InferenceSession: {
     create(
-      modelUrl: string,
+      modelBytes: Uint8Array,
       options: {
         executionProviders: readonly string[];
         graphOptimizationLevel: 'disabled' | 'basic' | 'extended' | 'all';
@@ -42,14 +45,14 @@ export async function loadOnnxRuntimeWeb(): Promise<ByteDanceOnnxRuntime> {
   if (typeof navigator === 'undefined' || !('gpu' in navigator)) {
     throw new Error('WebGPU is unavailable; ByteDance browser inference cannot initialize.');
   }
-  const importer = Function('specifier', 'return import(specifier)') as (
-    specifier: string
-  ) => Promise<OrtRuntimeModule>;
-  const ort = await importer('onnxruntime-web');
+  const ort = ortWebGpu as unknown as OrtRuntimeModule;
   return {
-    async createSession(manifest) {
+    createTensor(type, data, dims) {
+      return new ort.Tensor(type, data, dims);
+    },
+    async createSession(manifest, modelBytes) {
       validateByteDanceModelManifest(manifest);
-      return ort.InferenceSession.create(manifest.modelUrl, {
+      return ort.InferenceSession.create(modelBytes, {
         executionProviders: ['webgpu'],
         graphOptimizationLevel: 'disabled',
       });
@@ -61,11 +64,16 @@ export class ByteDanceOnnxInferenceCore {
   private session: ByteDanceOnnxSession | null = null;
   private manifest: ByteDanceModelManifest | null = null;
 
-  constructor(private readonly runtime: ByteDanceOnnxRuntime) {}
+  constructor(
+    private readonly runtime: ByteDanceOnnxRuntime,
+    private readonly modelLoader: ByteDanceModelLoader = fetchAndVerifyByteDanceModel
+  ) {}
 
   async load(manifest: ByteDanceModelManifest): Promise<void> {
     validateByteDanceModelManifest(manifest);
-    this.session = await this.runtime.createSession(manifest);
+    await this.dispose();
+    const modelBytes = await this.modelLoader(manifest);
+    this.session = await this.runtime.createSession(manifest, modelBytes);
     this.manifest = manifest;
   }
 
@@ -74,9 +82,10 @@ export class ByteDanceOnnxInferenceCore {
       throw new Error('ByteDance ONNX session is not ready.');
     }
     const prepared = prepareByteDanceInput(request);
+    const audio = this.runtime.createTensor('float32', prepared.feeds.audio, prepared.shape);
     const outputs = await this.session.run(
       {
-        [BYTEDANCE_INPUT_DESCRIPTOR.name]: prepared.feeds.audio,
+        [BYTEDANCE_INPUT_DESCRIPTOR.name]: audio,
       },
       [
         BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name,
@@ -96,6 +105,38 @@ export class ByteDanceOnnxInferenceCore {
     this.session = null;
     this.manifest = null;
   }
+}
+
+export type ByteDanceModelLoader = (manifest: ByteDanceModelManifest) => Promise<Uint8Array>;
+
+export async function fetchAndVerifyByteDanceModel(manifest: ByteDanceModelManifest): Promise<Uint8Array> {
+  validateByteDanceModelManifest(manifest);
+  const response = await fetch(manifest.modelUrl);
+  if (!response.ok) {
+    throw new Error(`ByteDance model fetch failed with HTTP ${response.status}.`);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength !== manifest.expectedByteSize) {
+    throw new Error(
+      `ByteDance model byte size mismatch: expected ${manifest.expectedByteSize}, got ${bytes.byteLength}.`
+    );
+  }
+  const digest = await sha256Hex(bytes);
+  if (digest.toLowerCase() !== manifest.sha256.toLowerCase()) {
+    throw new Error('ByteDance model SHA256 mismatch.');
+  }
+  return bytes;
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error('Web Crypto SHA-256 is unavailable; cannot verify ByteDance model integrity.');
+  }
+  const buffer = new Uint8Array(bytes).buffer;
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 function tensorData(tensor: OrtTensorLike | undefined): Float32Array {

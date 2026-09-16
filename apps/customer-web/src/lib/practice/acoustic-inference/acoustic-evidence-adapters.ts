@@ -5,7 +5,10 @@ import {
   type StepVerifierObservation,
   type StepVerifierTarget,
 } from '../local-core';
-import type { AcousticNoteEvent } from './bytedance-contract';
+import { BYTEDANCE_INFERENCE_CONTRACT, type AcousticNoteEvent } from './bytedance-contract';
+
+const CHORD_GESTURE_COHERENCE_MS = BYTEDANCE_INFERENCE_CONTRACT.localPreMs
+  + BYTEDANCE_INFERENCE_CONTRACT.localPostMs;
 
 export function acousticEventsToStepObservation(
   target: StepVerifierTarget,
@@ -20,6 +23,9 @@ export function acousticEventsToStepObservation(
   if (!pitchSetsEqual(complete.map((event) => event.pitch), expected)) {
     return null;
   }
+  if (!isCoherentAttackGesture(complete)) {
+    return null;
+  }
   const latest = complete.reduce((winner, event) => (
     event.onsetTime.ms > winner.onsetTime.ms ? event : winner
   ));
@@ -32,6 +38,14 @@ export function acousticEventsToStepObservation(
     confidence: Math.min(...complete.map((event) => event.confidence)),
     source: 'ACOUSTIC',
   };
+}
+
+function isCoherentAttackGesture(events: readonly AcousticNoteEvent[]): boolean {
+  if (events.length <= 1) {
+    return true;
+  }
+  const times = events.map((event) => event.onsetTime.ms);
+  return Math.max(...times) - Math.min(...times) <= CHORD_GESTURE_COHERENCE_MS;
 }
 
 export function acousticEventsToPerformanceEvidence(

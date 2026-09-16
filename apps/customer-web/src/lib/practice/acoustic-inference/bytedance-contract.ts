@@ -36,6 +36,8 @@ export const BYTEDANCE_INFERENCE_CONTRACT = {
   onsetThreshold: 0.2,
   frameThreshold: 0.2,
   outputFrameRateHz: 100,
+  localPreMs: 50,
+  localPostMs: 120,
 } as const;
 
 export type ByteDanceExecutionBackend = 'webgpu';
@@ -131,14 +133,29 @@ export function validateByteDanceModelManifest(manifest: ByteDanceModelManifest)
   }
   if (manifest.input.name !== BYTEDANCE_INPUT_DESCRIPTOR.name
     || manifest.input.dtype !== BYTEDANCE_INPUT_DESCRIPTOR.dtype
+    || manifest.input.shape.length !== BYTEDANCE_INPUT_DESCRIPTOR.shape.length
     || manifest.input.shape.join('x') !== BYTEDANCE_INPUT_DESCRIPTOR.shape.join('x')) {
     throw new Error('Unexpected ByteDance input tensor descriptor.');
   }
-  if (manifest.outputs.regOnset.name !== BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name
-    || manifest.outputs.frame.name !== BYTEDANCE_OUTPUT_DESCRIPTORS.frame.name) {
-    throw new Error('Unexpected ByteDance output tensor descriptor names.');
+  if (!outputDescriptorEquals(manifest.outputs.regOnset, BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset)
+    || !outputDescriptorEquals(manifest.outputs.frame, BYTEDANCE_OUTPUT_DESCRIPTORS.frame)) {
+    throw new Error('Unexpected ByteDance output tensor descriptor.');
   }
   if (!manifest.modelUrl || manifest.expectedByteSize <= 0 || !/^[a-f0-9]{64}$/i.test(manifest.sha256)) {
     throw new Error('ByteDance model manifest must include URL, byte size, and SHA256.');
   }
+}
+
+type ByteDanceOutputDescriptor = {
+  name: string;
+  dtype: string;
+  rank: number;
+  pitchCount: number;
+};
+
+function outputDescriptorEquals(left: ByteDanceOutputDescriptor, right: ByteDanceOutputDescriptor): boolean {
+  return left.name === right.name
+    && left.dtype === right.dtype
+    && left.rank === right.rank
+    && left.pitchCount === right.pitchCount;
 }

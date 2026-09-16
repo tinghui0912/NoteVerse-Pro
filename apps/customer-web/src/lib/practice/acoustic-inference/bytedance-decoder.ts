@@ -33,39 +33,89 @@ export function decodeByteDanceRawOutputs(
   const onsetThreshold = options.onsetThreshold ?? BYTEDANCE_INFERENCE_CONTRACT.onsetThreshold;
   const frameThreshold = options.frameThreshold ?? BYTEDANCE_INFERENCE_CONTRACT.frameThreshold;
   const events: AcousticNoteEvent[] = [];
-  for (let frameIndex = 0; frameIndex < onset.frameCount; frameIndex += 1) {
-    for (let pitchIndex = 0; pitchIndex < onset.pitchCount; pitchIndex += 1) {
-      const onsetScore = onset.value(frameIndex, pitchIndex);
-      if (onsetScore < onsetThreshold) {
-        continue;
-      }
-      const frameScore = frame.value(frameIndex, pitchIndex);
+  for (let pitchIndex = 0; pitchIndex < onset.pitchCount; pitchIndex += 1) {
+    for (const peakFrameIndex of onsetPeakFramesForPitch(onset, pitchIndex, onsetThreshold)) {
+      const onsetScore = onset.value(peakFrameIndex, pitchIndex);
+      const frameScore = frame.value(peakFrameIndex, pitchIndex);
       if (frameScore < frameThreshold) {
         continue;
       }
-      const midiPitch = MIDI_LOWEST_PIANO_KEY + pitchIndex;
-      const sampleOffset = Math.round(
-        frameIndex / BYTEDANCE_INFERENCE_CONTRACT.outputFrameRateHz * request.sampleRateHz
-      );
-      const onsetSample = request.captureStartSampleIndex + sampleOffset;
-      events.push({
-        pitch: midiPitchToPitchName(midiPitch),
-        midiPitch,
-        onsetTime: {
-          ...request.captureStartTime,
-          ms: request.captureStartTime.ms + sampleOffset / request.sampleRateHz * 1000,
-          sampleIndex: onsetSample,
-        },
-        confidence: Math.min(onsetScore, frameScore),
+      events.push(eventForPeak({
+        request,
+        pitchIndex,
+        frameIndex: peakFrameIndex,
         onsetScore,
         frameScore,
-        source: 'ACOUSTIC',
         inferenceCompletedAtMs: options.inferenceCompletedAtMs,
-      });
+      }));
     }
   }
-  return events;
+  return events.sort((left, right) => (
+    left.onsetTime.ms - right.onsetTime.ms || left.midiPitch - right.midiPitch
+  ));
 }
+
+function onsetPeakFramesForPitch(
+  onset: OutputMatrix,
+  pitchIndex: number,
+  onsetThreshold: number
+): number[] {
+  const peaks: number[] = [];
+  let frameIndex = 0;
+  while (frameIndex < onset.frameCount) {
+    while (frameIndex < onset.frameCount && onset.value(frameIndex, pitchIndex) < onsetThreshold) {
+      frameIndex += 1;
+    }
+    if (frameIndex >= onset.frameCount) {
+      break;
+    }
+    let peakFrameIndex = frameIndex;
+    let peakScore = onset.value(frameIndex, pitchIndex);
+    while (frameIndex + 1 < onset.frameCount
+      && onset.value(frameIndex + 1, pitchIndex) >= onsetThreshold) {
+      frameIndex += 1;
+      const score = onset.value(frameIndex, pitchIndex);
+      if (score > peakScore) {
+        peakScore = score;
+        peakFrameIndex = frameIndex;
+      }
+    }
+    peaks.push(peakFrameIndex);
+    frameIndex += 1;
+  }
+  return peaks;
+}
+
+function eventForPeak(input: {
+  request: ByteDancePcmInferenceRequest;
+  pitchIndex: number;
+  frameIndex: number;
+  onsetScore: number;
+  frameScore: number;
+  inferenceCompletedAtMs?: number;
+}): AcousticNoteEvent {
+  const midiPitch = MIDI_LOWEST_PIANO_KEY + input.pitchIndex;
+  const sampleOffset = Math.round(
+    input.frameIndex / BYTEDANCE_INFERENCE_CONTRACT.outputFrameRateHz * input.request.sampleRateHz
+  );
+  const onsetSample = input.request.captureStartSampleIndex + sampleOffset;
+  return {
+    pitch: midiPitchToPitchName(midiPitch),
+    midiPitch,
+    onsetTime: {
+      ...input.request.captureStartTime,
+      ms: input.request.captureStartTime.ms + sampleOffset / input.request.sampleRateHz * 1000,
+      sampleIndex: onsetSample,
+    },
+    confidence: Math.min(input.onsetScore, input.frameScore),
+    onsetScore: input.onsetScore,
+    frameScore: input.frameScore,
+    source: 'ACOUSTIC',
+    inferenceCompletedAtMs: input.inferenceCompletedAtMs,
+  };
+}
+
+type OutputMatrix = ReturnType<typeof normalizeOutputMatrix>;
 
 function normalizeOutputMatrix(data: Float32Array, shape: readonly number[], name: string) {
   if (shape.length !== 2 && shape.length !== 3) {

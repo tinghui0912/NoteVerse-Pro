@@ -1,13 +1,11 @@
 import { loadOnnxRuntimeWeb } from './bytedance-onnx-provider';
 import {
-  ByteDanceWorkerProtocolRuntime,
+  ByteDanceWorkerHost,
   type ByteDanceWorkerRequest,
 } from './bytedance-worker-protocol';
 
-const runtimePromise = loadOnnxRuntimeWeb().then((runtime) => new ByteDanceWorkerProtocolRuntime(runtime));
+const host = new ByteDanceWorkerHost(loadOnnxRuntimeWeb);
 
 self.addEventListener('message', (event: MessageEvent<ByteDanceWorkerRequest>) => {
-  void runtimePromise
-    .then((runtime) => runtime.handle(event.data))
-    .then((response) => self.postMessage(response));
+  void host.handle(event.data).then((response) => self.postMessage(response));
 });

@@ -4,7 +4,11 @@ import type {
   ByteDancePcmInferenceRequest,
 } from './bytedance-contract';
 import { decodeByteDanceRawOutputs } from './bytedance-decoder';
-import { ByteDanceOnnxInferenceCore, type ByteDanceOnnxRuntime } from './bytedance-onnx-provider';
+import {
+  ByteDanceOnnxInferenceCore,
+  type ByteDanceModelLoader,
+  type ByteDanceOnnxRuntime,
+} from './bytedance-onnx-provider';
 
 export type ByteDanceWorkerRequest =
   | { type: 'LOAD'; requestId: string; manifest: ByteDanceModelManifest }
@@ -17,23 +21,68 @@ export type ByteDanceWorkerResponse =
   | { type: 'DISPOSED'; requestId: string }
   | { type: 'ERROR'; requestId: string; error: string };
 
+export type ByteDanceWorkerRuntimeFactory = () => Promise<ByteDanceOnnxRuntime>;
+
+export class ByteDanceWorkerHost {
+  private runtime: ByteDanceWorkerProtocolRuntime | null = null;
+
+  constructor(
+    private readonly runtimeFactory: ByteDanceWorkerRuntimeFactory,
+    private readonly modelLoader?: ByteDanceModelLoader
+  ) {}
+
+  async handle(message: ByteDanceWorkerRequest): Promise<ByteDanceWorkerResponse> {
+    try {
+      if (!this.runtime) {
+        if (message.type !== 'LOAD') {
+          throw new Error('ByteDance worker is not initialized.');
+        }
+        this.runtime = new ByteDanceWorkerProtocolRuntime(
+          await this.runtimeFactory(),
+          this.modelLoader
+        );
+      }
+      const response = await this.runtime.handle(message);
+      if (message.type === 'DISPOSE' && response.type === 'DISPOSED') {
+        this.runtime = null;
+      }
+      return response;
+    } catch (error) {
+      return {
+        type: 'ERROR',
+        requestId: message.requestId,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+}
+
 export class ByteDanceWorkerProtocolRuntime {
   private readonly core: ByteDanceOnnxInferenceCore;
   private ready = false;
   private activeInference: string | null = null;
 
-  constructor(runtime: ByteDanceOnnxRuntime) {
-    this.core = new ByteDanceOnnxInferenceCore(runtime);
+  constructor(runtime: ByteDanceOnnxRuntime, modelLoader?: ByteDanceModelLoader) {
+    this.core = new ByteDanceOnnxInferenceCore(runtime, modelLoader);
   }
 
   async handle(message: ByteDanceWorkerRequest): Promise<ByteDanceWorkerResponse> {
     try {
       if (message.type === 'LOAD') {
+        if (this.activeInference) {
+          throw new Error('ByteDance worker cannot LOAD while inference is active.');
+        }
+        if (this.ready) {
+          throw new Error('ByteDance worker is already loaded; DISPOSE before loading another model.');
+        }
         await this.core.load(message.manifest);
         this.ready = true;
         return { type: 'READY', requestId: message.requestId };
       }
       if (message.type === 'DISPOSE') {
+        if (this.activeInference) {
+          throw new Error('ByteDance worker cannot DISPOSE while inference is active.');
+        }
         await this.core.dispose();
         this.ready = false;
         this.activeInference = null;
@@ -48,14 +97,12 @@ export class ByteDanceWorkerProtocolRuntime {
       this.activeInference = message.requestId;
       try {
         const raw = await this.core.infer(message.input);
-        const inferenceCompletedAtMs = message.input.inferenceRequestedAtMs;
         return {
           type: 'RESULT',
           requestId: message.requestId,
           result: {
             requestId: message.input.requestId,
-            events: decodeByteDanceRawOutputs(raw, message.input, { inferenceCompletedAtMs }),
-            inferenceCompletedAtMs,
+            events: decodeByteDanceRawOutputs(raw, message.input),
           },
         };
       } finally {

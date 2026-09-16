@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import goldenFixture from './__fixtures__/bytedance-golden-contract.json';
 import canonicalArtifactJson from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
 import {
   ManualClock,
@@ -13,9 +14,12 @@ import {
   acousticEventsToStepObservation,
   BYTEDANCE_INPUT_DESCRIPTOR,
   BYTEDANCE_OUTPUT_DESCRIPTORS,
+  ByteDanceWorkerHost,
   ByteDanceWorkerProtocolRuntime,
+  buildByteDanceFixedAnchorWindow,
   decodeByteDanceRawOutputs,
   defaultByteDanceModelManifest,
+  fetchAndVerifyByteDanceModel,
   loadOnnxRuntimeWeb,
   pcmS16leToFloat32,
   prepareByteDanceInput,
@@ -75,15 +79,27 @@ function rawOutput(events: Array<{ frame: number; midiPitch: number; onset: numb
   };
 }
 
-function mockRuntime(raw: ByteDanceRawOutputs): ByteDanceOnnxRuntime & { sessionCreateCount: number; runCount: number } {
+function mockRuntime(raw: ByteDanceRawOutputs): ByteDanceOnnxRuntime & {
+  sessionCreateCount: number;
+  runCount: number;
+  modelBytes: Uint8Array[];
+  feeds: Array<Record<string, unknown>>;
+} {
   return {
     sessionCreateCount: 0,
     runCount: 0,
-    async createSession() {
+    modelBytes: [],
+    feeds: [],
+    createTensor(type, data, dims) {
+      return { type, data, dims };
+    },
+    async createSession(_manifest, modelBytes) {
       this.sessionCreateCount += 1;
+      this.modelBytes.push(modelBytes);
       return {
-        run: async (_feeds, outputNames) => {
+        run: async (feeds, outputNames) => {
           this.runCount += 1;
+          this.feeds.push(feeds);
           return Object.fromEntries(outputNames.map((name) => {
             if (name === BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name) {
               return [name, { data: raw.reg_onset_output, dims: raw.reg_onset_shape }];
@@ -96,20 +112,75 @@ function mockRuntime(raw: ByteDanceRawOutputs): ByteDanceOnnxRuntime & { session
   };
 }
 
+const verifiedModelBytes = new Uint8Array([1, 2, 3, 4]);
+
+function verifiedManifest(overrides: Partial<ByteDanceModelManifest> = {}): ByteDanceModelManifest {
+  return manifest({
+    expectedByteSize: verifiedModelBytes.byteLength,
+    sha256: '9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a',
+    ...overrides,
+  });
+}
+
+const passThroughModelLoader = async () => verifiedModelBytes;
+
 describe('ByteDance model manifest contract', () => {
   it('accepts the validated model identity and rejects drift', () => {
     expect(() => validateByteDanceModelManifest(manifest())).not.toThrow();
     expect(() => validateByteDanceModelManifest(manifest({ modelId: 'other' as never }))).toThrow(/identity/);
+    expect(() => validateByteDanceModelManifest(manifest({
+      input: { ...manifest().input, shape: [1, 123] as never },
+    }))).toThrow(/input tensor descriptor/);
     expect(() => validateByteDanceModelManifest(manifest({
       outputs: {
         ...manifest().outputs,
         regOnset: { ...manifest().outputs.regOnset, name: 'output_0' as never },
       },
     }))).toThrow(/output tensor descriptor/);
+    expect(() => validateByteDanceModelManifest(manifest({
+      outputs: {
+        ...manifest().outputs,
+        frame: { ...manifest().outputs.frame, pitchCount: 87 as never },
+      },
+    }))).toThrow(/output tensor descriptor/);
+  });
+
+  it('verifies model byte size and SHA256 before session creation', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(verifiedModelBytes) as Response;
+    await expect(fetchAndVerifyByteDanceModel(verifiedManifest())).resolves.toEqual(verifiedModelBytes);
+    await expect(fetchAndVerifyByteDanceModel(verifiedManifest({ expectedByteSize: 3 })))
+      .rejects.toThrow(/byte size mismatch/);
+    await expect(fetchAndVerifyByteDanceModel(verifiedManifest({
+      sha256: '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
+    }))).rejects.toThrow(/SHA256 mismatch/);
+    globalThis.fetch = originalFetch;
   });
 });
 
 describe('ByteDance preprocessing and decoding', () => {
+  it('builds the validated fixed-anchor zero-padded input window', () => {
+    const source = new Float32Array(goldenFixture.sourcePcmLength);
+    for (const [index, value] of goldenFixture.sourceNonZeroSamples) {
+      source[index] = value;
+    }
+    const fixed = buildByteDanceFixedAnchorWindow({
+      sourcePcm: source,
+      sampleRateHz: goldenFixture.sampleRateHz,
+      anchorSampleIndex: goldenFixture.anchorSampleIndex,
+    });
+    expect(fixed).toMatchObject({
+      clipStartSampleIndex: goldenFixture.expectedFixedAnchor.clipStartSampleIndex,
+      realStartSampleIndex: goldenFixture.expectedFixedAnchor.realStartSampleIndex,
+      realEndSampleIndex: goldenFixture.expectedFixedAnchor.realEndSampleIndex,
+      zeroPaddingSamples: goldenFixture.expectedFixedAnchor.zeroPaddingSamples,
+    });
+    expect(fixed.pcm).toHaveLength(goldenFixture.expectedFixedAnchor.sampleCount);
+    for (const [index, value] of goldenFixture.expectedFixedAnchor.nonZeroSamples) {
+      expect(fixed.pcm[index]).toBe(value);
+    }
+  });
+
   it('preserves fixed-anchor dtype shape and PCM s16le scaling', () => {
     const prepared = prepareByteDanceInput(request());
     expect(prepared.shape).toEqual([1, 29120]);
@@ -135,6 +206,43 @@ describe('ByteDance preprocessing and decoding', () => {
     });
   });
 
+  it('matches the golden fixed-anchor descriptor and onset extraction fixture', () => {
+    const timebase = new PracticeTimebase({
+      domainId: 'golden-domain',
+      sampleRateHz: goldenFixture.sampleRateHz,
+      anchorSampleIndex: goldenFixture.expectedFixedAnchor.clipStartSampleIndex,
+      anchorSessionTimeMs: goldenFixture.captureStartSessionMs,
+    });
+    const decoded = decodeByteDanceRawOutputs(
+      rawOutput(goldenFixture.rawEvents),
+      request({
+        captureStartSampleIndex: goldenFixture.expectedFixedAnchor.clipStartSampleIndex,
+        captureStartTime: timebase.sampleIndexToSessionTime(goldenFixture.expectedFixedAnchor.clipStartSampleIndex),
+      })
+    );
+    expect(decoded.map((event) => ({
+      pitch: event.pitch,
+      midiPitch: event.midiPitch,
+      sampleIndex: event.onsetTime.sampleIndex,
+      sessionMs: event.onsetTime.ms,
+      onsetScore: Math.round(event.onsetScore * 100) / 100,
+      frameScore: Math.round(event.frameScore * 100) / 100,
+    }))).toEqual(goldenFixture.expectedDecodedEvents);
+  });
+
+  it('collapses adjacent thresholded onset frames into one physical attack event', () => {
+    const decoded = decodeByteDanceRawOutputs(
+      rawOutput([
+        { frame: 10, midiPitch: 60, onset: 0.21, frameScore: 0.6 },
+        { frame: 11, midiPitch: 60, onset: 0.82, frameScore: 0.7 },
+        { frame: 12, midiPitch: 60, onset: 0.3, frameScore: 0.65 },
+      ]),
+      request()
+    );
+    expect(decoded).toHaveLength(1);
+    expect(decoded[0]).toMatchObject({ pitch: 'C4', onsetScore: expect.closeTo(0.82, 6) });
+  });
+
   it('rejects descriptor shape drift', () => {
     expect(() => decodeByteDanceRawOutputs({
       ...rawOutput([]),
@@ -146,11 +254,11 @@ describe('ByteDance preprocessing and decoding', () => {
 describe('ByteDance worker protocol', () => {
   it('loads once, reuses the session, infers, and disposes', async () => {
     const runtime = mockRuntime(rawOutput([{ frame: 10, midiPitch: 60, onset: 0.9, frameScore: 0.8 }]));
-    const worker = new ByteDanceWorkerProtocolRuntime(runtime);
+    const worker = new ByteDanceWorkerProtocolRuntime(runtime, passThroughModelLoader);
 
     await expect(worker.handle({ type: 'INFER', requestId: 'before-ready', input: request() }))
       .resolves.toMatchObject({ type: 'ERROR' });
-    await expect(worker.handle({ type: 'LOAD', requestId: 'load', manifest: manifest() }))
+    await expect(worker.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
       .resolves.toMatchObject({ type: 'READY' });
     await expect(worker.handle({ type: 'INFER', requestId: 'run-1', input: request() }))
       .resolves.toMatchObject({ type: 'RESULT' });
@@ -158,8 +266,66 @@ describe('ByteDance worker protocol', () => {
       .resolves.toMatchObject({ type: 'RESULT' });
     expect(runtime.sessionCreateCount).toBe(1);
     expect(runtime.runCount).toBe(2);
+    expect(runtime.modelBytes).toEqual([verifiedModelBytes]);
+    expect(runtime.feeds[0]?.audio).toMatchObject({
+      type: 'float32',
+      data: expect.any(Float32Array),
+      dims: [1, 29120],
+    });
     await expect(worker.handle({ type: 'DISPOSE', requestId: 'dispose' }))
       .resolves.toMatchObject({ type: 'DISPOSED' });
+  });
+
+  it('returns deterministic lifecycle errors for second LOAD and dispose during inference', async () => {
+    let resolveRun: () => void = () => {
+      throw new Error('inference promise was not started');
+    };
+    const runtime = mockRuntime(rawOutput([]));
+    runtime.createSession = async function createSession(_manifest, modelBytes) {
+      this.sessionCreateCount += 1;
+      this.modelBytes.push(modelBytes);
+      return {
+        run: async () => {
+          this.runCount += 1;
+          await new Promise<void>((resolve) => {
+            resolveRun = resolve;
+          });
+          return {
+            [BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name]: {
+              data: rawOutput([]).reg_onset_output,
+              dims: rawOutput([]).reg_onset_shape,
+            },
+            [BYTEDANCE_OUTPUT_DESCRIPTORS.frame.name]: {
+              data: rawOutput([]).frame_output,
+              dims: rawOutput([]).frame_shape,
+            },
+          };
+        },
+      };
+    };
+    const worker = new ByteDanceWorkerProtocolRuntime(runtime, passThroughModelLoader);
+
+    await expect(worker.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
+      .resolves.toMatchObject({ type: 'READY' });
+    await expect(worker.handle({ type: 'LOAD', requestId: 'load-again', manifest: verifiedManifest() }))
+      .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/already loaded/) });
+    const running = worker.handle({ type: 'INFER', requestId: 'run', input: request() });
+    await expect(worker.handle({ type: 'DISPOSE', requestId: 'dispose-active' }))
+      .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/active/) });
+    await expect(worker.handle({ type: 'INFER', requestId: 'run-overlap', input: request() }))
+      .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/active inference/) });
+    resolveRun();
+    await expect(running).resolves.toMatchObject({ type: 'RESULT' });
+  });
+
+  it('reports initialization failure through the LOAD response', async () => {
+    const host = new ByteDanceWorkerHost(async () => {
+      throw new Error('webgpu unavailable');
+    });
+    await expect(host.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
+      .resolves.toEqual({ type: 'ERROR', requestId: 'load', error: 'webgpu unavailable' });
+    await expect(host.handle({ type: 'INFER', requestId: 'infer', input: request() }))
+      .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/not initialized/) });
   });
 
   it('fails WebGPU provider initialization explicitly when WebGPU is unavailable', async () => {
@@ -239,6 +405,50 @@ describe('ByteDance local practice adapters', () => {
     expect(runtime.observe(acousticEventsToStepObservation(target, complete))).toMatchObject({ kind: 'MATCH' });
   });
 
+  it('requires expected chord pitches to belong to one coherent fresh attack gesture', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      localSessionId: 'coherent-chord-domain',
+      scope: {
+        startGroupId: artifact.expectedPracticeGroups[3].groupId,
+        endGroupId: artifact.expectedPracticeGroups[3].groupId,
+      },
+    });
+    const target = runtime.currentTarget();
+    if (!target) {
+      throw new Error('missing chord target');
+    }
+    const base = target.activationBoundary;
+    const farApart = [
+      {
+        pitch: 'A4',
+        midiPitch: 69,
+        onsetTime: { ...base, ms: base.ms + 10 },
+        confidence: 0.9,
+        onsetScore: 0.9,
+        frameScore: 0.9,
+        source: 'ACOUSTIC' as const,
+      },
+      {
+        pitch: 'C5',
+        midiPitch: 72,
+        onsetTime: { ...base, ms: base.ms + 250 },
+        confidence: 0.9,
+        onsetScore: 0.9,
+        frameScore: 0.9,
+        source: 'ACOUSTIC' as const,
+      },
+    ];
+    expect(acousticEventsToStepObservation(target, farApart)).toBeNull();
+
+    const coherent = [
+      farApart[0],
+      { ...farApart[1], onsetTime: { ...base, ms: base.ms + 30 } },
+    ];
+    expect(runtime.observe(acousticEventsToStepObservation(target, coherent))).toMatchObject({ kind: 'MATCH' });
+  });
+
   it('feeds the same generic acoustic evidence into Performance evaluation without moving the clock', () => {
     const clock = new ManualClock(0);
     const performance = new PerformancePracticeRuntime({
@@ -262,5 +472,66 @@ describe('ByteDance local practice adapters', () => {
     performance.observeEvidence(observation);
     expect(performance.evaluationOutcomes[0]).toMatchObject({ result: 'MATCH', source: 'ACOUSTIC' });
     expect(performance.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
+  });
+
+  it('does not turn adjacent model-frame activation from one attack into a CONTINUOUS duplicate', () => {
+    const performance = new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      countInBeats: 0,
+      localSessionId: 'continuous-duplicate-regression',
+    });
+    performance.start();
+    const decoded = decodeByteDanceRawOutputs(
+      rawOutput([
+        { frame: 0, midiPitch: 60, onset: 0.25, frameScore: 0.7 },
+        { frame: 1, midiPitch: 60, onset: 0.9, frameScore: 0.8 },
+        { frame: 2, midiPitch: 60, onset: 0.3, frameScore: 0.75 },
+      ]),
+      request({
+        captureStartSampleIndex: 0,
+        captureStartTime: { domainId: 'continuous-duplicate-regression', ms: 0 },
+      }),
+      { inferenceCompletedAtMs: 20_000 }
+    );
+    expect(decoded).toHaveLength(1);
+    for (const observation of acousticEventsToPerformanceEvidence(decoded)) {
+      performance.observeEvidence(observation);
+    }
+    expect(performance.evaluationOutcomes[0]).toMatchObject({
+      result: 'MATCH',
+      unexpectedPitches: [],
+    });
+  });
+
+  it('preserves simultaneous chord evidence for CONTINUOUS evaluation', () => {
+    const performance = new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      countInBeats: 0,
+      localSessionId: 'continuous-chord',
+      scope: {
+        startGroupId: artifact.expectedPracticeGroups[3].groupId,
+        endGroupId: artifact.expectedPracticeGroups[3].groupId,
+      },
+    });
+    performance.start();
+    const decoded = decodeByteDanceRawOutputs(
+      rawOutput([
+        { frame: 0, midiPitch: 69, onset: 0.9, frameScore: 0.8 },
+        { frame: 0, midiPitch: 72, onset: 0.85, frameScore: 0.75 },
+      ]),
+      request({
+        captureStartSampleIndex: 0,
+        captureStartTime: { domainId: 'continuous-chord', ms: 0 },
+      })
+    );
+    for (const observation of acousticEventsToPerformanceEvidence(decoded)) {
+      performance.observeEvidence(observation);
+    }
+    expect(performance.evaluationOutcomes[0]).toMatchObject({
+      result: 'MATCH',
+      unexpectedPitches: [],
+    });
   });
 });
