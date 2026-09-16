@@ -48,14 +48,20 @@ export function buildByteDanceFixedAnchorWindow(input: {
   if (input.anchorSampleIndex < 0 || !Number.isInteger(input.anchorSampleIndex)) {
     throw new Error('ByteDance fixed-anchor window requires a non-negative integer anchor sample.');
   }
+  if (input.anchorSampleIndex > input.sourcePcm.length) {
+    throw new Error('ByteDance fixed-anchor window anchor is beyond captured PCM.');
+  }
 
   const targetAnchorSamples = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.targetAnchorMs);
   const lookbackSamples = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.lookbackMs);
   const futureSamples = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.futureMs);
+  if (input.sourcePcm.length < input.anchorSampleIndex + futureSamples) {
+    throw new Error('ByteDance fixed-anchor window requires the full +220 ms future context.');
+  }
   const totalSamples = BYTEDANCE_INPUT_DESCRIPTOR.shape[1];
   const availableRealLookback = Math.min(lookbackSamples, input.anchorSampleIndex);
   const realStartSampleIndex = input.anchorSampleIndex - availableRealLookback;
-  const realEndSampleIndex = Math.min(input.sourcePcm.length, input.anchorSampleIndex + futureSamples);
+  const realEndSampleIndex = input.anchorSampleIndex + futureSamples;
   const zeroPaddingSamples = targetAnchorSamples - availableRealLookback;
   const pcm = new Float32Array(totalSamples);
   const realAudio = input.sourcePcm.subarray(realStartSampleIndex, realEndSampleIndex);

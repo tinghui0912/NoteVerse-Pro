@@ -1,0 +1,271 @@
+{
+  "fixtureId": "bytedance-python-reference-s01-correct-chord-g01-v1",
+  "source": "Generated mechanically from existing non-frozen dev/cal browser-feasibility PyTorch golden fixture under backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures.",
+  "generator": "apps/customer-web/scripts/generate-bytedance-reference-contract-fixture.mjs",
+  "frozenEvaluationSetUsed": false,
+  "fixtureIdSource": "s01_correct_chord_001_g01",
+  "caseId": "s01_correct_chord_001",
+  "caseKind": "correct_chord",
+  "expectedPitches": [
+    "C5",
+    "E4"
+  ],
+  "sampleRateHz": 16000,
+  "targetAnchorMs": 1600,
+  "futureMs": 220,
+  "onsetThreshold": 0.2,
+  "frameThreshold": 0.2,
+  "outputFrameRateHz": 100,
+  "inputTensor": {
+    "file": "s01_correct_chord_001_g01_input.npy",
+    "sha256": "92e5a689786cca232d8ad3d960caea06c992405e6b7e7e4a582d6477a0887649",
+    "shape": [
+      29120
+    ],
+    "dtype": "float32"
+  },
+  "rawOutputs": {
+    "regOnset": {
+      "file": "s01_correct_chord_001_g01_reg_onset_output.npy",
+      "sha256": "8f1e0412a2fb69bff81a7d366e1e9c6652cf3614e4377f4816dba2788ba0f340",
+      "shape": [
+        183,
+        88
+      ],
+      "dtype": "float32"
+    },
+    "frame": {
+      "file": "s01_correct_chord_001_g01_frame_output.npy",
+      "sha256": "dacbc162ad8477d1585ed423a5341e11cfc4e6776d77856926cf6a433bfe40f0",
+      "shape": [
+        183,
+        88
+      ],
+      "dtype": "float32"
+    }
+  },
+  "referenceTemporallyBoundEvents": [
+    {
+      "pitch": "E4",
+      "midiPitch": 64,
+      "pitchIndex": 43,
+      "frameIndex": 161,
+      "sampleIndex": 25760,
+      "sessionMsFromClipStart": 1610,
+      "onsetScore": 0.88024509,
+      "frameScoreAtOnsetPeak": 0.28238568,
+      "localWindowFrameRangeInclusive": [
+        155,
+        172
+      ]
+    },
+    {
+      "pitch": "C5",
+      "midiPitch": 72,
+      "pitchIndex": 51,
+      "frameIndex": 161,
+      "sampleIndex": 25760,
+      "sessionMsFromClipStart": 1610,
+      "onsetScore": 0.91079623,
+      "frameScoreAtOnsetPeak": 0.89616966,
+      "localWindowFrameRangeInclusive": [
+        155,
+        172
+      ]
+    }
+  ],
+  "sparseLocalRawValues": [
+    {
+      "pitch": "C5",
+      "frameIndex": 155,
+      "onset": 0.00346799,
+      "frame": 0.00005282
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 156,
+      "onset": 0.07882298,
+      "frame": 0.00005728
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 157,
+      "onset": 0.27768129,
+      "frame": 0.0001112
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 158,
+      "onset": 0.47921568,
+      "frame": 0.00035492
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 159,
+      "onset": 0.66741955,
+      "frame": 0.00326334
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 160,
+      "onset": 0.83035737,
+      "frame": 0.11243406
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 161,
+      "onset": 0.91079623,
+      "frame": 0.89616966
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 162,
+      "onset": 0.80279827,
+      "frame": 0.99042624
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 163,
+      "onset": 0.56924129,
+      "frame": 0.9943468
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 164,
+      "onset": 0.32338268,
+      "frame": 0.98807365
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 165,
+      "onset": 0.11839958,
+      "frame": 0.94693345
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 166,
+      "onset": 0.02098163,
+      "frame": 0.79655719
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 167,
+      "onset": 0.00223514,
+      "frame": 0.53578109
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 168,
+      "onset": 0.00040074,
+      "frame": 0.29701161
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 169,
+      "onset": 0.00023917,
+      "frame": 0.14882234
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 170,
+      "onset": 0.0004401,
+      "frame": 0.07663149
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 171,
+      "onset": 0.00100275,
+      "frame": 0.0446324
+    },
+    {
+      "pitch": "C5",
+      "frameIndex": 172,
+      "onset": 0.00185743,
+      "frame": 0.03004396
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 156,
+      "onset": 0.00925832,
+      "frame": 0.00003795
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 157,
+      "onset": 0.06173514,
+      "frame": 0.00004495
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 158,
+      "onset": 0.19288361,
+      "frame": 0.00006072
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 159,
+      "onset": 0.41581365,
+      "frame": 0.00020614
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 160,
+      "onset": 0.68642753,
+      "frame": 0.00423707
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 161,
+      "onset": 0.88024509,
+      "frame": 0.28238568
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 162,
+      "onset": 0.85489601,
+      "frame": 0.94001973
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 163,
+      "onset": 0.75634968,
+      "frame": 0.98165095
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 164,
+      "onset": 0.6225279,
+      "frame": 0.96610224
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 165,
+      "onset": 0.44270051,
+      "frame": 0.87754214
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 166,
+      "onset": 0.21239088,
+      "frame": 0.51072448
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 167,
+      "onset": 0.04344488,
+      "frame": 0.10096608
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 168,
+      "onset": 0.00440152,
+      "frame": 0.01316775
+    },
+    {
+      "pitch": "E4",
+      "frameIndex": 169,
+      "onset": 0.0005483,
+      "frame": 0.00197753
+    }
+  ]
+}

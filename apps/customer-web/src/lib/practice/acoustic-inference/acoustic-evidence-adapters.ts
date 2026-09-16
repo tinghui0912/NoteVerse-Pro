@@ -15,18 +15,11 @@ export function acousticEventsToStepObservation(
   events: readonly AcousticNoteEvent[]
 ): StepVerifierObservation | null {
   const expected = normalizePitchSet(target.attackPitches);
-  const selected = expected.map((pitch) => earliestFreshEventForPitch(target, events, pitch));
-  if (selected.some((event) => event === null)) {
+  const gesture = firstMatchingFreshGesture(target, events, expected);
+  if (!gesture) {
     return null;
   }
-  const complete = selected.filter((event): event is AcousticNoteEvent => event !== null);
-  if (!pitchSetsEqual(complete.map((event) => event.pitch), expected)) {
-    return null;
-  }
-  if (!isCoherentAttackGesture(complete)) {
-    return null;
-  }
-  const latest = complete.reduce((winner, event) => (
+  const latest = gesture.reduce((winner, event) => (
     event.onsetTime.ms > winner.onsetTime.ms ? event : winner
   ));
   return {
@@ -35,17 +28,9 @@ export function acousticEventsToStepObservation(
     attackOnsetTime: latest.onsetTime,
     captureTime: latest.onsetTime,
     observedAttackPitches: expected,
-    confidence: Math.min(...complete.map((event) => event.confidence)),
+    confidence: Math.min(...gesture.map((event) => event.confidence)),
     source: 'ACOUSTIC',
   };
-}
-
-function isCoherentAttackGesture(events: readonly AcousticNoteEvent[]): boolean {
-  if (events.length <= 1) {
-    return true;
-  }
-  const times = events.map((event) => event.onsetTime.ms);
-  return Math.max(...times) - Math.min(...times) <= CHORD_GESTURE_COHERENCE_MS;
 }
 
 export function acousticEventsToPerformanceEvidence(
@@ -60,15 +45,24 @@ export function acousticEventsToPerformanceEvidence(
   }));
 }
 
-function earliestFreshEventForPitch(
+function firstMatchingFreshGesture(
   target: StepVerifierTarget,
   events: readonly AcousticNoteEvent[],
-  pitch: string
-): AcousticNoteEvent | null {
+  expected: readonly string[]
+): AcousticNoteEvent[] | null {
   const fresh = events
-    .filter((event) => event.pitch === pitch)
     .filter((event) => event.onsetTime.domainId === target.activationBoundary.domainId)
     .filter((event) => event.onsetTime.ms > target.activationBoundary.ms)
     .sort((left, right) => left.onsetTime.ms - right.onsetTime.ms);
-  return fresh[0] ?? null;
+  for (const event of fresh) {
+    const gesture = fresh.filter((candidate) => (
+      candidate.onsetTime.ms >= event.onsetTime.ms
+      && candidate.onsetTime.ms - event.onsetTime.ms <= CHORD_GESTURE_COHERENCE_MS
+    ));
+    if (gesture.length === expected.length
+      && pitchSetsEqual(gesture.map((candidate) => candidate.pitch), expected)) {
+      return gesture;
+    }
+  }
+  return null;
 }

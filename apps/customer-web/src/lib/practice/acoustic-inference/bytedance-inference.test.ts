@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import referenceFixture from './__fixtures__/bytedance-python-reference-contract.json';
 import goldenFixture from './__fixtures__/bytedance-golden-contract.json';
 import canonicalArtifactJson from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
 import {
@@ -12,11 +13,13 @@ import {
 import {
   acousticEventsToPerformanceEvidence,
   acousticEventsToStepObservation,
+  AcousticEventStreamNormalizer,
   BYTEDANCE_INPUT_DESCRIPTOR,
   BYTEDANCE_OUTPUT_DESCRIPTORS,
   ByteDanceWorkerHost,
   ByteDanceWorkerProtocolRuntime,
   buildByteDanceFixedAnchorWindow,
+  createByteDanceBrowserWorkerClient,
   decodeByteDanceRawOutputs,
   defaultByteDanceModelManifest,
   fetchAndVerifyByteDanceModel,
@@ -77,6 +80,37 @@ function rawOutput(events: Array<{ frame: number; midiPitch: number; onset: numb
     frame_output: frame,
     frame_shape: [1, frameCount, pitchCount],
   };
+}
+
+function rawOutputWithShape(
+  frameCount: number,
+  events: Array<{ frame: number; midiPitch: number; onset: number; frameScore: number }>
+): ByteDanceRawOutputs {
+  const pitchCount = 88;
+  const onset = new Float32Array(frameCount * pitchCount);
+  const frame = new Float32Array(frameCount * pitchCount);
+  for (const event of events) {
+    const pitchIndex = event.midiPitch - 21;
+    onset[event.frame * pitchCount + pitchIndex] = event.onset;
+    frame[event.frame * pitchCount + pitchIndex] = event.frameScore;
+  }
+  return {
+    reg_onset_output: onset,
+    reg_onset_shape: [1, frameCount, pitchCount],
+    frame_output: frame,
+    frame_shape: [1, frameCount, pitchCount],
+  };
+}
+
+function midiPitch(pitch: string): number {
+  const names: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  let accidental = 0;
+  let octaveIndex = 1;
+  if (pitch.length >= 3 && ['#', 'b'].includes(pitch[1] ?? '')) {
+    accidental = pitch[1] === '#' ? 1 : -1;
+    octaveIndex = 2;
+  }
+  return (Number(pitch.slice(octaveIndex)) + 1) * 12 + (names[pitch[0]] ?? 0) + accidental;
 }
 
 function mockRuntime(raw: ByteDanceRawOutputs): ByteDanceOnnxRuntime & {
@@ -181,6 +215,25 @@ describe('ByteDance preprocessing and decoding', () => {
     }
   });
 
+  it('allows early left zero padding but refuses missing right future context', () => {
+    const early = buildByteDanceFixedAnchorWindow({
+      sourcePcm: new Float32Array(4000),
+      sampleRateHz: 16_000,
+      anchorSampleIndex: 0,
+    });
+    expect(early.zeroPaddingSamples).toBe(25_600);
+    expect(() => buildByteDanceFixedAnchorWindow({
+      sourcePcm: new Float32Array(3519),
+      sampleRateHz: 16_000,
+      anchorSampleIndex: 0,
+    })).toThrow(/future context/);
+    expect(() => buildByteDanceFixedAnchorWindow({
+      sourcePcm: new Float32Array(10_000),
+      sampleRateHz: 16_000,
+      anchorSampleIndex: 12_000,
+    })).toThrow(/beyond captured PCM/);
+  });
+
   it('preserves fixed-anchor dtype shape and PCM s16le scaling', () => {
     const prepared = prepareByteDanceInput(request());
     expect(prepared.shape).toEqual([1, 29120]);
@@ -228,6 +281,40 @@ describe('ByteDance preprocessing and decoding', () => {
       onsetScore: Math.round(event.onsetScore * 100) / 100,
       frameScore: Math.round(event.frameScore * 100) / 100,
     }))).toEqual(goldenFixture.expectedDecodedEvents);
+  });
+
+  it('matches the mechanically generated Python reference temporally-bound fixture', () => {
+    const raw = rawOutputWithShape(
+      referenceFixture.rawOutputs.regOnset.shape[0],
+      referenceFixture.sparseLocalRawValues.map((value) => ({
+        frame: value.frameIndex,
+        midiPitch: midiPitch(value.pitch),
+        onset: value.onset,
+        frameScore: value.frame,
+      }))
+    );
+    const decoded = decodeByteDanceRawOutputs(
+      raw,
+      request({
+        captureStartSampleIndex: 0,
+        captureStartTime: { domainId: 'python-reference', ms: 0, sampleIndex: 0 },
+      })
+    );
+    expect(decoded.map((event) => ({
+      pitch: event.pitch,
+      midiPitch: event.midiPitch,
+      sampleIndex: event.onsetTime.sampleIndex,
+      sessionMsFromClipStart: event.onsetTime.ms,
+      onsetScore: Math.round(event.onsetScore * 100000000) / 100000000,
+      frameScoreAtOnsetPeak: Math.round(event.frameScore * 100000000) / 100000000,
+    }))).toEqual(referenceFixture.referenceTemporallyBoundEvents.map((event) => ({
+      pitch: event.pitch,
+      midiPitch: event.midiPitch,
+      sampleIndex: event.sampleIndex,
+      sessionMsFromClipStart: event.sessionMsFromClipStart,
+      onsetScore: event.onsetScore,
+      frameScoreAtOnsetPeak: event.frameScoreAtOnsetPeak,
+    })));
   });
 
   it('collapses adjacent thresholded onset frames into one physical attack event', () => {
@@ -330,6 +417,64 @@ describe('ByteDance worker protocol', () => {
 
   it('fails WebGPU provider initialization explicitly when WebGPU is unavailable', async () => {
     await expect(loadOnnxRuntimeWeb()).rejects.toThrow(/WebGPU is unavailable/);
+  });
+
+  it('exposes a bundler-visible worker factory without duplicating protocol logic', () => {
+    expect(createByteDanceBrowserWorkerClient).toBeTypeOf('function');
+  });
+});
+
+describe('ByteDance acoustic event stream normalization', () => {
+  it('emits one event for one physical onset repeated by overlapping inference windows', () => {
+    const normalizer = new AcousticEventStreamNormalizer({ sampleRateHz: 16_000 });
+    const first = decodeByteDanceRawOutputs(
+      rawOutput([{ frame: 10, midiPitch: 60, onset: 0.9, frameScore: 0.8 }]),
+      request({ captureStartSampleIndex: 0, captureStartTime: { domainId: 'stream', ms: 0, sampleIndex: 0 } })
+    );
+    const overlap = decodeByteDanceRawOutputs(
+      rawOutput([{ frame: 5, midiPitch: 60, onset: 0.85, frameScore: 0.75 }]),
+      request({ captureStartSampleIndex: 800, captureStartTime: { domainId: 'stream', ms: 50, sampleIndex: 800 } })
+    );
+    expect(first[0].onsetTime.sampleIndex).toBe(1600);
+    expect(overlap[0].onsetTime.sampleIndex).toBe(1600);
+    expect(normalizer.normalizeWindow(first)).toHaveLength(1);
+    expect(normalizer.normalizeWindow(overlap)).toHaveLength(0);
+  });
+
+  it('emits a true same-pitch retrigger beyond the validated dedupe boundary', () => {
+    const normalizer = new AcousticEventStreamNormalizer({ sampleRateHz: 16_000 });
+    const first = [{
+      pitch: 'C4',
+      midiPitch: 60,
+      onsetTime: { domainId: 'stream', ms: 100, sampleIndex: 1600 },
+      confidence: 0.9,
+      onsetScore: 0.9,
+      frameScore: 0.9,
+      source: 'ACOUSTIC' as const,
+    }];
+    const retrigger = [{
+      ...first[0],
+      onsetTime: { domainId: 'stream', ms: 160.1, sampleIndex: 2562 },
+    }];
+    expect(normalizer.normalizeWindow(first)).toHaveLength(1);
+    expect(normalizer.normalizeWindow(retrigger)).toHaveLength(1);
+  });
+
+  it('does not use inference completion timing for attack identity', () => {
+    const normalizer = new AcousticEventStreamNormalizer({ sampleRateHz: 16_000 });
+    const first = [{
+      pitch: 'C4',
+      midiPitch: 60,
+      onsetTime: { domainId: 'stream', ms: 100, sampleIndex: 1600 },
+      confidence: 0.9,
+      onsetScore: 0.9,
+      frameScore: 0.9,
+      source: 'ACOUSTIC' as const,
+      inferenceCompletedAtMs: 1000,
+    }];
+    const duplicate = [{ ...first[0], inferenceCompletedAtMs: 5000 }];
+    expect(normalizer.normalizeWindow(first)).toHaveLength(1);
+    expect(normalizer.normalizeWindow(duplicate)).toHaveLength(0);
   });
 });
 
@@ -449,6 +594,85 @@ describe('ByteDance local practice adapters', () => {
     expect(runtime.observe(acousticEventsToStepObservation(target, coherent))).toMatchObject({ kind: 'MATCH' });
   });
 
+  it('can match a later coherent chord after an earlier unrelated same-pitch event', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      localSessionId: 'later-chord-domain',
+      scope: {
+        startGroupId: artifact.expectedPracticeGroups[3].groupId,
+        endGroupId: artifact.expectedPracticeGroups[3].groupId,
+      },
+    });
+    const target = runtime.currentTarget();
+    if (!target) {
+      throw new Error('missing chord target');
+    }
+    const base = target.activationBoundary;
+    const events = [
+      {
+        pitch: 'A4',
+        midiPitch: 69,
+        onsetTime: { ...base, ms: base.ms + 10 },
+        confidence: 0.9,
+        onsetScore: 0.9,
+        frameScore: 0.9,
+        source: 'ACOUSTIC' as const,
+      },
+      {
+        pitch: 'A4',
+        midiPitch: 69,
+        onsetTime: { ...base, ms: base.ms + 300 },
+        confidence: 0.9,
+        onsetScore: 0.9,
+        frameScore: 0.9,
+        source: 'ACOUSTIC' as const,
+      },
+      {
+        pitch: 'C5',
+        midiPitch: 72,
+        onsetTime: { ...base, ms: base.ms + 320 },
+        confidence: 0.9,
+        onsetScore: 0.9,
+        frameScore: 0.9,
+        source: 'ACOUSTIC' as const,
+      },
+    ];
+    expect(runtime.observe(acousticEventsToStepObservation(target, events))).toMatchObject({ kind: 'MATCH' });
+  });
+
+  it('does not reuse a previous-window onset after a new STEP activation', () => {
+    const normalizer = new AcousticEventStreamNormalizer({ sampleRateHz: 16_000 });
+    const clock = new ManualClock(0);
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      clock,
+      localSessionId: 'stale-window-domain',
+    });
+    const first = runtime.currentTarget();
+    if (!first) {
+      throw new Error('missing first target');
+    }
+    const firstEvent = [{
+      pitch: 'C4',
+      midiPitch: 60,
+      onsetTime: { domainId: 'stale-window-domain', ms: 10, sampleIndex: 160 },
+      confidence: 0.9,
+      onsetScore: 0.9,
+      frameScore: 0.9,
+      source: 'ACOUSTIC' as const,
+    }];
+    clock.advance(20);
+    expect(runtime.observe(acousticEventsToStepObservation(first, normalizer.normalizeWindow(firstEvent))))
+      .toMatchObject({ kind: 'MATCH' });
+    const second = runtime.currentTarget();
+    if (!second) {
+      throw new Error('missing second target');
+    }
+    const repeatedPreviousWindow = [{ ...firstEvent[0], inferenceCompletedAtMs: 2000 }];
+    expect(acousticEventsToStepObservation(second, normalizer.normalizeWindow(repeatedPreviousWindow))).toBeNull();
+  });
+
   it('feeds the same generic acoustic evidence into Performance evaluation without moving the clock', () => {
     const clock = new ManualClock(0);
     const performance = new PerformancePracticeRuntime({
@@ -475,6 +699,7 @@ describe('ByteDance local practice adapters', () => {
   });
 
   it('does not turn adjacent model-frame activation from one attack into a CONTINUOUS duplicate', () => {
+    const normalizer = new AcousticEventStreamNormalizer({ sampleRateHz: 16_000 });
     const performance = new PerformancePracticeRuntime({
       artifact,
       clock: new ManualClock(0),
@@ -495,7 +720,7 @@ describe('ByteDance local practice adapters', () => {
       { inferenceCompletedAtMs: 20_000 }
     );
     expect(decoded).toHaveLength(1);
-    for (const observation of acousticEventsToPerformanceEvidence(decoded)) {
+    for (const observation of acousticEventsToPerformanceEvidence(normalizer.normalizeWindow(decoded))) {
       performance.observeEvidence(observation);
     }
     expect(performance.evaluationOutcomes[0]).toMatchObject({

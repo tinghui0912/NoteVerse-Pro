@@ -51,18 +51,56 @@ The worker protocol is:
 The ONNX session is created once and reused. Concurrent inference is explicitly
 rejected for deterministic ordering.
 
+The browser construction boundary is
+`createByteDanceBrowserWorkerClient()`, which creates a module Worker with
+`new URL('./bytedance-worker.entry.ts', import.meta.url)`. This keeps the Worker
+entry and `onnxruntime-web/webgpu` import visible to the frontend bundler.
+
 ## Timing
 
 Physical attack time comes from capture/sample timing mapped into the frozen
 `PracticeTimebase` session domain. Inference completion time is diagnostic only.
 
+Fixed-anchor input construction permits left-side zero padding when the session
+does not yet have 1000 ms of real lookback, but it never pads missing right-side
+future context. A window is not ready until the full `+220 ms` future prefix is
+captured.
+
+## Event stream normalization
+
+Per-window decoded events pass through `AcousticEventStreamNormalizer` before
+STEP or CONTINUOUS consumption. It reuses the validated rolling verifier
+identity rule:
+
+- event identity is pitch + capture sample index;
+- duplicate same-pitch events within `50 ms` are suppressed;
+- same-pitch retriggers after that boundary are emitted as new attacks;
+- inference completion time is not part of physical attack identity.
+
+The decoder itself collapses adjacent above-threshold onset frames into one
+peak event before stream normalization.
+
 ## Adapters
 
 The STEP adapter converts generic acoustic events into a
-`StepVerifierObservation` only when all expected physical attack pitches have
-fresh post-activation events for the current target. STEP progression remains
-owned by `StepPracticeRuntime`.
+`StepVerifierObservation` only when all expected physical attack pitches form one
+fresh coherent post-activation gesture for the current target. STEP progression
+remains owned by `StepPracticeRuntime`.
 
 The CONTINUOUS adapter forwards the same generic acoustic evidence into the
 existing Performance evaluator. The local Performance clock remains
 authoritative.
+
+## Reference fixtures
+
+`__fixtures__/bytedance-python-reference-contract.json` is generated from the
+existing non-frozen dev/cal PyTorch golden fixture under
+`backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures`.
+Regenerate it with:
+
+```bash
+node apps/customer-web/scripts/generate-bytedance-reference-contract-fixture.mjs
+```
+
+It stores source tensor hashes, raw output shapes, and the minimal local raw
+values needed to lock the validated temporally-bound event interpretation.
