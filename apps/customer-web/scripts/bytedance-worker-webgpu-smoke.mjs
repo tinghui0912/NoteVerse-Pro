@@ -218,11 +218,18 @@ function entrySource(config) {
   return `
 import {
   BYTEDANCE_INPUT_DESCRIPTOR,
+  BYTEDANCE_OUTPUT_DESCRIPTORS,
   createByteDanceBrowserWorkerClient,
   defaultByteDanceModelManifest,
 } from '../../apps/customer-web/src/lib/practice/acoustic-inference';
 
 const CONFIG = ${JSON.stringify(config)};
+const TARGET_ANCHOR_MS = 1600;
+const LOCAL_PRE_MS = 50;
+const LOCAL_POST_MS = 120;
+const ONSET_THRESHOLD = 0.2;
+const FRAME_THRESHOLD = 0.2;
+const MIDI_OFFSET = 21;
 
 function parseNpy(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -262,11 +269,49 @@ async function fetchNpy(url) {
   return parseNpy(await response.arrayBuffer());
 }
 
+function pitchToMidi(pitch) {
+  const match = /^([A-G])([#b]?)(-?\\d+)$/.exec(pitch);
+  if (!match) throw new Error('bad pitch ' + pitch);
+  const base = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[match[1]];
+  const accidental = match[2] === '#' ? 1 : match[2] === 'b' ? -1 : 0;
+  const octave = Number(match[3]);
+  return 12 * (octave + 1) + base + accidental;
+}
+
 function percentile(values, q) {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * q) - 1));
   return sorted[index];
+}
+
+function referenceDecision(onset, frame, fixture) {
+  const frameCount = onset.shape[0];
+  for (const pitch of fixture.expected_pitches) {
+    const pitchIndex = pitchToMidi(pitch) - MIDI_OFFSET;
+    let onsetMax = -Infinity;
+    let frameMax = -Infinity;
+    for (let t = 0; t < frameCount; t += 1) {
+      const timeMs = t * 10;
+      if (timeMs < TARGET_ANCHOR_MS - LOCAL_PRE_MS) continue;
+      if (timeMs > TARGET_ANCHOR_MS + LOCAL_POST_MS) continue;
+      const valueIndex = t * 88 + pitchIndex;
+      onsetMax = Math.max(onsetMax, onset.data[valueIndex]);
+      frameMax = Math.max(frameMax, frame.data[valueIndex]);
+    }
+    if (!(onsetMax >= ONSET_THRESHOLD && frameMax >= FRAME_THRESHOLD)) return false;
+  }
+  return true;
+}
+
+function workerDecision(events, fixture) {
+  return fixture.expected_pitches.every((pitch) =>
+    events.some((event) =>
+      event.pitch === pitch
+      && event.onsetTime.ms >= TARGET_ANCHOR_MS - LOCAL_PRE_MS
+      && event.onsetTime.ms <= TARGET_ANCHOR_MS + LOCAL_POST_MS
+    )
+  );
 }
 
 async function webgpuInfo() {
@@ -337,6 +382,51 @@ async function main() {
   const first = await client.infer(makeRequest('first'));
   const firstEnd = performance.now();
 
+  const correctness = [];
+  for (const [index, currentFixture] of fixturesManifest.fixtures.entries()) {
+    const currentInput = index === 0
+      ? input
+      : await fetchNpy('/fixtures/' + currentFixture.input_tensor_npy);
+    const onsetRef = await fetchNpy('/fixtures/' + currentFixture.reg_onset_output_npy);
+    const frameRef = await fetchNpy('/fixtures/' + currentFixture.frame_output_npy);
+    const result = index === 0
+      ? first
+      : await client.infer({
+          ...makeRequest('correctness-' + index),
+          pcm: currentInput.data,
+        });
+    const regShape = result.diagnostics?.outputTensors.regOnset.shape ?? [];
+    const frameShape = result.diagnostics?.outputTensors.frame.shape ?? [];
+    const expectedRegShape = [1, ...currentFixture.raw_output_shape.reg_onset_output];
+    const expectedFrameShape = [1, ...currentFixture.raw_output_shape.frame_output];
+    const referenceAccepted = referenceDecision(onsetRef, frameRef, currentFixture);
+    const workerAccepted = workerDecision(result.events, currentFixture);
+    correctness.push({
+      fixtureId: currentFixture.fixture_id,
+      expectedPitches: currentFixture.expected_pitches,
+      inputTensor: {
+        name: BYTEDANCE_INPUT_DESCRIPTOR.name,
+        dtype: BYTEDANCE_INPUT_DESCRIPTOR.dtype,
+        shape: BYTEDANCE_INPUT_DESCRIPTOR.shape,
+      },
+      outputShapes: {
+        regOnset: regShape,
+        frame: frameShape,
+      },
+      outputShapeAgreement:
+        JSON.stringify(regShape) === JSON.stringify(expectedRegShape)
+        && JSON.stringify(frameShape) === JSON.stringify(expectedFrameShape),
+      outputNames: {
+        regOnset: BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name,
+        frame: BYTEDANCE_OUTPUT_DESCRIPTORS.frame.name,
+      },
+      referenceDecision: referenceAccepted,
+      workerDecision: workerAccepted,
+      verifierDecisionAgree: referenceAccepted === workerAccepted,
+      eventCount: result.events.length,
+    });
+  }
+
   const warm = [];
   for (let index = 0; index < CONFIG.warmRuns; index += 1) {
     const started = performance.now();
@@ -376,6 +466,7 @@ async function main() {
       eventCount: first.events.length,
       firstEvents: first.events.slice(0, 10),
     },
+    correctness,
     warmInference: {
       runs: warm.length,
       samples: warm,
