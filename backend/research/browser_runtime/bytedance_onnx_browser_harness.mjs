@@ -8,6 +8,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { createReadStream, existsSync } from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,8 +24,13 @@ function parseArgs(argv) {
   for (let i = 2; i < argv.length; i += 1) {
     const key = argv[i];
     if (!key.startsWith('--')) continue;
-    args[key.slice(2)] = argv[i + 1];
-    i += 1;
+    const value = argv[i + 1];
+    if (!value || value.startsWith('--')) {
+      args[key.slice(2)] = true;
+    } else {
+      args[key.slice(2)] = value;
+      i += 1;
+    }
   }
   return args;
 }
@@ -38,6 +44,7 @@ const warmRuns = Number(args['warm-runs'] ?? 20);
 const outputPath = args.output ? path.resolve(args.output) : null;
 const browserChannel = args['browser-channel'] ?? null;
 const headed = Object.prototype.hasOwnProperty.call(args, 'headed');
+const ortLogLevel = args['ort-log-level'] ?? null;
 
 if (!existsSync(modelPath)) throw new Error(`Missing --model: ${modelPath}`);
 if (!existsSync(fixtureDir)) throw new Error(`Missing --fixture-dir: ${fixtureDir}`);
@@ -47,6 +54,12 @@ const ortScript = backend === 'webgpu' ? 'ort.webgpu.min.js' : 'ort.min.js';
 if (!existsSync(path.join(ortDir, ortScript))) {
   throw new Error(`Missing ORT Web script: ${path.join(ortDir, ortScript)}`);
 }
+const ortPackagePath = path.resolve(ortDir, '..', 'package.json');
+if (!existsSync(ortPackagePath)) {
+  throw new Error(`Missing ORT package metadata: ${ortPackagePath}`);
+}
+const ortPackage = JSON.parse(await readFile(ortPackagePath, 'utf8'));
+const modelIdentity = await statAndHash(modelPath);
 
 const mimeByExt = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -73,6 +86,7 @@ const pageHtml = `<!doctype html>
 <script>
 const BACKEND = ${JSON.stringify(backend)};
 const WARM_RUNS = ${JSON.stringify(warmRuns)};
+const ORT_LOG_LEVEL = ${JSON.stringify(ortLogLevel)};
 const ONSET_THRESHOLD = 0.2;
 const FRAME_THRESHOLD = 0.2;
 const LOCAL_PRE_SECONDS = 0.05;
@@ -163,6 +177,9 @@ function compareFloatArrays(actual, expected) {
 
 async function main() {
   ort.env.wasm.wasmPaths = '/ort/';
+  if (ORT_LOG_LEVEL) {
+    ort.env.logLevel = ORT_LOG_LEVEL;
+  }
   let adapterInfo = null;
   if (BACKEND === 'webgpu') {
     if (!navigator.gpu) {
@@ -232,10 +249,14 @@ async function main() {
       }
     }
   }
-  warmLatencies.sort((a, b) => a - b);
-  const p95Index = Math.min(warmLatencies.length - 1, Math.ceil(warmLatencies.length * 0.95) - 1);
+  const sortedWarmLatencies = [...warmLatencies].sort((a, b) => a - b);
+  const p95Index = Math.min(sortedWarmLatencies.length - 1, Math.ceil(sortedWarmLatencies.length * 0.95) - 1);
   return {
     backend: BACKEND,
+    execution_provider_requested: BACKEND,
+    graph_optimization_level: 'disabled',
+    ort_version: ort.version ?? null,
+    ort_log_level: ORT_LOG_LEVEL,
     user_agent: navigator.userAgent,
     webgpu_available: Boolean(navigator.gpu),
     webgpu_adapter: adapterInfo,
@@ -243,8 +264,11 @@ async function main() {
     first_inference_ms: firstInferenceMs,
     warm_inference_ms: {
       runs: warmLatencies.length,
-      median: warmLatencies[Math.floor(warmLatencies.length / 2)] ?? null,
-      p95: warmLatencies[p95Index] ?? null,
+      samples: warmLatencies,
+      min: sortedWarmLatencies[0] ?? null,
+      median: sortedWarmLatencies[Math.floor(sortedWarmLatencies.length / 2)] ?? null,
+      p95: sortedWarmLatencies[p95Index] ?? null,
+      max: sortedWarmLatencies[sortedWarmLatencies.length - 1] ?? null,
     },
     comparisons,
   };
@@ -267,6 +291,11 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/') {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.end(pageHtml);
+      return;
+    }
+    if (url.pathname === '/favicon.ico') {
+      res.statusCode = 204;
+      res.end();
       return;
     }
     if (url.pathname === '/model.onnx') return serveFile(res, modelPath);
@@ -298,6 +327,19 @@ server.listen(0, '127.0.0.1', async () => {
   const browser = await chromium.launch(launchOptions);
   try {
     const page = await browser.newPage();
+    const browserConsole = [];
+    page.on('console', (message) => {
+      browserConsole.push({
+        type: message.type(),
+        text: message.text(),
+      });
+    });
+    page.on('pageerror', (error) => {
+      browserConsole.push({
+        type: 'pageerror',
+        text: error.stack ?? error.message,
+      });
+    });
     await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.__RESULT__ || window.__ERROR__, null, { timeout: 120000 });
     const result = await page.evaluate(() => ({ result: window.__RESULT__ ?? null, error: window.__ERROR__ ?? null }));
@@ -305,12 +347,26 @@ server.listen(0, '127.0.0.1', async () => {
       browser_channel: browserChannel,
       headed,
       browser_version: browser.version(),
+      launch_args: launchOptions.args,
+      ort_log_level: ortLogLevel,
       os: {
         platform: os.platform(),
         release: os.release(),
         arch: os.arch(),
       },
     };
+    result.ort_asset = {
+      version: ortPackage.version,
+      package_path: ortPackagePath,
+      dist_directory: ortDir,
+      script: ortScript,
+    };
+    result.model = {
+      path: modelPath,
+      byte_size: modelIdentity.byteSize,
+      sha256: modelIdentity.sha256,
+    };
+    result.browser_console = browserConsole;
     if (outputPath) {
       await import('node:fs/promises').then((fs) =>
         fs.writeFile(outputPath, JSON.stringify(result, null, 2), 'utf8'),
@@ -323,3 +379,18 @@ server.listen(0, '127.0.0.1', async () => {
     server.close();
   }
 });
+
+async function statAndHash(filePath) {
+  const hash = crypto.createHash('sha256');
+  let byteSize = 0;
+  await new Promise((resolve, reject) => {
+    const stream = createReadStream(filePath);
+    stream.on('data', (chunk) => {
+      byteSize += chunk.length;
+      hash.update(chunk);
+    });
+    stream.on('error', reject);
+    stream.on('end', resolve);
+  });
+  return { byteSize, sha256: hash.digest('hex') };
+}
