@@ -50,7 +50,12 @@ export type LiveCaptureState = {
   state: LiveCaptureStateName;
   captureDomainId?: string;
   sourceSampleRateHz?: number;
+  captureStartSampleIndex?: number;
+  captureAnchorSessionTimeMs?: number;
   normalizedEndSampleIndex: number;
+  workletChunkCount?: number;
+  sourceContinuityOk?: boolean;
+  lastSourceSampleIndex?: number;
   latestSubmittedAnchorSampleIndex?: number;
   activeAnchorSampleIndex?: number;
   coalescedAnchorSampleIndex?: number;
@@ -75,6 +80,7 @@ export type LiveByteDanceControllerOptions = {
   evidenceSink?: LiveByteDanceEvidenceSink;
   ringCapacitySamples?: number;
   nowMs?: () => number;
+  captureSessionAnchor?: () => SessionTime;
 };
 
 export class StreamingLinearResampler {
@@ -86,11 +92,16 @@ export class StreamingLinearResampler {
 
   constructor(
     readonly sourceSampleRateHz: number,
-    readonly targetSampleRateHz = MODEL_SAMPLE_RATE_HZ
+    readonly targetSampleRateHz = MODEL_SAMPLE_RATE_HZ,
+    initialOutputSampleIndex = 0
   ) {
     if (sourceSampleRateHz <= 0 || targetSampleRateHz <= 0) {
       throw new Error('Streaming resampler requires positive source and target sample rates.');
     }
+    if (!Number.isInteger(initialOutputSampleIndex) || initialOutputSampleIndex < 0) {
+      throw new Error('Streaming resampler initial output sample index must be a non-negative integer.');
+    }
+    this.nextOutputSampleIndex = initialOutputSampleIndex;
   }
 
   append(input: { samples: Float32Array; sourceStartSampleIndex: number }): NormalizedPcmChunk {
@@ -220,10 +231,10 @@ export class BoundedPcmSampleRing {
     this.startIndex = trimTo;
   }
 
-  reset(): void {
+  reset(startSampleIndex = 0): void {
     this.buffer = new Float32Array(0);
-    this.startIndex = 0;
-    this.endIndex = 0;
+    this.startIndex = startSampleIndex;
+    this.endIndex = startSampleIndex;
   }
 }
 
@@ -239,9 +250,11 @@ export type LiveFixedAnchorWindow = {
 export function buildLiveFixedAnchorWindow(input: {
   ring: BoundedPcmSampleRing;
   anchorSampleIndex: number;
+  captureDomainStartSampleIndex?: number;
 }): LiveFixedAnchorWindow {
   const captureStartSampleIndex = input.anchorSampleIndex - TARGET_ANCHOR_SAMPLES;
   const requiredEndSampleIndex = captureStartSampleIndex + MODEL_WINDOW_SAMPLES;
+  const domainStartSampleIndex = input.captureDomainStartSampleIndex ?? 0;
   if (input.anchorSampleIndex < 0 || !Number.isInteger(input.anchorSampleIndex)) {
     throw new Error('Live fixed-anchor window requires a non-negative integer anchor sample.');
   }
@@ -251,7 +264,7 @@ export function buildLiveFixedAnchorWindow(input: {
   if (input.anchorSampleIndex > input.ring.endSampleIndex) {
     throw new Error('Live fixed-anchor anchor is beyond captured PCM.');
   }
-  const realStartSampleIndex = Math.max(0, captureStartSampleIndex);
+  const realStartSampleIndex = Math.max(domainStartSampleIndex, captureStartSampleIndex);
   const realEndSampleIndex = requiredEndSampleIndex;
   if (!input.ring.hasRange(realStartSampleIndex, realEndSampleIndex)) {
     throw new Error('Live fixed-anchor window range is no longer present in the bounded ring.');
@@ -274,6 +287,7 @@ export class RollingInferenceScheduler {
   private activeAnchor: number | null = null;
   private pendingAnchor: number | null = null;
   private lastSubmittedAnchor: number | null = null;
+  private minAnchorSampleIndex = 0;
   private skipped = 0;
 
   constructor(
@@ -296,7 +310,8 @@ export class RollingInferenceScheduler {
   nextReadyAnchor(capturedEndSampleIndex: number): number | null {
     const latest = Math.floor((capturedEndSampleIndex - this.futureSamples) / this.anchorStepSamples)
       * this.anchorStepSamples;
-    if (latest < 0 || (this.lastSubmittedAnchor !== null && latest <= this.lastSubmittedAnchor)) {
+    const firstEligible = Math.ceil(this.minAnchorSampleIndex / this.anchorStepSamples) * this.anchorStepSamples;
+    if (latest < firstEligible || (this.lastSubmittedAnchor !== null && latest <= this.lastSubmittedAnchor)) {
       return null;
     }
     if (this.activeAnchor !== null) {
@@ -330,21 +345,24 @@ export class RollingInferenceScheduler {
     return next;
   }
 
-  reset(): void {
+  reset(minAnchorSampleIndex = 0): void {
     this.activeAnchor = null;
     this.pendingAnchor = null;
     this.lastSubmittedAnchor = null;
+    this.minAnchorSampleIndex = minAnchorSampleIndex;
     this.skipped = 0;
   }
 }
 
 export class LiveByteDanceRollingPipeline {
-  private readonly worker: ByteDanceBrowserWorkerClient;
   private readonly ring: BoundedPcmSampleRing;
   private readonly scheduler = new RollingInferenceScheduler();
   private readonly normalizer = new AcousticEventStreamNormalizer({
     sampleRateHz: MODEL_SAMPLE_RATE_HZ,
   });
+  private worker: ByteDanceBrowserWorkerClient | null = null;
+  private lifecycleTimebase: PracticeTimebase;
+  private lifecycleStartSampleIndex = 0;
   private generation = 0;
   private state: LiveCaptureState = {
     state: 'idle',
@@ -353,7 +371,7 @@ export class LiveByteDanceRollingPipeline {
   };
 
   constructor(private readonly options: LiveByteDanceControllerOptions) {
-    this.worker = options.workerClient ?? options.workerClientFactory?.() ?? createByteDanceBrowserWorkerClient();
+    this.lifecycleTimebase = options.sessionTimebase;
     this.ring = new BoundedPcmSampleRing(
       options.ringCapacitySamples ?? defaultLiveRingCapacitySamples()
     );
@@ -365,21 +383,42 @@ export class LiveByteDanceRollingPipeline {
 
   async start(): Promise<void> {
     this.generation += 1;
+    const worker = this.createWorker();
+    const anchor = this.captureAnchorSessionTime();
+    const startSampleIndex = sampleIndexForSessionTime(anchor);
+    this.worker = worker;
+    this.lifecycleTimebase = createLiveCaptureTimebase({
+      captureDomainId: anchor.domainId,
+      anchorSampleIndex: startSampleIndex,
+      anchorSessionTime: anchor,
+    });
+    this.lifecycleStartSampleIndex = startSampleIndex;
     this.normalizer.reset();
-    this.ring.reset();
-    this.scheduler.reset();
+    this.ring.reset(startSampleIndex);
+    this.scheduler.reset(startSampleIndex);
     this.state = {
       state: 'initializing-model',
-      captureDomainId: this.options.captureDomainId,
+      captureDomainId: anchor.domainId,
       sourceSampleRateHz: this.options.sourceSampleRateHz,
-      normalizedEndSampleIndex: 0,
+      captureStartSampleIndex: startSampleIndex,
+      captureAnchorSessionTimeMs: anchor.ms,
+      normalizedEndSampleIndex: startSampleIndex,
       skippedAnchorCount: 0,
     };
-    await this.worker.load(this.options.manifest);
-    this.state = {
-      ...this.state,
-      state: 'running',
-    };
+    try {
+      await worker.load(this.options.manifest);
+      this.state = {
+        ...this.state,
+        state: 'running',
+      };
+    } catch (error) {
+      await this.failLifecycle(error);
+      throw error;
+    }
+  }
+
+  get currentLifecycleStartSampleIndex(): number {
+    return this.lifecycleStartSampleIndex;
   }
 
   appendNormalizedPcm(samples: Float32Array, startSampleIndex = this.ring.endSampleIndex): void {
@@ -390,6 +429,11 @@ export class LiveByteDanceRollingPipeline {
       normalizedEndSampleIndex: this.ring.endSampleIndex,
     };
     const ready = this.scheduler.nextReadyAnchor(this.ring.endSampleIndex);
+    this.state = {
+      ...this.state,
+      coalescedAnchorSampleIndex: this.scheduler.pendingAnchorSampleIndex,
+      skippedAnchorCount: this.scheduler.skippedAnchorCount,
+    };
     if (ready !== null) {
       void this.submitAnchor(ready);
     }
@@ -401,24 +445,12 @@ export class LiveByteDanceRollingPipeline {
     }
     this.generation += 1;
     this.state = { ...this.state, state: 'stopping' };
-    this.scheduler.reset();
-    this.normalizer.reset();
-    this.ring.reset();
-    try {
-      await this.worker.dispose();
-    } catch (error) {
-      if (typeof this.worker.terminate === 'function') {
-        this.worker.terminate('Live capture stopped while ByteDance inference was active.');
-      } else if (!String(error instanceof Error ? error.message : error).includes('active inference')) {
-        throw error;
-      }
-    } finally {
-      this.state = {
-        state: 'idle',
-        normalizedEndSampleIndex: 0,
-        skippedAnchorCount: 0,
-      };
-    }
+    await this.cleanupResources('Live capture stopped while ByteDance inference was active.');
+    this.state = {
+      state: 'idle',
+      normalizedEndSampleIndex: 0,
+      skippedAnchorCount: 0,
+    };
   }
 
   async dispose(): Promise<void> {
@@ -437,23 +469,23 @@ export class LiveByteDanceRollingPipeline {
       skippedAnchorCount: this.scheduler.skippedAnchorCount,
     };
     try {
-      const window = buildLiveFixedAnchorWindow({ ring: this.ring, anchorSampleIndex });
+      const window = buildLiveFixedAnchorWindow({
+        ring: this.ring,
+        anchorSampleIndex,
+        captureDomainStartSampleIndex: this.lifecycleStartSampleIndex,
+      });
       const request = this.requestForWindow(window);
-      const result = await this.worker.infer(request);
+      const result = await this.requireWorker().infer(request);
       if (generation !== this.generation) {
         return;
       }
       this.emitResult(result);
     } catch (error) {
       if (generation === this.generation) {
-        this.state = {
-          ...this.state,
-          state: 'error',
-          lastError: error instanceof Error ? error.message : String(error),
-        };
+        await this.failLifecycle(error);
       }
     } finally {
-      if (generation === this.generation) {
+      if (generation === this.generation && this.state.state !== 'error') {
         const next = this.scheduler.markCompleted();
         this.state = {
           ...this.state,
@@ -469,7 +501,7 @@ export class LiveByteDanceRollingPipeline {
   }
 
   private requestForWindow(window: LiveFixedAnchorWindow): ByteDancePcmInferenceRequest {
-    const captureStartTime = this.options.sessionTimebase.sampleIndexToSessionTime(
+    const captureStartTime = this.lifecycleTimebase.sampleIndexToSessionTime(
       window.captureStartSampleIndex
     );
     return {
@@ -507,6 +539,57 @@ export class LiveByteDanceRollingPipeline {
       throw new Error('Live ByteDance pipeline is not running.');
     }
   }
+
+  private createWorker(): ByteDanceBrowserWorkerClient {
+    return this.options.workerClient ?? this.options.workerClientFactory?.() ?? createByteDanceBrowserWorkerClient();
+  }
+
+  private requireWorker(): ByteDanceBrowserWorkerClient {
+    if (!this.worker) {
+      throw new Error('Live ByteDance pipeline has no active Worker client.');
+    }
+    return this.worker;
+  }
+
+  private captureAnchorSessionTime(): SessionTime {
+    const explicit = this.options.captureSessionAnchor?.();
+    if (explicit) {
+      return explicit;
+    }
+    const runtimeNow = this.options.nowMs?.() ?? globalThis.performance?.now?.() ?? 0;
+    return this.options.sessionTimebase.runtimeToSessionTime(runtimeNow);
+  }
+
+  private async failLifecycle(error: unknown): Promise<void> {
+    this.generation += 1;
+    const message = error instanceof Error ? error.message : String(error);
+    await this.cleanupResources('Live capture failed; ByteDance Worker was terminated.');
+    this.state = {
+      ...this.state,
+      state: 'error',
+      lastError: message,
+    };
+  }
+
+  private async cleanupResources(activeInferenceReason: string): Promise<void> {
+    this.scheduler.reset();
+    this.normalizer.reset();
+    this.ring.reset(this.lifecycleStartSampleIndex);
+    const worker = this.worker;
+    this.worker = null;
+    if (!worker) {
+      return;
+    }
+    try {
+      await worker.dispose();
+    } catch (error) {
+      if (typeof worker.terminate === 'function') {
+        worker.terminate(activeInferenceReason);
+      } else if (!String(error instanceof Error ? error.message : error).includes('active inference')) {
+        throw error;
+      }
+    }
+  }
 }
 
 export class BrowserMicrophoneCaptureController {
@@ -514,8 +597,12 @@ export class BrowserMicrophoneCaptureController {
   private mediaStream: MediaStream | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
   private workletNode: AudioWorkletNode | null = null;
+  private sinkNode: GainNode | null = null;
   private resampler: StreamingLinearResampler | null = null;
-  private readonly pipeline: LiveByteDanceRollingPipeline;
+  private pipeline: LiveByteDanceRollingPipeline | null = null;
+  private workletChunkCount = 0;
+  private sourceContinuityOk = true;
+  private expectedSourceSampleIndex = 0;
   private state: LiveCaptureState = {
     state: 'idle',
     normalizedEndSampleIndex: 0,
@@ -523,11 +610,16 @@ export class BrowserMicrophoneCaptureController {
   };
 
   constructor(private readonly options: LiveByteDanceControllerOptions) {
-    this.pipeline = new LiveByteDanceRollingPipeline(options);
   }
 
   snapshot(): LiveCaptureState {
-    return { ...this.state, ...this.pipeline.snapshot() };
+    return {
+      ...this.state,
+      ...(this.pipeline?.snapshot() ?? {}),
+      workletChunkCount: this.workletChunkCount,
+      sourceContinuityOk: this.sourceContinuityOk,
+      lastSourceSampleIndex: this.expectedSourceSampleIndex,
+    };
   }
 
   async start(): Promise<void> {
@@ -549,12 +641,29 @@ export class BrowserMicrophoneCaptureController {
       await this.audioContext.audioWorklet.addModule(
         new URL('./bytedance-capture.worklet.js', import.meta.url)
       );
-      this.resampler = new StreamingLinearResampler(this.audioContext.sampleRate);
+      this.pipeline = new LiveByteDanceRollingPipeline({
+        ...this.options,
+        sourceSampleRateHz: this.audioContext.sampleRate,
+      });
+      await this.pipeline.start();
+      this.resampler = new StreamingLinearResampler(
+        this.audioContext.sampleRate,
+        MODEL_SAMPLE_RATE_HZ,
+        this.pipeline.currentLifecycleStartSampleIndex
+      );
       this.workletNode = new AudioWorkletNode(this.audioContext, 'noteverse-bytedance-capture');
+      this.workletNode.addEventListener('processorerror', (event) => {
+        void this.handleProcessorError(event);
+      });
       this.workletNode.port.onmessage = (event: MessageEvent<WorkletPcmChunkMessage>) => {
-        if (event.data.type !== 'pcm-chunk' || !this.resampler) {
+        if (event.data.type !== 'pcm-chunk' || !this.resampler || !this.pipeline) {
           return;
         }
+        this.workletChunkCount += 1;
+        if (event.data.sourceStartSampleIndex !== this.expectedSourceSampleIndex) {
+          this.sourceContinuityOk = false;
+        }
+        this.expectedSourceSampleIndex = event.data.sourceEndSampleIndex;
         const chunk = this.resampler.append({
           samples: event.data.samples,
           sourceStartSampleIndex: event.data.sourceStartSampleIndex,
@@ -562,8 +671,11 @@ export class BrowserMicrophoneCaptureController {
         this.pipeline.appendNormalizedPcm(chunk.samples, chunk.startSampleIndex);
       };
       this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
-      await this.pipeline.start();
+      this.sinkNode = this.audioContext.createGain();
+      this.sinkNode.gain.value = 0;
       this.sourceNode.connect(this.workletNode);
+      this.workletNode.connect(this.sinkNode);
+      this.sinkNode.connect(this.audioContext.destination);
       this.state = {
         ...this.pipeline.snapshot(),
         state: 'running',
@@ -575,31 +687,50 @@ export class BrowserMicrophoneCaptureController {
         state: 'error',
         lastError: error instanceof Error ? error.message : String(error),
       };
-      await this.stop();
+      await this.cleanupResources();
       throw error;
     }
   }
 
   async stop(): Promise<void> {
     this.state = { ...this.state, state: 'stopping' };
+    await this.cleanupResources();
+    this.state = {
+      state: 'idle',
+      normalizedEndSampleIndex: 0,
+      skippedAnchorCount: 0,
+    };
+  }
+
+  private async handleProcessorError(event: Event): Promise<void> {
+    this.state = {
+      ...this.state,
+      state: 'error',
+      lastError: `AudioWorklet processor failed: ${event.type}`,
+    };
+    await this.cleanupResources();
+  }
+
+  private async cleanupResources(): Promise<void> {
     this.workletNode?.port.close();
     this.workletNode?.disconnect();
+    this.sinkNode?.disconnect();
     this.sourceNode?.disconnect();
     for (const track of this.mediaStream?.getTracks() ?? []) {
       track.stop();
     }
     await this.audioContext?.close().catch(() => undefined);
     this.workletNode = null;
+    this.sinkNode = null;
     this.sourceNode = null;
     this.mediaStream = null;
     this.audioContext = null;
     this.resampler = null;
-    await this.pipeline.stop().catch(() => undefined);
-    this.state = {
-      state: 'idle',
-      normalizedEndSampleIndex: 0,
-      skippedAnchorCount: 0,
-    };
+    this.workletChunkCount = 0;
+    this.sourceContinuityOk = true;
+    this.expectedSourceSampleIndex = 0;
+    await this.pipeline?.stop().catch(() => undefined);
+    this.pipeline = null;
   }
 }
 
@@ -649,6 +780,16 @@ export function createLiveCaptureTimebase(input: {
     anchorSampleIndex: input.anchorSampleIndex ?? 0,
     anchorSessionTimeMs: input.anchorSessionTime?.ms ?? 0,
   });
+}
+
+export function sampleIndexForSessionTime(time: SessionTime): number {
+  if (time.sampleIndex !== undefined) {
+    return time.sampleIndex;
+  }
+  if (!Number.isFinite(time.ms) || time.ms < 0) {
+    throw new Error('Capture session anchor must have finite non-negative session time.');
+  }
+  return Math.round(time.ms / 1000 * MODEL_SAMPLE_RATE_HZ);
 }
 
 function millisecondsToSamples(milliseconds: number): number {

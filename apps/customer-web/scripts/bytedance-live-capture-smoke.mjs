@@ -189,8 +189,7 @@ function html() {
 function entrySource(config) {
   return `
 import {
-  LiveByteDanceRollingPipeline,
-  StreamingLinearResampler,
+  BrowserMicrophoneCaptureController,
   createLiveCaptureTimebase,
 } from '${config.liveModule}';
 import { createByteDanceBrowserWorkerClient } from '${config.workerFactory}';
@@ -228,21 +227,30 @@ async function webgpuInfo() {
 
 async function main() {
   const webgpu = await webgpuInfo();
-  const realClient = createByteDanceBrowserWorkerClient();
-  const timings = { loadMs: null, inferences: [] };
-  const client = {
+  const timings = { loads: [], inferences: [] };
+  let workerCreations = 0;
+  const makeClient = () => {
+    workerCreations += 1;
+    const realClient = createByteDanceBrowserWorkerClient();
+    return {
     async load(manifest) {
       const started = performance.now();
       const diagnostics = await realClient.load(manifest);
-      timings.loadMs = performance.now() - started;
+      timings.loads.push({
+        workerIndex: workerCreations,
+        loadMs: performance.now() - started,
+        diagnostics: diagnostics ?? null,
+      });
       return diagnostics;
     },
     async infer(input) {
       const started = performance.now();
       const result = await realClient.infer(input);
       timings.inferences.push({
+        workerIndex: workerCreations,
         requestId: input.requestId,
         anchorStartSample: input.captureStartSampleIndex,
+        captureStartTime: input.captureStartTime,
         endToEndMs: performance.now() - started,
         diagnostics: result.diagnostics ?? null,
         eventCount: result.events.length,
@@ -262,62 +270,98 @@ async function main() {
       }
     },
     terminate: (reason) => realClient.terminate(reason),
+    };
   };
 
   const captureDomainId = 'live-smoke-domain';
-  const timebase = createLiveCaptureTimebase({ captureDomainId });
-  const pipeline = new LiveByteDanceRollingPipeline({
+  const sessionTimebase = createLiveCaptureTimebase({ captureDomainId });
+  const anchors = [
+    { domainId: captureDomainId, ms: 0, sampleIndex: 0 },
+    { domainId: captureDomainId, ms: 5000, sampleIndex: 80_000 },
+  ];
+  let anchorIndex = 0;
+  const syntheticSources = [];
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: {
+      getUserMedia: async () => {
+        const source = createSyntheticMediaStream(440 + syntheticSources.length * 110);
+        syntheticSources.push(source);
+        return source.stream;
+      },
+    },
+  });
+
+  const events = [];
+  const controller = new BrowserMicrophoneCaptureController({
     manifest: defaultByteDanceModelManifest({
       modelUrl: '/model.onnx',
       expectedByteSize: CONFIG.modelSize,
       sha256: CONFIG.modelSha256,
     }),
-    sessionTimebase: timebase,
+    sessionTimebase,
     sourceSampleRateHz: 48_000,
-    workerClient: client,
+    workerClientFactory: makeClient,
+    captureSessionAnchor: () => anchors[Math.min(anchorIndex++, anchors.length - 1)],
+    evidenceSink: {
+      onAcousticEvents: (items) => events.push(...items),
+    },
   });
-  await pipeline.start();
 
-  const audio = new AudioContext();
-  await audio.audioWorklet.addModule('${config.worklet}');
-  const resampler = new StreamingLinearResampler(audio.sampleRate);
-  const node = new AudioWorkletNode(audio, 'noteverse-bytedance-capture');
-  const gain = audio.createGain();
-  gain.gain.value = 0;
-  const oscillator = audio.createOscillator();
-  oscillator.frequency.value = 440;
-  oscillator.connect(node);
-  node.connect(gain);
-  gain.connect(audio.destination);
+  const lifecycleSnapshots = [];
+  lifecycleSnapshots.push({ label: 'before-first-start', snapshot: controller.snapshot() });
+  await controller.start();
+  lifecycleSnapshots.push({ label: 'after-first-start', snapshot: controller.snapshot() });
+  await waitForInferenceCount(timings, 1);
+  const firstBeforeStop = controller.snapshot();
+  lifecycleSnapshots.push({ label: 'before-first-stop', snapshot: firstBeforeStop });
+  await controller.stop();
+  lifecycleSnapshots.push({ label: 'after-first-stop', snapshot: controller.snapshot() });
 
-  const chunks = [];
-  let monotonic = true;
-  let expectedSourceStart = 0;
-  node.port.onmessage = (event) => {
-    const message = event.data;
-    if (message.type !== 'pcm-chunk') return;
-    if (message.sourceStartSampleIndex !== expectedSourceStart) monotonic = false;
-    expectedSourceStart = message.sourceEndSampleIndex;
-    const normalized = resampler.append({
-      samples: message.samples,
-      sourceStartSampleIndex: message.sourceStartSampleIndex,
-    });
-    chunks.push({
-      sourceStartSampleIndex: message.sourceStartSampleIndex,
-      sourceEndSampleIndex: message.sourceEndSampleIndex,
-      normalizedStartSampleIndex: normalized.startSampleIndex,
-      normalizedEndSampleIndex: normalized.endSampleIndex,
-    });
-    if (normalized.samples.length > 0) {
-      pipeline.appendNormalizedPcm(normalized.samples, normalized.startSampleIndex);
-    }
+  await controller.start();
+  lifecycleSnapshots.push({ label: 'after-second-start', snapshot: controller.snapshot() });
+  await waitForInferenceCount(timings, 2);
+  const secondBeforeStop = controller.snapshot();
+  lifecycleSnapshots.push({ label: 'before-second-stop', snapshot: secondBeforeStop });
+  await controller.stop();
+  lifecycleSnapshots.push({ label: 'after-second-stop', snapshot: controller.snapshot() });
+  await Promise.all(syntheticSources.map((source) => source.close()));
+
+  const firstEvent = events[0] ?? null;
+  const secondEvent = events.find((event) => (
+    firstEvent
+      ? event.onsetTime.ms > firstEvent.onsetTime.ms || event.onsetTime.sampleIndex > firstEvent.onsetTime.sampleIndex
+      : false
+  )) ?? null;
+
+  return {
+    userAgent: navigator.userAgent,
+    webgpu,
+    controllerPathUsed: true,
+    getUserMediaSubstitutedWithRealMediaStream: true,
+    workerCreations,
+    lifecycleSnapshots,
+    firstLifecycle: {
+      snapshotBeforeStop: firstBeforeStop,
+      event: firstEvent,
+    },
+    secondLifecycle: {
+      snapshotBeforeStop: secondBeforeStop,
+      event: secondEvent,
+    },
+    timeDidNotRewind: Boolean(firstEvent && secondEvent
+      && secondEvent.onsetTime.domainId === firstEvent.onsetTime.domainId
+      && secondEvent.onsetTime.ms > firstEvent.onsetTime.ms
+      && secondEvent.onsetTime.sampleIndex > firstEvent.onsetTime.sampleIndex),
+    timings,
   };
+}
 
-  oscillator.start();
-  await new Promise((resolve, reject) => {
+function waitForInferenceCount(timings, count) {
+  return new Promise((resolve, reject) => {
     const deadline = performance.now() + 20_000;
     const poll = () => {
-      if (timings.inferences.length > 0) {
+      if (timings.inferences.length >= count) {
         resolve();
         return;
       }
@@ -329,20 +373,26 @@ async function main() {
     };
     poll();
   });
-  oscillator.stop();
-  await audio.close();
-  await pipeline.stop();
+}
 
+function createSyntheticMediaStream(frequency) {
+  const audio = new AudioContext();
+  const destination = audio.createMediaStreamDestination();
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+  gain.gain.value = 0.3;
+  oscillator.frequency.value = frequency;
+  oscillator.connect(gain);
+  gain.connect(destination);
+  oscillator.start();
   return {
-    userAgent: navigator.userAgent,
-    webgpu,
-    audioContextSampleRate: audio.sampleRate,
-    workletChunks: chunks.length,
-    workletSampleContinuity: monotonic,
-    firstChunks: chunks.slice(0, 5),
-    lastChunk: chunks[chunks.length - 1] ?? null,
-    pipelineState: pipeline.snapshot(),
-    timings,
+    stream: destination.stream,
+    async close() {
+      oscillator.stop();
+      oscillator.disconnect();
+      gain.disconnect();
+      await audio.close();
+    },
   };
 }
 

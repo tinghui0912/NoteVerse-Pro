@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import canonicalArtifactJson from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
 import {
@@ -12,6 +12,7 @@ import {
 import {
   BoundedPcmSampleRing,
   buildLiveFixedAnchorWindow,
+  BrowserMicrophoneCaptureController,
   BYTEDANCE_ROLLING_ANCHOR_STEP_SAMPLES,
   createLiveCaptureTimebase,
   defaultByteDanceModelManifest,
@@ -24,6 +25,7 @@ import {
   type ByteDanceModelManifest,
   type ByteDancePcmInferenceRequest,
   type AcousticNoteEvent,
+  type LiveByteDanceControllerOptions,
 } from './index';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
@@ -36,16 +38,19 @@ function manifest(): ByteDanceModelManifest {
   });
 }
 
-class FakeWorker implements Pick<ByteDanceBrowserWorkerClient, 'load' | 'infer' | 'dispose'> {
+class FakeWorker implements Pick<ByteDanceBrowserWorkerClient, 'load' | 'infer' | 'dispose' | 'terminate'> {
   loadCount = 0;
   disposeCount = 0;
+  terminateCount = 0;
   requests: ByteDancePcmInferenceRequest[] = [];
+  loadImpl: () => Promise<undefined> = async () => undefined;
+  disposeImpl: () => Promise<void> = async () => undefined;
   inferImpl: (request: ByteDancePcmInferenceRequest) => Promise<ByteDanceInferenceResult>
     = async (request) => ({ requestId: request.requestId, events: [] });
 
   async load(): Promise<undefined> {
     this.loadCount += 1;
-    return undefined;
+    return this.loadImpl();
   }
 
   async infer(request: ByteDancePcmInferenceRequest): Promise<ByteDanceInferenceResult> {
@@ -55,6 +60,11 @@ class FakeWorker implements Pick<ByteDanceBrowserWorkerClient, 'load' | 'infer' 
 
   async dispose(): Promise<void> {
     this.disposeCount += 1;
+    return this.disposeImpl();
+  }
+
+  terminate(): void {
+    this.terminateCount += 1;
   }
 }
 
@@ -85,10 +95,37 @@ function fill(length: number, value = 0.25): Float32Array {
   return Float32Array.from({ length }, () => value);
 }
 
+function anchor(domainId = 'capture-domain', ms = 0, sampleIndex = 0) {
+  return { domainId, ms, sampleIndex };
+}
+
+function pipelineOptions(
+  overrides: Partial<LiveByteDanceControllerOptions> = {}
+): LiveByteDanceControllerOptions {
+  return {
+    manifest: manifest(),
+    sessionTimebase: new PracticeTimebase({ domainId: 'capture-domain', sampleRateHz: 16_000 }),
+    sourceSampleRateHz: 48_000,
+    captureSessionAnchor: () => anchor(),
+    ...overrides,
+  };
+}
+
 async function tick(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+async function settleAsyncWork(): Promise<void> {
+  await tick();
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('live ByteDance capture primitives', () => {
   it('converts multi-channel chunks to deterministic mono', () => {
@@ -186,11 +223,11 @@ describe('live ByteDance rolling pipeline', () => {
       events: [event({ pitch: 'C4', midiPitch: 60, sampleIndex: 1600, timebase })],
     });
     const pipeline = new LiveByteDanceRollingPipeline({
-      manifest: manifest(),
-      sessionTimebase: timebase,
-      sourceSampleRateHz: 48_000,
-      workerClient: workerCast(worker),
-      evidenceSink: { onAcousticEvents: (events) => received.push([...events]) },
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: { onAcousticEvents: (events) => received.push([...events]) },
+      }),
     });
     await pipeline.start();
     pipeline.appendNormalizedPcm(fill(3520), 0);
@@ -213,11 +250,11 @@ describe('live ByteDance rolling pipeline', () => {
       ],
     });
     const pipeline = new LiveByteDanceRollingPipeline({
-      manifest: manifest(),
-      sessionTimebase: timebase,
-      sourceSampleRateHz: 48_000,
-      workerClient: workerCast(worker),
-      evidenceSink: { onAcousticEvents: (events) => emitted.push(...events) },
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: { onAcousticEvents: (events) => emitted.push(...events) },
+      }),
     });
     await pipeline.start();
     pipeline.appendNormalizedPcm(fill(3520), 0);
@@ -234,11 +271,11 @@ describe('live ByteDance rolling pipeline', () => {
       pending.resolve = resolve;
     });
     const pipeline = new LiveByteDanceRollingPipeline({
-      manifest: manifest(),
-      sessionTimebase: timebase,
-      sourceSampleRateHz: 48_000,
-      workerClient: workerCast(worker),
-      evidenceSink: { onAcousticEvents: (events) => emitted.push(...events) },
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: { onAcousticEvents: (events) => emitted.push(...events) },
+      }),
     });
     await pipeline.start();
     pipeline.appendNormalizedPcm(fill(3520), 0);
@@ -277,17 +314,17 @@ describe('live ByteDance rolling pipeline', () => {
     });
     const matches: StepVerifierObservation[] = [];
     const pipeline = new LiveByteDanceRollingPipeline({
-      manifest: manifest(),
-      sessionTimebase: timebase,
-      sourceSampleRateHz: 48_000,
-      workerClient: workerCast(worker),
-      evidenceSink: {
-        currentStepTarget: () => runtime.currentTarget(),
-        onStepObservation: (observation) => {
-          matches.push(observation);
-          runtime.observe(observation);
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: {
+          currentStepTarget: () => runtime.currentTarget(),
+          onStepObservation: (observation) => {
+            matches.push(observation);
+            runtime.observe(observation);
+          },
         },
-      },
+      }),
     });
     await pipeline.start();
     pipeline.appendNormalizedPcm(fill(3520), 0);
@@ -323,14 +360,14 @@ describe('live ByteDance rolling pipeline', () => {
       events: [event({ pitch: 'C4', midiPitch: 60, sampleIndex: 1600, timebase })],
     });
     const pipeline = new LiveByteDanceRollingPipeline({
-      manifest: manifest(),
-      sessionTimebase: timebase,
-      sourceSampleRateHz: 48_000,
-      workerClient: workerCast(worker),
-      evidenceSink: {
-        currentStepTarget: () => runtime.currentTarget(),
-        onStepObservation: (observation) => observations.push(observation),
-      },
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: {
+          currentStepTarget: () => runtime.currentTarget(),
+          onStepObservation: (observation) => observations.push(observation),
+        },
+      }),
     });
     await pipeline.start();
     pipeline.appendNormalizedPcm(fill(3520), 0);
@@ -364,15 +401,15 @@ describe('live ByteDance rolling pipeline', () => {
     });
     const observations: unknown[] = [];
     const pipeline = new LiveByteDanceRollingPipeline({
-      manifest: manifest(),
-      sessionTimebase: timebase,
-      sourceSampleRateHz: 48_000,
-      workerClient: workerCast(worker),
-      evidenceSink: {
-        onPerformanceEvidence: (items) => {
-          observations.push(...items.map((item) => performance.observeEvidence(item)));
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: {
+          onPerformanceEvidence: (items) => {
+            observations.push(...items.map((item) => performance.observeEvidence(item)));
+          },
         },
-      },
+      }),
     });
     await pipeline.start();
     pipeline.appendNormalizedPcm(fill(3520), 0);
@@ -381,5 +418,222 @@ describe('live ByteDance rolling pipeline', () => {
     await tick();
     expect(observations).toHaveLength(1);
     expect(performance.snapshot().musicalBeat).toBe(before);
+  });
+
+  it('stops during active inference, terminates the Worker, and restarts with a fresh Worker', async () => {
+    const workers = [new FakeWorker(), new FakeWorker()];
+    const pending: { resolve?: (result: ByteDanceInferenceResult) => void } = {};
+    workers[0].disposeImpl = async () => {
+      throw new Error('ByteDance worker cannot DISPOSE while inference is active.');
+    };
+    workers[0].inferImpl = async () => new Promise((resolve) => {
+      pending.resolve = resolve;
+    });
+    workers[1].inferImpl = async (request) => ({ requestId: request.requestId, events: [] });
+    let index = 0;
+    const pipeline = new LiveByteDanceRollingPipeline(pipelineOptions({
+      workerClientFactory: () => workerCast(workers[index++]),
+    }));
+
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(3520), 0);
+    await pipeline.stop();
+    expect(workers[0].terminateCount).toBe(1);
+
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(3520), 0);
+    await tick();
+    expect(workers[1].loadCount).toBe(1);
+    expect(workers[1].requests).toHaveLength(1);
+    expect(pipeline.snapshot().state).toBe('running');
+
+    pending.resolve?.({ requestId: 'old', events: [] });
+    await tick();
+  });
+
+  it('cleans up startup load failures, preserves error state, and retries with a fresh Worker', async () => {
+    const workers = [new FakeWorker(), new FakeWorker()];
+    workers[0].loadImpl = async () => {
+      throw new Error('model load failed');
+    };
+    let index = 0;
+    const pipeline = new LiveByteDanceRollingPipeline(pipelineOptions({
+      workerClientFactory: () => workerCast(workers[index++]),
+    }));
+
+    await expect(pipeline.start()).rejects.toThrow(/model load failed/);
+    expect(pipeline.snapshot()).toMatchObject({
+      state: 'error',
+      lastError: 'model load failed',
+    });
+    expect(workers[0].disposeCount).toBe(1);
+
+    await pipeline.start();
+    expect(workers[1].loadCount).toBe(1);
+    expect(pipeline.snapshot().state).toBe('running');
+  });
+
+  it('does not submit a pending coalesced anchor after inference failure', async () => {
+    const worker = new FakeWorker();
+    const pending: { reject?: (error: Error) => void } = {};
+    worker.inferImpl = async () => new Promise((_, reject) => {
+      pending.reject = reject;
+    });
+    const pipeline = new LiveByteDanceRollingPipeline(pipelineOptions({
+      workerClient: workerCast(worker),
+    }));
+
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(3520), 0);
+    pipeline.appendNormalizedPcm(fill(2400 * 3), 3520);
+    expect(pipeline.snapshot().coalescedAnchorSampleIndex).toBe(7200);
+    pending.reject?.(new Error('inference failed'));
+    await settleAsyncWork();
+
+    expect(pipeline.snapshot()).toMatchObject({
+      state: 'error',
+      lastError: 'inference failed',
+    });
+    expect(worker.requests).toHaveLength(1);
+  });
+
+  it('restarts capture with later session time and no sample/time rewind', async () => {
+    const anchors = [
+      anchor('stable-practice-domain', 0, 0),
+      anchor('stable-practice-domain', 5000, 80_000),
+    ];
+    const emitted: AcousticNoteEvent[] = [];
+    const workers = [new FakeWorker(), new FakeWorker()];
+    for (const worker of workers) {
+      worker.inferImpl = async (request) => ({
+        requestId: request.requestId,
+        events: [{
+          pitch: 'C4',
+          midiPitch: 60,
+          onsetTime: {
+            ...request.captureStartTime,
+            ms: request.captureStartTime.ms + 1600,
+            sampleIndex: request.captureStartSampleIndex + 25_600,
+          },
+          confidence: 0.9,
+          onsetScore: 0.9,
+          frameScore: 0.9,
+          source: 'ACOUSTIC',
+        }],
+      });
+    }
+    let workerIndex = 0;
+    let anchorIndex = 0;
+    const pipeline = new LiveByteDanceRollingPipeline(pipelineOptions({
+      sessionTimebase: new PracticeTimebase({ domainId: 'stable-practice-domain', sampleRateHz: 16_000 }),
+      workerClientFactory: () => workerCast(workers[workerIndex++]),
+      captureSessionAnchor: () => anchors[anchorIndex++],
+      evidenceSink: { onAcousticEvents: (events) => emitted.push(...events) },
+    }));
+
+    await pipeline.start();
+    expect(pipeline.currentLifecycleStartSampleIndex).toBe(0);
+    pipeline.appendNormalizedPcm(fill(3520), 0);
+    await tick();
+    await pipeline.stop();
+
+    await pipeline.start();
+    expect(pipeline.currentLifecycleStartSampleIndex).toBe(80_000);
+    pipeline.appendNormalizedPcm(fill(5120), 80_000);
+    await tick();
+
+    expect(emitted).toHaveLength(2);
+    expect(emitted[0].onsetTime.domainId).toBe('stable-practice-domain');
+    expect(emitted[1].onsetTime.domainId).toBe('stable-practice-domain');
+    expect(emitted[1].onsetTime.sampleIndex).toBeGreaterThan(emitted[0].onsetTime.sampleIndex ?? 0);
+    expect(emitted[1].onsetTime.ms).toBeGreaterThan(emitted[0].onsetTime.ms);
+  });
+
+  it('ignores old results after restart and resets normalizer state per lifecycle', async () => {
+    const workers = [new FakeWorker(), new FakeWorker()];
+    const pending: { resolve?: (result: ByteDanceInferenceResult) => void } = {};
+    const emitted: AcousticNoteEvent[] = [];
+    workers[0].disposeImpl = async () => {
+      throw new Error('ByteDance worker cannot DISPOSE while inference is active.');
+    };
+    workers[0].inferImpl = async () => new Promise((resolve) => {
+      pending.resolve = resolve;
+    });
+    workers[1].inferImpl = async (request) => ({
+      requestId: request.requestId,
+      events: [event({
+        pitch: 'C4',
+        midiPitch: 60,
+        sampleIndex: request.captureStartSampleIndex + 25_600,
+        timebase: createLiveCaptureTimebase({
+          captureDomainId: 'capture-domain',
+          anchorSampleIndex: 0,
+          anchorSessionTime: anchor(),
+        }),
+      })],
+    });
+    let index = 0;
+    const pipeline = new LiveByteDanceRollingPipeline(pipelineOptions({
+      workerClientFactory: () => workerCast(workers[index++]),
+      evidenceSink: { onAcousticEvents: (events) => emitted.push(...events) },
+    }));
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(3520), 0);
+    await pipeline.stop();
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(3520), 0);
+    pending.resolve?.({
+      requestId: 'late-old',
+      events: [event({
+        pitch: 'C4',
+        midiPitch: 60,
+        sampleIndex: 0,
+        timebase: createLiveCaptureTimebase({
+          captureDomainId: 'capture-domain',
+          anchorSampleIndex: 0,
+          anchorSessionTime: anchor(),
+        }),
+      })],
+    });
+    await tick();
+    expect(emitted).toHaveLength(1);
+  });
+
+  it('keeps BrowserMicrophoneCaptureController permission and AudioWorklet errors observable', async () => {
+    const denied = new Error('permission denied');
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockRejectedValue(denied),
+      },
+    });
+    const permissionController = new BrowserMicrophoneCaptureController(pipelineOptions());
+    await expect(permissionController.start()).rejects.toThrow(/permission denied/);
+    expect(permissionController.snapshot()).toMatchObject({
+      state: 'error',
+      lastError: 'permission denied',
+    });
+
+    const stream = { getTracks: () => [{ stop: vi.fn() }] };
+    class FailingAudioContext {
+      sampleRate = 48_000;
+      destination = {};
+      audioWorklet = {
+        addModule: vi.fn().mockRejectedValue(new Error('worklet failed')),
+      };
+      createMediaStreamSource = vi.fn();
+      close = vi.fn().mockResolvedValue(undefined);
+    }
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockResolvedValue(stream),
+      },
+    });
+    vi.stubGlobal('AudioContext', FailingAudioContext);
+    const workletController = new BrowserMicrophoneCaptureController(pipelineOptions());
+    await expect(workletController.start()).rejects.toThrow(/worklet failed/);
+    expect(workletController.snapshot()).toMatchObject({
+      state: 'error',
+      lastError: 'worklet failed',
+    });
   });
 });
