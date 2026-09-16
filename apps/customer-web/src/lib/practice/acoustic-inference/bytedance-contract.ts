@@ -4,7 +4,9 @@ export const BYTEDANCE_NOTE_MODEL_ID = 'bytedance-piano-transcription-note-model
 export const BYTEDANCE_NOTE_MODEL_VERSION = 'CRNN_note_F1_0.9677_pedal_F1_0.9186';
 export const BYTEDANCE_PREPROCESSING_VERSION = 'fixed-anchor-16k-mono-v1';
 export const BYTEDANCE_DECODER_VERSION = 'temporally-bound-reg-onset-frame-v1';
-export const ONNX_RUNTIME_WEB_VERSION = '1.30.0';
+// Frozen to 1.20.1 after a same-machine WebGPU A/B showed a severe 1.30.0
+// latency regression for this fixed ByteDance ONNX export.
+export const ONNX_RUNTIME_WEB_VERSION = '1.20.1';
 
 export const BYTEDANCE_INPUT_DESCRIPTOR = {
   name: 'audio',

@@ -8,13 +8,17 @@ AudioWorklet, model caching, or production model delivery.
 
 - Model ID: `bytedance-piano-transcription-note-model`
 - Model version: `CRNN_note_F1_0.9677_pedal_F1_0.9186`
-- ONNX Runtime Web: `1.30.0`
+- ONNX Runtime Web: `1.20.1`
 - Required execution provider: `webgpu`
 - Sample rate: 16 kHz mono PCM
 
 The production ONNX binary is not committed here. The runtime consumes a
 versioned manifest with model URL/path, expected byte size, SHA256, input/output
 descriptors, preprocessing version, and decoder version.
+
+The ORT runtime is intentionally pinned to `1.20.1`: a controlled same-machine
+WebGPU A/B reproduced subsecond warm inference on 1.20.1 and a severe multi-
+second regression on 1.30.0 for this exact fixed-anchor ONNX export.
 
 ## Input contract
 
